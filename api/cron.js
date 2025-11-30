@@ -1,4 +1,6 @@
-﻿// api/cron.js
+﻿export const dynamic = 'force-dynamic';
+
+// api/cron.js
 
 // --- Imports ----------------------------------------------------
 const { getExchangeInflow, getMinerPositionIndex } = require('../services/cryptoquant/endpoints/btc');
