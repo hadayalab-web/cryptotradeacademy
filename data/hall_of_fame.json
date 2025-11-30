@@ -1,0 +1,25 @@
+﻿[
+  {
+    "id": 1,
+    "signal": "BUY",
+    "symbol": "BTC",
+    "date": "2023-03-10",
+    "price_at_signal": 20100,
+    "price_peak": 28500,
+    "roi_percent": 41.8,
+    "reasoning": "Whale accumulation detected on Coinbase Pro + MPI low",
+    "metrics": { "inflow": -4500, "mpi": -0.8 }
+  },
+  {
+    "id": 2,
+    "signal": "SELL",
+    "symbol": "ETH",
+    "date": "2023-04-15",
+    "price_at_signal": 2120,
+    "price_peak": 1850,
+    "roi_percent": 12.7,
+    "reasoning": "Exchange Inflow Spike > 50k ETH + Hype exhaustion",
+    "metrics": { "inflow": 52000, "sentiment": "Greed" }
+  }
+  // ... (他18件のデータが入る想定)
+]
