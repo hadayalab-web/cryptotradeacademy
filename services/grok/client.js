@@ -1,15 +1,15 @@
-﻿const OpenAI = require('openai');
+const OpenAI = require('openai');
 
 // Grok (xAI) API Configuration
-const GROK_API_KEY = process.env.GROK_API_KEY;
+const XAI_API_KEY = process.env.XAI_API_KEY;
 const BASE_URL = 'https://api.x.ai/v1'; // xAI official endpoint
 
-if (!GROK_API_KEY) {
-    console.warn("⚠️ GROK_API_KEY is not set in environment variables.");
+if (!XAI_API_KEY) {
+    console.warn("⚠️ XAI_API_KEY is not set in environment variables.");
 }
 
 const openai = new OpenAI({
-    apiKey: GROK_API_KEY,
+    apiKey: XAI_API_KEY,
     baseURL: BASE_URL
 });
 
