@@ -1,4 +1,4 @@
-ï»¿export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 
 // api/cron.js
 
@@ -11,7 +11,7 @@ const { analyzeMarket } = require('../services/grok/client');
 const { sendMessage } = require('../services/telegram/bot');
 
 // --- External data helpers -------------------------------------
-// BTC ç¾åœ¨ä¾¡æ ¼ï¼‹24hå¤‰åŒ–ç‡ï¼ˆCoinGeckoï¼‰[web:151]
+// BTC Œ»İ‰¿Ši{24h•Ï‰»—¦iCoinGeckoj[web:151]
 async function fetchBtcPrice() {
   const url = new URL(
     'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true'
@@ -26,7 +26,7 @@ async function fetchBtcPrice() {
   };
 }
 
-// Fear & Greed Indexï¼ˆalternative.meï¼‰[web:145]
+// Fear & Greed Indexialternative.mej[web:145]
 async function fetchFearGreed() {
   const url = new URL('https://api.alternative.me/fng/?limit=1');
   const res = await fetch(url.toString());
@@ -58,34 +58,34 @@ function buildRegularMessage(payload) {
 
   const ts = now.toISOString().replace('T', ' ').slice(0, 16);
   const directionEmoji = tradeSignal.signal === 'BUY'
-    ? 'ğŸŸ¢'
+    ? '??'
     : tradeSignal.signal === 'SELL'
-    ? 'ğŸ”´'
-    : 'âšªï¸';
+    ? '??'
+    : '??';
 
   const trapLine = trap.isTrap
-    ? `ğŸš¨ Trap Detector: ${trap.type} (${trap.confidence})`
-    : 'ğŸš¨ Trap Detector: No critical trap detected.';
+    ? `?? Trap Detector: ${trap.type} (${trap.confidence})`
+    : '?? Trap Detector: No critical trap detected.';
 
   return [
-    `ğŸ“¢ Dr. Grok's Market Leak`,
-    `ã€Session Briefing @ ${ts} UTCã€‘`,
+    `?? Dr. Grok's Market Leak`,
+    `ySession Briefing @ ${ts} UTCz`,
     '',
-    `ğŸ’° BTC Price: $${priceUsd.toLocaleString()} (${change24h.toFixed(2)}% / 24h)`,
-    `ğŸ“Š Exchange Netflow: ${inflow.toFixed(2)} BTC`,
-    `â›ï¸ Miner Position Index (MPI): ${mpi.toFixed(2)}`,
-    `ğŸ˜° Sentiment: ${sentimentLabel}`,
+    `?? BTC Price: $${priceUsd.toLocaleString()} (${change24h.toFixed(2)}% / 24h)`,
+    `?? Exchange Netflow: ${inflow.toFixed(2)} BTC`,
+    `?? Miner Position Index (MPI): ${mpi.toFixed(2)}`,
+    `?? Sentiment: ${sentimentLabel}`,
     '',
-    `ğŸ“ˆ Market Score: ${score}/100`,
+    `?? Market Score: ${score}/100`,
     trapLine,
     '',
-    `ğŸ¯ Trade Verdict`,
+    `?? Trade Verdict`,
     `${directionEmoji} Signal: ${tradeSignal.signal}`,
-    `   â€¢ Entry (spot ref.): $${Math.round(tradeSignal.entry).toLocaleString()}`,
-    `   â€¢ Take Profit:      $${tradeSignal.tp.toLocaleString()}`,
-    `   â€¢ Stop Loss:        $${tradeSignal.sl.toLocaleString()}`,
+    `   ? Entry (spot ref.): $${Math.round(tradeSignal.entry).toLocaleString()}`,
+    `   ? Take Profit:      $${tradeSignal.tp.toLocaleString()}`,
+    `   ? Stop Loss:        $${tradeSignal.sl.toLocaleString()}`,
     '',
-    `ğŸ¤– Dr. Grok's Take`,
+    `?? Dr. Grok's Take`,
     aiAnalysis || 'No AI commentary available this round.',
     '',
     `For educational purposes only. Not financial advice.`,
@@ -94,10 +94,10 @@ function buildRegularMessage(payload) {
 
 function buildTrapAlertMessage(payload) {
   const { inflow, mpi, priceUsd, trap, aiAnalysis } = payload;
-  const emoji = trap.type === 'BULL_TRAP' ? 'ğŸ»' : 'ğŸ‚';
+  const emoji = trap.type === 'BULL_TRAP' ? '??' : '??';
 
   return [
-    `ğŸ”¥ WHALE TRAP ALERT (${trap.type}) ${emoji}`,
+    `?? WHALE TRAP ALERT (${trap.type}) ${emoji}`,
     '',
     `BTC Price: $${priceUsd.toLocaleString()}`,
     `Exchange Netflow: ${inflow.toFixed(2)} BTC`,
@@ -107,7 +107,7 @@ function buildTrapAlertMessage(payload) {
     aiAnalysis || 'Trap detected, but AI commentary unavailable.',
     '',
     `This is an unscheduled alert from the Whale Trap Detector.`,
-    `Educational only â€“ manage your own risk.`,
+    `Educational only ? manage your own risk.`,
   ].join('\n');
 }
 
@@ -119,42 +119,42 @@ function buildTrapAlertMessage(payload) {
  */
 
 module.exports = async (req, res) => {
-  // ãƒ‡ãƒãƒƒã‚°ç”¨ãƒ•ãƒ©ã‚°ï¼ˆãƒ–ãƒ©ã‚¦ã‚¶ç›´å©ãã®ã¨ãã ã‘ä½¿ã†ï¼‰
+  // ƒfƒoƒbƒO—pƒtƒ‰ƒOiƒuƒ‰ƒEƒU’¼’@‚«‚Ì‚Æ‚«‚¾‚¯g‚¤j
   const debugBypass = req.query?.debug === 'local';
 
-  // CRON_SECRET ã«ã‚ˆã‚‹ç°¡æ˜“èªè¨¼
+  // CRON_SECRET ‚É‚æ‚éŠÈˆÕ”FØ
   const authHeader = req.headers.authorization;
   if (!debugBypass && process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
-  } // â˜…â† ã“ã®ã‚«ãƒƒã‚³ãŒä»Šãƒ•ã‚¡ã‚¤ãƒ«ã«ç„¡ã„
+  } // š© ‚±‚ÌƒJƒbƒR‚ª¡ƒtƒ@ƒCƒ‹‚É–³‚¢
 
-  console.log('â° Cron Job Started: Whale Monitor');
-  // ã“ã“ã‹ã‚‰ä¸‹ã¯ä»Šã®ã¾ã¾ã§OK
+  console.log('? Cron Job Started: Whale Monitor');
+  // ‚±‚±‚©‚ç‰º‚Í¡‚Ì‚Ü‚Ü‚ÅOK
 
 
 
   try {
-    // 1. On-chain ãƒ‡ãƒ¼ã‚¿å–å¾—ï¼ˆCQï¼‰[attached_file:115]
+    // 1. On-chain ƒf[ƒ^æ“¾iCQj[attached_file:115]
     const [inflowData, mpiData] = await Promise.all([
       getExchangeInflow(),
       getMinerPositionIndex(),
     ]);
 
     if (!inflowData || !mpiData) {
-      console.warn('âš ï¸ No data fetched from CryptoQuant');
+      console.warn('?? No data fetched from CryptoQuant');
       return res.status(200).json({ message: 'No on-chain data available, skipped.' });
     }
 
     const inflow = Number(inflowData.value) || 0;
     const mpi = Number(mpiData.value) || 0;
 
-    // 2. ãƒãƒ¼ã‚±ãƒƒãƒˆãƒ¡ã‚¿ãƒ‡ãƒ¼ã‚¿ï¼ˆä¾¡æ ¼ï¼‹ã‚»ãƒ³ãƒãƒ¡ãƒ³ãƒˆï¼‰[web:151][web:145]
+    // 2. ƒ}[ƒPƒbƒgƒƒ^ƒf[ƒ^i‰¿Ši{ƒZƒ“ƒ`ƒƒ“ƒgj[web:151][web:145]
     const [priceMeta, fng] = await Promise.all([fetchBtcPrice(), fetchFearGreed()]);
     const priceUsd = priceMeta.priceUsd;
     const change24h = priceMeta.change24h;
     const sentimentLabel = fng.label;
 
-    // 3. ã‚¹ã‚³ã‚¢ï¼ã‚·ã‚°ãƒŠãƒ«ï¼Trap åˆ¤å®š[attached_file:142][attached_file:141][attached_file:140]
+    // 3. ƒXƒRƒA^ƒVƒOƒiƒ‹^Trap ”»’è[attached_file:142][attached_file:141][attached_file:140]
     const score = calculateMarketScore({
       inflow,
       mpi,
@@ -166,7 +166,7 @@ module.exports = async (req, res) => {
     const trap = detectTrap(
       {
         priceChange: change24h,
-        volume: 0, // v1 ã§ã¯æœªä½¿ç”¨ã€‚å°†æ¥ã‚ªãƒ³ãƒã‚§ãƒ¼ãƒ³ãƒœãƒªãƒ¥ãƒ¼ãƒ ç­‰ã‚’å…¥ã‚Œã‚‹ä½™åœ°ã€‚
+        volume: 0, // v1 ‚Å‚Í–¢g—pB«—ˆƒIƒ“ƒ`ƒF[ƒ“ƒ{ƒŠƒ…[ƒ€“™‚ğ“ü‚ê‚é—]’nB
       },
       {
         inflow,
@@ -174,7 +174,7 @@ module.exports = async (req, res) => {
       },
     );
 
-    // 4. Grok ç”¨ã‚µãƒãƒªãƒ¼ã‚’æ§‹ç¯‰ã—ã¦è¦ç´„ã‚’å–å¾—[attached_file:117]
+    // 4. Grok —pƒTƒ}ƒŠ[‚ğ\’z‚µ‚Ä—v–ñ‚ğæ“¾[attached_file:117]
     const marketSummary = JSON.stringify(
       {
         inflow,
@@ -194,7 +194,7 @@ module.exports = async (req, res) => {
 
     const aiAnalysis = await analyzeMarket(marketSummary);
 
-    // 5. REGULAR ãƒ¬ãƒãƒ¼ãƒˆæ ï¼ˆ4æ™‚é–“ã”ã¨ï¼‰ã®åˆ¤å®š[attached_file:112]
+    // 5. REGULAR ƒŒƒ|[ƒg˜gi4ŠÔ‚²‚Æj‚Ì”»’è[attached_file:112]
     const now = new Date();
     const utcHour = now.getUTCHours();
     const utcMinute = now.getUTCMinutes();
@@ -202,17 +202,17 @@ module.exports = async (req, res) => {
 
     const isRegularSlot = REGULAR_HOURS.includes(utcHour) && utcMinute < 5;
 
-// â˜… ã“ã“ã‹ã‚‰è¿½åŠ  â˜…
+// š ‚±‚±‚©‚ç’Ç‰Á š
 const force = req.query?.force === 'true';
 
 console.log(
   `Slot check => utcHour=${utcHour}, utcMinute=${utcMinute}, isRegularSlot=${isRegularSlot}, force=${force}`
 );
-// â˜… ã“ã“ã¾ã§è¿½åŠ  â˜…
+// š ‚±‚±‚Ü‚Å’Ç‰Á š
 
     let sent = 0;
 
-// 6-A. REGULAR ãƒ¬ãƒãƒ¼ãƒˆé€ä¿¡
+// 6-A. REGULAR ƒŒƒ|[ƒg‘—M
 if (isRegularSlot || force) {
   console.log('Sending REGULAR message...');
   const regularText = buildRegularMessage({
@@ -231,7 +231,7 @@ if (isRegularSlot || force) {
   sent += 1;
 }
 
-    // 6-B. Trap å°‚ç”¨ EMERGENCYï¼ˆREGULAR ã¨ã¯åˆ¥æ ï¼‰
+    // 6-B. Trap ê—p EMERGENCYiREGULAR ‚Æ‚Í•Ê˜gj
     if (trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot) {
       const alertText = buildTrapAlertMessage({
         inflow,
@@ -244,7 +244,7 @@ if (isRegularSlot || force) {
       sent += 1;
     }
 
-    // 7. HTTP ãƒ¬ã‚¹ãƒãƒ³ã‚¹
+    // 7. HTTP ƒŒƒXƒ|ƒ“ƒX
     res.status(200).json({
       success: true,
       sentMessages: sent,
@@ -260,7 +260,8 @@ if (isRegularSlot || force) {
       trap,
     });
   } catch (error) {
-    console.error('âŒ Cron Job Failed:', error);
+    console.error('? Cron Job Failed:', error);
     res.status(500).json({ error: error.message });
   }
 };
+
