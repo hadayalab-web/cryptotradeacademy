@@ -120,17 +120,18 @@ function buildTrapAlertMessage(payload) {
 
 module.exports = async (req, res) => {
   // デバッグ用フラグ（ブラウザ直叩きのときだけ使う）
-  // const debugBypass = req.query?.debug === 'local';
+  const debugBypass = req.query?.debug === 'local';
 
-  // // CRON_SECRET による簡易認証（テスト用に一時OFF）
-  // const authHeader = req.headers.authorization;
-  // if (!debugBypass && process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-  //   return res.status(401).json({ error: 'Unauthorized' });
-  // }
+  // CRON_SECRET による簡易認証
+  const authHeader = req.headers.authorization;
+  if (!debugBypass && process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  } // ★← このカッコが今ファイルに無い
 
   console.log('⏰ Cron Job Started: Whale Monitor');
-  ...
-}
+  // ここから下は今のままでOK
+
+
 
   try {
     // 1. On-chain データ取得（CQ）[attached_file:115]
