@@ -193,25 +193,34 @@ module.exports = async (req, res) => {
 
     const isRegularSlot = REGULAR_HOURS.includes(utcHour) && utcMinute < 5;
 
+// ★ ここから追加 ★
+const force = req.query?.force === 'true';
+
+console.log(
+  `Slot check => utcHour=${utcHour}, utcMinute=${utcMinute}, isRegularSlot=${isRegularSlot}, force=${force}`
+);
+// ★ ここまで追加 ★
+
     let sent = 0;
 
-    // 6-A. REGULAR レポート送信
-    if (isRegularSlot) {
-      const regularText = buildRegularMessage({
-        now,
-        inflow,
-        mpi,
-        sentimentLabel,
-        priceUsd,
-        change24h,
-        score,
-        tradeSignal,
-        trap,
-        aiAnalysis,
-      });
-      await sendMessage(regularText);
-      sent += 1;
-    }
+// 6-A. REGULAR レポート送信
+if (isRegularSlot || force) {
+  console.log('Sending REGULAR message...');
+  const regularText = buildRegularMessage({
+    now,
+    inflow,
+    mpi,
+    sentimentLabel,
+    priceUsd,
+    change24h,
+    score,
+    tradeSignal,
+    trap,
+    aiAnalysis,
+  });
+  await sendMessage(regularText);
+  sent += 1;
+}
 
     // 6-B. Trap 専用 EMERGENCY（REGULAR とは別枠）
     if (trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot) {
