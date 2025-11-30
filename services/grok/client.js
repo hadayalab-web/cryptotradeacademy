@@ -21,7 +21,7 @@ const openai = new OpenAI({
 async function analyzeMarket(marketData) {
     try {
         const completion = await openai.chat.completions.create({
-            model: "grok-beta", // or appropriate model version
+            model: "grok-4-1-fast-reasoning", // or appropriate model version
             messages: [
                 {
                     role: "system",

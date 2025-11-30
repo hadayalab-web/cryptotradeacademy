@@ -1,20 +1,19 @@
-﻿{
-    "name":  "cryptosignal-ai",
-    "version":  "1.0.0",
-    "description":  "AI-driven Crypto Signal Bot with Whale Analysis",
-    "main":  "api/cron.js",
-    "scripts":  {
-                    "test":  "echo \"Error: no test specified\" \u0026\u0026 exit 1",
-                    "start":  "node scripts/monitor_process.js",
-                    "test:local":  "node scripts/local_test.js",
-                    "monitor":  "node scripts/monitor_process.js"
-                },
-    "dependencies":  {
-                         "dotenv":  "^16.4.5",
-                         "node-fetch":  "^3.3.2",
-                         "openai":  "^6.9.1",
-                         "node-cron":  "^3.0.0"
-                     },
-    "author":  "CryptoSignal AI Team",
-    "license":  "ISC"
+{
+    "name": "cryptosignal-ai",
+    "version": "1.0.0",
+    "description": "AI-driven Crypto Signal Bot with Whale Analysis",
+    "main": "api/cron.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "node scripts/monitor_process.js",
+        "test:local": "node scripts/local_test.js",
+        "monitor": "node scripts/monitor_process.js"
+    },
+    "dependencies": {
+        "dotenv": "^16.4.5",
+        "node-cron": "^3.0.0",
+        "openai": "^6.9.1"
+    },
+    "author": "CryptoSignal AI Team",
+    "license": "ISC"
 }

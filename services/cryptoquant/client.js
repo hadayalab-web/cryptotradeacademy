@@ -1,45 +1,45 @@
-﻿const fetch = require('node-fetch'); // package.jsonに追加したnode-fetchを使用
+﻿// services/cryptoquant/client.js
+// Node.js 18+ Native Fetchを使用
 
+const BASE_URL = "https://api.cryptoquant.com/v1";
 const API_KEY = process.env.CRYPTOQUANT_API_KEY;
-const BASE_URL = 'https://api.cryptoquant.com/v1'; // APIバージョンは適宜変更
-
-if (!API_KEY) {
-  console.warn("⚠️ CRYPTOQUANT_API_KEY is not set in .env.local");
-}
 
 /**
- * Generic function to fetch data from CryptoQuant
- * @param {string} endpoint - e.g., '/btc/exchange-flows'
- * @param {object} params - Query parameters
- * @returns {Promise<object>} - API Response
+ * Generic Fetch Wrapper for CryptoQuant
+ * @param {string} endpoint 
+ * @param {object} params 
  */
 async function fetchCryptoQuant(endpoint, params = {}) {
-  // クエリパラメータの構築
-  const url = new URL(`${BASE_URL}${endpoint}`);
-  Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-
-  try {
-    console.log(`🌐 Fetching: ${url.toString()}`);
-    
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    if (!API_KEY) {
+        console.error("⚠️ CRYPTOQUANT_API_KEY is not set in .env.local");
+        return null;
     }
 
-    const data = await response.json();
-    return data;
+    const url = new URL(`${BASE_URL}${endpoint}`);
+    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
-  } catch (error) {
-    console.error(`❌ CryptoQuant Request Failed: ${error.message}`);
-    throw error;
-  }
+    console.log(`🌐 Fetching: ${url.toString()}`);
+
+    try {
+        // Node.js標準のfetchを使用 (require不要)
+        const response = await fetch(url.toString(), {
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return data;
+
+    } catch (error) {
+        console.error(`❌ CryptoQuant Request Failed:`, error.message);
+        throw error;
+    }
 }
 
 module.exports = { fetchCryptoQuant };
