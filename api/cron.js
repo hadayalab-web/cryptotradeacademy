@@ -117,12 +117,18 @@ function buildTrapAlertMessage(payload) {
  * Vercel Cron Handler
  * Triggered every 5 minutes
  */
+
 module.exports = async (req, res) => {
-  // CRON_SECRET による簡易認証
-  const authHeader = req.headers.authorization;
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+
+// デバッグ用フラグ（ブラウザ直叩きのときだけ使う）
+const debugBypass = req.query?.debug === 'local';
+
+// CRON_SECRET による簡易認証
+const authHeader = req.headers.authorization;
+if (!debugBypass && process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  return res.status(401).json({ error: 'Unauthorized' });
+}
+
 
   console.log('⏰ Cron Job Started: Whale Monitor');
 
