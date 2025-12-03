@@ -4,11 +4,17 @@
     "description": "AI-driven Crypto Signal Bot with Whale Analysis",
     "main": "api/cron.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "start": "node scripts/monitor_process.js",
-        "test:local": "node scripts/local_test.js",
-        "monitor": "node scripts/monitor_process.js"
-    },
+  "test": "echo \"Error: no test specified\" && exit 1",
+  "start": "node scripts/monitor_process.js",
+  "test:local": "node scripts/local_test.js",
+  "monitor": "node scripts/monitor_process.js",
+
+  "backtest:dummy": "node scripts/backtest/eval_signals.js --input=data/signals_log_dummy.jsonl --output=data/signals_backtest_dummy.jsonl",
+  "summary:dummy": "node scripts/backtest/summarize_backtest.js --input=data/signals_backtest_dummy.jsonl",
+  "backtest:real": "node scripts/backtest/eval_signals.js",
+  "summary:real": "node scripts/backtest/summarize_backtest.js"
+}
+,
     "dependencies": {
         "dotenv": "^16.4.5",
         "node-cron": "^3.0.0",
@@ -17,3 +23,4 @@
     "author": "CryptoSignal AI Team",
     "license": "ISC"
 }
+

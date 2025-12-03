@@ -2,16 +2,24 @@ export const dynamic = 'force-dynamic';
 
 // api/cron.js
 
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // --- Imports ----------------------------------------------------
+
+const { formatRegularBriefing } = require('../services/telegram/messages/user/en/regular');
+const { formatTrapAlert } = require('../services/telegram/messages/user/en/emergency');
 const { getExchangeInflow, getMinerPositionIndex } = require('../services/cryptoquant/endpoints/btc');
-const { calculateMarketScore } = require('../logic/marketScorer');
-const { generateSignal } = require('../logic/signalGen');
-const { detectTrap } = require('../logic/trapDetector');
+const { calculateMarketScore } = require('../logic/tier1_btc/marketScorer');
+const { generateSignal } = require('../logic/tier1_btc/signalGen');
+const { detectTrap } = require('../logic/tier1_btc/trapDetector');
+const { normalizeSentiment } = require('../logic/tier1_btc/sentiment'); // â˜… ã“ã‚Œã‚’è¿½åŠ 
 const { analyzeMarket } = require('../services/grok/client');
 const { sendMessage } = require('../services/telegram/bot');
 
+
 // --- External data helpers -------------------------------------
-// BTC Œ»İ‰¿Ši{24h•Ï‰»—¦iCoinGeckoj[web:151]
+// BTC ï¿½ï¿½ï¿½İ‰ï¿½ï¿½iï¿½{24hï¿½Ï‰ï¿½ï¿½ï¿½ï¿½iCoinGeckoï¿½j[web:151]
 async function fetchBtcPrice() {
   const url = new URL(
     'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true'
@@ -26,7 +34,7 @@ async function fetchBtcPrice() {
   };
 }
 
-// Fear & Greed Indexialternative.mej[web:145]
+// Fear & Greed Indexï¿½ialternative.meï¿½j[web:145]
 async function fetchFearGreed() {
   const url = new URL('https://api.alternative.me/fng/?limit=1');
   const res = await fetch(url.toString());
@@ -40,77 +48,6 @@ async function fetchFearGreed() {
   };
 }
 
-// --- Message builders -------------------------------------------
-
-function buildRegularMessage(payload) {
-  const {
-    now,
-    inflow,
-    mpi,
-    sentimentLabel,
-    priceUsd,
-    change24h,
-    score,
-    tradeSignal,
-    trap,
-    aiAnalysis,
-  } = payload;
-
-  const ts = now.toISOString().replace('T', ' ').slice(0, 16);
-  const directionEmoji = tradeSignal.signal === 'BUY'
-    ? '??'
-    : tradeSignal.signal === 'SELL'
-    ? '??'
-    : '??';
-
-  const trapLine = trap.isTrap
-    ? `?? Trap Detector: ${trap.type} (${trap.confidence})`
-    : '?? Trap Detector: No critical trap detected.';
-
-  return [
-    `?? Dr. Grok's Market Leak`,
-    `ySession Briefing @ ${ts} UTCz`,
-    '',
-    `?? BTC Price: $${priceUsd.toLocaleString()} (${change24h.toFixed(2)}% / 24h)`,
-    `?? Exchange Netflow: ${inflow.toFixed(2)} BTC`,
-    `?? Miner Position Index (MPI): ${mpi.toFixed(2)}`,
-    `?? Sentiment: ${sentimentLabel}`,
-    '',
-    `?? Market Score: ${score}/100`,
-    trapLine,
-    '',
-    `?? Trade Verdict`,
-    `${directionEmoji} Signal: ${tradeSignal.signal}`,
-    `   ? Entry (spot ref.): $${Math.round(tradeSignal.entry).toLocaleString()}`,
-    `   ? Take Profit:      $${tradeSignal.tp.toLocaleString()}`,
-    `   ? Stop Loss:        $${tradeSignal.sl.toLocaleString()}`,
-    '',
-    `?? Dr. Grok's Take`,
-    aiAnalysis || 'No AI commentary available this round.',
-    '',
-    `For educational purposes only. Not financial advice.`,
-  ].join('\n');
-}
-
-function buildTrapAlertMessage(payload) {
-  const { inflow, mpi, priceUsd, trap, aiAnalysis } = payload;
-  const emoji = trap.type === 'BULL_TRAP' ? '??' : '??';
-
-  return [
-    `?? WHALE TRAP ALERT (${trap.type}) ${emoji}`,
-    '',
-    `BTC Price: $${priceUsd.toLocaleString()}`,
-    `Exchange Netflow: ${inflow.toFixed(2)} BTC`,
-    `MPI: ${mpi.toFixed(2)}`,
-    '',
-    `Dr. Grok's quick take:`,
-    aiAnalysis || 'Trap detected, but AI commentary unavailable.',
-    '',
-    `This is an unscheduled alert from the Whale Trap Detector.`,
-    `Educational only ? manage your own risk.`,
-  ].join('\n');
-}
-
 // --- Main Cron Handler -----------------------------------------
 
 /**
@@ -118,23 +55,23 @@ function buildTrapAlertMessage(payload) {
  * Triggered every 5 minutes
  */
 
-module.exports = async (req, res) => {
-  // ƒfƒoƒbƒO—pƒtƒ‰ƒOiƒuƒ‰ƒEƒU’¼’@‚«‚Ì‚Æ‚«‚¾‚¯g‚¤j
+const handler = async (req, res) => {
+  // ï¿½fï¿½oï¿½bï¿½Oï¿½pï¿½tï¿½ï¿½ï¿½Oï¿½iï¿½uï¿½ï¿½ï¿½Eï¿½Uï¿½ï¿½ï¿½@ï¿½ï¿½ï¿½Ì‚Æ‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½gï¿½ï¿½ï¿½j
   const debugBypass = req.query?.debug === 'local';
 
-  // CRON_SECRET ‚É‚æ‚éŠÈˆÕ”FØ
+  // CRON_SECRET ï¿½É‚ï¿½ï¿½ÈˆÕ”Fï¿½ï¿½
   const authHeader = req.headers.authorization;
   if (!debugBypass && process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
-  } // š© ‚±‚ÌƒJƒbƒR‚ª¡ƒtƒ@ƒCƒ‹‚É–³‚¢
+  } // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ÌƒJï¿½bï¿½Rï¿½ï¿½ï¿½ï¿½ï¿½tï¿½@ï¿½Cï¿½ï¿½ï¿½É–ï¿½ï¿½ï¿½
 
   console.log('? Cron Job Started: Whale Monitor');
-  // ‚±‚±‚©‚ç‰º‚Í¡‚Ì‚Ü‚Ü‚ÅOK
+  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ç‰ºï¿½Íï¿½ï¿½Ì‚Ü‚Ü‚ï¿½OK
 
 
 
   try {
-    // 1. On-chain ƒf[ƒ^æ“¾iCQj[attached_file:115]
+    // 1. On-chain ï¿½fï¿½[ï¿½^ï¿½æ“¾ï¿½iCQï¿½j[attached_file:115]
     const [inflowData, mpiData] = await Promise.all([
       getExchangeInflow(),
       getMinerPositionIndex(),
@@ -148,25 +85,44 @@ module.exports = async (req, res) => {
     const inflow = Number(inflowData.value) || 0;
     const mpi = Number(mpiData.value) || 0;
 
-    // 2. ƒ}[ƒPƒbƒgƒƒ^ƒf[ƒ^i‰¿Ši{ƒZƒ“ƒ`ƒƒ“ƒgj[web:151][web:145]
+    // 2. ï¿½}ï¿½[ï¿½Pï¿½bï¿½gï¿½ï¿½ï¿½^ï¿½fï¿½[ï¿½^ï¿½iï¿½ï¿½ï¿½iï¿½{ï¿½Zï¿½ï¿½ï¿½`ï¿½ï¿½ï¿½ï¿½ï¿½gï¿½j[web:151][web:145]
     const [priceMeta, fng] = await Promise.all([fetchBtcPrice(), fetchFearGreed()]);
     const priceUsd = priceMeta.priceUsd;
     const change24h = priceMeta.change24h;
-    const sentimentLabel = fng.label;
 
-    // 3. ƒXƒRƒA^ƒVƒOƒiƒ‹^Trap ”»’è[attached_file:142][attached_file:141][attached_file:140]
+    // fng.label ãŒã‚ã‚Œã°å„ªå…ˆã€ãªã‘ã‚Œã°æ•°å€¤ value ã‹ã‚‰æ­£è¦åŒ–
+    const rawSentiment = fng.label ?? fng.value;
+    const sentimentLabel = normalizeSentiment(rawSentiment);
+
+    // 3. ï¿½Xï¿½Rï¿½Aï¿½^ï¿½Vï¿½Oï¿½iï¿½ï¿½ï¿½^Trap ï¿½ï¿½ï¿½ï¿½[attached_file:142][attached_file:141][attached_file:140]
     const score = calculateMarketScore({
       inflow,
       mpi,
       sentiment: sentimentLabel,
+      change24h, // ã“ã“ã‚’è¿½åŠ 
     });
 
-    const tradeSignal = generateSignal(score, priceUsd);
+
+    const tradeSignal = generateSignal(score, priceUsd, {
+    sentimentLabel,
+    change24h,
+    });
+
+    // tradeSignal ã‹ã‚‰å£²è²·æ–¹å‘ã¨ TP/SL ã‚’å±•é–‹
+    const side =
+    tradeSignal.signal === 'SELL'
+    ? 'SHORT'
+    : 'LONG'; // BUY ãã‚Œä»¥å¤–ã¯ LONG æ‰±ã„
+
+const entry = priceUsd;        // ç™ºå ±æ™‚ã®ä¾¡æ ¼ã‚’ãã®ã¾ã¾ã‚¨ãƒ³ãƒˆãƒªãƒ¼ä¾¡æ ¼ã«
+const tp = tradeSignal.tp;     // generateSignal ãŒæ±ºã‚ãŸ TP ä¾¡æ ¼
+const sl = tradeSignal.sl;     // åŒã˜ã SL ä¾¡æ ¼
+
 
     const trap = detectTrap(
       {
         priceChange: change24h,
-        volume: 0, // v1 ‚Å‚Í–¢g—pB«—ˆƒIƒ“ƒ`ƒF[ƒ“ƒ{ƒŠƒ…[ƒ€“™‚ğ“ü‚ê‚é—]’nB
+        volume: 0, // v1ã§ã¯æœªä½¿ç”¨
       },
       {
         inflow,
@@ -174,7 +130,8 @@ module.exports = async (req, res) => {
       },
     );
 
-    // 4. Grok —pƒTƒ}ƒŠ[‚ğ\’z‚µ‚Ä—v–ñ‚ğæ“¾[attached_file:117]
+
+    // 4. Grok ï¿½pï¿½Tï¿½}ï¿½ï¿½ï¿½[ï¿½ï¿½ï¿½\ï¿½zï¿½ï¿½ï¿½Ä—vï¿½ï¿½ï¿½ï¿½æ“¾[attached_file:117]
     const marketSummary = JSON.stringify(
       {
         inflow,
@@ -194,7 +151,7 @@ module.exports = async (req, res) => {
 
     const aiAnalysis = await analyzeMarket(marketSummary);
 
-    // 5. REGULAR ƒŒƒ|[ƒg˜gi4ŠÔ‚²‚Æj‚Ì”»’è[attached_file:112]
+    // 5. REGULAR ï¿½ï¿½ï¿½|ï¿½[ï¿½gï¿½gï¿½i4ï¿½ï¿½ï¿½Ô‚ï¿½ï¿½Æjï¿½Ì”ï¿½ï¿½ï¿½[attached_file:112]
     const now = new Date();
     const utcHour = now.getUTCHours();
     const utcMinute = now.getUTCMinutes();
@@ -202,20 +159,21 @@ module.exports = async (req, res) => {
 
     const isRegularSlot = REGULAR_HOURS.includes(utcHour) && utcMinute < 5;
 
-// š ‚±‚±‚©‚ç’Ç‰Á š
+// ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç‰ï¿½ ï¿½ï¿½
 const force = req.query?.force === 'true';
 
 console.log(
   `Slot check => utcHour=${utcHour}, utcMinute=${utcMinute}, isRegularSlot=${isRegularSlot}, force=${force}`
 );
-// š ‚±‚±‚Ü‚Å’Ç‰Á š
+// ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ü‚Å’Ç‰ï¿½ ï¿½ï¿½
 
     let sent = 0;
 
-// 6-A. REGULAR ƒŒƒ|[ƒg‘—M
+// 6-A. REGULAR ãƒ¬ãƒãƒ¼ãƒˆé€ä¿¡
 if (isRegularSlot || force) {
   console.log('Sending REGULAR message...');
-  const regularText = buildRegularMessage({
+
+  const regularText = formatRegularBriefing({
     now,
     inflow,
     mpi,
@@ -227,41 +185,50 @@ if (isRegularSlot || force) {
     trap,
     aiAnalysis,
   });
+
   await sendMessage(regularText);
   sent += 1;
 }
 
-    // 6-B. Trap ê—p EMERGENCYiREGULAR ‚Æ‚Í•Ê˜gj
-    if (trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot) {
-      const alertText = buildTrapAlertMessage({
-        inflow,
-        mpi,
-        priceUsd,
-        trap,
-        aiAnalysis,
-      });
-      await sendMessage(alertText);
-      sent += 1;
-    }
+// 6-B. Trap ç”¨ EMERGENCYï¼ˆREGULAR ã¨ã¯ç‹¬ç«‹ï¼‰
+if (trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot) {
+  const alertText = formatTrapAlert({
+    inflow,
+    mpi,
+    priceUsd,
+    trap,
+    aiAnalysis,
+  });
 
-    // 7. HTTP ƒŒƒXƒ|ƒ“ƒX
-    res.status(200).json({
-      success: true,
-      sentMessages: sent,
-      metrics: {
-        inflow,
-        mpi,
-        sentiment: sentimentLabel,
-        priceUsd,
-        change24h,
-        score,
-        signal: tradeSignal.signal,
-      },
-      trap,
-    });
+  await sendMessage(alertText);
+  sent += 1;
+}
+
+
+    // 7. HTTP ï¿½ï¿½ï¿½Xï¿½|ï¿½ï¿½ï¿½X
+   res.status(200).json({
+    success: true,
+    sentMessages: sent,
+    metrics: {
+      inflow,
+      mpi,
+      sentiment: sentimentLabel,
+      priceUsd,
+      change24h,
+      score,
+      signal: tradeSignal.signal,
+    },
+    trap,
+    // ã“ã“ã‹ã‚‰è¿½åŠ 
+    side,
+    entry,
+    tp,
+    sl,
+  });
+
   } catch (error) {
     console.error('? Cron Job Failed:', error);
     res.status(500).json({ error: error.message });
   }
 };
-
+export default handler;
