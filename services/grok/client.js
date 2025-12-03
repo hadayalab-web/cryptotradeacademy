@@ -8,7 +8,7 @@ const BASE_URL = 'https://api.x.ai/v1';
 
 // モデル名は env で上書き可能にしておく
 const GROK_MODEL_REASONING =
-  process.env.GROK_MODEL_REASONING || 'grok-4.1-fast-reasoning';
+  process.env.GROK_MODEL_REASONING || 'grok-4-0709';
 
 if (!XAI_API_KEY) {
   console.warn('⚠️ XAI_API_KEY is not set.');
