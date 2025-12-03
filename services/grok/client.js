@@ -83,21 +83,17 @@ async function analyzeXSentimentLive(
         },
         { role: 'user', content: query },
       ],
-      // ★ Live Search ツールに必須の sources を明示的に指定
-      tools: [
-        {
-          type: 'live_search',
-          sources: [
-            // X（Twitter）を主対象
-            { type: 'x' },
-            // ニュースなどの補完として Web も許可
-            { type: 'web' },
-          ],
-        },
-      ],
-      tool_choice: 'auto',
       temperature: 0.2,
       max_tokens: 400,
+      // Live Search を search_parameters で有効化
+      search_parameters: {
+        mode: 'on', // 常に検索させたいなら 'on'、モデル任せなら 'auto'
+        sources: [
+          { type: 'x' },
+          { type: 'web' },
+        ],
+        return_citations: false,
+      },
     });
 
     const text = completion.choices[0]?.message?.content || '';

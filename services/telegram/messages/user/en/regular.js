@@ -45,7 +45,6 @@ function formatRegularBriefing({
 
   // --- Score & Trap ----------------------------------------------------
   const scoreLine = `📈 *Market Score:* ${Math.round(score ?? 0)}/100`;
-
   const trapLine = trap?.isTrap
     ? `🧨 *Trap Detector:* ${trap.label || 'Potential trap'} (*${
         trap.confidence

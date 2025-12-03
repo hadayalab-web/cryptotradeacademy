@@ -11,7 +11,6 @@ function formatUsd(v) {
 function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
-
   const trapLabel = trap?.label || 'Whale Trap';
   const trapSide =
     trap?.side === 'SHORT'
@@ -39,12 +38,15 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   );
   lines.push('');
   lines.push(trapSide);
+
   if (trap?.note) {
     lines.push(`• ${trap.note}`);
   }
+
   if (trap?.hint) {
     lines.push(`• ${trap.hint}`);
   }
+
   lines.push('');
   lines.push("🧬 *Dr. Grok's Take*");
   if (grokText) {
@@ -52,6 +54,7 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   } else {
     lines.push('Grok suggests exercising extreme caution around current levels.');
   }
+
   lines.push('');
   lines.push('_For educational purposes only. Not financial advice._');
 
