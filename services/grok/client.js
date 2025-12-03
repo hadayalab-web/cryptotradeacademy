@@ -2,13 +2,19 @@
 
 const OpenAI = require('openai');
 
+// xAI Grok 用 API キーとエンドポイント
 const XAI_API_KEY = process.env.XAI_API_KEY;
-const BASE_URL = 'https://api.x.ai/v1'; // xAI Grok API[web:297]
+const BASE_URL = 'https://api.x.ai/v1';
+
+// モデル名は env で上書き可能にしておく
+const GROK_MODEL_REASONING =
+  process.env.GROK_MODEL_REASONING || 'grok-4.1-fast-reasoning';
 
 if (!XAI_API_KEY) {
   console.warn('⚠️ XAI_API_KEY is not set.');
 }
 
+// OpenAI 互換クライアント（xAI エンドポイント向け）
 const openai = new OpenAI({
   apiKey: XAI_API_KEY,
   baseURL: BASE_URL,
@@ -18,7 +24,7 @@ const openai = new OpenAI({
 async function analyzeMarket(marketData) {
   try {
     const completion = await openai.chat.completions.create({
-      model: 'grok-4.1-fast-reasoning', // Grok 4.1 Fast[web:297][web:299]
+      model: GROK_MODEL_REASONING, // 例: grok-4.1-fast-reasoning
       messages: [
         {
           role: 'system',
@@ -29,27 +35,31 @@ async function analyzeMarket(marketData) {
         },
         {
           role: 'user',
-          content: `Analyze this market context and explain what whales and institutions are likely doing, and how to exploit retail: ${marketData}`,
+          content:
+            'Analyze this market context and explain what whales and ' +
+            'institutions are likely doing, and how to exploit retail: ' +
+            marketData,
         },
       ],
       temperature: 0.3,
       max_tokens: 200,
     });
 
-    return completion.choices[0].message.content;
+    return completion.choices[0]?.message?.content || 'HOLD - Grok offline.';
   } catch (error) {
     console.error('❌ Grok Error (analyzeMarket):', error);
     return 'HOLD - Grok offline.';
   }
 }
 
-// Xポスト用：Structured Outputs で whaleBias / retailFomo / newsImpact を返す[web:231]
+// Xポスト用：Structured Outputs で whaleBias / retailFomo / newsImpact を返す
 async function analyzeSocial(posts) {
   if (!posts || posts.length === 0) {
     return {
       whaleBias: 0,
       retailFomo: 50,
       newsImpact: 0,
+      explanation: '',
     };
   }
 
@@ -74,7 +84,7 @@ async function analyzeSocial(posts) {
 
   try {
     const resp = await openai.responses.create({
-      model: 'grok-4.1-fast-reasoning', // Structured Outputs対応モデル[web:231][web:297]
+      model: GROK_MODEL_REASONING,
       input: [
         {
           role: 'system',
@@ -84,10 +94,7 @@ async function analyzeSocial(posts) {
             '(2) retail FOMO level (0-100), (3) overall news impact (0-100). ' +
             'Be contrarian: high retail FOMO with weak whale support is bearish.',
         },
-        {
-          role: 'user',
-          content: text,
-        },
+        { role: 'user', content: text },
       ],
       response_format: {
         type: 'json_schema',
@@ -99,14 +106,14 @@ async function analyzeSocial(posts) {
       },
     });
 
-    const jsonText = resp.output[0].content[0].text;
-    const parsed = JSON.parse(jsonText);
+    // Structured Outputs: parsed オブジェクトを直接読む
+    const json = resp.output[0]?.content[0]?.parsed;
 
     return {
-      whaleBias: parsed.whaleBias,
-      retailFomo: parsed.retailFomo,
-      newsImpact: parsed.newsImpact,
-      explanation: parsed.explanation || '',
+      whaleBias: json?.whaleBias ?? 0,
+      retailFomo: json?.retailFomo ?? 50,
+      newsImpact: json?.newsImpact ?? 0,
+      explanation: json?.explanation || '',
     };
   } catch (error) {
     console.error('❌ Grok Error (analyzeSocial):', error);
