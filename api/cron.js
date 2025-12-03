@@ -82,15 +82,30 @@ export default async function handler(req, res) {
     const sentimentLabel = normalizeSentiment(rawSentiment);
 
 // 3. X sentiment (Grok Live Search)
-const xSentiment =
-  (await analyzeXSentimentLive(
-    'latest BTC price action, funding, liquidations, whale activity, ETF flows on X'
-  )) || {
-    whaleBias: 0,
-    retailFomo: 50,
-    newsImpact: 0,
-  };
+let xSentiment = {
+  whaleBias: 0,
+  retailFomo: 50,
+  newsImpact: 0,
+};
 
+try {
+  const grokSent = await analyzeXSentimentLive(
+    'latest BTC price action, funding, liquidations, whale activity, ETF flows on X',
+  );
+
+  if (grokSent && typeof grokSent === 'object') {
+    xSentiment = {
+      whaleBias: Number(grokSent.whaleBias) || 0,
+      retailFomo: Number(grokSent.retailFomo) || 50,
+      newsImpact: Number(grokSent.newsImpact) || 0,
+    };
+  }
+} catch (err) {
+  console.warn(
+    '⚠️ Grok Live Search Error in analyzeXSentimentLive, fallback to default sentiment:',
+    err?.message || err,
+  );
+}
 
     // 4. コア・ロジック
     const ctx = buildMarketContext({
@@ -117,16 +132,13 @@ const xSentiment =
     const sl = tradeSignal.sl;
 
     // 6. Trap 検出
-    const trap = detectTrap(
-      {
-        priceChange: change24h,
-        volume: 0, // v1 では未使用
-      },
-      {
-        inflow,
-        mpi,
-      },
-    );
+    const trap = detectTrap({
+      priceChange: change24h,
+      volume: 0, // v1 では未使用
+      inflow,
+      mpi,
+    });
+
 
     // 7. Grok に市場サマリーを投げてコメント生成
     const marketSummary = JSON.stringify(
