@@ -6,7 +6,7 @@ const OpenAI = require('openai');
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const BASE_URL = 'https://api.x.ai/v1';
 
-// モデル名は env で上書き可能にしておく
+// モデル名は env で上書き可能にしておく（デフォルトは grok-4-0709）
 const GROK_MODEL_REASONING =
   process.env.GROK_MODEL_REASONING || 'grok-4-0709';
 
@@ -22,6 +22,10 @@ const openai = new OpenAI({
 
 // 市場サマリー用（既存の Dr. Grok レポート）
 async function analyzeMarket(marketData) {
+  if (!XAI_API_KEY) {
+    return 'HOLD - Grok offline.';
+  }
+
   try {
     const completion = await openai.chat.completions.create({
       model: GROK_MODEL_REASONING,
@@ -56,6 +60,15 @@ async function analyzeMarket(marketData) {
 async function analyzeXSentimentLive(
   query = 'latest BTC price top, whales, funding, liquidations on X',
 ) {
+  if (!XAI_API_KEY) {
+    return {
+      whaleBias: 0,
+      retailFomo: 50,
+      newsImpact: 0,
+      explanation: 'Live Search unavailable (no API key).',
+    };
+  }
+
   try {
     const completion = await openai.chat.completions.create({
       model: GROK_MODEL_REASONING,
@@ -70,7 +83,18 @@ async function analyzeXSentimentLive(
         },
         { role: 'user', content: query },
       ],
-      tools: [{ type: 'live_search' }],
+      // ★ Live Search ツールに必須の sources を明示的に指定
+      tools: [
+        {
+          type: 'live_search',
+          sources: [
+            // X（Twitter）を主対象
+            { type: 'x' },
+            // ニュースなどの補完として Web も許可
+            { type: 'web' },
+          ],
+        },
+      ],
       tool_choice: 'auto',
       temperature: 0.2,
       max_tokens: 400,
@@ -113,6 +137,15 @@ async function analyzeSocial(posts) {
       retailFomo: 50,
       newsImpact: 0,
       explanation: '',
+    };
+  }
+
+  if (!XAI_API_KEY) {
+    return {
+      whaleBias: 0,
+      retailFomo: 50,
+      newsImpact: 0,
+      explanation: 'Grok social analysis unavailable (no API key).',
     };
   }
 
