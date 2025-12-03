@@ -1,7 +1,4 @@
 // api/cron.js
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
 // --- Imports ----------------------------------------------------
 
 const { formatRegularBriefing } = require('../services/telegram/messages/user/en/regular');
