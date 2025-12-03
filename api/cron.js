@@ -6,7 +6,7 @@ const { formatTrapAlert } = require('../services/telegram/messages/user/en/emerg
 
 const { getExchangeInflow, getMinerPositionIndex } = require('../services/cryptoquant/endpoints/btc');
 
-const { pollXSentiment } = require('../services/x/xPoller');
+const { pollXSentiment } = require('../services/twitter/xPoller');
 const { buildMarketContext, decideSignal } = require('../logic/core/marketCore');
 
 const { generateSignal } = require('../logic/tier1_btc/signalGen');
