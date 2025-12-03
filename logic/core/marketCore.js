@@ -1,15 +1,5 @@
 // logic/core/marketCore.js
 
-// ===== パラメータ（あとでバックテストで調整可能） =====
-const NETFLOW_MAX_ABS = 8000; // BTC±8k でクリップ
-const NETFLOW_WEIGHT = 80;    // 最大±80
-const MPI_WEIGHT = 5;         // ここを変えればMPIの影響度を調整できる
-const WHALE_WEIGHT = 60;
-const NEWS_WEIGHT = 0.1;
-const FOMO_COEFF = 0.6;
-const ONCHAIN_WEIGHT = 0.6;
-const SOCIAL_WEIGHT = 0.4;
-
 // 共通マーケットコンテキストを組み立て
 function buildMarketContext({
   asset,
@@ -39,22 +29,21 @@ function buildMarketContext({
   };
 }
 
-// Netflow を -NETFLOW_WEIGHT〜+NETFLOW_WEIGHT に正規化
-// アウトフロー(負) → 強気(+), インフロー(正) → 弱気(-)[web:262]
+// Netflow を -80〜+80 に正規化
+// 大きなアウトフロー(負) → 強気(+), 大きなインフロー(正) → 弱気(-)
 function scoreNetflow(netflow) {
   if (netflow == null) return 0;
-  const clipped = Math.max(-NETFLOW_MAX_ABS, Math.min(NETFLOW_MAX_ABS, netflow));
-  return (-clipped / NETFLOW_MAX_ABS) * NETFLOW_WEIGHT;
+  const clipped = Math.max(-8000, Math.min(8000, netflow)); // ±8kBTC でクリップ
+  return (-clipped / 8000) * 80;
 }
 
-// MPI を -40〜+40 → MPI_WEIGHT で縮小
-// 高い MPI (大量売却) → 弱気(-), 低い or マイナス → 強気(+)[web:255][web:291]
+// MPI を -40〜+40 にマップ
+// 高い MPI (大量売却) → 弱気(-), 低い or マイナス → 強気(+)
 function scoreMPI(mpi) {
   if (mpi == null) return 0;
   const clipped = Math.max(-2, Math.min(4, mpi)); // ざっくりレンジ
-  // 4 → -40, 0 → 0, -2 → +20 をベースに重み調整
-  const base = -clipped * 10;
-  return (base * MPI_WEIGHT) / 10;
+  // 4 → -40, 0 → 0, -2 → +20
+  return -clipped * 10;
 }
 
 // X センチメントを -100〜+100 にマップ
@@ -66,9 +55,9 @@ function scoreSocial({ whaleBias, retailFomo, newsImpact }) {
   const fomo = Math.max(0, Math.min(100, retailFomo ?? 50));
   const impact = Math.max(0, Math.min(100, newsImpact ?? 0));
 
-  const whaleScore = wb * WHALE_WEIGHT;
-  const fomoScore = (50 - fomo) * FOMO_COEFF;
-  const newsScore = impact * NEWS_WEIGHT;
+  const whaleScore = wb * 60;           // クジラの方向
+  const fomoScore = (50 - fomo) * 0.6;  // FOMO 高いほど逆張りでマイナス
+  const newsScore = impact * 0.1;       // ボラ増だけ少し加点
 
   return whaleScore + fomoScore + newsScore;
 }
@@ -84,7 +73,7 @@ function decideSignal(ctx) {
 
   const socialScore = scoreSocial(social);
 
-  const total = onchainScore * ONCHAIN_WEIGHT + socialScore * SOCIAL_WEIGHT;
+  const total = onchainScore * 0.6 + socialScore * 0.4;
   const score = Math.max(-100, Math.min(100, total));
 
   let regime = 'NEUTRAL';
