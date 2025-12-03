@@ -6,14 +6,15 @@ const { formatTrapAlert } = require('../services/telegram/messages/user/en/emerg
 
 const { getExchangeInflow, getMinerPositionIndex } = require('../services/cryptoquant/endpoints/btc');
 
-const { pollXSentiment } = require('../services/twitter/xPoller');
+// X API は使わないので pollXSentiment は削除
+// const { pollXSentiment } = require('../services/twitter/xPoller');
 const { buildMarketContext, decideSignal } = require('../logic/core/marketCore');
 
 const { generateSignal } = require('../logic/tier1_btc/signalGen');
 const { detectTrap } = require('../logic/tier1_btc/trapDetector');
 const { normalizeSentiment } = require('../logic/tier1_btc/sentiment');
 
-const { analyzeMarket } = require('../services/grok/client');
+const { analyzeMarket, analyzeXSentimentLive } = require('../services/grok/client');
 const { sendMessage } = require('../services/telegram/bot');
 
 // --- External data helpers -------------------------------------
@@ -80,13 +81,16 @@ export default async function handler(req, res) {
     const rawSentiment = fng.label ?? fng.value;
     const sentimentLabel = normalizeSentiment(rawSentiment);
 
-    // 3. X sentiment (Grok + X)
-    const xSentiment =
-      (await pollXSentiment()) || {
-        whaleBias: 0,
-        retailFomo: 50,
-        newsImpact: 0,
-      };
+// 3. X sentiment (Grok Live Search)
+const xSentiment =
+  (await analyzeXSentimentLive(
+    'latest BTC price action, funding, liquidations, whale activity, ETF flows on X'
+  )) || {
+    whaleBias: 0,
+    retailFomo: 50,
+    newsImpact: 0,
+  };
+
 
     // 4. コア・ロジック
     const ctx = buildMarketContext({
