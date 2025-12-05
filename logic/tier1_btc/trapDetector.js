@@ -1,66 +1,117 @@
-﻿/**
- * Detect Bull/Bear Traps using Price vs On-chain Divergence
+﻿// logic/tier1_btc/trapDetector.js
+
+/**
+ * Detect Traps using Price vs On-chain + Sentiment Divergence
  *
- * priceAction: {
+ * ctx: {
  *   priceChange: number (% change, e.g. +6, -3),
- *   volume: number (optional, not strictly required)
- * }
- *
- * onChainMetrics: {
- *   inflow: number (exchange net inflow, e.g. from CryptoQuant),
- *   mpi: number (Miner Position Index, optional)
+ *   volume?: number,
+ *   inflow: number,
+ *   mpi?: number,
+ *   whaleBias?: number,   // -1 (sell) ～ +1 (buy)
+ *   retailFomo?: number,  // 0 ～ 100
  * }
  */
 
-function detectTrap(priceAction = {}, onChainMetrics = {}) {
+function detectTrap(ctx = {}) {
   // 安全なデフォルトをセットしておく
-  const { priceChange = 0, volume = 0 } = priceAction || {};
-  const { inflow = null, mpi = null } = onChainMetrics || {};
+  const {
+    priceChange = 0,
+    volume = 0,
+    inflow = null,
+    mpi = null,
+    whaleBias = 0,
+    retailFomo = 50,
+  } = ctx || {};
 
   // on-chain データが欠けている場合は「トラップなし」で返す
   if (inflow === null || Number.isNaN(Number(inflow))) {
     return {
       isTrap: false,
       reason: 'Missing or invalid on-chain inflow data',
-      debug: { priceChange, volume, inflow, mpi },
+      debug: { priceChange, volume, inflow, mpi, whaleBias, retailFomo },
     };
   }
 
-  // ---- ルールベースのシンプルトラップ検出 ----
+  const debug = { priceChange, volume, inflow, mpi, whaleBias, retailFomo };
 
-  // Bull Trap:
-  // 価格が大きく上昇しているのに、取引所への流入がかなり大きい
-  // → 鯨が上昇局面で売り抜けている可能性
+  // ---- FOMO Bull Trap: リテールFOMO天井でクジラ売り抜け ----
+  if (
+    priceChange > 7 &&
+    inflow > 2000 &&
+    retailFomo >= 80 &&
+    whaleBias <= 0
+  ) {
+    return {
+      isTrap: true,
+      type: 'FOMO_BULL_TRAP',
+      label: 'Retail FOMO bull trap',
+      side: 'SHORT',
+      confidence: 'HIGH',
+      reason:
+        'Strong price pump with heavy inflows while retail FOMO is extreme and whales are not supporting.',
+      note: 'Retail is chasing the breakout while whales distribute into strength.',
+      hint: 'Avoid chasing here; consider taking profits or using defensive shorts.',
+      debug,
+    };
+  }
+
+  // ---- PANIC Bear Trap: リテールパニックでクジラ買い集め ----
+  if (
+    priceChange < -7 &&
+    inflow < -2000 &&
+    retailFomo <= 20 &&
+    whaleBias >= 0
+  ) {
+    return {
+      isTrap: true,
+      type: 'PANIC_BEAR_TRAP',
+      label: 'Panic bear trap',
+      side: 'LONG',
+      confidence: 'HIGH',
+      reason:
+        'Sharp dump with heavy outflows while retail panic is extreme and whales show accumulation bias.',
+      note: 'Retail is panic-selling into aggressive whale accumulation.',
+      hint: 'Avoid panic selling; consider staged entries instead of chasing lows.',
+      debug,
+    };
+  }
+
+  // ---- 従来の Bull/Bear Trap（感情データなしでも動く） ----
+
+  // Bull Trap: 価格急騰 + 大きな流入
   if (priceChange > 5 && inflow > 1500) {
     return {
       isTrap: true,
       type: 'BULL_TRAP',
+      label: 'Whale distribution trap',
+      side: 'SHORT',
       confidence: 'HIGH',
       reason:
         'Strong price pump with high exchange inflows suggests distribution by whales.',
-      debug: { priceChange, volume, inflow, mpi },
+      debug,
     };
   }
 
-  // Bear Trap:
-  // 価格が大きく下落しているのに、取引所からの流出（inflow がマイナス）が大きい
-  // → 鯨が安値で買い集めている可能性
+  // Bear Trap: 価格急落 + 大きな流出
   if (priceChange < -5 && inflow < -1000) {
     return {
       isTrap: true,
       type: 'BEAR_TRAP',
+      label: 'Whale accumulation trap',
+      side: 'LONG',
       confidence: 'HIGH',
       reason:
         'Strong price dump with large negative exchange inflows suggests accumulation.',
-      debug: { priceChange, volume, inflow, mpi },
+      debug,
     };
   }
 
   // どちらにも該当しない場合
   return {
     isTrap: false,
-    reason: 'No clear bull/bear trap pattern detected',
-    debug: { priceChange, volume, inflow, mpi },
+    reason: 'No clear trap pattern detected',
+    debug,
   };
 }
 

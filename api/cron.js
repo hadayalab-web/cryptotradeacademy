@@ -1,19 +1,18 @@
 // api/cron.js
+
 // --- Imports ----------------------------------------------------
 
 const { formatRegularBriefing } = require('../services/telegram/messages/user/en/regular');
 const { formatTrapAlert } = require('../services/telegram/messages/user/en/emergency');
-
 const { getExchangeInflow, getMinerPositionIndex } = require('../services/cryptoquant/endpoints/btc');
 
 // X API は使わないので pollXSentiment は削除
 // const { pollXSentiment } = require('../services/twitter/xPoller');
-const { buildMarketContext, decideSignal } = require('../logic/core/marketCore');
 
+const { buildMarketContext, decideSignal } = require('../logic/core/marketCore');
 const { generateSignal } = require('../logic/tier1_btc/signalGen');
 const { detectTrap } = require('../logic/tier1_btc/trapDetector');
 const { normalizeSentiment } = require('../logic/tier1_btc/sentiment');
-
 const { analyzeMarket, analyzeXSentimentLive } = require('../services/grok/client');
 const { sendMessage } = require('../services/telegram/bot');
 
@@ -23,10 +22,13 @@ async function fetchBtcPrice() {
   const url = new URL(
     'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',
   );
+
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`Price API Error: ${res.status} ${res.statusText}`);
+
   const json = await res.json();
   const data = json.bitcoin || {};
+
   return {
     priceUsd: Number(data.usd) || 0,
     change24h: Number(data.usd_24h_change) || 0,
@@ -35,11 +37,15 @@ async function fetchBtcPrice() {
 
 async function fetchFearGreed() {
   const url = new URL('https://api.alternative.me/fng/?limit=1');
+
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`FNG API Error: ${res.status} ${res.statusText}`);
+
   const json = await res.json();
   const point = json?.data?.[0];
+
   if (!point) return { value: null, label: 'Unknown' };
+
   return {
     value: Number(point.value) || null,
     label: point.value_classification || 'Unknown',
@@ -49,10 +55,9 @@ async function fetchFearGreed() {
 // --- Main Cron Handler -----------------------------------------
 
 export default async function handler(req, res) {
-  // ↑の本体ロジックをそのまま中にコピペ
   const debugBypass = req.query?.debug === 'local';
-
   const authHeader = req.headers.authorization;
+
   if (!debugBypass && process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -60,11 +65,21 @@ export default async function handler(req, res) {
   console.log('🚀 Cron Job Started: Whale Monitor');
 
   try {
+    // 0. 時間スロット判定（4時間ごと）
+    const now = new Date();
+    const utcHour = now.getUTCHours();
+    const utcMinute = now.getUTCMinutes();
+    const REGULAR_HOURS = [0, 4, 8, 12, 16, 20];
+
+    const isRegularSlot = REGULAR_HOURS.includes(utcHour) && utcMinute < 5;
+    const force = req.query?.force === 'true';
+
+    console.log(
+      `Slot check => utcHour=${utcHour}, utcMinute=${utcMinute}, isRegularSlot=${isRegularSlot}, force=${force}`,
+    );
+
     // 1. On-chain (CryptoQuant)
-    const [inflowData, mpiData] = await Promise.all([
-      getExchangeInflow(),
-      getMinerPositionIndex(),
-    ]);
+    const [inflowData, mpiData] = await Promise.all([getExchangeInflow(), getMinerPositionIndex()]);
 
     if (!inflowData || !mpiData) {
       console.warn('⚠️ No data from CryptoQuant');
@@ -81,34 +96,14 @@ export default async function handler(req, res) {
     const rawSentiment = fng.label ?? fng.value;
     const sentimentLabel = normalizeSentiment(rawSentiment);
 
-// 3. X sentiment (Grok Live Search)
-let xSentiment = {
-  whaleBias: 0,
-  retailFomo: 50,
-  newsImpact: 0,
-};
-
-try {
-  const grokSent = await analyzeXSentimentLive(
-    'latest BTC price action, funding, liquidations, whale activity, ETF flows on X',
-  );
-
-  if (grokSent && typeof grokSent === 'object') {
-    xSentiment = {
-      whaleBias: Number(grokSent.whaleBias) || 0,
-      retailFomo: Number(grokSent.retailFomo) || 50,
-      newsImpact: Number(grokSent.newsImpact) || 0,
+    // 3. ベースのコンテキスト（X Sentiment はデフォルト値）
+    let xSentiment = {
+      whaleBias: 0,
+      retailFomo: 50,
+      newsImpact: 0,
     };
-  }
-} catch (err) {
-  console.warn(
-    '⚠️ Grok Live Search Error in analyzeXSentimentLive, fallback to default sentiment:',
-    err?.message || err,
-  );
-}
 
-    // 4. コア・ロジック
-    const ctx = buildMarketContext({
+    let ctx = buildMarketContext({
       asset: 'BTC',
       priceUsd,
       change24h,
@@ -117,32 +112,95 @@ try {
       xSentiment,
     });
 
-    const coreDecision = decideSignal(ctx); // { score, regime, signal }
+    let coreDecision = decideSignal(ctx); // { score, regime, signal }
 
-    // 5. TP/SL などのシグナル生成
-    const tradeSignal = generateSignal({
+    // 4. TP/SL などのシグナル生成
+    let tradeSignal = generateSignal({
       priceUsd,
       score: coreDecision.score,
       direction: coreDecision.signal, // 'BUY' | 'SELL' | 'NONE'
     });
 
-    const side = tradeSignal.signal === 'SELL' ? 'SHORT' : 'LONG';
-    const entry = priceUsd;
-    const tp = tradeSignal.tp;
-    const sl = tradeSignal.sl;
+    let side = tradeSignal.signal === 'SELL' ? 'SHORT' : 'LONG';
+    let entry = priceUsd;
+    let tp = tradeSignal.tp;
+    let sl = tradeSignal.sl;
 
-    // 6. Trap 検出
-    const trap = detectTrap({
+    // 5. Trap 検出（ここは 5分ごとに走らせる：オンチェーンのみ版）
+    let trap = detectTrap({
       priceChange: change24h,
       volume: 0, // v1 では未使用
       inflow,
       mpi,
     });
 
+    let needsEmergency = trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
+    const needsGrok = isRegularSlot || force || needsEmergency;
 
-    // 7. Grok に市場サマリーを投げてコメント生成
-    const marketSummary = JSON.stringify(
-      {
+    let aiAnalysis = null;
+
+    // 6. Grok 呼び出し（REGULAR / force / EMERGENCY のときだけ）
+    if (needsGrok) {
+      // 6-1. X sentiment (Grok Live Search)
+      try {
+        const grokSent = await analyzeXSentimentLive(
+          'latest BTC price action, funding, liquidations, whale activity, ETF flows on X',
+        );
+
+        if (grokSent && typeof grokSent === 'object') {
+          xSentiment = {
+            whaleBias: Number(grokSent.whaleBias) || 0,
+            retailFomo: Number(grokSent.retailFomo) || 50,
+            newsImpact: Number(grokSent.newsImpact) || 0,
+          };
+        }
+      } catch (err) {
+        console.warn(
+          '⚠️ Grok Live Search Error in analyzeXSentimentLive, fallback to default sentiment:',
+          err?.message || err,
+        );
+      }
+
+      // X sentiment を反映して再度コンテキストとシグナルを評価
+      ctx = buildMarketContext({
+        asset: 'BTC',
+        priceUsd,
+        change24h,
+        inflow,
+        mpi,
+        xSentiment,
+      });
+
+      coreDecision = decideSignal(ctx);
+
+      tradeSignal = generateSignal({
+        priceUsd,
+        score: coreDecision.score,
+        direction: coreDecision.signal,
+      });
+
+      side = tradeSignal.signal === 'SELL' ? 'SHORT' : 'LONG';
+      entry = priceUsd;
+      tp = tradeSignal.tp;
+      sl = tradeSignal.sl;
+
+      // ★ 6-1b. FOMO/PANIC ルール込みで Trap を再評価
+      const trapWithSentiment = detectTrap({
+        priceChange: change24h,
+        volume: 0,
+        inflow,
+        mpi,
+        whaleBias: xSentiment.whaleBias,
+        retailFomo: xSentiment.retailFomo,
+      });
+
+      if (trapWithSentiment?.isTrap) {
+        trap = trapWithSentiment;
+        needsEmergency = trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
+      }
+
+      // 6-2. Grok に市場サマリーを投げてコメント生成
+      const marketSummaryPayload = {
         asset: 'BTC',
         inflow,
         mpi,
@@ -155,30 +213,26 @@ try {
         tp: tradeSignal.tp,
         sl: tradeSignal.sl,
         trap,
-      },
-      null,
-      2,
-    );
+      };
 
-    const aiAnalysis = await analyzeMarket(marketSummary);
+      try {
+        aiAnalysis = await analyzeMarket(JSON.stringify(marketSummaryPayload));
+      } catch (err) {
+        console.warn(
+          '⚠️ Grok Market Analyze Error in analyzeMarket, fallback to offline analysis:',
+          err?.message || err,
+        );
+        aiAnalysis = null;
+      }
+    }
 
-    // 8. 時間スロット判定（4時間ごと）
-    const now = new Date();
-    const utcHour = now.getUTCHours();
-    const utcMinute = now.getUTCMinutes();
-    const REGULAR_HOURS = [0, 4, 8, 12, 16, 20];
-    const isRegularSlot = REGULAR_HOURS.includes(utcHour) && utcMinute < 5;
-    const force = req.query?.force === 'true';
-
-    console.log(
-      `Slot check => utcHour=${utcHour}, utcMinute=${utcMinute}, isRegularSlot=${isRegularSlot}, force=${force}`,
-    );
-
+    // 7. Telegram 送信ロジック
     let sent = 0;
 
-    // 9-A. REGULAR レポート送信
+    // 7-A. REGULAR レポート送信
     if (isRegularSlot || force) {
       console.log('Sending REGULAR message...');
+
       const regularText = formatRegularBriefing({
         now,
         inflow,
@@ -191,12 +245,13 @@ try {
         trap,
         aiAnalysis,
       });
+
       await sendMessage(regularText);
       sent += 1;
     }
 
-    // 9-B. Trap 用 EMERGENCY
-    if (trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot) {
+    // 7-B. Trap 用 EMERGENCY（REGULAR スロット外）
+    if (needsEmergency) {
       const alertText = formatTrapAlert({
         inflow,
         mpi,
@@ -204,12 +259,13 @@ try {
         trap,
         aiAnalysis,
       });
+
       await sendMessage(alertText);
       sent += 1;
     }
 
-    // 10. HTTP レスポンス
-    res.status(200).json({
+    // 8. HTTP レスポンス
+    return res.status(200).json({
       success: true,
       sentMessages: sent,
       metrics: {
@@ -229,7 +285,6 @@ try {
     });
   } catch (error) {
     console.error('❌ Cron Job Failed:', error);
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
-};             // ← handler 関数を閉じるこの行は残す
-
+}

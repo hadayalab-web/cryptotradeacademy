@@ -25,11 +25,12 @@ function formatRegularBriefing({
   tradeSignal,
   trap,
   aiAnalysis,
-  stats, // まだ未使用。将来: 勝率などをここに入れる想定。
+  stats, // 将来: 勝率などをここに入れる想定（今は未使用）
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
   // --- Market snapshot -------------------------------------------------
+
   const priceLine = `💰 BTC Price: *${formatUsd(priceUsd)}* (${formatPercent(
     change24h,
   )} / 24h)`;
@@ -44,7 +45,9 @@ function formatRegularBriefing({
   const sentimentLine = `🧠 Sentiment: *${sentimentLabel || 'Unknown'}*`;
 
   // --- Score & Trap ----------------------------------------------------
+
   const scoreLine = `📈 *Market Score:* ${Math.round(score ?? 0)}/100`;
+
   const trapLine = trap?.isTrap
     ? `🧨 *Trap Detector:* ${trap.label || 'Potential trap'} (*${
         trap.confidence
@@ -52,6 +55,7 @@ function formatRegularBriefing({
     : '✅ *Trap Detector:* No critical trap detected.';
 
   // --- Trade card ------------------------------------------------------
+
   const dirEmoji =
     tradeSignal?.signal === 'BUY'
       ? '🟢'
@@ -84,11 +88,21 @@ function formatRegularBriefing({
       : '';
 
   // --- Grok commentary -------------------------------------------------
-  let grokText = (aiAnalysis || '').trim();
+
+  const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
+  const isOffline =
+    !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
+
+  let grokText = raw;
   const GROK_LIMIT = 360;
-  if (grokText.length > GROK_LIMIT) {
+
+  if (!grokText || isOffline) {
+    grokText = 'HOLD - Grok offline.';
+  } else if (grokText.length > GROK_LIMIT) {
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
+
+  // --- Build lines -----------------------------------------------------
 
   const lines = [];
 
@@ -120,11 +134,7 @@ function formatRegularBriefing({
 
   // Grok take
   lines.push("🧬 *Dr. Grok's Take*");
-  if (grokText) {
-    lines.push(grokText);
-  } else {
-    lines.push('Grok is offline or returned no additional commentary.');
-  }
+  lines.push(grokText);
 
   lines.push('');
   lines.push('_For educational purposes only. Not financial advice._');

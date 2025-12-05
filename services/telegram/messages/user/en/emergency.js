@@ -11,6 +11,7 @@ function formatUsd(v) {
 function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
+
   const trapLabel = trap?.label || 'Whale Trap';
   const trapSide =
     trap?.side === 'SHORT'
@@ -19,9 +20,19 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
       ? '🔺 LONG-side trap'
       : '⚠️ Trap detected';
 
-  let grokText = (aiAnalysis || '').trim();
+  // Grok commentary
+  const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
+  const isOffline =
+    !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
+
+  let grokText = raw;
   const GROK_LIMIT = 260;
-  if (grokText.length > GROK_LIMIT) {
+
+  if (!grokText) {
+    grokText = 'Grok suggests exercising extreme caution around current levels.';
+  } else if (isOffline) {
+    grokText = 'Grok is offline; treat this as a high‑risk trap zone.';
+  } else if (grokText.length > GROK_LIMIT) {
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
@@ -30,6 +41,7 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   lines.push('🚨 *Dr. Grok Trap Alert*');
   lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} confidence)`);
   lines.push('');
+
   lines.push(`💰 BTC Price: *${formatUsd(priceUsd)}*`);
   lines.push(
     `📊 Exchange Netflow: *${flowDir}* ${flowAbs.toFixed(
@@ -37,23 +49,18 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
     )} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`,
   );
   lines.push('');
-  lines.push(trapSide);
 
+  lines.push(trapSide);
   if (trap?.note) {
     lines.push(`• ${trap.note}`);
   }
-
   if (trap?.hint) {
     lines.push(`• ${trap.hint}`);
   }
 
   lines.push('');
   lines.push("🧬 *Dr. Grok's Take*");
-  if (grokText) {
-    lines.push(grokText);
-  } else {
-    lines.push('Grok suggests exercising extreme caution around current levels.');
-  }
+  lines.push(grokText);
 
   lines.push('');
   lines.push('_For educational purposes only. Not financial advice._');

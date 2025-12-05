@@ -11,7 +11,7 @@ const GROK_MODEL_REASONING =
   process.env.GROK_MODEL_REASONING || 'grok-4-0709';
 
 if (!XAI_API_KEY) {
-  console.warn('⚠️ XAI_API_KEY is not set.');
+  console.warn('⚠️ XAI_API_KEY is not set. Grok client will operate in offline fallback mode.');
 }
 
 // OpenAI 互換クライアント（xAI エンドポイント向け）
@@ -20,7 +20,23 @@ const openai = new OpenAI({
   baseURL: BASE_URL,
 });
 
-// 市場サマリー用（既存の Dr. Grok レポート）
+// ---- 共通ユーティリティ ---------------------------------------
+
+function isRateLimitError(error) {
+  // xAI(OpenAI互換)のRateLimitは status 429 / error.type === 'rate_limit_error' など
+  const status = error?.status || error?.statusCode;
+  const type = error?.error?.type || error?.type;
+  return status === 429 || type === 'rate_limit_error' || type === 'RateLimitError';
+}
+
+function logCompactError(prefix, error) {
+  const status = error?.status || error?.statusCode;
+  const message = error?.message || String(error);
+  console.error(`${prefix} status=${status} message=${message}`);
+}
+
+// ---- 市場サマリー用（Dr. Grok レポート） ------------------------
+
 async function analyzeMarket(marketData) {
   if (!XAI_API_KEY) {
     return 'HOLD - Grok offline.';
@@ -51,20 +67,31 @@ async function analyzeMarket(marketData) {
 
     return completion.choices[0]?.message?.content || 'HOLD - Grok offline.';
   } catch (error) {
-    console.error('❌ Grok Error (analyzeMarket):', error);
+    if (isRateLimitError(error)) {
+      logCompactError('❌ Grok RateLimit (analyzeMarket):', error);
+    } else {
+      logCompactError('❌ Grok Error (analyzeMarket):', error);
+    }
+    // 429 を含め、どのエラーでも安全なフォールバックを返す
     return 'HOLD - Grok offline.';
   }
 }
 
-// X API を使わず、Grok の Live Search で X 投稿センチメントを推定
+// ---- Grok Live Search で X センチメント推定 --------------------
+
 async function analyzeXSentimentLive(
   query = 'latest BTC price top, whales, funding, liquidations on X',
 ) {
+  const fallback = {
+    whaleBias: 0,
+    retailFomo: 50,
+    newsImpact: 0,
+    explanation: 'Live Search unavailable.',
+  };
+
   if (!XAI_API_KEY) {
     return {
-      whaleBias: 0,
-      retailFomo: 50,
-      newsImpact: 0,
+      ...fallback,
       explanation: 'Live Search unavailable (no API key).',
     };
   }
@@ -88,10 +115,7 @@ async function analyzeXSentimentLive(
       // Live Search を search_parameters で有効化
       search_parameters: {
         mode: 'on', // 常に検索させたいなら 'on'、モデル任せなら 'auto'
-        sources: [
-          { type: 'x' },
-          { type: 'web' },
-        ],
+        sources: [{ type: 'x' }, { type: 'web' }],
         return_citations: false,
       },
     });
@@ -114,33 +138,36 @@ async function analyzeXSentimentLive(
       explanation: parsed?.explanation || text.slice(0, 200),
     };
   } catch (error) {
-    console.error('❌ Grok Live Search Error (analyzeXSentimentLive):', error);
-    return {
-      whaleBias: 0,
-      retailFomo: 50,
-      newsImpact: 0,
-      explanation: 'Live Search unavailable.',
-    };
+    if (isRateLimitError(error)) {
+      logCompactError('❌ Grok RateLimit (analyzeXSentimentLive):', error);
+      return {
+        ...fallback,
+        explanation: 'Live Search rate limited; using neutral sentiment.',
+      };
+    }
+
+    logCompactError('❌ Grok Live Search Error (analyzeXSentimentLive):', error);
+    return fallback;
   }
 }
 
-// 旧 X API 用：Structured Outputs で whaleBias / retailFomo / newsImpact を返す
-// （今は使っていなくても、互換性のために残しておく）
+// ---- 旧 X API 用：Structured Outputs（将来用に保持） ------------
+
 async function analyzeSocial(posts) {
+  const neutral = {
+    whaleBias: 0,
+    retailFomo: 50,
+    newsImpact: 0,
+    explanation: '',
+  };
+
   if (!posts || posts.length === 0) {
-    return {
-      whaleBias: 0,
-      retailFomo: 50,
-      newsImpact: 0,
-      explanation: '',
-    };
+    return neutral;
   }
 
   if (!XAI_API_KEY) {
     return {
-      whaleBias: 0,
-      retailFomo: 50,
-      newsImpact: 0,
+      ...neutral,
       explanation: 'Grok social analysis unavailable (no API key).',
     };
   }
@@ -188,8 +215,8 @@ async function analyzeSocial(posts) {
       },
     });
 
-    // Structured Outputs: parsed オブジェクトを直接読む
-    const json = resp.output[0]?.content[0]?.parsed;
+    const json = resp.output?.[0]?.content?.[0]?.parsed;
+
     return {
       whaleBias: json?.whaleBias ?? 0,
       retailFomo: json?.retailFomo ?? 50,
@@ -197,15 +224,22 @@ async function analyzeSocial(posts) {
       explanation: json?.explanation || '',
     };
   } catch (error) {
-    console.error('❌ Grok Error (analyzeSocial):', error);
+    if (isRateLimitError(error)) {
+      logCompactError('❌ Grok RateLimit (analyzeSocial):', error);
+    } else {
+      logCompactError('❌ Grok Error (analyzeSocial):', error);
+    }
+
     // フォールバック：ニュートラル扱い
     return {
-      whaleBias: 0,
-      retailFomo: 50,
-      newsImpact: 0,
+      ...neutral,
       explanation: 'Grok social analysis failed.',
     };
   }
 }
 
-module.exports = { analyzeMarket, analyzeSocial, analyzeXSentimentLive };
+module.exports = {
+  analyzeMarket,
+  analyzeSocial,
+  analyzeXSentimentLive,
+};

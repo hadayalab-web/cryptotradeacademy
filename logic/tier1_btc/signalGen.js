@@ -1,122 +1,77 @@
 ﻿// logic/tier1_btc/signalGen.js
 
-const thresholds = require('../../config/thresholds');
-
 /**
- * Generate final signal and TP/SL targets
+ * Generate final trade targets (TP/SL) from core decision.
  *
- * Regimes:
- * - BOTTOM_ATTACK : 大底ロング
- * - DIP_ATTACK    : 押し目ロング
- * - CEILING_DEFEND: 天井ショート/利確
- * - RANGE         : レンジ様子見
- * - SOFT          : 弱いバイアスのみ
+ * Input example:
+ *   generateSignal({
+ *     priceUsd: 92113,
+ *     score: 72,
+ *     direction: 'SELL', // 'BUY' | 'SELL' | 'NONE'
+ *   })
  */
-function generateSignal(score, currentPrice, ctx = {}) {
-  const { sentimentLabel = 'Neutral', change24h = 0 } = ctx;
 
-  let signal = 'HOLD';
-  let regime = 'RANGE';
-  let reason = 'Market is ranging. No strong edge.';
+function generateSignal(input = {}) {
+  const { priceUsd, score, direction } = input;
 
-  const absChange = Math.abs(change24h);
-  const isFear = sentimentLabel.includes('Fear');
-  const isGreed = sentimentLabel.includes('Greed');
+  const price = Number(priceUsd);
+  const signal = direction || 'NONE';
 
-  // --- BOTTOM ATTACK: Extreme Fear + 大きな下落後の底候補 ---
-  if (
-    score >= thresholds.BOTTOM_ATTACK.minScore &&
-    sentimentLabel === 'Extreme Fear' &&
-    change24h <= thresholds.BOTTOM_ATTACK.maxChange24h
-  ) {
-    signal = 'BUY';
-    regime = 'BOTTOM_ATTACK';
-    reason =
-      'Bottom Attack: heavy outflows + Extreme Fear + recent dump. Smart money likely accumulating.';
+  // 価格が不正 or ポジションを取らない場合は TP/SL なしで返す
+  if (!Number.isFinite(price) || price <= 0 || !['BUY', 'SELL'].includes(signal)) {
+    return {
+      signal: 'NONE',
+      entry: Number.isFinite(price) ? Math.round(price) : null,
+      tp: null,
+      sl: null,
+      rr: null,
+    };
   }
 
-  // --- DIP ATTACK: Fear圏での押し目ロング ---
-  else if (
-    score >= thresholds.DIP_ATTACK.minScore &&
-    isFear &&
-    absChange <= thresholds.DIP_ATTACK.maxAbsChange24h
-  ) {
-    signal = 'BUY';
-    regime = 'DIP_ATTACK';
-    reason =
-      'Dip Attack: bullish score with Fear. Pullback within trend looks buyable with tight risk.';
-  }
+  // --- ベースのリスクリワード設定 ----------------------------------
+  // 例: RR ≒ 3.5% / 2.0% ≒ 1.75
+  const BASE_TP_PCT = 0.035; // +3.5%
+  const BASE_SL_PCT = 0.02;  // -2.0%
 
-  // --- CEILING DEFEND: Greed圏での急騰天井候補 ---
-  else if (
-    score <= thresholds.CEILING_DEFEND.maxScore &&
-    isGreed &&
-    change24h >= thresholds.CEILING_DEFEND.minChange24h
-  ) {
-    signal = 'SELL';
-    regime = 'CEILING_DEFEND';
-    reason =
-      'Ceiling Defend: strong rally + Greed. Good zone to take profit or start defensive shorts.';
-  }
-
-  // --- RANGE: スコア中立 & 変動小 ---
-  else if (
-    score > thresholds.RANGE.minScore &&
-    score < thresholds.RANGE.maxScore &&
-    absChange < thresholds.RANGE.maxAbsChange24h
-  ) {
-    signal = 'HOLD';
-    regime = 'RANGE';
-    reason =
-      'Range: no clear directional edge. Best to stand aside and protect capital.';
-  }
-
-  // --- SOFT BIAS: それ以外は弱いBUY/SELLバイアスのみ ---
-  else {
-    if (score >= 50) {
-      signal = 'BUY';
-      regime = 'SOFT';
-      reason =
-        'Soft bullish bias: flows and sentiment lean upward, but edge is moderate.';
-    } else {
-      signal = 'SELL';
-      regime = 'SOFT';
-      reason =
-        'Soft bearish bias: flows and sentiment lean downward, but edge is moderate.';
+  // スコアに応じて TP を少しだけ可変にする（高スコアほど伸ばす）
+  let conviction = 1;
+  if (typeof score === 'number') {
+    if (score >= 80) {
+      conviction = 1.3;   // 強いシグナル: TP 少し広め
+    } else if (score >= 65) {
+      conviction = 1.1;   // そこそこ強い
+    } else if (score <= 35) {
+      conviction = 0.8;   // 自信が低いときは TP を控えめに
     }
   }
 
-  // --- TP/SL 計算（全レジーム共通で R/R=3.5% / 2%） ---
-const TP_PCT = 0.035; // +3.5%
-const SL_PCT = 0.02;  // -2%
+  const tpPct = BASE_TP_PCT * conviction;
+  const slPct = BASE_SL_PCT; // SL は常に一定（リスク管理をシンプルに）
 
-// エントリー価格
-const entry = currentPrice;
+  const entry = price;
 
-// シグナル方向に応じて TP/SL を計算
-let takeProfit = entry;
-let stopLoss = entry;
+  let tpPrice = entry;
+  let slPrice = entry;
 
-if (signal === 'BUY') {
-  // LONG: 上方向 TP, 下方向 SL
-  takeProfit = entry * (1 + TP_PCT);
-  stopLoss  = entry * (1 - SL_PCT);
-} else if (signal === 'SELL') {
-  // SHORT: 下方向 TP, 上方向 SL
-  takeProfit = entry * (1 - TP_PCT);
-  stopLoss  = entry * (1 + SL_PCT);
-}
+  if (signal === 'BUY') {
+    // LONG: 上方向 TP, 下方向 SL
+    tpPrice = entry * (1 + tpPct);
+    slPrice = entry * (1 - slPct);
+  } else if (signal === 'SELL') {
+    // SHORT: 下方向 TP, 上方向 SL
+    tpPrice = entry * (1 - tpPct);
+    slPrice = entry * (1 + slPct);
+  }
 
-// 価格は整数に丸め（UI/バックテストと揃える）
-return {
-  signal,
-  regime,
-  score,
-  reason,
-  entry: Math.round(entry),
-  tp: Math.round(takeProfit),
-  sl: Math.round(stopLoss),
-};
+  const rr = tpPct / slPct;
+
+  return {
+    signal,
+    entry: Math.round(entry),
+    tp: Math.round(tpPrice),
+    sl: Math.round(slPrice),
+    rr: Number(rr.toFixed(2)),
+  };
 }
 
 module.exports = { generateSignal };
