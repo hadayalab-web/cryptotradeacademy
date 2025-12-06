@@ -1,14 +1,11 @@
 // api/cron.js
 
 // --- Imports ----------------------------------------------------
-
 const { formatRegularBriefing } = require('../services/telegram/messages/user/en/regular');
 const { formatTrapAlert } = require('../services/telegram/messages/user/en/emergency');
 const { getExchangeInflow, getMinerPositionIndex } = require('../services/cryptoquant/endpoints/btc');
-
 // X API は使わないので pollXSentiment は削除
 // const { pollXSentiment } = require('../services/twitter/xPoller');
-
 const { buildMarketContext, decideSignal } = require('../logic/core/marketCore');
 const { generateSignal } = require('../logic/tier1_btc/signalGen');
 const { detectTrap } = require('../logic/tier1_btc/trapDetector');
@@ -22,13 +19,10 @@ async function fetchBtcPrice() {
   const url = new URL(
     'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',
   );
-
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`Price API Error: ${res.status} ${res.statusText}`);
-
   const json = await res.json();
   const data = json.bitcoin || {};
-
   return {
     priceUsd: Number(data.usd) || 0,
     change24h: Number(data.usd_24h_change) || 0,
@@ -37,15 +31,11 @@ async function fetchBtcPrice() {
 
 async function fetchFearGreed() {
   const url = new URL('https://api.alternative.me/fng/?limit=1');
-
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`FNG API Error: ${res.status} ${res.statusText}`);
-
   const json = await res.json();
   const point = json?.data?.[0];
-
   if (!point) return { value: null, label: 'Unknown' };
-
   return {
     value: Number(point.value) || null,
     label: point.value_classification || 'Unknown',
@@ -70,7 +60,6 @@ export default async function handler(req, res) {
     const utcHour = now.getUTCHours();
     const utcMinute = now.getUTCMinutes();
     const REGULAR_HOURS = [0, 4, 8, 12, 16, 20];
-
     const isRegularSlot = REGULAR_HOURS.includes(utcHour) && utcMinute < 5;
     const force = req.query?.force === 'true';
 
@@ -80,7 +69,6 @@ export default async function handler(req, res) {
 
     // 1. On-chain (CryptoQuant)
     const [inflowData, mpiData] = await Promise.all([getExchangeInflow(), getMinerPositionIndex()]);
-
     if (!inflowData || !mpiData) {
       console.warn('⚠️ No data from CryptoQuant');
       return res.status(200).json({ message: 'No on-chain data, skipped.' });
@@ -121,7 +109,16 @@ export default async function handler(req, res) {
       direction: coreDecision.signal, // 'BUY' | 'SELL' | 'NONE'
     });
 
-    let side = tradeSignal.signal === 'SELL' ? 'SHORT' : 'LONG';
+    // ★ side は coreDecision.signal ベースで一貫して決定
+    let side;
+    if (coreDecision.signal === 'BUY') {
+      side = 'LONG';
+    } else if (coreDecision.signal === 'SELL') {
+      side = 'SHORT';
+    } else {
+      side = 'FLAT';
+    }
+
     let entry = priceUsd;
     let tp = tradeSignal.tp;
     let sl = tradeSignal.sl;
@@ -179,7 +176,15 @@ export default async function handler(req, res) {
         direction: coreDecision.signal,
       });
 
-      side = tradeSignal.signal === 'SELL' ? 'SHORT' : 'LONG';
+      // ★ 再評価後も side は coreDecision.signal から決める
+      if (coreDecision.signal === 'BUY') {
+        side = 'LONG';
+      } else if (coreDecision.signal === 'SELL') {
+        side = 'SHORT';
+      } else {
+        side = 'FLAT';
+      }
+
       entry = priceUsd;
       tp = tradeSignal.tp;
       sl = tradeSignal.sl;
