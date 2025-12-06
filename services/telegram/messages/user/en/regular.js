@@ -53,19 +53,20 @@ function formatRegularBriefing({
     : '✅ *Trap Detector:* No critical trap detected.';
 
   // --- Trade card ------------------------------------------------------
-  const dirEmoji =
-    tradeSignal?.signal === 'BUY'
-      ? '🟢'
-      : tradeSignal?.signal === 'SELL'
-      ? '🔴'
-      : '⚪️';
+  // BUY / SELL 以外は BUG STANDBY (Defense Active) として表示
+  let dirEmoji;
+  let dirLabel;
 
-  const dirLabel =
-    tradeSignal?.signal === 'BUY'
-      ? 'BUY'
-      : tradeSignal?.signal === 'SELL'
-      ? 'SELL'
-      : 'NO TRADE';
+  if (tradeSignal?.signal === 'BUY') {
+    dirEmoji = '🟢';
+    dirLabel = 'BUY';
+  } else if (tradeSignal?.signal === 'SELL') {
+    dirEmoji = '🔴';
+    dirLabel = 'SELL';
+  } else {
+    dirEmoji = '🛡️';
+    dirLabel = 'BUG STANDBY (Defense Active)';
+  }
 
   const entryLine = `• Entry (spot ref.): *${formatUsd(priceUsd)}*`;
 
@@ -84,8 +85,9 @@ function formatRegularBriefing({
       ? `• Risk/Reward (RR): *${tradeSignal.rr.toFixed(2)}*`
       : '';
 
-  // NO TRADE 時専用の「待機モード」行
-  const isNoTrade = dirLabel === 'NO TRADE';
+  // NO TRADE (= BUG STANDBY) 専用の「待機モード」行
+  const isNoTrade =
+    tradeSignal?.signal !== 'BUY' && tradeSignal?.signal !== 'SELL';
   const modeLine = isNoTrade
     ? '• Mode: *Bug Standby* — market stressed, but no clean edge. Sit out and protect capital.'
     : '';
@@ -128,14 +130,14 @@ function formatRegularBriefing({
   lines.push('🎯 *Trade Verdict*');
   lines.push(`${dirEmoji} *Signal:* ${dirLabel}`);
   lines.push(entryLine);
-  if (modeLine) lines.push(modeLine); // NO TRADE のときだけ表示
+  if (modeLine) lines.push(modeLine); // BUG STANDBY のときだけ表示
   if (tpLine) lines.push(tpLine);
   if (slLine) lines.push(slLine);
   if (rrLine) lines.push(rrLine);
   lines.push('');
 
   // Grok take
-  lines.push('🧬 *Dr. Grok\'s Take*');
+  lines.push("🧬 *Dr. Grok's Take*");
   lines.push(grokText);
   lines.push('');
 

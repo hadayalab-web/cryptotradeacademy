@@ -109,11 +109,11 @@ export default async function handler(req, res) {
       direction: coreDecision.signal, // 'BUY' | 'SELL' | 'NONE'
     });
 
-    // ★ side は coreDecision.signal ベースで一貫して決定
+    // ★ side は「最終シグナル tradeSignal.signal」ベースで決定
     let side;
-    if (coreDecision.signal === 'BUY') {
+    if (tradeSignal.signal === 'BUY') {
       side = 'LONG';
-    } else if (coreDecision.signal === 'SELL') {
+    } else if (tradeSignal.signal === 'SELL') {
       side = 'SHORT';
     } else {
       side = 'FLAT';
@@ -176,10 +176,10 @@ export default async function handler(req, res) {
         direction: coreDecision.signal,
       });
 
-      // ★ 再評価後も side は coreDecision.signal から決める
-      if (coreDecision.signal === 'BUY') {
+      // ★ 再評価後も tradeSignal.signal から side を再計算
+      if (tradeSignal.signal === 'BUY') {
         side = 'LONG';
-      } else if (coreDecision.signal === 'SELL') {
+      } else if (tradeSignal.signal === 'SELL') {
         side = 'SHORT';
       } else {
         side = 'FLAT';
