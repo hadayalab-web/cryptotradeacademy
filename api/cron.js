@@ -5,18 +5,31 @@
 // 言語別フォーマッタを LANG で切り替え
 const LANG = process.env.LANG || 'en';
 
-const { formatRegularBriefing } = require(`../services/telegram/messages/user/${LANG}/regular`);
-const { formatTrapAlert } = require(`../services/telegram/messages/user/${LANG}/emergency`);
+const { formatRegularBriefing } = require(
+  `../services/telegram/messages/user/${LANG}/regular`
+);
+const { formatTrapAlert } = require(
+  `../services/telegram/messages/user/${LANG}/emergency`
+);
 
-const { getExchangeInflow, getMinerPositionIndex } = require('../services/cryptoquant/endpoints/btc');
+const { getExchangeInflow, getMinerPositionIndex } =
+  require('../services/cryptoquant/endpoints/btc');
+
 // X API は使わないので pollXSentiment は削除
 // const { pollXSentiment } = require('../services/twitter/xPoller');
-const { buildMarketContext, decideSignal } = require('../logic/core/marketCore');
-const { generateSignal } = require('../logic/tier1_btc/signalGen');
-const { detectTrap } = require('../logic/tier1_btc/trapDetector');
-const { normalizeSentiment } = require('../logic/tier1_btc/sentiment');
-const { analyzeMarket, analyzeXSentimentLive } = require('../services/grok/client');
-const { sendMessage } = require('../services/telegram/bot');
+
+const { buildMarketContext, decideSignal } =
+  require('../logic/core/marketCore');
+const { generateSignal } =
+  require('../logic/tier1_btc/signalGen');
+const { detectTrap } =
+  require('../logic/tier1_btc/trapDetector');
+const { normalizeSentiment } =
+  require('../logic/tier1_btc/sentiment');
+const { analyzeMarket, analyzeXSentimentLive } =
+  require('../services/grok/client');
+const { sendMessage } =
+  require('../services/telegram/bot');
 
 // --- External data helpers -------------------------------------
 
@@ -25,7 +38,9 @@ async function fetchBtcPrice() {
     'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',
   );
   const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Price API Error: ${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    throw new Error(`Price API Error: ${res.status} ${res.statusText}`);
+  }
   const json = await res.json();
   const data = json.bitcoin || {};
   return {
@@ -37,7 +52,9 @@ async function fetchBtcPrice() {
 async function fetchFearGreed() {
   const url = new URL('https://api.alternative.me/fng/?limit=1');
   const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`FNG API Error: ${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    throw new Error(`FNG API Error: ${res.status} ${res.statusText}`);
+  }
   const json = await res.json();
   const point = json?.data?.[0];
   if (!point) return { value: null, label: 'Unknown' };
@@ -53,7 +70,11 @@ export default async function handler(req, res) {
   const debugBypass = req.query?.debug === 'local';
   const authHeader = req.headers.authorization;
 
-  if (!debugBypass && process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (
+    !debugBypass &&
+    process.env.CRON_SECRET &&
+    authHeader !== `Bearer ${process.env.CRON_SECRET}`
+  ) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -73,7 +94,11 @@ export default async function handler(req, res) {
     );
 
     // 1. On-chain (CryptoQuant)
-    const [inflowData, mpiData] = await Promise.all([getExchangeInflow(), getMinerPositionIndex()]);
+    const [inflowData, mpiData] = await Promise.all([
+      getExchangeInflow(),
+      getMinerPositionIndex(),
+    ]);
+
     if (!inflowData || !mpiData) {
       console.warn('⚠️ No data from CryptoQuant');
       return res.status(200).json({ message: 'No on-chain data, skipped.' });
@@ -83,7 +108,11 @@ export default async function handler(req, res) {
     const mpi = Number(mpiData.value) || 0;
 
     // 2. Price & Fear&Greed
-    const [priceMeta, fng] = await Promise.all([fetchBtcPrice(), fetchFearGreed()]);
+    const [priceMeta, fng] = await Promise.all([
+      fetchBtcPrice(),
+      fetchFearGreed(),
+    ]);
+
     const priceUsd = priceMeta.priceUsd;
     const change24h = priceMeta.change24h;
     const rawSentiment = fng.label ?? fng.value;
@@ -136,9 +165,10 @@ export default async function handler(req, res) {
       mpi,
     });
 
-    let needsEmergency = trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
-    const needsGrok = isRegularSlot || force || needsEmergency;
+    let needsEmergency =
+      trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
 
+    const needsGrok = isRegularSlot || force || needsEmergency;
     let aiAnalysis = null;
 
     // 6. Grok 呼び出し（REGULAR / force / EMERGENCY のときだけ）
@@ -206,7 +236,8 @@ export default async function handler(req, res) {
 
       if (trapWithSentiment?.isTrap) {
         trap = trapWithSentiment;
-        needsEmergency = trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
+        needsEmergency =
+          trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
       }
 
       // 6-2. Grok に市場サマリーを投げてコメント生成
@@ -226,7 +257,9 @@ export default async function handler(req, res) {
       };
 
       try {
-        aiAnalysis = await analyzeMarket(JSON.stringify(marketSummaryPayload));
+        aiAnalysis = await analyzeMarket(
+          JSON.stringify(marketSummaryPayload),
+        );
       } catch (err) {
         console.warn(
           '⚠️ Grok Market Analyze Error in analyzeMarket, fallback to offline analysis:',
@@ -242,7 +275,6 @@ export default async function handler(req, res) {
     // 7-A. REGULAR レポート送信
     if (isRegularSlot || force) {
       console.log('Sending REGULAR message...');
-
       const regularText = formatRegularBriefing({
         now,
         inflow,
@@ -255,7 +287,6 @@ export default async function handler(req, res) {
         trap,
         aiAnalysis,
       });
-
       await sendMessage(regularText);
       sent += 1;
     }
@@ -269,7 +300,6 @@ export default async function handler(req, res) {
         trap,
         aiAnalysis,
       });
-
       await sendMessage(alertText);
       sent += 1;
     }

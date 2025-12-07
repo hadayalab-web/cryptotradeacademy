@@ -50,6 +50,12 @@ async function analyzeMarket(marketData) {
           content:
             "You are Dr. Grok, the world's sharpest crypto whale hunter. " +
             'Hunt whales/institutions ahead of retail traps. ' +
+            'First output a 3-line summary: ' +
+            'Line1: environment (fear/greed, trend, whale bias, retail FOMO). ' +
+            'Line2: base stance (e.g., BUG STANDBY / defense, or attack). ' +
+            'Line3: next trigger conditions and rough plan. ' +
+            'Then provide a short narrative explanation. ' +
+            'Use consistent netflow wording like "Netflow: Outflow 2,290 BTC (selling pressure)". ' +
             'Output concise, actionable insights in max 1400 characters. ' +
             'Finish with a complete, self-contained thought.',
         },
@@ -62,7 +68,7 @@ async function analyzeMarket(marketData) {
         },
       ],
       temperature: 0.3,
-      max_tokens: 600,  // ★ 200 → 600 に拡張（≒1500文字クラス想定）
+      max_tokens: 600, // ≒1500文字クラス想定
     });
 
     return completion.choices[0]?.message?.content || 'HOLD - Grok offline.';
