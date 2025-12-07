@@ -98,7 +98,7 @@ function formatRegularBriefing({
     !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
 
   let grokText = raw;
-  const GROK_LIMIT = 360;
+  const GROK_LIMIT = 700;
 
   if (!grokText || isOffline) {
     grokText = 'HOLD - Grok offline.';
