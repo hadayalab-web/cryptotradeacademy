@@ -1,8 +1,13 @@
 // api/cron.js
 
 // --- Imports ----------------------------------------------------
-const { formatRegularBriefing } = require('../services/telegram/messages/user/en/regular');
-const { formatTrapAlert } = require('../services/telegram/messages/user/en/emergency');
+
+// 言語別フォーマッタを LANG で切り替え
+const LANG = process.env.LANG || 'en';
+
+const { formatRegularBriefing } = require(`../services/telegram/messages/user/${LANG}/regular`);
+const { formatTrapAlert } = require(`../services/telegram/messages/user/${LANG}/emergency`);
+
 const { getExchangeInflow, getMinerPositionIndex } = require('../services/cryptoquant/endpoints/btc');
 // X API は使わないので pollXSentiment は削除
 // const { pollXSentiment } = require('../services/twitter/xPoller');
