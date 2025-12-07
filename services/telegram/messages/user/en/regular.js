@@ -93,18 +93,19 @@ function formatRegularBriefing({
     : '';
 
   // --- Grok commentary -------------------------------------------------
-  const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
-  const isOffline =
-    !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
 
-  let grokText = raw;
-  const GROK_LIMIT = 700;
+const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
+const isOffline =
+  !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
 
-  if (!grokText || isOffline) {
-    grokText = 'HOLD - Grok offline.';
-  } else if (grokText.length > GROK_LIMIT) {
-    grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
-  }
+let grokText = raw;
+const GROK_LIMIT = 1500;  // ★ 700 → 1500 に拡張
+
+if (!grokText || isOffline) {
+  grokText = 'HOLD - Grok offline.';
+} else if (grokText.length > GROK_LIMIT) {
+  grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
+}
 
   // --- Build lines -----------------------------------------------------
   const lines = [];

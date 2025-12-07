@@ -36,7 +36,6 @@ function logCompactError(prefix, error) {
 }
 
 // ---- 市場サマリー用（Dr. Grok レポート） ------------------------
-
 async function analyzeMarket(marketData) {
   if (!XAI_API_KEY) {
     return 'HOLD - Grok offline.';
@@ -51,7 +50,8 @@ async function analyzeMarket(marketData) {
           content:
             "You are Dr. Grok, the world's sharpest crypto whale hunter. " +
             'Hunt whales/institutions ahead of retail traps. ' +
-            'Output concise, actionable insights.',
+            'Output concise, actionable insights in max 1400 characters. ' +
+            'Finish with a complete, self-contained thought.',
         },
         {
           role: 'user',
@@ -62,7 +62,7 @@ async function analyzeMarket(marketData) {
         },
       ],
       temperature: 0.3,
-      max_tokens: 200,
+      max_tokens: 600,  // ★ 200 → 600 に拡張（≒1500文字クラス想定）
     });
 
     return completion.choices[0]?.message?.content || 'HOLD - Grok offline.';
