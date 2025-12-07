@@ -2,22 +2,44 @@
 
 // --- Imports ----------------------------------------------------
 
-// 言語別フォーマッタを LANG で切り替え
-const LANG = process.env.LANG || 'en';
+// LANG を正規化（en, es, pt-br, ar, jp, kr だけ許可）
+const rawLang = process.env.LANG || 'en';
+const baseLang = rawLang.toLowerCase().split('.')[0].split('_')[0];
+const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'jp', 'kr'];
+const LANG = SUPPORTED_LANGS.includes(baseLang) ? baseLang : 'en';
 
-const { formatRegularBriefing } = require(
-  `../services/telegram/messages/user/${LANG}/regular`
-);
-const { formatTrapAlert } = require(
-  `../services/telegram/messages/user/${LANG}/emergency`
-);
+// 言語別テンプレートを lang-suffixed ファイルから読み込む
+function loadUserTemplates(lang) {
+  try {
+    // 例: services/telegram/messages/user/en/regular.en.js
+    // eslint-disable-next-line import/no-dynamic-require, global-require
+    const { formatRegularBriefing } = require(
+      `../services/telegram/messages/user/${lang}/regular.${lang}`
+    );
+    const { formatTrapAlert } = require(
+      `../services/telegram/messages/user/${lang}/emergency.${lang}`
+    );
+    return { formatRegularBriefing, formatTrapAlert };
+  } catch (e) {
+    console.warn(
+      `Fallback to EN templates. lang=${lang} error=${e.message}`
+    );
+    const { formatRegularBriefing } = require(
+      '../services/telegram/messages/user/en/regular.en'
+    );
+    const { formatTrapAlert } = require(
+      '../services/telegram/messages/user/en/emergency.en'
+    );
+    return { formatRegularBriefing, formatTrapAlert };
+  }
+}
+
+const { formatRegularBriefing, formatTrapAlert } = loadUserTemplates(LANG);
 
 const { getExchangeInflow, getMinerPositionIndex } =
   require('../services/cryptoquant/endpoints/btc');
-
 // X API は使わないので pollXSentiment は削除
 // const { pollXSentiment } = require('../services/twitter/xPoller');
-
 const { buildMarketContext, decideSignal } =
   require('../logic/core/marketCore');
 const { generateSignal } =
