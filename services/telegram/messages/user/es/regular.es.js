@@ -93,18 +93,19 @@ function formatRegularBriefing({
     : '';
 
   // --- Grok commentary -------------------------------------------------
-  const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
-  const isOffline =
-    !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
 
-  let grokText = raw;
-  const GROK_LIMIT = 360;
+const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
+const isOffline =
+  !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
 
-  if (!grokText || isOffline) {
-    grokText = 'HOLD - Grok offline.';
-  } else if (grokText.length > GROK_LIMIT) {
-    grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
-  }
+let grokText = raw;
+const GROK_LIMIT = 1500;  // ★ 700 → 1500 に拡張
+
+if (!grokText || isOffline) {
+  grokText = 'HOLD - Grok offline.';
+} else if (grokText.length > GROK_LIMIT) {
+  grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
+}
 
   // --- Build lines -----------------------------------------------------
   const lines = [];
@@ -136,14 +137,16 @@ function formatRegularBriefing({
   if (rrLine) lines.push(rrLine);
   lines.push('');
 
-  // Grok take
-  lines.push("🧬 *Dr. Grok's Take*");
-  lines.push(grokText);
-  lines.push('');
+// --- Grok take --------------------------------------------------
+lines.push("🧬 *Dr. Grok's Take*");
+lines.push(
+  '_Below is a strategic idea, not an official True Bug Entry signal. Follow only when your own plan and risk management align._'
+);
+lines.push(grokText);
+lines.push('');
+lines.push('_For educational purposes only. Not financial advice._');
 
-  lines.push('_For educational purposes only. Not financial advice._');
-
-  return lines.join('\n');
+return lines.join('\n');
 }
 
 module.exports = { formatRegularBriefing };
