@@ -280,10 +280,10 @@ export default async function handler(req, res) {
 
       try {
         aiAnalysis = await analyzeMarket(
-  JSON.stringify(marketSummaryPayload),
-  LANG, // ★ ここを追加
-);
-
+          JSON.stringify(marketSummaryPayload),
+          JSON.stringify(xSentiment),
+          LANG,
+        );
       } catch (err) {
         console.warn(
           '⚠️ Grok Market Analyze Error in analyzeMarket, fallback to offline analysis:',
@@ -291,7 +291,7 @@ export default async function handler(req, res) {
         );
         aiAnalysis = null;
       }
-    }
+    } // ★ ここで if (needsGrok) を閉じる
 
     // 7. Telegram 送信ロジック
     let sent = 0;

@@ -36,59 +36,89 @@ function logCompactError(prefix, error) {
 }
 
 // ---- 市場サマリー用（Dr. Grok レポート） ------------------------
-async function analyzeMarket(marketData, lang = 'en') {
+async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en') {
   if (!XAI_API_KEY) {
     return 'HOLD - Grok offline.';
   }
 
-  const language = (lang || 'en').toLowerCase();
+  const targetLang = (lang || 'en').toLowerCase();
 
   try {
+    // ① まず英語で Dr. Grok に丸投げ
     const completion = await openai.chat.completions.create({
       model: GROK_MODEL_REASONING,
       messages: [
         {
           role: 'system',
           content:
-            "You are Dr. Grok, the world's sharpest crypto whale hunter. " +
-            'You speak like an experienced X (Twitter) crypto trader, not like a generic analyst. ' +
-            `Always respond in ${language}. ` +
-            'Target audience: active BTC day/swing traders looking for asymmetric risk/reward. ' +
-            'You will receive JSON describing the market context (price, netflow, MPI, sentiment, score, signal, trap, whaleBias, retailFomo, newsImpact). ' +
-            'Do NOT contradict the given score, signal, or trap fields. If signal is NONE, you MUST avoid giving hard entry signals and focus on scenarios and risk. ' +
-            // ★ マクロイベント（例: FOMC）をトリガー行で軽く触れる
-            'When relevant, mention upcoming macro events (e.g., FOMC 12/10) in the trigger line as catalysts, but do NOT invent dates. ' +
-            'First output a 3-line summary (each line short): ' +
-            'Line1: environment (fear/greed, short description of trend, whale bias, retail FOMO). ' +
-            'Line2: base stance (e.g., BUG STANDBY / defense, BULL STANDBY, ATTACK / accumulation). ' +
-            'Line3: next trigger conditions and rough plan (what to watch, basic idea of how to act when triggered). ' +
-            'Then provide a short narrative explanation (2–4 short paragraphs or bullets) about what whales/institutions and retail are likely doing, and how to exploit that behavior. ' +
-            // ★ Netflow の表現統一
-            'Use consistent netflow wording like "Netflow: Inflow 3,214 BTC (buying pressure)" and "Netflow: Outflow 2,290 BTC (buying pressure from spot outflows)", avoid calling inflows "selling pressure". ' +
-            'Be concise, actionable, and avoid repetition across sentences. Maximum length: 1400 characters. ' +
-            'Finish with a complete, self-contained thought.',
+            'You are "Dr. Grok", a crypto trading coach for active BTC traders. ' +
+            'You think like a veteran X (Twitter) crypto trader, not a generic analyst. ' +
+            'You receive two JSON blobs: (1) structured BTC market context from on-chain/price data, ' +
+            '(2) a live X sentiment snapshot (whaleBias, retailFomo, newsImpact, example topics). ' +
+            'First, infer what traders on X are currently afraid of, confused about, or chasing. ' +
+            'From that, decide whether they mainly need CLARITY, RISK WARNINGS, ENTRY IDEAS, or PATIENCE coaching. ' +
+            'Then read the market JSON and use those numbers only as factual evidence to answer that need. ' +
+            'Do NOT contradict the given score, signal, tp, sl, or trap fields. ' +
+            'If signal is NONE, you MUST avoid giving hard entries and focus on scenarios and risk. ' +
+            'Keep key trading terms in English (BUY, SELL, Stop Loss, Take Profit, liquidations, etc.). ' +
+            'Write the full briefing in English, structured for Telegram with: ' +
+            '- short header/title; ' +
+            '- compact market snapshot; ' +
+            '- trade verdict section using the existing signal/tp/sl; ' +
+            '- 1–2 scenarios to watch; ' +
+            '- a short coaching note about mindset and risk. ' +
+            'Return ONLY the final message text.',
         },
         {
           role: 'user',
           content:
-            'Analyze this BTC market context and explain what whales and ' +
-            'institutions are likely doing, how retail is positioned, and how to exploit the situation as an active trader: ' +
-            marketData,
+            'Here is the BTC market context JSON, followed by the X sentiment JSON:\n\n' +
+            '[Market JSON]\n' +
+            marketDataJson +
+            '\n\n[X Sentiment JSON]\n' +
+            xSentimentJson,
         },
       ],
       temperature: 0.3,
-      max_tokens: 600, // ≒1500文字クラス想定
+      max_tokens: 600,
     });
 
-    return completion.choices[0]?.message?.content || 'HOLD - Grok offline.';
+    const englishText =
+      completion.choices[0]?.message?.content || 'HOLD - Grok offline.';
+
+    // EN はそのまま返す
+    if (targetLang === 'en') {
+      return englishText;
+    }
+
+    // ② 出力だけ各言語に翻訳
+    const translationPrompt = `
+You are a professional financial translator.
+Translate the following BTC trading briefing into ${targetLang},
+keeping trading terms like BUY, SELL, Stop Loss, Take Profit, support, resistance in English.
+Make the rest sound natural and clear for active BTC traders.
+
+[Text to translate]
+${englishText}
+    `.trim();
+
+    const translated = await openai.chat.completions.create({
+      model: GROK_MODEL_REASONING,
+      messages: [
+        { role: 'system', content: translationPrompt },
+      ],
+      temperature: 0.2,
+      max_tokens: 800,
+    });
+
+
+    return translated.choices[0]?.message?.content || englishText;
   } catch (error) {
     if (isRateLimitError(error)) {
       logCompactError('❌ Grok RateLimit (analyzeMarket):', error);
     } else {
       logCompactError('❌ Grok Error (analyzeMarket):', error);
     }
-
-    // 429 を含め、どのエラーでも安全なフォールバックを返す
     return 'HOLD - Grok offline.';
   }
 }
