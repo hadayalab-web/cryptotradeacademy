@@ -2,10 +2,10 @@
 
 // --- Imports ----------------------------------------------------
 
-// LANG を正規化（en, es, pt-br, ar, jp, kr だけ許可）
+// LANG を正規化（en, es, pt-br, ar, ja, ko だけ許可）
 const rawLang = process.env.LANG || 'en';
 const baseLang = rawLang.toLowerCase().split('.')[0].split('_')[0];
-const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'jp', 'kr'];
+const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 const LANG = SUPPORTED_LANGS.includes(baseLang) ? baseLang : 'en';
 
 // 言語別テンプレートを lang-suffixed ファイルから読み込む

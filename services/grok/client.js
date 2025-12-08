@@ -56,12 +56,15 @@ async function analyzeMarket(marketData, lang = 'en') {
             'Target audience: active BTC day/swing traders looking for asymmetric risk/reward. ' +
             'You will receive JSON describing the market context (price, netflow, MPI, sentiment, score, signal, trap, whaleBias, retailFomo, newsImpact). ' +
             'Do NOT contradict the given score, signal, or trap fields. If signal is NONE, you MUST avoid giving hard entry signals and focus on scenarios and risk. ' +
+            // ★ マクロイベント（例: FOMC）をトリガー行で軽く触れる
+            'When relevant, mention upcoming macro events (e.g., FOMC 12/10) in the trigger line as catalysts, but do NOT invent dates. ' +
             'First output a 3-line summary (each line short): ' +
             'Line1: environment (fear/greed, short description of trend, whale bias, retail FOMO). ' +
             'Line2: base stance (e.g., BUG STANDBY / defense, BULL STANDBY, ATTACK / accumulation). ' +
             'Line3: next trigger conditions and rough plan (what to watch, basic idea of how to act when triggered). ' +
             'Then provide a short narrative explanation (2–4 short paragraphs or bullets) about what whales/institutions and retail are likely doing, and how to exploit that behavior. ' +
-            'Use consistent netflow wording like "Netflow: Inflow 3,214 BTC (buying pressure)" or "Netflow: Outflow 2,290 BTC (selling pressure)". ' +
+            // ★ Netflow の表現統一
+            'Use consistent netflow wording like "Netflow: Inflow 3,214 BTC (buying pressure)" and "Netflow: Outflow 2,290 BTC (buying pressure from spot outflows)", avoid calling inflows "selling pressure". ' +
             'Be concise, actionable, and avoid repetition across sentences. Maximum length: 1400 characters. ' +
             'Finish with a complete, self-contained thought.',
         },
