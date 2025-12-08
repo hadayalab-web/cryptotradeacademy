@@ -32,17 +32,17 @@ function formatRegularBriefing({
 
   // --- لمحة عن السوق ----------------------------------------------------
 
-  const priceLine = `💰 سعر BTC: *${formatUsd(priceUsd)}* (${formatPercent(
+  const priceLine = `💰 سعر BTC: ${formatUsd(priceUsd)} (${formatPercent(
     change24h,
   )} / 24h)`;
 
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
-  const flowLine = `📊 صافي تدفق البورصات: *${flowDir}* ${flowAbs.toFixed(
+  const flowLine = `📊 صافي تدفق البورصات: ${flowDir} ${flowAbs.toFixed(
     0,
   )} BTC`;
 
-  const mpiLine = `⛏ مؤشر مراكز المعدّنين (MPI): *${(mpi ?? 0).toFixed(2)}*`;
+  const mpiLine = `⛏ مؤشر مراكز المعدّنين (MPI): ${(mpi ?? 0).toFixed(2)}`;
 
   const sentimentLine = `🧠 حالة الشعور في السوق: *${
     sentimentLabel || 'غير معروف'
@@ -50,13 +50,13 @@ function formatRegularBriefing({
 
   // --- الدرجة والفخاخ ---------------------------------------------------
 
-  const scoreLine = `📈 *درجة السوق:* ${Math.round(score ?? 0)}/100`;
+  const scoreLine = `📈 درجة السوق: ${Math.round(score ?? 0)}/100`;
 
   const trapLine = trap?.isTrap
-    ? `🧨 *كاشف الفخاخ:* ${
+    ? `🧨 كاشف الفخاخ: ${
         trap.label || 'فخ محتمل'
-      } (*${trap.confidence}* مستوى ثقة)`
-    : '✅ *كاشف الفخاخ:* لا توجد فخاخ حرجة مكتشفة.';
+      } (${trap.confidence} مستوى ثقة)`
+    : '✅ كاشف الفخاخ: لا توجد فخاخ حرجة مكتشفة.';
 
   // --- بطاقة التداول ----------------------------------------------------
 
@@ -75,21 +75,21 @@ function formatRegularBriefing({
     dirLabel = 'BUG STANDBY (Defense Active)';
   }
 
-  const entryLine = `• سعر الدخول (مرجع سبوت): *${formatUsd(priceUsd)}*`;
+  const entryLine = `• سعر الدخول (مرجع سبوت): ${formatUsd(priceUsd)}`;
 
   const tpLine =
     tradeSignal?.tp != null
-      ? `• Take Profit: *${formatUsd(tradeSignal.tp)}*`
+      ? `• Take Profit: ${formatUsd(tradeSignal.tp)}`
       : '• Take Profit: n/a';
 
   const slLine =
     tradeSignal?.sl != null
-      ? `• Stop Loss: *${formatUsd(tradeSignal.sl)}*`
+      ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}`
       : '• Stop Loss: n/a';
 
   const rrLine =
     tradeSignal?.rr != null
-      ? `• نسبة المخاطرة إلى العائد (RR): *${tradeSignal.rr.toFixed(2)}*`
+      ? `• نسبة المخاطرة إلى العائد (RR): ${tradeSignal.rr.toFixed(2)}`
       : '';
 
   // سطر خاص لوضع الانتظار في حالة NO TRADE (= BUG STANDBY)
@@ -97,7 +97,7 @@ function formatRegularBriefing({
     tradeSignal?.signal !== 'BUY' && tradeSignal?.signal !== 'SELL';
 
   const modeLine = isNoTrade
-    ? '• الوضع: *Bug Standby* — السوق متوتر ولا توجد أفضلية واضحة. ابتعد مؤقتاً واحمِ رأس مالك.'
+    ? '• الوضع: Bug Standby — السوق متوتر ولا توجد أفضلية واضحة. ابتعد مؤقتاً واحمِ رأس مالك.'
     : '';
 
   // --- تعليق Grok ------------------------------------------------------
@@ -120,8 +120,8 @@ function formatRegularBriefing({
   const lines = [];
 
   // العنوان
-  lines.push('📚 *تسريب السوق من Dr. Grok*');
-  lines.push(`_تقرير الجلسة @ ${ts}_`);
+  lines.push('📚 تسريب السوق من Dr. Grok');
+  lines.push(`تقرير الجلسة @ ${ts}`);
   lines.push('');
 
   // لمحة عن السوق
@@ -137,8 +137,8 @@ function formatRegularBriefing({
   lines.push('');
 
   // بطاقة التداول
-  lines.push('🎯 *حكم التداول*');
-  lines.push(`${dirEmoji} *الإشارة:* ${dirLabel}`);
+  lines.push('🎯 حكم التداول');
+  lines.push(`${dirEmoji} الإشارة: ${dirLabel}`);
   lines.push(entryLine);
   if (modeLine) lines.push(modeLine); // يظهر فقط في BUG STANDBY
   if (tpLine) lines.push(tpLine);
@@ -147,17 +147,19 @@ function formatRegularBriefing({
   lines.push('');
 
   // تعليق Grok
-  lines.push('🧬 *رؤية Dr. Grok*');
+  lines.push('🧬 رؤية Dr. Grok');
   lines.push(
-    '_ما يلي فكرة استراتيجية، وليست إشارة دخول رسمية من True Bug. استخدمها فقط إذا كانت متوافقة مع خطتك وإدارة المخاطر الخاصة بك._',
+    'ما يلي فكرة استراتيجية، وليست إشارة دخول رسمية من True Bug. استخدمها فقط إذا كانت متوافقة مع خطتك وإدارة المخاطر الخاصة بك.',
   );
   lines.push(grokText);
   lines.push('');
   lines.push(
-    '_لأغراض تعليمية فقط. لا يُعدّ هذا نصيحة مالية أو استثمارية._',
+    'لأغراض تعليمية فقط. لا يُعدّ هذا نصيحة مالية أو استثمارية.',
   );
 
   return lines.join('\n');
 }
 
 module.exports = { formatRegularBriefing };
+
+

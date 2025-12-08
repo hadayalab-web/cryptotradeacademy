@@ -30,27 +30,27 @@ function formatRegularBriefing({
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
   // --- Market snapshot -------------------------------------------------
-  const priceLine = `💰 BTC Price: *${formatUsd(priceUsd)}* (${formatPercent(
+  const priceLine = `💰 BTC Price: ${formatUsd(priceUsd)} (${formatPercent(
     change24h,
   )} / 24h)`;
 
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
-  const flowLine = `📊 Exchange Netflow: *${flowDir}* ${flowAbs.toFixed(
+  const flowLine = `📊 Exchange Netflow: ${flowDir} ${flowAbs.toFixed(
     0,
   )} BTC`;
 
-  const mpiLine = `⛏ Miners' Position Index (MPI): *${(mpi ?? 0).toFixed(2)}*`;
-  const sentimentLine = `🧠 Sentiment: *${sentimentLabel || 'Unknown'}*`;
+  const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
+  const sentimentLine = `🧠 Sentiment: ${sentimentLabel || 'Unknown'}`;
 
   // --- Score & Trap ----------------------------------------------------
-  const scoreLine = `📈 *Market Score:* ${Math.round(score ?? 0)}/100`;
+  const scoreLine = `📈 Market Score: ${Math.round(score ?? 0)}/100`;
 
   const trapLine = trap?.isTrap
-    ? `🧨 *Trap Detector:* ${trap.label || 'Potential trap'} (*${
+    ? `🧨 Trap Detector: ${trap.label || 'Potential trap'} (*${
         trap.confidence
       }* confidence)`
-    : '✅ *Trap Detector:* No critical trap detected.';
+    : '✅ Trap Detector: No critical trap detected.';
 
   // --- Trade card ------------------------------------------------------
   // BUY / SELL 以外は BUG STANDBY (Defense Active) として表示
@@ -68,28 +68,28 @@ function formatRegularBriefing({
     dirLabel = 'BUG STANDBY (Defense Active)';
   }
 
-  const entryLine = `• Entry (spot ref.): *${formatUsd(priceUsd)}*`;
+  const entryLine = `• Entry (spot ref.): ${formatUsd(priceUsd)}`;
 
   const tpLine =
     tradeSignal?.tp != null
-      ? `• Take Profit: *${formatUsd(tradeSignal.tp)}*`
+      ? `• Take Profit: ${formatUsd(tradeSignal.tp)}`
       : '• Take Profit: n/a';
 
   const slLine =
     tradeSignal?.sl != null
-      ? `• Stop Loss: *${formatUsd(tradeSignal.sl)}*`
+      ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}`
       : '• Stop Loss: n/a';
 
   const rrLine =
     tradeSignal?.rr != null
-      ? `• Risk/Reward (RR): *${tradeSignal.rr.toFixed(2)}*`
+      ? `• Risk/Reward (RR): ${tradeSignal.rr.toFixed(2)}`
       : '';
 
   // NO TRADE (= BUG STANDBY) 専用の「待機モード」行
   const isNoTrade =
     tradeSignal?.signal !== 'BUY' && tradeSignal?.signal !== 'SELL';
   const modeLine = isNoTrade
-    ? '• Mode: *Bug Standby* — market stressed, but no clean edge. Sit out and protect capital.'
+    ? '• Mode: Bug Standby — market stressed, but no clean edge. Sit out and protect capital.'
     : '';
 
   // --- Grok commentary -------------------------------------------------
@@ -111,8 +111,8 @@ if (!grokText || isOffline) {
   const lines = [];
 
   // Header
-  lines.push("📚 *Dr. Grok's Market Leak*");
-  lines.push(`_Session Briefing @ ${ts}_`);
+  lines.push("📚 Dr. Grok's Market Leak");
+  lines.push(`Session Briefing @ ${ts}`);
   lines.push('');
 
   // Market snapshot
@@ -128,8 +128,8 @@ if (!grokText || isOffline) {
   lines.push('');
 
   // Trade card
-  lines.push('🎯 *Trade Verdict*');
-  lines.push(`${dirEmoji} *Signal:* ${dirLabel}`);
+  lines.push('🎯 Trade Verdict');
+  lines.push(`${dirEmoji} Signal: ${dirLabel}`);
   lines.push(entryLine);
   if (modeLine) lines.push(modeLine); // BUG STANDBY のときだけ表示
   if (tpLine) lines.push(tpLine);
@@ -138,15 +138,17 @@ if (!grokText || isOffline) {
   lines.push('');
 
 // --- Grok take --------------------------------------------------
-lines.push("🧬 *Dr. Grok's Take*");
+lines.push("🧬 Dr. Grok's Take");
 lines.push(
-  '_Below is a strategic idea, not an official True Bug Entry signal. Follow only when your own plan and risk management align._'
+  'Below is a strategic idea, not an official True Bug Entry signal. Follow only when your own plan and risk management align.'
 );
 lines.push(grokText);
 lines.push('');
-lines.push('_For educational purposes only. Not financial advice._');
+lines.push('For educational purposes only. Not financial advice.');
 
 return lines.join('\n');
 }
 
 module.exports = { formatRegularBriefing };
+
+

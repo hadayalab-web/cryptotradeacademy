@@ -32,29 +32,29 @@ function formatRegularBriefing({
 
   // --- Instantánea de mercado ------------------------------------------
 
-  const priceLine = `💰 Precio BTC: *${formatUsd(priceUsd)}* (${formatPercent(
+  const priceLine = `💰 Precio BTC: ${formatUsd(priceUsd)} (${formatPercent(
     change24h,
   )} / 24h)`;
 
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
-  const flowLine = `📊 Flujo neto de exchanges: *${flowDir}* ${flowAbs.toFixed(
+  const flowLine = `📊 Flujo neto de exchanges: ${flowDir} ${flowAbs.toFixed(
     0,
   )} BTC`;
 
-  const mpiLine = `⛏ Miners' Position Index (MPI): *${(mpi ?? 0).toFixed(2)}*`;
+  const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
 
-  const sentimentLine = `🧠 Sentimiento: *${sentimentLabel || 'Desconocido'}*`;
+  const sentimentLine = `🧠 Sentimiento: ${sentimentLabel || 'Desconocido'}`;
 
   // --- Puntuación y trampa ---------------------------------------------
 
-  const scoreLine = `📈 *Puntuación de mercado:* ${Math.round(score ?? 0)}/100`;
+  const scoreLine = `📈 Puntuación de mercado: ${Math.round(score ?? 0)}/100`;
 
   const trapLine = trap?.isTrap
-    ? `🧨 *Detector de trampas:* ${
+    ? `🧨 Detector de trampas: ${
         trap.label || 'Posible trampa'
-      } (*${trap.confidence}* confianza)`
-    : '✅ *Detector de trampas:* No se detectan trampas críticas.';
+      } (${trap.confidence} confianza)`
+    : '✅ Detector de trampas: No se detectan trampas críticas.';
 
   // --- Tarjeta de trading ----------------------------------------------
 
@@ -73,21 +73,21 @@ function formatRegularBriefing({
     dirLabel = 'BUG STANDBY (Defense Active)';
   }
 
-  const entryLine = `• Entrada (spot ref.): *${formatUsd(priceUsd)}*`;
+  const entryLine = `• Entrada (spot ref.): ${formatUsd(priceUsd)}`;
 
   const tpLine =
     tradeSignal?.tp != null
-      ? `• Take Profit: *${formatUsd(tradeSignal.tp)}*`
+      ? `• Take Profit: ${formatUsd(tradeSignal.tp)}`
       : '• Take Profit: n/a';
 
   const slLine =
     tradeSignal?.sl != null
-      ? `• Stop Loss: *${formatUsd(tradeSignal.sl)}*`
+      ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}`
       : '• Stop Loss: n/a';
 
   const rrLine =
     tradeSignal?.rr != null
-      ? `• Riesgo/beneficio (RR): *${tradeSignal.rr.toFixed(2)}*`
+      ? `• Riesgo/beneficio (RR): ${tradeSignal.rr.toFixed(2)}`
       : '';
 
   // Línea especial de “modo espera” para NO TRADE (= BUG STANDBY)
@@ -95,7 +95,7 @@ function formatRegularBriefing({
     tradeSignal?.signal !== 'BUY' && tradeSignal?.signal !== 'SELL';
 
   const modeLine = isNoTrade
-    ? '• Modo: *Bug Standby* — mercado tenso, sin ventaja clara. Mantente fuera y protege tu capital.'
+    ? '• Modo: Bug Standby — mercado tenso, sin ventaja clara. Mantente fuera y protege tu capital.'
     : '';
 
   // --- Comentario de Grok ----------------------------------------------
@@ -118,8 +118,8 @@ function formatRegularBriefing({
   const lines = [];
 
   // Header
-  lines.push('📚 *Dr. Grok Market Leak*');
-  lines.push(`_Informe de sesión @ ${ts}_`);
+  lines.push('📚 Dr. Grok Market Leak');
+  lines.push(`Informe de sesión @ ${ts}`);
   lines.push('');
 
   // Instantánea de mercado
@@ -135,8 +135,8 @@ function formatRegularBriefing({
   lines.push('');
 
   // Tarjeta de trading
-  lines.push('🎯 *Veredicto de trading*');
-  lines.push(`${dirEmoji} *Señal:* ${dirLabel}`);
+  lines.push('🎯 Veredicto de trading');
+  lines.push(`${dirEmoji} Señal: ${dirLabel}`);
   lines.push(entryLine);
   if (modeLine) lines.push(modeLine); // Solo en BUG STANDBY
   if (tpLine) lines.push(tpLine);
@@ -145,17 +145,19 @@ function formatRegularBriefing({
   lines.push('');
 
   // Comentario de Grok
-  lines.push("🧬 *Visión de Dr. Grok*");
+  lines.push("🧬 Visión de Dr. Grok");
   lines.push(
-    '_Lo siguiente es una idea estratégica, no una señal oficial de entrada True Bug. Úsala solo si encaja con tu propio plan y gestión de riesgo._',
+    'Lo siguiente es una idea estratégica, no una señal oficial de entrada True Bug. Úsala solo si encaja con tu propio plan y gestión de riesgo.',
   );
   lines.push(grokText);
   lines.push('');
   lines.push(
-    '_Solo para fines educativos. No constituye asesoramiento financiero._',
+    'Solo para fines educativos. No constituye asesoramiento financiero.',
   );
 
   return lines.join('\n');
 }
 
 module.exports = { formatRegularBriefing };
+
+

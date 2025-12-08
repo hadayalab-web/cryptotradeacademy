@@ -32,17 +32,17 @@ function formatRegularBriefing({
 
   // --- マーケットスナップショット --------------------------------------
 
-  const priceLine = `💰 BTC 現在価格: *${formatUsd(priceUsd)}* (${formatPercent(
+  const priceLine = `💰 BTC 現在価格: ${formatUsd(priceUsd)} (${formatPercent(
     change24h,
   )} / 24h)`;
 
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
-  const flowLine = `📊 取引所ネットフロー: *${flowDir}* ${flowAbs.toFixed(
+  const flowLine = `📊 取引所ネットフロー: ${flowDir} ${flowAbs.toFixed(
     0,
   )} BTC`;
 
-  const mpiLine = `⛏ Miners' Position Index (MPI): *${(mpi ?? 0).toFixed(2)}*`;
+  const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
 
   const sentimentLine = `🧠 投資家センチメント: *${
     sentimentLabel || '不明'
@@ -50,13 +50,13 @@ function formatRegularBriefing({
 
   // --- スコア & トラップ -------------------------------------------------
 
-  const scoreLine = `📈 *マーケットスコア:* ${Math.round(score ?? 0)}/100`;
+  const scoreLine = `📈 マーケットスコア: ${Math.round(score ?? 0)}/100`;
 
   const trapLine = trap?.isTrap
-    ? `🧨 *トラップ検知:* ${
+    ? `🧨 トラップ検知: ${
         trap.label || 'トラップの可能性'
-      } (*${trap.confidence}* 信頼度)`
-    : '✅ *トラップ検知:* 重大なトラップは検知されていません。';
+      } (${trap.confidence} 信頼度)`
+    : '✅ トラップ検知: 重大なトラップは検知されていません。';
 
   // --- トレードカード ----------------------------------------------------
 
@@ -75,21 +75,21 @@ function formatRegularBriefing({
     dirLabel = 'BUG STANDBY (Defense Active)';
   }
 
-  const entryLine = `• 想定エントリー（スポット参考）: *${formatUsd(priceUsd)}*`;
+  const entryLine = `• 想定エントリー（スポット参考）: ${formatUsd(priceUsd)}`;
 
   const tpLine =
     tradeSignal?.tp != null
-      ? `• Take Profit: *${formatUsd(tradeSignal.tp)}*`
+      ? `• Take Profit: ${formatUsd(tradeSignal.tp)}`
       : '• Take Profit: n/a';
 
   const slLine =
     tradeSignal?.sl != null
-      ? `• Stop Loss: *${formatUsd(tradeSignal.sl)}*`
+      ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}`
       : '• Stop Loss: n/a';
 
   const rrLine =
     tradeSignal?.rr != null
-      ? `• リスクリワード (RR): *${tradeSignal.rr.toFixed(2)}*`
+      ? `• リスクリワード (RR): ${tradeSignal.rr.toFixed(2)}`
       : '';
 
   // NO TRADE (= BUG STANDBY) 専用の「待機モード」行
@@ -97,7 +97,7 @@ function formatRegularBriefing({
     tradeSignal?.signal !== 'BUY' && tradeSignal?.signal !== 'SELL';
 
   const modeLine = isNoTrade
-    ? '• モード: *Bug Standby* — 相場はストレス状態だが、優位性の明確なエントリーポイントはありません。いったん様子見し、資金を守るフェーズです。'
+    ? '• モード: Bug Standby — 相場はストレス状態だが、優位性の明確なエントリーポイントはありません。いったん様子見し、資金を守るフェーズです。'
     : '';
 
   // --- Grok コメント -----------------------------------------------------
@@ -120,8 +120,8 @@ function formatRegularBriefing({
   const lines = [];
 
   // ヘッダー
-  lines.push('📚 *Dr. Grok Market Leak*');
-  lines.push(`_セッションブリーフィング @ ${ts}_`);
+  lines.push('📚 Dr. Grok Market Leak');
+  lines.push(`セッションブリーフィング @ ${ts}`);
   lines.push('');
 
   // マーケットスナップショット
@@ -137,8 +137,8 @@ function formatRegularBriefing({
   lines.push('');
 
   // トレードカード
-  lines.push('🎯 *トレード・ヴァーディクト*');
-  lines.push(`${dirEmoji} *シグナル:* ${dirLabel}`);
+  lines.push('🎯 トレード・ヴァーディクト');
+  lines.push(`${dirEmoji} シグナル: ${dirLabel}`);
   lines.push(entryLine);
   if (modeLine) lines.push(modeLine); // BUG STANDBY のときだけ表示
   if (tpLine) lines.push(tpLine);
@@ -147,17 +147,19 @@ function formatRegularBriefing({
   lines.push('');
 
   // Grok の見解
-  lines.push('🧬 *Dr. Grok の見立て*');
+  lines.push('🧬 Dr. Grok の見立て');
   lines.push(
-    '_以下は戦略アイデアであり、公式な True Bug エントリーシグナルではありません。ご自身のトレードプランとリスク管理と整合するときにのみ活用してください。_',
+    '以下は戦略アイデアであり、公式な True Bug エントリーシグナルではありません。ご自身のトレードプランとリスク管理と整合するときにのみ活用してください。',
   );
   lines.push(grokText);
   lines.push('');
   lines.push(
-    '_本情報は教育目的で提供されるものであり、投資助言・金融商品の勧誘を行うものではありません。_',
+    '本情報は教育目的で提供されるものであり、投資助言・金融商品の勧誘を行うものではありません。',
   );
 
   return lines.join('\n');
 }
 
 module.exports = { formatRegularBriefing };
+
+
