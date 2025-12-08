@@ -1,0 +1,132 @@
+Running backtest for US Election Rally (2024-11-05 ~ 2024-11-15) ...
+Running backtest for FRB Rate Shock (2024-08-01 ~ 2024-08-15) ...
+Running backtest for Summer Doldrums Range (2024-06-15 ~ 2024-07-31) ...
+Running backtest for Bitcoin ETF Approval (2024-01-10 ~ 2024-01-25) ...
+Running backtest for Halving Anticipation (2024-03-15 ~ 2024-04-20) ...
+Running backtest for SVB Contagion Panic (2023-03-10 ~ 2023-03-20) ...
+Running backtest for Institutional Accumulation (2024-09-01 ~ 2024-10-31) ...
+Running backtest for FOMC Decision Volatility (2024-12-18) ...
+Running backtest for Mt. Gox Payout Selling Pressure (2025-01-10 ~ 2025-01-25) ...
+Running backtest for Trump Crypto Order FOMO (2025-01-18 ~ 2025-01-25) ...
+[
+  {
+    "event": "US Election Rally",
+    "period": "2024-11-05 ~ 2024-11-15",
+    "signals_tested": 0,
+    "accuracy": "n/a",
+    "false_breakouts_detected": 0,
+    "trap_alerts": 0,
+    "liquidation_warnings_lead_time_min": null,
+    "true_positives": 0,
+    "false_positives": 0,
+    "false_negatives": 0
+  },
+  {
+    "event": "FRB Rate Shock",
+    "period": "2024-08-01 ~ 2024-08-15",
+    "signals_tested": 1,
+    "accuracy": "0%",
+    "false_breakouts_detected": 1,
+    "trap_alerts": 1,
+    "liquidation_warnings_lead_time_min": null,
+    "true_positives": 0,
+    "false_positives": 1,
+    "false_negatives": 49
+  },
+  {
+    "event": "Summer Doldrums Range",
+    "period": "2024-06-15 ~ 2024-07-31",
+    "signals_tested": 0,
+    "accuracy": "n/a",
+    "false_breakouts_detected": 0,
+    "trap_alerts": 0,
+    "liquidation_warnings_lead_time_min": null,
+    "true_positives": 0,
+    "false_positives": 0,
+    "false_negatives": 0
+  },
+  {
+    "event": "Bitcoin ETF Approval",
+    "period": "2024-01-10 ~ 2024-01-25",
+    "signals_tested": 0,
+    "accuracy": "n/a",
+    "false_breakouts_detected": 0,
+    "trap_alerts": 0,
+    "liquidation_warnings_lead_time_min": null,
+    "true_positives": 0,
+    "false_positives": 0,
+    "false_negatives": 0
+  },
+  {
+    "event": "Halving Anticipation",
+    "period": "2024-03-15 ~ 2024-04-20",
+    "signals_tested": 0,
+    "accuracy": "n/a",
+    "false_breakouts_detected": 0,
+    "trap_alerts": 0,
+    "liquidation_warnings_lead_time_min": null,
+    "true_positives": 0,
+    "false_positives": 0,
+    "false_negatives": 0
+  },
+  {
+    "event": "SVB Contagion Panic",
+    "period": "2023-03-10 ~ 2023-03-20",
+    "signals_tested": 3,
+    "accuracy": "33%",
+    "false_breakouts_detected": 2,
+    "trap_alerts": 3,
+    "liquidation_warnings_lead_time_min": 4940,
+    "true_positives": 1,
+    "false_positives": 2,
+    "false_negatives": 42
+  },
+  {
+    "event": "Institutional Accumulation",
+    "period": "2024-09-01 ~ 2024-10-31",
+    "signals_tested": 0,
+    "accuracy": "n/a",
+    "false_breakouts_detected": 0,
+    "trap_alerts": 0,
+    "liquidation_warnings_lead_time_min": null,
+    "true_positives": 0,
+    "false_positives": 0,
+    "false_negatives": 0
+  },
+  {
+    "event": "FOMC Decision Volatility",
+    "period": "2024-12-18",
+    "signals_tested": 0,
+    "accuracy": "n/a",
+    "false_breakouts_detected": 0,
+    "trap_alerts": 0,
+    "liquidation_warnings_lead_time_min": null,
+    "true_positives": 0,
+    "false_positives": 0,
+    "false_negatives": 0
+  },
+  {
+    "event": "Mt. Gox Payout Selling Pressure",
+    "period": "2025-01-10 ~ 2025-01-25",
+    "signals_tested": 0,
+    "accuracy": "n/a",
+    "false_breakouts_detected": 0,
+    "trap_alerts": 0,
+    "liquidation_warnings_lead_time_min": null,
+    "true_positives": 0,
+    "false_positives": 0,
+    "false_negatives": 0
+  },
+  {
+    "event": "Trump Crypto Order FOMO",
+    "period": "2025-01-18 ~ 2025-01-25",
+    "signals_tested": 0,
+    "accuracy": "n/a",
+    "false_breakouts_detected": 0,
+    "trap_alerts": 0,
+    "liquidation_warnings_lead_time_min": null,
+    "true_positives": 0,
+    "false_positives": 0,
+    "false_negatives": 0
+  }
+]

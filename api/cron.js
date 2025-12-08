@@ -280,8 +280,10 @@ export default async function handler(req, res) {
 
       try {
         aiAnalysis = await analyzeMarket(
-          JSON.stringify(marketSummaryPayload),
-        );
+  JSON.stringify(marketSummaryPayload),
+  LANG, // ★ ここを追加
+);
+
       } catch (err) {
         console.warn(
           '⚠️ Grok Market Analyze Error in analyzeMarket, fallback to offline analysis:',

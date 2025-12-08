@@ -1,5 +1,6 @@
-// Tier1 BTC regular briefing (EN)
-// services/telegram/messages/user/en/regular.js
+// Tier1 BTC regular briefing (ES)
+
+// services/telegram/messages/user/es/regular.js
 
 function formatPercent(pct) {
   if (pct == null || Number.isNaN(pct)) return 'n/a';
@@ -25,35 +26,39 @@ function formatRegularBriefing({
   tradeSignal,
   trap,
   aiAnalysis,
-  stats, // 将来: 勝率などをここに入れる想定（今は未使用）
+  stats, // Futuro: estadísticas de rendimiento, etc. (no usado por ahora)
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
-  // --- Market snapshot -------------------------------------------------
-  const priceLine = `💰 BTC Price: *${formatUsd(priceUsd)}* (${formatPercent(
+  // --- Instantánea de mercado ------------------------------------------
+
+  const priceLine = `💰 Precio BTC: *${formatUsd(priceUsd)}* (${formatPercent(
     change24h,
   )} / 24h)`;
 
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
-  const flowLine = `📊 Exchange Netflow: *${flowDir}* ${flowAbs.toFixed(
+  const flowLine = `📊 Flujo neto de exchanges: *${flowDir}* ${flowAbs.toFixed(
     0,
   )} BTC`;
 
   const mpiLine = `⛏ Miners' Position Index (MPI): *${(mpi ?? 0).toFixed(2)}*`;
-  const sentimentLine = `🧠 Sentiment: *${sentimentLabel || 'Unknown'}*`;
 
-  // --- Score & Trap ----------------------------------------------------
-  const scoreLine = `📈 *Market Score:* ${Math.round(score ?? 0)}/100`;
+  const sentimentLine = `🧠 Sentimiento: *${sentimentLabel || 'Desconocido'}*`;
+
+  // --- Puntuación y trampa ---------------------------------------------
+
+  const scoreLine = `📈 *Puntuación de mercado:* ${Math.round(score ?? 0)}/100`;
 
   const trapLine = trap?.isTrap
-    ? `🧨 *Trap Detector:* ${trap.label || 'Potential trap'} (*${
-        trap.confidence
-      }* confidence)`
-    : '✅ *Trap Detector:* No critical trap detected.';
+    ? `🧨 *Detector de trampas:* ${
+        trap.label || 'Posible trampa'
+      } (*${trap.confidence}* confianza)`
+    : '✅ *Detector de trampas:* No se detectan trampas críticas.';
 
-  // --- Trade card ------------------------------------------------------
-  // BUY / SELL 以外は BUG STANDBY (Defense Active) として表示
+  // --- Tarjeta de trading ----------------------------------------------
+
+  // Para señales distintas de BUY / SELL, mostrar BUG STANDBY (Defense Active)
   let dirEmoji;
   let dirLabel;
 
@@ -68,7 +73,7 @@ function formatRegularBriefing({
     dirLabel = 'BUG STANDBY (Defense Active)';
   }
 
-  const entryLine = `• Entry (spot ref.): *${formatUsd(priceUsd)}*`;
+  const entryLine = `• Entrada (spot ref.): *${formatUsd(priceUsd)}*`;
 
   const tpLine =
     tradeSignal?.tp != null
@@ -82,71 +87,75 @@ function formatRegularBriefing({
 
   const rrLine =
     tradeSignal?.rr != null
-      ? `• Risk/Reward (RR): *${tradeSignal.rr.toFixed(2)}*`
+      ? `• Riesgo/beneficio (RR): *${tradeSignal.rr.toFixed(2)}*`
       : '';
 
-  // NO TRADE (= BUG STANDBY) 専用の「待機モード」行
+  // Línea especial de “modo espera” para NO TRADE (= BUG STANDBY)
   const isNoTrade =
     tradeSignal?.signal !== 'BUY' && tradeSignal?.signal !== 'SELL';
+
   const modeLine = isNoTrade
-    ? '• Mode: *Bug Standby* — market stressed, but no clean edge. Sit out and protect capital.'
+    ? '• Modo: *Bug Standby* — mercado tenso, sin ventaja clara. Mantente fuera y protege tu capital.'
     : '';
 
-  // --- Grok commentary -------------------------------------------------
+  // --- Comentario de Grok ----------------------------------------------
 
-const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
-const isOffline =
-  !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
+  const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
+  const isOffline =
+    !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
 
-let grokText = raw;
-const GROK_LIMIT = 1500;  // ★ 700 → 1500 に拡張
+  let grokText = raw;
+  const GROK_LIMIT = 1500; // igual que EN: permitir análisis largos
 
-if (!grokText || isOffline) {
-  grokText = 'HOLD - Grok offline.';
-} else if (grokText.length > GROK_LIMIT) {
-  grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
-}
+  if (!grokText || isOffline) {
+    grokText = 'HOLD - Grok offline.';
+  } else if (grokText.length > GROK_LIMIT) {
+    grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
+  }
 
-  // --- Build lines -----------------------------------------------------
+  // --- Construcción de líneas ------------------------------------------
+
   const lines = [];
 
   // Header
-  lines.push("📚 *Dr. Grok's Market Leak*");
-  lines.push(`_Session Briefing @ ${ts}_`);
+  lines.push('📚 *Dr. Grok Market Leak*');
+  lines.push(`_Informe de sesión @ ${ts}_`);
   lines.push('');
 
-  // Market snapshot
+  // Instantánea de mercado
   lines.push(priceLine);
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
   lines.push('');
 
-  // Score & trap
+  // Puntuación y trampa
   lines.push(scoreLine);
   lines.push(trapLine);
   lines.push('');
 
-  // Trade card
-  lines.push('🎯 *Trade Verdict*');
-  lines.push(`${dirEmoji} *Signal:* ${dirLabel}`);
+  // Tarjeta de trading
+  lines.push('🎯 *Veredicto de trading*');
+  lines.push(`${dirEmoji} *Señal:* ${dirLabel}`);
   lines.push(entryLine);
-  if (modeLine) lines.push(modeLine); // BUG STANDBY のときだけ表示
+  if (modeLine) lines.push(modeLine); // Solo en BUG STANDBY
   if (tpLine) lines.push(tpLine);
   if (slLine) lines.push(slLine);
   if (rrLine) lines.push(rrLine);
   lines.push('');
 
-// --- Grok take --------------------------------------------------
-lines.push("🧬 *Dr. Grok's Take*");
-lines.push(
-  '_Below is a strategic idea, not an official True Bug Entry signal. Follow only when your own plan and risk management align._'
-);
-lines.push(grokText);
-lines.push('');
-lines.push('_For educational purposes only. Not financial advice._');
+  // Comentario de Grok
+  lines.push("🧬 *Visión de Dr. Grok*");
+  lines.push(
+    '_Lo siguiente es una idea estratégica, no una señal oficial de entrada True Bug. Úsala solo si encaja con tu propio plan y gestión de riesgo._',
+  );
+  lines.push(grokText);
+  lines.push('');
+  lines.push(
+    '_Solo para fines educativos. No constituye asesoramiento financiero._',
+  );
 
-return lines.join('\n');
+  return lines.join('\n');
 }
 
 module.exports = { formatRegularBriefing };

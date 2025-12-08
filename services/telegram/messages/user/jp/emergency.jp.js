@@ -1,5 +1,6 @@
-// Tier1 BTC trap alert (EN)
-// services/telegram/messages/user/en/emergency.js
+// Tier1 BTC trap alert (JP)
+
+// services/telegram/messages/user/jp/emergency.js
 
 function formatUsd(v) {
   if (v == null || Number.isNaN(v)) return 'n/a';
@@ -13,14 +14,15 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowAbs = Math.abs(inflow || 0);
 
   const trapLabel = trap?.label || 'Whale Trap';
+
   const trapSide =
     trap?.side === 'SHORT'
-      ? '🔻 SHORT-side trap'
+      ? '🔻 ショート側のトラップ'
       : trap?.side === 'LONG'
-      ? '🔺 LONG-side trap'
-      : '⚠️ Trap detected';
+      ? '🔺 ロング側のトラップ'
+      : '⚠️ 相場上にトラップが検知されています。';
 
-  // Grok commentary
+  // Grok コメント
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline =
     !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -29,41 +31,46 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const GROK_LIMIT = 260;
 
   if (!grokText) {
-    grokText = 'Grok suggests exercising extreme caution around current levels.';
+    grokText =
+      'Grok は現在価格帯近辺で、最大限慎重な対応を取るべきと示唆しています。';
   } else if (isOffline) {
-    grokText = 'Grok is offline; treat this as a high‑risk trap zone.';
+    grokText =
+      '現在 Grok はオフラインです。この価格帯はいわゆる「ハイリスク・トラップゾーン」として扱ってください。';
   } else if (grokText.length > GROK_LIMIT) {
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
   const lines = [];
 
-  lines.push('🚨 *Dr. Grok Trap Alert*');
-  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} confidence)`);
+  lines.push('🚨 *Dr. Grok トラップアラート*');
+  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} 信頼度)`);
   lines.push('');
 
-  lines.push(`💰 BTC Price: *${formatUsd(priceUsd)}*`);
+  lines.push(`💰 BTC 現在価格: *${formatUsd(priceUsd)}*`);
   lines.push(
-    `📊 Exchange Netflow: *${flowDir}* ${flowAbs.toFixed(
+    `📊 取引所ネットフロー: *${flowDir}* ${flowAbs.toFixed(
       0,
     )} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`,
   );
   lines.push('');
 
   lines.push(trapSide);
+
   if (trap?.note) {
     lines.push(`• ${trap.note}`);
   }
+
   if (trap?.hint) {
     lines.push(`• ${trap.hint}`);
   }
 
   lines.push('');
-  lines.push("🧬 *Dr. Grok's Take*");
+  lines.push('🧬 *Dr. Grok の見立て*');
   lines.push(grokText);
-
   lines.push('');
-  lines.push('_For educational purposes only. Not financial advice._');
+  lines.push(
+    '_本情報は教育目的で提供されるものであり、投資助言・金融商品の勧誘を行うものではありません。_',
+  );
 
   return lines.join('\n');
 }

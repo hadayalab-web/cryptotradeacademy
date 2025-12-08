@@ -1,5 +1,6 @@
-// Tier1 BTC trap alert (EN)
-// services/telegram/messages/user/en/emergency.js
+// Tier1 BTC trap alert (AR)
+
+// services/telegram/messages/user/ar/emergency.js
 
 function formatUsd(v) {
   if (v == null || Number.isNaN(v)) return 'n/a';
@@ -13,14 +14,15 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowAbs = Math.abs(inflow || 0);
 
   const trapLabel = trap?.label || 'Whale Trap';
+
   const trapSide =
     trap?.side === 'SHORT'
-      ? '🔻 SHORT-side trap'
+      ? '🔻 فخ على جانب SHORT'
       : trap?.side === 'LONG'
-      ? '🔺 LONG-side trap'
-      : '⚠️ Trap detected';
+      ? '🔺 فخ على جانب LONG'
+      : '⚠️ تم رصد فخ في السوق';
 
-  // Grok commentary
+  // تعليق Grok
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline =
     !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -29,41 +31,46 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const GROK_LIMIT = 260;
 
   if (!grokText) {
-    grokText = 'Grok suggests exercising extreme caution around current levels.';
+    grokText =
+      'يشير Grok إلى ضرورة توخي أقصى درجات الحذر بالقرب من المستويات الحالية.';
   } else if (isOffline) {
-    grokText = 'Grok is offline; treat this as a high‑risk trap zone.';
+    grokText =
+      'Grok غير متصل حالياً؛ تعامَل مع هذه المنطقة كمنطقة فخ عالية المخاطر.';
   } else if (grokText.length > GROK_LIMIT) {
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
   const lines = [];
 
-  lines.push('🚨 *Dr. Grok Trap Alert*');
-  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} confidence)`);
+  lines.push('🚨 *تنبيه فخ من Dr. Grok*');
+  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} مستوى ثقة)`);
   lines.push('');
 
-  lines.push(`💰 BTC Price: *${formatUsd(priceUsd)}*`);
+  lines.push(`💰 سعر BTC: *${formatUsd(priceUsd)}*`);
   lines.push(
-    `📊 Exchange Netflow: *${flowDir}* ${flowAbs.toFixed(
+    `📊 صافي تدفق البورصات: *${flowDir}* ${flowAbs.toFixed(
       0,
     )} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`,
   );
   lines.push('');
 
   lines.push(trapSide);
+
   if (trap?.note) {
     lines.push(`• ${trap.note}`);
   }
+
   if (trap?.hint) {
     lines.push(`• ${trap.hint}`);
   }
 
   lines.push('');
-  lines.push("🧬 *Dr. Grok's Take*");
+  lines.push('🧬 *رؤية Dr. Grok*');
   lines.push(grokText);
-
   lines.push('');
-  lines.push('_For educational purposes only. Not financial advice._');
+  lines.push(
+    '_لأغراض تعليمية فقط. لا يُعدّ هذا نصيحة مالية أو استثمارية._',
+  );
 
   return lines.join('\n');
 }

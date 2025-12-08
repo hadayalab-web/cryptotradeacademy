@@ -36,10 +36,12 @@ function logCompactError(prefix, error) {
 }
 
 // ---- 市場サマリー用（Dr. Grok レポート） ------------------------
-async function analyzeMarket(marketData) {
+async function analyzeMarket(marketData, lang = 'en') {
   if (!XAI_API_KEY) {
     return 'HOLD - Grok offline.';
   }
+
+  const language = (lang || 'en').toLowerCase();
 
   try {
     const completion = await openai.chat.completions.create({
@@ -50,6 +52,7 @@ async function analyzeMarket(marketData) {
           content:
             "You are Dr. Grok, the world's sharpest crypto whale hunter. " +
             'Hunt whales/institutions ahead of retail traps. ' +
+            `Always respond in ${language}. ` +
             'First output a 3-line summary: ' +
             'Line1: environment (fear/greed, trend, whale bias, retail FOMO). ' +
             'Line2: base stance (e.g., BUG STANDBY / defense, or attack). ' +

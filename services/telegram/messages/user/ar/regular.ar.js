@@ -1,5 +1,6 @@
-// Tier1 BTC regular briefing (EN)
-// services/telegram/messages/user/en/regular.js
+// Tier1 BTC regular briefing (AR)
+
+// services/telegram/messages/user/ar/regular.js
 
 function formatPercent(pct) {
   if (pct == null || Number.isNaN(pct)) return 'n/a';
@@ -25,35 +26,41 @@ function formatRegularBriefing({
   tradeSignal,
   trap,
   aiAnalysis,
-  stats, // 将来: 勝率などをここに入れる想定（今は未使用）
+  stats, // مستقبلاً: إحصائيات الأداء وغيرها (غير مستخدم حالياً)
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
-  // --- Market snapshot -------------------------------------------------
-  const priceLine = `💰 BTC Price: *${formatUsd(priceUsd)}* (${formatPercent(
+  // --- لمحة عن السوق ----------------------------------------------------
+
+  const priceLine = `💰 سعر BTC: *${formatUsd(priceUsd)}* (${formatPercent(
     change24h,
   )} / 24h)`;
 
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
-  const flowLine = `📊 Exchange Netflow: *${flowDir}* ${flowAbs.toFixed(
+  const flowLine = `📊 صافي تدفق البورصات: *${flowDir}* ${flowAbs.toFixed(
     0,
   )} BTC`;
 
-  const mpiLine = `⛏ Miners' Position Index (MPI): *${(mpi ?? 0).toFixed(2)}*`;
-  const sentimentLine = `🧠 Sentiment: *${sentimentLabel || 'Unknown'}*`;
+  const mpiLine = `⛏ مؤشر مراكز المعدّنين (MPI): *${(mpi ?? 0).toFixed(2)}*`;
 
-  // --- Score & Trap ----------------------------------------------------
-  const scoreLine = `📈 *Market Score:* ${Math.round(score ?? 0)}/100`;
+  const sentimentLine = `🧠 حالة الشعور في السوق: *${
+    sentimentLabel || 'غير معروف'
+  }*`;
+
+  // --- الدرجة والفخاخ ---------------------------------------------------
+
+  const scoreLine = `📈 *درجة السوق:* ${Math.round(score ?? 0)}/100`;
 
   const trapLine = trap?.isTrap
-    ? `🧨 *Trap Detector:* ${trap.label || 'Potential trap'} (*${
-        trap.confidence
-      }* confidence)`
-    : '✅ *Trap Detector:* No critical trap detected.';
+    ? `🧨 *كاشف الفخاخ:* ${
+        trap.label || 'فخ محتمل'
+      } (*${trap.confidence}* مستوى ثقة)`
+    : '✅ *كاشف الفخاخ:* لا توجد فخاخ حرجة مكتشفة.';
 
-  // --- Trade card ------------------------------------------------------
-  // BUY / SELL 以外は BUG STANDBY (Defense Active) として表示
+  // --- بطاقة التداول ----------------------------------------------------
+
+  // أي إشارة غير BUY / SELL تُعرض كـ BUG STANDBY (Defense Active)
   let dirEmoji;
   let dirLabel;
 
@@ -68,7 +75,7 @@ function formatRegularBriefing({
     dirLabel = 'BUG STANDBY (Defense Active)';
   }
 
-  const entryLine = `• Entry (spot ref.): *${formatUsd(priceUsd)}*`;
+  const entryLine = `• سعر الدخول (مرجع سبوت): *${formatUsd(priceUsd)}*`;
 
   const tpLine =
     tradeSignal?.tp != null
@@ -82,23 +89,25 @@ function formatRegularBriefing({
 
   const rrLine =
     tradeSignal?.rr != null
-      ? `• Risk/Reward (RR): *${tradeSignal.rr.toFixed(2)}*`
+      ? `• نسبة المخاطرة إلى العائد (RR): *${tradeSignal.rr.toFixed(2)}*`
       : '';
 
-  // NO TRADE (= BUG STANDBY) 専用の「待機モード」行
+  // سطر خاص لوضع الانتظار في حالة NO TRADE (= BUG STANDBY)
   const isNoTrade =
     tradeSignal?.signal !== 'BUY' && tradeSignal?.signal !== 'SELL';
+
   const modeLine = isNoTrade
-    ? '• Mode: *Bug Standby* — market stressed, but no clean edge. Sit out and protect capital.'
+    ? '• الوضع: *Bug Standby* — السوق متوتر ولا توجد أفضلية واضحة. ابتعد مؤقتاً واحمِ رأس مالك.'
     : '';
 
-  // --- Grok commentary -------------------------------------------------
+  // --- تعليق Grok ------------------------------------------------------
+
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline =
     !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
 
   let grokText = raw;
-  const GROK_LIMIT = 360;
+  const GROK_LIMIT = 1500; // نفس حد EN للسماح بتحليلات طويلة
 
   if (!grokText || isOffline) {
     grokText = 'HOLD - Grok offline.';
@@ -106,42 +115,47 @@ function formatRegularBriefing({
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
-  // --- Build lines -----------------------------------------------------
+  // --- بناء الرسالة ----------------------------------------------------
+
   const lines = [];
 
-  // Header
-  lines.push("📚 *Dr. Grok's Market Leak*");
-  lines.push(`_Session Briefing @ ${ts}_`);
+  // العنوان
+  lines.push('📚 *تسريب السوق من Dr. Grok*');
+  lines.push(`_تقرير الجلسة @ ${ts}_`);
   lines.push('');
 
-  // Market snapshot
+  // لمحة عن السوق
   lines.push(priceLine);
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
   lines.push('');
 
-  // Score & trap
+  // الدرجة والفخاخ
   lines.push(scoreLine);
   lines.push(trapLine);
   lines.push('');
 
-  // Trade card
-  lines.push('🎯 *Trade Verdict*');
-  lines.push(`${dirEmoji} *Signal:* ${dirLabel}`);
+  // بطاقة التداول
+  lines.push('🎯 *حكم التداول*');
+  lines.push(`${dirEmoji} *الإشارة:* ${dirLabel}`);
   lines.push(entryLine);
-  if (modeLine) lines.push(modeLine); // BUG STANDBY のときだけ表示
+  if (modeLine) lines.push(modeLine); // يظهر فقط في BUG STANDBY
   if (tpLine) lines.push(tpLine);
   if (slLine) lines.push(slLine);
   if (rrLine) lines.push(rrLine);
   lines.push('');
 
-  // Grok take
-  lines.push("🧬 *Dr. Grok's Take*");
+  // تعليق Grok
+  lines.push('🧬 *رؤية Dr. Grok*');
+  lines.push(
+    '_ما يلي فكرة استراتيجية، وليست إشارة دخول رسمية من True Bug. استخدمها فقط إذا كانت متوافقة مع خطتك وإدارة المخاطر الخاصة بك._',
+  );
   lines.push(grokText);
   lines.push('');
-
-  lines.push('_For educational purposes only. Not financial advice._');
+  lines.push(
+    '_لأغراض تعليمية فقط. لا يُعدّ هذا نصيحة مالية أو استثمارية._',
+  );
 
   return lines.join('\n');
 }

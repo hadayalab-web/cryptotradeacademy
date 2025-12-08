@@ -1,5 +1,6 @@
-// Tier1 BTC trap alert (EN)
-// services/telegram/messages/user/en/emergency.js
+// Tier1 BTC trap alert (ES)
+
+// services/telegram/messages/user/es/emergency.js
 
 function formatUsd(v) {
   if (v == null || Number.isNaN(v)) return 'n/a';
@@ -13,14 +14,15 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowAbs = Math.abs(inflow || 0);
 
   const trapLabel = trap?.label || 'Whale Trap';
+
   const trapSide =
     trap?.side === 'SHORT'
-      ? '🔻 SHORT-side trap'
+      ? '🔻 Trampa en el lado SHORT'
       : trap?.side === 'LONG'
-      ? '🔺 LONG-side trap'
-      : '⚠️ Trap detected';
+      ? '🔺 Trampa en el lado LONG'
+      : '⚠️ Trampa detectada';
 
-  // Grok commentary
+  // Comentario de Grok
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline =
     !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -29,41 +31,46 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const GROK_LIMIT = 260;
 
   if (!grokText) {
-    grokText = 'Grok suggests exercising extreme caution around current levels.';
+    grokText =
+      'Grok sugiere extrema cautela cerca de los niveles actuales.';
   } else if (isOffline) {
-    grokText = 'Grok is offline; treat this as a high‑risk trap zone.';
+    grokText =
+      'Grok está offline; trata esta zona como una trampa de alto riesgo.';
   } else if (grokText.length > GROK_LIMIT) {
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
   const lines = [];
 
-  lines.push('🚨 *Dr. Grok Trap Alert*');
-  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} confidence)`);
+  lines.push('🚨 *Alerta de trampa de Dr. Grok*');
+  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} confianza)`);
   lines.push('');
 
-  lines.push(`💰 BTC Price: *${formatUsd(priceUsd)}*`);
+  lines.push(`💰 Precio BTC: *${formatUsd(priceUsd)}*`);
   lines.push(
-    `📊 Exchange Netflow: *${flowDir}* ${flowAbs.toFixed(
+    `📊 Flujo neto de exchanges: *${flowDir}* ${flowAbs.toFixed(
       0,
     )} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`,
   );
   lines.push('');
 
   lines.push(trapSide);
+
   if (trap?.note) {
     lines.push(`• ${trap.note}`);
   }
+
   if (trap?.hint) {
     lines.push(`• ${trap.hint}`);
   }
 
   lines.push('');
-  lines.push("🧬 *Dr. Grok's Take*");
+  lines.push("🧬 *Visión de Dr. Grok*");
   lines.push(grokText);
-
   lines.push('');
-  lines.push('_For educational purposes only. Not financial advice._');
+  lines.push(
+    '_Solo para fines educativos. No constituye asesoramiento financiero._',
+  );
 
   return lines.join('\n');
 }
