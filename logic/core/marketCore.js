@@ -1,5 +1,8 @@
 // logic/core/marketCore.js
 
+// 閾値コンフィグ
+const { BASE, EVENT_FOMC } = require('../../config/thresholds');
+
 // 共通マーケットコンテキストを組み立て
 function buildMarketContext({
   asset,
@@ -144,9 +147,23 @@ function decideSignal(ctx) {
   // ・まず confidence >= 0.65 以上でないとトレードしない（雑シグナル排除）
   // ・BUY/SELL は |score| >= 55 のときだけ
   // ・中間ゾーン (35〜55) はレジームだけ更新（BULLISH/BEARISH）
-  const HARD_SIGNAL_THRESH = 28;   // 30 → 28
-  const SOFT_REGIME_THRESH = 20;
-  const MIN_CONF_FOR_TRADE = 0.5;
+  // ===============================
+  // 保守的なトリガー設計 + イベントモード
+  // ===============================
+
+  // デフォルトは BASE プロファイル
+  let profile = BASE || {};
+
+  // ctx.eventProfile === 'FOMC_EVENT' のときだけ、攻めプロファイルに切り替え
+  if (ctx && ctx.eventProfile === 'FOMC_EVENT' && EVENT_FOMC) {
+    profile = EVENT_FOMC;
+  }
+
+  const {
+    HARD_SIGNAL_THRESH = 28,   // フォールバック: 既存値
+    SOFT_REGIME_THRESH = 20,
+    MIN_CONF_FOR_TRADE = 0.5,
+  } = profile;
 
   if (score >= HARD_SIGNAL_THRESH && confidence >= MIN_CONF_FOR_TRADE && smartMoneyScore > 0) {
     // クジラ側もBUY方向に乗っているときだけBUYを出す[web:129][web:137]
