@@ -1,5 +1,5 @@
 // Tier1 BTC regular briefing (EN)
-// services/telegram/messages/user/en/regular.js
+// services/telegram/messages/user/en/regular.en.js
 
 function formatPercent(pct) {
   if (pct == null || Number.isNaN(pct)) return 'n/a';
@@ -9,9 +9,7 @@ function formatPercent(pct) {
 
 function formatUsd(v) {
   if (v == null || Number.isNaN(v)) return 'n/a';
-  return `$${v.toLocaleString('en-US', {
-    maximumFractionDigits: 0,
-  })}`;
+  return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
 function formatRegularBriefing({
@@ -25,38 +23,26 @@ function formatRegularBriefing({
   tradeSignal,
   trap,
   aiAnalysis,
-  stats, // 将来: 勝率などをここに入れる想定（今は未使用）
+  stats, // reserved
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
-  // --- Market snapshot -------------------------------------------------
-  const priceLine = `💰 BTC Price: ${formatUsd(priceUsd)} (${formatPercent(
-    change24h,
-  )} / 24h)`;
+  const priceLine = `💰 BTC Price: ${formatUsd(priceUsd)} (${formatPercent(change24h)} / 24h)`;
 
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
-  const flowLine = `📊 Exchange Netflow: ${flowDir} ${flowAbs.toFixed(
-    0,
-  )} BTC`;
+  const flowLine = `📊 Exchange Netflow: ${flowDir} ${flowAbs.toFixed(0)} BTC`;
 
   const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
   const sentimentLine = `🧠 Sentiment: ${sentimentLabel || 'Unknown'}`;
 
-  // --- Score & Trap ----------------------------------------------------
   const scoreLine = `📈 Market Score: ${Math.round(score ?? 0)}/100`;
-
   const trapLine = trap?.isTrap
-    ? `🧨 Trap Detector: ${trap.label || 'Potential trap'} (*${
-        trap.confidence
-      }* confidence)`
+    ? `🧨 Trap Detector: ${trap.label || 'Potential trap'} (*${trap.confidence}* confidence)`
     : '✅ Trap Detector: No critical trap detected.';
 
-  // --- Trade card ------------------------------------------------------
-  // BUY / SELL 以外は BUG STANDBY (Defense Active) として表示
   let dirEmoji;
   let dirLabel;
-
   if (tradeSignal?.signal === 'BUY') {
     dirEmoji = '🟢';
     dirLabel = 'BUY';
@@ -69,86 +55,57 @@ function formatRegularBriefing({
   }
 
   const entryLine = `• Entry (spot ref.): ${formatUsd(priceUsd)}`;
+  const tpLine = tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: n/a';
+  const slLine = tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: n/a';
+  const rrLine = tradeSignal?.rr != null ? `• Risk/Reward (RR): ${tradeSignal.rr.toFixed(2)}` : '';
 
-  const tpLine =
-    tradeSignal?.tp != null
-      ? `• Take Profit: ${formatUsd(tradeSignal.tp)}`
-      : '• Take Profit: n/a';
-
-  const slLine =
-    tradeSignal?.sl != null
-      ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}`
-      : '• Stop Loss: n/a';
-
-  const rrLine =
-    tradeSignal?.rr != null
-      ? `• Risk/Reward (RR): ${tradeSignal.rr.toFixed(2)}`
-      : '';
-
-  // NO TRADE (= BUG STANDBY) 専用の「待機モード」行
-  const isNoTrade =
-    tradeSignal?.signal !== 'BUY' && tradeSignal?.signal !== 'SELL';
+  const isNoTrade = tradeSignal?.signal !== 'BUY' && tradeSignal?.signal !== 'SELL';
   const modeLine = isNoTrade
-    ? '• Mode: Bug Standby — market stressed, but no clean edge. Sit out and protect capital.'
+    ? '• Mode: Bug Standby — no clean edge. Sit out and protect capital.'
     : '';
 
-  // --- Grok commentary -------------------------------------------------
+  const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
+  const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
+  let grokText = raw;
 
-const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
-const isOffline =
-  !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
+  const GROK_LIMIT = 1500;
+  if (!grokText || isOffline) {
+    grokText = 'Grok is offline — using system-only signals (on-chain/price).';
+  } else if (grokText.length > GROK_LIMIT) {
+    grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
+  }
 
-let grokText = raw;
-const GROK_LIMIT = 1500;  // ★ 700 → 1500 に拡張
-
-if (!grokText || isOffline) {
-  grokText = 'HOLD - Grok offline.';
-} else if (grokText.length > GROK_LIMIT) {
-  grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
-}
-
-  // --- Build lines -----------------------------------------------------
   const lines = [];
-
-  // Header
   lines.push("📚 Dr. Grok's Market Leak");
   lines.push(`Session Briefing @ ${ts}`);
   lines.push('');
 
-  // Market snapshot
   lines.push(priceLine);
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
   lines.push('');
 
-  // Score & trap
   lines.push(scoreLine);
   lines.push(trapLine);
   lines.push('');
 
-  // Trade card
   lines.push('🎯 Trade Verdict');
   lines.push(`${dirEmoji} Signal: ${dirLabel}`);
   lines.push(entryLine);
-  if (modeLine) lines.push(modeLine); // BUG STANDBY のときだけ表示
+  if (modeLine) lines.push(modeLine);
   if (tpLine) lines.push(tpLine);
   if (slLine) lines.push(slLine);
   if (rrLine) lines.push(rrLine);
   lines.push('');
 
-// --- Grok take --------------------------------------------------
-lines.push("🧬 Dr. Grok's Take");
-lines.push(
-  'Below is a strategic idea, not an official True Bug Entry signal. Follow only when your own plan and risk management align.'
-);
-lines.push(grokText);
-lines.push('');
-lines.push('For educational purposes only. Not financial advice.');
+  lines.push("🧬 Dr. Grok's Take");
+  lines.push('Below is a strategic idea, not an official True Bug Entry signal. Follow only when your own plan and risk management align.');
+  lines.push(grokText);
+  lines.push('');
+  lines.push('For educational purposes only. Not financial advice.');
 
-return lines.join('\n');
+  return lines.join('\n');
 }
 
 module.exports = { formatRegularBriefing };
-
-

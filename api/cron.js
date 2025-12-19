@@ -14,21 +14,19 @@ function loadUserTemplates(lang) {
     // 例: services/telegram/messages/user/en/regular.en.js
     // eslint-disable-next-line import/no-dynamic-require, global-require
     const { formatRegularBriefing } = require(
-      `../services/telegram/messages/user/${lang}/regular.${lang}`
+      `../services/telegram/messages/user/${lang}/regular.${lang}`,
     );
     const { formatTrapAlert } = require(
-      `../services/telegram/messages/user/${lang}/emergency.${lang}`
+      `../services/telegram/messages/user/${lang}/emergency.${lang}`,
     );
     return { formatRegularBriefing, formatTrapAlert };
   } catch (e) {
-    console.warn(
-      `Fallback to EN templates. lang=${lang} error=${e.message}`
-    );
+    console.warn(`Fallback to EN templates. lang=${lang} error=${e.message}`);
     const { formatRegularBriefing } = require(
-      '../services/telegram/messages/user/en/regular.en'
+      '../services/telegram/messages/user/en/regular.en',
     );
     const { formatTrapAlert } = require(
-      '../services/telegram/messages/user/en/emergency.en'
+      '../services/telegram/messages/user/en/emergency.en',
     );
     return { formatRegularBriefing, formatTrapAlert };
   }
@@ -36,22 +34,17 @@ function loadUserTemplates(lang) {
 
 const { formatRegularBriefing, formatTrapAlert } = loadUserTemplates(LANG);
 
-const { getExchangeInflow, getMinerPositionIndex } =
-  require('../services/cryptoquant/endpoints/btc');
-// X API は使わないので pollXSentiment は削除
-// const { pollXSentiment } = require('../services/twitter/xPoller');
-const { buildMarketContext, decideSignal } =
-  require('../logic/core/marketCore');
-const { generateSignal } =
-  require('../logic/tier1_btc/signalGen');
-const { detectTrap } =
-  require('../logic/tier1_btc/trapDetector');
-const { normalizeSentiment } =
-  require('../logic/tier1_btc/sentiment');
-const { analyzeMarket, analyzeXSentimentLive } =
-  require('../services/grok/client');
-const { sendMessage } =
-  require('../services/telegram/bot');
+const { getExchangeInflow, getMinerPositionIndex } = require(
+  '../services/cryptoquant/endpoints/btc',
+);
+
+const { buildMarketContext, decideSignal } = require('../logic/core/marketCore');
+const { generateSignal } = require('../logic/tier1_btc/signalGen');
+const { detectTrap } = require('../logic/tier1_btc/trapDetector');
+const { normalizeSentiment } = require('../logic/tier1_btc/sentiment');
+
+const { analyzeMarket, analyzeXSentimentLive } = require('../services/grok/client');
+const { sendMessage } = require('../services/telegram/bot');
 
 // --- External data helpers -------------------------------------
 
@@ -84,6 +77,22 @@ async function fetchFearGreed() {
     value: Number(point.value) || null,
     label: point.value_classification || 'Unknown',
   };
+}
+
+// --- Watch helper (cheap trigger, no LLM) -----------------------
+function shouldWatch({ score, confidence, trap, isRegularSlot }) {
+  // REGULAR 時は定期配信でカバーするので WATCH を抑制
+  if (isRegularSlot) return false;
+
+  // EMERGENCY は別で処理（trap HIGH）
+  if (trap?.isTrap && trap?.confidence === 'HIGH') return false;
+
+  // “重要そう”の薄いWATCH: スコアがそこそこ偏っていて、confidenceもそれなり
+  // ※しきい値は後でログ見て調整
+  const s = Number(score ?? 0);
+  const c = Number(confidence ?? 0);
+
+  return (Math.abs(s) >= 22 && c >= 0.55) || (Math.abs(s) >= 28 && c >= 0.5);
 }
 
 // --- Main Cron Handler -----------------------------------------
@@ -130,22 +139,15 @@ export default async function handler(req, res) {
     const mpi = Number(mpiData.value) || 0;
 
     // 2. Price & Fear&Greed
-    const [priceMeta, fng] = await Promise.all([
-      fetchBtcPrice(),
-      fetchFearGreed(),
-    ]);
-
+    const [priceMeta, fng] = await Promise.all([fetchBtcPrice(), fetchFearGreed()]);
     const priceUsd = priceMeta.priceUsd;
     const change24h = priceMeta.change24h;
+
     const rawSentiment = fng.label ?? fng.value;
     const sentimentLabel = normalizeSentiment(rawSentiment);
 
-    // 3. ベースのコンテキスト（X Sentiment はデフォルト値）
-    let xSentiment = {
-      whaleBias: 0,
-      retailFomo: 50,
-      newsImpact: 0,
-    };
+    // 3. Base context (X Sentiment defaults)
+    let xSentiment = { whaleBias: 0, retailFomo: 50, newsImpact: 0 };
 
     let ctx = buildMarketContext({
       asset: 'BTC',
@@ -156,50 +158,57 @@ export default async function handler(req, res) {
       xSentiment,
     });
 
-    let coreDecision = decideSignal(ctx); // { score, regime, signal }
-
-    // 4. TP/SL などのシグナル生成
+    let coreDecision = decideSignal(ctx); // includes confidence/components
     let tradeSignal = generateSignal({
       priceUsd,
       score: coreDecision.score,
-      direction: coreDecision.signal, // 'BUY' | 'SELL' | 'NONE'
+      direction: coreDecision.signal,
     });
 
-    // ★ side は「最終シグナル tradeSignal.signal」ベースで決定
-    let side;
-    if (tradeSignal.signal === 'BUY') {
-      side = 'LONG';
-    } else if (tradeSignal.signal === 'SELL') {
-      side = 'SHORT';
-    } else {
-      side = 'FLAT';
-    }
+    // side is derived from tradeSignal.signal
+    let side = 'FLAT';
+    if (tradeSignal.signal === 'BUY') side = 'LONG';
+    if (tradeSignal.signal === 'SELL') side = 'SHORT';
 
     let entry = priceUsd;
     let tp = tradeSignal.tp;
     let sl = tradeSignal.sl;
 
-    // 5. Trap 検出（ここは 5分ごとに走らせる：オンチェーンのみ版）
+    // 5. Trap detect (on-chain only)
     let trap = detectTrap({
       priceChange: change24h,
-      volume: 0, // v1 では未使用
+      volume: 0,
       inflow,
       mpi,
     });
 
-    let needsEmergency =
-      trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
+    const needsEmergency = trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
 
-    const needsGrok = isRegularSlot || force || needsEmergency;
+    // WATCH (cheap) before calling Grok
+    const needsWatch = shouldWatch({
+      score: coreDecision.score,
+      confidence: coreDecision.confidence,
+      trap,
+      isRegularSlot,
+    });
+
+    // ---- Grok call gates (cost valve) --------------------------
+    // needsXIntel: X監視だけ（安い） = REGULAR / force / EMERGENCY / WATCH
+    const needsXIntel = isRegularSlot || force || needsEmergency || needsWatch;
+
+    // needsLongReport: 長文生成（高い） = REGULAR / force / EMERGENCY のみ
+    const needsLongReport = isRegularSlot || force || needsEmergency;
+
     let aiAnalysis = null;
+    let xIntel = null; // for debugging/telemetry
 
-    // 6. Grok 呼び出し（REGULAR / force / EMERGENCY のときだけ）
-    if (needsGrok) {
-      // 6-1. X sentiment (Grok Live Search)
+    // 6. Grok (X intel only)
+    if (needsXIntel) {
       try {
         const grokSent = await analyzeXSentimentLive(
           'latest BTC price action, funding, liquidations, whale activity, ETF flows on X',
         );
+        xIntel = grokSent;
 
         if (grokSent && typeof grokSent === 'object') {
           xSentiment = {
@@ -215,7 +224,7 @@ export default async function handler(req, res) {
         );
       }
 
-      // X sentiment を反映して再度コンテキストとシグナルを評価
+      // Re-evaluate with xSentiment
       ctx = buildMarketContext({
         asset: 'BTC',
         priceUsd,
@@ -226,27 +235,21 @@ export default async function handler(req, res) {
       });
 
       coreDecision = decideSignal(ctx);
-
       tradeSignal = generateSignal({
         priceUsd,
         score: coreDecision.score,
         direction: coreDecision.signal,
       });
 
-      // ★ 再評価後も tradeSignal.signal から side を再計算
-      if (tradeSignal.signal === 'BUY') {
-        side = 'LONG';
-      } else if (tradeSignal.signal === 'SELL') {
-        side = 'SHORT';
-      } else {
-        side = 'FLAT';
-      }
+      side = 'FLAT';
+      if (tradeSignal.signal === 'BUY') side = 'LONG';
+      if (tradeSignal.signal === 'SELL') side = 'SHORT';
 
       entry = priceUsd;
       tp = tradeSignal.tp;
       sl = tradeSignal.sl;
 
-      // ★ 6-1b. FOMO/PANIC ルール込みで Trap を再評価
+      // Re-evaluate trap with sentiment (FOMO/PANIC rules)
       const trapWithSentiment = detectTrap({
         priceChange: change24h,
         volume: 0,
@@ -258,11 +261,15 @@ export default async function handler(req, res) {
 
       if (trapWithSentiment?.isTrap) {
         trap = trapWithSentiment;
-        needsEmergency =
-          trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
       }
+    }
 
-      // 6-2. Grok に市場サマリーを投げてコメント生成
+    // After sentiment re-check, recompute emergency (trap may upgrade)
+    const finalNeedsEmergency =
+      trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
+
+    // 6-2. Grok long report (only when needed)
+    if (needsLongReport || finalNeedsEmergency) {
       const marketSummaryPayload = {
         asset: 'BTC',
         inflow,
@@ -291,12 +298,12 @@ export default async function handler(req, res) {
         );
         aiAnalysis = null;
       }
-    } // ★ ここで if (needsGrok) を閉じる
+    }
 
-    // 7. Telegram 送信ロジック
+    // 7. Telegram send
     let sent = 0;
 
-    // 7-A. REGULAR レポート送信
+    // 7-A. REGULAR
     if (isRegularSlot || force) {
       console.log('Sending REGULAR message...');
       const regularText = formatRegularBriefing({
@@ -315,23 +322,40 @@ export default async function handler(req, res) {
       sent += 1;
     }
 
-    // 7-B. Trap 用 EMERGENCY（REGULAR スロット外）
-    if (needsEmergency) {
+    // 7-B. EMERGENCY (Trap)
+    if (finalNeedsEmergency) {
       const alertText = formatTrapAlert({
         inflow,
         mpi,
         priceUsd,
         trap,
-        aiAnalysis,
+        aiAnalysis, // may be null if long report disabled, but we allow
       });
       await sendMessage(alertText);
       sent += 1;
     }
 
-    // 8. HTTP レスポンス
+    // 7-C. WATCH (short heads-up, no long report)
+    if (needsWatch && !finalNeedsEmergency && !isRegularSlot && !force) {
+      const watchText = [
+        '👀 WATCH — Market shift detected',
+        `• BTC: $${Math.round(priceUsd).toLocaleString('en-US')} (${change24h.toFixed(2)}% / 24h)`,
+        `• Score: ${Math.round(coreDecision.score ?? 0)}/100 | Regime: ${coreDecision.regime} | Signal: ${tradeSignal.signal}`,
+        `• X: whaleBias=${Number(xSentiment.whaleBias).toFixed(2)}, retailFomo=${Math.round(
+          Number(xSentiment.retailFomo),
+        )}, newsImpact=${Math.round(Number(xSentiment.newsImpact))}`,
+        '• Action: Reduce leverage, wait for clarity, protect capital.',
+      ].join('\n');
+
+      await sendMessage(watchText);
+      sent += 1;
+    }
+
     return res.status(200).json({
       success: true,
       sentMessages: sent,
+      slot: { isRegularSlot, force },
+      flags: { needsWatch, needsXIntel, needsLongReport, finalNeedsEmergency },
       metrics: {
         inflow,
         mpi,
@@ -339,6 +363,8 @@ export default async function handler(req, res) {
         priceUsd,
         change24h,
         score: coreDecision.score,
+        regime: coreDecision.regime,
+        confidence: coreDecision.confidence,
         signal: tradeSignal.signal,
       },
       trap,
@@ -346,6 +372,8 @@ export default async function handler(req, res) {
       entry,
       tp,
       sl,
+      xSentiment,
+      xIntel,
     });
   } catch (error) {
     console.error('❌ Cron Job Failed:', error);

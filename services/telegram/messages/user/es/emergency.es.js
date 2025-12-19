@@ -1,12 +1,9 @@
 // Tier1 BTC trap alert (ES)
-
-// services/telegram/messages/user/es/emergency.js
+// services/telegram/messages/user/es/emergency.es.js
 
 function formatUsd(v) {
   if (v == null || Number.isNaN(v)) return 'n/a';
-  return `$${v.toLocaleString('en-US', {
-    maximumFractionDigits: 0,
-  })}`;
+  return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
 function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
@@ -14,63 +11,43 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowAbs = Math.abs(inflow || 0);
 
   const trapLabel = trap?.label || 'Whale Trap';
-
   const trapSide =
     trap?.side === 'SHORT'
       ? '🔻 Trampa en el lado SHORT'
       : trap?.side === 'LONG'
-      ? '🔺 Trampa en el lado LONG'
-      : '⚠️ Trampa detectada';
+        ? '🔺 Trampa en el lado LONG'
+        : '⚠️ Trampa detectada';
 
-  // Comentario de Grok
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
-  const isOffline =
-    !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
-
+  const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
   let grokText = raw;
-  const GROK_LIMIT = 260;
 
+  const GROK_LIMIT = 260;
   if (!grokText) {
-    grokText =
-      'Grok sugiere extrema cautela cerca de los niveles actuales.';
+    grokText = 'Zona de alto riesgo. Reduce exposición y evita entradas impulsivas.';
   } else if (isOffline) {
-    grokText =
-      'Grok está offline; trata esta zona como una trampa de alto riesgo.';
+    grokText = 'Grok está offline; trata esta zona como una trampa de alto riesgo.';
   } else if (grokText.length > GROK_LIMIT) {
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
   const lines = [];
-
   lines.push('🚨 *Alerta de trampa de Dr. Grok*');
   lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} confianza)`);
   lines.push('');
-
   lines.push(`💰 Precio BTC: *${formatUsd(priceUsd)}*`);
-  lines.push(
-    `📊 Flujo neto de exchanges: *${flowDir}* ${flowAbs.toFixed(
-      0,
-    )} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`,
-  );
+  lines.push(`📊 Flujo neto de exchanges: *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`);
   lines.push('');
-
   lines.push(trapSide);
 
-  if (trap?.note) {
-    lines.push(`• ${trap.note}`);
-  }
-
-  if (trap?.hint) {
-    lines.push(`• ${trap.hint}`);
-  }
+  if (trap?.note) lines.push(`• ${trap.note}`);
+  if (trap?.hint) lines.push(`• ${trap.hint}`);
 
   lines.push('');
-  lines.push("🧬 *Visión de Dr. Grok*");
+  lines.push('🧬 *Visión de Dr. Grok*');
   lines.push(grokText);
   lines.push('');
-  lines.push(
-    '_Solo para fines educativos. No constituye asesoramiento financiero._',
-  );
+  lines.push('_Solo para fines educativos. No constituye asesoramiento financiero._');
 
   return lines.join('\n');
 }

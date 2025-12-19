@@ -4,15 +4,14 @@
  * Detect Traps using Price vs On-chain + Sentiment Divergence
  *
  * ctx: {
- *   priceChange: number (% change, e.g. +6, -3),
- *   volume?: number,
- *   inflow: number,
- *   mpi?: number,
- *   whaleBias?: number,   // -1 (sell) ～ +1 (buy)
- *   retailFomo?: number,  // 0 ～ 100
+ *  priceChange: number (% change, e.g. +6, -3),
+ *  volume?: number,
+ *  inflow: number,
+ *  mpi?: number,
+ *  whaleBias?: number, // -1 (sell) ～ +1 (buy)
+ *  retailFomo?: number, // 0 ～ 100
  * }
  */
-
 function detectTrap(ctx = {}) {
   // 安全なデフォルトをセットしておく
   const {
@@ -78,7 +77,6 @@ function detectTrap(ctx = {}) {
   }
 
   // ---- 従来の Bull/Bear Trap（感情データなしでも動く） ----
-
   // Bull Trap: 価格急騰 + 大きな流入
   if (priceChange > 5 && inflow > 1500) {
     return {
