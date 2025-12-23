@@ -140,8 +140,12 @@ async function getUpbitInflow() {
 
     return Number(data?.result?.data?.[0]?.value ?? 0);
   } catch (error) {
-    console.warn('[deepMetrics] Error fetching Upbit inflow:', error.message);
-    return 0;
+    ErrorTracker.trackError('cryptoquant', 'getUpbitInflow', error, {
+      endpoint: '/btc/exchange-flows/inflow-sum',
+      params: { exchange: 'upbit', window: 'day', limit: 1 },
+    });
+    
+    return ErrorTracker.createErrorResult(error, { inflow: 0 }).inflow;
   }
 }
 

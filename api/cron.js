@@ -610,7 +610,22 @@ export default async function handler(req, res) {
       xIntel,
     });
   } catch (error) {
-    console.error('❌ Cron Job Failed:', error);
-    return res.status(500).json({ error: error.message });
+    const errorContext = {
+      isRegularSlot: typeof isRegularSlot !== 'undefined' ? isRegularSlot : null,
+      force: req.query?.force === 'true',
+      market: getMarketCode(LANG),
+      timestamp: new Date().toISOString(),
+    };
+
+    console.error('❌ Cron Job Failed:', {
+      error: error.message,
+      stack: error.stack,
+      context: errorContext,
+    });
+
+    return res.status(500).json({
+      error: error.message,
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
+    });
   }
 }
