@@ -264,8 +264,12 @@ async function getSOPR30d() {
 
     return sum / soprValues.length;
   } catch (error) {
-    console.warn('[deepMetrics] Error fetching SOPR 30d:', error.message);
-    return 1.0;
+    ErrorTracker.trackError('cryptoquant', 'getSOPR30d', error, {
+      endpoint: '/btc/sopr',
+      params: { window: 'day', limit: 30 },
+    });
+    
+    return ErrorTracker.createErrorResult(error, { sopr30d: 1.0 }).sopr30d;
   }
 }
 
@@ -411,8 +415,8 @@ async function getCQDeepMetrics(market, options = {}) {
           whaleFlows,
           liquidations,
           trapScore,
-          longShortRatio: binanceData?.currentLongShortRatio || 1.0,
-          binance: binanceData, // Phase 2+: Binanceデータを含める
+          longShortRatio: binanceDataForTrap?.currentLongShortRatio || 1.0,
+          binance: binanceDataForTrap, // Phase 2+: Binanceデータを含める
         };
       }
 
@@ -475,15 +479,19 @@ async function getCQDeepMetrics(market, options = {}) {
         return baseResult;
     }
   } catch (error) {
-    console.error(`[deepMetrics] Error fetching deep metrics for ${market}:`, error);
+    ErrorTracker.trackError('cryptoquant', 'getCQDeepMetrics', error, {
+      market,
+      options,
+    });
+    
     // Return safe defaults on error
-    return {
+    return ErrorTracker.createErrorResult(error, {
       exchangeInflow: 0,
       exchangeOutflow: 0,
       netflow: 0,
       minerMPI: 0,
       activeAddresses: 0,
-    };
+    });
   }
 }
 
