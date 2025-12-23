@@ -131,6 +131,13 @@ function shouldWatch({ score, confidence, trap, isRegularSlot }) {
 // --- Main Cron Handler -----------------------------------------
 
 export default async function handler(req, res) {
+  // Validate environment variables (non-throwing, logs warnings)
+  const envValidation = validateEnvSafe();
+  if (!envValidation.isValid) {
+    Logger.error('cron', 'Missing required environment variables', { missing: envValidation.missingRequired });
+    // Don't throw - allow request to continue but log error
+  }
+
   // Debug bypass only in development environment
   const debugBypass = process.env.NODE_ENV === 'development' && req.query?.debug === 'local';
   const authHeader = req.headers.authorization;
