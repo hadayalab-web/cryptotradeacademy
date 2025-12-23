@@ -10,17 +10,25 @@ const VALID_MARKETS = ['EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR'];
 
 /**
  * Whale Inflow/Outflow取得（EN市場用）
- * WARNING: API endpoints need verification against official CryptoQuant documentation
- * Current endpoints are based on expected patterns and may need adjustment
+ * 
+ * ⚠️ IMPORTANT: These API endpoints are based on expected patterns and require verification
+ * against the official CryptoQuant API v1 documentation.
+ * 
+ * Action items:
+ * 1. Verify endpoint URLs at https://docs.cryptoquant.com/
+ * 2. Confirm parameter names (size, window, limit) match API spec
+ * 3. Test with actual API key to ensure response format matches
+ * 4. Update data extraction logic based on actual response structure
+ * 
+ * Alternative endpoints if current ones fail:
+ * - /v1/btc/exchange-flows/whale-ratio
+ * - /v1/btc/network-data/large-transactions
+ * 
  * @returns {Promise<Object>} { inflow, outflow, netflow }
  */
 async function getWhaleFlows() {
   try {
     // 大型取引（>100 BTC）のフローを取得
-    // TODO: Verify these endpoints against CryptoQuant API v1 documentation
-    // Alternative endpoints to try if these fail:
-    // - /v1/btc/exchange-flows/whale-ratio
-    // - /v1/btc/network-data/large-transactions
 
     const inflowData = await fetchCryptoQuant('/btc/exchange-flows/inflow-sum', {
       size: 'large',
@@ -48,15 +56,22 @@ async function getWhaleFlows() {
 
 /**
  * Liquidations 24h取得（EN市場用）
- * WARNING: API endpoint needs verification against official CryptoQuant documentation
+ * 
+ * ⚠️ IMPORTANT: This API endpoint requires verification against official documentation.
+ * 
+ * Action items:
+ * 1. Verify endpoint at https://docs.cryptoquant.com/
+ * 2. Confirm response structure matches extraction logic
+ * 3. Test with actual API key
+ * 
+ * Alternative endpoints to try:
+ * - /v1/btc/market-data/liquidation
+ * - /v1/btc/derivatives/total-liquidations
+ * 
  * @returns {Promise<number>} 24時間の清算額（USD）
  */
 async function getLiquidations() {
   try {
-    // TODO: Verify this endpoint against CryptoQuant API v1 documentation
-    // Alternative endpoints to try:
-    // - /v1/btc/market-data/liquidation
-    // - /v1/btc/derivatives/total-liquidations
     const data = await fetchCryptoQuant('/btc/derivatives/liquidations-24h', {
       limit: 1,
     });
@@ -129,14 +144,22 @@ function calculateKimchiPremium(upbitPrice, binancePrice, usdKrwRate) {
 
 /**
  * NUPL取得（JA市場用）
- * WARNING: API endpoint needs verification against official CryptoQuant documentation
+ * 
+ * ⚠️ IMPORTANT: NUPL is a premium indicator - verify API key has access.
+ * 
+ * Action items:
+ * 1. Verify endpoint at https://docs.cryptoquant.com/
+ * 2. Confirm subscription plan includes NUPL indicator
+ * 3. Test with actual API key
+ * 4. Verify response structure
+ * 
+ * Alternative endpoints:
+ * - /v1/btc/network-indicator/nupl
+ * 
  * @returns {Promise<number>} Net Unrealized Profit/Loss
  */
 async function getNUPL() {
   try {
-    // TODO: Verify this endpoint against CryptoQuant API v1 documentation
-    // NUPL is a premium indicator - ensure API key has access
-    // Alternative endpoints: /v1/btc/network-indicator/nupl
     const data = await fetchCryptoQuant('/btc/nupl/current', {
       limit: 1,
     });
@@ -152,13 +175,22 @@ async function getNUPL() {
 
 /**
  * SOPR 30-day MA取得（JA市場用）
- * WARNING: API endpoint needs verification against official CryptoQuant documentation
+ * 
+ * ⚠️ IMPORTANT: This endpoint requires verification.
+ * 
+ * Action items:
+ * 1. Verify endpoint at https://docs.cryptoquant.com/
+ * 2. Confirm SOPR data availability and format
+ * 3. Test with actual API key
+ * 4. Validate 30-day moving average calculation
+ * 
+ * Alternative endpoints:
+ * - /v1/btc/network-indicator/sopr
+ * 
  * @returns {Promise<number>} SOPR 30日移動平均
  */
 async function getSOPR30d() {
   try {
-    // TODO: Verify this endpoint against CryptoQuant API v1 documentation
-    // Alternative endpoints: /v1/btc/network-indicator/sopr
     const data = await fetchCryptoQuant('/btc/sopr', {
       window: 'day',
       limit: 30,

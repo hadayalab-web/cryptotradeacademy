@@ -305,7 +305,8 @@ export default async function handler(req, res) {
     let triggerType = isRegularSlot ? 'REGULAR' : (finalNeedsEmergency ? 'EMERGENCY' : 'WATCH');
     let triggerReason = 'Legacy mode';
     
-    // Phase 2: 深掘りデータ初期化（全パスで使用可能にする）
+    // Phase 2: 深掘りデータ初期化
+    // 基本データで初期化し、後でイベント駆動パスまたはREGULARパスで拡張
     let cqDeep = { inflow, mpi };
 
     if (ENABLE_EVENT_DRIVEN && stateManager && evaluateTrigger) {
