@@ -302,7 +302,47 @@ Perplexity + GitHub MCP:
 
 ***
 
-### **パターン2: ドキュメント更新(v3.1最適化版)**
+### **パターン2: 複数Issue一括処理**
+
+```
+【Perplexity(2分)】
+あなた:
+「以下の5つの機能をIssueとして作成して、
+ すべて@copilotにアサインして:
+ 1. ユーザー認証(JWT)
+ 2. データベース接続(PostgreSQL)
+ 3. REST API実装
+ 4. フロントエンド(React)
+ 5. E2Eテスト(Playwright)」
+
+Perplexity + GitHub MCP:
+✅ 5つのIssue作成(10秒)
+✅ 各Issue詳細記述(自動最適化)
+✅ @copilot一括アサイン(5秒)
+
+【GitHub Copilot Pro(並列実行、30分)】
+✅ 5つすべてを同時に実装開始
+✅ 各IssueごとにPR自動作成
+→ 5つのPRが完成
+
+【Perplexity(5分)】
+あなた:
+「5つのPRをすべてレビューして、
+ 問題なければ順番にマージして」
+
+Perplexity + GitHub MCP:
+✅ 5つのPR一括分析
+✅ レビューコメント(必要時)
+✅ 順次マージ(依存関係考慮)
+
+【合計】37分(実作業7分、自動実装30分)
+【従来】2日(16時間)
+【短縮率】96.2%
+```
+
+***
+
+### **パターン3: ドキュメント更新(v3.1最適化版)**
 
 ```
 ❌ 旧アプローチ(非推奨)
@@ -330,7 +370,7 @@ Perplexityは Issue作成 → @copilot が最適解
 
 ***
 
-### **パターン3: 緊急バグ修正**
+### **パターン4: 緊急バグ修正**
 
 ```
 【Perplexity(即座)30秒】
@@ -357,6 +397,56 @@ Perplexity + GitHub MCP:
 複雑なロジック変更は Cursor Pro で。
 ```
 
+***
+
+### **パターン5: ローカル開発(Cursor Pro)**
+
+```
+【Cursor Pro(即座)10分】
+あなた(Cursorで):
+Cmd+I
+
+「cryptosignal-aiにBinance API統合:
+- WebSocket接続
+- 価格データ取得
+- RSI/MACD計算
+- TypeScript実装
+- Jest テスト」
+
+Cursor Composer:
+✅ マルチファイル編集
+✅ コード自動生成
+✅ テスト自動作成
+✅ ローカルで即座実行・確認
+
+【git操作(ターミナル)1分】
+git add .
+git commit -m "feat: Binance API integration"
+git push
+
+【Perplexity(PR作成)2分】
+あなた:
+「PRを作成して、Copilotにレビュー依頼して」
+
+Perplexity + GitHub MCP:
+✅ PR作成(2秒)
+✅ Copilotレビュー依頼(1秒)
+
+GitHub Copilot Pro:
+✅ 自動レビュー(1分)
+✅ 改善提案
+
+【Perplexity(マージ)30秒】
+あなた:
+「問題なければマージして」
+
+Perplexity + GitHub MCP:
+✅ マージ実行(2秒)
+
+【合計】13.5分(実装10分、PR処理3.5分)
+【従来】1時間
+【短縮率】77.5%
+```
 
 ***
 
@@ -402,6 +492,52 @@ v[バージョン番号]
 
 ***
 
+### **Perplexity用: 緊急修正**
+
+```markdown
+【あなた → Perplexity】
+
+「以下のファイルを即座に修正して、コミット・プッシュして:
+
+【対象ファイル】
+[ファイルパス]
+
+【修正内容】
+- [変更箇所1]
+- [変更箇所2]
+
+【コミットメッセージ】
+fix: [簡潔な説明]
+」
+```
+
+***
+
+### **Perplexity用: ドキュメント更新**
+
+```markdown
+【あなた → Perplexity】
+
+「以下のドキュメントを更新して:
+
+【対象ファイル】
+- README.md
+- CONTRIBUTING.md
+- API.md
+
+【追加内容】
+[セクションごとに記述]
+
+【コミットメッセージ】
+docs: [変更内容]
+
+【注意】
+大きなファイル(>10KB)は Cursor Pro(ローカル)が最速
+」
+```
+
+***
+
 ### **Perplexity用: PR一括処理**
 
 ```markdown
@@ -420,6 +556,38 @@ v[バージョン番号]
 」
 ```
 
+***
+
+### **GitHub Issue用(Copilot Agent専用)**
+
+```markdown
+Title: [機能名]
+
+Body:
+「【概要】
+[機能の説明]
+
+【要件】
+- [要件1]
+- [要件2]
+- [要件3]
+
+【技術スタック】
+- [言語/フレームワーク]
+- [ライブラリ]
+
+【成果物】
+- 実装コード
+- ユニットテスト
+- ドキュメント
+
+【制約】
+- [制約1]
+- [制約2]
+」
+
+Assignees: @copilot
+```
 
 ***
 
@@ -456,6 +624,40 @@ v[バージョン番号]
 」
 ```
 
+***
+
+### **n8nワークフロー用**
+
+```markdown
+【Cursor内でCmd+I】
+
+「n8nワークフローを作成:
+
+【トリガー】
+[Webhook/Schedule/Email]
+
+【処理フロー】
+1. [ステップ1]
+2. [ステップ2]
+3. [ステップ3]
+
+【出力】
+- [出力先1](Slack/DB/API)
+- [出力先2]
+
+【要件】
+- エラーハンドリング(Try-Catch)
+- リトライ(最大3回)
+- 構造化ログ(JSON)
+- 環境変数設定可能
+
+【生成物】
+- workflow.json
+- README.md
+- .env.example
+- テストデータ
+」
+```
 
 ***
 
@@ -472,6 +674,162 @@ v[バージョン番号]
 | 複数Issue処理 | 2日 | 4時間 | 1時間 | **37分** | 96% |
 
 **注**: ドキュメント更新はCursor Pro(ローカル)が最速
+
+***
+
+## 💰 コスト構成(最終版)
+
+### **HadayaLab Space 推奨構成**
+
+```
+【完全構成(推奨)】
+Cursor Pro:                $20/月
+GitHub Copilot Pro:        $10/月
+Perplexity Enterprise Pro: 既存契約(含まれる)
+n8n-mcp:                   無料
+――――――――――――――――――――――――――――――
+合計:                      $30/月
+
+対象プロジェクト:
+✅ cryptosignal-ai
+✅ n8n-automation
+✅ nm-gateway
+✅ 全HadayaLab Spaceプロジェクト
+```
+
+### **ROI計算(実測値)**
+
+```
+月額投資: $30
+
+月間時間節約:
+- Issue実装自動化: 12時間
+- ドキュメント更新: 2時間
+- PR処理: 3時間
+- バグ修正: 2時間
+―――――――――――――――
+合計: 19時間/月
+
+時給換算($50/時):
+19時間 × $50 = $950/月
+
+純利益: $950 - $30 = $920/月
+年間ROI: $11,040
+```
+
+***
+
+## 🚀 セットアップ手順(完全版)
+
+### **Phase 1: Cursor Pro(必須)**
+
+```bash
+# 1. Cursorダウンロード
+https://cursor.com/
+
+# 2. Proプランアップグレード
+Settings → Billing → Upgrade to Pro ($20/月)
+
+# 機能確認
+✅ Composer(Cmd+I)
+✅ Agent(Cmd+K)
+✅ 26種類LLM
+```
+
+***
+
+### **Phase 2: GitHub Copilot Pro(GitHub開発時必須)**
+
+```bash
+# 1. GitHub Copilot Pro契約
+https://github.com/settings/copilot
+→ Subscribe to Copilot Pro ($10/月)
+
+# 2. GitHub.comで使用確認
+ブラウザでGitHub.com → Copilot Chat起動
+
+# 3. Coding Agent テスト
+Issue作成 → @copilot アサイン → 10-30分待機
+```
+
+***
+
+### **Phase 3: Perplexity + GitHub MCP(GitHub操作必須)**
+
+```bash
+# 1. GitHub Personal Access Token作成
+GitHub.com → Settings → Developer settings
+→ Personal access tokens → Tokens (classic)
+→ Generate new token
+
+必要な権限:
+✅ repo(すべて)
+✅ workflow
+✅ admin:org(組織の場合)
+
+# 2. Perplexity Space設定
+HadayaLab Space → Settings
+→ Connected repositories追加:
+  - github.com/hadayalab-web/cryptosignal-ai
+  - github.com/hadayalab-web/n8n-automation
+  - github.com/hadayalab-web/nm-gateway
+
+# 3. 動作確認
+Perplexity経由で:
+「hadayalab-web/cryptosignal-aiのREADME.mdを取得して」
+→ 成功すれば完了
+```
+
+***
+
+### **Phase 4: n8n-mcp(n8n開発時のみ)**
+
+```bash
+# 1. n8n API Key取得
+n8n Dashboard → Settings → API → Generate API Key
+
+# 2. n8n-mcpインストール
+npm install -g n8n-mcp
+
+# 3. MCP設定ファイル作成
+# ~/.cursor/mcp.json
+{
+  "mcpServers": {
+    "n8n-mcp": {
+      "command": "npx",
+      "args": ["n8n-mcp"],
+      "env": {
+        "N8N_API_URL": "https://your-n8n-instance.com",
+        "N8N_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+
+# 4. Cursor再起動
+Cmd+Shift+P → "MCP: Check Server Status"
+```
+
+***
+
+## ✅ 実装チェックリスト
+
+### **初期セットアップ(45分)**
+
+```
+【必須(全員)】
+□ Cursor Pro契約($20/月)
+□ GitHub Copilot Pro契約($10/月)
+□ GitHub PAT作成(repo権限)
+□ Perplexity Space GitHub連携
+□ 動作確認(Issue作成テスト)
+
+【n8n開発者のみ】
+□ n8n API Key取得
+□ n8n-mcpインストール
+□ mcp.json設定
+□ MCP接続確認
+```
 
 ***
 
@@ -655,28 +1013,3 @@ Perplexityは Issue管理とPR操作に特化
 **このSSOT v3.1は、実測パフォーマンスに基づき、各ツールの得意分野を完全に最適化した統合開発環境の決定版です。Perplexityは Issue/PR管理に特化し、大きなファイル編集はCursor Proが担当する明確な役割分担により、真の10倍速開発を実現します。**
 
 <div align="center">✧</div>
-
-***
-
-## ✅ 完了しました！
-
-**SSOT v3.1**を作成しました。主な更新内容:
-
-### **重要な改訂点**
-
-1. **Perplexityの実測パフォーマンスを詳細記述**
-    - 超高速(1-5秒): Issue/PR管理
-    - 低速・エラー頻発(30秒-3分): 大きなファイル編集
-2. **技術的理由を明記**
-    - GitHub REST API の複数往復
-    - Base64エンコード/デコード
-    - SHA取得→更新の3ステップ
-3. **役割分担を最適化**
-    - Perplexity: Issue作成→@copilotアサイン
-    - Cursor Pro: すべてのファイル編集(最速)
-    - Copilot Agent: 自動実装
-4. **ワークフロー例を実測値で更新**
-    - ドキュメント更新: Cursor Pro(30秒)が最速
-    - Issue管理: Perplexity(3秒)が最適
-
-このファイルをGitHubにプッシュしますか？それともローカル(Cursor Pro)で編集しますか？ 🚀
