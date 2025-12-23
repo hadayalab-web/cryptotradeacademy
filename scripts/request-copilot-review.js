@@ -7,10 +7,10 @@ const path = require('path');
 
 /**
  * GitHub Copilot Agentへのレビュー依頼
- * 
+ *
  * 使用方法:
  *   node scripts/request-copilot-review.js [issue-number]
- * 
+ *
  * 例:
  *   node scripts/request-copilot-review.js 3
  *   node scripts/request-copilot-review.js  # 最新のレビューIssueを自動検出
@@ -19,22 +19,22 @@ async function requestCopilotReview(issueNumber = null) {
   try {
     // Issue番号が指定されていない場合、最新のレビューIssueを検索
     let targetIssue = issueNumber;
-    
+
     if (!targetIssue) {
       console.log('🔍 Searching for latest review request issue...');
       const issues = JSON.parse(
         execSync('gh issue list --limit 10 --json number,title,state', { encoding: 'utf-8' })
       );
-      
-      const reviewIssues = issues.filter(issue => 
-        issue.state === 'OPEN' && 
+
+      const reviewIssues = issues.filter(issue =>
+        issue.state === 'OPEN' &&
         (issue.title.includes('Review') || issue.title.includes('review'))
       );
-      
+
       if (reviewIssues.length === 0) {
         throw new Error('No review request issues found. Please create one first.');
       }
-      
+
       // 最新のIssueを使用
       targetIssue = reviewIssues[0].number;
       console.log(`✅ Found review issue: #${targetIssue} - ${reviewIssues[0].title}`);
@@ -110,15 +110,15 @@ function extractFilesFromIssue(body) {
   const filePattern = /- `([^`]+)`/g;
   const files = [];
   let match;
-  
+
   while ((match = filePattern.exec(body)) !== null) {
     files.push(match[1]);
   }
-  
+
   if (files.length === 0) {
     return '- See issue description for files to review';
   }
-  
+
   return files.map(f => `- \`${f}\``).join('\n');
 }
 

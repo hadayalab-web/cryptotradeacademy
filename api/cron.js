@@ -127,7 +127,8 @@ function shouldWatch({ score, confidence, trap, isRegularSlot }) {
 // --- Main Cron Handler -----------------------------------------
 
 export default async function handler(req, res) {
-  const debugBypass = req.query?.debug === 'local';
+  // Debug bypass only in development environment
+  const debugBypass = process.env.NODE_ENV === 'development' && req.query?.debug === 'local';
   const authHeader = req.headers.authorization;
 
   if (

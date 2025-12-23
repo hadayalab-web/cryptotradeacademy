@@ -14,6 +14,27 @@ const BINANCE_FUTURES_API_BASE = 'https://fapi.binance.com';
  * @returns {Promise<Array>} Klineデータ配列
  */
 async function fetchKlines(symbol, interval, startTime, endTime, limit = 1000) {
+  // Input validation
+  if (!symbol || typeof symbol !== 'string' || symbol.trim().length === 0) {
+    throw new Error('Invalid symbol parameter: must be a non-empty string');
+  }
+
+  const validIntervals = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M'];
+  if (!validIntervals.includes(interval)) {
+    throw new Error(`Invalid interval: ${interval}. Must be one of: ${validIntervals.join(', ')}`);
+  }
+
+  if (!Number.isFinite(startTime) || startTime < 0) {
+    throw new Error('Invalid startTime: must be a non-negative number (milliseconds)');
+  }
+
+  if (!Number.isFinite(endTime) || endTime < startTime) {
+    throw new Error('Invalid endTime: must be >= startTime');
+  }
+
+  // Clamp limit to API constraints (1-1000)
+  limit = Math.min(Math.max(1, Math.floor(limit)), 1000);
+
   try {
     const params = new URLSearchParams({
       symbol,
@@ -57,13 +78,25 @@ async function fetchKlines(symbol, interval, startTime, endTime, limit = 1000) {
  * @returns {Promise<Array>} Funding Rateデータ配列
  */
 async function fetchFundingRate(symbol, startTime = null, limit = 500) {
+  // Input validation
+  if (!symbol || typeof symbol !== 'string' || symbol.trim().length === 0) {
+    throw new Error('Invalid symbol parameter: must be a non-empty string');
+  }
+
+  if (startTime !== null && (!Number.isFinite(startTime) || startTime < 0)) {
+    throw new Error('Invalid startTime: must be a non-negative number (milliseconds) or null');
+  }
+
+  // Clamp limit to API constraints (1-1000)
+  limit = Math.min(Math.max(1, Math.floor(limit)), 1000);
+
   try {
     const params = new URLSearchParams({
       symbol,
       limit: String(limit),
     });
 
-    if (startTime) {
+    if (startTime !== null) {
       params.append('startTime', String(startTime));
     }
 
@@ -93,6 +126,11 @@ async function fetchFundingRate(symbol, startTime = null, limit = 500) {
  * @returns {Promise<Object>} Open Interestデータ
  */
 async function fetchOpenInterest(symbol) {
+  // Input validation
+  if (!symbol || typeof symbol !== 'string' || symbol.trim().length === 0) {
+    throw new Error('Invalid symbol parameter: must be a non-empty string');
+  }
+
   try {
     const params = new URLSearchParams({ symbol });
     const url = `${BINANCE_FUTURES_API_BASE}/fapi/v1/openInterest?${params}`;
@@ -125,6 +163,23 @@ async function fetchOpenInterest(symbol) {
  * @returns {Promise<Array>} Long/Short Ratioデータ配列
  */
 async function fetchLongShortRatio(symbol, period = '1h', limit = 500, startTime = null) {
+  // Input validation
+  if (!symbol || typeof symbol !== 'string' || symbol.trim().length === 0) {
+    throw new Error('Invalid symbol parameter: must be a non-empty string');
+  }
+
+  const validPeriods = ['5m', '15m', '30m', '1h', '2h', '4h', '6h', '12h', '1d'];
+  if (!validPeriods.includes(period)) {
+    throw new Error(`Invalid period: ${period}. Must be one of: ${validPeriods.join(', ')}`);
+  }
+
+  if (startTime !== null && (!Number.isFinite(startTime) || startTime < 0)) {
+    throw new Error('Invalid startTime: must be a non-negative number (milliseconds) or null');
+  }
+
+  // Clamp limit to API constraints (1-500)
+  limit = Math.min(Math.max(1, Math.floor(limit)), 500);
+
   try {
     const params = new URLSearchParams({
       symbol,
@@ -132,7 +187,7 @@ async function fetchLongShortRatio(symbol, period = '1h', limit = 500, startTime
       limit: String(limit),
     });
 
-    if (startTime) {
+    if (startTime !== null) {
       params.append('startTime', String(startTime));
     }
 
@@ -163,6 +218,11 @@ async function fetchLongShortRatio(symbol, period = '1h', limit = 500, startTime
  * @returns {Promise<Object>} 24時間統計データ
  */
 async function fetch24hTicker(symbol) {
+  // Input validation
+  if (!symbol || typeof symbol !== 'string' || symbol.trim().length === 0) {
+    throw new Error('Invalid symbol parameter: must be a non-empty string');
+  }
+
   try {
     const params = new URLSearchParams({ symbol });
     const url = `${BINANCE_FUTURES_API_BASE}/fapi/v1/ticker/24hr?${params}`;
@@ -201,6 +261,15 @@ async function fetch24hTicker(symbol) {
  * @returns {Promise<Object>} 補完データ
  */
 async function getComplementaryData(symbol = 'BTCUSDT', timestamp = null) {
+  // Input validation
+  if (!symbol || typeof symbol !== 'string' || symbol.trim().length === 0) {
+    throw new Error('Invalid symbol parameter: must be a non-empty string');
+  }
+
+  if (timestamp !== null && (!Number.isFinite(timestamp) || timestamp < 0)) {
+    throw new Error('Invalid timestamp: must be a non-negative number (milliseconds) or null');
+  }
+
   try {
     const targetTime = timestamp || Date.now();
 

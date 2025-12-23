@@ -1,12 +1,3 @@
-# GitHub Issue Template: Copilot Review Request
-
-## Issue Title
-```
-Code Review Request: Binance API Integration & Backtest Improvements
-```
-
-## Issue Body
-```markdown
 ## 📋 Review Request
 
 @copilot Please review the recent implementation of Binance API integration and backtest improvements.
@@ -71,27 +62,4 @@ Code Review Request: Binance API Integration & Backtest Improvements
 
 **Priority**: Medium
 **Estimated Review Time**: 30-60 minutes
-**Labels**: `code-review`, `enhancement`, `backtest`
-```
-
-## How to Create the Issue
-
-1. Go to: https://github.com/hadayalab-web/cryptosignal-ai/issues/new
-2. Copy the Issue Body above
-3. Paste into the issue body
-4. Add labels: `code-review`, `enhancement`, `backtest`
-5. Assign to: @copilot (or @hadayalab-web)
-6. Submit the issue
-
----
-
-Alternatively, you can use GitHub CLI:
-
-```bash
-gh issue create \
-  --title "Code Review Request: Binance API Integration & Backtest Improvements" \
-  --body "$(cat docs/GITHUB_ISSUE_COPILOT_REVIEW.md | sed -n '/^```markdown$/,/^```$/p' | sed '1d;$d')" \
-  --label "code-review,enhancement,backtest" \
-  --assignee "@copilot"
-```
 

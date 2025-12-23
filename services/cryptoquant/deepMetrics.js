@@ -6,29 +6,45 @@ const { fetchCryptoQuant } = require('./client');
 const { getExchangeInflow, getMinerPositionIndex } = require('./endpoints/btc');
 // Phase 2+: Binanceデータ補完
 const { getComplementaryData } = require('../binance/client');
+const { ErrorTracker } = require('../../utils/errorTracker');
+const { isFeatureEnabled, FEATURE_FLAGS } = require('../../config/featureFlags');
 
 // Valid market codes
 const VALID_MARKETS = ['EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR'];
 
 /**
  * Whale Inflow/Outflow取得（EN市場用）
- * 
+ *
  * ⚠️ IMPORTANT: These API endpoints are based on expected patterns and require verification
  * against the official CryptoQuant API v1 documentation.
- * 
+ *
  * Action items:
  * 1. Verify endpoint URLs at https://docs.cryptoquant.com/
  * 2. Confirm parameter names (size, window, limit) match API spec
  * 3. Test with actual API key to ensure response format matches
  * 4. Update data extraction logic based on actual response structure
- * 
+ *
  * Alternative endpoints if current ones fail:
  * - /v1/btc/exchange-flows/whale-ratio
  * - /v1/btc/network-data/large-transactions
- * 
+ *
  * @returns {Promise<Object>} { inflow, outflow, netflow }
  */
 async function getWhaleFlows() {
+  // Feature flag check
+  if (!isFeatureEnabled('CQ_WHALE_FLOWS_ENABLED')) {
+    ErrorTracker.trackWarning('cryptoquant', 'getWhaleFlows', 'Feature disabled via feature flag', {
+      featureFlag: 'CQ_WHALE_FLOWS_ENABLED',
+    });
+    return {
+      inflow: 0,
+      outflow: 0,
+      netflow: 0,
+      disabled: true,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   try {
     // 大型取引（>100 BTC）のフローを取得
 
@@ -50,29 +66,45 @@ async function getWhaleFlows() {
 
     return { inflow, outflow, netflow };
   } catch (error) {
-    console.warn('[deepMetrics] Error fetching whale flows:', error.message);
-    // Return safe defaults on error
-    return { inflow: 0, outflow: 0, netflow: 0 };
+    ErrorTracker.trackError('cryptoquant', 'getWhaleFlows', error, {
+      endpoint: '/btc/exchange-flows/inflow-sum',
+      params: { size: 'large', window: 'day', limit: 1 },
+    });
+    
+    // Return defaults but signal the failure
+    return ErrorTracker.createErrorResult(error, {
+      inflow: 0,
+      outflow: 0,
+      netflow: 0,
+    });
   }
 }
 
 /**
  * Liquidations 24h取得（EN市場用）
- * 
+ *
  * ⚠️ IMPORTANT: This API endpoint requires verification against official documentation.
- * 
+ *
  * Action items:
  * 1. Verify endpoint at https://docs.cryptoquant.com/
  * 2. Confirm response structure matches extraction logic
  * 3. Test with actual API key
- * 
+ *
  * Alternative endpoints to try:
  * - /v1/btc/market-data/liquidation
  * - /v1/btc/derivatives/total-liquidations
- * 
+ *
  * @returns {Promise<number>} 24時間の清算額（USD）
  */
 async function getLiquidations() {
+  // Feature flag check
+  if (!isFeatureEnabled('CQ_LIQUIDATIONS_ENABLED')) {
+    ErrorTracker.trackWarning('cryptoquant', 'getLiquidations', 'Feature disabled via feature flag', {
+      featureFlag: 'CQ_LIQUIDATIONS_ENABLED',
+    });
+    return ErrorTracker.createErrorResult(new Error('Feature disabled'), { liquidations: 0 }).liquidations;
+  }
+
   try {
     const data = await fetchCryptoQuant('/btc/derivatives/liquidations-24h', {
       limit: 1,
@@ -85,8 +117,12 @@ async function getLiquidations() {
 
     return Number(liquidations) || 0;
   } catch (error) {
-    console.warn('[deepMetrics] Error fetching liquidations:', error.message);
-    return 0;
+    ErrorTracker.trackError('cryptoquant', 'getLiquidations', error, {
+      endpoint: '/btc/derivatives/liquidations-24h',
+      params: { limit: 1 },
+    });
+    
+    return ErrorTracker.createErrorResult(error, { liquidations: 0 }).liquidations;
   }
 }
 
@@ -123,8 +159,12 @@ async function getBinanceInflow() {
 
     return Number(data?.result?.data?.[0]?.value ?? 0);
   } catch (error) {
-    console.warn('[deepMetrics] Error fetching Binance inflow:', error.message);
-    return 0;
+    ErrorTracker.trackError('cryptoquant', 'getBinanceInflow', error, {
+      endpoint: '/btc/exchange-flows/inflow-sum',
+      params: { exchange: 'binance', window: 'day', limit: 1 },
+    });
+    
+    return ErrorTracker.createErrorResult(error, { inflow: 0 }).inflow;
   }
 }
 
@@ -146,21 +186,29 @@ function calculateKimchiPremium(upbitPrice, binancePrice, usdKrwRate) {
 
 /**
  * NUPL取得（JA市場用）
- * 
+ *
  * ⚠️ IMPORTANT: NUPL is a premium indicator - verify API key has access.
- * 
+ *
  * Action items:
  * 1. Verify endpoint at https://docs.cryptoquant.com/
  * 2. Confirm subscription plan includes NUPL indicator
  * 3. Test with actual API key
  * 4. Verify response structure
- * 
+ *
  * Alternative endpoints:
  * - /v1/btc/network-indicator/nupl
- * 
+ *
  * @returns {Promise<number>} Net Unrealized Profit/Loss
  */
 async function getNUPL() {
+  // Feature flag check
+  if (!isFeatureEnabled('CQ_NUPL_ENABLED')) {
+    ErrorTracker.trackWarning('cryptoquant', 'getNUPL', 'Feature disabled via feature flag', {
+      featureFlag: 'CQ_NUPL_ENABLED',
+    });
+    return ErrorTracker.createErrorResult(new Error('Feature disabled'), { nupl: 0 }).nupl;
+  }
+
   try {
     const data = await fetchCryptoQuant('/btc/nupl/current', {
       limit: 1,
@@ -170,25 +218,29 @@ async function getNUPL() {
                   data?.result?.data?.[0]?.nupl ??
                   0);
   } catch (error) {
-    console.warn('[deepMetrics] Error fetching NUPL:', error.message);
-    return 0;
+    ErrorTracker.trackError('cryptoquant', 'getNUPL', error, {
+      endpoint: '/btc/nupl/current',
+      params: { limit: 1 },
+    });
+    
+    return ErrorTracker.createErrorResult(error, { nupl: 0 }).nupl;
   }
 }
 
 /**
  * SOPR 30-day MA取得（JA市場用）
- * 
+ *
  * ⚠️ IMPORTANT: This endpoint requires verification.
- * 
+ *
  * Action items:
  * 1. Verify endpoint at https://docs.cryptoquant.com/
  * 2. Confirm SOPR data availability and format
  * 3. Test with actual API key
  * 4. Validate 30-day moving average calculation
- * 
+ *
  * Alternative endpoints:
  * - /v1/btc/network-indicator/sopr
- * 
+ *
  * @returns {Promise<number>} SOPR 30日移動平均
  */
 async function getSOPR30d() {
@@ -251,7 +303,7 @@ function calculateTrapScore(whaleNetflow, liquidations, retailNetflow = 0, binan
     if (fundingRate > 0.01) {
       score += 10; // 強気過多 = トラップリスク増加
     }
-    
+
     // Long/Short Ratio補正: Long過多（>1.5）はトラップリスク
     const lsRatio = binanceData.currentLongShortRatio || 1.0;
     if (lsRatio > 1.5) {
