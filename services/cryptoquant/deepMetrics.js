@@ -218,9 +218,10 @@ async function getSOPR30d() {
  * @param {number} whaleNetflow - Whale純流出（BTC）
  * @param {number} liquidations - 24時間清算額（USD）
  * @param {number} retailNetflow - Retail純流入（BTC、推定）
+ * @param {Object} binanceData - Binance補完データ（オプション）
  * @returns {number} trapScore (0-100)
  */
-function calculateTrapScore(whaleNetflow, liquidations, retailNetflow = 0) {
+function calculateTrapScore(whaleNetflow, liquidations, retailNetflow = 0, binanceData = null) {
   let score = 0;
 
   // Whale売り + Retail買い = Trap
@@ -241,6 +242,21 @@ function calculateTrapScore(whaleNetflow, liquidations, retailNetflow = 0) {
   // 追加判定: 清算額が極端に大きい場合
   if (liquidations > 500000000) {
     score += 20;
+  }
+
+  // Phase 2+: Binanceデータによる補正
+  if (binanceData) {
+    // Funding Rate補正: 高いFunding Rate（>0.01%）は強気過多を示唆
+    const fundingRate = binanceData.currentFundingRate || 0;
+    if (fundingRate > 0.01) {
+      score += 10; // 強気過多 = トラップリスク増加
+    }
+    
+    // Long/Short Ratio補正: Long過多（>1.5）はトラップリスク
+    const lsRatio = binanceData.currentLongShortRatio || 1.0;
+    if (lsRatio > 1.5) {
+      score += 15; // Long過多 = 下落時のトラップリスク
+    }
   }
 
   return Math.min(100, score);
@@ -318,10 +334,20 @@ async function getCQDeepMetrics(market, options = {}) {
         // Retail Netflow推定（全体 - Whale）
         const retailNetflow = netflow - whaleFlows.netflow;
 
+        // Phase 2+: Binanceデータを取得（trapScore計算に使用）
+        let binanceDataForTrap = null;
+        try {
+          const binanceComplementary = await getComplementaryData('BTCUSDT');
+          binanceDataForTrap = binanceComplementary;
+        } catch (error) {
+          console.warn('[deepMetrics] Error fetching Binance data for trapScore:', error.message);
+        }
+
         const trapScore = calculateTrapScore(
           whaleFlows.netflow,
           liquidations,
-          retailNetflow
+          retailNetflow,
+          binanceDataForTrap
         );
 
         return {
@@ -329,7 +355,8 @@ async function getCQDeepMetrics(market, options = {}) {
           whaleFlows,
           liquidations,
           trapScore,
-          longShortRatio: 1.0, // 必要に応じて実装
+          longShortRatio: binanceData?.currentLongShortRatio || 1.0,
+          binance: binanceData, // Phase 2+: Binanceデータを含める
         };
       }
 
