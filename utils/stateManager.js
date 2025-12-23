@@ -4,8 +4,16 @@
 
 const { kv } = require('@vercel/kv');
 
+// Valid market codes
+const VALID_MARKETS = ['EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR'];
+
 // 市場別の状態キー生成
 function getStateKey(market) {
+  // Validate market code
+  if (!VALID_MARKETS.includes(market)) {
+    console.warn(`[stateManager] Invalid market code: ${market}, using EN as default`);
+    market = 'EN';
+  }
   return `state:${market}`;
 }
 

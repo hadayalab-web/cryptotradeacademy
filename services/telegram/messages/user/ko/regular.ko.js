@@ -89,7 +89,8 @@ function formatRegularBriefing({
 
   // Phase 2: Kimchi Premium表示（KO市場専用）
   if (kimchiPremium != null) {
-    const premiumLine = `🥟 김치 프리미엄: ${kimchiPremium.toFixed(2)}% ${kimchiPremium > 5 ? '🚨 함정' : kimchiPremium > 3 ? '⚠️ 주의' : '✅ 정상'}`;
+    const premiumPct = kimchiPremium * 100; // Convert decimal to percentage
+    const premiumLine = `🥟 김치 프리미엄: ${premiumPct.toFixed(2)}% ${premiumPct > 5 ? '🚨 함정' : premiumPct > 3 ? '⚠️ 주의' : '✅ 정상'}`;
     lines.push(premiumLine);
     if (upbitPrice) lines.push(`• 업비트: ₩${upbitPrice.toLocaleString('ko-KR')}`);
     if (binancePrice) lines.push(`• 바이낸스: $${binancePrice.toLocaleString('en-US')}`);

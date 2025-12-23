@@ -19,6 +19,7 @@ function buildMarketContext({
   inflow, // CQ: exchange netflow (正=インフロー, 負=アウトフロー)
   mpi, // CQ: Miners' Position Index
   xSentiment, // { whaleBias, retailFomo, newsImpact }
+  market, // Phase 2: 市場コード追加
 }) {
   const onchain = {
     exchangeNetflow: inflow,
@@ -37,6 +38,7 @@ function buildMarketContext({
     change24h,
     onchain,
     social,
+    market, // Phase 2: 市場コード追加
   };
 }
 

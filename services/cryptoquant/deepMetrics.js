@@ -5,6 +5,9 @@
 const { fetchCryptoQuant } = require('./client');
 const { getExchangeInflow, getMinerPositionIndex } = require('./endpoints/btc');
 
+// Valid market codes
+const VALID_MARKETS = ['EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR'];
+
 /**
  * Whale Inflow/Outflow取得（EN市場用）
  * @returns {Promise<Object>} { inflow, outflow, netflow }
@@ -34,6 +37,7 @@ async function getWhaleFlows() {
     return { inflow, outflow, netflow };
   } catch (error) {
     console.warn('[deepMetrics] Error fetching whale flows:', error.message);
+    // Return safe defaults on error
     return { inflow: 0, outflow: 0, netflow: 0 };
   }
 }
@@ -103,13 +107,13 @@ async function getBinanceInflow() {
  * @param {number} upbitPrice - Upbit BTC価格（KRW）
  * @param {number} binancePrice - Binance BTC価格（USD）
  * @param {number} usdKrwRate - USD/KRW為替レート
- * @returns {number} Kimchi Premium（%）
+ * @returns {number} Kimchi Premium（decimal, e.g., 0.05 for 5%）
  */
 function calculateKimchiPremium(upbitPrice, binancePrice, usdKrwRate) {
   if (!upbitPrice || !binancePrice || !usdKrwRate) return 0;
 
   const binancePriceKrw = binancePrice * usdKrwRate;
-  const premium = ((upbitPrice - binancePriceKrw) / binancePriceKrw) * 100;
+  const premium = (upbitPrice - binancePriceKrw) / binancePriceKrw;
 
   return premium;
 }
@@ -227,106 +231,126 @@ function calculateRiskReward(nupl, sopr30d) {
  * @returns {Promise<Object>} 市場別深掘りデータ
  */
 async function getCQDeepMetrics(market, options = {}) {
-  // 基本データ取得
-  const [inflowData, mpiData] = await Promise.all([
-    getExchangeInflow(),
-    getMinerPositionIndex(),
-  ]);
+  // Validate market code
+  if (!VALID_MARKETS.includes(market)) {
+    console.warn(`[deepMetrics] Invalid market code: ${market}, using EN as default`);
+    market = 'EN';
+  }
 
-  const exchangeInflow = inflowData?.value ?? 0;
-  const exchangeOutflow = 0; // 算出が必要な場合は実装
-  const netflow = exchangeInflow - exchangeOutflow;
-  const minerMPI = mpiData?.value ?? 0;
+  try {
+    // 基本データ取得
+    const [inflowData, mpiData] = await Promise.all([
+      getExchangeInflow(),
+      getMinerPositionIndex(),
+    ]);
 
-  const baseResult = {
-    exchangeInflow,
-    exchangeOutflow,
-    netflow,
-    minerMPI,
-    activeAddresses: 0, // 必要に応じて実装
-  };
+    const exchangeInflow = inflowData?.value ?? 0;
+    const exchangeOutflow = 0; // 算出が必要な場合は実装
+    const netflow = exchangeInflow - exchangeOutflow;
+    const minerMPI = mpiData?.value ?? 0;
 
-  switch (market) {
-    case 'EN': {
-      // EN市場: Whale Flows + Liquidations + trapScore
-      const [whaleFlows, liquidations] = await Promise.all([
-        getWhaleFlows(),
-        getLiquidations(),
-      ]);
+    const baseResult = {
+      exchangeInflow,
+      exchangeOutflow,
+      netflow,
+      minerMPI,
+      activeAddresses: 0, // 必要に応じて実装
+    };
 
-      // Retail Netflow推定（全体 - Whale）
-      const retailNetflow = netflow - whaleFlows.netflow;
+    switch (market) {
+      case 'EN': {
+        // EN市場: Whale Flows + Liquidations + trapScore
+        const [whaleFlows, liquidations] = await Promise.all([
+          getWhaleFlows(),
+          getLiquidations(),
+        ]);
 
-      const trapScore = calculateTrapScore(
-        whaleFlows.netflow,
-        liquidations,
-        retailNetflow
-      );
+        // Retail Netflow推定（全体 - Whale）
+        const retailNetflow = netflow - whaleFlows.netflow;
 
-      return {
-        ...baseResult,
-        whaleFlows,
-        liquidations,
-        trapScore,
-        longShortRatio: 1.0, // 必要に応じて実装
-      };
+        const trapScore = calculateTrapScore(
+          whaleFlows.netflow,
+          liquidations,
+          retailNetflow
+        );
+
+        return {
+          ...baseResult,
+          whaleFlows,
+          liquidations,
+          trapScore,
+          longShortRatio: 1.0, // 必要に応じて実装
+        };
+      }
+
+      case 'KO': {
+        // KO市場: Kimchi Premium計算
+        const [upbitInflow, binanceInflow] = await Promise.all([
+          getUpbitInflow(),
+          getBinanceInflow(),
+        ]);
+
+        // 価格情報が必要（optionsから取得、または別途取得）
+        const upbitPrice = options.upbitPrice ?? 0;
+        const binancePrice = options.binancePrice ?? 0;
+        const usdKrwRate = options.usdKrwRate ?? 1300; // デフォルト為替レート
+
+        const kimchiPremium = calculateKimchiPremium(
+          upbitPrice,
+          binancePrice,
+          usdKrwRate
+        );
+
+        const isTrap = kimchiPremium > 0.05; // 5%以上でTrap判定
+
+        return {
+          ...baseResult,
+          upbitInflow,
+          binanceInflow,
+          kimchiPremium,
+          upbitPrice,
+          binancePrice,
+          isTrap,
+        };
+      }
+
+      case 'JA': {
+        // JA市場: NUPL + SOPR + Risk/Reward
+        const [nupl, sopr30d] = await Promise.all([
+          getNUPL(),
+          getSOPR30d(),
+        ]);
+
+        const riskReward = calculateRiskReward(nupl, sopr30d);
+
+        return {
+          ...baseResult,
+          longTerm: {
+            nupl,
+            sopr: 1.0, // 現在値（必要に応じて実装）
+            sopr30d,
+          },
+          riskReward,
+        };
+      }
+
+      case 'AR':
+      case 'ES':
+      case 'PT-BR':
+      default:
+        // AR/LATAM市場: 基本データのみ
+        return baseResult;
     }
-
-    case 'KO': {
-      // KO市場: Kimchi Premium計算
-      const [upbitInflow, binanceInflow] = await Promise.all([
-        getUpbitInflow(),
-        getBinanceInflow(),
-      ]);
-
-      // 価格情報が必要（optionsから取得、または別途取得）
-      const upbitPrice = options.upbitPrice ?? 0;
-      const binancePrice = options.binancePrice ?? 0;
-      const usdKrwRate = options.usdKrwRate ?? 1300; // デフォルト為替レート
-
-      const kimchiPremium = calculateKimchiPremium(
-        upbitPrice,
-        binancePrice,
-        usdKrwRate
-      );
-
-      const isTrap = kimchiPremium > 5.0; // 5%以上でTrap判定
-
-      return {
-        ...baseResult,
-        upbitInflow,
-        binanceInflow,
-        kimchiPremium,
-        isTrap,
-      };
-    }
-
-    case 'JA': {
-      // JA市場: NUPL + SOPR + Risk/Reward
-      const [nupl, sopr30d] = await Promise.all([
-        getNUPL(),
-        getSOPR30d(),
-      ]);
-
-      const riskReward = calculateRiskReward(nupl, sopr30d);
-
-      return {
-        ...baseResult,
-        longTerm: {
-          nupl,
-          sopr: 1.0, // 現在値（必要に応じて実装）
-          sopr30d,
-        },
-        riskReward,
-      };
-    }
-
-    case 'AR':
-    case 'ES':
-    case 'PT-BR':
-    default:
-      // AR/LATAM市場: 基本データのみ
-      return baseResult;
+  } catch (error) {
+    console.error(`[deepMetrics] Error fetching deep metrics for ${market}:`, error);
+    // Return safe defaults on error
+    return {
+      exchangeInflow: 0,
+      exchangeOutflow: 0,
+      netflow: 0,
+      minerMPI: 0,
+      activeAddresses: 0,
+    };
   }
 }
 

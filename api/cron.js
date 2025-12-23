@@ -263,6 +263,7 @@ export default async function handler(req, res) {
         inflow,
         mpi,
         xSentiment,
+        market: getMarketCode(LANG), // Phase 2: 市場情報追加
       });
 
       coreDecision = decideSignal(ctx);
@@ -299,13 +300,13 @@ export default async function handler(req, res) {
     const finalNeedsEmergency =
       trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
 
-    // Phase 2: 深掘りデータ初期化（全パスで使用可能にする）
-    let cqDeep = { inflow, mpi };
-
     // ===== Phase 1: イベント駆動配信判定（Strategic SSOT v4.0） =====
     let shouldSend = true; // デフォルト: 既存動作維持
     let triggerType = isRegularSlot ? 'REGULAR' : (finalNeedsEmergency ? 'EMERGENCY' : 'WATCH');
     let triggerReason = 'Legacy mode';
+    
+    // Phase 2: 深掘りデータ初期化（全パスで使用可能にする）
+    let cqDeep = { inflow, mpi };
 
     if (ENABLE_EVENT_DRIVEN && stateManager && evaluateTrigger) {
       try {
@@ -315,7 +316,6 @@ export default async function handler(req, res) {
         const lastState = await stateManager.getLastState(market);
 
         // Phase 2: CryptoQuant深掘りデータ取得（先に取得）
-        let cqDeep = { inflow, mpi };
         try {
           const deepData = await getCQDeepMetrics(market, {
             upbitPrice: priceUsd, // 実際の価格取得が必要（要修正）

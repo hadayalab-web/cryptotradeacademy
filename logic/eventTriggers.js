@@ -32,24 +32,25 @@ function getMarketProfile(market) {
  * @returns {Promise<Object>} トリガー判定結果
  */
 async function evaluateTrigger(market, currentState, lastState, cqDeep = {}) {
-  const profile = getMarketProfile(market);
-  const triggers = profile.eventTriggers || {};
+  try {
+    const profile = getMarketProfile(market);
+    const triggers = profile.eventTriggers || {};
 
-  // 現在のスコアとシグナル
-  const currentScore = currentState.score ?? 0;
-  const currentSignal = currentState.signal || 'BUG_STANDBY';
-  const trapScore = currentState.trapScore ?? cqDeep.trapScore ?? 0;
-  const liquidations = cqDeep.liquidations ?? 0;
-  const kimchiPremium = cqDeep.kimchiPremium ?? 0;
-  const mpi = cqDeep.mpi ?? cqDeep.minerMPI ?? 0;
+    // 現在のスコアとシグナル
+    const currentScore = currentState.score ?? 0;
+    const currentSignal = currentState.signal || 'BUG_STANDBY';
+    const trapScore = currentState.trapScore ?? cqDeep.trapScore ?? 0;
+    const liquidations = cqDeep.liquidations ?? 0;
+    const kimchiPremium = cqDeep.kimchiPremium ?? 0;
+    const mpi = cqDeep.mpi ?? cqDeep.minerMPI ?? 0;
 
-  // 前回のスコア
-  const lastScore = lastState.lastScore ?? 0;
-  const lastSignal = lastState.lastSignal || 'BUG_STANDBY';
-  const hoursSinceLastUpdate = getHoursSinceLastUpdate(lastState.lastUpdateTime);
+    // 前回のスコア
+    const lastScore = lastState.lastScore ?? 0;
+    const lastSignal = lastState.lastSignal || 'BUG_STANDBY';
+    const hoursSinceLastUpdate = getHoursSinceLastUpdate(lastState.lastUpdateTime);
 
-  // スコア変動
-  const scoreChange = Math.abs(currentScore - lastScore);
+    // スコア変動
+    const scoreChange = Math.abs(currentScore - lastScore);
 
   // 1. EMERGENCY判定（最優先）
   const emergencyConfig = triggers.EMERGENCY || {};
@@ -124,6 +125,15 @@ async function evaluateTrigger(market, currentState, lastState, cqDeep = {}) {
     triggerType: 'NONE',
     reason: `No trigger: score=${currentScore.toFixed(1)}, signal=${currentSignal}, hours=${hoursSinceLastUpdate.toFixed(1)}`,
   };
+  } catch (error) {
+    console.error('[eventTriggers] Error evaluating trigger:', error);
+    // フォールバック: エラー時は配信しない（安全側）
+    return {
+      shouldSend: false,
+      triggerType: 'ERROR',
+      reason: `Error evaluating trigger: ${error.message}`,
+    };
+  }
 }
 
 module.exports = {
