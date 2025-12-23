@@ -3,6 +3,14 @@
 // 閾値コンフィグ
 const { BASE, EVENT_FOMC } = require('../../config/thresholds');
 
+// Phase 2: 市場別プロファイル（Strategic SSOT v4.0）
+let marketProfiles = null;
+try {
+  marketProfiles = require('../../config/marketProfiles');
+} catch (error) {
+  // marketProfiles.jsがない場合は無視（デフォルト動作）
+}
+
 // 共通マーケットコンテキストを組み立て
 function buildMarketContext({
   asset,
@@ -121,11 +129,50 @@ function decideSignal(ctx) {
     profile = EVENT_FOMC;
   }
 
+  // Phase 2: 市場別プロファイルによる補正（Strategic SSOT v4.0）
+  let market = ctx?.market || process.env.MARKET_CODE || 'EN';
+  if (marketProfiles) {
+    try {
+      const marketProfile = marketProfiles.getMarketProfile(market);
+      if (marketProfile?.algorithm) {
+        const algo = marketProfile.algorithm;
+        // 市場別アルゴリズム設定で上書き
+        profile = {
+          HARD_SIGNAL_THRESH: algo.HARD_SIGNAL_THRESH ?? profile.HARD_SIGNAL_THRESH,
+          SOFT_REGIME_THRESH: algo.SOFT_REGIME_THRESH ?? profile.SOFT_REGIME_THRESH,
+          MIN_CONF_FOR_TRADE: algo.MIN_CONF_FOR_TRADE ?? profile.MIN_CONF_FOR_TRADE,
+        };
+      }
+    } catch (error) {
+      // エラー時はデフォルトプロファイルを使用
+      console.warn(`[marketCore] Error loading market profile for ${market}:`, error.message);
+    }
+  }
+
   const {
     HARD_SIGNAL_THRESH = 28,
     SOFT_REGIME_THRESH = 20,
     MIN_CONF_FOR_TRADE = 0.5,
   } = profile;
+
+  // Phase 2: BUG_STANDBY_BIAS補正（市場別）
+  let adjustedScore = score;
+  if (marketProfiles) {
+    try {
+      const marketProfile = marketProfiles.getMarketProfile(market);
+      const bias = marketProfile?.algorithm?.BUG_STANDBY_BIAS;
+      if (bias && Math.abs(score) < HARD_SIGNAL_THRESH) {
+        // 閾値未満のスコアをさらに下げる（BUG_STANDBYを増やす）
+        const biasFactor = bias / 100; // パーセントを係数に変換
+        adjustedScore = score * (1 - biasFactor * 0.5);
+      }
+    } catch (error) {
+      // エラー時は調整なし
+    }
+  }
+
+  // 調整後のスコアを使用（ただし、判定は元のスコアで行う）
+  // adjustedScoreは表示用、判定はscoreを使用
 
   if (score >= HARD_SIGNAL_THRESH && confidence >= MIN_CONF_FOR_TRADE && smartMoneyScore > 0) {
     regime = 'ACCUMULATION';
@@ -144,9 +191,11 @@ function decideSignal(ctx) {
     priceUsd,
     change24h,
     score,
+    adjustedScore, // Phase 2: 市場別補正後のスコア
     regime,
     signal,
     confidence,
+    market, // Phase 2: 市場コード
     components: {
       onchainScore,
       smartMoneyScore,
@@ -159,7 +208,21 @@ function decideSignal(ctx) {
   };
 }
 
+/**
+ * Phase 2: 市場別スコア補正拡張版
+ * @param {Object} ctx - Market context (marketプロパティを含む)
+ * @returns {Object} 補正された決定結果
+ */
+function decideSignalAdvanced(ctx) {
+  // market情報をctxに追加
+  const market = ctx?.market || process.env.MARKET_CODE || 'EN';
+  const enhancedCtx = { ...ctx, market };
+
+  return decideSignal(enhancedCtx);
+}
+
 module.exports = {
   buildMarketContext,
   decideSignal,
+  decideSignalAdvanced, // Phase 2: 市場別補正版
 };

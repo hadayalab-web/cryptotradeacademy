@@ -24,6 +24,9 @@ function formatRegularBriefing({
   trap,
   aiAnalysis,
   stats, // reserved
+  trapScore, // Phase 2: EN市場専用
+  whaleFlows, // Phase 2: EN市場専用
+  liquidations, // Phase 2: EN市場専用
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -87,6 +90,25 @@ function formatRegularBriefing({
   lines.push('');
 
   lines.push(scoreLine);
+
+  // Phase 2: trapScore表示（EN市場専用）
+  if (trapScore != null) {
+    const trapScoreLine = `🎯 Trap Score: ${Math.round(trapScore)}/100 ${trapScore >= 60 ? '🚨 HIGH RISK' : trapScore >= 40 ? '⚠️ MODERATE' : '✅ LOW'}`;
+    lines.push(trapScoreLine);
+
+    // Whale Flows情報（EN市場専用）
+    if (whaleFlows && (whaleFlows.inflow || whaleFlows.outflow)) {
+      const whaleLine = `🐋 Whale Flow: ${whaleFlows.netflow >= 0 ? 'Inflow' : 'Outflow'} ${Math.abs(whaleFlows.netflow).toFixed(0)} BTC`;
+      lines.push(whaleLine);
+    }
+
+    // Liquidations情報（EN市場専用）
+    if (liquidations && liquidations > 0) {
+      const liqLine = `💥 24h Liquidations: ${formatUsd(liquidations)}`;
+      lines.push(liqLine);
+    }
+  }
+
   lines.push(trapLine);
   lines.push('');
 

@@ -24,6 +24,9 @@ function formatRegularBriefing({
   trap,
   aiAnalysis,
   stats, // reserved
+  riskReward, // Phase 2: JA市場専用
+  nupl, // Phase 2: JA市場専用
+  sopr30d, // Phase 2: JA市場専用
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -37,6 +40,12 @@ function formatRegularBriefing({
   const sentimentLine = `🧠 投資家センチメント: *${sentimentLabel || '不明'}*`;
 
   const scoreLine = `📈 マーケットスコア: ${Math.round(score ?? 0)}/100`;
+
+  // Phase 2: Risk/Reward表示（JA市場専用）
+  if (riskReward != null) {
+    // riskRewardは後でメッセージに追加
+  }
+
   const trapLine = trap?.isTrap
     ? `🧨 トラップ検知: ${trap.label || 'トラップの可能性'} (${trap.confidence} 信頼度)`
     : '✅ トラップ検知: 重大なトラップは検知されていません。';
@@ -87,6 +96,19 @@ function formatRegularBriefing({
   lines.push('');
 
   lines.push(scoreLine);
+
+  // Phase 2: Risk/Reward表示（JA市場専用）
+  if (riskReward != null) {
+    const rrLine = `⚖️ リスクリワード比: ${riskReward.toFixed(2)} ${riskReward >= 2.0 ? '✅ 良好' : riskReward >= 1.5 ? '⚠️ 注意' : '❌ 低い'}`;
+    lines.push(rrLine);
+    if (nupl != null) {
+      lines.push(`• NUPL (含み損益): ${nupl.toFixed(3)}`);
+    }
+    if (sopr30d != null) {
+      lines.push(`• SOPR 30日平均: ${sopr30d.toFixed(3)}`);
+    }
+  }
+
   lines.push(trapLine);
   lines.push('');
 

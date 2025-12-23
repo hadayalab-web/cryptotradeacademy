@@ -37,14 +37,43 @@ const { formatRegularBriefing, formatTrapAlert } = loadUserTemplates(LANG);
 const { getExchangeInflow, getMinerPositionIndex } = require(
   '../services/cryptoquant/endpoints/btc',
 );
+// Phase 2: 市場別深掘りデータ
+const { getCQDeepMetrics } = require('../services/cryptoquant/deepMetrics');
 
-const { buildMarketContext, decideSignal } = require('../logic/core/marketCore');
+const { buildMarketContext, decideSignal, decideSignalAdvanced } = require('../logic/core/marketCore');
 const { generateSignal } = require('../logic/tier1_btc/signalGen');
 const { detectTrap } = require('../logic/tier1_btc/trapDetector');
 const { normalizeSentiment } = require('../logic/tier1_btc/sentiment');
 
 const { analyzeMarket, analyzeXSentimentLive } = require('../services/grok/client');
 const { sendMessage } = require('../services/telegram/bot');
+
+// Phase 1: イベント駆動配信システム（Strategic SSOT v4.0）
+const ENABLE_EVENT_DRIVEN = process.env.ENABLE_EVENT_DRIVEN === 'true';
+let stateManager, evaluateTrigger;
+
+if (ENABLE_EVENT_DRIVEN) {
+  try {
+    stateManager = require('../utils/stateManager');
+    evaluateTrigger = require('../logic/eventTriggers').evaluateTrigger;
+    console.log('[Phase 1] Event-driven delivery system enabled');
+  } catch (error) {
+    console.warn('[Phase 1] Event-driven modules not found, falling back to legacy mode:', error.message);
+  }
+}
+
+// 市場コードの取得（LANGから推測、または環境変数から）
+function getMarketCode(lang) {
+  const langToMarket = {
+    'en': 'EN',
+    'ar': 'AR',
+    'ko': 'KO',
+    'ja': 'JA',
+    'es': 'ES',
+    'pt-br': 'PT-BR',
+  };
+  return langToMarket[lang] || 'EN';
+}
 
 // --- External data helpers -------------------------------------
 
@@ -156,9 +185,11 @@ export default async function handler(req, res) {
       inflow,
       mpi,
       xSentiment,
+      market: getMarketCode(LANG), // Phase 2: 市場情報追加
     });
 
-    let coreDecision = decideSignal(ctx); // includes confidence/components
+    // Phase 2: decideSignalAdvanced使用（市場別補正）
+    let coreDecision = decideSignalAdvanced ? decideSignalAdvanced(ctx) : decideSignal(ctx);
     let tradeSignal = generateSignal({
       priceUsd,
       score: coreDecision.score,
@@ -268,8 +299,79 @@ export default async function handler(req, res) {
     const finalNeedsEmergency =
       trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
 
+    // Phase 2: 深掘りデータ初期化（全パスで使用可能にする）
+    let cqDeep = { inflow, mpi };
+
+    // ===== Phase 1: イベント駆動配信判定（Strategic SSOT v4.0） =====
+    let shouldSend = true; // デフォルト: 既存動作維持
+    let triggerType = isRegularSlot ? 'REGULAR' : (finalNeedsEmergency ? 'EMERGENCY' : 'WATCH');
+    let triggerReason = 'Legacy mode';
+
+    if (ENABLE_EVENT_DRIVEN && stateManager && evaluateTrigger) {
+      try {
+        const market = getMarketCode(LANG);
+
+        // 前回状態取得
+        const lastState = await stateManager.getLastState(market);
+
+        // Phase 2: CryptoQuant深掘りデータ取得（先に取得）
+        let cqDeep = { inflow, mpi };
+        try {
+          const deepData = await getCQDeepMetrics(market, {
+            upbitPrice: priceUsd, // 実際の価格取得が必要（要修正）
+            binancePrice: priceUsd, // 実際の価格取得が必要（要修正）
+            usdKrwRate: 1300, // 実際の為替レート取得が必要（要修正）
+          });
+          cqDeep = { ...cqDeep, ...deepData };
+        } catch (error) {
+          console.warn('[Phase 2] Error fetching deep metrics, using basic data:', error.message);
+        }
+
+        // 現在状態の構築（trapScore計算が必要な場合）
+        // signalの正規化: NONE → BUG_STANDBY
+        let normalizedSignal = coreDecision.signal || tradeSignal.signal;
+        if (!normalizedSignal || normalizedSignal === 'NONE' || normalizedSignal === 'FLAT') {
+          normalizedSignal = 'BUG_STANDBY';
+        }
+
+        const currentState = {
+          signal: normalizedSignal,
+          score: coreDecision.score,
+          regime: coreDecision.regime,
+          confidence: coreDecision.confidence,
+          trapScore: cqDeep.trapScore ?? (trap.isTrap ? (trap.confidence === 'HIGH' ? 80 : trap.confidence === 'MEDIUM' ? 50 : 30) : 0),
+          kimchiPremium: cqDeep.kimchiPremium ?? 0,
+          riskReward: cqDeep.riskReward ?? 1.0,
+        };
+
+        // イベントトリガー評価
+        const trigger = await evaluateTrigger(market, currentState, lastState, cqDeep);
+
+        shouldSend = trigger.shouldSend;
+        triggerType = trigger.triggerType;
+        triggerReason = trigger.reason;
+
+        console.log(`[Event-Driven] Market: ${market}, Trigger: ${triggerType}, ShouldSend: ${shouldSend}, Reason: ${triggerReason}`);
+
+        // 配信する場合のみ状態保存
+        if (shouldSend) {
+          await stateManager.saveState(market, {
+            ...currentState,
+            lastSignal: currentState.signal,
+            lastScore: currentState.score,
+          });
+        }
+      } catch (error) {
+        console.error('[Event-Driven] Error in event trigger evaluation, falling back to legacy mode:', error);
+        // エラー時は既存動作を維持
+      }
+    }
+    // ===== Phase 1 End =====
+
     // 6-2. Grok long report (only when needed)
-    if (needsLongReport || finalNeedsEmergency) {
+    // イベント駆動有効時は、トリガー判定後にGrok呼び出しを調整
+    const shouldCallGrok = shouldSend || isRegularSlot || force;
+    if (needsLongReport && shouldCallGrok) {
       const marketSummaryPayload = {
         asset: 'BTC',
         inflow,
@@ -303,9 +405,52 @@ export default async function handler(req, res) {
     // 7. Telegram send
     let sent = 0;
 
+    // ===== Phase 1: イベント駆動配信対応 =====
+    // イベント駆動有効時は、shouldSend判定を優先
+    const willSend = ENABLE_EVENT_DRIVEN ? shouldSend : true;
+
+    if (!willSend && !force) {
+      console.log(`[Event-Driven] Skipping send: ${triggerReason}`);
+      return res.status(200).json({
+        success: true,
+        sentMessages: 0,
+        skipped: true,
+        trigger: { type: triggerType, reason: triggerReason },
+        slot: { isRegularSlot, force },
+        metrics: {
+          inflow,
+          mpi,
+          sentiment: sentimentLabel,
+          priceUsd,
+          change24h,
+          score: coreDecision.score,
+          regime: coreDecision.regime,
+          confidence: coreDecision.confidence,
+          signal: tradeSignal.signal,
+        },
+      });
+    }
+    // ===== Phase 1 End =====
+
     // 7-A. REGULAR
-    if (isRegularSlot || force) {
+    if (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && triggerType === 'REGULAR')) {
       console.log('Sending REGULAR message...');
+
+      // Phase 2: イベント駆動が無効な場合でも深掘りデータを取得
+      if (!ENABLE_EVENT_DRIVEN || !stateManager) {
+        try {
+          const market = getMarketCode(LANG);
+          const deepData = await getCQDeepMetrics(market, {
+            upbitPrice: priceUsd,
+            binancePrice: priceUsd,
+            usdKrwRate: 1300,
+          });
+          cqDeep = { ...cqDeep, ...deepData };
+        } catch (error) {
+          console.warn('[Phase 2] Error fetching deep metrics:', error.message);
+        }
+      }
+
       const regularText = formatRegularBriefing({
         now,
         inflow,
@@ -317,13 +462,23 @@ export default async function handler(req, res) {
         tradeSignal,
         trap,
         aiAnalysis,
+        // Phase 2: 市場別データ追加
+        trapScore: cqDeep?.trapScore,
+        whaleFlows: cqDeep?.whaleFlows,
+        liquidations: cqDeep?.liquidations,
+        kimchiPremium: cqDeep?.kimchiPremium,
+        upbitPrice: cqDeep?.upbitPrice ?? priceUsd,
+        binancePrice: cqDeep?.binancePrice ?? priceUsd,
+        riskReward: cqDeep?.riskReward,
+        nupl: cqDeep?.longTerm?.nupl,
+        sopr30d: cqDeep?.longTerm?.sopr30d,
       });
       await sendMessage(regularText);
       sent += 1;
     }
 
     // 7-B. EMERGENCY (Trap)
-    if (finalNeedsEmergency) {
+    if (finalNeedsEmergency || (ENABLE_EVENT_DRIVEN && triggerType === 'EMERGENCY')) {
       const alertText = formatTrapAlert({
         inflow,
         mpi,
@@ -336,7 +491,24 @@ export default async function handler(req, res) {
     }
 
     // 7-C. WATCH (short heads-up, no long report)
-    if (needsWatch && !finalNeedsEmergency && !isRegularSlot && !force) {
+    // 7-D. STANDBY_BREAK (Phase 1新規)
+    if (ENABLE_EVENT_DRIVEN && triggerType === 'STANDBY_BREAK') {
+      console.log('Sending STANDBY_BREAK message...');
+      const standbyBreakText = formatRegularBriefing({
+        now,
+        inflow,
+        mpi,
+        sentimentLabel,
+        priceUsd,
+        change24h,
+        score: coreDecision.score,
+        tradeSignal,
+        trap,
+        aiAnalysis,
+      });
+      await sendMessage(standbyBreakText);
+      sent += 1;
+    } else if (needsWatch && !finalNeedsEmergency && !isRegularSlot && !force && (ENABLE_EVENT_DRIVEN && triggerType === 'WATCH' || !ENABLE_EVENT_DRIVEN)) {
       const watchText = [
         '👀 WATCH — Market shift detected',
         `• BTC: $${Math.round(priceUsd).toLocaleString('en-US')} (${change24h.toFixed(2)}% / 24h)`,
@@ -356,6 +528,10 @@ export default async function handler(req, res) {
       sentMessages: sent,
       slot: { isRegularSlot, force },
       flags: { needsWatch, needsXIntel, needsLongReport, finalNeedsEmergency },
+      eventDriven: ENABLE_EVENT_DRIVEN ? {
+        enabled: true,
+        trigger: { type: triggerType, reason: triggerReason, shouldSend },
+      } : { enabled: false },
       metrics: {
         inflow,
         mpi,
