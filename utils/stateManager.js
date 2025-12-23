@@ -92,7 +92,7 @@ async function saveState(market, state) {
       consecutiveStandbyCount: stateToSave.consecutiveStandbyCount,
     });
   } catch (error) {
-    console.error(`[stateManager] Error saving state for ${market}:`, error);
+    Logger.error('stateManager', `Error saving state for ${market}`, error);
     // エラー時も処理を続行（ログのみ）
   }
 }

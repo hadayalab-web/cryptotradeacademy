@@ -143,6 +143,26 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  // Validate environment variables before processing
+  const envValidation = validateEnvSafe();
+  if (!envValidation.isValid) {
+    Logger.error('cron', 'Missing required environment variables', null, {
+      missing: envValidation.missingRequired,
+    });
+    return res.status(500).json({
+      error: 'Configuration Error',
+      message: 'Missing required environment variables',
+      missing: envValidation.missingRequired,
+    });
+  }
+
+  // Warn about missing recommended variables
+  if (envValidation.missingRecommended.length > 0) {
+    Logger.warn('cron', 'Recommended environment variables not set', {
+      missing: envValidation.missingRecommended,
+    });
+  }
+
   Logger.info('cron', '🚀 Cron Job Started: Whale Monitor');
 
   try {
