@@ -1,19 +1,22 @@
 // utils/errorTracker.js
 // Error tracking utility for structured logging and monitoring
 
+const { Logger } = require('./logger');
+
 /**
  * ErrorTracker - Structured error logging and tracking
- * 
+ *
  * Features:
  * - Structured error logging with context
  * - Stack trace preservation
  * - Optional external monitoring integration (Sentry, etc.)
  * - Error metadata tracking
+ * - Uses Logger for consistent log output
  */
 class ErrorTracker {
   /**
    * Track an error with full context
-   * 
+   *
    * @param {string} service - Service name (e.g., 'cryptoquant', 'binance')
    * @param {string} operation - Operation name (e.g., 'getWhaleFlows', 'fetchKlines')
    * @param {Error} error - Error object
@@ -35,8 +38,10 @@ class ErrorTracker {
       environment: process.env.NODE_ENV || 'unknown',
     };
 
-    // Structured logging
-    console.error(`[${service}] ERROR in ${operation}:`, JSON.stringify(errorInfo, null, 2));
+    // Structured logging using Logger
+    Logger.error(service, `${operation}: ${error.message}`, error, context);
+
+    // Also keep detailed errorInfo for external monitoring integration
 
     // External monitoring integration (Sentry, DataDog, etc.)
     if (process.env.NODE_ENV === 'production') {
@@ -66,7 +71,7 @@ class ErrorTracker {
 
   /**
    * Track a warning (non-critical issue)
-   * 
+   *
    * @param {string} service - Service name
    * @param {string} operation - Operation name
    * @param {string} message - Warning message
@@ -82,13 +87,14 @@ class ErrorTracker {
       level: 'warning',
     };
 
-    console.warn(`[${service}] WARNING in ${operation}:`, JSON.stringify(warningInfo, null, 2));
+    // Use Logger for consistent warning output
+    Logger.warn(service, `${operation}: ${message}`, context);
     return warningInfo;
   }
 
   /**
    * Create error object with metadata for return values
-   * 
+   *
    * @param {Error} error - Original error
    * @param {Object} defaults - Default values to return
    * @returns {Object} Object with defaults and error metadata

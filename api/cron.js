@@ -2,6 +2,10 @@
 
 // --- Imports ----------------------------------------------------
 
+const { Logger } = require('../utils/logger');
+const { ErrorTracker } = require('../utils/errorTracker');
+const { validateEnvSafe } = require('../config/envValidator');
+
 // LANG を正規化（en, es, pt-br, ar, ja, ko だけ許可）
 const rawLang = process.env.LANG || 'en';
 const baseLang = rawLang.toLowerCase().split('.')[0].split('_')[0];
@@ -21,7 +25,7 @@ function loadUserTemplates(lang) {
     );
     return { formatRegularBriefing, formatTrapAlert };
   } catch (e) {
-    console.warn(`Fallback to EN templates. lang=${lang} error=${e.message}`);
+    Logger.warn('cron', 'Fallback to EN templates', { lang, error: e.message });
     const { formatRegularBriefing } = require(
       '../services/telegram/messages/user/en/regular.en',
     );
@@ -56,9 +60,9 @@ if (ENABLE_EVENT_DRIVEN) {
   try {
     stateManager = require('../utils/stateManager');
     evaluateTrigger = require('../logic/eventTriggers').evaluateTrigger;
-    console.log('[Phase 1] Event-driven delivery system enabled');
+    Logger.info('cron', '[Phase 1] Event-driven delivery system enabled');
   } catch (error) {
-    console.warn('[Phase 1] Event-driven modules not found, falling back to legacy mode:', error.message);
+    Logger.warn('cron', '[Phase 1] Event-driven modules not found, falling back to legacy mode', { error: error.message });
   }
 }
 
@@ -139,7 +143,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  console.log('🚀 Cron Job Started: Whale Monitor');
+  Logger.info('cron', '🚀 Cron Job Started: Whale Monitor');
 
   try {
     // 0. 時間スロット判定（4時間ごと）
@@ -150,9 +154,7 @@ export default async function handler(req, res) {
     const isRegularSlot = REGULAR_HOURS.includes(utcHour) && utcMinute < 5;
     const force = req.query?.force === 'true';
 
-    console.log(
-      `Slot check => utcHour=${utcHour}, utcMinute=${utcMinute}, isRegularSlot=${isRegularSlot}, force=${force}`,
-    );
+    Logger.debug('cron', 'Slot check', { utcHour, utcMinute, isRegularSlot, force });
 
     // 1. On-chain (CryptoQuant)
     const [inflowData, mpiData] = await Promise.all([
@@ -161,7 +163,7 @@ export default async function handler(req, res) {
     ]);
 
     if (!inflowData || !mpiData) {
-      console.warn('⚠️ No data from CryptoQuant');
+      Logger.warn('cron', 'No data from CryptoQuant');
       return res.status(200).json({ message: 'No on-chain data, skipped.' });
     }
 
@@ -250,10 +252,7 @@ export default async function handler(req, res) {
           };
         }
       } catch (err) {
-        console.warn(
-          '⚠️ Grok Live Search Error in analyzeXSentimentLive, fallback to default sentiment:',
-          err?.message || err,
-        );
+        Logger.warn('cron', 'Grok Live Search Error in analyzeXSentimentLive, fallback to default sentiment', { error: err?.message || err });
       }
 
       // Re-evaluate with xSentiment
@@ -328,7 +327,7 @@ export default async function handler(req, res) {
           });
           cqDeep = { ...cqDeep, ...deepData };
         } catch (error) {
-          console.warn('[Phase 2] Error fetching deep metrics, using basic data:', error.message);
+          Logger.warn('cron', '[Phase 2] Error fetching deep metrics, using basic data', { error: error.message });
         }
 
         // 現在状態の構築（trapScore計算が必要な場合）
@@ -355,7 +354,7 @@ export default async function handler(req, res) {
         triggerType = trigger.triggerType;
         triggerReason = trigger.reason;
 
-        console.log(`[Event-Driven] Market: ${market}, Trigger: ${triggerType}, ShouldSend: ${shouldSend}, Reason: ${triggerReason}`);
+        Logger.info('cron', '[Event-Driven] Trigger evaluation', { market, triggerType, shouldSend, reason: triggerReason });
 
         // 配信する場合のみ状態保存
         if (shouldSend) {
@@ -366,7 +365,7 @@ export default async function handler(req, res) {
           });
         }
       } catch (error) {
-        console.error('[Event-Driven] Error in event trigger evaluation, falling back to legacy mode:', error);
+        Logger.error('cron', '[Event-Driven] Error in event trigger evaluation, falling back to legacy mode', error);
         // エラー時は既存動作を維持
       }
     }
@@ -392,16 +391,16 @@ export default async function handler(req, res) {
       };
 
       try {
+        // Phase 2+: Pass cqDeep metrics for enhanced analysis context
         aiAnalysis = await analyzeMarket(
           JSON.stringify(marketSummaryPayload),
           JSON.stringify(xSentiment),
           LANG,
+          getMarketCode(LANG), // Pass market code for persona-specific prompt
+          cqDeep, // Pass CryptoQuant deep metrics for enhanced context
         );
       } catch (err) {
-        console.warn(
-          '⚠️ Grok Market Analyze Error in analyzeMarket, fallback to offline analysis:',
-          err?.message || err,
-        );
+        Logger.warn('cron', 'Grok Market Analyze Error in analyzeMarket, fallback to offline analysis', { error: err?.message || err });
         aiAnalysis = null;
       }
     }
@@ -414,7 +413,7 @@ export default async function handler(req, res) {
     const willSend = ENABLE_EVENT_DRIVEN ? shouldSend : true;
 
     if (!willSend && !force) {
-      console.log(`[Event-Driven] Skipping send: ${triggerReason}`);
+      Logger.info('cron', '[Event-Driven] Skipping send', { reason: triggerReason });
       return res.status(200).json({
         success: true,
         sentMessages: 0,
@@ -438,7 +437,7 @@ export default async function handler(req, res) {
 
     // 7-A. REGULAR
     if (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && triggerType === 'REGULAR')) {
-      console.log('Sending REGULAR message...');
+      Logger.info('cron', 'Sending REGULAR message');
 
       // Phase 2: イベント駆動が無効な場合でも深掘りデータを取得
       if (!ENABLE_EVENT_DRIVEN || !stateManager) {
@@ -451,7 +450,7 @@ export default async function handler(req, res) {
           });
           cqDeep = { ...cqDeep, ...deepData };
         } catch (error) {
-          console.warn('[Phase 2] Error fetching deep metrics:', error.message);
+          Logger.warn('cron', '[Phase 2] Error fetching deep metrics', { error: error.message });
         }
       }
 
@@ -497,7 +496,7 @@ export default async function handler(req, res) {
     // 7-C. WATCH (short heads-up, no long report)
     // 7-D. STANDBY_BREAK (Phase 1新規)
     if (ENABLE_EVENT_DRIVEN && triggerType === 'STANDBY_BREAK') {
-      console.log('Sending STANDBY_BREAK message...');
+      Logger.info('cron', 'Sending STANDBY_BREAK message');
       const standbyBreakText = formatRegularBriefing({
         now,
         inflow,
@@ -524,7 +523,7 @@ export default async function handler(req, res) {
       sent += 1;
     } else if (ENABLE_EVENT_DRIVEN && triggerType === 'WATCH') {
       // Event-driven WATCH message (多言語対応 + Phase 2データ)
-      console.log('Sending WATCH message (event-driven)...');
+      Logger.info('cron', 'Sending WATCH message (event-driven)');
       // Phase 2: WATCHメッセージもformatRegularBriefingを使用（多言語対応）
       // ただし、aiAnalysisは不要（コスト削減のため）
       const watchText = formatRegularBriefing({
@@ -553,7 +552,7 @@ export default async function handler(req, res) {
       sent += 1;
     } else if (!ENABLE_EVENT_DRIVEN && needsWatch && !finalNeedsEmergency && !isRegularSlot && !force) {
       // Legacy WATCH logic (only when event-driven is disabled)
-      console.log('Sending WATCH message (legacy)...');
+      Logger.info('cron', 'Sending WATCH message (legacy)');
       // Legacyモードでも多言語対応を維持
       const watchText = formatRegularBriefing({
         now,
@@ -617,9 +616,7 @@ export default async function handler(req, res) {
       timestamp: new Date().toISOString(),
     };
 
-    console.error('❌ Cron Job Failed:', {
-      error: error.message,
-      stack: error.stack,
+    Logger.error('cron', 'Cron Job Failed', error, {
       context: errorContext,
     });
 

@@ -1,6 +1,9 @@
 // services/binance/client.js
 // Binance API クライアント - CryptoQuantデータを補完するためのデータ取得
 
+const { ErrorTracker } = require('../../utils/errorTracker');
+const { Logger } = require('../../utils/logger');
+
 const BINANCE_API_BASE = 'https://api.binance.com';
 const BINANCE_FUTURES_API_BASE = 'https://fapi.binance.com';
 
@@ -65,7 +68,7 @@ async function fetchKlines(symbol, interval, startTime, endTime, limit = 1000) {
       trades: k[8],
     }));
   } catch (error) {
-    console.error(`[binance] Error fetching klines for ${symbol}:`, error.message);
+    ErrorTracker.trackError('binance', 'fetchKlines', error, { symbol });
     throw error;
   }
 }
@@ -115,7 +118,7 @@ async function fetchFundingRate(symbol, startTime = null, limit = 500) {
       markPrice: parseFloat(f.markPrice),
     }));
   } catch (error) {
-    console.error(`[binance] Error fetching funding rate for ${symbol}:`, error.message);
+    ErrorTracker.trackError('binance', 'fetchFundingRate', error, { symbol });
     throw error;
   }
 }
@@ -149,7 +152,7 @@ async function fetchOpenInterest(symbol) {
       timestamp: data.time,
     };
   } catch (error) {
-    console.error(`[binance] Error fetching open interest for ${symbol}:`, error.message);
+    ErrorTracker.trackError('binance', 'fetchOpenInterest', error, { symbol });
     throw error;
   }
 }
@@ -207,7 +210,7 @@ async function fetchLongShortRatio(symbol, period = '1h', limit = 500, startTime
       timestamp: r.timestamp,
     }));
   } catch (error) {
-    console.error(`[binance] Error fetching long/short ratio for ${symbol}:`, error.message);
+    ErrorTracker.trackError('binance', 'fetchLongShortRatio', error, { symbol, period });
     throw error;
   }
 }
@@ -249,7 +252,7 @@ async function fetch24hTicker(symbol) {
       count: data.count,
     };
   } catch (error) {
-    console.error(`[binance] Error fetching 24h ticker for ${symbol}:`, error.message);
+    ErrorTracker.trackError('binance', 'fetch24hTicker', error, { symbol });
     throw error;
   }
 }
@@ -317,7 +320,7 @@ async function getComplementaryData(symbol = 'BTCUSDT', timestamp = null) {
 
     return result;
   } catch (error) {
-    console.error('[binance] Error getting complementary data:', error.message);
+    ErrorTracker.trackError('binance', 'getComplementaryData', error, { symbol, timestamp });
     throw error;
   }
 }

@@ -7,6 +7,7 @@ const { getExchangeInflow, getMinerPositionIndex } = require('./endpoints/btc');
 // Phase 2+: Binanceデータ補完
 const { getComplementaryData } = require('../binance/client');
 const { ErrorTracker } = require('../../utils/errorTracker');
+const { Logger } = require('../../utils/logger');
 const { isFeatureEnabled, FEATURE_FLAGS } = require('../../config/featureFlags');
 
 // Valid market codes
@@ -70,7 +71,7 @@ async function getWhaleFlows() {
       endpoint: '/btc/exchange-flows/inflow-sum',
       params: { size: 'large', window: 'day', limit: 1 },
     });
-    
+
     // Return defaults but signal the failure
     return ErrorTracker.createErrorResult(error, {
       inflow: 0,
@@ -121,7 +122,7 @@ async function getLiquidations() {
       endpoint: '/btc/derivatives/liquidations-24h',
       params: { limit: 1 },
     });
-    
+
     return ErrorTracker.createErrorResult(error, { liquidations: 0 }).liquidations;
   }
 }
@@ -144,7 +145,7 @@ async function getUpbitInflow() {
       endpoint: '/btc/exchange-flows/inflow-sum',
       params: { exchange: 'upbit', window: 'day', limit: 1 },
     });
-    
+
     return ErrorTracker.createErrorResult(error, { inflow: 0 }).inflow;
   }
 }
@@ -167,7 +168,7 @@ async function getBinanceInflow() {
       endpoint: '/btc/exchange-flows/inflow-sum',
       params: { exchange: 'binance', window: 'day', limit: 1 },
     });
-    
+
     return ErrorTracker.createErrorResult(error, { inflow: 0 }).inflow;
   }
 }
@@ -226,7 +227,7 @@ async function getNUPL() {
       endpoint: '/btc/nupl/current',
       params: { limit: 1 },
     });
-    
+
     return ErrorTracker.createErrorResult(error, { nupl: 0 }).nupl;
   }
 }
@@ -264,7 +265,7 @@ async function getSOPR30d() {
 
     return sum / soprValues.length;
   } catch (error) {
-    console.warn('[deepMetrics] Error fetching SOPR 30d:', error.message);
+    Logger.warn('cryptoquant', 'Error fetching SOPR 30d', { error: error.message });
     return 1.0;
   }
 }
@@ -355,7 +356,7 @@ function calculateRiskReward(nupl, sopr30d) {
 async function getCQDeepMetrics(market, options = {}) {
   // Validate market code
   if (!VALID_MARKETS.includes(market)) {
-    console.warn(`[deepMetrics] Invalid market code: ${market}, using EN as default`);
+    Logger.warn('cryptoquant', 'Invalid market code, using EN as default', { market });
     market = 'EN';
   }
 
@@ -396,7 +397,7 @@ async function getCQDeepMetrics(market, options = {}) {
           const binanceComplementary = await getComplementaryData('BTCUSDT');
           binanceDataForTrap = binanceComplementary;
         } catch (error) {
-          console.warn('[deepMetrics] Error fetching Binance data for trapScore:', error.message);
+          Logger.warn('cryptoquant', 'Error fetching Binance data for trapScore', { error: error.message });
         }
 
         const trapScore = calculateTrapScore(
@@ -475,7 +476,7 @@ async function getCQDeepMetrics(market, options = {}) {
         return baseResult;
     }
   } catch (error) {
-    console.error(`[deepMetrics] Error fetching deep metrics for ${market}:`, error);
+    Logger.error('cryptoquant', `Error fetching deep metrics for ${market}`, error);
     // Return safe defaults on error
     return {
       exchangeInflow: 0,

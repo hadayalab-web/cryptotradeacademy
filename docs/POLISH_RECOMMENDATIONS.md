@@ -1,7 +1,7 @@
 # ブラッシュアップ推奨事項
 
-**作成日**: 2025年12月24日  
-**対象**: cryptosignal-ai プロジェクト  
+**作成日**: 2025年12月24日
+**対象**: cryptosignal-ai プロジェクト
 **目的**: 本番環境で正常動作中のシステムの品質向上と保守性改善
 
 ---
@@ -95,15 +95,15 @@ console.error(`[deepMetrics] Error fetching deep metrics for ${market}:`, error)
 function validateEnv() {
   const required = ['CRYPTOQUANT_API_KEY', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
   const missing = required.filter(key => !process.env[key]);
-  
+
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
-  
+
   // Optional but recommended
   const recommended = ['XAI_API_KEY', 'CRON_SECRET'];
   const missingRecommended = recommended.filter(key => !process.env[key]);
-  
+
   if (missingRecommended.length > 0) {
     console.warn(`[envValidator] Recommended env vars not set: ${missingRecommended.join(', ')}`);
   }

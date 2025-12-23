@@ -2,6 +2,7 @@
 // WhaleShield 本番実績ベース + CryptoQuant MPI 正式エンドポイント対応版
 
 const { fetchCryptoQuant } = require("../client");
+const { Logger } = require("../../../utils/logger");
 
 /**
  * BTC Exchange Netflow (All Exchanges, 1D)
@@ -16,7 +17,7 @@ async function getExchangeInflow() {
 
   const point = data?.result?.data?.[0];
   if (!point) {
-    console.warn("⚠️ getExchangeInflow: No data returned from CryptoQuant.");
+    Logger.warn('cryptoquant', 'getExchangeInflow: No data returned from CryptoQuant');
     return null;
   }
 
@@ -30,7 +31,7 @@ async function getExchangeInflow() {
   const value =
     typeof rawValue === "number" ? rawValue : rawValue != null ? parseFloat(rawValue) : null;
 
-  console.log("📊 Exchange Netflow (BTC):", value, "raw:", JSON.stringify(point));
+  Logger.debug('cryptoquant', 'Exchange Netflow (BTC)', { value, raw: point });
   return { value, raw: point };
 }
 
@@ -46,7 +47,7 @@ async function getMinerPositionIndex() {
 
   const point = data?.result?.data?.[0];
   if (!point) {
-    console.warn("⚠️ getMinerPositionIndex: No data returned from CryptoQuant.");
+    Logger.warn('cryptoquant', 'getMinerPositionIndex: No data returned from CryptoQuant');
     return null;
   }
 
@@ -58,7 +59,7 @@ async function getMinerPositionIndex() {
   const value =
     typeof rawValue === "number" ? rawValue : rawValue != null ? parseFloat(rawValue) : null;
 
-  console.log("📊 Miner Position Index (BTC):", value, "raw:", JSON.stringify(point));
+  Logger.debug('cryptoquant', 'Miner Position Index (BTC)', { value, raw: point });
   return { value, raw: point };
 }
 

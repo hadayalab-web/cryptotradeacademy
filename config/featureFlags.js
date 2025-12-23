@@ -3,7 +3,7 @@
 
 /**
  * Feature Flags Configuration
- * 
+ *
  * Controls the availability of features, especially for unverified API endpoints.
  * Can be toggled via environment variables for production safety.
  */
@@ -26,7 +26,7 @@ const FEATURE_FLAGS = {
 
 /**
  * Check if a feature is enabled
- * 
+ *
  * @param {string} featureName - Name of the feature flag
  * @returns {boolean} Whether the feature is enabled
  */
@@ -36,7 +36,7 @@ function isFeatureEnabled(featureName) {
 
 /**
  * Get feature flag value
- * 
+ *
  * @param {string} featureName - Name of the feature flag
  * @returns {boolean|string|undefined} Feature flag value
  */

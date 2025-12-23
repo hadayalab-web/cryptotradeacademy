@@ -2,6 +2,7 @@
 
 // 閾値コンフィグ
 const { BASE, EVENT_FOMC } = require('../../config/thresholds');
+const { Logger } = require('../../utils/logger');
 
 // Phase 2: 市場別プロファイル（Strategic SSOT v4.0）
 let marketProfiles = null;
@@ -165,7 +166,7 @@ function decideSignal(ctx) {
       }
     } catch (error) {
       // エラー時はデフォルトプロファイルを使用
-      console.warn(`[marketCore] Error loading market profile for ${market}:`, error.message);
+      Logger.warn('marketCore', 'Error loading market profile', { market, error: error.message });
     }
   }
 

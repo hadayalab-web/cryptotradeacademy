@@ -1,11 +1,13 @@
 ﻿// services/telegram/bot.js
 // Node.js 18+ 標準 fetch を使用した Telegram Bot クライアント
 
+const { Logger } = require('../../utils/logger');
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-  console.warn("⚠️ TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set in .env.local");
+  Logger.warn('telegram', 'TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set in .env.local');
 }
 
 /**
@@ -14,7 +16,7 @@ if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
  */
 async function sendMessage(text) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    console.error("❌ Telegram credentials are missing. Skipping sendMessage.");
+    Logger.error('telegram', 'Telegram credentials are missing. Skipping sendMessage');
     return;
   }
 
@@ -38,10 +40,10 @@ async function sendMessage(text) {
     }
 
     const data = await response.json();
-    console.log("📨 Telegram sent:", JSON.stringify(data, null, 2));
+    Logger.info('telegram', 'Telegram message sent successfully', { messageId: data?.result?.message_id });
     return data;
   } catch (error) {
-    console.error("❌ Telegram sendMessage failed:", error.message);
+    Logger.error('telegram', 'Telegram sendMessage failed', error);
     throw error;
   }
 }
