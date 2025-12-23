@@ -11,13 +11,20 @@ const LOG_LEVELS = {
 /**
  * Get current log level from environment variable
  * Default: INFO
+ * Validates LOG_LEVEL and warns if invalid
  */
 function getCurrentLogLevel() {
   const envLevel = process.env.LOG_LEVEL || 'INFO';
-  return LOG_LEVELS[envLevel.toUpperCase()] ?? LOG_LEVELS.INFO;
+  const upperLevel = envLevel.toUpperCase();
+  
+  // Validate and warn if invalid
+  if (envLevel && !LOG_LEVELS.hasOwnProperty(upperLevel)) {
+    console.warn(`[logger] WARN: Invalid LOG_LEVEL="${envLevel}". Valid values: DEBUG, INFO, WARN, ERROR. Defaulting to INFO.`);
+    return LOG_LEVELS.INFO;
+  }
+  
+  return LOG_LEVELS[upperLevel] ?? LOG_LEVELS.INFO;
 }
-
-const currentLevel = getCurrentLogLevel();
 
 /**
  * Logger - Unified logging utility with log levels
@@ -36,6 +43,8 @@ class Logger {
    * @param {Object} context - Additional context
    */
   static debug(service, message, context = {}) {
+    // Re-evaluate log level on each call to support runtime changes
+    const currentLevel = getCurrentLogLevel();
     if (currentLevel <= LOG_LEVELS.DEBUG) {
       const logData = {
         level: 'DEBUG',
@@ -56,6 +65,8 @@ class Logger {
    * @param {Object} context - Additional context
    */
   static info(service, message, context = {}) {
+    // Re-evaluate log level on each call to support runtime changes
+    const currentLevel = getCurrentLogLevel();
     if (currentLevel <= LOG_LEVELS.INFO) {
       console.log(`[${service}] INFO:`, message, Object.keys(context).length > 0 ? context : '');
     }
@@ -69,6 +80,8 @@ class Logger {
    * @param {Object} context - Additional context
    */
   static warn(service, message, context = {}) {
+    // Re-evaluate log level on each call to support runtime changes
+    const currentLevel = getCurrentLogLevel();
     if (currentLevel <= LOG_LEVELS.WARN) {
       console.warn(`[${service}] WARN:`, message, Object.keys(context).length > 0 ? context : '');
     }
@@ -83,6 +96,8 @@ class Logger {
    * @param {Object} context - Additional context
    */
   static error(service, message, error = null, context = {}) {
+    // Re-evaluate log level on each call to support runtime changes
+    const currentLevel = getCurrentLogLevel();
     if (currentLevel <= LOG_LEVELS.ERROR) {
       if (error instanceof Error) {
         console.error(`[${service}] ERROR:`, message, {
