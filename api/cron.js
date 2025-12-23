@@ -508,7 +508,24 @@ export default async function handler(req, res) {
       });
       await sendMessage(standbyBreakText);
       sent += 1;
-    } else if (needsWatch && !finalNeedsEmergency && !isRegularSlot && !force && (ENABLE_EVENT_DRIVEN && triggerType === 'WATCH' || !ENABLE_EVENT_DRIVEN)) {
+    } else if (ENABLE_EVENT_DRIVEN && triggerType === 'WATCH') {
+      // Event-driven WATCH message
+      console.log('Sending WATCH message (event-driven)...');
+      const watchText = [
+        '👀 WATCH — Market shift detected',
+        `• BTC: $${Math.round(priceUsd).toLocaleString('en-US')} (${change24h.toFixed(2)}% / 24h)`,
+        `• Score: ${Math.round(coreDecision.score ?? 0)}/100 | Regime: ${coreDecision.regime} | Signal: ${tradeSignal.signal}`,
+        `• X: whaleBias=${Number(xSentiment.whaleBias).toFixed(2)}, retailFomo=${Math.round(
+          Number(xSentiment.retailFomo),
+        )}, newsImpact=${Math.round(Number(xSentiment.newsImpact))}`,
+        '• Action: Reduce leverage, wait for clarity, protect capital.',
+      ].join('\n');
+
+      await sendMessage(watchText);
+      sent += 1;
+    } else if (!ENABLE_EVENT_DRIVEN && needsWatch && !finalNeedsEmergency && !isRegularSlot && !force) {
+      // Legacy WATCH logic (only when event-driven is disabled)
+      console.log('Sending WATCH message (legacy)...');
       const watchText = [
         '👀 WATCH — Market shift detected',
         `• BTC: $${Math.round(priceUsd).toLocaleString('en-US')} (${change24h.toFixed(2)}% / 24h)`,
