@@ -17,13 +17,13 @@ function getCurrentLogLevel() {
   const envLevel = process.env.LOG_LEVEL || 'INFO';
   const upperLevel = envLevel.toUpperCase();
   
-  // Validate and warn if invalid
-  if (envLevel && !LOG_LEVELS.hasOwnProperty(upperLevel)) {
+  // Validate and warn if invalid (use 'in' operator for safer prototype check)
+  if (!(upperLevel in LOG_LEVELS)) {
     console.warn(`[logger] WARN: Invalid LOG_LEVEL="${envLevel}". Valid values: DEBUG, INFO, WARN, ERROR. Defaulting to INFO.`);
     return LOG_LEVELS.INFO;
   }
   
-  return LOG_LEVELS[upperLevel] ?? LOG_LEVELS.INFO;
+  return LOG_LEVELS[upperLevel];
 }
 
 /**

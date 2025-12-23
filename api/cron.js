@@ -629,10 +629,19 @@ export default async function handler(req, res) {
       xIntel,
     });
   } catch (error) {
+    // marketCode is guaranteed to be defined if we reach here (set at line 150)
+    // If error occurs before that, use getMarketCode as fallback
+    let errorMarketCode;
+    try {
+      errorMarketCode = typeof marketCode !== 'undefined' ? marketCode : getMarketCode(LANG);
+    } catch {
+      errorMarketCode = 'EN'; // Ultimate fallback
+    }
+
     const errorContext = {
       isRegularSlot: typeof isRegularSlot !== 'undefined' ? isRegularSlot : null,
       force: req.query?.force === 'true',
-      market: typeof marketCode !== 'undefined' ? marketCode : getMarketCode(LANG),
+      market: errorMarketCode,
       timestamp: new Date().toISOString(),
     };
 
