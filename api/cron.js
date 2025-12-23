@@ -256,6 +256,7 @@ export default async function handler(req, res) {
       }
 
       // Re-evaluate with xSentiment
+      // Phase 2+: Binanceデータをctxに含める（後でcqDeepから取得）
       ctx = buildMarketContext({
         asset: 'BTC',
         priceUsd,
@@ -264,6 +265,7 @@ export default async function handler(req, res) {
         mpi,
         xSentiment,
         market: getMarketCode(LANG), // Phase 2: 市場情報追加
+        // binanceDataは後でcqDeepから設定
       });
 
       coreDecision = decideSignal(ctx);
@@ -304,7 +306,7 @@ export default async function handler(req, res) {
     let shouldSend = true; // デフォルト: 既存動作維持
     let triggerType = isRegularSlot ? 'REGULAR' : (finalNeedsEmergency ? 'EMERGENCY' : 'WATCH');
     let triggerReason = 'Legacy mode';
-    
+
     // Phase 2: 深掘りデータ初期化
     // 基本データで初期化し、後でイベント駆動パスまたはREGULARパスで拡張
     let cqDeep = { inflow, mpi };

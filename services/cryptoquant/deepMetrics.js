@@ -4,6 +4,8 @@
 
 const { fetchCryptoQuant } = require('./client');
 const { getExchangeInflow, getMinerPositionIndex } = require('./endpoints/btc');
+// Phase 2+: Binanceデータ補完
+const { getComplementaryData } = require('../binance/client');
 
 // Valid market codes
 const VALID_MARKETS = ['EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR'];
