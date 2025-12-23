@@ -506,37 +506,74 @@ export default async function handler(req, res) {
         tradeSignal,
         trap,
         aiAnalysis,
+        // Phase 2: 市場別データ追加
+        trapScore: cqDeep?.trapScore,
+        whaleFlows: cqDeep?.whaleFlows,
+        liquidations: cqDeep?.liquidations,
+        kimchiPremium: cqDeep?.kimchiPremium,
+        upbitPrice: cqDeep?.upbitPrice ?? priceUsd,
+        binancePrice: cqDeep?.binancePrice ?? priceUsd,
+        riskReward: cqDeep?.riskReward,
+        nupl: cqDeep?.longTerm?.nupl,
+        sopr30d: cqDeep?.longTerm?.sopr30d,
       });
       await sendMessage(standbyBreakText);
       sent += 1;
     } else if (ENABLE_EVENT_DRIVEN && triggerType === 'WATCH') {
-      // Event-driven WATCH message
+      // Event-driven WATCH message (多言語対応 + Phase 2データ)
       console.log('Sending WATCH message (event-driven)...');
-      const watchText = [
-        '👀 WATCH — Market shift detected',
-        `• BTC: $${Math.round(priceUsd).toLocaleString('en-US')} (${change24h.toFixed(2)}% / 24h)`,
-        `• Score: ${Math.round(coreDecision.score ?? 0)}/100 | Regime: ${coreDecision.regime} | Signal: ${tradeSignal.signal}`,
-        `• X: whaleBias=${Number(xSentiment.whaleBias).toFixed(2)}, retailFomo=${Math.round(
-          Number(xSentiment.retailFomo),
-        )}, newsImpact=${Math.round(Number(xSentiment.newsImpact))}`,
-        '• Action: Reduce leverage, wait for clarity, protect capital.',
-      ].join('\n');
-
+      // Phase 2: WATCHメッセージもformatRegularBriefingを使用（多言語対応）
+      // ただし、aiAnalysisは不要（コスト削減のため）
+      const watchText = formatRegularBriefing({
+        now,
+        inflow,
+        mpi,
+        sentimentLabel,
+        priceUsd,
+        change24h,
+        score: coreDecision.score,
+        tradeSignal,
+        trap,
+        aiAnalysis: null, // WATCHはGrok呼び出しなし（コスト削減）
+        // Phase 2: 市場別データ追加
+        trapScore: cqDeep?.trapScore,
+        whaleFlows: cqDeep?.whaleFlows,
+        liquidations: cqDeep?.liquidations,
+        kimchiPremium: cqDeep?.kimchiPremium,
+        upbitPrice: cqDeep?.upbitPrice ?? priceUsd,
+        binancePrice: cqDeep?.binancePrice ?? priceUsd,
+        riskReward: cqDeep?.riskReward,
+        nupl: cqDeep?.longTerm?.nupl,
+        sopr30d: cqDeep?.longTerm?.sopr30d,
+      });
       await sendMessage(watchText);
       sent += 1;
     } else if (!ENABLE_EVENT_DRIVEN && needsWatch && !finalNeedsEmergency && !isRegularSlot && !force) {
       // Legacy WATCH logic (only when event-driven is disabled)
       console.log('Sending WATCH message (legacy)...');
-      const watchText = [
-        '👀 WATCH — Market shift detected',
-        `• BTC: $${Math.round(priceUsd).toLocaleString('en-US')} (${change24h.toFixed(2)}% / 24h)`,
-        `• Score: ${Math.round(coreDecision.score ?? 0)}/100 | Regime: ${coreDecision.regime} | Signal: ${tradeSignal.signal}`,
-        `• X: whaleBias=${Number(xSentiment.whaleBias).toFixed(2)}, retailFomo=${Math.round(
-          Number(xSentiment.retailFomo),
-        )}, newsImpact=${Math.round(Number(xSentiment.newsImpact))}`,
-        '• Action: Reduce leverage, wait for clarity, protect capital.',
-      ].join('\n');
-
+      // Legacyモードでも多言語対応を維持
+      const watchText = formatRegularBriefing({
+        now,
+        inflow,
+        mpi,
+        sentimentLabel,
+        priceUsd,
+        change24h,
+        score: coreDecision.score,
+        tradeSignal,
+        trap,
+        aiAnalysis: null, // WATCHはGrok呼び出しなし（コスト削減）
+        // Phase 2: 市場別データ追加
+        trapScore: cqDeep?.trapScore,
+        whaleFlows: cqDeep?.whaleFlows,
+        liquidations: cqDeep?.liquidations,
+        kimchiPremium: cqDeep?.kimchiPremium,
+        upbitPrice: cqDeep?.upbitPrice ?? priceUsd,
+        binancePrice: cqDeep?.binancePrice ?? priceUsd,
+        riskReward: cqDeep?.riskReward,
+        nupl: cqDeep?.longTerm?.nupl,
+        sopr30d: cqDeep?.longTerm?.sopr30d,
+      });
       await sendMessage(watchText);
       sent += 1;
     }
