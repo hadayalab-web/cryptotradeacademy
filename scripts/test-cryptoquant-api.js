@@ -12,38 +12,43 @@ const { fetchCryptoQuant } = require('../services/cryptoquant/client');
 
 // 検証するエンドポイントの定義
 const ENDPOINTS = {
-  'whale-flows-inflow': {
-    endpoint: '/btc/exchange-flows/inflow-sum',
-    params: { size: 'large', window: 'day', limit: 1 },
-    description: 'Whale Inflow (EN market)',
+  'whale-ratio': {
+    endpoint: '/btc/flow-indicator/exchange-whale-ratio',
+    params: { exchange: 'all_exchange', window: 'day', limit: 1 },
+    description: 'Exchange Whale Ratio (EN market)',
   },
-  'whale-flows-outflow': {
-    endpoint: '/btc/exchange-flows/outflow-sum',
-    params: { size: 'large', window: 'day', limit: 1 },
-    description: 'Whale Outflow (EN market)',
+  'liquidations-long': {
+    endpoint: '/derivatives/liquidations-long/btc',
+    params: { window: 'day', limit: 1 },
+    description: 'Long Liquidations',
   },
-  'liquidations': {
-    endpoint: '/btc/derivatives/liquidations-24h',
-    params: { limit: 1 },
-    description: '24h Liquidations (EN market)',
+  'liquidations-short': {
+    endpoint: '/derivatives/liquidations-short/btc',
+    params: { window: 'day', limit: 1 },
+    description: 'Short Liquidations',
   },
   'nupl': {
-    endpoint: '/btc/nupl/current',
-    params: {},
+    endpoint: '/utxo-data/nupl/btc',
+    params: { window: 'day', limit: 1 },
     description: 'NUPL (Network Unrealized Profit/Loss)',
   },
   'sopr': {
-    endpoint: '/btc/sopr',
+    endpoint: '/market-indicator/sopr/btc',
     params: { window: 'day', limit: 1 },
     description: 'SOPR (Spent Output Profit Ratio)',
   },
+  'sopr-30d': {
+    endpoint: '/market-indicator/sopr/btc',
+    params: { window: 'day', limit: 30 },
+    description: 'SOPR 30-day data (for MA calculation)',
+  },
   'upbit-inflow': {
-    endpoint: '/btc/exchange-flows/inflow-sum',
+    endpoint: '/btc/exchange-flows/inflow',
     params: { exchange: 'upbit', window: 'day', limit: 1 },
     description: 'Upbit Inflow (KO market)',
   },
   'binance-inflow': {
-    endpoint: '/btc/exchange-flows/inflow-sum',
+    endpoint: '/btc/exchange-flows/inflow',
     params: { exchange: 'binance', window: 'day', limit: 1 },
     description: 'Binance Inflow',
   },

@@ -40,7 +40,11 @@ async function evaluateTrigger(market, currentState, lastState, cqDeep = {}) {
     const currentScore = currentState.score ?? 0;
     const currentSignal = currentState.signal || 'BUG_STANDBY';
     const trapScore = currentState.trapScore ?? cqDeep.trapScore ?? 0;
-    const liquidations = cqDeep.liquidations ?? 0;
+    // PR #14: liquidations の構造が { longLiquidations, shortLiquidations, totalLiquidations } に変更
+    const liquidationsData = cqDeep.liquidations ?? 0;
+    const liquidations = typeof liquidationsData === 'number' 
+      ? liquidationsData 
+      : (liquidationsData?.totalLiquidations ?? 0);
     const kimchiPremium = cqDeep.kimchiPremium ?? 0;
     const mpi = cqDeep.mpi ?? cqDeep.minerMPI ?? 0;
 

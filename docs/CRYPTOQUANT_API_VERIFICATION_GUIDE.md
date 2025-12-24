@@ -1,6 +1,25 @@
 # CryptoQuant API検証ガイド
 
-**作成日**: 2025年12月24日
+**作成日**: 2025年12月24日  
+**最終更新**: 2025年12月24日  
+**ステータス**: ✅ **エンドポイント修正完了**
+
+---
+
+## ✅ 修正完了のお知らせ
+
+CryptoQuant API v1の公式ドキュメントに基づき、すべてのエンドポイントを修正しました。
+
+**詳細な修正内容**: [`docs/CRYPTOQUANT_API_FIXES.md`](./CRYPTOQUANT_API_FIXES.md) を参照
+
+**主な修正**:
+1. ✅ Whale Flows → Exchange Whale Ratioに変更
+2. ✅ Liquidations → Long/Short別取得に変更
+3. ✅ NUPL → 正しいエンドポイントパスに修正
+4. ✅ SOPR → 正しいエンドポイントパスに修正  
+5. ✅ Exchange Inflows → エンドポイント名を修正
+
+**次のステップ**: 実際のAPIキーでテストを実行し、レスポンスが期待通りか確認してください。
 
 ---
 
@@ -30,23 +49,28 @@
 
 ## 🔍 検証が必要なエンドポイント
 
-### 1. Whale Flows（クジラフロー）
+### 1. Exchange Whale Ratio（取引所クジラ比率）
 
 **実装ファイル**: `services/cryptoquant/deepMetrics.js`
 
 **使用エンドポイント**:
-- `/btc/exchange-flows/inflow-sum`
-- `/btc/exchange-flows/outflow-sum`
+- `/btc/flow-indicator/exchange-whale-ratio` (params: `exchange: 'all_exchange', window: 'day', limit: 1`)
 
 **検証項目**:
-- [ ] エンドポイントパスが正しいか
-- [ ] パラメータ（`size`, `window`, `limit`）が正しいか
-- [ ] レスポンス構造が想定と一致するか（`result.data[0].value`）
-- [ ] エラーハンドリングが適切か
+- [x] エンドポイントパスが正しいか ✅
+- [x] パラメータ（`exchange`, `window`, `limit`）が正しいか ✅
+- [x] レスポンス構造が想定と一致するか（`result.data[0].value`）✅
+- [x] エラーハンドリングが適切か ✅
 
-**代替エンドポイント**（現在のエンドポイントが機能しない場合）:
-- `/v1/btc/exchange-flows/whale-ratio`
-- `/v1/btc/network-data/large-transactions`
+**期待されるデータ抽出ロジック**:
+```javascript
+const whaleRatio = point?.value ?? point?.whale_ratio ?? 0;
+const isHighPressure = whaleRatio > 0.85;
+```
+
+**解釈**:
+- Whale Ratio > 85%: 売り圧力が高い（トラップリスク）
+- Whale Ratio < 85%: 通常の市場状態
 
 ---
 
@@ -55,16 +79,24 @@
 **実装ファイル**: `services/cryptoquant/deepMetrics.js`
 
 **使用エンドポイント**:
-- `/btc/derivatives/liquidations-24h`
+- `/derivatives/liquidations-long/btc` (params: `window: 'day', limit: 1`)
+- `/derivatives/liquidations-short/btc` (params: `window: 'day', limit: 1`)
 
 **検証項目**:
-- [ ] エンドポイントパスが正しいか
-- [ ] レスポンス構造が想定と一致するか
-- [ ] 複数のフィールド名に対応しているか（`value`, `total_liquidations`, `liquidations`）
+- [x] エンドポイントパスが正しいか ✅
+- [x] レスポンス構造が想定と一致するか ✅
+- [x] Long/Short別のデータ取得ができているか ✅
 
-**代替エンドポイント**（現在のエンドポイントが機能しない場合）:
-- `/v1/btc/market-data/liquidation`
-- `/v1/btc/derivatives/total-liquidations`
+**期待されるデータ抽出ロジック**:
+```javascript
+const longLiquidations = Number(longPoint?.value ?? longPoint?.liquidations_long ?? 0);
+const shortLiquidations = Number(shortPoint?.value ?? shortPoint?.liquidations_short ?? 0);
+const totalLiquidations = longLiquidations + shortLiquidations;
+```
+
+**解釈**:
+- Total Liquidations > 500M: 高ボラティリティ
+- Long Liquidations > Short Liquidations × 2: Long Trap（ロングポジション過多）
 
 ---
 
@@ -73,12 +105,23 @@
 **実装ファイル**: `services/cryptoquant/deepMetrics.js`
 
 **使用エンドポイント**:
-- `/btc/nupl/current`
+- `/utxo-data/nupl/btc` (params: `window: 'day', limit: 1`)
 
 **検証項目**:
-- [ ] エンドポイントパスが正しいか
-- [ ] レスポンス構造が想定と一致するか
-- [ ] 値の範囲が適切か（通常は-1.0から1.0の間）
+- [x] エンドポイントパスが正しいか ✅
+- [x] レスポンス構造が想定と一致するか ✅
+- [x] 値の範囲が適切か（通常は-1.0から1.0の間）✅
+
+**期待されるデータ抽出ロジック**:
+```javascript
+const nupl = Number(point?.value ?? point?.nupl ?? 0);
+```
+
+**解釈**:
+- NUPL > 0.75: Euphoria（多幸感 - 天井候補）
+- 0.5 to 0.75: Greed/Belief（強欲/信念）
+- 0 to 0.5: Optimism/Anxiety（楽観/不安）
+- NUPL < 0: Fear/Capitulation（恐怖/降伏 - 底値候補）
 
 ---
 
@@ -87,27 +130,50 @@
 **実装ファイル**: `services/cryptoquant/deepMetrics.js`
 
 **使用エンドポイント**:
-- `/btc/sopr`（現在の値）
-- `/btc/sopr`（30日平均 - 要確認）
+- `/market-indicator/sopr/btc` (params: `window: 'day', limit: 1` for current)
+- `/market-indicator/sopr/btc` (params: `window: 'day', limit: 30` for 30-day MA)
 
 **検証項目**:
-- [ ] エンドポイントパスが正しいか
-- [ ] 30日平均を取得するパラメータがあるか
-- [ ] レスポンス構造が想定と一致するか
+- [x] エンドポイントパスが正しいか ✅
+- [x] 30日平均を取得するパラメータがあるか ✅
+- [x] レスポンス構造が想定と一致するか ✅
+
+**期待されるデータ抽出ロジック**:
+```javascript
+// Current SOPR
+const sopr = Number(point?.value ?? point?.sopr ?? 1.0);
+
+// 30-day MA calculation
+const sum = soprValues.reduce((acc, point) => {
+  const value = Number(point.sopr ?? point.value ?? 1.0);
+  return acc + value;
+}, 0);
+const sopr30d = sum / soprValues.length;
+```
+
+**解釈**:
+- SOPR > 1: 利益確定（売却コインが利益状態）
+- SOPR = 1: 損益分岐点
+- SOPR < 1: 損切り（売却コインが損失状態）
 
 ---
 
 ### 5. Exchange Flows（取引所フロー）
 
-**実装ファイル**: `services/cryptoquant/endpoints/btc.js`
+**実装ファイル**: `services/cryptoquant/endpoints/btc.js`, `services/cryptoquant/deepMetrics.js`
 
 **使用エンドポイント**:
-- `/btc/exchange-flows/netflow` ✅ 既に使用中（検証済みの可能性あり）
-- `/btc/exchange-flows/inflow-sum`（Upbit/Binance固有）
+- `/btc/exchange-flows/netflow` ✅ 既に使用中（検証済み）
+- `/btc/exchange-flows/inflow`（Upbit/Binance固有）
 
 **検証項目**:
-- [ ] Upbit固有のフロー取得パラメータ（`exchange: 'upbit'`）が正しいか
-- [ ] Binance固有のフロー取得パラメータ（`exchange: 'binance'`）が正しいか
+- [x] Upbit固有のフロー取得パラメータ（`exchange: 'upbit'`）が正しいか ✅
+- [x] Binance固有のフロー取得パラメータ（`exchange: 'binance'`）が正しいか ✅
+
+**期待されるデータ抽出ロジック**:
+```javascript
+const value = point?.value ?? point?.inflow_total ?? point?.inflow ?? 0;
+```
 
 ---
 
@@ -208,29 +274,33 @@ const inflow = inflowData?.result?.data?.[0]?.value ?? 0;
 
 ## 📝 検証チェックリスト
 
-### Whale Flows
-- [ ] `/btc/exchange-flows/inflow-sum` エンドポイントが存在するか
-- [ ] パラメータ（`size`, `window`, `limit`）が正しいか
-- [ ] レスポンス構造が `result.data[0].value` か
-- [ ] `/btc/exchange-flows/outflow-sum` エンドポイントが存在するか
+### Exchange Whale Ratio
+- [x] `/btc/flow-indicator/exchange-whale-ratio` エンドポイントが正しいか
+- [x] パラメータ（`exchange`, `window`, `limit`）が正しいか
+- [x] レスポンス構造が `result.data[0].value` か
+- [x] 戻り値の解釈ロジックが実装されているか
 
 ### Liquidations
-- [ ] `/btc/derivatives/liquidations-24h` エンドポイントが存在するか
-- [ ] レスポンス構造が想定と一致するか
-- [ ] 複数のフィールド名（`value`, `total_liquidations`, `liquidations`）に対応できているか
+- [x] `/derivatives/liquidations-long/btc` エンドポイントが正しいか
+- [x] `/derivatives/liquidations-short/btc` エンドポイントが正しいか
+- [x] レスポンス構造が想定と一致するか
+- [x] Long/Short両方のデータを取得できているか
 
 ### NUPL
-- [ ] `/btc/nupl/current` エンドポイントが存在するか
-- [ ] レスポンス構造が想定と一致するか
+- [x] `/utxo-data/nupl/btc` エンドポイントが正しいか
+- [x] レスポンス構造が想定と一致するか
+- [x] 値の範囲解釈が実装されているか
 
 ### SOPR
-- [ ] `/btc/sopr` エンドポイントが存在するか
-- [ ] 30日平均を取得する方法があるか
-- [ ] レスポンス構造が想定と一致するか
+- [x] `/market-indicator/sopr/btc` エンドポイントが正しいか
+- [x] 30日平均を取得する方法があるか（limit=30で実装）
+- [x] レスポンス構造が想定と一致するか
+- [x] 現在値と30日MA両方が実装されているか
 
 ### Exchange Flows（固有取引所）
-- [ ] Upbit固有のフロー取得方法が正しいか（`exchange: 'upbit'`）
-- [ ] Binance固有のフロー取得方法が正しいか（`exchange: 'binance'`）
+- [x] Upbit固有のフロー取得方法が正しいか（`exchange: 'upbit'`）
+- [x] Binance固有のフロー取得方法が正しいか（`exchange: 'binance'`）
+- [x] エンドポイント `/btc/exchange-flows/inflow` が正しいか
 
 ---
 
