@@ -418,7 +418,7 @@ async function getCQDeepMetrics(market, options = {}) {
 
         return {
           ...baseResult,
-          whaleData,
+          whaleFlows: whaleData, // PR #14: whaleData を whaleFlows として返す（既存コードとの互換性のため）
           liquidations,
           trapScore,
           longShortRatio: binanceDataForTrap?.currentLongShortRatio || 1.0,

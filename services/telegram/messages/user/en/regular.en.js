@@ -96,16 +96,26 @@ function formatRegularBriefing({
     const trapScoreLine = `🎯 Trap Score: ${Math.round(trapScore)}/100 ${trapScore >= 60 ? '🚨 HIGH RISK' : trapScore >= 40 ? '⚠️ MODERATE' : '✅ LOW'}`;
     lines.push(trapScoreLine);
 
-    // Whale Flows情報（EN市場専用）
-    if (whaleFlows && (whaleFlows.inflow || whaleFlows.outflow)) {
-      const whaleLine = `🐋 Whale Flow: ${whaleFlows.netflow >= 0 ? 'Inflow' : 'Outflow'} ${Math.abs(whaleFlows.netflow).toFixed(0)} BTC`;
+    // Whale Ratio情報（EN市場専用）
+    // PR #14: whaleFlows の構造が { whaleRatio, isHighPressure, interpretation } に変更
+    if (whaleFlows && whaleFlows.whaleRatio != null) {
+      const whaleLine = `🐋 Whale Ratio: ${(whaleFlows.whaleRatio * 100).toFixed(1)}% ${whaleFlows.isHighPressure ? '(High Pressure)' : '(Normal)'}`;
       lines.push(whaleLine);
     }
 
     // Liquidations情報（EN市場専用）
-    if (liquidations && liquidations > 0) {
-      const liqLine = `💥 24h Liquidations: ${formatUsd(liquidations)}`;
-      lines.push(liqLine);
+    // PR #14: liquidations の構造が { longLiquidations, shortLiquidations, totalLiquidations } に変更
+    const totalLiquidations = typeof liquidations === 'number' 
+      ? liquidations 
+      : (liquidations?.totalLiquidations ?? 0);
+    if (totalLiquidations > 0) {
+      if (typeof liquidations === 'object' && liquidations.longLiquidations != null && liquidations.shortLiquidations != null) {
+        const liqLine = `💥 24h Liquidations: ${formatUsd(totalLiquidations)} (Long: ${formatUsd(liquidations.longLiquidations)}, Short: ${formatUsd(liquidations.shortLiquidations)})`;
+        lines.push(liqLine);
+      } else {
+        const liqLine = `💥 24h Liquidations: ${formatUsd(totalLiquidations)}`;
+        lines.push(liqLine);
+      }
     }
   }
 
