@@ -3,6 +3,8 @@
 // Vercel KVを使用して前回配信状態を保存・取得
 
 const { kv } = require('@vercel/kv');
+const { Logger } = require('./logger');
+const { ErrorTracker } = require('./errorTracker');
 
 // Valid market codes
 const VALID_MARKETS = ['EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR'];
@@ -11,7 +13,7 @@ const VALID_MARKETS = ['EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR'];
 function getStateKey(market) {
   // Validate market code
   if (!VALID_MARKETS.includes(market)) {
-    console.warn(`[stateManager] Invalid market code: ${market}, using EN as default`);
+    Logger.warn('stateManager', 'Invalid market code, using EN as default', { market });
     market = 'EN';
   }
   return `state:${market}`;
@@ -44,7 +46,7 @@ async function getLastState(market) {
       consecutiveStandbyCount: state.consecutiveStandbyCount || 0,
     };
   } catch (error) {
-    console.error(`[stateManager] Error getting last state for ${market}:`, error);
+    ErrorTracker.trackError('stateManager', 'getLastState', error, { market });
     // エラー時もデフォルト値を返す（フォールバック）
     return {
       lastUpdateTime: null,
@@ -84,7 +86,7 @@ async function saveState(market, state) {
     // Vercel KVに保存（TTL: 7日間）
     await kv.set(key, stateToSave, { ex: 7 * 24 * 60 * 60 }); // 7 days in seconds
 
-    console.log(`[stateManager] Saved state for ${market}:`, {
+    Logger.debug('stateManager', `Saved state for ${market}`, {
       signal: stateToSave.lastSignal,
       score: stateToSave.lastScore,
       consecutiveStandbyCount: stateToSave.consecutiveStandbyCount,
@@ -113,7 +115,7 @@ function getHoursSinceLastUpdate(lastUpdateTime) {
 
     return Math.max(0, diffHours); // 負の値は0に
   } catch (error) {
-    console.error('[stateManager] Error calculating hours since last update:', error);
+    ErrorTracker.trackError('stateManager', 'getHoursSinceLastUpdate', error);
     return Infinity;
   }
 }

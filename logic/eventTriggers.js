@@ -3,6 +3,8 @@
 // 4種類のトリガー（EMERGENCY/WATCH/STANDBY_BREAK/REGULAR）を判定
 
 const { getHoursSinceLastUpdate } = require('../utils/stateManager');
+const { Logger } = require('../utils/logger');
+const { ErrorTracker } = require('../utils/errorTracker');
 
 // 市場プロファイルを取得（config/marketProfiles.jsから）
 function getMarketProfile(market) {
@@ -10,7 +12,7 @@ function getMarketProfile(market) {
     const profiles = require('../config/marketProfiles');
     return profiles.getMarketProfile(market);
   } catch (error) {
-    console.warn(`[eventTriggers] marketProfiles.js not found, using defaults for ${market}`);
+    Logger.warn('eventTriggers', 'marketProfiles.js not found, using defaults', { market });
     // デフォルト設定を返す
     return {
       eventTriggers: {

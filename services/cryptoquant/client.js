@@ -1,24 +1,26 @@
 ﻿// services/cryptoquant/client.js
 // Node.js 18+ Native Fetchを使用
 
+const { Logger } = require('../../utils/logger');
+
 const BASE_URL = "https://api.cryptoquant.com/v1";
 const API_KEY = process.env.CRYPTOQUANT_API_KEY;
 
 /**
  * Generic Fetch Wrapper for CryptoQuant
- * @param {string} endpoint 
- * @param {object} params 
+ * @param {string} endpoint
+ * @param {object} params
  */
 async function fetchCryptoQuant(endpoint, params = {}) {
     if (!API_KEY) {
-        console.error("⚠️ CRYPTOQUANT_API_KEY is not set in .env.local");
+        Logger.error('cryptoquant', 'CRYPTOQUANT_API_KEY is not set in .env.local');
         return null;
     }
 
     const url = new URL(`${BASE_URL}${endpoint}`);
     Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
-    console.log(`🌐 Fetching: ${url.toString()}`);
+    Logger.debug('cryptoquant', 'Fetching CryptoQuant API', { url: url.toString() });
 
     try {
         // Node.js標準のfetchを使用 (require不要)
@@ -37,7 +39,7 @@ async function fetchCryptoQuant(endpoint, params = {}) {
         return data;
 
     } catch (error) {
-        console.error(`❌ CryptoQuant Request Failed:`, error.message);
+        Logger.error('cryptoquant', 'CryptoQuant Request Failed', error);
         throw error;
     }
 }
