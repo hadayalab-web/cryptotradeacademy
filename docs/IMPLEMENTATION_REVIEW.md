@@ -1,6 +1,6 @@
 # 🔍 CryptoTrade Academy - 実装レビュー
-**レビュー日**: 2025-12-23  
-**レビュアー**: Auto (Cursor AI)  
+**レビュー日**: 2025-12-23
+**レビュアー**: Auto (Cursor AI)
 **対象**: Phase 1 & Phase 2 実装完了版
 
 ---
@@ -47,7 +47,7 @@
    ```javascript
    // 現状: 汎用的なプロンプト
    'You are "Dr. Grok", a crypto trading coach for active BTC traders...'
-   
+
    // 推奨: 市場別ペルソナを注入
    // EN: "Precision Sniper" → 断定的、データ重視
    // AR: "Shield Wall" → 保護者的、超保守的
@@ -242,10 +242,10 @@ ES/PT-BR: 'VOZ_COMUN'      // コミュニティ重視、集団知恵
    ```javascript
    // EN市場メッセージ例
    "🎯 Precision Sniper Mode: Whale outflow detected. You'd be exit liquidity."
-   
+
    // AR市場メッセージ例
    "🛡️ Shield Wall: 70% of time we say WAIT. Today is that day."
-   
+
    // KO市場メッセージ例
    "🔫 Kimchi Sniper: Premium 8% detected. Trap zone."
    ```

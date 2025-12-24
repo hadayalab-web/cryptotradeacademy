@@ -4,18 +4,19 @@
     "description": "AI-driven Crypto Signal Bot with Whale Analysis",
     "main": "api/cron.js",
     "scripts": {
-  "test": "echo \"Error: no test specified\" && exit 1",
-  "start": "node scripts/monitor_process.js",
-  "test:local": "node scripts/local_test.js",
-  "monitor": "node scripts/monitor_process.js",
-
-  "backtest:dummy": "node scripts/backtest/eval_signals.js --input=data/signals_log_dummy.jsonl --output=data/signals_backtest_dummy.jsonl",
-  "summary:dummy": "node scripts/backtest/summarize_backtest.js --input=data/signals_backtest_dummy.jsonl",
-  "backtest:real": "node scripts/backtest/eval_signals.js",
-  "summary:real": "node scripts/backtest/summarize_backtest.js",
-  "copilot:review": "node scripts/request-copilot-review.js"
-}
-,
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:ui": "vitest --ui",
+        "test:coverage": "vitest run --coverage",
+        "start": "node scripts/monitor_process.js",
+        "test:local": "node scripts/local_test.js",
+        "monitor": "node scripts/monitor_process.js",
+        "backtest:dummy": "node scripts/backtest/eval_signals.js --input=data/signals_log_dummy.jsonl --output=data/signals_backtest_dummy.jsonl",
+        "summary:dummy": "node scripts/backtest/summarize_backtest.js --input=data/signals_backtest_dummy.jsonl",
+        "backtest:real": "node scripts/backtest/eval_signals.js",
+        "summary:real": "node scripts/backtest/summarize_backtest.js",
+        "copilot:review": "node scripts/request-copilot-review.js"
+    },
     "dependencies": {
         "@vercel/kv": "^0.2.1",
         "dotenv": "^16.4.5",
@@ -23,6 +24,10 @@
         "openai": "^6.9.1"
     },
     "author": "CryptoSignal AI Team",
-    "license": "ISC"
+    "license": "ISC",
+    "devDependencies": {
+        "@vitest/coverage-v8": "^4.0.16",
+        "@vitest/ui": "^4.0.16",
+        "vitest": "^4.0.16"
+    }
 }
-

@@ -12,16 +12,16 @@ try {
     if ($IssueNumber -eq 0) {
         Write-Host "🔍 Searching for latest review request issue..." -ForegroundColor Yellow
         $issues = gh issue list --limit 10 --json number,title,state | ConvertFrom-Json
-        
+
         $reviewIssues = $issues | Where-Object {
-            $_.state -eq "OPEN" -and 
+            $_.state -eq "OPEN" -and
             ($_.title -like "*Review*" -or $_.title -like "*review*")
         }
-        
+
         if ($reviewIssues.Count -eq 0) {
             throw "No review request issues found. Please create one first."
         }
-        
+
         # 最新のIssueを使用
         $IssueNumber = $reviewIssues[0].number
         Write-Host "✅ Found review issue: #$IssueNumber - $($reviewIssues[0].title)" -ForegroundColor Green

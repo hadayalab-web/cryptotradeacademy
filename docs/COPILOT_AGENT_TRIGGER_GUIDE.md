@@ -58,13 +58,13 @@ IssueでCopilot Agentを使用する場合：
 2. **詳細なコメントを追加**
    ```
    @copilot Please review the following files:
-   
+
    - services/binance/client.js
    - services/cryptoquant/deepMetrics.js
    - logic/core/marketCore.js
    - api/cron.js
    - scripts/backtest/autoTuner.js
-   
+
    Review focus:
    - Code quality and best practices
    - Logic correctness
