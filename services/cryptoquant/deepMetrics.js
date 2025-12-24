@@ -280,8 +280,13 @@ async function getSOPR30d() {
  * Higher scores indicate higher risk of a market trap.
  * 
  * @param {number} whaleRatio - Exchange Whale Ratio (0-1, where >0.85 is high selling pressure)
- * @param {Object} liquidations - Liquidation data { longLiquidations, shortLiquidations, totalLiquidations }
- * @param {Object} binanceData - Binance complementary data (optional)
+ * @param {Object} liquidations - Liquidation data
+ * @param {number} liquidations.longLiquidations - Long position liquidations in USD
+ * @param {number} liquidations.shortLiquidations - Short position liquidations in USD
+ * @param {number} liquidations.totalLiquidations - Total liquidations (long + short) in USD
+ * @param {Object} [binanceData] - Binance complementary data (optional)
+ * @param {number} [binanceData.currentFundingRate] - Current funding rate
+ * @param {number} [binanceData.currentLongShortRatio] - Current long/short ratio
  * @returns {number} trapScore (0-100)
  */
 function calculateTrapScore(whaleRatio, liquidations, binanceData = null) {
