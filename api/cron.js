@@ -391,10 +391,13 @@ export default async function handler(req, res) {
       };
 
       try {
+        // Phase 2: 市場コードとCryptoQuant深掘りデータをGrokに渡す
         aiAnalysis = await analyzeMarket(
           JSON.stringify(marketSummaryPayload),
           JSON.stringify(xSentiment),
           LANG,
+          getMarketCode(LANG),
+          cqDeep,
         );
       } catch (err) {
         console.warn(
