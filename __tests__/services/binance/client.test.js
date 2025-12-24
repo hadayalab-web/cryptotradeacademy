@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fetchKlines, fetchFundingRate, fetchOpenInterest, fetchLongShortRatio, fetch24hTicker, getComplementaryData } from '../../services/binance/client.js';
+import { createRequire } from 'module';
+
+// Use createRequire to load CommonJS module
+const require = createRequire(import.meta.url);
+const { fetchKlines, fetchFundingRate, fetchOpenInterest, fetchLongShortRatio, fetch24hTicker, getComplementaryData } = require('/home/runner/work/cryptosignal-ai/cryptosignal-ai/services/binance/client.js');
 
 // Mock fetch globally
 global.fetch = vi.fn();
@@ -208,7 +212,7 @@ describe('Binance Client', () => {
       const result = await getComplementaryData('BTCUSDT');
 
       expect(result).toMatchObject({
-        timestamp: expect.any(String),
+        timestamp: expect.any(Number), // timestamp is a number (Date.now())
         fundingRate: expect.any(Array),
         openInterest: expect.any(Object),
         longShortRatio: expect.any(Array),
