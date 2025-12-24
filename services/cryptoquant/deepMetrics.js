@@ -59,7 +59,18 @@ async function getWhaleFlows() {
       interpretation: isHighPressure ? 'high_selling_pressure' : 'normal'
     };
   } catch (error) {
-    console.warn('[deepMetrics] Error fetching whale ratio:', error.message);
+    // 404エラー（エンドポイントが存在しない）の場合はdebugレベルでログ出力
+    if (error.message && error.message.includes('404')) {
+      // Loggerが利用可能な場合はdebugレベルで、そうでない場合はwarningを抑制
+      try {
+        const { Logger } = require('../utils/logger');
+        Logger.debug('deepMetrics', 'Exchange whale ratio endpoint not available (expected)', { error: error.message });
+      } catch {
+        // Loggerが利用不可の場合はログ出力なし（404は期待される動作）
+      }
+    } else {
+      console.warn('[deepMetrics] Error fetching whale ratio:', error.message);
+    }
     // Return safe defaults on error
     return { whaleRatio: 0, isHighPressure: false, interpretation: 'unknown' };
   }
@@ -420,18 +431,31 @@ async function getCQDeepMetrics(market, options = {}) {
         ]);
 
         // Phase 2+: Binanceデータを取得（trapScore計算に使用）
-        let binanceDataForTrap = null;
+        let binanceDataForTrap = null; // 明示的にnullを初期化
         try {
           const binanceComplementary = await getComplementaryData('BTCUSDT');
-          binanceDataForTrap = binanceComplementary;
+          binanceDataForTrap = binanceComplementary || null; // 明示的にnullを設定
         } catch (error) {
-          console.warn('[deepMetrics] Error fetching Binance data for trapScore:', error.message);
+          // Binance API 451エラー（地域制限）などのエラーをログに記録
+          if (error.message && error.message.includes('451')) {
+            // Loggerが利用可能な場合はdebugレベルで、そうでない場合はwarningを抑制
+            try {
+              const { Logger } = require('../utils/logger');
+              Logger.debug('deepMetrics', 'Binance API not available (regional restriction)', { error: error.message });
+            } catch {
+              // Loggerが利用不可の場合はログ出力なし（451は地域制限で期待される動作）
+            }
+          } else {
+            console.warn('[deepMetrics] Error fetching Binance data for trapScore:', error.message);
+          }
+          binanceDataForTrap = null; // エラー時も明示的にnullを設定
         }
 
+        // binanceDataForTrapがnullの場合でも安全に処理
         const trapScore = calculateTrapScore(
-          whaleData.whaleRatio,
+          whaleData.whaleRatio || 0,
           liquidations,
-          binanceDataForTrap
+          binanceDataForTrap // nullでも安全（calculateTrapScoreでnullチェック済み）
         );
 
         return {
