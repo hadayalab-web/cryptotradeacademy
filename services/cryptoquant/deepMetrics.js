@@ -10,6 +10,23 @@ const { getComplementaryData } = require('../binance/client');
 // Valid market codes
 const VALID_MARKETS = ['EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR'];
 
+// Whale Ratio thresholds
+const WHALE_RATIO_HIGH_PRESSURE_THRESHOLD = 0.85;  // 85% indicates strong selling pressure
+const WHALE_RATIO_MEDIUM_PRESSURE_THRESHOLD = 0.75; // 75% indicates moderate pressure
+
+// Liquidation thresholds (in USD)
+const LIQUIDATION_HIGH_THRESHOLD = 500_000_000;  // $500M
+const LIQUIDATION_MEDIUM_THRESHOLD = 100_000_000; // $100M
+
+// Trap score weights
+const SCORE_WHALE_RATIO_HIGH = 40;
+const SCORE_WHALE_RATIO_MEDIUM = 20;
+const SCORE_LIQUIDATION_HIGH = 30;
+const SCORE_LIQUIDATION_MEDIUM = 15;
+const SCORE_LONG_TRAP = 15;
+const SCORE_FUNDING_RATE_HIGH = 10;
+const SCORE_LONG_SHORT_IMBALANCE = 15;
+
 /**
  * Whale Ratio取得（EN市場用）
  * 
@@ -33,8 +50,8 @@ async function getWhaleFlows() {
     const point = whaleRatioData?.result?.data?.[0];
     const whaleRatio = point?.value ?? point?.whale_ratio ?? 0;
     
-    // Whale Ratioが85%以上は売り圧力が高い
-    const isHighPressure = whaleRatio > 0.85;
+    // Whale Ratioが閾値以上は売り圧力が高い
+    const isHighPressure = whaleRatio > WHALE_RATIO_HIGH_PRESSURE_THRESHOLD;
 
     return { 
       whaleRatio, 
@@ -270,26 +287,26 @@ async function getSOPR30d() {
 function calculateTrapScore(whaleRatio, liquidations, binanceData = null) {
   let score = 0;
 
-  // High Whale Ratio (>85%) indicates strong selling pressure
-  if (whaleRatio > 0.85) {
-    score += 40;
-  } else if (whaleRatio > 0.75) {
-    score += 20;
+  // High Whale Ratio indicates strong selling pressure
+  if (whaleRatio > WHALE_RATIO_HIGH_PRESSURE_THRESHOLD) {
+    score += SCORE_WHALE_RATIO_HIGH;
+  } else if (whaleRatio > WHALE_RATIO_MEDIUM_PRESSURE_THRESHOLD) {
+    score += SCORE_WHALE_RATIO_MEDIUM;
   }
 
   // High total liquidations indicate market volatility
   const totalLiq = liquidations?.totalLiquidations ?? 0;
-  if (totalLiq > 500000000) {
-    score += 30;
-  } else if (totalLiq > 100000000) {
-    score += 15;
+  if (totalLiq > LIQUIDATION_HIGH_THRESHOLD) {
+    score += SCORE_LIQUIDATION_HIGH;
+  } else if (totalLiq > LIQUIDATION_MEDIUM_THRESHOLD) {
+    score += SCORE_LIQUIDATION_MEDIUM;
   }
 
   // Long liquidations significantly higher than short = long trap
   const longLiq = liquidations?.longLiquidations ?? 0;
   const shortLiq = liquidations?.shortLiquidations ?? 0;
   if (longLiq > shortLiq * 2) {
-    score += 15;
+    score += SCORE_LONG_TRAP;
   }
 
   // Phase 2+: Binance data corrections
@@ -297,13 +314,13 @@ function calculateTrapScore(whaleRatio, liquidations, binanceData = null) {
     // High Funding Rate (>0.01%) suggests excessive bullishness
     const fundingRate = binanceData.currentFundingRate || 0;
     if (fundingRate > 0.01) {
-      score += 10;
+      score += SCORE_FUNDING_RATE_HIGH;
     }
     
     // High Long/Short Ratio (>1.5) indicates trap risk
     const lsRatio = binanceData.currentLongShortRatio || 1.0;
     if (lsRatio > 1.5) {
-      score += 15;
+      score += SCORE_LONG_SHORT_IMBALANCE;
     }
   }
 
