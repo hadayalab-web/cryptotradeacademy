@@ -6,7 +6,10 @@
 //
 // 例:
 //   node scripts/test-cryptoquant-api.js
-//   node scripts/test-cryptoquant-api.js --endpoint=whale-flows
+//   node scripts/test-cryptoquant-api.js --endpoint=whale-ratio
+
+// Load environment variables from .env file
+require('dotenv').config();
 
 const { fetchCryptoQuant } = require('../services/cryptoquant/client');
 

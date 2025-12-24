@@ -29,13 +29,13 @@ const SCORE_LONG_SHORT_IMBALANCE = 15;
 
 /**
  * Whale Ratio取得（EN市場用）
- * 
+ *
  * Exchange Whale Ratio represents the proportion of the top 10 largest inflow transactions
  * versus total inflow. High values (>85%) indicate whale selling pressure.
- * 
+ *
  * Endpoint: /btc/flow-indicator/exchange-whale-ratio
  * Parameters: exchange=all_exchange, window=day, limit=1
- * 
+ *
  * @returns {Promise<Object>} { whaleRatio, interpretation }
  */
 async function getWhaleFlows() {
@@ -48,13 +48,13 @@ async function getWhaleFlows() {
     });
 
     const point = whaleRatioData?.result?.data?.[0];
-    const whaleRatio = point?.value ?? point?.whale_ratio ?? 0;
-    
+    const whaleRatio = point?.exchange_whale_ratio ?? point?.value ?? point?.whale_ratio ?? 0;
+
     // Whale Ratioが閾値以上は売り圧力が高い
     const isHighPressure = whaleRatio > WHALE_RATIO_HIGH_PRESSURE_THRESHOLD;
 
-    return { 
-      whaleRatio, 
+    return {
+      whaleRatio,
       isHighPressure,
       interpretation: isHighPressure ? 'high_selling_pressure' : 'normal'
     };
@@ -67,14 +67,14 @@ async function getWhaleFlows() {
 
 /**
  * Liquidations取得（EN市場用）
- * 
+ *
  * CryptoQuant provides separate long and short liquidation metrics.
  * We combine both to get total liquidations.
- * 
- * Endpoints: 
+ *
+ * Endpoints:
  * - /derivatives/liquidations-long/btc
  * - /derivatives/liquidations-short/btc
- * 
+ *
  * @returns {Promise<Object>} { longLiquidations, shortLiquidations, totalLiquidations }
  */
 async function getLiquidations() {
@@ -92,7 +92,7 @@ async function getLiquidations() {
 
     const longPoint = longData?.result?.data?.[0];
     const shortPoint = shortData?.result?.data?.[0];
-    
+
     const longLiquidations = Number(longPoint?.value ?? longPoint?.liquidations_long ?? 0);
     const shortLiquidations = Number(shortPoint?.value ?? shortPoint?.liquidations_short ?? 0);
     const totalLiquidations = longLiquidations + shortLiquidations;
@@ -114,10 +114,10 @@ async function getLiquidations() {
 
 /**
  * Upbit Inflow取得（KO市場用）
- * 
+ *
  * Endpoint: /btc/exchange-flows/inflow
  * Parameters: exchange=upbit, window=day, limit=1
- * 
+ *
  * @returns {Promise<number>} Upbitへの流入量（BTC）
  */
 async function getUpbitInflow() {
@@ -138,10 +138,10 @@ async function getUpbitInflow() {
 
 /**
  * Binance Inflow取得（KO市場用）
- * 
+ *
  * Endpoint: /btc/exchange-flows/inflow
  * Parameters: exchange=binance, window=day, limit=1
- * 
+ *
  * @returns {Promise<number>} Binanceへの流入量（BTC）
  */
 async function getBinanceInflow() {
@@ -178,19 +178,19 @@ function calculateKimchiPremium(upbitPrice, binancePrice, usdKrwRate) {
 
 /**
  * NUPL取得（JA市場用）
- * 
- * Net Unrealized Profit/Loss (NUPL) is an on-chain metric showing the difference 
+ *
+ * Net Unrealized Profit/Loss (NUPL) is an on-chain metric showing the difference
  * between market cap and realized cap divided by market cap.
- * 
+ *
  * Endpoint: /utxo-data/nupl/btc
  * Parameters: window=day, limit=1
- * 
+ *
  * Value ranges: typically between -1.0 and 1.0
  * - Above 0.75: Euphoria (potential top)
  * - 0.5 to 0.75: Greed/Belief
  * - 0 to 0.5: Optimism/Anxiety
  * - Below 0: Fear/Capitulation (potential bottom)
- * 
+ *
  * @returns {Promise<number>} Net Unrealized Profit/Loss
  */
 async function getNUPL() {
@@ -202,7 +202,7 @@ async function getNUPL() {
 
     const point = data?.result?.data?.[0];
     const nupl = Number(point?.value ?? point?.nupl ?? 0);
-    
+
     return nupl;
   } catch (error) {
     console.warn('[deepMetrics] Error fetching NUPL:', error.message);
@@ -212,24 +212,24 @@ async function getNUPL() {
 
 /**
  * SOPR (Spent Output Profit Ratio) 取得（JA市場用）
- * 
+ *
  * SOPR shows whether spent outputs are being sold at a profit (>1) or loss (<1).
- * 
+ *
  * Endpoint: /market-indicator/sopr/btc
  * Parameters: window=day, limit=1
- * 
+ *
  * @returns {Promise<number>} Current SOPR value
  */
 async function getSOPR() {
   try {
-    const data = await fetchCryptoQuant('/market-indicator/sopr/btc', {
+    const data = await fetchCryptoQuant('/btc/market-indicator/sopr', {
       window: 'day',
       limit: 1,
     });
 
     const point = data?.result?.data?.[0];
     const sopr = Number(point?.value ?? point?.sopr ?? 1.0);
-    
+
     return sopr;
   } catch (error) {
     console.warn('[deepMetrics] Error fetching SOPR:', error.message);
@@ -239,21 +239,21 @@ async function getSOPR() {
 
 /**
  * SOPR 30-day MA取得（JA市場用）
- * 
+ *
  * 30-day moving average of SOPR to smooth out daily volatility.
- * 
+ *
  * Endpoint: /market-indicator/sopr/btc
  * Parameters: window=day, limit=30
- * 
+ *
  * Interpretation:
  * - Rising 30d MA: Profit realization, bullish sentiment
  * - Falling 30d MA: Capitulation, potential bottom formation
- * 
+ *
  * @returns {Promise<number>} SOPR 30日移動平均
  */
 async function getSOPR30d() {
   try {
-    const data = await fetchCryptoQuant('/market-indicator/sopr/btc', {
+    const data = await fetchCryptoQuant('/btc/market-indicator/sopr', {
       window: 'day',
       limit: 30,
     });
@@ -275,10 +275,10 @@ async function getSOPR30d() {
 
 /**
  * trapScore計算（EN市場専用）
- * 
+ *
  * Calculates a trap score (0-100) based on whale activity and market conditions.
  * Higher scores indicate higher risk of a market trap.
- * 
+ *
  * @param {number} whaleRatio - Exchange Whale Ratio (0-1, where >0.85 is high selling pressure)
  * @param {Object} liquidations - Liquidation data
  * @param {number} liquidations.longLiquidations - Long position liquidations in USD
@@ -321,7 +321,7 @@ function calculateTrapScore(whaleRatio, liquidations, binanceData = null) {
     if (fundingRate > 0.01) {
       score += SCORE_FUNDING_RATE_HIGH;
     }
-    
+
     // High Long/Short Ratio (>1.5) indicates trap risk
     const lsRatio = binanceData.currentLongShortRatio || 1.0;
     if (lsRatio > 1.5) {
