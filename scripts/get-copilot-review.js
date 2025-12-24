@@ -5,10 +5,10 @@ const { execSync } = require('child_process');
 
 /**
  * PRのCopilot Agentレビュー結果を取得
- * 
+ *
  * 使用方法:
  *   node scripts/get-copilot-review.js [PR_NUMBER]
- * 
+ *
  * 例:
  *   node scripts/get-copilot-review.js 9
  */

@@ -6,10 +6,10 @@ const readline = require('readline');
 
 /**
  * Copilot Agentのレビュー結果に返信
- * 
+ *
  * 使用方法:
  *   node scripts/respond-to-copilot-review.js [PR_NUMBER] [RESPONSE_TEXT]
- * 
+ *
  * 例:
  *   node scripts/respond-to-copilot-review.js 9 "修正を実施しました。レビューお願いします。"
  */
