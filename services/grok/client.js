@@ -152,6 +152,9 @@ async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market
     if (contextParts.length > 0) {
       userContent += `\n\nDeep Metrics Context (for explanation):\n${contextParts.join('\n')}`;
       userContent += '\n\nUse these metrics to explain WHY the current score and signal were generated. Reference specific values when relevant.';
+    } else if (cqDeepMetrics) {
+      // Deep metrics were provided but none matched this market
+      Logger.debug('grok', 'Deep metrics provided but no market-specific metrics found', { market, metricsKeys: Object.keys(cqDeepMetrics) });
     }
   }
 

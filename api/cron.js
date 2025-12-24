@@ -150,9 +150,32 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  // Validate environment variables before processing
+  const envValidation = validateEnvSafe();
+  if (!envValidation.isValid) {
+    Logger.error('cron', 'Missing required environment variables', null, {
+      missing: envValidation.missingRequired,
+    });
+    return res.status(500).json({
+      error: 'Configuration Error',
+      message: 'Missing required environment variables',
+      missing: envValidation.missingRequired,
+    });
+  }
+
+  // Warn about missing recommended variables
+  if (envValidation.missingRecommended.length > 0) {
+    Logger.warn('cron', 'Recommended environment variables not set', {
+      missing: envValidation.missingRecommended,
+    });
+  }
+
   Logger.info('cron', '🚀 Cron Job Started: Whale Monitor');
 
   try {
+    // Cache market code to avoid repeated function calls
+    const marketCode = getMarketCode(LANG);
+    
     // 0. 時間スロット判定（4時間ごと）
     const now = new Date();
     const utcHour = now.getUTCHours();
@@ -195,7 +218,7 @@ export default async function handler(req, res) {
       inflow,
       mpi,
       xSentiment,
-      market: getMarketCode(LANG), // Phase 2: 市場情報追加
+      market: marketCode, // Phase 2: 市場情報追加
     });
 
     // Phase 2: decideSignalAdvanced使用（市場別補正）
@@ -271,7 +294,7 @@ export default async function handler(req, res) {
         inflow,
         mpi,
         xSentiment,
-        market: getMarketCode(LANG), // Phase 2: 市場情報追加
+        market: marketCode, // Phase 2: 市場情報追加
         // binanceDataは後でcqDeepから設定
       });
 
@@ -320,14 +343,12 @@ export default async function handler(req, res) {
 
     if (ENABLE_EVENT_DRIVEN && stateManager && evaluateTrigger) {
       try {
-        const market = getMarketCode(LANG);
-
         // 前回状態取得
-        const lastState = await stateManager.getLastState(market);
+        const lastState = await stateManager.getLastState(marketCode);
 
         // Phase 2: CryptoQuant深掘りデータ取得（先に取得）
         try {
-          const deepData = await getCQDeepMetrics(market, {
+          const deepData = await getCQDeepMetrics(marketCode, {
             upbitPrice: priceUsd, // 実際の価格取得が必要（要修正）
             binancePrice: priceUsd, // 実際の価格取得が必要（要修正）
             usdKrwRate: 1300, // 実際の為替レート取得が必要（要修正）
@@ -355,17 +376,17 @@ export default async function handler(req, res) {
         };
 
         // イベントトリガー評価
-        const trigger = await evaluateTrigger(market, currentState, lastState, cqDeep);
+        const trigger = await evaluateTrigger(marketCode, currentState, lastState, cqDeep);
 
         shouldSend = trigger.shouldSend;
         triggerType = trigger.triggerType;
         triggerReason = trigger.reason;
 
-        Logger.info('cron', '[Event-Driven] Trigger evaluation', { market, triggerType, shouldSend, reason: triggerReason });
+        Logger.info('cron', '[Event-Driven] Trigger evaluation', { market: marketCode, triggerType, shouldSend, reason: triggerReason });
 
         // 配信する場合のみ状態保存
         if (shouldSend) {
-          await stateManager.saveState(market, {
+          await stateManager.saveState(marketCode, {
             ...currentState,
             lastSignal: currentState.signal,
             lastScore: currentState.score,
@@ -403,7 +424,7 @@ export default async function handler(req, res) {
           JSON.stringify(marketSummaryPayload),
           JSON.stringify(xSentiment),
           LANG,
-          getMarketCode(LANG), // Pass market code for persona-specific prompt
+          marketCode, // Pass market code for persona-specific prompt
           cqDeep, // Pass CryptoQuant deep metrics for enhanced context
         );
       } catch (err) {
@@ -449,8 +470,7 @@ export default async function handler(req, res) {
       // Phase 2: イベント駆動が無効な場合でも深掘りデータを取得
       if (!ENABLE_EVENT_DRIVEN || !stateManager) {
         try {
-          const market = getMarketCode(LANG);
-          const deepData = await getCQDeepMetrics(market, {
+          const deepData = await getCQDeepMetrics(marketCode, {
             upbitPrice: priceUsd,
             binancePrice: priceUsd,
             usdKrwRate: 1300,
@@ -616,10 +636,19 @@ export default async function handler(req, res) {
       xIntel,
     });
   } catch (error) {
+    // marketCode is guaranteed to be defined if we reach here (set at line 150)
+    // If error occurs before that, use getMarketCode as fallback
+    let errorMarketCode;
+    try {
+      errorMarketCode = typeof marketCode !== 'undefined' ? marketCode : getMarketCode(LANG);
+    } catch {
+      errorMarketCode = 'EN'; // Ultimate fallback
+    }
+
     const errorContext = {
       isRegularSlot: typeof isRegularSlot !== 'undefined' ? isRegularSlot : null,
       force: req.query?.force === 'true',
-      market: getMarketCode(LANG),
+      market: errorMarketCode,
       timestamp: new Date().toISOString(),
     };
 
