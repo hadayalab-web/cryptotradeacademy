@@ -3,7 +3,7 @@ import { createRequire } from 'module';
 
 // Use createRequire to load CommonJS module
 const require = createRequire(import.meta.url);
-const { fetchKlines, fetchFundingRate, fetchOpenInterest, fetchLongShortRatio, fetch24hTicker, getComplementaryData } = require('/home/runner/work/cryptosignal-ai/cryptosignal-ai/services/binance/client.js');
+const { fetchKlines, fetchFundingRate, fetchOpenInterest, fetchLongShortRatio, fetch24hTicker, getComplementaryData } = require('../../../services/binance/client.js');
 
 // Mock fetch globally
 global.fetch = vi.fn();
