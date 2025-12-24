@@ -103,7 +103,16 @@ async function getLiquidations() {
       totalLiquidations,
     };
   } catch (error) {
-    console.warn('[deepMetrics] Error fetching liquidations:', error.message);
+    // Liquidations endpoint is not available in CryptoQuant API (returns 404)
+    // Return safe defaults - this is expected behavior
+    if (error.message.includes('404')) {
+      // Expected: endpoint not available, use Logger.debug to avoid noise
+      const { Logger } = require('../utils/logger');
+      Logger.debug('deepMetrics', 'Liquidations endpoint not available (expected)', { error: error.message });
+    } else {
+      // Unexpected error, log as warning
+      console.warn('[deepMetrics] Error fetching liquidations:', error.message);
+    }
     return {
       longLiquidations: 0,
       shortLiquidations: 0,
@@ -205,7 +214,16 @@ async function getNUPL() {
 
     return nupl;
   } catch (error) {
-    console.warn('[deepMetrics] Error fetching NUPL:', error.message);
+    // NUPL endpoint is not available in CryptoQuant API (returns 404)
+    // Return safe default - this is expected behavior
+    if (error.message.includes('404')) {
+      // Expected: endpoint not available, use Logger.debug to avoid noise
+      const { Logger } = require('../utils/logger');
+      Logger.debug('deepMetrics', 'NUPL endpoint not available (expected)', { error: error.message });
+    } else {
+      // Unexpected error, log as warning
+      console.warn('[deepMetrics] Error fetching NUPL:', error.message);
+    }
     return 0;
   }
 }
