@@ -1,4 +1,4 @@
-// config/thresholds.js
+// api/config/thresholds.js
 // BTC Tier1 用ロジックの閾値定義
 // - BASE: 通常モード
 // - EVENT_FOMC: FOMC などのマクロイベント時に少し攻めるモード

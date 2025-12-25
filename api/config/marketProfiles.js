@@ -1,4 +1,4 @@
-// config/marketProfiles.js
+// api/config/marketProfiles.js
 // CryptoTrade Academy - 市場別プロファイル設定
 // Strategic SSOT v4.0 ULTIMATE Section 1に基づく
 
