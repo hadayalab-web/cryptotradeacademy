@@ -2,9 +2,8 @@
   "crons": [
     { "path": "/api/cron", "schedule": "*/15 * * * *" }
   ],
+  "buildCommand": "npm run build",
   "functions": {
-    "api/cron.js": {
-      "includeFiles": ["config/**/*", "config/*"]
-    }
+    "api/cron.js": {}
   }
 }

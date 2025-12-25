@@ -8,6 +8,8 @@
   "start": "node scripts/monitor_process.js",
   "test:local": "node scripts/local_test.js",
   "monitor": "node scripts/monitor_process.js",
+  "build": "node scripts/copy-config.js",
+  "vercel-build": "npm run build",
 
   "backtest:dummy": "node scripts/backtest/eval_signals.js --input=data/signals_log_dummy.jsonl --output=data/signals_backtest_dummy.jsonl",
   "summary:dummy": "node scripts/backtest/summarize_backtest.js --input=data/signals_backtest_dummy.jsonl",

@@ -1,0 +1,29 @@
+TimeUTC,timestampInMs,requestPath,requestMethod,requestQueryString,responseStatusCode,requestId,requestUserAgent,level,environment,branch,vercelCache,type,function,host,deploymentDomain,deploymentId,durationMs,region,maxMemoryUsed,memorySize,message,projectId,traceId,sessionId,invocationId,instanceId,concurrency
+2025-12-25 08:00:12,1766649612484,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app/api/cron,GET,,500,lmgbp-1766649612191-f09032e60422,vercel-cron/1.0,error,production,main,MISS,serverless,/api/cron,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,dpl_L4LHnkdwZftmdDFGLeXnQKVyDGLw,,,,,"Cannot find module '../config/marketProfiles'
+Require stack:
+- /var/task/services/grok/client.js
+- /var/task/api/cron.js
+Did you forget to add it to ""dependencies"" in `package.json`?
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.",prj_70cfabLGqzgIBeQN5cw1Y4AyuxyA,,,,,
+2025-12-25 08:00:12,1766649612191,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app/api/cron,GET,,500,lmgbp-1766649612191-f09032e60422,vercel-cron/1.0,,production,main,MISS,serverless,/api/cron,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,dpl_L4LHnkdwZftmdDFGLeXnQKVyDGLw,257,iad1,-1,2048,,prj_70cfabLGqzgIBeQN5cw1Y4AyuxyA,,,01KDA8BHXB6KKXDPC4D23TR08Q,,-1
+2025-12-25 07:45:12,1766648712780,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app/api/cron,GET,,500,xvz8l-1766648712437-0badf1ff0a42,vercel-cron/1.0,error,production,main,MISS,serverless,/api/cron,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,dpl_L4LHnkdwZftmdDFGLeXnQKVyDGLw,,,,,"Cannot find module '../config/marketProfiles'
+Require stack:
+- /var/task/services/grok/client.js
+- /var/task/api/cron.js
+Did you forget to add it to ""dependencies"" in `package.json`?
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.",prj_70cfabLGqzgIBeQN5cw1Y4AyuxyA,,,,,
+2025-12-25 07:45:12,1766648712437,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app/api/cron,GET,,500,xvz8l-1766648712437-0badf1ff0a42,vercel-cron/1.0,,production,main,MISS,serverless,/api/cron,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,dpl_L4LHnkdwZftmdDFGLeXnQKVyDGLw,235,iad1,-1,2048,,prj_70cfabLGqzgIBeQN5cw1Y4AyuxyA,,,01KDA7G3AE6Q3N8DMRJVQV8JCR,,-1
+2025-12-25 07:30:12,1766647812650,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app/api/cron,GET,,500,krvr4-1766647812210-58dfd7228bc4,vercel-cron/1.0,error,production,main,MISS,serverless,/api/cron,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,dpl_L4LHnkdwZftmdDFGLeXnQKVyDGLw,,,,,"Cannot find module '../config/marketProfiles'
+Require stack:
+- /var/task/services/grok/client.js
+- /var/task/api/cron.js
+Did you forget to add it to ""dependencies"" in `package.json`?
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.",prj_70cfabLGqzgIBeQN5cw1Y4AyuxyA,,,,,
+2025-12-25 07:30:12,1766647812210,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app/api/cron,GET,,500,krvr4-1766647812210-58dfd7228bc4,vercel-cron/1.0,,production,main,MISS,serverless,/api/cron,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,dpl_L4LHnkdwZftmdDFGLeXnQKVyDGLw,394,iad1,-1,2048,,prj_70cfabLGqzgIBeQN5cw1Y4AyuxyA,,,01KDA6MM3ZWZAX2Q5TFNWEEXNE,,-1
+2025-12-25 07:15:12,1766646912394,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app/api/cron,GET,,500,9xrrf-1766646912113-5bf4f777b607,vercel-cron/1.0,error,production,main,MISS,serverless,/api/cron,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,dpl_L4LHnkdwZftmdDFGLeXnQKVyDGLw,,,,,"Cannot find module '../config/marketProfiles'
+Require stack:
+- /var/task/services/grok/client.js
+- /var/task/api/cron.js
+Did you forget to add it to ""dependencies"" in `package.json`?
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.",prj_70cfabLGqzgIBeQN5cw1Y4AyuxyA,,,,,
+2025-12-25 07:15:12,1766646912113,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app/api/cron,GET,,500,9xrrf-1766646912113-5bf4f777b607,vercel-cron/1.0,,production,main,MISS,serverless,/api/cron,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,cryptosignal-ai-ptbr-5njse6vjk-hadayalab-projects-projects.vercel.app,dpl_L4LHnkdwZftmdDFGLeXnQKVyDGLw,243,iad1,-1,2048,,prj_70cfabLGqzgIBeQN5cw1Y4AyuxyA,,,01KDA5S5443JG09B2VASV0EDPE,,-1

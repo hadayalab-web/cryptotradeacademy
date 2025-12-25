@@ -1,0 +1,13 @@
+@copilot このPRをレビューしてください。
+
+Vercelデプロイで`config/`フォルダが含まれず、`Cannot find module '../config/marketProfiles'`エラーが発生しています。
+
+以下のファイルを確認してください：
+- `vercel.json` - `includeFiles: "config/**"`設定
+- `services/grok/client.js` - line 4のrequire
+- `config/marketProfiles.js` - デプロイに含まれない問題
+
+解決策を提案してください。
+
+
+
