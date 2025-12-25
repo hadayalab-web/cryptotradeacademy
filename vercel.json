@@ -4,7 +4,7 @@
   ],
   "functions": {
     "api/cron.js": {
-      "includeFiles": ["config/**"]
+      "includeFiles": ["config/**/*", "config/*"]
     }
   }
 }
