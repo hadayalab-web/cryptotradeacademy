@@ -4,10 +4,10 @@
 
 const { getHoursSinceLastUpdate } = require('../utils/stateManager');
 
-// 市場プロファイルを取得（config/marketProfiles.jsから）
+// 市場プロファイルを取得（api/config/marketProfiles.jsから）
 function getMarketProfile(market) {
   try {
-    const profiles = require('../config/marketProfiles');
+    const profiles = require('../api/config/marketProfiles');
     return profiles.getMarketProfile(market);
   } catch (error) {
     console.warn(`[eventTriggers] marketProfiles.js not found, using defaults for ${market}`);

@@ -1,18 +1,7 @@
 // services/grok/client.js
 
 const OpenAI = require('openai');
-// Vercelデプロイ対応: api/config/を優先、フォールバックで../config/
-// ビルドスクリプトでconfig/がapi/config/にコピーされるため
-let getMarketProfile;
-try {
-  // デプロイ環境: api/config/から読み込む（services/grok/から見ると ../../api/config/）
-  const marketProfiles = require('../../api/config/marketProfiles');
-  getMarketProfile = marketProfiles.getMarketProfile;
-} catch (e) {
-  // ローカル環境: 元のパス
-  const marketProfiles = require('../config/marketProfiles');
-  getMarketProfile = marketProfiles.getMarketProfile;
-}
+const { getMarketProfile } = require('../../api/config/marketProfiles');
 
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
