@@ -1,6 +1,7 @@
 // services/grok/client.js
 
 const OpenAI = require('openai');
+const { getMarketProfile } = require('../config/marketProfiles');
 
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
@@ -42,25 +43,149 @@ function safeJsonParse(text) {
   }
 }
 
+/**
+ * 市場別ペルソナプロンプトを生成
+ * @param {string} market - 市場コード (EN/AR/KO/JA/ES/PT-BR)
+ * @returns {string} システムプロンプト
+ */
+function getMarketPersonaPrompt(market = 'EN') {
+  const profile = getMarketProfile(market);
+  const persona = profile?.persona || 'PRECISION_SNIPER';
+  const tagline = profile?.tagline || 'Market Referee - Spot traps before you fall';
+
+  const personaPrompts = {
+    PRECISION_SNIPER: // EN
+      'You are "Dr. Grok", a Precision Sniper for active BTC traders. ' +
+      'You think like a veteran X (Twitter) crypto trader, not a generic analyst. ' +
+      'Be concise, tactical, data-driven, and risk-first. ' +
+      'Provide decisive analysis with clear entry/exit signals when the edge is clear.',
+    SHIELD_WALL: // AR
+      'You are "Dr. Grok", a Shield Wall protector for conservative BTC traders. ' +
+      'Your primary role is capital protection. ' +
+      'Be ultra-conservative, emphasize waiting for perfect setups, and prioritize safety over opportunity. ' +
+      'Most of the time (70%), you recommend waiting. This is a feature, not a bug.',
+    KIMCHI_SNIPER: // KO
+      'You are "Dr. Grok", a Kimchi Sniper specializing in Korean market dynamics (Kimchi Premium, Upbit flows). ' +
+      'Be fast, precise, and alert to Korean exchange-specific signals. ' +
+      'Think like a Korean crypto trader who watches Upbit/Binance spreads closely.',
+    KAIZEN_OPTIMIZER: // JA
+      'You are "Dr. Grok", a Kaizen Optimizer for improvement-focused BTC traders. ' +
+      'Emphasize continuous improvement, risk-reward optimization, and daily 1% gains. ' +
+      'Be methodical, detail-oriented, and focus on long-term consistency over quick wins.',
+    VOZ_COMUN: // ES
+      'You are "Dr. Grok", representing the "Voz Común" (Common Voice) for Spanish-speaking BTC traders. ' +
+      'Think like a collective of 5,000 traders protecting each other. ' +
+      'Be community-focused, practical, and emphasize shared wisdom.',
+    VOZ_COMUM: // PT-BR
+      'You are "Dr. Grok", representing the "Voz Comum" (Common Voice) for Portuguese-speaking BTC traders. ' +
+      'Think like a collective of 5,000 traders protecting each other. ' +
+      'Be community-focused, practical, and emphasize shared wisdom.',
+  };
+
+  const basePrompt = personaPrompts[persona] || personaPrompts.PRECISION_SNIPER;
+  return `${basePrompt} Tagline: "${tagline}".`;
+}
+
+/**
+ * CryptoQuant深掘りデータをGrokコンテキスト用にフォーマット
+ * @param {Object} cqDeep - CryptoQuant深掘りデータ
+ * @param {string} market - 市場コード
+ * @returns {string} フォーマットされたコンテキスト文字列
+ */
+function formatCryptoQuantContext(cqDeep = {}, market = 'EN') {
+  const contextParts = [];
+
+  // EN市場: trapScore, whaleFlows, liquidations
+  if (market === 'EN') {
+    if (cqDeep.trapScore !== undefined) {
+      contextParts.push(`Trap Score: ${cqDeep.trapScore}/100 (higher = more trap risk)`);
+    }
+    if (cqDeep.whaleFlows) {
+      const whaleRatio = cqDeep.whaleFlows.whaleRatio ?? 0;
+      const isHighPressure = cqDeep.whaleFlows.isHighPressure ?? false;
+      contextParts.push(`Whale Ratio: ${(whaleRatio * 100).toFixed(1)}% ${isHighPressure ? '(High Selling Pressure)' : '(Normal)'}`);
+    }
+    if (cqDeep.liquidations && cqDeep.liquidations.totalLiquidations > 0) {
+      const totalLiq = cqDeep.liquidations.totalLiquidations;
+      contextParts.push(`24h Liquidations: $${(totalLiq / 1_000_000).toFixed(1)}M (high liquidations = potential volatility)`);
+    }
+    if (cqDeep.binance) {
+      if (cqDeep.binance.currentFundingRate !== undefined) {
+        contextParts.push(`Funding Rate: ${(cqDeep.binance.currentFundingRate * 100).toFixed(4)}%`);
+      }
+      if (cqDeep.binance.currentLongShortRatio !== undefined) {
+        contextParts.push(`Long/Short Ratio: ${cqDeep.binance.currentLongShortRatio.toFixed(2)}`);
+      }
+    }
+  }
+
+  // KO市場: Kimchi Premium
+  if (market === 'KO' && cqDeep.kimchiPremium !== undefined) {
+    contextParts.push(`Kimchi Premium: ${(cqDeep.kimchiPremium * 100).toFixed(2)}% (Upbit premium over Binance, >5% = high risk)`);
+  }
+
+  // JA市場: NUPL, SOPR, riskReward
+  if (market === 'JA') {
+    if (cqDeep.longTerm) {
+      if (cqDeep.longTerm.nupl !== undefined && cqDeep.longTerm.nupl !== 0) {
+        contextParts.push(`NUPL: ${cqDeep.longTerm.nupl.toFixed(3)} (Network Unrealized Profit/Loss, negative = oversold)`);
+      }
+      if (cqDeep.longTerm.sopr !== undefined) {
+        contextParts.push(`SOPR: ${cqDeep.longTerm.sopr.toFixed(3)} (Spent Output Profit Ratio, <1.0 = selling at loss)`);
+      }
+      if (cqDeep.longTerm.sopr30d !== undefined) {
+        contextParts.push(`SOPR 30d MA: ${cqDeep.longTerm.sopr30d.toFixed(3)} (30-day moving average, <1.0 = potential bottom)`);
+      }
+    }
+    if (cqDeep.riskReward !== undefined) {
+      contextParts.push(`Risk/Reward Ratio: ${cqDeep.riskReward.toFixed(2)} (higher = better risk-adjusted opportunity)`);
+    }
+  }
+
+  return contextParts.length > 0 ? `\n\nDeep Metrics Context:\n${contextParts.join('\n')}\n\nUse these metrics to explain WHY the current score and signal were generated. Reference specific values when relevant.` : '';
+}
+
 // ---- Market summary (Regular / Emergency) --------------------------
-async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en') {
+/**
+ * 市場分析（Grok AI）
+ * @param {string} marketDataJson - 市場データ（JSON文字列）
+ * @param {string} xSentimentJson - Xセンチメント（JSON文字列）
+ * @param {string} lang - 言語コード
+ * @param {string} market - 市場コード (EN/AR/KO/JA/ES/PT-BR)
+ * @param {Object} cqDeep - CryptoQuant深掘りデータ（オプション）
+ * @returns {Promise<string>} Grok分析結果
+ */
+async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market = 'EN', cqDeep = null) {
   if (!XAI_API_KEY) return 'HOLD - Grok offline.';
 
   const targetLang = (lang || 'en').toLowerCase();
+  const marketCode = market || 'EN';
+
+  // 市場別ペルソナプロンプトを取得
+  const systemPrompt = getMarketPersonaPrompt(marketCode);
+
+  // ユーザーコンテンツを構築
+  let userContent = `Market data: ${marketDataJson}\nSentiment: ${xSentimentJson}\nLanguage: ${targetLang}`;
+
+  // CryptoQuant深掘りデータをコンテキストに追加
+  if (cqDeep) {
+    const cqContext = formatCryptoQuantContext(cqDeep, marketCode);
+    if (cqContext) {
+      userContent += cqContext;
+    }
+  }
+
   try {
     const completion = await openai.chat.completions.create({
       model: GROK_MODEL_REASONING,
       messages: [
         {
           role: 'system',
-          content:
-            'You are "Dr. Grok", a crypto trading coach for active BTC traders. ' +
-            'You think like a veteran X (Twitter) crypto trader, not a generic analyst. ' +
-            'Be concise, tactical, and risk-first.',
+          content: systemPrompt,
         },
         {
           role: 'user',
-          content: `Market data: ${marketDataJson}\nSentiment: ${xSentimentJson}\nLanguage: ${targetLang}`,
+          content: userContent,
         },
       ],
       max_tokens: 800,
