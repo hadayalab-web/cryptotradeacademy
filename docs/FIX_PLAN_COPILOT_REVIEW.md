@@ -849,3 +849,5 @@ async function fetchKlines(symbol, interval, startTime, endTime, limit = 1000) {
 - [CODE_REVIEW_REPORT.md](./CODE_REVIEW_REPORT.md) - 完全なレビューレポート
 - [COPILOT_REVIEW_SUMMARY.md](./COPILOT_REVIEW_SUMMARY.md) - レビュー結果サマリー
 
+
+

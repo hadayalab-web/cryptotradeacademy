@@ -247,3 +247,5 @@ async function fetch24hLiquidations(symbol = 'BTCUSDT') {
 
 **注意**: LiquidationsとNUPLが提供されていないことを考慮すると、現状の実装は既に可能な限りの最適化が行われています。さらなる改善には、外部データソースの統合が必要です。
 
+
+

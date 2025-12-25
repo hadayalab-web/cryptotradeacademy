@@ -1,7 +1,7 @@
 // services/grok/client.js
 
 const OpenAI = require('openai');
-const { getMarketProfile } = require('../config/marketProfiles');
+const { getMarketProfile } = require('../../api/config/marketProfiles');
 
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';

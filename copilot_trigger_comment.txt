@@ -1,0 +1,13 @@
+@github-copilot Please review this PR and help debug the Vercel deployment error.
+
+**Issue**: The `includeFiles` configuration in `vercel.json` is not working. The `config/` folder is not being included in the deployment bundle, causing `Cannot find module '../config/marketProfiles'` errors.
+
+**What I need**:
+1. Investigate why `includeFiles: ["config/**/*", "config/*"]` is not working
+2. Identify the root cause
+3. Propose and implement a fix
+
+The error occurs because `api/cron.js` → `services/grok/client.js` → `config/marketProfiles.js` (indirect dependency chain).
+
+Please analyze the issue and provide a solution.
+

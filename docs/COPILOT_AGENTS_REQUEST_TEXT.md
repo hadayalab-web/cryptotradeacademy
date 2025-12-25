@@ -89,3 +89,5 @@ Vercelデプロイで`config/`フォルダが含まれず、`Cannot find module 
 詳細: `docs/VERCEL_ERROR_ANALYSIS_JST2100_2025-12-25.md`
 ```
 
+
+
