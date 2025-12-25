@@ -6,5 +6,3 @@ dist/
 *.log
 .vercel
 *.bak
-# Vercel build artifacts
-api/config/
