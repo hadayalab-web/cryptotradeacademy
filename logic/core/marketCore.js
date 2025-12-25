@@ -1,12 +1,12 @@
 // logic/core/marketCore.js
 
 // 閾値コンフィグ
-const { BASE, EVENT_FOMC } = require('../../config/thresholds');
+const { BASE, EVENT_FOMC } = require('../../api/config/thresholds');
 
 // Phase 2: 市場別プロファイル（Strategic SSOT v4.0）
 let marketProfiles = null;
 try {
-  marketProfiles = require('../../config/marketProfiles');
+  marketProfiles = require('../../api/config/marketProfiles');
 } catch (error) {
   // marketProfiles.jsがない場合は無視（デフォルト動作）
 }
@@ -80,7 +80,7 @@ function scoreSocial({ whaleBias, retailFomo, newsImpact }, binanceData = null) 
   const newsScore = impact * 0.15;
 
   let baseScore = whaleScore * 0.5 + retailTrapScore * 0.2 + divergenceScore * 0.25 + newsScore * 0.05;
-  
+
   // Phase 2+: Binanceデータによる補正
   if (binanceData) {
     // Funding Rate補正: 負のFunding Rate（強気過多の逆転）は強気シグナル
@@ -88,14 +88,14 @@ function scoreSocial({ whaleBias, retailFomo, newsImpact }, binanceData = null) 
     if (fundingRate < -0.01) {
       baseScore += 5; // 強気シグナル強化
     }
-    
+
     // Long/Short Ratio補正: Short過多（<0.7）は強気シグナル
     const lsRatio = binanceData.currentLongShortRatio || 1.0;
     if (lsRatio < 0.7) {
       baseScore += 5; // 強気シグナル強化
     }
   }
-  
+
   return baseScore;
 }
 

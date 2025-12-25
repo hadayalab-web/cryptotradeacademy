@@ -4,10 +4,10 @@
 
 const { getHoursSinceLastUpdate } = require('../utils/stateManager');
 
-// 市場プロファイルを取得（config/marketProfiles.jsから）
+// 市場プロファイルを取得（api/config/marketProfiles.jsから）
 function getMarketProfile(market) {
   try {
-    const profiles = require('../config/marketProfiles');
+    const profiles = require('../api/config/marketProfiles');
     return profiles.getMarketProfile(market);
   } catch (error) {
     console.warn(`[eventTriggers] marketProfiles.js not found, using defaults for ${market}`);
@@ -42,8 +42,8 @@ async function evaluateTrigger(market, currentState, lastState, cqDeep = {}) {
     const trapScore = currentState.trapScore ?? cqDeep.trapScore ?? 0;
     // PR #14: liquidations の構造が { longLiquidations, shortLiquidations, totalLiquidations } に変更
     const liquidationsData = cqDeep.liquidations ?? 0;
-    const liquidations = typeof liquidationsData === 'number' 
-      ? liquidationsData 
+    const liquidations = typeof liquidationsData === 'number'
+      ? liquidationsData
       : (liquidationsData?.totalLiquidations ?? 0);
     const kimchiPremium = cqDeep.kimchiPremium ?? 0;
     const mpi = cqDeep.mpi ?? cqDeep.minerMPI ?? 0;
