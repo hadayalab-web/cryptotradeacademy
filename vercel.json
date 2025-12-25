@@ -1,8 +1,5 @@
 {
   "crons": [
     { "path": "/api/cron", "schedule": "*/15 * * * *" }
-  ],
-  "functions": {
-    "api/cron.js": {}
-  }
+  ]
 }
