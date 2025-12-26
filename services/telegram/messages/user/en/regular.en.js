@@ -71,11 +71,15 @@ function formatRegularBriefing({
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
   let grokText = raw;
 
-  const GROK_LIMIT = 1500;
+  const GROK_LIMIT = 150; // Strategic OS requirement: 60-second reads (150 words max)
   if (!grokText || isOffline) {
-    grokText = 'Grok is offline — using system-only signals (on-chain/price).';
-  } else if (grokText.length > GROK_LIMIT) {
-    grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
+    grokText = 'Grok offline. Using on-chain signals only.';
+  } else {
+    // Count words and limit to 150 words
+    const words = grokText.split(/\s+/);
+    if (words.length > GROK_LIMIT) {
+      grokText = words.slice(0, GROK_LIMIT).join(' ') + '...';
+    }
   }
 
   const lines = [];
@@ -105,8 +109,8 @@ function formatRegularBriefing({
 
     // Liquidations情報（EN市場専用）
     // PR #14: liquidations の構造が { longLiquidations, shortLiquidations, totalLiquidations } に変更
-    const totalLiquidations = typeof liquidations === 'number' 
-      ? liquidations 
+    const totalLiquidations = typeof liquidations === 'number'
+      ? liquidations
       : (liquidations?.totalLiquidations ?? 0);
     if (totalLiquidations > 0) {
       if (typeof liquidations === 'object' && liquidations.longLiquidations != null && liquidations.shortLiquidations != null) {
@@ -131,11 +135,10 @@ function formatRegularBriefing({
   if (rrLine) lines.push(rrLine);
   lines.push('');
 
-  lines.push("🧬 Dr. Grok's Take");
-  lines.push('Below is a strategic idea, not an official True Bug Entry signal. Follow only when your own plan and risk management align.');
-  lines.push(grokText);
+  lines.push("🧬 Dr. Grok's Take (60-sec read)");
+  lines.push(grokText); // Already limited to 150 words by GROK_LIMIT
   lines.push('');
-  lines.push('For educational purposes only. Not financial advice.');
+  lines.push('⚠️ Educational only. Not financial advice.');
 
   return lines.join('\n');
 }

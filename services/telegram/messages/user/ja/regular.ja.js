@@ -77,11 +77,11 @@ function formatRegularBriefing({
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
   let grokText = raw;
 
-  const GROK_LIMIT = 1500;
+  const GROK_LIMIT = 80; // Strategic OS requirement: 60-second reads (300 chars max, ~80 for analysis)
   if (!grokText || isOffline) {
-    grokText = 'Grokは現在オフラインです（オンチェーン/価格データのみで判定中）。';
+    grokText = 'Grokオフライン。オンチェーンシグナルのみ。';
   } else if (grokText.length > GROK_LIMIT) {
-    grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
+    grokText = grokText.slice(0, GROK_LIMIT) + '...';
   }
 
   const lines = [];
@@ -121,13 +121,26 @@ function formatRegularBriefing({
   if (rrLine) lines.push(rrLine);
   lines.push('');
 
-  lines.push('🧬 Dr. Grok の見立て');
-  lines.push('以下は戦略アイデアであり、公式な True Bug エントリーシグナルではありません。ご自身のトレードプランとリスク管理と整合するときにのみ活用してください。');
-  lines.push(grokText);
+  lines.push('🧬 Dr. Grokの見立て (60秒読了)');
+  lines.push(grokText); // Already limited to 80 chars by GROK_LIMIT
   lines.push('');
-  lines.push('本情報は教育目的で提供されるものであり、投資助言・金融商品の勧誘を行うものではありません。');
+  lines.push('⚠️ 教育目的のみ。投資助言ではありません。');
 
-  return lines.join('\n');
+  const message = lines.join('\n');
+
+  // 文字数チェック（300文字以内）
+  if (message.length > 300) {
+    console.warn(`[JA] Message exceeds 300 characters: ${message.length} chars`);
+    // 最後の部分を削減
+    const excess = message.length - 300;
+    const lastLineIndex = lines.length - 1;
+    if (lastLineIndex >= 0 && lines[lastLineIndex].length > excess) {
+      lines[lastLineIndex] = lines[lastLineIndex].slice(0, -excess - 3) + '...';
+    }
+    return lines.join('\n');
+  }
+
+  return message;
 }
 
 module.exports = { formatRegularBriefing };

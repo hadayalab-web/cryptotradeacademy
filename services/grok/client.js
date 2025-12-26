@@ -162,7 +162,21 @@ async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market
   const marketCode = market || 'EN';
 
   // 市場別ペルソナプロンプトを取得
-  const systemPrompt = getMarketPersonaPrompt(marketCode);
+  let systemPrompt = getMarketPersonaPrompt(marketCode);
+
+  // Strategic OS requirement: 60-second reads (150 words max / 300 chars max for JA)
+  const lengthRequirement = marketCode === 'JA'
+    ? 'Maximum 300 characters (60-second read time).'
+    : 'Maximum 150 words (60-second read time).';
+
+  systemPrompt += `\n\nYour analysis must:\n` +
+    `- ${lengthRequirement}\n` +
+    `- Structure: Context → Decision → What to watch\n` +
+    `- Skip detailed explanations, focus on actionable insights only\n` +
+    `- Reference specific deep metrics when relevant\n` +
+    `- Explain WHY the current score/signal was generated\n` +
+    `- Use market-specific persona style\n` +
+    `- No hype, no FOMO, just facts`;
 
   // ユーザーコンテンツを構築
   let userContent = `Market data: ${marketDataJson}\nSentiment: ${xSentimentJson}\nLanguage: ${targetLang}`;
@@ -188,7 +202,7 @@ async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market
           content: userContent,
         },
       ],
-      max_tokens: 800,
+      max_tokens: 150, // Strategic OS requirement: 60-second reads (150 words max)
       temperature: 0.6,
     });
 
