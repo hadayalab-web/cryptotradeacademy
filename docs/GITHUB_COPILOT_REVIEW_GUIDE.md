@@ -42,7 +42,7 @@ node scripts/request-copilot-review.js 3
    ```bash
    # 確認
    gh --version
-   
+
    # 未インストールの場合
    # Windows: winget install GitHub.cli
    # Mac: brew install gh
@@ -148,6 +148,10 @@ gh auth login
 
 - Issueが閉じられていないか確認
 - リポジトリへの書き込み権限があるか確認
+
+
+
+
 
 
 

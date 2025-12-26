@@ -16,11 +16,12 @@ Sales Strategy Doping v1.0のアップデート版として作成
 
 # 🎯 CryptoTrade Academy - Sales Strategy Doping v2.0 FINAL
 
-**Version**: 2.0 FINAL - Strategic SSOT v4.0完全統合版
-**Date**: 2025-12-21 22:32 JST
+**Version**: 2.0 FINAL - Complete SSOT v5.1参照版
+**Date**: 2025-12-21 22:32 JST (Updated: 2025-12-25)
 **Status**: PRODUCTION READY
 **Purpose**: 木下ロジック + 4大理論 完全ドーピング
-**Parent**: Strategic SSOT v4.0 ULTIMATE + Technical Supplement v2.0
+**Parent**: CryptoTrade Academy - Complete SSOT v5.1
+**Note**: このドキュメントは参照ドキュメントです。戦略の真実（SSOT）はComplete SSOT v5.1が唯一のソースです。
 
 ***
 
@@ -29,10 +30,11 @@ Sales Strategy Doping v1.0のアップデート版として作成
 ### 0.1 5層統合構造
 
 ```yaml
-Layer 0: 戦略OS(木下ロジック - Strategic SSOT v4.0)
+Layer 0: 戦略OS(木下ロジック - Complete SSOT v5.1)
   - 年商100億の公式: 商品力 × リーチ力 × レスポンス力
   - カテゴリ創造: Signal → Academy(競合10,000 → 3)
   - キャッチコピー逆算: Message → Feature開発
+  - 参照: Complete SSOT v5.1 Section 0（木下ロジック完全統合）
 
 Layer 1: 意思決定設計(Nudge)
   - Default Effect: Monthly $69自動選択
@@ -72,7 +74,7 @@ Layer 4: 測定可能性(Scientific Advertising)
 ### 0.2 v1.0 → v2.0変更点
 
 ```yaml
-新規追加(Strategic SSOT v4.0統合):
+新規追加(Complete SSOT v5.1統合):
   ✅ 木下ロジック①②完全統合
      - 商品力 × リーチ力 × レスポンス力
      - カテゴリ創造エビデンス(CPA -47%, LTV +300%)
@@ -106,7 +108,7 @@ v1.0保持項目:
 
 ## 🎯 Section 1: 木下ロジック完全実装
 
-### 1.1 年商100億の公式適用(Strategic SSOT v4.0連動)
+### 1.1 年商100億の公式適用(Complete SSOT v5.1連動)
 
 #### 商品力(85%目標)
 
@@ -296,7 +298,7 @@ CryptoTrade Academy換算:
     Phase 3(3ヶ月): $24,150 MRR × 3 = $72,450
     = Year 1 ARR: $112,548(Strategic SSOT試算)
 
-  注: Strategic SSOT v4.0では$289,800/年試算
+  注: Complete SSOT v5.1では$289,800/年試算（参照: Section 3.2）
     → 保守的に$112K採用(Phase進行リスク考慮)
 ```
 
@@ -319,7 +321,7 @@ CryptoTrade Academy換算:
       1. ☑ Monthly $69 - RECOMMENDED
       2. ☐ Annual $690 - Save $138
 
-  理由(Strategic SSOT v4.0 Section 3.1):
+  理由(Complete SSOT v5.1 Section 3.1を参照):
     Monthly利益率: 55%
     Annual利益率: 22%(40% Partner報酬痛い)
     → Monthly = 2.5倍利益率
@@ -397,12 +399,12 @@ CryptoTrade Academy換算:
     Telegram配信: 実際のBUG STANDBY briefing
     内容例:
       "🛡️ BUG STANDBY - Defense Active.
-       
+
        Context: BTC -15K outflow + retail FOMO spike.
        Classic trap setup.
-       
+
        Decision: Wait. 70% of time = Safety.
-       
+
        What to watch: If BTC breaks $X with volume."
 
     心理: 即座価値体験 → Reciprocity発動
@@ -412,7 +414,7 @@ CryptoTrade Academy換算:
     内容:
       "You received 2 trap alerts. 0 false signals.
        Next trap could cost $16K.
-       
+
        Continue Protection - Only $69/month
        Cancel anytime in 2 clicks."
 
@@ -445,13 +447,13 @@ CryptoTrade Academy換算:
 実装:
   Landing Page Hero下:
     Comparison Table:
-    
+
     | 選択         | 結果                          |
     |--------------|-------------------------------|
     | Signal購読   | $150 CPA + $16K/年損失        |
     | 自己判断     | $16K/年損失(83%が経験)        |
     | Academy参加  | $80 CPA + $828/年(12ヶ月継続)|
-    
+
     → 選択 → 結果が10秒で理解可能
 
   Market別Mapping:
@@ -1209,7 +1211,7 @@ Year 1:
   Layer 4: Hopkins(Specific/Reason-Why/Test/No Hype)
 
 実装完了:
-  ✅ Strategic SSOT v4.0完全連動
+  ✅ Complete SSOT v5.1完全連動
   ✅ 6市場×セールス戦略完全定義
   ✅ Phase 1-3ロードマップ明確化
   ✅ 測定指標完全定義

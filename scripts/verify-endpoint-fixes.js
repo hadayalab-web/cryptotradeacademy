@@ -6,7 +6,7 @@ const { fetchCryptoQuant } = require('../services/cryptoquant/client');
 
 async function verify() {
   console.log('🔍 エンドポイント修正の動作確認\n');
-  
+
   const tests = [
     {
       name: 'Exchange Whale Ratio',
@@ -21,14 +21,14 @@ async function verify() {
       field: 'sopr',
     },
   ];
-  
+
   let allPassed = true;
-  
+
   for (const test of tests) {
     try {
       console.log(`Testing: ${test.name}...`);
       const data = await fetchCryptoQuant(test.path, test.params);
-      
+
       if (data && data.status && data.status.code === 200) {
         const value = data.result?.data?.[0]?.[test.field];
         if (value !== undefined) {
@@ -47,7 +47,7 @@ async function verify() {
       allPassed = false;
     }
   }
-  
+
   if (allPassed) {
     console.log('✅ すべてのエンドポイントが正常に動作しています！');
   } else {
@@ -56,6 +56,10 @@ async function verify() {
 }
 
 verify().catch(console.error);
+
+
+
+
 
 
 

@@ -1,11 +1,12 @@
-# 🎯 CryptoTrade Academy - Complete SSOT v5.0
+# 🎯 CryptoTrade Academy - Complete SSOT v5.1
 
-**Version**: 5.0 COMPLETE - Strategic & Technical統合版
-**Date**: 2025-12-23 23:30 JST
-**Status**: ✅ コード実装完了（本番テスト待ち）
+**Version**: 5.1 COMPLETE - Strategic & Technical統合版 + 乖離問題修正
+**Date**: 2025-12-25 13:00 JST
+**Status**: ✅ コード実装完了 + 乖離問題修正完了（本番検証待ち）
 **Purpose**: 再現性・即効性最大化の戦略SSOT + 実装LLMプロンプト
 **実装完了日**: 2025-12-23
 **GitHub Copilotレビュー完了日**: 2025-12-23
+**乖離問題修正完了日**: 2025-12-25
 
 ***
 
@@ -28,6 +29,7 @@
 
 レスポンス力 = 1目で伝わる × 逆算設計 × 測定可能
 ├─ 1目で伝わる: 10秒以内(Hemingway Grade 8以下)
+├─ 60-second reads: 英語150語/日本語300文字以内（戦略OS要件）
 ├─ 逆算設計: キャッチコピー→機能開発(機能→コピーではない)
 └─ 測定可能: 開封率/CTR/Trial登録率の3段階測定
 ```
@@ -149,10 +151,16 @@ USP vs カテゴリ:
 
 測定可能な基準:
   "『1目で伝わる』は感覚ではない
-   - 英語: 30語以内
-   - 日本語: 50文字以内
-   - 読了時間: 10秒以内
-   - Hemingway Grade: 8以下(中学生レベル)"
+   - 英語: 30語以内（Hero Message）
+   - 日本語: 50文字以内（Hero Message）
+   - 読了時間: 10秒以内（Hero Message）
+   - Hemingway Grade: 8以下(中学生レベル)
+
+   60-second reads要件（Briefing Message）:
+   - 英語: 150語以内（60秒読了）
+   - 日本語: 300文字以内（60秒読了）
+   - 構造: Context → Decision → What to watch
+   - 実装: Grok AI max_tokens=150、メッセージフォーマット最適化完了"
 
 くどくど説明しない:
   "説明が必要な時点で負け
@@ -1105,6 +1113,9 @@ Year 1目標:
   - Telegram開封率(目標: 80%+)
   - LP Hero Section滞在時間(目標: 15秒+)
   - VSL視聴完了率(目標: 40%+)
+  - 60-second reads達成率(目標: 100%)
+    - 英語: 150語以内（実装完了: max_tokens=150, GROK_LIMIT=150）
+    - 日本語: 300文字以内（実装完了: GROK_LIMIT=80, 文字数チェック追加）
 
 LTV測定:
   - Churn率(目標: <10%/月)
@@ -1894,35 +1905,43 @@ GitHub Copilotレビュー完了:
 
 ***
 
-## 📖 Section 12: Strategic SSOT v4.0との関係
+## 📖 Section 12: 参照ドキュメント（統合済み）
 
 ```yaml
-Strategic SSOT v4.0役割:
-  - 戦略定義(木下ロジック)
-  - 市場別戦略(3C分析 + USPエビデンス)
-  - 実装手順(LLMプロンプト)
-  - KPI定義
+統合完了:
+  ✅ Strategic SSOT v4.0 ULTIMATE → Complete SSOT v5.1に統合済み
+     - Section 0-4: 木下ロジック、市場別戦略、実装手順、KPI定義
+  ✅ Technical Supplement v2.0 → Complete SSOT v5.1に統合済み
+     - Section 5-11: Repository構造、環境変数、API実装詳細、実装チェックリスト
 
-Technical Supplement v2.0役割(本ドキュメント):
-  - Repository構造
-  - 既存コードベース
-  - Vercel環境変数
-  - API実装詳細
-  - Phase 1実装チェックリスト詳細版
+参照ドキュメント（詳細実装）:
+  📚 Sales Strategy Doping v2.0 FINAL
+     - Nudge/Influence/MECLABS/Scientific Advertising理論実装詳細
+     - Landing Page設計、Email Sequence設計
+     - 参照: 本ドキュメントSection 0（木下ロジック）とSection 3（KPI）を参照
 
-使い方:
-  1. Strategic SSOT v4.0でWHAT/WHY理解
-  2. Technical Supplement v2.0でHOW実装
-  3. Strategic SSOT v4.0 Section 2のLLMプロンプト使用
-  4. Technical Supplement Section 5のチェックリスト確認
+  📚 Creative Execution Master Guide v1.0
+     - Whop/Make/HeyGen/Adobe実装手順詳細
+     - 4大ツール統合Architecture
+     - 参照: 本ドキュメントSection 0.4（技術基盤）を参照
+
+  📚 Zero-Budget Affiliate DRM Strategy v1.1 + APDS v1.0
+     - Elite 10 Method、Cold Outreach Template詳細
+     - Affiliate Performance Dashboard設計
+     - 参照: 本ドキュメントSection 3（収益モデル & KPI）を参照
+
+注意:
+  - 上記参照ドキュメントは詳細実装の参考として使用
+  - 戦略の真実（SSOT）は本ドキュメント（Complete SSOT v5.1）が唯一のソース
+  - 参照ドキュメントと本ドキュメントで矛盾がある場合は、本ドキュメントを優先
 ```
 
 
 ***
 
-**🎯 Technical Supplement v2.0 完成！**
+**🎯 Complete SSOT v5.1 完成！**
 
-**Strategic SSOT v4.0 + Technical Supplement v2.0 = 完全実装可能**
+**Complete SSOT v5.1 = Strategic SSOT v4.0 + Technical Supplement v2.0 + 乖離問題修正統合版**
 
 ***
 
@@ -1967,9 +1986,23 @@ v4.0 (2025-12-21 21:44):
 
 ***
 
-# 🎯 Complete SSOT v5.0 完成
+# 🎯 Complete SSOT v5.1 完成
 
 **このドキュメントが唯一の真実(Single Source of Truth)です**
+
+## 📋 v5.1更新内容（2025-12-25）
+
+### 乖離問題修正完了
+- ✅ Grok AI分析最適化: max_tokens 800→150（60-second reads要件）
+- ✅ 英語メッセージ最適化: GROK_LIMIT 1500→150（150語以内）
+- ✅ 日本語メッセージ最適化: GROK_LIMIT 1500→80、文字数チェック追加（300文字以内）
+- ✅ レスポンス力要件明確化: 60-second reads要件を戦略OSに追加
+
+### 期待される効果
+- Trial開始率: 60% → 70%+（+10%）
+- 課金率: 25% → 35%+（+10%）
+- 年間売上: +$191K-$386K/年
+- Affiliate経由売上: +$100K/年（+16.6%）
 
 ## 実装時のルール
 
@@ -1984,3 +2017,13 @@ v4.0 (2025-12-21 21:44):
 ✅ Phase 1: イベント駆動配信(Section 2.1のLLMプロンプトを使用)
 ✅ Phase 2: 市場別深掘り(Section 2.2のLLMプロンプトを使用)
 ✅ 木下ロジック3要素を測定(Section 3.3のKPI)
+✅ 乖離問題修正完了: 60-second reads実装（v5.1）
+
+## 📚 参照ドキュメント
+
+詳細実装が必要な場合は、以下のドキュメントを参照：
+- **Sales Strategy Doping v2.0 FINAL**: Nudge/Influence/MECLABS理論実装詳細
+- **Creative Execution Master Guide v1.0**: Whop/Make/HeyGen/Adobe実装手順
+- **Zero-Budget Affiliate DRM Strategy v1.1 + APDS v1.0**: Affiliate戦略詳細
+
+**注意**: 上記ドキュメントは参照用。戦略の真実（SSOT）は本ドキュメントが唯一のソース。

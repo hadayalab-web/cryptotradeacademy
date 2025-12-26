@@ -44,3 +44,5 @@ GitHub Copilot Agentsが作成したPR #19の解決策を現在のブランチ�
 - PR #19: https://github.com/hadayalab-web/cryptosignal-ai/pull/19
 - ブランチ: `copilot/vercel-debug-includefiles-2025-12-25`
 
+
+

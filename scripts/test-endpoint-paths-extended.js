@@ -10,7 +10,7 @@ const tests = [
   { name: 'liquidations (derivatives-no-type)', path: '/btc/derivatives/liquidations', params: { window: 'day', limit: 1 } },
   { name: 'liquidations (market-data)', path: '/btc/market-data/liquidations', params: { window: 'day', limit: 1 } },
   { name: 'liquidations-total', path: '/btc/derivatives/liquidations-total', params: { window: 'day', limit: 1 } },
-  
+
   // NUPL - 複数のパターンを試す
   { name: 'nupl (flow-indicator)', path: '/btc/flow-indicator/nupl', params: { window: 'day', limit: 1 } },
   { name: 'nupl (market-indicator)', path: '/btc/market-indicator/nupl', params: { window: 'day', limit: 1 } },
@@ -20,7 +20,7 @@ const tests = [
 async function testEndpoint(test) {
   try {
     const data = await fetchCryptoQuant(test.path, test.params);
-    
+
     if (data && data.status && data.status.code === 200 && data.result?.data?.[0]) {
       console.log(`\n✅ SUCCESS: ${test.name}`);
       console.log(`   Path: ${test.path}`);
@@ -39,21 +39,21 @@ async function testEndpoint(test) {
 
 async function runTests() {
   console.log('🔍 Testing additional CryptoQuant API endpoint patterns...\n');
-  
+
   const results = [];
-  
+
   for (const test of tests) {
     const result = await testEndpoint(test);
     results.push(result);
     await new Promise(resolve => setTimeout(resolve, 500));
   }
-  
+
   const successful = results.filter(r => r.success);
-  
+
   console.log(`\n${'='.repeat(60)}`);
   console.log('📊 Results');
   console.log(`${'='.repeat(60)}`);
-  
+
   if (successful.length > 0) {
     console.log('\n✅ Working endpoints found:');
     successful.forEach(r => {
@@ -68,6 +68,10 @@ async function runTests() {
 }
 
 runTests().catch(console.error);
+
+
+
+
 
 
 

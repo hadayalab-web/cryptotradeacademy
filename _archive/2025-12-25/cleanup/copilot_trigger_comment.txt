@@ -1,0 +1,20 @@
+@copilot @github-copilot @github-copilot-actions
+
+**URGENT: Please analyze and fix Vercel deployment errors**
+
+All deployments are failing with `Cannot find module '../config/marketProfiles'` error.
+
+**Problem**: The `config/` folder is not being included in Vercel serverless function deployment bundle.
+
+**Files to review**:
+- `vercel.json` - Current configuration
+- `scripts/copy-config.js` - Build script (current approach)
+- `services/grok/client.js` - Module requiring config
+- `api/cron.js` - Entry point
+
+**What I need**:
+1. Analyze latest Vercel error logs
+2. Identify why build script approach failed
+3. Propose and implement a working solution
+
+This has been blocking deployments for 12+ hours. Please investigate immediately.

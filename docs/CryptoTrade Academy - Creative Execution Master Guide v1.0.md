@@ -1,10 +1,11 @@
 # 🎯 CryptoTrade Academy - Creative Execution Master Guide v1.0
 
 **Version**: 1.0 - Whop/Make/HeyGen/Adobe完全実装
-**Date**: 2025-12-21 22:54 JST
+**Date**: 2025-12-21 22:54 JST (Updated: 2025-12-25)
 **Status**: PRODUCTION READY
-**Purpose**: Strategic SSOT v4.0 + Sales Doping v2.0 → 4大ツールで完全実行
-**Parent**: Strategic SSOT v4.0 + Technical Supplement v2.0 + Sales Doping v2.0 FINAL
+**Purpose**: Complete SSOT v5.1 + Sales Doping v2.0 → 4大ツールで完全実行
+**Parent**: CryptoTrade Academy - Complete SSOT v5.1
+**Note**: このドキュメントは参照ドキュメントです。戦略の真実（SSOT）はComplete SSOT v5.1が唯一のソースです。
 
 ***
 
@@ -14,10 +15,11 @@
 
 ```yaml
 戦略階層:
-  Layer 0: Strategic SSOT v4.0(戦略OS)
+  Layer 0: Complete SSOT v5.1(戦略OS)
     - 木下ロジック: 商品力 × リーチ力 × レスポンス力
     - 3C分析: 6市場別戦略
     - USPエビデンス: 定量化完了
+    - 参照: Complete SSOT v5.1 Section 0-1（木下ロジック完全統合、市場別戦略）
 
   Layer 1: Sales Doping v2.0(理論実装)
     - Nudge/Influence/MECLABS/Hopkins統合
@@ -86,7 +88,7 @@
 
 ```yaml
 実装根拠:
-  - Strategic SSOT v4.0: 6市場×独立Whop Product
+  - Complete SSOT v5.1: 6市場×独立Whop Product（参照: Section 1）
   - Sales Doping v2.0: Default Effect(Monthly先頭)
   - Growth Engine v1.2: VSL+Whop統合LP
 
@@ -285,7 +287,7 @@ Educational purposes only. Not financial advice.
 戦略根拠:
   - Sales Doping v2.0: Feedback Loop(Trial Day 1 → 6h → 18h)
   - Growth Engine v1.2: Affiliate自動化(4 Workflows)
-  - Technical Supplement v2.0: Vercel Cron連携
+  - Complete SSOT v5.1: Vercel Cron連携（参照: Section 0.4、Section 5-11）
 
 Make.com Best Practices[web:64]:
   ✅ Webhook即時トリガー(Polling避ける)
@@ -521,7 +523,7 @@ Automation効果:
 ### 2.4 Workflow 3: Emergency Briefing Trigger(Vercel連携)
 
 ```yaml
-目的: イベント駆動配信トリガー(Technical Supplement v2.0連動)
+目的: イベント駆動配信トリガー(Complete SSOT v5.1連動 - 参照: Section 2.1)
 
 Architecture:
   Vercel Cron(15分監視)
@@ -1087,10 +1089,9 @@ Test 4: Short Clip CTA(Adobe/Premiere)
   ✅ Adobe: 18 Short Clips + 6 Thumbnails
 
 実装完了:
-  ✅ Strategic SSOT v4.0完全連動
+  ✅ Complete SSOT v5.1完全連動（参照: Section 0-1、Section 5-11）
   ✅ Sales Doping v2.0理論実装
   ✅ Growth Engine v1.2自動化
-  ✅ Technical Supplement v2.0技術基盤
 
 所要時間:
   Week 1: Whop(12時間)

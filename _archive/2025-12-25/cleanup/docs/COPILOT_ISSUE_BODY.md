@@ -1,0 +1,66 @@
+# [URGENT] Vercel deployment error - config/marketProfiles not found
+
+@copilot 以下のVercelデプロイエラーについて、レビュー・テスト・デバッグをお願いします。
+
+## 問題
+
+Vercelデプロイで`config/`フォルダが含まれず、`Cannot find module '../config/marketProfiles'`エラーが発生し続けています。
+JST 21:00配信が全滅し、24時間で100件のエラーが発生しています。
+
+## 確認してほしいファイル
+
+- `vercel.json` - 現在の設定: `includeFiles: "config/**"` が正しいか
+- `services/grok/client.js` - 4行目: `require('../config/marketProfiles')`
+- `config/marketProfiles.js` - Gitリポジトリには存在するが、デプロイに含まれない
+
+## レビュー依頼内容
+
+1. **`vercel.json`の設定が正しいか確認**
+   - `includeFiles: "config/**"`の構文が正しいか
+   - Vercel公式ドキュメントに準拠しているか
+   - 他の有効な構文オプションの検討
+
+2. **代替解決策の提案**
+   - `config/**/*`、`config/`などの構文変更
+   - ビルドスクリプトでのコピー
+   - ファイル構造の変更（`api/config/`に移動など）
+   - 推奨案とその理由、実装方法
+
+3. **テスト&デバッグの支援**
+   - ローカルでのVercelビルドテスト方法
+   - デプロイバンドルの内容確認方法
+   - エラー再現と修正の検証
+
+## エラー詳細
+
+```
+Cannot find module '../config/marketProfiles'
+Require stack:
+- /var/task/services/grok/client.js
+- /var/task/api/cron.js
+```
+
+## 修正履歴
+
+- コミット `9b3812f`: `includeFiles: "config/**"`を追加 → エラー継続
+- コミット `c1380d9`: 再度修正 → エラー継続
+- 3つの連続したデプロイが全て同じエラーを発生
+
+## 緊急度
+
+🔴 高（本番環境でサービス停止中）
+
+## 関連ドキュメント
+
+- 詳細分析: `docs/VERCEL_ERROR_ANALYSIS_JST2100_2025-12-25.md`
+- レビュー依頼詳細: `docs/COPILOT_REVIEW_REQUEST_VERCEL_ERROR_JST2100.md`
+- 依頼テキスト: `docs/COPILOT_AGENTS_REQUEST_TEXT.md`
+
+改善提案と具体的な修正方法、テスト方法を教えてください。
+
+
+
+
+
+
+

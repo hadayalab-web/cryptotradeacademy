@@ -8,11 +8,12 @@
 
 # 🚀 CryptoTrade Academy - Zero-Budget Affiliate DRM Strategy v1.0
 
-**Version**: 1.0 - 広告予算ゼロ・SNSゼロ対応完全版
-**Date**: 2025-12-21 23:31 JST
+**Version**: 1.1 + APDS v1.0 - 広告予算ゼロ・SNSゼロ対応完全版
+**Date**: 2025-12-21 23:31 JST (Updated: 2025-12-25)
 **Status**: PRODUCTION READY
 **Purpose**: アフィリエイター獲得Cold Outreach完全戦略
-**Parent**: Strategic SSOT v4.0 + Sales Doping v2.0
+**Parent**: CryptoTrade Academy - Complete SSOT v5.1
+**Note**: このドキュメントは参照ドキュメントです。戦略の真実（SSOT）はComplete SSOT v5.1が唯一のソースです。
 
 ***
 

@@ -5,7 +5,7 @@ const { execSync } = require('child_process');
 
 /**
  * Copilot Agentレビュー用のPR作成
- * 
+ *
  * 使用方法:
  *   node scripts/create-copilot-review-pr.js [issue-number]
  */
@@ -20,7 +20,7 @@ async function createCopilotReviewPR(issueNumber = 3) {
     // レビューブランチを作成
     const reviewBranch = `copilot-review-issue-${issueNumber}`;
     console.log(`\n🔀 Creating review branch: ${reviewBranch}`);
-    
+
     try {
       execSync(`git checkout -b ${reviewBranch}`, { stdio: 'inherit' });
     } catch (error) {
@@ -119,6 +119,10 @@ const issueNumber = process.argv[2] ? parseInt(process.argv[2], 10) : 3;
 createCopilotReviewPR(issueNumber);
 
 module.exports = { createCopilotReviewPR };
+
+
+
+
 
 
 
