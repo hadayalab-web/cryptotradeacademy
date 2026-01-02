@@ -32,21 +32,49 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   }
 
   const lines = [];
-  lines.push('🚨 *Alerta de trampa de Dr. Grok*');
-  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} confianza)`);
+  // Header - 緊急性の視覚的強調
+  lines.push('🚨🚨🚨 *ALERTA DE TRAMPA* 🚨🚨🚨');
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('');
-  lines.push(`💰 Precio BTC: *${formatUsd(priceUsd)}*`);
-  lines.push(`📊 Flujo neto de exchanges: *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`);
-  lines.push('');
-  lines.push(trapSide);
 
+  // TRAP INFORMATION (最優先情報を最上部に配置)
+  lines.push('⚠️ *TRAMPA DETECTADA*');
+  lines.push(`${trapSide} | *${trap?.confidence || 'UNKNOWN'}* confianza`);
+  lines.push(`*${trapLabel}*`);
+  lines.push('');
+
+  // ACTION REQUIRED (アクショナブルな情報を明確化)
+  lines.push('💡 *ACCIÓN REQUERIDA*');
+  if (trap?.side === 'SHORT') {
+    lines.push('• Reducir apalancamiento inmediatamente');
+    lines.push('• Evitar nuevas posiciones long');
+    lines.push('• Considerar tomar ganancias si estás en long');
+  } else if (trap?.side === 'LONG') {
+    lines.push('• Reducir apalancamiento inmediatamente');
+    lines.push('• Evitar nuevas posiciones short');
+    lines.push('• Monitorear acción del precio de cerca');
+  } else {
+    lines.push('• Reducir apalancamiento inmediatamente');
+    lines.push('• Evitar nuevas posiciones');
+    lines.push('• Monitorear acción del precio de cerca');
+  }
   if (trap?.note) lines.push(`• ${trap.note}`);
   if (trap?.hint) lines.push(`• ${trap.hint}`);
-
   lines.push('');
-  lines.push('🧬 *Visión de Dr. Grok*');
+
+  // MARKET DATA
+  lines.push('📊 *Datos del Mercado*');
+  lines.push(`💰 BTC: ${formatUsd(priceUsd)}`);
+  lines.push(`📊 Flujo: ${flowDir} ${flowAbs.toFixed(0)} BTC | MPI: ${(mpi ?? 0).toFixed(2)}`);
+  lines.push('');
+
+  // AI Analysis
+  lines.push('🧬 *Análisis AI*');
   lines.push(grokText);
   lines.push('');
+
+  // Footer
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('_Solo para fines educativos. No constituye asesoramiento financiero._');
 
   return lines.join('\n');

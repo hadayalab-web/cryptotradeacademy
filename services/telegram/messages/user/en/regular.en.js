@@ -83,61 +83,72 @@ function formatRegularBriefing({
   }
 
   const lines = [];
-  lines.push("📚 Dr. Grok's Market Leak");
-  lines.push(`Session Briefing @ ${ts}`);
+  // Header
+  lines.push('📚 *TrapShield Market Brief*');
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
-  lines.push(priceLine);
-  lines.push(flowLine);
-  lines.push(mpiLine);
-  lines.push(sentimentLine);
+  // TRADE SIGNAL (最優先情報を上部に配置)
+  lines.push('🎯 *TRADE SIGNAL*');
+  lines.push(`${dirEmoji} *${dirLabel}* | Entry: ${formatUsd(priceUsd)}`);
+  if (tpLine && slLine) {
+    const tp = tradeSignal?.tp ? formatUsd(tradeSignal.tp) : 'n/a';
+    const sl = tradeSignal?.sl ? formatUsd(tradeSignal.sl) : 'n/a';
+    lines.push(`TP: ${tp} | SL: ${sl}${rrLine ? ` | RR: ${tradeSignal.rr.toFixed(2)}` : ''}`);
+  }
+  if (modeLine) lines.push(modeLine);
   lines.push('');
 
+  // MARKET STATUS
+  lines.push('📊 *MARKET STATUS*');
   lines.push(scoreLine);
-
+  
   // Phase 2: trapScore表示（EN市場専用）
   if (trapScore != null) {
     const trapScoreLine = `🎯 Trap Score: ${Math.round(trapScore)}/100 ${trapScore >= 60 ? '🚨 HIGH RISK' : trapScore >= 40 ? '⚠️ MODERATE' : '✅ LOW'}`;
     lines.push(trapScoreLine);
+  }
+  
+  const trapStatusLine = trap?.isTrap
+    ? `🧨 Trap: ${trap.label || 'Potential trap'} (*${trap.confidence}* confidence)`
+    : '✅ Trap: None Detected';
+  lines.push(trapStatusLine);
+  lines.push('');
 
-    // Whale Ratio情報（EN市場専用）
-    // PR #14: whaleFlows の構造が { whaleRatio, isHighPressure, interpretation } に変更
-    if (whaleFlows && whaleFlows.whaleRatio != null) {
-      const whaleLine = `🐋 Whale Ratio: ${(whaleFlows.whaleRatio * 100).toFixed(1)}% ${whaleFlows.isHighPressure ? '(High Pressure)' : '(Normal)'}`;
-      lines.push(whaleLine);
-    }
-
-    // Liquidations情報（EN市場専用）
-    // PR #14: liquidations の構造が { longLiquidations, shortLiquidations, totalLiquidations } に変更
-    const totalLiquidations = typeof liquidations === 'number'
-      ? liquidations
-      : (liquidations?.totalLiquidations ?? 0);
-    if (totalLiquidations > 0) {
-      if (typeof liquidations === 'object' && liquidations.longLiquidations != null && liquidations.shortLiquidations != null) {
-        const liqLine = `💥 24h Liquidations: ${formatUsd(totalLiquidations)} (Long: ${formatUsd(liquidations.longLiquidations)}, Short: ${formatUsd(liquidations.shortLiquidations)})`;
-        lines.push(liqLine);
-      } else {
-        const liqLine = `💥 24h Liquidations: ${formatUsd(totalLiquidations)}`;
-        lines.push(liqLine);
-      }
+  // KEY METRICS
+  lines.push('📈 *Key Metrics*');
+  lines.push(priceLine);
+  lines.push(flowLine);
+  lines.push(mpiLine);
+  lines.push(sentimentLine);
+  
+  // Phase 2: 追加メトリクス（EN市場専用）
+  if (whaleFlows && whaleFlows.whaleRatio != null) {
+    const whaleLine = `🐋 Whale Ratio: ${(whaleFlows.whaleRatio * 100).toFixed(1)}% ${whaleFlows.isHighPressure ? '(High Pressure)' : '(Normal)'}`;
+    lines.push(whaleLine);
+  }
+  
+  const totalLiquidations = typeof liquidations === 'number'
+    ? liquidations
+    : (liquidations?.totalLiquidations ?? 0);
+  if (totalLiquidations > 0) {
+    if (typeof liquidations === 'object' && liquidations.longLiquidations != null && liquidations.shortLiquidations != null) {
+      const liqLine = `💥 24h Liquidations: ${formatUsd(totalLiquidations)} (Long: ${formatUsd(liquidations.longLiquidations)}, Short: ${formatUsd(liquidations.shortLiquidations)})`;
+      lines.push(liqLine);
+    } else {
+      const liqLine = `💥 24h Liquidations: ${formatUsd(totalLiquidations)}`;
+      lines.push(liqLine);
     }
   }
-
-  lines.push(trapLine);
   lines.push('');
 
-  lines.push('🎯 Trade Verdict');
-  lines.push(`${dirEmoji} Signal: ${dirLabel}`);
-  lines.push(entryLine);
-  if (modeLine) lines.push(modeLine);
-  if (tpLine) lines.push(tpLine);
-  if (slLine) lines.push(slLine);
-  if (rrLine) lines.push(rrLine);
-  lines.push('');
-
-  lines.push("🧬 Dr. Grok's Take (60-sec read)");
+  // AI Analysis
+  lines.push('🧬 *AI Analysis* (60-sec read)');
   lines.push(grokText); // Already limited to 150 words by GROK_LIMIT
   lines.push('');
+  
+  // Footer
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('⚠️ Educational only. Not financial advice.');
 
   return lines.join('\n');

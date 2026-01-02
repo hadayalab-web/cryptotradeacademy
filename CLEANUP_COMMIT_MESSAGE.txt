@@ -1,0 +1,9 @@
+年末のお掃除: 不要ファイルをアーカイブに移動
+
+- 一時ファイル（copilot_*.txt, pr_body_*.md, pr_copilot_comment.txt）をアーカイブに移動
+- 完了済みファイル（VERCEL_ERROR_*.md, COPILOT_*.md, など）をアーカイブに移動
+- バックアップファイル（client.js.bak）をアーカイブに移動
+- README.mdを追加（関連リポジトリへの参照を追加）
+
+すべてのファイルは _archive/2025-12-25/cleanup/ にアーカイブされています。
+

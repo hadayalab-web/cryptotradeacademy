@@ -141,11 +141,11 @@ export default async function handler(req, res) {
   console.log('🚀 Cron Job Started: Whale Monitor');
 
   try {
-    // 0. 時間スロット判定（4時間ごと）
+    // 0. 時間スロット判定（12時間ごと: 0時UTC, 12時UTC）
     const now = new Date();
     const utcHour = now.getUTCHours();
     const utcMinute = now.getUTCMinutes();
-    const REGULAR_HOURS = [0, 4, 8, 12, 16, 20];
+    const REGULAR_HOURS = [0, 12]; // TrapShield 1.0: 1日6回 → 2回に変更
     const isRegularSlot = REGULAR_HOURS.includes(utcHour) && utcMinute < 5;
     const force = req.query?.force === 'true';
 
@@ -299,8 +299,18 @@ export default async function handler(req, res) {
     }
 
     // After sentiment re-check, recompute emergency (trap may upgrade)
-    const finalNeedsEmergency =
-      trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
+    // TrapShield 1.0: 緊急配信条件を拡張
+    let finalNeedsEmergency = false;
+    
+    // 基本条件: trap HIGH（既存）
+    if (trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot) {
+      finalNeedsEmergency = true;
+    }
+    
+    // 拡張条件（cqDeepデータが利用可能な場合のみ適用）
+    // 注: cqDeepデータはイベント駆動システムで取得されるため、legacy modeでは適用されない場合がある
+    // この時点ではcqDeepデータがまだ利用可能でないため、基本条件のみを適用
+    // 拡張条件はイベント駆動システムのEMERGENCYトリガーで処理される
 
     // ===== Phase 1: イベント駆動配信判定（Strategic SSOT v4.0） =====
     let shouldSend = true; // デフォルト: 既存動作維持

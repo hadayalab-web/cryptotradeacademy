@@ -75,44 +75,61 @@ function formatRegularBriefing({
   }
 
   const lines = [];
-  lines.push('📚 Dr. Grok 마켓 리크');
-  lines.push(`세션 브리핑 @ ${ts}`);
+  // Header
+  lines.push('📚 *TrapShield 마켓 브리프*');
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
-  lines.push(priceLine);
-  lines.push(flowLine);
-  lines.push(mpiLine);
-  lines.push(sentimentLine);
+  // TRADE SIGNAL (最優先情報を上部に配置)
+  lines.push('🎯 *트레이드 시그널*');
+  lines.push(`${dirEmoji} *${dirLabel}* | 진입: ${formatUsd(priceUsd)}`);
+  if (tpLine && slLine) {
+    const tp = tradeSignal?.tp ? formatUsd(tradeSignal.tp) : 'n/a';
+    const sl = tradeSignal?.sl ? formatUsd(tradeSignal.sl) : 'n/a';
+    lines.push(`TP: ${tp} | SL: ${sl}${rrLine ? ` | RR: ${tradeSignal.rr.toFixed(2)}` : ''}`);
+  }
+  if (modeLine) lines.push(modeLine);
   lines.push('');
 
+  // MARKET STATUS
+  lines.push('📊 *시장 상황*');
   lines.push(scoreLine);
 
   // Phase 2: Kimchi Premium表示（KO市場専用）
   if (kimchiPremium != null) {
-    const premiumPct = kimchiPremium * 100; // Convert decimal to percentage
+    const premiumPct = kimchiPremium * 100;
     const premiumLine = `🥟 김치 프리미엄: ${premiumPct.toFixed(2)}% ${premiumPct > 5 ? '🚨 함정' : premiumPct > 3 ? '⚠️ 주의' : '✅ 정상'}`;
     lines.push(premiumLine);
-    if (upbitPrice) lines.push(`• 업비트: ₩${upbitPrice.toLocaleString('ko-KR')}`);
-    if (binancePrice) lines.push(`• 바이낸스: $${binancePrice.toLocaleString('en-US')}`);
   }
 
-  lines.push(trapLine);
+  const trapStatusLine = trap?.isTrap
+    ? `🧨 트랩: ${trap.label || '가능성'} (*${trap.confidence}* 신뢰도)`
+    : '✅ 트랩: 감지 없음';
+  lines.push(trapStatusLine);
   lines.push('');
 
-  lines.push('🎯 트레이드 verdict');
-  lines.push(`${dirEmoji} 시그널: ${dirLabel}`);
-  lines.push(entryLine);
-  if (modeLine) lines.push(modeLine);
-  if (tpLine) lines.push(tpLine);
-  if (slLine) lines.push(slLine);
-  if (rrLine) lines.push(rrLine);
+  // KEY METRICS
+  lines.push('📈 *주요 지표*');
+  lines.push(priceLine);
+  lines.push(flowLine);
+  lines.push(mpiLine);
+  lines.push(sentimentLine);
+  
+  // Phase 2: Kimchi Premium詳細（KO市場専用）
+  if (kimchiPremium != null && upbitPrice && binancePrice) {
+    lines.push(`• 업비트: ₩${upbitPrice.toLocaleString('ko-KR')}`);
+    lines.push(`• 바이낸스: $${binancePrice.toLocaleString('en-US')}`);
+  }
   lines.push('');
 
-  lines.push('🧬 Dr. Grok의 인사이트');
-  lines.push('아래 내용은 전략 아이디어일 뿐, 공식 True Bug 진입 시그널이 아닙니다. 본인 매매 플랜과 리스크 관리에 맞을 때만 참고하세요.');
+  // AI Analysis
+  lines.push('🧬 *AI 분석* (60초 읽기)');
   lines.push(grokText);
   lines.push('');
-  lines.push('교육 목적의 정보 제공일 뿐이며, 투자/재무 자문을 구성하지 않습니다.');
+  
+  // Footer
+  lines.push('━━━━━━━━━━━━━━━━━━');
+  lines.push('⚠️ 교육 목적의 정보 제공일 뿐이며, 투자/재무 자문을 구성하지 않습니다.');
 
   return lines.join('\n');
 }

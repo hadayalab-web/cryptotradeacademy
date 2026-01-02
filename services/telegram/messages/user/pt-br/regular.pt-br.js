@@ -72,34 +72,48 @@ function formatRegularBriefing({
   }
 
   const lines = [];
-  lines.push('📚 Market Leak do Dr. Grok');
-  lines.push(`Briefing da sessão @ ${ts}`);
+  // Header
+  lines.push('📚 *TrapShield Resumo do Mercado*');
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
+  // TRADE SIGNAL (最優先情報を上部に配置)
+  lines.push('🎯 *SINAL DE TRADING*');
+  lines.push(`${dirEmoji} *${dirLabel}* | Entrada: ${formatUsd(priceUsd)}`);
+  if (tpLine && slLine) {
+    const tp = tradeSignal?.tp ? formatUsd(tradeSignal.tp) : 'n/a';
+    const sl = tradeSignal?.sl ? formatUsd(tradeSignal.sl) : 'n/a';
+    lines.push(`TP: ${tp} | SL: ${sl}${rrLine ? ` | RR: ${tradeSignal.rr.toFixed(2)}` : ''}`);
+  }
+  if (modeLine) lines.push(modeLine);
+  lines.push('');
+
+  // MARKET STATUS
+  lines.push('📊 *ESTADO DO MERCADO*');
+  lines.push(scoreLine);
+  
+  const trapStatusLine = trap?.isTrap
+    ? `🧨 Armadilha: ${trap.label || 'Potencial'} (*${trap.confidence}* confiança)`
+    : '✅ Armadilha: Nenhuma detectada';
+  lines.push(trapStatusLine);
+  lines.push('');
+
+  // KEY METRICS
+  lines.push('📈 *Métricas Principais*');
   lines.push(priceLine);
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
   lines.push('');
 
-  lines.push(scoreLine);
-  lines.push(trapLine);
-  lines.push('');
-
-  lines.push('🎯 Veredito de trade');
-  lines.push(`${dirEmoji} Sinal: ${dirLabel}`);
-  lines.push(entryLine);
-  if (modeLine) lines.push(modeLine);
-  if (tpLine) lines.push(tpLine);
-  if (slLine) lines.push(slLine);
-  if (rrLine) lines.push(rrLine);
-  lines.push('');
-
-  lines.push('🧬 Visão do Dr. Grok');
-  lines.push('O conteúdo abaixo é uma ideia estratégica, não um sinal oficial de entrada True Bug. Siga apenas se estiver alinhado com o seu plano e gestão de risco.');
+  // AI Analysis
+  lines.push('🧬 *Análise AI* (leitura 60 seg)');
   lines.push(grokText);
   lines.push('');
-  lines.push('Apenas para fins educacionais. Não constitui recomendação ou aconselhamento financeiro.');
+  
+  // Footer
+  lines.push('━━━━━━━━━━━━━━━━━━');
+  lines.push('⚠️ Apenas para fins educacionais. Não constitui recomendação ou aconselhamento financeiro.');
 
   return lines.join('\n');
 }

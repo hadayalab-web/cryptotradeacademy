@@ -1,5 +1,5 @@
 // config/marketProfiles.js
-// CryptoTrade Academy - 市場別プロファイル設定
+// TrapShield - 市場別プロファイル設定
 // Strategic SSOT v4.0 ULTIMATE Section 1に基づく
 
 /**
@@ -11,8 +11,8 @@ function getMarketProfile(market) {
   const profiles = {
     EN: {
       persona: 'PRECISION_SNIPER',
-      brandName: 'CryptoTrade Academy',
-      tagline: 'Market Referee - Spot traps before you fall',
+      brandName: 'TrapShield',
+      tagline: 'Spot traps before you fall',
 
       algorithm: {
         HARD_SIGNAL_THRESH: 28,

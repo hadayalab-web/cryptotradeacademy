@@ -32,21 +32,49 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   }
 
   const lines = [];
-  lines.push('🚨 *Dr. Grok Trap Alert*');
-  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} confidence)`);
+  // Header - 緊急性の視覚的強調
+  lines.push('🚨🚨🚨 *TRAP ALERT* 🚨🚨🚨');
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('');
-  lines.push(`💰 BTC Price: *${formatUsd(priceUsd)}*`);
-  lines.push(`📊 Exchange Netflow: *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`);
-  lines.push('');
-  lines.push(trapSide);
 
+  // TRAP INFORMATION (最優先情報を最上部に配置)
+  lines.push('⚠️ *WHALE TRAP DETECTED*');
+  lines.push(`${trapSide} | *${trap?.confidence || 'UNKNOWN'}* confidence`);
+  lines.push(`*${trapLabel}*`);
+  lines.push('');
+
+  // ACTION REQUIRED (アクショナブルな情報を明確化)
+  lines.push('💡 *ACTION REQUIRED*');
+  if (trap?.side === 'SHORT') {
+    lines.push('• Reduce leverage immediately');
+    lines.push('• Avoid new long positions');
+    lines.push('• Consider taking profits if long');
+  } else if (trap?.side === 'LONG') {
+    lines.push('• Reduce leverage immediately');
+    lines.push('• Avoid new short positions');
+    lines.push('• Monitor price action closely');
+  } else {
+    lines.push('• Reduce leverage immediately');
+    lines.push('• Avoid new positions');
+    lines.push('• Monitor price action closely');
+  }
   if (trap?.note) lines.push(`• ${trap.note}`);
   if (trap?.hint) lines.push(`• ${trap.hint}`);
-
   lines.push('');
-  lines.push("🧬 *Dr. Grok's Take*");
+
+  // MARKET DATA
+  lines.push('📊 *Market Data*');
+  lines.push(`💰 BTC: ${formatUsd(priceUsd)}`);
+  lines.push(`📊 Flow: ${flowDir} ${flowAbs.toFixed(0)} BTC | MPI: ${(mpi ?? 0).toFixed(2)}`);
+  lines.push('');
+
+  // AI Analysis
+  lines.push('🧬 *AI Analysis*');
   lines.push(grokText);
   lines.push('');
+  
+  // Footer
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('_For educational purposes only. Not financial advice._');
 
   return lines.join('\n');

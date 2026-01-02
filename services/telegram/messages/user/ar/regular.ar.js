@@ -72,34 +72,48 @@ function formatRegularBriefing({
   }
 
   const lines = [];
-  lines.push('📚 تسريب السوق من Dr. Grok');
-  lines.push(`تقرير الجلسة @ ${ts}`);
+  // Header
+  lines.push('📚 *TrapShield ملخص السوق*');
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
+  // TRADE SIGNAL (最優先情報を上部に配置)
+  lines.push('🎯 *إشارة التداول*');
+  lines.push(`${dirEmoji} *${dirLabel}* | الدخول: ${formatUsd(priceUsd)}`);
+  if (tpLine && slLine) {
+    const tp = tradeSignal?.tp ? formatUsd(tradeSignal.tp) : 'n/a';
+    const sl = tradeSignal?.sl ? formatUsd(tradeSignal.sl) : 'n/a';
+    lines.push(`TP: ${tp} | SL: ${sl}${rrLine ? ` | RR: ${tradeSignal.rr.toFixed(2)}` : ''}`);
+  }
+  if (modeLine) lines.push(modeLine);
+  lines.push('');
+
+  // MARKET STATUS
+  lines.push('📊 *حالة السوق*');
+  lines.push(scoreLine);
+  
+  const trapStatusLine = trap?.isTrap
+    ? `🧨 الفخ: ${trap.label || 'محتمل'} (*${trap.confidence}* مستوى ثقة)`
+    : '✅ الفخ: لا يوجد';
+  lines.push(trapStatusLine);
+  lines.push('');
+
+  // KEY METRICS
+  lines.push('📈 *المؤشرات الرئيسية*');
   lines.push(priceLine);
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
   lines.push('');
 
-  lines.push(scoreLine);
-  lines.push(trapLine);
-  lines.push('');
-
-  lines.push('🎯 حكم التداول');
-  lines.push(`${dirEmoji} الإشارة: ${dirLabel}`);
-  lines.push(entryLine);
-  if (modeLine) lines.push(modeLine);
-  if (tpLine) lines.push(tpLine);
-  if (slLine) lines.push(slLine);
-  if (rrLine) lines.push(rrLine);
-  lines.push('');
-
-  lines.push('🧬 رؤية Dr. Grok');
-  lines.push('ما يلي فكرة استراتيجية، وليست إشارة دخول رسمية من True Bug. استخدمها فقط إذا كانت متوافقة مع خطتك وإدارة المخاطر الخاصة بك.');
+  // AI Analysis
+  lines.push('🧬 *تحليل AI* (قراءة 60 ثانية)');
   lines.push(grokText);
   lines.push('');
-  lines.push('لأغراض تعليمية فقط. لا يُعدّ هذا نصيحة مالية أو استثمارية.');
+  
+  // Footer
+  lines.push('━━━━━━━━━━━━━━━━━━');
+  lines.push('⚠️ لأغراض تعليمية فقط. لا يُعدّ هذا نصيحة مالية أو استثمارية.');
 
   return lines.join('\n');
 }

@@ -1,5 +1,5 @@
 // logic/eventTriggers.js
-// CryptoTrade Academy - イベント駆動配信システム用トリガー判定
+// TrapShield - イベント駆動配信システム用トリガー判定
 // 4種類のトリガー（EMERGENCY/WATCH/STANDBY_BREAK/REGULAR）を判定
 
 const { getHoursSinceLastUpdate } = require('../utils/stateManager');

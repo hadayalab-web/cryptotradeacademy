@@ -4,6 +4,8 @@
     "description": "AI-driven Crypto Signal Bot with Whale Analysis",
     "main": "api/cron.js",
     "scripts": {
+    "test:trapshield": "node scripts/test-trapshield-1.0.js",
+    "test:trapshield:formats": "node scripts/test-message-formats.js",
   "test": "echo \"Error: no test specified\" && exit 1",
   "start": "node scripts/monitor_process.js",
   "test:local": "node scripts/local_test.js",

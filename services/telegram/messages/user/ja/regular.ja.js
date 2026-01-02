@@ -85,45 +85,59 @@ function formatRegularBriefing({
   }
 
   const lines = [];
-  lines.push('📚 Dr. Grok Market Leak');
-  lines.push(`セッションブリーフィング @ ${ts}`);
+  // Header
+  lines.push('📚 *TrapShield マーケットブリーフ*');
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
-  lines.push(priceLine);
-  lines.push(flowLine);
-  lines.push(mpiLine);
-  lines.push(sentimentLine);
+  // TRADE SIGNAL (最優先情報を上部に配置)
+  lines.push('🎯 *トレードシグナル*');
+  lines.push(`${dirEmoji} *${dirLabel}* | エントリー: ${formatUsd(priceUsd)}`);
+  if (tpLine && slLine) {
+    const tp = tradeSignal?.tp ? formatUsd(tradeSignal.tp) : 'n/a';
+    const sl = tradeSignal?.sl ? formatUsd(tradeSignal.sl) : 'n/a';
+    lines.push(`TP: ${tp} | SL: ${sl}${rrLine ? ` | RR: ${tradeSignal.rr.toFixed(2)}` : ''}`);
+  }
+  if (modeLine) lines.push(modeLine);
   lines.push('');
 
+  // MARKET STATUS
+  lines.push('📊 *市場状況*');
   lines.push(scoreLine);
 
   // Phase 2: Risk/Reward表示（JA市場専用）
   if (riskReward != null) {
-    const rrLine = `⚖️ リスクリワード比: ${riskReward.toFixed(2)} ${riskReward >= 2.0 ? '✅ 良好' : riskReward >= 1.5 ? '⚠️ 注意' : '❌ 低い'}`;
-    lines.push(rrLine);
+    const rrStatusLine = `⚖️ リスクリワード比: ${riskReward.toFixed(2)} ${riskReward >= 2.0 ? '✅ 良好' : riskReward >= 1.5 ? '⚠️ 注意' : '❌ 低い'}`;
+    lines.push(rrStatusLine);
     if (nupl != null) {
-      lines.push(`• NUPL (含み損益): ${nupl.toFixed(3)}`);
+      lines.push(`• NUPL: ${nupl.toFixed(3)}`);
     }
     if (sopr30d != null) {
       lines.push(`• SOPR 30日平均: ${sopr30d.toFixed(3)}`);
     }
   }
 
-  lines.push(trapLine);
+  const trapStatusLine = trap?.isTrap
+    ? `🧨 トラップ: ${trap.label || '可能性'} (*${trap.confidence}* 信頼度)`
+    : '✅ トラップ: 検知なし';
+  lines.push(trapStatusLine);
   lines.push('');
 
-  lines.push('🎯 トレード・ヴァーディクト');
-  lines.push(`${dirEmoji} シグナル: ${dirLabel}`);
-  lines.push(entryLine);
-  if (modeLine) lines.push(modeLine);
-  if (tpLine) lines.push(tpLine);
-  if (slLine) lines.push(slLine);
-  if (rrLine) lines.push(rrLine);
+  // KEY METRICS
+  lines.push('📈 *主要指標*');
+  lines.push(priceLine);
+  lines.push(flowLine);
+  lines.push(mpiLine);
+  lines.push(sentimentLine);
   lines.push('');
 
-  lines.push('🧬 Dr. Grokの見立て (60秒読了)');
+  // AI Analysis
+  lines.push('🧬 *AI分析* (60秒読了)');
   lines.push(grokText); // Already limited to 80 chars by GROK_LIMIT
   lines.push('');
+
+  // Footer
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('⚠️ 教育目的のみ。投資助言ではありません。');
 
   const message = lines.join('\n');

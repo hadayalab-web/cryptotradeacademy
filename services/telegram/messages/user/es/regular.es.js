@@ -72,34 +72,48 @@ function formatRegularBriefing({
   }
 
   const lines = [];
-  lines.push('📚 Dr. Grok Market Leak');
-  lines.push(`Informe de sesión @ ${ts}`);
+  // Header
+  lines.push('📚 *TrapShield Resumen del Mercado*');
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
+  // TRADE SIGNAL (最優先情報を上部に配置)
+  lines.push('🎯 *SEÑAL DE TRADING*');
+  lines.push(`${dirEmoji} *${dirLabel}* | Entrada: ${formatUsd(priceUsd)}`);
+  if (tpLine && slLine) {
+    const tp = tradeSignal?.tp ? formatUsd(tradeSignal.tp) : 'n/a';
+    const sl = tradeSignal?.sl ? formatUsd(tradeSignal.sl) : 'n/a';
+    lines.push(`TP: ${tp} | SL: ${sl}${rrLine ? ` | RR: ${tradeSignal.rr.toFixed(2)}` : ''}`);
+  }
+  if (modeLine) lines.push(modeLine);
+  lines.push('');
+
+  // MARKET STATUS
+  lines.push('📊 *ESTADO DEL MERCADO*');
+  lines.push(scoreLine);
+  
+  const trapStatusLine = trap?.isTrap
+    ? `🧨 Trampa: ${trap.label || 'Potencial'} (*${trap.confidence}* confianza)`
+    : '✅ Trampa: Ninguna detectada';
+  lines.push(trapStatusLine);
+  lines.push('');
+
+  // KEY METRICS
+  lines.push('📈 *Métricas Clave*');
   lines.push(priceLine);
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
   lines.push('');
 
-  lines.push(scoreLine);
-  lines.push(trapLine);
-  lines.push('');
-
-  lines.push('🎯 Veredicto de trading');
-  lines.push(`${dirEmoji} Señal: ${dirLabel}`);
-  lines.push(entryLine);
-  if (modeLine) lines.push(modeLine);
-  if (tpLine) lines.push(tpLine);
-  if (slLine) lines.push(slLine);
-  if (rrLine) lines.push(rrLine);
-  lines.push('');
-
-  lines.push('🧬 Visión de Dr. Grok');
-  lines.push('Lo siguiente es una idea estratégica, no una señal oficial de entrada True Bug. Úsala solo si encaja con tu propio plan y gestión de riesgo.');
+  // AI Analysis
+  lines.push('🧬 *Análisis AI* (lectura 60 seg)');
   lines.push(grokText);
   lines.push('');
-  lines.push('Solo para fines educativos. No constituye asesoramiento financiero.');
+  
+  // Footer
+  lines.push('━━━━━━━━━━━━━━━━━━');
+  lines.push('⚠️ Solo para fines educativos. No constituye asesoramiento financiero.');
 
   return lines.join('\n');
 }

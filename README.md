@@ -1,63 +1,70 @@
-# CryptoTrade Academy
+# TrapShield
 
-CryptoTrade Academy - トレード教育プラットフォーム（Vercelデプロイ）
+**📦 プロダクト** - TrapShield
+
+BTCトレーダー向けのTrap検知プラットフォーム（Vercelデプロイ）
+
+## 🎯 位置づけ
+
+**cryptosignal-ai = プロダクト**
+
+- **役割**: コアシステム実装・実行（Vercelデプロイ、Telegram配信）
+- **責任範囲**: API統合、ロジック実装、データ処理、配信システム
+- **関連プロジェクト**:
+  - **戦略本部**: `hadayalab-automation-platform` - 戦略立案・ワークフロー設計
+  - **ナレッジベース**: `hadayalab-knowledge-base` - 理論文献・戦略文献の管理
 
 ## 🎯 概要
 
-CryptoTrade Academyは、BTCトレーダー向けの教育プラットフォームです。
+TrapShieldは、BTCトレーダー向けのTrap検知プラットフォームです。
 - **プラットフォーム**: Vercel（6市場独立デプロイメント）
 - **配信**: Telegram（イベント駆動配信）
-- **戦略**: Complete SSOT v5.1に基づく
+- **技術**: Node.js, CryptoQuant API, Grok AI, Telegram Bot API
 
-## 🔗 関連リポジトリ
+## 🔗 3プロジェクト連携構造
 
-このプロジェクトは以下のリポジトリと連携しています：
+### プロジェクト位置づけ
 
-### 1. hadayalab-knowledge-base
-**役割**: 戦略ドキュメント・理論文献の管理
+```
+🏛️ 戦略本部: hadayalab-automation-platform
+    ├── 📦 プロダクト: cryptosignal-ai（このプロジェクト）
+    └── 📚 ナレッジベース: hadayalab-knowledge-base
+```
 
-**参照ドキュメント**:
-- `CryptoTrade Academy - Complete SSOT v5.1.md`（本リポジトリのdocsフォルダにも配置）
-- `CryptoTrade Academy - Sales Strategy Doping v2.0 FINAL.md`
-- `CryptoTrade Academy - Creative Execution Master Guide v1.0.md`
-- `CryptoTrade Academy - Zero-Budget Affiliate DRM Strategy v1.1 + APDS v1.0.md`
+### 1. 🏛️ 戦略本部: hadayalab-automation-platform
+**位置づけ**: 戦略本部（戦略立案・ワークフロー設計）
 
-**パス**: `C:\Users\chiba\hadayalab-knowledge-base\literature\strategy\`
-
-**参照方法**: 戦略判断・理論実装の詳細が必要な場合は、knowledge-baseのドキュメントを参照してください。
-
----
-
-### 2. hadayalab-automation-platform
 **役割**: n8nワークフロー自動化（Trial Onboarding、Affiliate管理など）
-
-**関連ワークフロー**:
-- Trial Onboarding Automation
-- Emergency Briefing Trigger
-- Affiliate Auto-Management
-- Affiliate DRM Cold Outreach
 
 **パス**: `C:\Users\chiba\hadayalab-automation-platform\`
 
-**参照方法**: n8nワークフローの実装・変更はautomation-platformリポジトリで管理されます。
+**戦略ドキュメント**: `docs/cryptosignal-ai/strategy/` に移動済み
+
+**参照方法**: 戦略立案・ワークフロー設計は戦略本部を参照してください。
 
 ---
 
-## 📚 主要ドキュメント
+### 2. 📚 ナレッジベース: hadayalab-knowledge-base
+**位置づけ**: ナレッジベース（理論文献・戦略文献の管理）
 
-### 戦略ドキュメント（SSOT）
-- **[CryptoTrade Academy - Complete SSOT v5.1](./docs/CryptoTrade Academy - Complete SSOT v5.0.md)** - 唯一の真実（Single Source of Truth）
-  - 木下ロジック完全統合
-  - 市場別戦略（3C分析 + USPエビデンス）
-  - 実装チェックリスト & LLMプロンプト
-  - 収益モデル & KPI
+**役割**: 戦略ドキュメント・理論文献の管理
 
-### 参照ドキュメント
-- `CryptoTrade Academy - Sales Strategy Doping v2.0 FINAL.md` - Nudge/Influence/MECLABS理論実装詳細
-- `CryptoTrade Academy - Creative Execution Master Guide v1.0.md` - Whop/Make/HeyGen/Adobe実装手順
-- `CryptoTrade Academy - Zero-Budget Affiliate DRM Strategy v1.1 + APDS v1.0.md` - Affiliate戦略詳細
+**パス**: `C:\Users\chiba\hadayalab-knowledge-base\literature\strategy\`
 
-**注意**: 上記参照ドキュメントは詳細実装の参考として使用。戦略の真実（SSOT）はComplete SSOT v5.1が唯一のソース。
+**参照方法**: 理論文献・戦略文献はナレッジベースを参照してください。
+
+---
+
+## 🔄 プロジェクト間の連携フロー
+
+```
+📚 ナレッジベース (hadayalab-knowledge-base)
+    ↓ 戦略・理論の提供
+🏛️ 戦略本部 (hadayalab-automation-platform)
+    ↓ 戦略に基づくワークフロー設計
+📦 プロダクト (cryptosignal-ai) ← このプロジェクト
+    ↓ コアシステム実装・実行
+```
 
 ---
 
@@ -76,7 +83,10 @@ cryptosignal-ai/
 │   ├── core/            # 市場判定コアロジック
 │   ├── eventTriggers.js # イベント駆動トリガー判定
 │   └── tier1_btc/       # BTC分析ロジック
-├── docs/                # 戦略ドキュメント
+├── utils/               # ユーティリティ関数
+├── data/                # データファイル
+├── scripts/             # 開発・デバッグ用スクリプト
+├── docs/                # 開発・デバッグ用ドキュメント
 └── vercel.json          # Vercel設定（6デプロイメント）
 ```
 
@@ -95,21 +105,35 @@ Vercel Dashboardで以下の環境変数を設定：
 ### デプロイ
 Vercelに自動デプロイされます（GitHub連携）
 
+### ローカル開発
+```bash
+# 依存関係のインストール
+npm install
+
+# ローカルテスト
+npm run test:local
+
+# バックテスト
+npm run backtest:real
+npm run summary:real
+```
+
 ---
 
-## 📖 ドキュメント構造
+## 📖 開発・デバッグドキュメント
 
 ### 本リポジトリ（cryptosignal-ai）
-- **戦略SSOT**: `docs/CryptoTrade Academy - Complete SSOT v5.0.md`
-- **コード実装**: API、ロジック、サービス層
+- **開発ガイド**: `docs/CRYPTOQUANT_API_VERIFICATION_GUIDE.md`
+- **APIリファレンス**: `docs/cryptoquant-reference.md`
+- **バックテスト**: `docs/BACKTEST_IMPROVEMENT_PLAN.md`
+- **GitHub Copilot**: `docs/GITHUB_COPILOT_REVIEW_GUIDE.md`
 
-### hadayalab-knowledge-base
-- **戦略ドキュメント**: `literature/strategy/`
-- **理論文献**: `literature/marketing/`, `literature/strategy/`
-
-### hadayalab-automation-platform
-- **n8nワークフロー設計**: `n8n-workflows-design.md`
-- **ワークフロー実装**: `workflows/`, `workflow-*.json`
+### 戦略ドキュメント（hadayalab-automation-platform）
+戦略ドキュメントは `hadayalab-automation-platform/docs/cryptosignal-ai/strategy/` に移動済み：
+- `CryptoTrade Academy - Complete SSOT v5.0.md`
+- `CryptoTrade Academy - Sales Strategy Doping v2.0 FINAL.md`
+- `CryptoTrade Academy - Creative Execution Master Guide v1.0.md`
+- `CryptoTrade Academy - Zero-Budget Affiliate DRM Strategy v1.1 + APDS v1.0.md`
 
 ---
 
@@ -123,19 +147,15 @@ cryptosignal-ai (コアシステム実装)
 hadayalab-automation-platform (n8nワークフロー自動化)
 ```
 
-**フロー**:
-1. **knowledge-base**: 戦略ドキュメント（Complete SSOT v5.1）を参照
-2. **cryptosignal-ai**: Complete SSOT v5.1に基づいてコアシステムを実装
-3. **automation-platform**: Complete SSOT v5.1に基づいてn8nワークフローを実装
-
 ---
 
 ## 📋 開発フロー
 
-1. **戦略確認**: `hadayalab-knowledge-base` または `docs/CryptoTrade Academy - Complete SSOT v5.0.md` を参照
-2. **コード実装**: 本リポジトリ（cryptosignal-ai）で実装
-3. **ワークフロー実装**: `hadayalab-automation-platform` でn8nワークフローを実装
-4. **検証**: Vercelデプロイ & n8n Cloud実行
+1. **コード実装**: 本リポジトリ（cryptosignal-ai）で実装
+2. **ローカルテスト**: `npm run test:local`
+3. **バックテスト**: `npm run backtest:real`
+4. **デプロイ**: Vercelに自動デプロイ
+5. **ワークフロー連携**: `hadayalab-automation-platform` でn8nワークフローを実装
 
 ---
 
@@ -149,7 +169,6 @@ hadayalab-automation-platform (n8nワークフロー自動化)
 
 ## ⚠️ 注意事項
 
-- **SSOT**: Complete SSOT v5.1が唯一の真実（Single Source of Truth）
-- **参照ドキュメント**: 詳細実装の参考として使用（矛盾がある場合はComplete SSOT v5.1を優先）
-- **プロジェクト間連携**: 各リポジトリの役割を理解して使用してください
-
+- **デプロイ**: このリポジトリはデプロイに必要なコードのみを含みます
+- **戦略ドキュメント**: `hadayalab-automation-platform/docs/cryptosignal-ai/strategy/` を参照
+- **開発ドキュメント**: `docs/` フォルダ内の開発・デバッグ用ドキュメントを参照

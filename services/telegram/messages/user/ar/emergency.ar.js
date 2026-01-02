@@ -32,21 +32,49 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   }
 
   const lines = [];
-  lines.push('🚨 *تنبيه فخ من Dr. Grok*');
-  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} مستوى ثقة)`);
+  // Header - 緊急性の視覚的強調
+  lines.push('🚨🚨🚨 *تنبيه فخ* 🚨🚨🚨');
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('');
-  lines.push(`💰 سعر BTC: *${formatUsd(priceUsd)}*`);
-  lines.push(`📊 صافي تدفق البورصات: *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`);
-  lines.push('');
-  lines.push(trapSide);
 
+  // TRAP INFORMATION (最優先情報を最上部に配置)
+  lines.push('⚠️ *تم رصد فخ*');
+  lines.push(`${trapSide} | *${trap?.confidence || 'UNKNOWN'}* مستوى ثقة`);
+  lines.push(`*${trapLabel}*`);
+  lines.push('');
+
+  // ACTION REQUIRED (アクショナブルな情報を明確化)
+  lines.push('💡 *إجراءات موصى بها*');
+  if (trap?.side === 'SHORT') {
+    lines.push('• تقليل التعرض فوراً');
+    lines.push('• تجنب مراكز LONG جديدة');
+    lines.push('• النظر في جني الأرباح إذا كان لديك LONG');
+  } else if (trap?.side === 'LONG') {
+    lines.push('• تقليل التعرض فوراً');
+    lines.push('• تجنب مراكز SHORT جديدة');
+    lines.push('• مراقبة حركة السعر بعناية');
+  } else {
+    lines.push('• تقليل التعرض فوراً');
+    lines.push('• تجنب المراكز الجديدة');
+    lines.push('• مراقبة حركة السعر بعناية');
+  }
   if (trap?.note) lines.push(`• ${trap.note}`);
   if (trap?.hint) lines.push(`• ${trap.hint}`);
-
   lines.push('');
-  lines.push('🧬 *رؤية Dr. Grok*');
+
+  // MARKET DATA
+  lines.push('📊 *بيانات السوق*');
+  lines.push(`💰 BTC: ${formatUsd(priceUsd)}`);
+  lines.push(`📊 التدفق: ${flowDir} ${flowAbs.toFixed(0)} BTC | MPI: ${(mpi ?? 0).toFixed(2)}`);
+  lines.push('');
+
+  // AI Analysis
+  lines.push('🧬 *تحليل AI*');
   lines.push(grokText);
   lines.push('');
+
+  // Footer
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('_لأغراض تعليمية فقط. لا يُعدّ هذا نصيحة مالية أو استثمارية._');
 
   return lines.join('\n');

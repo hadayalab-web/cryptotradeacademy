@@ -32,21 +32,49 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   }
 
   const lines = [];
-  lines.push('🚨 *Alerta de armadilha do Dr. Grok*');
-  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} confiança)`);
+  // Header - 緊急性の視覚的強調
+  lines.push('🚨🚨🚨 *ALERTA DE ARMADILHA* 🚨🚨🚨');
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('');
-  lines.push(`💰 Preço do BTC: *${formatUsd(priceUsd)}*`);
-  lines.push(`📊 Fluxo líquido nas exchanges: *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`);
-  lines.push('');
-  lines.push(trapSide);
 
+  // TRAP INFORMATION (最優先情報を最上部に配置)
+  lines.push('⚠️ *ARMADILHA DETECTADA*');
+  lines.push(`${trapSide} | *${trap?.confidence || 'UNKNOWN'}* confiança`);
+  lines.push(`*${trapLabel}*`);
+  lines.push('');
+
+  // ACTION REQUIRED (アクショナブルな情報を明確化)
+  lines.push('💡 *AÇÃO NECESSÁRIA*');
+  if (trap?.side === 'SHORT') {
+    lines.push('• Reduzir alavancagem imediatamente');
+    lines.push('• Evitar novas posições long');
+    lines.push('• Considerar realizar lucros se estiver em long');
+  } else if (trap?.side === 'LONG') {
+    lines.push('• Reduzir alavancagem imediatamente');
+    lines.push('• Evitar novas posições short');
+    lines.push('• Monitorar ação do preço de perto');
+  } else {
+    lines.push('• Reduzir alavancagem imediatamente');
+    lines.push('• Evitar novas posições');
+    lines.push('• Monitorar ação do preço de perto');
+  }
   if (trap?.note) lines.push(`• ${trap.note}`);
   if (trap?.hint) lines.push(`• ${trap.hint}`);
-
   lines.push('');
-  lines.push('🧬 *Visão do Dr. Grok*');
+
+  // MARKET DATA
+  lines.push('📊 *Dados do Mercado*');
+  lines.push(`💰 BTC: ${formatUsd(priceUsd)}`);
+  lines.push(`📊 Fluxo: ${flowDir} ${flowAbs.toFixed(0)} BTC | MPI: ${(mpi ?? 0).toFixed(2)}`);
+  lines.push('');
+
+  // AI Analysis
+  lines.push('🧬 *Análise AI*');
   lines.push(grokText);
   lines.push('');
+
+  // Footer
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('_Apenas para fins educacionais. Não constitui recomendação ou aconselhamento financeiro._');
 
   return lines.join('\n');

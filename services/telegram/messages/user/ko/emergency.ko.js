@@ -32,21 +32,49 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   }
 
   const lines = [];
-  lines.push('🚨 *Dr. Grok 트랩 알림*');
-  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} 신뢰도)`);
+  // Header - 緊急性の視覚的強調
+  lines.push('🚨🚨🚨 *트랩 알림* 🚨🚨🚨');
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('');
-  lines.push(`💰 BTC 가격: *${formatUsd(priceUsd)}*`);
-  lines.push(`📊 거래소 순유입: *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`);
-  lines.push('');
-  lines.push(trapSide);
 
+  // TRAP INFORMATION (最優先情報を最上部に配置)
+  lines.push('⚠️ *트랩 검출*');
+  lines.push(`${trapSide} | *${trap?.confidence || 'UNKNOWN'}* 신뢰도`);
+  lines.push(`*${trapLabel}*`);
+  lines.push('');
+
+  // ACTION REQUIRED (アクショナブルな情報を明確化)
+  lines.push('💡 *권장 조치*');
+  if (trap?.side === 'SHORT') {
+    lines.push('• 레버리지를 즉시 감소');
+    lines.push('• 새로운 롱 포지션을 피하세요');
+    lines.push('• 롱 포지션이 있다면 수익 실현을 고려');
+  } else if (trap?.side === 'LONG') {
+    lines.push('• 레버리지를 즉시 감소');
+    lines.push('• 새로운 숏 포지션을 피하세요');
+    lines.push('• 가격 움직임을 주의 깊게 모니터링');
+  } else {
+    lines.push('• 레버리지를 즉시 감소');
+    lines.push('• 새로운 포지션을 피하세요');
+    lines.push('• 가격 움직임을 주의 깊게 모니터링');
+  }
   if (trap?.note) lines.push(`• ${trap.note}`);
   if (trap?.hint) lines.push(`• ${trap.hint}`);
-
   lines.push('');
-  lines.push('🧬 *Dr. Grok의 인사이트*');
+
+  // MARKET DATA
+  lines.push('📊 *시장 데이터*');
+  lines.push(`💰 BTC: ${formatUsd(priceUsd)}`);
+  lines.push(`📊 순유입: ${flowDir} ${flowAbs.toFixed(0)} BTC | MPI: ${(mpi ?? 0).toFixed(2)}`);
+  lines.push('');
+
+  // AI Analysis
+  lines.push('🧬 *AI 분석*');
   lines.push(grokText);
   lines.push('');
+
+  // Footer
+  lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('_교육 목적의 정보 제공일 뿐이며, 투자/재무 자문을 구성하지 않습니다._');
 
   return lines.join('\n');

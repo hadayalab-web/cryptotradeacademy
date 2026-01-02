@@ -2,6 +2,14 @@
 
 const OpenAI = require('openai');
 const { getMarketProfile } = require('../../api/config/marketProfiles');
+// TrapShield 1.0: GPT API統合（オプション）
+let openaiGPT = null;
+try {
+  openaiGPT = require('../openai/client');
+} catch (error) {
+  // GPT APIクライアントが存在しない場合は無視（フォールバック動作）
+  console.warn('[grok/client] OpenAI client not available, GPT API will not be used:', error.message);
+}
 
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
@@ -147,16 +155,31 @@ function formatCryptoQuantContext(cqDeep = {}, market = 'EN') {
 
 // ---- Market summary (Regular / Emergency) --------------------------
 /**
- * 市場分析（Grok AI）
+ * 市場分析（Grok AI または GPT API）
+ * TrapShield 1.0: GPT APIをフォールバックとして使用可能
  * @param {string} marketDataJson - 市場データ（JSON文字列）
  * @param {string} xSentimentJson - Xセンチメント（JSON文字列）
  * @param {string} lang - 言語コード
  * @param {string} market - 市場コード (EN/AR/KO/JA/ES/PT-BR)
  * @param {Object} cqDeep - CryptoQuant深掘りデータ（オプション）
- * @returns {Promise<string>} Grok分析結果
+ * @param {Object} options - オプション { useGPT: boolean } (デフォルト: false = Grok優先)
+ * @returns {Promise<string>} AI分析結果（GrokまたはGPT）
  */
-async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market = 'EN', cqDeep = null) {
-  if (!XAI_API_KEY) return 'HOLD - Grok offline.';
+async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market = 'EN', cqDeep = null, options = {}) {
+  if (!XAI_API_KEY) {
+    // Grok APIが利用できない場合、GPT APIフォールバックを試行
+    if (options?.useGPT && openaiGPT) {
+      console.warn('[analyzeMarket] Grok API offline, falling back to GPT API');
+      try {
+        const gptResult = await openaiGPT.analyzeMarketGPT(marketDataJson, xSentimentJson, lang, market, cqDeep);
+        return gptResult || 'HOLD - AI offline.';
+      } catch (gptError) {
+        logCompactError('analyzeMarketGPT (fallback)', gptError);
+        return 'HOLD - Grok offline.';
+      }
+    }
+    return 'HOLD - Grok offline.';
+  }
 
   const targetLang = (lang || 'en').toLowerCase();
   const marketCode = market || 'EN';
@@ -202,15 +225,41 @@ async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market
           content: userContent,
         },
       ],
-      max_tokens: 150, // Strategic OS requirement: 60-second reads (150 words max)
+      max_tokens: marketCode === 'JA' ? 100 : 150, // Strategic OS requirement: 60-second reads
       temperature: 0.6,
     });
 
     const text = completion?.choices?.[0]?.message?.content?.trim();
-    return text || 'HOLD - Grok offline.';
+    // TrapShield 1.0: GPT APIフォールバック可能な場合はnullを返す（オプション使用時のみ）
+    return text || (options?.useGPT && openaiGPT ? null : 'HOLD - Grok offline.');
   } catch (error) {
     logCompactError('analyzeMarket', error);
-    if (isRateLimitError(error)) return 'HOLD - rate limited';
+    if (isRateLimitError(error)) {
+      // レート制限時、GPT APIが利用可能ならフォールバック
+      if (options?.useGPT && openaiGPT) {
+        console.warn('[analyzeMarket] Grok rate limited, falling back to GPT API');
+        try {
+          const gptResult = await openaiGPT.analyzeMarketGPT(marketDataJson, xSentimentJson, lang, market, cqDeep);
+          return gptResult || 'HOLD - AI offline.';
+        } catch (gptError) {
+          logCompactError('analyzeMarketGPT (fallback)', gptError);
+          return 'HOLD - rate limited';
+        }
+      }
+      return 'HOLD - rate limited';
+    }
+    // その他のエラー時、GPT APIが利用可能ならフォールバック
+    if (options?.useGPT && openaiGPT) {
+      console.warn('[analyzeMarket] Grok error, falling back to GPT API');
+      try {
+        const gptResult = await openaiGPT.analyzeMarketGPT(marketDataJson, xSentimentJson, lang, market, cqDeep);
+        return gptResult || 'HOLD - AI offline.';
+      } catch (gptError) {
+        logCompactError('analyzeMarketGPT (fallback)', gptError);
+        // ここはcron側が catch して aiAnalysis=null に落とす想定でもOK
+        throw error; // 元のエラーをthrow
+      }
+    }
     // ここはcron側が catch して aiAnalysis=null に落とす想定でもOK
     throw error;
   }
