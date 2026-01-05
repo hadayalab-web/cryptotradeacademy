@@ -182,6 +182,10 @@ export default async function handler(req, res) {
     // 3. Base context (X Sentiment defaults)
     let xSentiment = { whaleBias: 0, retailFomo: 50, newsImpact: 0 };
 
+    // Phase1-Product: Trap RiskとNO TRADEの変数を初期化
+    let trapRiskResult = null;
+    let noTradeResult = null;
+
     let ctx = buildMarketContext({
       asset: 'BTC',
       priceUsd,
