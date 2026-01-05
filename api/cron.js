@@ -44,6 +44,10 @@ const { buildMarketContext, decideSignal, decideSignalAdvanced } = require('../l
 const { generateSignal } = require('../logic/tier1_btc/signalGen');
 const { detectTrap } = require('../logic/tier1_btc/trapDetector');
 const { normalizeSentiment } = require('../logic/tier1_btc/sentiment');
+// Phase1-Product: 新機能のインポート
+const { detectNoTrade } = require('../logic/tier1_btc/noTradeDetector');
+const { calculateTrapRisk } = require('../logic/tier1_btc/trapRiskScorer');
+const { generateExitMap } = require('../logic/tier1_btc/exitMap');
 
 const { analyzeMarket, analyzeXSentimentLive } = require('../services/grok/client');
 const { sendMessage } = require('../services/telegram/bot');
@@ -296,7 +300,84 @@ export default async function handler(req, res) {
       if (trapWithSentiment?.isTrap) {
         trap = trapWithSentiment;
       }
+
+      // Phase1-Product: Trap Riskスコアの計算（xSentiment取得後）
+      trapRiskResult = calculateTrapRisk({
+        priceChange: change24h,
+        volume: 0,
+        inflow,
+        mpi,
+        whaleBias: xSentiment.whaleBias,
+        retailFomo: xSentiment.retailFomo,
+        newsImpact: xSentiment.newsImpact,
+        market: getMarketCode(LANG),
+      });
+
+      // Phase1-Product: NO TRADEアラートの判定
+      noTradeResult = detectNoTrade({
+        priceUsd,
+        change24h,
+        inflow,
+        mpi,
+        whaleBias: xSentiment.whaleBias,
+        retailFomo: xSentiment.retailFomo,
+        volume: 0,
+        trapRisk: trapRiskResult.trapRiskScore,
+        market: getMarketCode(LANG),
+      });
+
+      // NO TRADE判定がHIGHの場合、シグナルをNONEに強制
+      if (noTradeResult.shouldNoTrade && noTradeResult.confidence === 'HIGH') {
+        tradeSignal = {
+          signal: 'NONE',
+          entry: priceUsd,
+          tp: null,
+          sl: null,
+          rr: null,
+        };
+        side = 'FLAT';
+        coreDecision.signal = 'NONE';
+        console.log(`[Phase1-Product] NO TRADE enforced: ${noTradeResult.recommendation}`);
+      }
     }
+
+    // Phase1-Product: Trap Riskスコアの計算（xSentiment取得前の場合のフォールバック）
+    if (!trapRiskResult || !noTradeResult) {
+      // xSentimentが取得できていない場合のフォールバック
+      trapRiskResult = calculateTrapRisk({
+        priceChange: change24h,
+        volume: 0,
+        inflow,
+        mpi,
+        whaleBias: 0,
+        retailFomo: 50,
+        newsImpact: 0,
+        market: getMarketCode(LANG),
+      });
+
+      noTradeResult = detectNoTrade({
+        priceUsd,
+        change24h,
+        inflow,
+        mpi,
+        whaleBias: 0,
+        retailFomo: 50,
+        volume: 0,
+        trapRisk: trapRiskResult.trapRiskScore,
+        market: getMarketCode(LANG),
+      });
+    }
+
+    // Phase1-Product: Exit Mapの生成
+    const exitMapResult = generateExitMap({
+      priceUsd,
+      signal: tradeSignal.signal,
+      entry: tradeSignal.entry,
+      tp: tradeSignal.tp,
+      sl: tradeSignal.sl,
+      trapRisk: trapRiskResult?.trapRiskScore || 0,
+      market: getMarketCode(LANG),
+    });
 
     // After sentiment re-check, recompute emergency (trap may upgrade)
     const finalNeedsEmergency =
@@ -469,7 +550,7 @@ export default async function handler(req, res) {
         trap,
         aiAnalysis,
         // Phase 2: 市場別データ追加
-        trapScore: cqDeep?.trapScore,
+        trapScore: cqDeep?.trapScore || trapRiskResult?.trapRiskScore,
         whaleFlows: cqDeep?.whaleFlows,
         liquidations: cqDeep?.liquidations,
         kimchiPremium: cqDeep?.kimchiPremium,
@@ -478,6 +559,10 @@ export default async function handler(req, res) {
         riskReward: cqDeep?.riskReward,
         nupl: cqDeep?.longTerm?.nupl,
         sopr30d: cqDeep?.longTerm?.sopr30d,
+        // Phase1-Product: 新機能データ追加
+        noTradeAlert: noTradeResult,
+        trapRisk: trapRiskResult,
+        exitMap: exitMapResult,
       });
       await sendMessage(regularText);
       sent += 1;
@@ -512,7 +597,7 @@ export default async function handler(req, res) {
         trap,
         aiAnalysis,
         // Phase 2: 市場別データ追加
-        trapScore: cqDeep?.trapScore,
+        trapScore: cqDeep?.trapScore || trapRiskResult?.trapRiskScore,
         whaleFlows: cqDeep?.whaleFlows,
         liquidations: cqDeep?.liquidations,
         kimchiPremium: cqDeep?.kimchiPremium,
@@ -521,6 +606,10 @@ export default async function handler(req, res) {
         riskReward: cqDeep?.riskReward,
         nupl: cqDeep?.longTerm?.nupl,
         sopr30d: cqDeep?.longTerm?.sopr30d,
+        // Phase1-Product: 新機能データ追加
+        noTradeAlert: noTradeResult,
+        trapRisk: trapRiskResult,
+        exitMap: exitMapResult,
       });
       await sendMessage(standbyBreakText);
       sent += 1;
@@ -541,7 +630,7 @@ export default async function handler(req, res) {
         trap,
         aiAnalysis: null, // WATCHはGrok呼び出しなし（コスト削減）
         // Phase 2: 市場別データ追加
-        trapScore: cqDeep?.trapScore,
+        trapScore: cqDeep?.trapScore || trapRiskResult?.trapRiskScore,
         whaleFlows: cqDeep?.whaleFlows,
         liquidations: cqDeep?.liquidations,
         kimchiPremium: cqDeep?.kimchiPremium,
@@ -550,6 +639,10 @@ export default async function handler(req, res) {
         riskReward: cqDeep?.riskReward,
         nupl: cqDeep?.longTerm?.nupl,
         sopr30d: cqDeep?.longTerm?.sopr30d,
+        // Phase1-Product: 新機能データ追加
+        noTradeAlert: noTradeResult,
+        trapRisk: trapRiskResult,
+        exitMap: exitMapResult,
       });
       await sendMessage(watchText);
       sent += 1;
@@ -569,7 +662,7 @@ export default async function handler(req, res) {
         trap,
         aiAnalysis: null, // WATCHはGrok呼び出しなし（コスト削減）
         // Phase 2: 市場別データ追加
-        trapScore: cqDeep?.trapScore,
+        trapScore: cqDeep?.trapScore || trapRiskResult?.trapRiskScore,
         whaleFlows: cqDeep?.whaleFlows,
         liquidations: cqDeep?.liquidations,
         kimchiPremium: cqDeep?.kimchiPremium,
@@ -578,6 +671,10 @@ export default async function handler(req, res) {
         riskReward: cqDeep?.riskReward,
         nupl: cqDeep?.longTerm?.nupl,
         sopr30d: cqDeep?.longTerm?.sopr30d,
+        // Phase1-Product: 新機能データ追加
+        noTradeAlert: noTradeResult,
+        trapRisk: trapRiskResult,
+        exitMap: exitMapResult,
       });
       await sendMessage(watchText);
       sent += 1;

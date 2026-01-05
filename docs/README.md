@@ -2,7 +2,14 @@
 
 ## Overview
 Automated BTC signal bot that combines on-chain whale data (CryptoQuant) and AI analysis (Grok) to generate high-conviction trading signals and trap alerts.[file:91][file:113]  
-Signals are evaluated every 5 minutes on Vercel Cron and delivered via Telegram in regular briefings and emergency alerts.[file:91][file:109]  
+Signals are evaluated every 15 minutes on Vercel Cron and delivered via Telegram in regular briefings and emergency alerts.[file:91][file:109]
+
+**Phase1-Product実装完了 (2026-01-05)**:
+- ✅ NO TRADEアラート機能（見送り判定の提供）
+- ✅ Trap Riskスコア定量化機能（0-100スコア）
+- ✅ Exit Map機能（分割利確/撤退条件の固定テンプレート）
+- ✅ 週次検証ログ公開機能
+- ✅ Notionメッセージ定期解析の自動化  
 
 ## Architecture
 - **api/cron.js**  
@@ -12,7 +19,11 @@ Signals are evaluated every 5 minutes on Vercel Cron and delivered via Telegram 
   - `logic/core/marketCore.js`: Builds market context and outputs core decision `{ score, regime, signal }`.[file:91]  
   - `logic/tier1_btc/signalGen.js`: Converts score+direction into concrete trade signal (side, TP, SL).[file:91]  
   - `logic/tier1_btc/trapDetector.js`: Detects FOMO/PANIC traps from price change, inflow, MPI, and sentiment.[file:91]  
-  - `logic/tier1_btc/sentiment.js`: Normalizes Fear&Greed label into internal sentiment.[file:91]  
+  - `logic/tier1_btc/sentiment.js`: Normalizes Fear&Greed label into internal sentiment.[file:91]
+  - `logic/tier1_btc/noTradeDetector.js`: NO TRADEアラート機能（見送り判定）[Phase1-Product]
+  - `logic/tier1_btc/trapRiskScorer.js`: Trap Riskスコア定量化機能（0-100スコア）[Phase1-Product]
+  - `logic/tier1_btc/exitMap.js`: Exit Map機能（分割利確/撤退条件）[Phase1-Product]
+  - `logic/tier1_btc/verificationLogger.js`: 検証ログ記録システム[Phase1-Product]  
 - **services/**  
   - `services/cryptoquant/client.js`: Thin HTTP client for CryptoQuant API using `CRYPTOQUANT_API_KEY`.[file:112]  
   - `services/cryptoquant/endpoints/btc.js`: BTC-specific helpers `getExchangeInflow`, `getMinerPositionIndex` used by `api/cron.js`.[file:113][file:91]  
@@ -22,9 +33,11 @@ Signals are evaluated every 5 minutes on Vercel Cron and delivered via Telegram 
 
 ## Deployment & Runtime
 - **Platform**: Vercel (Serverless Function + Vercel Cron).[file:109]  
-- **Cron schedule**: `vercel.json` configures `*/5 * * * *` to call `/api/cron`.[file:109]  
+- **Cron schedule**: `vercel.json` configures `*/15 * * * *` to call `/api/cron`.[file:109]  
 - **Regular briefings**: Sent every 4 hours when `utcHour ∈ [0,4,8,12,16,20]` and `utcMinute < 5` (or when `?force=true`).[file:91]  
-- **Emergency alerts**: Sent immediately when `trap.isTrap && trap.confidence === 'HIGH'` outside regular slots.[file:91]  
+- **Emergency alerts**: Sent immediately when `trap.isTrap && trap.confidence === 'HIGH'` outside regular slots.[file:91]
+- **Weekly reports**: Generated every Sunday 00:00 UTC via `/api/weekly-report`.[Phase1-Product]
+- **Notion analyzer**: Runs every 6 hours via `/api/notion-analyzer`.[Phase1-Product]  
 
 ## Local Development
 1. Install dependencies  
