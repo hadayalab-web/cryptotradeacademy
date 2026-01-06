@@ -1,0 +1,27 @@
+
+## <headers/>
+
+## PROJECT DOCUMENTATION & CONTEXT SYSTEM
+
+- When defining new product tuning requirements, summarize them in a specification document. The document should include the current implementation status, problems with the current implementation, and functional/non-functional requirements. See `docs/TUNING_SYSTEM_SPEC.md` for an example.
+- When redefining a product, summarize the changes in a specification document. This document should include the current product definition, the changes required, and the implementation design. See `docs/PRODUCT_REDEFINITION_SPEC.md` for an example.
+- When summarizing the product redefinition and plush up results, create a summary document outlining the achievements and expected effects. The summary should include the date of the discussion and the base document used. See `docs/PRODUCT_REDEFINITION_SUMMARY.md` for an example.
+- Implementation status should be recorded in a document. See `docs/IMPLEMENTATION_STATUS_TRAPSHIELD_1.0.md` for an example.
+- Test plans should be recorded in a document. See `docs/TEST_PLAN_TRAPSHIELD_1.0.md` for an example.
+- Deployment checklists should be recorded in a document. See `docs/DEPLOYMENT_CHECKLIST_TRAPSHIELD_1.0.md` for an example.
+- Test results should be recorded in a document. See `docs/TEST_RESULTS_TRAPSHIELD_1.0.md` for an example.
+- Grok model implementation status should be recorded in a document. See `docs/CURRENT_GROK_IMPLEMENTATION_STATUS.md` for an example.
+- When updating Grok models, follow the instructions in the guide. See `docs/GROK_MODEL_UPDATE_GUIDE.md` for an example.
+- When verifying `.env` file contents, record the checks in a dedicated document (e.g., `docs/ENV_FILE_VERIFICATION.md`).
+
+## TECH STACK
+
+## CODING STANDARDS
+
+## DEBUGGING
+
+## WORKFLOW & RELEASE RULES
+
+## AI CODING ASSISTANT RULES
+
+- When modifying `api/cron.js` to adjust the regular hours of the scheduled task, always update the comments to accurately reflect the new schedule.
