@@ -27,7 +27,7 @@
 2. **弱小トレーダーから脱却のチェンジ**: SmartMoney視点への転換、情報の非対称性の解消
 
 **具体的な価値**:
-- ✅ **80%勝率のSELL/SHORTシグナル**（SELL/SHORT専用品質ゲート適用）
+- ✅ **トレンド転換を捉える高精度シグナル**（全方位BUY/SELL/LONG/SHORT対応、信頼度スコアベース品質ゲート）
 - ✅ **BUY/LONGとSELL/SHORTの両方に対応**（全方向シグナル生成）
 - ✅ **市場トラップ検出**（Whale Dump、Retail FOMO Trap、Miner Selling、Liquidation Cascade）
 - ✅ **高解像度データ分析**（CryptoQuant + Grok X解析の統合）
@@ -81,9 +81,9 @@
    - 問題: 上昇局面で買い込んで高値掴み
    - 解決: 市場トラップ検出で事前に警告
 
-4. **「SELL/SHORTシグナルの品質に不安を感じている」トレーダー**
+4. **「シグナルの品質に不安を感じている」トレーダー**
    - 問題: 低品質シグナルで損失を出す
-   - 解決: 80%勝率チェック（`signalQualityGate.js`）で品質保証
+   - 解決: 信頼度スコアベースの統一品質ゲートで品質保証（全方位BUY/SELL/LONG/SHORT対応）
 
 5. **「待つ理由がわからず、無駄な取引をしてしまう」トレーダー**
    - 問題: 「いつ取引すべきか」が不明確
@@ -140,13 +140,14 @@
 - サンプル数が少なくて統計的信頼性がない
 
 **ChangeEdge BTCの解決**:
-- **シグナル品質ゲート**（`logic/core/signalQualityGate.js`）
-  - **80%勝率要件を強制**（`minWinRate = 0.80`）
-  - **最小サンプル数30件の要件**（統計的信頼性確保）
-  - SELL/SHORTシグナルに**のみ**適用（BUY/LONGには適用しない）
+- **信頼度スコアベースの統一品質ゲート**（`api/cron.js`）
+  - **MIN_CONF_FOR_TRADE要件**（デフォルト: 0.45、市場別・イベント別に調整可能）
+  - **全方位BUY/SELL/LONG/SHORTシグナルに統一適用**
+  - `coreDecision.confidence < MIN_CONF_FOR_TRADE`の場合はシグナルをブロック
 - **厳格なダイバージェンス条件**（`logic/core/divergenceDetector.js`）
-  - 高勝率条件（`isHighWinRateSellCondition`）: `confidence >= 0.75`, `multipleDivergences >= 3`
-  - 「上昇局面で大口が売り抜け＋小口が買い続け」パターンの検出
+  - 最高勝率条件: `enhancedConfidence >= 0.75`, `multipleDivergences >= 3`
+  - 通常高勝率条件: `enhancedConfidence >= 0.70`, `multipleDivergences >= 2`
+  - BUY/LONGとSELL/SHORTの両方で同じ基準を適用
   - 弱小トレーダー（リテール）を逆張りするシグナル生成
 
 #### 問題4: 待つ理由が不明確
@@ -190,7 +191,7 @@
 
 2. **「不利感」→「優位感」**
    - 高解像度データで情報格差を解消
-   - 80%勝率のSELL/SHORTシグナルで自信を持って取引できる
+   - トレンド転換を捉える高精度シグナルで自信を持って取引できる
 
 3. **「トレンド転換を見逃す」→「トレンド転換を先取り」**
    - 早期トレンド転換検出により、転換点を先取り
@@ -201,7 +202,7 @@
    - 「待つ理由」が可視化され、無駄な取引をしなくなる
 
 5. **「信頼と期待」**
-   - 80%勝率チェックで品質が保証される
+   - 信頼度スコアベースの統一品質ゲートで品質が保証される
    - 信頼度が数値で示され、判断根拠が透明化される
 
 ---
@@ -254,7 +255,7 @@
 
 **核心ロジック**:
 
-#### 2.1 80%勝率SELL/SHORT条件（`isHighWinRateSellCondition`）
+#### 2.1 高勝率SELL/SHORT条件（`isHighWinRateSellCondition`）
 
 **検出パターン**: 「上昇局面で大口が売り抜け＋小口が買い続け」
 
@@ -269,7 +270,7 @@
 
 **ターゲット**: 弱小トレーダー（リテール）を逆張り
 
-#### 2.2 80%勝率BUY/LONG条件（`isHighWinRateBuyCondition`）
+#### 2.2 高勝率BUY/LONG条件（`isHighWinRateBuyCondition`）
 
 **検出パターン**: 「下落局面で大口が買い集め＋小口が売り続け」（SELLの逆パターン）
 
@@ -299,22 +300,22 @@
 - `enhancedConfidence >= 0.75`、`multipleDivergences >= 3`で高勝率シグナル（最高勝率）
 - または `enhancedConfidence >= 0.70`、`multipleDivergences >= 2`で通常高勝率シグナル
 
-### 3. シグナル品質ゲート
+### 3. シグナル品質ゲート（信頼度スコアベース統一）
 
-**実装ファイル**: `logic/core/signalQualityGate.js`
+**実装ファイル**: `api/cron.js`（統一品質ゲートロジック）
 
-**機能**: `evaluateShortSellGate(metrics, signal)`
+**機能**: 全方位BUY/SELL/LONG/SHORTシグナルに対して信頼度スコアベースで統一判定
 
-**80%勝率要件チェック**（**SELL/SHORTシグナルにのみ適用**）:
-- `minWinRate = 0.80`（最小勝率80%）
-- `minSampleSize = 30`（最小サンプル数30件）
-- `metrics.windows.short_last_100.winRate >= 0.80` かつ `total >= 30` の場合のみシグナルを許可
-- 条件を満たさない場合は`pass: false`でブロック
+**信頼度スコアベース品質ゲート**（**全方位対応**）:
+- `MIN_CONF_FOR_TRADE`（デフォルト: 0.45）を最小信頼度として適用
+- `coreDecision.confidence < MIN_CONF_FOR_TRADE`の場合はシグナルをブロックし、`BUG_STANDBY`に変更
+- 市場別プロファイル（`config/marketProfiles.js`）で`MIN_CONF_FOR_TRADE`を上書き可能
+- イベントプロファイル（FOMC等）では`MIN_CONF_FOR_TRADE: 0.40`に緩和
 
-**BUY/LONGシグナルについて**:
-- BUY/LONGシグナルには品質ゲートは**適用されない**（`evaluateShortSellGate`はSELL/SHORT専用）
-- BUY/LONGはダイバージェンス検出ロジック内で`confidence >= 0.70`（高解像度では`0.75`）の条件で品質を保証
-- `isHighWinRateBuyCondition`で高勝率パターンを検出し、信頼度0.70-1.00の範囲で配信
+**高勝率シグナルの条件**（ダイバージェンス検出ロジック内）:
+- **最高勝率**: `enhancedConfidence >= 0.75` かつ `multipleDivergences >= 3`
+- **通常高勝率**: `enhancedConfidence >= 0.70` かつ `multipleDivergences >= 2`
+- これらの条件はBUY/LONGとSELL/SHORTの両方に適用
 
 ### 4. 市場トラップ検出
 
@@ -532,8 +533,8 @@
 4. トレンド転換検出
    └─ TrendReversalDetector - 早期検出
 
-5. シグナル品質ゲート（SELL/SHORTのみ）
-   └─ evaluateShortSellGate() - 80%勝率チェック
+5. シグナル品質ゲート（全方位対応、信頼度スコアベース統一）
+   └─ api/cron.js - MIN_CONF_FOR_TRADEベース品質ゲート
 
 6. メッセージ生成と配信
    ├─ formatRegularBriefing() - 定期ブリーフ
@@ -600,9 +601,9 @@
    - `TRAP_STANDBY`戦略（70%の時間待つ）
    - 「明確な優位性が出るまで待機。守りを優先。」
 
-3. **80%勝率のSELL/SHORTシグナル**
-   - 低品質シグナルは遮断される
-   - 届いたシグナルは高品質で信頼できる
+3. **トレンド転換を捉える高精度シグナル**
+   - 信頼度スコア未達のシグナルは遮断される
+   - 届いたシグナルは高信頼度で信頼できる
 
 4. **透明性と判断根拠の可視化**
    - 信頼度が数値で示される
@@ -743,14 +744,16 @@
 - **ユーザー向けメッセージ**: "Trap"（"Bug"から変更）
 - **内部コード**: `BUG_STANDBY`（識別子として維持）
 
-### シグナル品質要件
+### シグナル品質要件（信頼度スコアベース統一）
 
-- **SELL/SHORTシグナル**: 80%勝率チェック必須（`signalQualityGate.js`の`evaluateShortSellGate`で適用）
-  - 最小勝率80%、最小サンプル数30件の条件を満たす場合のみ配信
-- **BUY/LONGシグナル**: 品質ゲート適用なし（ダイバージェンス検出ロジック内で信頼度0.70以上で品質保証）
-  - `isHighWinRateBuyCondition`で高勝率パターンを検出
-  - 信頼度0.70-1.00の範囲で配信（高解像度では0.75以上）
-- **最小サンプル数**: SELL/SHORTのみ30件（統計的信頼性確保）、BUY/LONGは信頼度で制御
+- **全方位シグナル（BUY/SELL/LONG/SHORT）**: 信頼度スコアベース品質ゲート統一適用
+  - `coreDecision.confidence >= MIN_CONF_FOR_TRADE`（デフォルト: 0.45）
+  - 信頼度未達のシグナルはブロックされ、`BUG_STANDBY`に変更
+- **高勝率シグナル条件**（ダイバージェンス検出ロジック内）:
+  - **最高勝率**: `enhancedConfidence >= 0.75` かつ `multipleDivergences >= 3`
+  - **通常高勝率**: `enhancedConfidence >= 0.70` かつ `multipleDivergences >= 2`
+  - BUY/LONGとSELL/SHORTの両方で同じ基準を適用
+- **市場別・イベント別調整**: `config/marketProfiles.js`と`config/thresholds.js`で`MIN_CONF_FOR_TRADE`を上書き可能
 
 ---
 
