@@ -5,19 +5,19 @@
   ],
   "functions": {
     "api/cron.js": {
-      "includeFiles": ["config/**"]
+      "includeFiles": "config/**"
     },
     "api/prepare.js": {
-      "includeFiles": ["config/**"]
+      "includeFiles": "config/**"
     },
     "api/weekly-report.js": {
-      "includeFiles": ["config/**"]
+      "includeFiles": "config/**"
     },
     "api/analytics.js": {
-      "includeFiles": ["config/**"]
+      "includeFiles": "config/**"
     },
     "api/track.js": {
-      "includeFiles": ["config/**"]
+      "includeFiles": "config/**"
     }
   }
 }
