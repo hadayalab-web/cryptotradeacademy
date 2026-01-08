@@ -1,9 +1,10 @@
-# 🎯 SSOT ChangeEdge BTC - マーケティング戦略の正
+# 🎯 SSOT Trap Defense BTC - プロダクト+マーケティング戦略の正
 
-**Version**: 1.0 FINAL  
+**Version**: 2.0 FINAL  
 **作成日**: 2026-01-27  
-**Status**: ✅ マーケティング戦略確定版  
-**Purpose**: ChangeEdge BTC の完全統一SSOT（戦略・技術・価格・実装・メッセージング）
+**更新日**: 2026-01-27  
+**Status**: ✅ プロダクト+マーケティング戦略一体型SSOT確定版  
+**Purpose**: Trap Defense BTC の完全統一SSOT（戦略・技術・価格・実装・メッセージング）
 
 ---
 
@@ -11,55 +12,71 @@
 
 ### プロダクト概要
 
-- **プロダクト名**: **ChangeEdge BTC**
+- **プロダクト名**: **Trap Defense BTC**
 - **ブランド名**: **CryptoTradeAcademy**
 - **ドメイン**: **cryptotradeacademy.io**
-- **タグライン**: "Change the trend. Change your game. Get the edge."
+- **タグライン**: "70%の時間、何もするな。明確な優位性が出るまで防御。"
 - **Repository**: `github.com/hadayalab-web/cryptosignal-ai`
 - **プラットフォーム**: Vercel（6独立デプロイメント）
 - **販売戦略**: アフィリエイト展開のみ（広告展開なし）
 
-### 核心価値提案（USP）
+### 核心価値提案（3つのUSP）
 
-**ChangeEdge BTC は、トレーダーに「2つのチェンジ」を提供する**:
+**Trap Defense BTC は、3つの独自価値提案（USP）でブルーオーシャンを実現**:
 
-1. **トレンド転換のチェンジ**: 市場のトレンド転換を先取り検出（Trend Reversal Detection）
-2. **弱小トレーダーから脱却のチェンジ**: SmartMoney視点への転換、情報の非対称性の解消
+1. **USP1: Trap Defense Engine（トラップ防御エンジン）**
+   - CryptoQuantオンチェーンデータ + Grok Xセンチメント解析の統合
+   - 市場トラップ（Whale Dump、Retail FOMO Trap、Miner Selling、Liquidation Cascade）の先取り検出
+   - トラップアラート生成: `AVOID_LONG`、`AVOID_SHORT`、`STANDBY`
+   - 70%の時間は`TRAP_STANDBY`で待機 = 明確な優位性が出るまで防御
 
-**具体的な価値**:
-- ✅ **トレンド転換を捉える高精度シグナル**（全方位BUY/SELL/LONG/SHORT対応、信頼度スコアベース品質ゲート）
-- ✅ **BUY/LONGとSELL/SHORTの両方に対応**（全方向シグナル生成）
-- ✅ **市場トラップ検出**（Whale Dump、Retail FOMO Trap、Miner Selling、Liquidation Cascade）
-- ✅ **高解像度データ分析**（CryptoQuant + Grok X解析の統合）
-- ✅ **Trap Defense Academy戦略**（70%の時間は`TRAP_STANDBY`で待機 = 明確な優位性が出るまで防御）
+2. **USP2: Gemini Content Generation（Geminiコンテンツ生成）**
+   - **Gemini NanoBanana Pro**: 市場分析画像生成（ニュース番組の「Data Presentation」セクション）
+   - **Gemini Veo 3.1**: AIニュースアンカーの動画生成（ニュース番組の「Opening」セクション）
+   - 視覚的ストーリーテリングによるエンゲージメント向上
+
+3. **USP3: Dr. Grok's Psychological Support（Dr. Grokの心理的サポート）**
+   - リアルタイムXセンチメント分析 + 心理的サポート診断
+   - ニュース番組の「Commentator（コメンテーター）」としてレギュラー出演
+   - 癒し系コメンテーターとして感情エンゲージメントを提供
+
+**戦略的ポジショニング**:
+- ✅ **レッドオーシャン脱却**: 10,000+社が提供する「BUY/SELL/LONG/SHORT」シグナルから完全脱却
+- ✅ **ブルーオーシャン創造**: 「Trap Defense Academy」カテゴリで競合3社のみ
+- ✅ **精度/確度の追求**: 「勝率」ではなく「精度/確度」を磨き上げる
 
 ---
 
-## 💡 プロダクト名「ChangeEdge」の意味
+## 💡 プロダクト名「Trap Defense BTC」の意味
 
 ### 選定理由
 
-**ChangeEdge** は以下の2つの価値を直接的に表現する：
+**Trap Defense BTC** は以下の戦略的価値を直接的に表現する：
 
-1. **「Change（転換）」**: 
-   - トレンド転換の検出（`trendReversalDetector.js`, `divergenceDetector.js`）
-   - 弱小トレーダーから脱却（SmartMoney視点への転換）
+1. **「Trap（トラップ）」**: 
+   - 市場のトラップ（Whale Dump、Retail FOMO Trap、Miner Selling、Liquidation Cascade）を検出
+   - レッドオーシャン（10,000+社のBUY/SELL/LONG/SHORTシグナル）からの完全脱却
 
-2. **「Edge（優位性）」**: 
-   - SmartMoneyと同じ視点を獲得
-   - 情報の非対称性の解消
-   - 市場の裏側で起こっている「トラップ」を先取り検出
+2. **「Defense（防御）」**: 
+   - 70%の時間は`TRAP_STANDBY`で待機 = 明確な優位性が出るまで防御
+   - 資産を守る防御的アプローチ
+   - 「何もするな」という明確なメッセージ
+
+3. **「Academy（アカデミー）」**: 
+   - 新カテゴリ「Trap Defense Academy」の創造
+   - 競合3社のみのブルーオーシャン
+   - 教育・防御・待機の価値観を体現
 
 ### タグライン
 
-**EN市場**: "Change the trend. Change your game. Get the edge."
+**EN市場**: "70% of the time, do nothing. Defend until clear advantage emerges."
 
 **多言語対応**:
-- **JA**: "トレンド転換のチェンジ。弱小トレーダーから脱却のチェンジ。"
-- **KO**: "트렌드 전환의 체인지. 약소 트레이더 탈피의 체인지."
-- **ES**: "Cambia la tendencia. Cambia tu juego. Obtén la ventaja."
-- **PT-BR**: "Mude a tendência. Mude seu jogo. Obtenha a vantagem."
-- **AR**: "غير الاتجاه. غير لعبتك. احصل على الميزة."
+- **JA**: "70%の時間、何もするな。明確な優位性が出るまで防御。"
+- **KO**: "70%의 시간, 아무것도 하지 마라. 명확한 우위가 나타날 때까지 방어하라."
+- **ES**: "70% del tiempo, no hagas nada. Defiende hasta que surja una ventaja clara."
+- **PT-BR**: "70% do tempo, não faça nada. Defenda até que uma vantagem clara surja."
+- **AR**: "70% من الوقت، لا تفعل شيئًا. دافع حتى تظهر ميزة واضحة."
 
 ---
 
@@ -67,7 +84,7 @@
 
 ### 渇望するトレーダー像
 
-**ChangeEdge BTC を渇望するトレーダーは**:
+**Trap Defense BTC を渇望するトレーダーは**:
 
 1. **「トレンド転換を見逃して損失を出す」トレーダー**
    - 問題: トレンド転換のタイミングがわからない
@@ -81,13 +98,13 @@
    - 問題: 上昇局面で買い込んで高値掴み
    - 解決: 市場トラップ検出で事前に警告
 
-4. **「シグナルの品質に不安を感じている」トレーダー**
-   - 問題: 低品質シグナルで損失を出す
-   - 解決: 信頼度スコアベースの統一品質ゲートで品質保証（全方位BUY/SELL/LONG/SHORT対応）
+4. **「トラップアラートの品質に不安を感じている」トレーダー**
+   - 問題: 低品質アラートで損失を出す
+   - 解決: トラップアラート（`AVOID_LONG`、`AVOID_SHORT`、`STANDBY`）による精度/確度の追求
 
 5. **「待つ理由がわからず、無駄な取引をしてしまう」トレーダー**
    - 問題: 「いつ取引すべきか」が不明確
-   - 解決: `TRAP_STANDBY`モードで「70%の時間は待機」を明確化
+   - 解決: `TRAP_STANDBY`モードで「70%の時間は待機」を明確化（Trap Defense Academy戦略）
 
 ### 日常抱えている問題と課題（チューニング済みロジック・メッセージテンプレートに基づく）
 
@@ -98,7 +115,7 @@
 - リテールがFOMOで買い込んでいるタイミングがわからない
 - オンチェーンデータ（Exchange Netflow、Miner Position Index）とXセンチメントのズレが検出できない
 
-**ChangeEdge BTCの解決**:
+**Trap Defense BTCの解決**:
 - **高解像度CryptoQuantデータ取得**（`services/cryptoquant/highResolution.js`）
   - Exchange Netflowの複数時間窓分析（hour, 4hour, day）
   - Miner Position Index (MPI)の時系列トレンド分析
@@ -118,7 +135,7 @@
 - 下降トレンドが始まるタイミングがわからない
 - 複数の指標が矛盾していて判断できない
 
-**ChangeEdge BTCの解決**:
+**Trap Defense BTCの解決**:
 - **トレンド転換検出**（`logic/core/trendReversalDetector.js`）
   - 線形回帰によるトレンド分析
   - 加速度（変化率の変化率）の検出
@@ -132,23 +149,23 @@
   - "🔄 Multi-Timeframe Trend Analysis: {trendDetails}"
   - "📈 High-Resolution Divergence Signal: {signalDetails}"
 
-#### 問題3: SELL/SHORTシグナルの品質が低い
+#### 問題3: トラップアラートの精度向上
 
 **課題**:
-- 過去のSELL/SHORTシグナルで勝率が低い
-- 低品質シグナルで損失を出す
-- サンプル数が少なくて統計的信頼性がない
+- トラップ検出の精度が不十分
+- 低品質アラートで損失を出す
+- トラップタイプの判定基準が不明確
 
-**ChangeEdge BTCの解決**:
-- **信頼度スコアベースの統一品質ゲート**（`api/cron.js`）
-  - **MIN_CONF_FOR_TRADE要件**（デフォルト: 0.45、市場別・イベント別に調整可能）
-  - **全方位BUY/SELL/LONG/SHORTシグナルに統一適用**
-  - `coreDecision.confidence < MIN_CONF_FOR_TRADE`の場合はシグナルをブロック
+**Trap Defense BTCの解決**:
+- **トラップスコアベースの統一品質ゲート**（`logic/core/trapDetector.js`）
+  - **トラップスコア計算**: 複数の異常が同時に発生している状態を検出
+  - **トラップタイプ判定**: `FOMO_BULL_TRAP`、`PANIC_BEAR_TRAP`、`BULL_TRAP`、`BEAR_TRAP`等
+  - **アラート生成**: トラップタイプに基づいて`AVOID_LONG`、`AVOID_SHORT`、`STANDBY`を生成
 - **厳格なダイバージェンス条件**（`logic/core/divergenceDetector.js`）
-  - 最高勝率条件: `enhancedConfidence >= 0.75`, `multipleDivergences >= 3`
-  - 通常高勝率条件: `enhancedConfidence >= 0.70`, `multipleDivergences >= 2`
-  - BUY/LONGとSELL/SHORTの両方で同じ基準を適用
-  - 弱小トレーダー（リテール）を逆張りするシグナル生成
+  - 最高精度条件: `enhancedConfidence >= 0.75`, `multipleDivergences >= 3`
+  - 通常高精度条件: `enhancedConfidence >= 0.70`, `multipleDivergences >= 2`
+  - トラップ検出のための統一基準を適用
+  - 弱小トレーダー（リテール）の行動パターンを逆張りするトラップ検出
 
 #### 問題4: 待つ理由が不明確
 
@@ -157,10 +174,10 @@
 - 取引しない理由がわからない
 - 無駄な取引をして手数料を払う
 
-**ChangeEdge BTCの解決**:
+**Trap Defense BTCの解決**:
 - **Trap Defense Academy戦略**（`TRAP_STANDBY`モード）
   - 70%の時間は「明確な優位性が出るまで待機」
-  - トラップが検出された場合のみシグナル生成
+  - トラップが検出された場合のみアラート生成
 - **メッセージテンプレートでの表示**:
   - "🛡️ トラップスタンバイ (Defense Active)"
   - "Why standby? Change not yet clear. Protect capital. Wait for clear change."
@@ -168,22 +185,22 @@
 #### 問題5: 判断根拠が不透明
 
 **課題**:
-- シグナルの根拠がわからない
-- 信頼度が数値で示されない
+- トラップアラートの根拠がわからない
+- トラップスコアが数値で示されない
 - 複数の指標をどう統合しているか不明
 
-**ChangeEdge BTCの解決**:
-- **信頼度の数値表示**（`confidence: 0.0 ~ 1.0`）
+**Trap Defense BTCの解決**:
+- **トラップスコアの数値表示**（`trapScore: 0 ~ 100`）
 - **検出方式の明示**（Divergence Signal, Trend Reversal Signal等）
 - **複合ダイバージェンスの可視化**（複数のダイバージェンスが同時発生）
 - **メッセージテンプレートでの表示**:
-  - "🎯 Signal Confidence: {confidence}%"
+  - "🎯 Trap Score: {trapScore}/100"
   - "🔍 Detection Method: {method}"
   - "📊 Divergence Details: {details}"
 
 ### 問題解決後の感情の変化
 
-**ChangeEdge BTC を受け取ることで、トレーダーは以下の感情の変化を体験する**:
+**Trap Defense BTC を受け取ることで、トレーダーは以下の感情の変化を体験する**:
 
 1. **「無力感」→「主導権の回復」**
    - 情報の非対称性が解消され、SmartMoneyと同じ視点を獲得
@@ -191,7 +208,7 @@
 
 2. **「不利感」→「優位感」**
    - 高解像度データで情報格差を解消
-   - トレンド転換を捉える高精度シグナルで自信を持って取引できる
+   - トレンド転換を捉える高精度トラップアラートで自信を持って判断できる
 
 3. **「トレンド転換を見逃す」→「トレンド転換を先取り」**
    - 早期トレンド転換検出により、転換点を先取り
@@ -249,18 +266,18 @@
 - **Professionalプラン最適化**: 3秒間隔でリクエストを制御し、レート制限を回避
 - **エラーハンドリング**: リトライロジックで堅牢性を確保
 
-### 2. ダイバージェンス検出ロジック
+### 2. トラップ検出ロジック（ダイバージェンス検出ベース）
 
-**実装ファイル**: `logic/core/divergenceDetector.js`
+**実装ファイル**: `logic/core/trapDetector.js`, `logic/core/divergenceDetector.js`
 
 **核心ロジック**:
 
-#### 2.1 高勝率SELL/SHORT条件（`isHighWinRateSellCondition`）
+#### 2.1 AVOID_LONGアラート生成条件（`FOMO_BULL_TRAP` / `BULL_TRAP`検出）
 
 **検出パターン**: 「上昇局面で大口が売り抜け＋小口が買い続け」
 
 **厳格な条件**:
-- `confidence >= 0.75`（信頼度75%以上）
+- `trapScore >= 60`（トラップスコア60以上）
 - `multipleDivergences >= 3`（複数ダイバージェンスが3つ以上同時発生）
 - `onchainScore < -25`（オンチェーン指標が強い弱気）
 - `socialScore < -45`（Xセンチメントが強い弱気）
@@ -268,14 +285,16 @@
 - `exchangeNetflow > 2000`（取引所への流入 = 大口が売り）
 - `retailFomo > 70`（リテールFOMOが高い）
 
-**ターゲット**: 弱小トレーダー（リテール）を逆張り
+**アラート生成**: `FOMO_BULL_TRAP`または`BULL_TRAP`検出時 → `AVOID_LONG`アラート生成
 
-#### 2.2 高勝率BUY/LONG条件（`isHighWinRateBuyCondition`）
+**ターゲット**: 弱小トレーダー（リテール）がFOMOで買い込んでいる中、大口が売り抜けているパターンを検出
 
-**検出パターン**: 「下落局面で大口が買い集め＋小口が売り続け」（SELLの逆パターン）
+#### 2.2 AVOID_SHORTアラート生成条件（`PANIC_BEAR_TRAP` / `BEAR_TRAP`検出）
+
+**検出パターン**: 「下落局面で大口が買い集め＋小口が売り続け」
 
 **厳格な条件**:
-- `confidence >= 0.70`（信頼度70%以上、高解像度では`0.75`以上）
+- `trapScore >= 60`（トラップスコア60以上）
 - `multipleDivergences >= 2`（複数ダイバージェンスが2つ以上同時発生、高解像度では3つ以上）
 - `priceChange24h < 0`（価格が下落中 = 底値圏での大口の買い集め）
 - `exchangeNetflow < -2000`（取引所からの流出 = 大口が買い集め）
@@ -284,38 +303,47 @@
 - `retailFomo <= 50`（リテールFOMOが低い = リテールが売り）
 - `whaleBias >= 0.4`（クジラバイアスがプラス = 大口が買い）
 
+**アラート生成**: `PANIC_BEAR_TRAP`または`BEAR_TRAP`検出時 → `AVOID_SHORT`アラート生成
+
 **ターゲット**: 下落局面でリテールが売り続けている中、大口が底値圏で買い集めているパターンを検出
 
-#### 2.3 高解像度ダイバージェンス検出（`evaluateDivergenceSignalHighResolution`）
+#### 2.3 高解像度トラップ検出（`evaluateDivergenceSignalHighResolution`）
 
 **機能**:
-- 複数時間窓データを使用した強化検出
+- 複数時間窓データを使用した強化トラップ検出
 - 複数時間窓での整合性チェック
 
-**SELL/SHORTシグナル**:
-- `enhancedConfidence >= 0.75`、`multipleDivergences >= 3`で高勝率シグナル（最高勝率）
-- または `enhancedConfidence >= 0.70`、`multipleDivergences >= 2`で通常高勝率シグナル
+**AVOID_LONGアラート生成条件**:
+- `enhancedConfidence >= 0.75`、`multipleDivergences >= 3`で最高精度トラップ検出
+- または `enhancedConfidence >= 0.70`、`multipleDivergences >= 2`で通常高精度トラップ検出
+- トラップタイプ: `FOMO_BULL_TRAP`、`BULL_TRAP`
 
-**BUY/LONGシグナル**:
-- `enhancedConfidence >= 0.75`、`multipleDivergences >= 3`で高勝率シグナル（最高勝率）
-- または `enhancedConfidence >= 0.70`、`multipleDivergences >= 2`で通常高勝率シグナル
+**AVOID_SHORTアラート生成条件**:
+- `enhancedConfidence >= 0.75`、`multipleDivergences >= 3`で最高精度トラップ検出
+- または `enhancedConfidence >= 0.70`、`multipleDivergences >= 2`で通常高精度トラップ検出
+- トラップタイプ: `PANIC_BEAR_TRAP`、`BEAR_TRAP`
 
-### 3. シグナル品質ゲート（信頼度スコアベース統一）
+**STANDBYアラート生成条件**:
+- トラップが検出されていない、またはトラップスコアが低い場合
+- 明確な優位性が出るまで待機
 
-**実装ファイル**: `api/cron.js`（統一品質ゲートロジック）
+### 3. トラップアラート品質ゲート（トラップスコアベース統一）
 
-**機能**: 全方位BUY/SELL/LONG/SHORTシグナルに対して信頼度スコアベースで統一判定
+**実装ファイル**: `logic/core/trapDetector.js`, `api/cron.js`（統一品質ゲートロジック）
 
-**信頼度スコアベース品質ゲート**（**全方位対応**）:
-- `MIN_CONF_FOR_TRADE`（デフォルト: 0.45）を最小信頼度として適用
-- `coreDecision.confidence < MIN_CONF_FOR_TRADE`の場合はシグナルをブロックし、`BUG_STANDBY`に変更
-- 市場別プロファイル（`config/marketProfiles.js`）で`MIN_CONF_FOR_TRADE`を上書き可能
-- イベントプロファイル（FOMC等）では`MIN_CONF_FOR_TRADE: 0.40`に緩和
+**機能**: トラップアラート（`AVOID_LONG`、`AVOID_SHORT`、`STANDBY`）に対してトラップスコアベースで統一判定
 
-**高勝率シグナルの条件**（ダイバージェンス検出ロジック内）:
-- **最高勝率**: `enhancedConfidence >= 0.75` かつ `multipleDivergences >= 3`
-- **通常高勝率**: `enhancedConfidence >= 0.70` かつ `multipleDivergences >= 2`
-- これらの条件はBUY/LONGとSELL/SHORTの両方に適用
+**トラップスコアベース品質ゲート**:
+- `trapScore >= 60`（トラップスコア60以上）でアラート生成
+- `trapSeverity`が`'HIGH'`または`'CRITICAL'`の場合にアラート生成
+- `trapScore < 60`の場合は`STANDBY`アラートのみ生成
+- 市場別プロファイル（`config/marketProfiles.js`）で閾値を調整可能
+- イベントプロファイル（FOMC等）では閾値を緩和可能
+
+**高精度トラップ検出の条件**（ダイバージェンス検出ロジック内）:
+- **最高精度**: `enhancedConfidence >= 0.75` かつ `multipleDivergences >= 3`
+- **通常高精度**: `enhancedConfidence >= 0.70` かつ `multipleDivergences >= 2`
+- これらの条件は`AVOID_LONG`と`AVOID_SHORT`の両方のアラート生成に適用
 
 ### 4. 市場トラップ検出
 
@@ -327,14 +355,14 @@
 - **Miner Selling Trap**: マイナー売却トラップ
 - **Liquidation Cascade**: 清算カスケード
 
-**実装ファイル**: `services/cryptoquant/highResolution.js` - `detectMarketBugs()`
+**実装ファイル**: `logic/core/trapDetector.js` - `detectTrapDetection()`（旧: `services/cryptoquant/highResolution.js` - `detectMarketBugs()`）
 
 **機能**:
 - 複数のトラップパターンを統合的に検出
 - トラップスコア（0-100）を計算
 - `trapScore > 60`でEMERGENCY配信トリガー
 
-**用語統一**: ユーザー向けメッセージでは「Bug」→「Trap」に統一（`BUG_STANDBY`は内部コード識別子として維持）
+**用語統一**: 「Trap Detection」→「Trap Defense」に統一（防御的アプローチを強調）
 
 ### 5. トレンド転換検出
 
@@ -343,7 +371,7 @@
 **機能**:
 - `TrendReversalDetector`クラスによる早期検出
 - `FeatureEngine`による特徴量正規化
-- `shouldFireSellShort`ゲートで厳格な閾値適用
+- トラップアラート生成ゲートで厳格な閾値適用（内部ロジック: `shouldFireSellShort`）
 - リード/ラグ推定によるタイミング最適化
 
 ### 6. 市場コア意思決定ロジック
@@ -351,10 +379,10 @@
 **実装ファイル**: `logic/core/marketCore.js`
 
 **機能**:
-- `decideSignal()`: 統合シグナル決定
-  - `DivergenceDetector`のシグナルを最優先（`confidence >= 0.70`または`0.75`）
-  - `divergenceSignal`を返す
-- `decideSignalAdvanced()`: 高度なシグナル決定
+- `decideSignal()`: 統合トラップアラート決定
+  - `DivergenceDetector`の検出結果を最優先（`confidence >= 0.70`または`0.75`）
+  - `divergenceSignal`を返す（内部ロジック、ユーザーには`AVOID_LONG`/`AVOID_SHORT`/`STANDBY`として表示）
+- `decideSignalAdvanced()`: 高度なトラップアラート決定
 - 複数のスコア（Netflow, MPI, Social）を統合
 
 ### 7. 配信スケジューリング
@@ -368,7 +396,7 @@
 **イベント駆動配信**（`ENABLE_EVENT_DRIVEN=true`）:
 - **EMERGENCY**: `trapScore > 60`（即座配信）
 - **WATCH**: `score変動 > 30pt`（30分以内配信）
-- **STANDBY_BREAK**: 24時間以上`BUG_STANDBY`後の条件成立（即座配信）
+- **STANDBY_BREAK**: 24時間以上`TRAP_STANDBY`後の条件成立（即座配信）
 - **REGULAR**: 24時間強制配信（安心感のための定期配信）
 
 ---
@@ -383,41 +411,43 @@
 - `services/telegram/messages/user/{lang}/regular.{lang}.js`: 定期ブリーフ
 - `services/telegram/messages/user/{lang}/emergency.{lang}.js`: トラップアラート
 
-### 2. 定期ブリーフ（Regular Briefing）
+### 2. 定期ブリーフ（Regular Briefing）- ニュース番組構造
 
-**ヘッダー**: `📚 *ChangeEdge BTC* {Market Brief}`
+**ヘッダー**: `🌤️ *CryptoWeather Alert - Trap Defense Report*`
 
-**主要セクション**:
+**ニュース番組構造**（全6言語対応: EN/ES/AR/PT-BR/KO/JA）:
 
-1. **Market Trap Detection（市場トラップ検出）**
-   - `detectMarketBugs()`の結果を表示
-   - Whale Dump、Retail FOMO Trap、Miner Selling、Liquidation Cascade
+1. **Opening（オープニング）- GPT Reporter（GPTリポーター）**
+   - CryptoQuantデータ解析による「トラップニュース」を報じる
+   - 市場の現状を簡潔に伝える（15-30秒相当のテキスト）
 
-2. **Whale-Retail Divergence（クジラ-リテールダイバージェンス）**
-   - Whale BiasとRetail FOMOのズレを可視化
-   - `whaleRetailDivergence`の数値表示
+2. **Data Presentation（データプレゼンテーション）- Gemini NanoBanana Pro**
+   - 市場分析画像を生成・表示
+   - オンチェーンデータ、ダイバージェンス、トラップスコアを視覚化
 
-3. **Multi-Timeframe Trend Analysis（複数時間窓トレンド分析）**
-   - `highResCQ.netflow.timeframes`の表示
-   - 各時間窓（hour, 4hour, day）のトレンド、加速度、異常スコア
+3. **Commentator（コメンテーター）- Dr. Grok**
+   - Xセンチメント分析 + 心理的サポート診断
+   - 癒し系コメンテーターとして感情エンゲージメントを提供
+   - レギュラー出演者として番組に定着
 
-4. **High-Resolution Divergence Signal Details（高解像度ダイバージェンスシグナル詳細）**
-   - `divergenceSignal`の詳細表示
-   - 信頼度、検出方式、複合ダイバージェンス数
+4. **Closing（クロージング）**
+   - トラップアラート: `AVOID_LONG`、`AVOID_SHORT`、`STANDBY`
+   - 次の配信予定時刻
 
-5. **Signal Status（シグナルステータス）**
-   - `TRAP_STANDBY`: "🛡️ トラップスタンバイ (Defense Active)"
-   - `BUY/LONG` / `SELL/SHORT`: シグナル詳細
+**トラップアラート表示**:
+- ✅ `AVOID_LONG`: ロングを避けるべき（トラップ検出）
+- ✅ `AVOID_SHORT`: ショートを避けるべき（トラップ検出）
+- ✅ `STANDBY`: 待機（明確な優位性が出るまで防御）
+- ❌ `BUY/SELL/LONG/SHORT`: 完全削除（レッドオーシャン脱却）
 
 **用語統一**:
-- "Bug" → "Trap"（すべてのユーザー向けメッセージ）
-- "Market Bug Detection" → "Market Trap Detection"
-- "Overall Bug Score" → "Overall Trap Score"
-- "BUG STANDBY" → "トラップスタンバイ" / "TRAP STANDBY"
+- "Trap Detection" → "Trap Defense"（防御的アプローチを強調）
+- "Market Bug Detection" → "Market Trap Defense"
+- "BUG STANDBY" → "TRAP STANDBY" / "トラップスタンバイ"
 
 ### 3. 緊急アラート（Emergency Alert）
 
-**ヘッダー**: `🚨 *ChangeEdge BTC* Trap Alert`
+**ヘッダー**: `🚨 *Trap Defense BTC* Emergency Alert`
 
 **トリガー条件**:
 - `trapScore > 60`
@@ -431,25 +461,25 @@
 ### 4. 言語別カスタマイズ
 
 **EN市場**:
-- Tagline: "Change the trend. Change your game. Get the edge."
+- Tagline: "70% of the time, do nothing. Defend until clear advantage emerges."
 - Persona: `PRECISION_SNIPER`
 
 **JA市場**:
-- Tagline: "トレンド転換のチェンジ。弱小トレーダーから脱却のチェンジ。"
+- Tagline: "70%の時間、何もするな。明確な優位性が出るまで防御。"
 - Persona: `KAIZEN_OPTIMIZER`
 
 **KO市場**:
-- Tagline: "트렌드 전환의 체인지. 약소 트레이더 탈피의 체인지."
+- Tagline: "70%의 시간, 아무것도 하지 마라. 명확한 우위가 나타날 때까지 방어하라."
 - Persona: `KIMCHI_SNIPER`
 - Kimchi Premium監視: 3分ごと
 
 **AR市場**:
-- Tagline: "حافة التغيير - 70% من الوقت نحميك"
+- Tagline: "70% من الوقت، لا تفعل شيئًا. دافع حتى تظهر ميزة واضحة."
 - Persona: `SHIELD_WALL`
 - Islamic Finance準拠: 100%
 
 **ES/PT-BR市場**:
-- Tagline: "Cambia la tendencia. Cambia tu juego. Obtén la ventaja."
+- Tagline: "70% del tiempo, no hagas nada. Defiende hasta que surja una ventaja clara."
 - Persona: `VOZ_COMUN` / `VOZ_COMUM`
 - LATAM購買力対応価格設定
 
@@ -516,7 +546,7 @@
 - 1日4回 × 6言語 = 24回/日
 - Grok X解析: 24回/日 × 平均コスト = $105/月
 
-### シグナル生成フロー
+### トラップアラート生成フロー
 
 ```
 1. 高解像度データ取得
@@ -528,13 +558,13 @@
    └─ evaluateDivergenceSignalHighResolution() - 高解像度検出
 
 3. 市場トラップ検出
-   └─ detectMarketBugs() - Whale Dump, Retail FOMO Trap等
+   └─ detectTrapDetection() - Whale Dump, Retail FOMO Trap等
 
 4. トレンド転換検出
    └─ TrendReversalDetector - 早期検出
 
-5. シグナル品質ゲート（全方位対応、信頼度スコアベース統一）
-   └─ api/cron.js - MIN_CONF_FOR_TRADEベース品質ゲート
+5. トラップアラート品質ゲート（トラップスコアベース統一）
+   └─ api/cron.js - trapScore >= 60でアラート生成
 
 6. メッセージ生成と配信
    ├─ formatRegularBriefing() - 定期ブリーフ
@@ -547,32 +577,32 @@
 - `HARD_SIGNAL_THRESH: 24`
 - `SOFT_REGIME_THRESH: 18`
 - `MIN_CONF_FOR_TRADE: 0.45`
-- `BUG_STANDBY_BIAS: 10`
+- `TRAP_STANDBY_BIAS: 10`（旧: `BUG_STANDBY_BIAS`）
 
 **AR市場**:
 - `HARD_SIGNAL_THRESH: 18`
 - `SOFT_REGIME_THRESH: 12`
 - `MIN_CONF_FOR_TRADE: 0.4`
-- `BUG_STANDBY_BIAS: 65`
+- `TRAP_STANDBY_BIAS: 65`（旧: `BUG_STANDBY_BIAS`）
 
 **KO市場**:
 - `HARD_SIGNAL_THRESH: 22`
 - `SOFT_REGIME_THRESH: 16`
 - `MIN_CONF_FOR_TRADE: 0.50`
-- `BUG_STANDBY_BIAS: 15`
+- `TRAP_STANDBY_BIAS: 15`（旧: `BUG_STANDBY_BIAS`）
 - `KIMCHI_PREMIUM_THRESH: 0.05`（5%）
 
 **JA市場**:
 - `HARD_SIGNAL_THRESH: 23`
 - `SOFT_REGIME_THRESH: 17`
 - `MIN_CONF_FOR_TRADE: 0.52`
-- `BUG_STANDBY_BIAS: 18`
+- `TRAP_STANDBY_BIAS: 18`（旧: `BUG_STANDBY_BIAS`）
 
 **ES/PT-BR市場**:
 - `HARD_SIGNAL_THRESH: 24`
 - `SOFT_REGIME_THRESH: 17`
 - `MIN_CONF_FOR_TRADE: 0.50`
-- `BUG_STANDBY_BIAS: 15`
+- `TRAP_STANDBY_BIAS: 15`（旧: `BUG_STANDBY_BIAS`）
 
 ---
 
@@ -588,8 +618,9 @@
 **新カテゴリ**: **Trap Defense Academy**
 - 競合: 3（独自調査）
 - CPA: $50-80（70ドル削減）
-- 差別化: 完全独占（"70%の時間、何もするな"）
+- 差別化: 完全独占（"70%の時間、何もするな" + トラップアラートのみ）
 - LTV: $69 × 12ヶ月 = $828（4倍）
+- ポジショニング: レッドオーシャン（10,000+社のBUY/SELL/LONG/SHORT）からの完全脱却
 
 ### 核心価値提案（6つの柱）
 
@@ -601,9 +632,10 @@
    - `TRAP_STANDBY`戦略（70%の時間待つ）
    - 「明確な優位性が出るまで待機。守りを優先。」
 
-3. **トレンド転換を捉える高精度シグナル**
-   - 信頼度スコア未達のシグナルは遮断される
-   - 届いたシグナルは高信頼度で信頼できる
+3. **トラップアラートによる精度/確度の追求**
+   - `AVOID_LONG`、`AVOID_SHORT`、`STANDBY`アラートのみ生成
+   - BUY/SELL/LONG/SHORTシグナルは完全削除（レッドオーシャン脱却）
+   - 精度/確度を磨き上げる（「勝率」ではなく「精度/確度」）
 
 4. **透明性と判断根拠の可視化**
    - 信頼度が数値で示される
@@ -615,9 +647,11 @@
    - 資産を守れる
    - リテールFOMOトラップを回避できる
 
-6. **2つのチェンジ（Change）の価値**
-   - **トレンド転換のチェンジ**: トレンド転換を先取り
-   - **弱小トレーダーから脱却のチェンジ**: SmartMoney視点への転換、情報格差の解消
+6. **ニュース番組構造によるエンゲージメント向上**
+   - GPT Reporter（CryptoQuantデータ解析 + トラップニュース）
+   - Gemini NanoBanana Pro（市場分析画像）
+   - Dr. Grok（Xセンチメント + 心理的サポート、癒し系コメンテーター）
+   - 視覚的ストーリーテリングによる感情エンゲージメント
 
 ### 市場別ペルソナ
 
@@ -644,18 +678,18 @@
 
 ---
 
-## 📊 シグナルロジック最適化計画
+## 📊 トラップアラートロジック最適化計画
 
-### Phase 1: 緊急対応（勝率改善）
+### Phase 1: 緊急対応（精度/確度改善）
 
-1. **`divergenceDetector.js`の条件見直し**
-   - `isHighWinRateSellCondition`の閾値を厳格化
-   - `confidence >= 0.75`に引き上げ（0.70から）
-   - `multipleDivergences >= 3`に引き上げ（2から）
+1. **`trapDetector.js`の条件見直し**
+   - トラップ検出条件の閾値を厳格化
+   - `trapScore >= 60`でアラート生成
+   - `multipleDivergences >= 3`で最高精度トラップ検出
 
-2. **`marketCore.js`での優先順位明確化**
-   - DivergenceDetectorのシグナルを最優先
-   - 信頼度0.75以上のシグナルのみ配信
+2. **`api/cron.js`での優先順位明確化**
+   - TrapDetectorのアラートを最優先
+   - トラップスコア60以上のアラートのみ配信
 
 3. **サンプル数不足時の保守的動作**
    - `MIN_CONF_FOR_TRADE`を動的に0.70に引き上げ
@@ -667,7 +701,7 @@
    - `logic/core/confidenceCalculator.js`を新規作成
    - すべての検出器で使用
 
-2. **シグナル検出ロジックの統合**
+2. **トラップアラート検出ロジックの統合**
    - `api/cron.js`での検出器呼び出しを整理
    - 優先順位の明確化
 
@@ -702,10 +736,12 @@
 ### メッセージテンプレート
 
 - ✅ 6言語対応（EN, JA, KO, ES, PT-BR, AR）
-- ✅ ChangeEdge BTC反映（全言語のヘッダー更新）
-- ✅ "Bug" → "Trap"統一（全言語）
+- ✅ Trap Defense BTC反映（全言語のヘッダー更新）
+- ✅ "Trap Detection" → "Trap Defense"統一（全言語）
+- ✅ ニュース番組構造実装（Opening-GPT Reporter、Data Presentation-NanoBanana、Commentator-Dr. Grok、Closing）
+- ✅ BUY/SELL/LONG/SHORT完全削除、`AVOID_LONG`/`AVOID_SHORT`/`STANDBY`アラートのみ
 - ✅ 高解像度データ表示セクション追加
-- ✅ 市場トラップ検出セクション追加
+- ✅ 市場トラップ防御セクション追加
 - ✅ Whale-Retail Divergence表示追加
 - ✅ Multi-Timeframe Trend Analysis表示追加
 
@@ -713,8 +749,10 @@
 
 - ✅ 市場プロファイル設定（`config/marketProfiles.js`）
 - ✅ 価格設定決定（`docs/PRICING_PLAN_RECOMMENDATION.md`）
-- ✅ プロダクト名決定（ChangeEdge BTC）
+- ✅ プロダクト名決定（Trap Defense BTC）
 - ✅ ブランド・ドメイン決定（CryptoTradeAcademy, cryptotradeacademy.io）
+- ✅ ニュース番組構造実装（GPT Reporter、NanoBanana、Dr. Grokコメンテーター）
+- ✅ BUY/SELL/LONG/SHORT完全削除、トラップアラートのみ生成
 - ✅ 配信スケジュール設定（6時間ごと）
 
 ---
@@ -723,10 +761,10 @@
 
 ### プロダクト命名
 
-- **プロダクト名**: **ChangeEdge BTC**
+- **プロダクト名**: **Trap Defense BTC**
 - **ブランド名**: **CryptoTradeAcademy**
 - **ドメイン**: **cryptotradeacademy.io**
-- **タグライン**: "Change the trend. Change your game. Get the edge."
+- **タグライン**: "70%の時間、何もするな。明確な優位性が出るまで防御。"
 
 ### 価格プラン（EN市場）
 
@@ -741,18 +779,19 @@
 
 ### 用語統一
 
-- **ユーザー向けメッセージ**: "Trap"（"Bug"から変更）
-- **内部コード**: `BUG_STANDBY`（識別子として維持）
+- **ユーザー向けメッセージ**: "Trap Defense"（"Trap Detection"から変更、防御的アプローチを強調）
+- **内部コード**: `TRAP_STANDBY`（識別子として統一、旧: `BUG_STANDBY`）
 
-### シグナル品質要件（信頼度スコアベース統一）
+### シグナル戦略（トラップアラートのみ）
 
-- **全方位シグナル（BUY/SELL/LONG/SHORT）**: 信頼度スコアベース品質ゲート統一適用
-  - `coreDecision.confidence >= MIN_CONF_FOR_TRADE`（デフォルト: 0.45）
-  - 信頼度未達のシグナルはブロックされ、`BUG_STANDBY`に変更
-- **高勝率シグナル条件**（ダイバージェンス検出ロジック内）:
-  - **最高勝率**: `enhancedConfidence >= 0.75` かつ `multipleDivergences >= 3`
-  - **通常高勝率**: `enhancedConfidence >= 0.70` かつ `multipleDivergences >= 2`
-  - BUY/LONGとSELL/SHORTの両方で同じ基準を適用
+- **トラップアラート生成**: `AVOID_LONG`、`AVOID_SHORT`、`STANDBY`のみ
+  - `AVOID_LONG`: ロングを避けるべき（トラップ検出）
+  - `AVOID_SHORT`: ショートを避けるべき（トラップ検出）
+  - `STANDBY`: 待機（明確な優位性が出るまで防御）
+- **BUY/SELL/LONG/SHORTシグナル**: 完全削除（レッドオーシャン脱却）
+- **精度/確度の追求**: 「勝率」ではなく「精度/確度」を磨き上げる
+- **信頼度スコアベース品質ゲート**: `coreDecision.confidence >= MIN_CONF_FOR_TRADE`（デフォルト: 0.45）
+  - 信頼度未達の場合は`TRAP_STANDBY`に変更
 - **市場別・イベント別調整**: `config/marketProfiles.js`と`config/thresholds.js`で`MIN_CONF_FOR_TRADE`を上書き可能
 
 ---
@@ -767,9 +806,9 @@
    - 年額プランを$588に設定
    - アフィリエイター報酬率の設定（1か月: 50%, 3か月: 45%, 1年: 40%）
 
-2. **Phase 1: シグナルロジック最適化**
-   - `divergenceDetector.js`の条件見直し
-   - `marketCore.js`での優先順位明確化
+2. **Phase 1: トラップアラートロジック最適化**
+   - `trapDetector.js`の条件見直し
+   - `api/cron.js`での優先順位明確化
    - サンプル数不足時の保守的動作
 
 ### 優先度: 中
@@ -807,4 +846,21 @@
 
 **最終更新**: 2026-01-27  
 **次回レビュー**: マーケティング展開開始前  
-**Status**: ✅ マーケティング戦略確定 - 実装準備完了
+**Status**: ✅ プロダクト+マーケティング戦略一体型SSOT確定 - 実装準備完了
+
+---
+
+## 📝 更新履歴
+
+### Version 2.0 (2026-01-27)
+- プロダクト名変更: "ChangeEdge BTC" → "Trap Defense BTC"
+- ブランド名: "CryptoTradeAcademy"（変更なし）
+- BUY/SELL/LONG/SHORT完全削除、トラップアラート（`AVOID_LONG`/`AVOID_SHORT`/`STANDBY`）のみ生成
+- ニュース番組構造実装（GPT Reporter、NanoBanana、Dr. Grokコメンテーター）
+- 3つのUSP最新定義反映（USP1: Trap Defense、USP2: Gemini Content、USP3: Dr. Grok）
+- "Trap Detection" → "Trap Defense"統一（防御的アプローチを強調）
+- タグライン更新（全6言語対応）
+- カテゴリ創造「Trap Defense Academy」戦略統合
+
+### Version 1.0 (2026-01-27)
+- 初版作成（ChangeEdge BTCとして）

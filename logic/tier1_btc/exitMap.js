@@ -9,7 +9,7 @@
  * 
  * @param {Object} ctx - 市場コンテキスト
  * @param {number} ctx.priceUsd - 現在価格
- * @param {string} ctx.signal - シグナル (BUY/SELL/NONE)
+ * @param {string} ctx.signal - シグナル (BUY/SELL/NONE) - 注: BUY/SELLは完全削除、'NONE'のみ
  * @param {number} ctx.entry - エントリー価格
  * @param {number} ctx.tp - Take Profit価格
  * @param {number} ctx.sl - Stop Loss価格
@@ -45,9 +45,9 @@ function generateExitMap(ctx = {}) {
   const slPrice = Number(sl);
   const currentPrice = Number(priceUsd);
 
-  // ポジション方向の判定
-  const isLong = signal === 'BUY';
-  const isShort = signal === 'SELL';
+  // ポジション方向の判定（BUY/SELLは完全削除のため常にfalse）
+  const isLong = false; // BUY/SELLは完全削除
+  const isShort = false; // BUY/SELLは完全削除
 
   // 現在のポジション状態
   let positionStatus = 'NEUTRAL';

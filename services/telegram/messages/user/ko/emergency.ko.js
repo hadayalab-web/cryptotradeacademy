@@ -11,12 +11,8 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowAbs = Math.abs(inflow || 0);
 
   const trapLabel = trap?.label || 'Whale Trap';
-  const trapSide =
-    trap?.side === 'SHORT'
-      ? '🔻 SHORT 포지션 쪽 트랩'
-      : trap?.side === 'LONG'
-        ? '🔺 LONG 포지션 쪽 트랩'
-        : '⚠️ 시장에서 트랩이 감지되었습니다.';
+  // BUY/SELL/LONG/SHORT 완전 삭제 - 트랩 감지만 표시
+  const trapSide = '⚠️ 시장에서 트랩이 감지되었습니다.';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);

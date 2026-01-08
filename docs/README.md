@@ -1,4 +1,4 @@
-﻿# WhaleShield (CryptoSignal AI)
+# WhaleShield (CryptoSignal AI)
 
 ## Overview
 Automated BTC signal bot that combines on-chain whale data (CryptoQuant) and AI analysis (Grok) to generate high-conviction trading signals and trap alerts.[file:91][file:113]  
@@ -8,8 +8,7 @@ Signals are evaluated every 15 minutes on Vercel Cron and delivered via Telegram
 - ✅ NO TRADEアラート機能（見送り判定の提供）
 - ✅ Trap Riskスコア定量化機能（0-100スコア）
 - ✅ Exit Map機能（分割利確/撤退条件の固定テンプレート）
-- ✅ 週次検証ログ公開機能
-- ✅ Notionメッセージ定期解析の自動化  
+- ✅ 週次検証ログ公開機能  
 
 ## Architecture
 - **api/cron.js**  
@@ -36,8 +35,7 @@ Signals are evaluated every 15 minutes on Vercel Cron and delivered via Telegram
 - **Cron schedule**: `vercel.json` configures `*/15 * * * *` to call `/api/cron`.[file:109]  
 - **Regular briefings**: Sent every 4 hours when `utcHour ∈ [0,4,8,12,16,20]` and `utcMinute < 5` (or when `?force=true`).[file:91]  
 - **Emergency alerts**: Sent immediately when `trap.isTrap && trap.confidence === 'HIGH'` outside regular slots.[file:91]
-- **Weekly reports**: Generated every Sunday 00:00 UTC via `/api/weekly-report`.[Phase1-Product]
-- **Notion analyzer**: Runs every 6 hours via `/api/notion-analyzer`.[Phase1-Product]  
+- **Weekly reports**: Generated every Sunday 00:00 UTC via `/api/weekly-report`.[Phase1-Product]  
 
 ## Local Development
 1. Install dependencies  

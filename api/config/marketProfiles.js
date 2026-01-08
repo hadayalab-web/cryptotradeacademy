@@ -1,5 +1,5 @@
 // api/config/marketProfiles.js
-// CryptoTrade Academy - 市場別プロファイル設定
+// CryptoTradeAcademy - ChangeEdge BTC 市場別プロファイル設定
 // Strategic SSOT v4.0 ULTIMATE Section 1に基づく
 
 /**
@@ -11,14 +11,14 @@ function getMarketProfile(market) {
   const profiles = {
     EN: {
       persona: 'PRECISION_SNIPER',
-      brandName: 'CryptoTrade Academy',
-      tagline: 'Market Referee - Spot traps before you fall',
+      brandName: 'CryptoTradeAcademy',
+      tagline: 'Change the trend. Change your game. Get the edge.',
 
       algorithm: {
-        HARD_SIGNAL_THRESH: 28,
-        SOFT_REGIME_THRESH: 20,
-        MIN_CONF_FOR_TRADE: 0.6,
-        BUG_STANDBY_BIAS: 15,
+        HARD_SIGNAL_THRESH: 24, // 28 → 24 に緩和（シグナル数増加）
+        SOFT_REGIME_THRESH: 18, // 20 → 18 に緩和（レジーム検出を早める）
+        MIN_CONF_FOR_TRADE: 0.45, // 0.6 → 0.45 に緩和（より多くのシグナルを許可）
+        BUG_STANDBY_BIAS: 10, // 15 → 10 に削減（シグナル抑制を緩和）
       },
 
       eventTriggers: {
@@ -41,7 +41,7 @@ function getMarketProfile(market) {
       pricing: {
         trial: { days: 1, price: 0 },
         monthly: 69,
-        annual: 690,
+        annual: 588, // SSOT決定価格: $588（$49/月換算、-29%割引）
         currency: 'USD',
       },
     },
@@ -52,10 +52,10 @@ function getMarketProfile(market) {
       tagline: 'حارس الأموال - 70% من الوقت نحميك',
 
       algorithm: {
-        HARD_SIGNAL_THRESH: 18,
-        SOFT_REGIME_THRESH: 12,
-        MIN_CONF_FOR_TRADE: 0.4,
-        BUG_STANDBY_BIAS: 70, // キャッチコピー逆算: 70%
+        HARD_SIGNAL_THRESH: 18, // 維持（既に緩い設定）
+        SOFT_REGIME_THRESH: 12, // 維持
+        MIN_CONF_FOR_TRADE: 0.4, // 維持
+        BUG_STANDBY_BIAS: 65, // 70 → 65 に微調整（シグナル抑制を少し緩和）
       },
 
       eventTriggers: {
@@ -89,10 +89,10 @@ function getMarketProfile(market) {
       tagline: '김치 프리미엄 저격수',
 
       algorithm: {
-        HARD_SIGNAL_THRESH: 25,
-        SOFT_REGIME_THRESH: 18,
-        MIN_CONF_FOR_TRADE: 0.55,
-        BUG_STANDBY_BIAS: 20,
+        HARD_SIGNAL_THRESH: 22, // 25 → 22 に緩和（シグナル数増加）
+        SOFT_REGIME_THRESH: 16, // 18 → 16 に緩和
+        MIN_CONF_FOR_TRADE: 0.50, // 0.55 → 0.50 に緩和
+        BUG_STANDBY_BIAS: 15, // 20 → 15 に削減（シグナル抑制を緩和）
         KIMCHI_PREMIUM_THRESH: 0.05, // 5%
       },
 
@@ -125,10 +125,10 @@ function getMarketProfile(market) {
       tagline: '改善AI - 毎日1%改善する職人',
 
       algorithm: {
-        HARD_SIGNAL_THRESH: 26,
-        SOFT_REGIME_THRESH: 19,
-        MIN_CONF_FOR_TRADE: 0.58,
-        BUG_STANDBY_BIAS: 22,
+        HARD_SIGNAL_THRESH: 23, // 26 → 23 に緩和（シグナル数増加）
+        SOFT_REGIME_THRESH: 17, // 19 → 17 に緩和
+        MIN_CONF_FOR_TRADE: 0.52, // 0.58 → 0.52 に緩和
+        BUG_STANDBY_BIAS: 18, // 22 → 18 に削減（シグナル抑制を緩和）
         RISK_REWARD_MIN: 2.0,
       },
 
@@ -163,10 +163,10 @@ function getMarketProfile(market) {
       tagline: '5,000 traders te protegen ahora',
 
       algorithm: {
-        HARD_SIGNAL_THRESH: 27,
-        SOFT_REGIME_THRESH: 19,
-        MIN_CONF_FOR_TRADE: 0.57,
-        BUG_STANDBY_BIAS: 18,
+        HARD_SIGNAL_THRESH: 24, // 27 → 24 に緩和（シグナル数増加）
+        SOFT_REGIME_THRESH: 17, // 19 → 17 に緩和
+        MIN_CONF_FOR_TRADE: 0.50, // 0.57 → 0.50 に緩和
+        BUG_STANDBY_BIAS: 15, // 18 → 15 に削減（シグナル抑制を緩和）
       },
 
       eventTriggers: {
@@ -198,10 +198,10 @@ function getMarketProfile(market) {
       tagline: '5,000 traders te protegen agora',
 
       algorithm: {
-        HARD_SIGNAL_THRESH: 27,
-        SOFT_REGIME_THRESH: 19,
-        MIN_CONF_FOR_TRADE: 0.57,
-        BUG_STANDBY_BIAS: 18,
+        HARD_SIGNAL_THRESH: 24, // 27 → 24 に緩和（シグナル数増加）
+        SOFT_REGIME_THRESH: 17, // 19 → 17 に緩和
+        MIN_CONF_FOR_TRADE: 0.50, // 0.57 → 0.50 に緩和
+        BUG_STANDBY_BIAS: 15, // 18 → 15 に削減（シグナル抑制を緩和）
       },
 
       eventTriggers: {
@@ -237,6 +237,3 @@ function getMarketProfile(market) {
 module.exports = {
   getMarketProfile,
 };
-
-
-

@@ -1,0 +1,131 @@
+{
+  "analysisDate": "2026-01-07T15:49:40.543Z",
+  "currentConditions": {
+    "onchainScore": -25,
+    "socialScore": -50,
+    "exchangeNetflow": 3000,
+    "retailFomo": 80,
+    "priceChange24h": {
+      "min": 2.5,
+      "max": 8
+    },
+    "multipleDivergences": 3
+  },
+  "optimizedConditions": {
+    "onchainScore": -25.540236557101075,
+    "socialScore": -52.510630881611235,
+    "exchangeNetflow": 3861.3714370079233,
+    "retailFomo": 81.62797345909746,
+    "priceChange24h": {
+      "min": 3.7639325701737065,
+      "max": 4.160314083751639
+    },
+    "multipleDivergences": 2
+  },
+  "metrics": [
+    {
+      "name": "onchainScore",
+      "win": {
+        "min": -31.140085639967154,
+        "max": -15.428397292668457,
+        "median": -26.467928254641503
+      },
+      "loss": {
+        "min": -35.41604854681955,
+        "max": -16.22127063619859,
+        "median": -24.612544859560646
+      },
+      "separation": -1.8553833950808567
+    },
+    {
+      "name": "socialScore",
+      "win": {
+        "min": -58,
+        "max": -51.104961634327424,
+        "median": -52.98409548376924
+      },
+      "loss": {
+        "min": -58,
+        "max": -47.38932573553954,
+        "median": -52.03716627945323
+      },
+      "separation": -0.9469292043160067
+    },
+    {
+      "name": "exchangeNetflow",
+      "win": {
+        "min": 2057,
+        "max": 4885.844990688082,
+        "median": 3752.9904521189064
+      },
+      "loss": {
+        "min": 2107.8977335607537,
+        "max": 4862.0278060196715,
+        "median": 3861.3714370079233
+      },
+      "separation": -108.38098488901687
+    },
+    {
+      "name": "minerMPI",
+      "win": {
+        "min": 1.0286794585336914,
+        "max": 2.052283342073319,
+        "median": 1.4092805916400244
+      },
+      "loss": {
+        "min": 1.1363563936789636,
+        "max": 2.3546450324050925,
+        "median": 2.203854289864626
+      },
+      "separation": -0.7945736982246014
+    },
+    {
+      "name": "retailFomo",
+      "win": {
+        "min": 77.75794075589492,
+        "max": 100,
+        "median": 83.81966285086853
+      },
+      "loss": {
+        "min": 65.77201850174046,
+        "max": 100,
+        "median": 81.62797345909746
+      },
+      "separation": 2.191689391771064
+    },
+    {
+      "name": "priceChange24h",
+      "win": {
+        "min": 2.551588151178984,
+        "max": 7.349556653146348,
+        "median": 3.7639325701737065
+      },
+      "loss": {
+        "min": 2.5384736983709457,
+        "max": 7.316091179329269,
+        "median": 4.160314083751639
+      },
+      "separation": -0.3963815135779325
+    },
+    {
+      "name": "multipleDivergences",
+      "win": {
+        "min": 2,
+        "max": 3,
+        "median": 2
+      },
+      "loss": {
+        "min": 2,
+        "max": 3,
+        "median": 2
+      },
+      "separation": 0
+    }
+  ],
+  "optimizedResults": {
+    "total": 1,
+    "wins": 1,
+    "losses": 0,
+    "winRate": 1
+  }
+}

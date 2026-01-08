@@ -11,12 +11,8 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowAbs = Math.abs(inflow || 0);
 
   const trapLabel = trap?.label || 'Whale Trap';
-  const trapSide =
-    trap?.side === 'SHORT'
-      ? '🔻 ショート側のトラップ'
-      : trap?.side === 'LONG'
-        ? '🔺 ロング側のトラップ'
-        : '⚠️ 相場上にトラップが検知されています。';
+  // BUY/SELL/LONG/SHORTは完全削除 - トラップ検知のみ表示
+  const trapSide = '⚠️ 相場上にトラップが検知されています。';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);

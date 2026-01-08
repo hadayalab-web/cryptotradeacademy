@@ -28,6 +28,18 @@ function formatRegularBriefing({
   noTradeAlert, // NO TRADEアラート結果
   trapRisk, // Trap Riskスコア結果
   exitMap, // Exit Map結果
+  // USP1: トラップ防御結果
+  trapDetection, // トラップ防御結果（優先）
+  marketBug, // トラップ防御結果（後方互換性）
+  trapAlert, // トラップアラート
+  divergenceSignal, // ダイバージェンスシグナル
+  // USP3: Dr. Grokの心理的サポート
+  psychologicalSupport, // 心理的サポート診断結果
+  // USP2: Geminiコンテンツ生成
+  hasGeminiContent = false, // Gemini画像・動画が生成されたかどうか
+  // ニュース番組構造用パラメータ
+  gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
+  grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -45,15 +57,21 @@ function formatRegularBriefing({
 
   let dirEmoji;
   let dirLabel;
-  if (tradeSignal?.signal === 'BUY') {
-    dirEmoji = '🟢';
-    dirLabel = 'BUY';
-  } else if (tradeSignal?.signal === 'SELL') {
-    dirEmoji = '🔴';
-    dirLabel = 'SELL';
+  // Apenas alertas de armadilha (BUY/SELL/LONG/SHORT completamente removidos)
+  if (trapAlert && trapAlert.alert) {
+    dirEmoji = trapAlert.severity === 'CRITICAL' ? '🚨' :
+               trapAlert.severity === 'HIGH' ? '⚠️' :
+               trapAlert.severity === 'MEDIUM' ? '⚡' : '🛡️';
+    if (trapAlert.recommendation === 'AVOID_LONG') {
+      dirLabel = '🛡️ Alerta de Armadilha: Evitar Long';
+    } else if (trapAlert.recommendation === 'AVOID_SHORT') {
+      dirLabel = '🛡️ Alerta de Armadilha: Evitar Short';
+    } else {
+      dirLabel = '🛡️ Alerta de Armadilha: Aguardar';
+    }
   } else {
     dirEmoji = '🛡️';
-    dirLabel = 'BUG STANDBY (Defense Active)';
+    dirLabel = 'TRAP STANDBY (Defense Active)';
   }
 
   const entryLine = `• Entrada (ref. spot): ${formatUsd(priceUsd)}`;
@@ -61,8 +79,8 @@ function formatRegularBriefing({
   const slLine = tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: n/a';
   const rrLine = tradeSignal?.rr != null ? `• Risco/Retorno (RR): ${tradeSignal.rr.toFixed(2)}` : '';
 
-  const isNoTrade = tradeSignal?.signal !== 'BUY' && tradeSignal?.signal !== 'SELL';
-  const modeLine = isNoTrade ? '• Modo: Bug Standby — sem edge limpo. Fique de fora e proteja o capital.' : '';
+  const isNoTrade = true; // Sempre modo de espera (sinais BUY/SELL completamente removidos)
+  const modeLine = isNoTrade ? '• Modo: Trap Standby — aguarde edge claro. Priorizar defesa.' : '';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -76,10 +94,110 @@ function formatRegularBriefing({
   }
 
   const lines = [];
-  lines.push('📚 Market Leak do Dr. Grok');
-  lines.push(`Briefing da sessão @ ${ts}`);
+  lines.push('🌤️ CryptoWeather Alert - Trap Defense Report');
+  lines.push(`📺 Programa de Notícias @ ${ts}`);
   lines.push('');
 
+  // ===== 【最重要】Trade Verdict（最上部に配置） =====
+  lines.push('🎯 Veredito de trade');
+  lines.push(`${dirEmoji} Sinal: ${dirLabel}`);
+  lines.push(entryLine);
+  if (modeLine) lines.push(modeLine);
+  if (tpLine) lines.push(tpLine);
+  if (slLine) lines.push(slLine);
+  if (rrLine) lines.push(rrLine);
+  lines.push('');
+
+  // ===== 【USPハイライト】3つの独自機能 =====
+  lines.push('✨ Destaques de hoje (3 USPs)');
+  lines.push('');
+  
+  // USP1: Trap Defense (prioritize trapDetection, fallback to marketBug for backward compatibility)
+  const trapData = trapDetection || marketBug;
+  if (trapData && (trapData.trapDetected || trapData.bugDetected)) {
+    const trapEmoji = trapData.trapSeverity === 'CRITICAL' || trapData.bugSeverity === 'CRITICAL' ? '🚨' :
+                     trapData.trapSeverity === 'HIGH' || trapData.bugSeverity === 'HIGH' ? '⚠️' :
+                     trapData.trapSeverity === 'MEDIUM' || trapData.bugSeverity === 'MEDIUM' ? '⚡' : '💡';
+    const trapType = trapData.trapType || trapData.bugType || 'Anomalia';
+    const trapScore = trapData.trapScore || trapData.bugScore || 0;
+    lines.push(`🛡️ USP1: Defesa de Armadilhas - ${trapEmoji} ${trapType} (Pontuação: ${trapScore.toFixed(0)}/100)`);
+    
+    // Display trap alert details if available
+    if (trapAlert && trapAlert.alert) {
+      lines.push(`   🚨 Tipo de Alerta: ${trapAlert.type} (Severidade: ${trapAlert.severity})`);
+      lines.push(`   💡 Recomendação: ${trapAlert.recommendation}`);
+      if (trapAlert.confidence) {
+        lines.push(`   📊 Confiança: ${(trapAlert.confidence * 100).toFixed(0)}%`);
+      }
+    }
+  } else {
+    lines.push('🛡️ USP1: Defesa de Armadilhas - Nenhuma armadilha detectada atualmente');
+  }
+  
+  // ===== 【ニュース番組構造】オープニング → データ → 解説 → コメンテーター → クロージング =====
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('📺 【Abertura】Notícias Urgentes de Armadilha do Repórter GPT');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  
+  // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
+  const gptNewsText = gptReporterAnalysis || aiAnalysis || 'Analisando dados...';
+  const gptNewsLimit = 800;
+  const gptNewsDisplay = gptNewsText.length > gptNewsLimit 
+    ? `${gptNewsText.slice(0, gptNewsLimit)}…` 
+    : gptNewsText;
+  lines.push(`📰 ${gptNewsDisplay}`);
+  lines.push('');
+  
+  // USP2: Geminiコンテンツ生成（データ提示セクション）
+  if (hasGeminiContent) {
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📊 【Apresentação de Dados】Infográfico NanoBanana');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('🎬 Verifique as mídias anexas!');
+    lines.push('');
+  }
+  
+  // 【コメンテーター】Dr. Grok癒し系コメンテーター（固定コーナー）
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('💊 【Comentarista】Opinião de Dr. Grok');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  
+  // Grok X解析結果（Xセンチメント分析）
+  if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
+    const grokXLimit = 600;
+    const grokXDisplay = grokXAnalysis.length > grokXLimit 
+      ? `${grokXAnalysis.slice(0, grokXLimit)}…` 
+      : grokXAnalysis;
+    lines.push(`📱 Análise de Sentimento X: ${grokXDisplay}`);
+    lines.push('');
+  }
+  
+  // Dr. Grokの心理的サポート（癒し系コメンテーターとして）
+  if (psychologicalSupport && psychologicalSupport.psychologicalState !== 'UNKNOWN') {
+    const stateEmoji = psychologicalSupport.psychologicalState === 'FOMO' ? '😰' :
+                       psychologicalSupport.psychologicalState === 'FEAR' ? '😨' :
+                       psychologicalSupport.psychologicalState === 'GREED' ? '😍' :
+                       psychologicalSupport.psychologicalState === 'PANIC' ? '😱' :
+                       psychologicalSupport.psychologicalState === 'EUPHORIA' ? '😄' :
+                       psychologicalSupport.psychologicalState === 'CONFUSION' ? '🤔' : '😐';
+    const riskEmoji = psychologicalSupport.psychologicalRisk === 'CRITICAL' ? '🚨' :
+                      psychologicalSupport.psychologicalRisk === 'HIGH' ? '⚠️' :
+                      psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
+    lines.push(`💚 Estado Psicológico: ${stateEmoji} ${psychologicalSupport.psychologicalState} (Risco: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
+    if (psychologicalSupport.psychologicalAdvice) {
+      lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
+    }
+  } else {
+    lines.push('💚 Análise Psicológica: Obtendo dados...');
+  }
+  
+  lines.push('');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('📺 【Encerramento】Não perca o próximo episódio');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+
+  // ===== 基本市場データ（補足情報として後半に配置） =====
   lines.push(priceLine);
   lines.push(flowLine);
   lines.push(mpiLine);
@@ -126,53 +244,63 @@ function formatRegularBriefing({
   }
   
   lines.push(trapLine);
-  lines.push('');
-
-  lines.push('🎯 Veredito de trade');
-  lines.push(`${dirEmoji} Sinal: ${dirLabel}`);
-  lines.push(entryLine);
-  if (modeLine) lines.push(modeLine);
-  if (tpLine) lines.push(tpLine);
-  if (slLine) lines.push(slLine);
-  if (rrLine) lines.push(rrLine);
   
-  // Phase1-Product: Exit Map表示
+  // Phase1-Product: Exit Map表示（簡略化：最大8行）
   if (exitMap && exitMap.hasActivePosition) {
     lines.push('');
-    lines.push('🗺️ Mapa de Saída (Exit Map)');
+    lines.push('🗺️ Mapa de Saída');
     lines.push(`   Status da Posição: ${exitMap.positionStatus}`);
     if (exitMap.unrealizedPnlPct !== 0) {
       const pnlEmoji = exitMap.unrealizedPnlPct > 0 ? '📈' : '📉';
       lines.push(`   ${pnlEmoji} P&L Não Realizado: ${exitMap.unrealizedPnlPct > 0 ? '+' : ''}${exitMap.unrealizedPnlPct.toFixed(2)}% ($${exitMap.unrealizedPnl.toLocaleString()})`);
     }
     
+    // 最重要利確ゾーン（最大2つ）
     if (exitMap.exitMap.zones && exitMap.exitMap.zones.length > 0) {
       lines.push('   📍 Zonas de Realização de Lucros:');
-      exitMap.exitMap.zones.forEach(zone => {
-        const priorityEmoji = zone.priority === 'HIGH' ? '🔴' : 
-                              zone.priority === 'MEDIUM' ? '🟡' : '🟢';
-        lines.push(`   ${priorityEmoji} Zona ${zone.zone}: $${zone.price.toLocaleString()} (Realizar ${zone.takeProfitPct}%) - ${zone.description}`);
-      });
+      const highPriorityZones = exitMap.exitMap.zones
+        .filter(zone => zone.priority === 'HIGH')
+        .slice(0, 2);
+      if (highPriorityZones.length === 0) {
+        exitMap.exitMap.zones.slice(0, 2).forEach(zone => {
+          const priorityEmoji = zone.priority === 'HIGH' ? '🔴' : 
+                                zone.priority === 'MEDIUM' ? '🟡' : '🟢';
+          lines.push(`   ${priorityEmoji} Zona ${zone.zone}: $${zone.price.toLocaleString()} (Realizar ${zone.takeProfitPct}%)`);
+        });
+      } else {
+        highPriorityZones.forEach(zone => {
+          lines.push(`   🔴 Zona ${zone.zone}: $${zone.price.toLocaleString()} (Realizar ${zone.takeProfitPct}%)`);
+        });
+      }
     }
     
+    // 最重要撤退条件（最大2つ）
     if (exitMap.exitMap.exitConditions && exitMap.exitMap.exitConditions.length > 0) {
       lines.push('   ⚠️ Condições de Saída:');
-      exitMap.exitMap.exitConditions.forEach(condition => {
-        const priorityEmoji = condition.priority === 'CRITICAL' ? '🚨' : 
-                              condition.priority === 'HIGH' ? '⚠️' : '⚡';
-        lines.push(`   ${priorityEmoji} ${condition.condition}: ${condition.description}`);
-      });
+      const criticalConditions = exitMap.exitMap.exitConditions
+        .filter(condition => condition.priority === 'CRITICAL' || condition.priority === 'HIGH')
+        .slice(0, 2);
+      if (criticalConditions.length === 0) {
+        exitMap.exitMap.exitConditions.slice(0, 2).forEach(condition => {
+          const priorityEmoji = condition.priority === 'CRITICAL' ? '🚨' : 
+                                condition.priority === 'HIGH' ? '⚠️' : '⚡';
+          lines.push(`   ${priorityEmoji} ${condition.condition}`);
+        });
+      } else {
+        criticalConditions.forEach(condition => {
+          const priorityEmoji = condition.priority === 'CRITICAL' ? '🚨' : '⚠️';
+          lines.push(`   ${priorityEmoji} ${condition.condition}`);
+        });
+      }
     }
     
-    lines.push(`   💡 ${exitMap.exitMap.recommendation}`);
+    if (exitMap.exitMap.recommendation) {
+      lines.push(`   💡 ${exitMap.exitMap.recommendation}`);
+    }
   }
   
   lines.push('');
 
-  lines.push('🧬 Visão do Dr. Grok');
-  lines.push('O conteúdo abaixo é uma ideia estratégica, não um sinal oficial de entrada True Bug. Siga apenas se estiver alinhado com o seu plano e gestão de risco.');
-  lines.push(grokText);
-  lines.push('');
   lines.push('Apenas para fins educacionais. Não constitui recomendação ou aconselhamento financeiro.');
 
   return lines.join('\n');

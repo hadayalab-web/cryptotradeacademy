@@ -1,13 +1,14 @@
-﻿// logic/tier1_btc/signalGen.js
+// logic/tier1_btc/signalGen.js
 
 /**
  * Generate final trade targets (TP/SL) from core decision.
+ * Note: BUY/SELL signal generation is removed - this function now only handles 'NONE' signals.
  *
  * Input example:
  *   generateSignal({
  *     priceUsd: 92113,
  *     score: 72,
- *     direction: 'SELL', // 'BUY' | 'SELL' | 'NONE'
+ *     direction: 'NONE', // BUY/SELLは完全削除、'NONE'のみ
  *   })
  */
 
@@ -17,10 +18,11 @@ function generateSignal(input = {}) {
   const price = Number(priceUsd);
   const signal = direction || 'NONE';
 
+  // BUY/SELLシグナル生成は完全削除 - 常にNONEを返す
   // 価格が不正 or ポジションを取らない場合は TP/SL なしで返す
-  if (!Number.isFinite(price) || price <= 0 || !['BUY', 'SELL'].includes(signal)) {
+  if (!Number.isFinite(price) || price <= 0 || signal !== 'NONE') {
     return {
-      signal: 'NONE',
+      signal: 'NONE', // BUY/SELLは完全削除
       entry: Number.isFinite(price) ? Math.round(price) : null,
       tp: null,
       sl: null,
@@ -53,15 +55,8 @@ function generateSignal(input = {}) {
   let tpPrice = entry;
   let slPrice = entry;
 
-  if (signal === 'BUY') {
-    // LONG: 上方向 TP, 下方向 SL
-    tpPrice = entry * (1 + tpPct);
-    slPrice = entry * (1 - slPct);
-  } else if (signal === 'SELL') {
-    // SHORT: 下方向 TP, 上方向 SL
-    tpPrice = entry * (1 - tpPct);
-    slPrice = entry * (1 + slPct);
-  }
+  // BUY/SELLシグナル生成は完全削除 - TP/SLは計算しない
+  // signalが'NONE'の場合はTP/SLなし
 
   const rr = tpPct / slPct;
 

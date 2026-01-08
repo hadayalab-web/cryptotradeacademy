@@ -85,7 +85,7 @@ async function fetchFearGreed() {
 
 // --- Main Prepare Handler -----------------------------------------
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const debugBypass = req.query?.debug === 'local';
   const authHeader = req.headers.authorization;
 

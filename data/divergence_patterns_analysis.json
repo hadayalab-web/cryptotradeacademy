@@ -1,0 +1,1046 @@
+{
+  "analysisDate": "2026-01-07T16:08:58.966Z",
+  "period": {
+    "days": 180,
+    "startTime": "2025-07-11T16:08:54.381Z",
+    "endTime": "2026-01-07T16:08:54.381Z"
+  },
+  "summary": {
+    "totalSignals": 15,
+    "wins": 9,
+    "losses": 6,
+    "winRate": 0.6,
+    "highWinRateCondition": {
+      "total": 7,
+      "wins": 3,
+      "losses": 4,
+      "winRate": 0.42857142857142855
+    },
+    "multipleDivergences": {
+      "total": 15,
+      "wins": 9,
+      "losses": 6,
+      "winRate": 0.6
+    },
+    "priceOnchainDivergence": {
+      "total": 15,
+      "wins": 9,
+      "losses": 6,
+      "winRate": 0.6
+    },
+    "priceSocialDivergence": {
+      "total": 15,
+      "wins": 9,
+      "losses": 6,
+      "winRate": 0.6
+    }
+  },
+  "optimalConditions": [],
+  "patterns": [
+    {
+      "timestamp": 1759406400000,
+      "timestampIso": "2025-10-02T12:00:00.000Z",
+      "priceUsd": 119402.42,
+      "change24h": 2.5770633228710893,
+      "futurePrice": 123563.38,
+      "futureChange": 3.4848204919129837,
+      "isWin": false,
+      "isLoss": true,
+      "divergence": {
+        "onchainScore": -33.591286824766385,
+        "socialScore": -51.144448150450195,
+        "onchainSocialDivergence": -17.55316132568381,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": false,
+        "multipleDivergences": 2,
+        "isHighWinRateCondition": true
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.8669653819880402,
+        "reason": "X_FOMO_CQ_SELLOFF",
+        "divergence": {
+          "onchainScore": -33.591286824766385,
+          "socialScore": -51.144448150450195,
+          "onchainSocialDivergence": -17.55316132568381,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": false,
+          "multipleDivergences": 2,
+          "binanceDivergence": 0,
+          "isHighWinRateCondition": true,
+          "confidence": 0.8669653819880402,
+          "details": {
+            "netflowScore": -22.753879891626298,
+            "mpiScore": -10.837406933140088,
+            "whaleScore": -70,
+            "retailScore": -22.30825329148436,
+            "divergenceScore": -46.73118996861327,
+            "priceChange24h": 2.5770633228710893,
+            "exchangeNetflow": 4550.7759783252595,
+            "minerMPI": 2.1674813866280176,
+            "whaleBias": -1,
+            "retailFomo": 77.88531661435545,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "HIGH"
+      },
+      "onchain": {
+        "inflow": 4550.7759783252595,
+        "mpi": 2.1674813866280176
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 77.88531661435545,
+        "newsImpact": 35.61650658296871
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1759435200000,
+      "timestampIso": "2025-10-02T20:00:00.000Z",
+      "priceUsd": 120652.01,
+      "change24h": 2.651006345964117,
+      "futurePrice": 121109.09,
+      "futureChange": 0.3788415957595748,
+      "isWin": false,
+      "isLoss": true,
+      "divergence": {
+        "onchainScore": -30.951064250030285,
+        "socialScore": -51.25905983624438,
+        "onchainSocialDivergence": -20.307995586214098,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": false,
+        "multipleDivergences": 2,
+        "isHighWinRateCondition": true
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.8906125589892218,
+        "reason": "X_FOMO_CQ_SELLOFF",
+        "divergence": {
+          "onchainScore": -30.951064250030285,
+          "socialScore": -51.25905983624438,
+          "onchainSocialDivergence": -20.307995586214098,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": false,
+          "multipleDivergences": 2,
+          "binanceDivergence": 0,
+          "isHighWinRateCondition": true,
+          "confidence": 0.8906125589892218,
+          "details": {
+            "netflowScore": -24.933740034011894,
+            "mpiScore": -6.017324216018391,
+            "whaleScore": -70,
+            "retailScore": -22.604025383856467,
+            "divergenceScore": -46.953019037892346,
+            "priceChange24h": 2.651006345964117,
+            "exchangeNetflow": 4986.748006802379,
+            "minerMPI": 1.2034648432036783,
+            "whaleBias": -1,
+            "retailFomo": 78.25503172982059,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "HIGH"
+      },
+      "onchain": {
+        "inflow": 4986.748006802379,
+        "mpi": 1.2034648432036783
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 78.25503172982059,
+        "newsImpact": 36.20805076771293
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1760313600000,
+      "timestampIso": "2025-10-13T00:00:00.000Z",
+      "priceUsd": 115280.84,
+      "change24h": 5.143397292668457,
+      "futurePrice": 108047.46,
+      "futureChange": -6.274572600269039,
+      "isWin": true,
+      "isLoss": false,
+      "divergence": {
+        "onchainScore": -31.596048442400484,
+        "socialScore": -58,
+        "onchainSocialDivergence": -26.403951557599516,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": false,
+        "multipleDivergences": 2,
+        "isHighWinRateCondition": false
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.7,
+        "reason": "MULTIPLE_DIVERGENCES",
+        "divergence": {
+          "onchainScore": -31.596048442400484,
+          "socialScore": -58,
+          "onchainSocialDivergence": -26.403951557599516,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": false,
+          "multipleDivergences": 2,
+          "binanceDivergence": -10,
+          "isHighWinRateCondition": false,
+          "confidence": 0.7,
+          "details": {
+            "netflowScore": -16.78917930195832,
+            "mpiScore": -14.806869140442164,
+            "whaleScore": -70,
+            "retailScore": -40,
+            "divergenceScore": -60,
+            "priceChange24h": 5.143397292668457,
+            "exchangeNetflow": 3357.835860391664,
+            "minerMPI": 2.9613738280884325,
+            "whaleBias": -1,
+            "retailFomo": 100,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "MEDIUM"
+      },
+      "onchain": {
+        "inflow": 3357.835860391664,
+        "mpi": 2.9613738280884325
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 100,
+        "newsImpact": 41.147178341347654
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1760328000000,
+      "timestampIso": "2025-10-13T04:00:00.000Z",
+      "priceUsd": 114708.15,
+      "change24h": 2.854322986433429,
+      "futurePrice": 110422.1,
+      "futureChange": -3.736482542870745,
+      "isWin": true,
+      "isLoss": false,
+      "divergence": {
+        "onchainScore": -17.032524294071933,
+        "socialScore": -46.92420062897182,
+        "onchainSocialDivergence": -29.891676334899884,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": false,
+        "multipleDivergences": 2,
+        "isHighWinRateCondition": false
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.7,
+        "reason": "MULTIPLE_DIVERGENCES",
+        "divergence": {
+          "onchainScore": -17.032524294071933,
+          "socialScore": -46.92420062897182,
+          "onchainSocialDivergence": -29.891676334899884,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": false,
+          "multipleDivergences": 2,
+          "binanceDivergence": 0,
+          "isHighWinRateCondition": false,
+          "confidence": 0.7,
+          "details": {
+            "netflowScore": -10.584976921163047,
+            "mpiScore": -6.447547372908888,
+            "whaleScore": -70,
+            "retailScore": -11.417291945733712,
+            "divergenceScore": -38.562968959300285,
+            "priceChange24h": 2.854322986433429,
+            "exchangeNetflow": 2116.9953842326095,
+            "minerMPI": 1.2895094745817777,
+            "whaleBias": -1,
+            "retailFomo": 64.27161493216714,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "MEDIUM"
+      },
+      "onchain": {
+        "inflow": 2116.9953842326095,
+        "mpi": 1.2895094745817777
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 64.27161493216714,
+        "newsImpact": 22.83458389146743
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1760342400000,
+      "timestampIso": "2025-10-13T08:00:00.000Z",
+      "priceUsd": 115254.23,
+      "change24h": 3.5426270023870097,
+      "futurePrice": 111097.15,
+      "futureChange": -3.6068784633761397,
+      "isWin": true,
+      "isLoss": false,
+      "divergence": {
+        "onchainScore": -27.172298109870766,
+        "socialScore": -47.991071853699864,
+        "onchainSocialDivergence": -20.818773743829098,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": false,
+        "multipleDivergences": 2,
+        "isHighWinRateCondition": false
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.75,
+        "reason": "MULTIPLE_DIVERGENCES",
+        "divergence": {
+          "onchainScore": -27.172298109870766,
+          "socialScore": -47.991071853699864,
+          "onchainSocialDivergence": -20.818773743829098,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": false,
+          "multipleDivergences": 2,
+          "binanceDivergence": 0,
+          "isHighWinRateCondition": false,
+          "confidence": 0.75,
+          "details": {
+            "netflowScore": -14.780020508884082,
+            "mpiScore": -12.392277600986684,
+            "whaleScore": -70,
+            "retailScore": -14.170508009548042,
+            "divergenceScore": -40.62788100716104,
+            "priceChange24h": 3.5426270023870097,
+            "exchangeNetflow": 2956.0041017768162,
+            "minerMPI": 2.478455520197337,
+            "whaleBias": -1,
+            "retailFomo": 67.71313501193505,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "MEDIUM"
+      },
+      "onchain": {
+        "inflow": 2956.0041017768162,
+        "mpi": 2.478455520197337
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 67.71313501193505,
+        "newsImpact": 28.341016019096077
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1761523200000,
+      "timestampIso": "2025-10-27T00:00:00.000Z",
+      "priceUsd": 114767.29,
+      "change24h": 2.731310238696378,
+      "futurePrice": 109757.11,
+      "futureChange": -4.365512159431484,
+      "isWin": true,
+      "isLoss": false,
+      "divergence": {
+        "onchainScore": -33.545542561402826,
+        "socialScore": -51.38353086997939,
+        "onchainSocialDivergence": -17.837988308576563,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": false,
+        "multipleDivergences": 2,
+        "isHighWinRateCondition": true
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.8799047986019497,
+        "reason": "X_FOMO_CQ_SELLOFF",
+        "divergence": {
+          "onchainScore": -33.545542561402826,
+          "socialScore": -51.38353086997939,
+          "onchainSocialDivergence": -17.837988308576563,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": false,
+          "multipleDivergences": 2,
+          "binanceDivergence": 0,
+          "isHighWinRateCondition": true,
+          "confidence": 0.8799047986019497,
+          "details": {
+            "netflowScore": -23.66220426345404,
+            "mpiScore": -9.883338297948786,
+            "whaleScore": -70,
+            "retailScore": -22.92524095478551,
+            "divergenceScore": -47.193930716089135,
+            "priceChange24h": 2.731310238696378,
+            "exchangeNetflow": 4732.440852690808,
+            "minerMPI": 1.976667659589757,
+            "whaleBias": -1,
+            "retailFomo": 78.65655119348189,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "HIGH"
+      },
+      "onchain": {
+        "inflow": 4732.440852690808,
+        "mpi": 1.976667659589757
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 78.65655119348189,
+        "newsImpact": 36.85048190957102
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1764244800000,
+      "timestampIso": "2025-11-27T12:00:00.000Z",
+      "priceUsd": 90986.56,
+      "change24h": 5.013072019138742,
+      "futurePrice": 92990.18,
+      "futureChange": 2.2021054538164706,
+      "isWin": false,
+      "isLoss": true,
+      "divergence": {
+        "onchainScore": -29.37301616505451,
+        "socialScore": -58,
+        "onchainSocialDivergence": -28.62698383494549,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": false,
+        "multipleDivergences": 2,
+        "isHighWinRateCondition": true
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.9463128660409447,
+        "reason": "X_FOMO_CQ_SELLOFF",
+        "divergence": {
+          "onchainScore": -29.37301616505451,
+          "socialScore": -58,
+          "onchainSocialDivergence": -28.62698383494549,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": false,
+          "multipleDivergences": 2,
+          "binanceDivergence": -10,
+          "isHighWinRateCondition": true,
+          "confidence": 0.9463128660409447,
+          "details": {
+            "netflowScore": -19.631286604094466,
+            "mpiScore": -9.741729560960042,
+            "whaleScore": -70,
+            "retailScore": -40,
+            "divergenceScore": -60,
+            "priceChange24h": 5.013072019138742,
+            "exchangeNetflow": 3926.2573208188933,
+            "minerMPI": 1.9483459121920084,
+            "whaleBias": -1,
+            "retailFomo": 100,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "HIGH"
+      },
+      "onchain": {
+        "inflow": 3926.2573208188933,
+        "mpi": 1.9483459121920084
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 100,
+        "newsImpact": 40.10457615310994
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1764691200000,
+      "timestampIso": "2025-12-02T16:00:00.000Z",
+      "priceUsd": 90759.15,
+      "change24h": 7.316091179329269,
+      "futurePrice": 94187.81,
+      "futureChange": 3.7777568432494175,
+      "isWin": false,
+      "isLoss": true,
+      "divergence": {
+        "onchainScore": -21.946091179329272,
+        "socialScore": -58,
+        "onchainSocialDivergence": -36.05390882067073,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": true,
+        "multipleDivergences": 3,
+        "isHighWinRateCondition": false
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.7,
+        "reason": "MULTIPLE_DIVERGENCES",
+        "divergence": {
+          "onchainScore": -21.946091179329272,
+          "socialScore": -58,
+          "onchainSocialDivergence": -36.05390882067073,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": true,
+          "multipleDivergences": 3,
+          "binanceDivergence": -10,
+          "isHighWinRateCondition": false,
+          "confidence": 0.7,
+          "details": {
+            "netflowScore": -14.63,
+            "mpiScore": -7.31609117932927,
+            "whaleScore": -70,
+            "retailScore": -40,
+            "divergenceScore": -60,
+            "priceChange24h": 7.316091179329269,
+            "exchangeNetflow": 2926,
+            "minerMPI": 1.4632182358658539,
+            "whaleBias": -1,
+            "retailFomo": 100,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "MEDIUM"
+      },
+      "onchain": {
+        "inflow": 2926,
+        "mpi": 1.4632182358658539
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 100,
+        "newsImpact": 58.52872943463415
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1764705600000,
+      "timestampIso": "2025-12-02T20:00:00.000Z",
+      "priceUsd": 91026.67,
+      "change24h": 6.441532776725365,
+      "futurePrice": 93116.76,
+      "futureChange": 2.2961292553050625,
+      "isWin": false,
+      "isLoss": true,
+      "divergence": {
+        "onchainScore": -36.70985513442584,
+        "socialScore": -58,
+        "onchainSocialDivergence": -21.290144865574163,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": false,
+        "multipleDivergences": 2,
+        "isHighWinRateCondition": true
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 1,
+        "reason": "X_FOMO_CQ_SELLOFF",
+        "divergence": {
+          "onchainScore": -36.70985513442584,
+          "socialScore": -58,
+          "onchainSocialDivergence": -21.290144865574163,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": false,
+          "multipleDivergences": 2,
+          "binanceDivergence": -10,
+          "isHighWinRateCondition": true,
+          "confidence": 1,
+          "details": {
+            "netflowScore": -26.395951840423393,
+            "mpiScore": -10.313903294002442,
+            "whaleScore": -70,
+            "retailScore": -40,
+            "divergenceScore": -60,
+            "priceChange24h": 6.441532776725365,
+            "exchangeNetflow": 5279.190368084679,
+            "minerMPI": 2.0627806588004884,
+            "whaleBias": -1,
+            "retailFomo": 100,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "HIGH"
+      },
+      "onchain": {
+        "inflow": 5279.190368084679,
+        "mpi": 2.0627806588004884
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 100,
+        "newsImpact": 66.53226221380292
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1764720000000,
+      "timestampIso": "2025-12-03T00:00:00.000Z",
+      "priceUsd": 91660.12,
+      "change24h": 5.9491294578534815,
+      "futurePrice": 92130.81,
+      "futureChange": 0.5135166744272235,
+      "isWin": false,
+      "isLoss": true,
+      "divergence": {
+        "onchainScore": -17.84912945785348,
+        "socialScore": -58,
+        "onchainSocialDivergence": -40.15087054214652,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": true,
+        "multipleDivergences": 3,
+        "isHighWinRateCondition": false
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.7,
+        "reason": "MULTIPLE_DIVERGENCES",
+        "divergence": {
+          "onchainScore": -17.84912945785348,
+          "socialScore": -58,
+          "onchainSocialDivergence": -40.15087054214652,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": true,
+          "multipleDivergences": 3,
+          "binanceDivergence": -10,
+          "isHighWinRateCondition": false,
+          "confidence": 0.7,
+          "details": {
+            "netflowScore": -11.899999999999999,
+            "mpiScore": -5.9491294578534815,
+            "whaleScore": -70,
+            "retailScore": -40,
+            "divergenceScore": -60,
+            "priceChange24h": 5.9491294578534815,
+            "exchangeNetflow": 2380,
+            "minerMPI": 1.1898258915706963,
+            "whaleBias": -1,
+            "retailFomo": 100,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "MEDIUM"
+      },
+      "onchain": {
+        "inflow": 2380,
+        "mpi": 1.1898258915706963
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 100,
+        "newsImpact": 47.59303566282785
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1764734400000,
+      "timestampIso": "2025-12-03T04:00:00.000Z",
+      "priceUsd": 93362.21,
+      "change24h": 7.349556653146348,
+      "futurePrice": 92552.62,
+      "futureChange": -0.8671495672606839,
+      "isWin": true,
+      "isLoss": false,
+      "divergence": {
+        "onchainScore": -22.049556653146347,
+        "socialScore": -58,
+        "onchainSocialDivergence": -35.95044334685365,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": true,
+        "multipleDivergences": 3,
+        "isHighWinRateCondition": true
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.897,
+        "reason": "X_FOMO_CQ_SELLOFF",
+        "divergence": {
+          "onchainScore": -22.049556653146347,
+          "socialScore": -58,
+          "onchainSocialDivergence": -35.95044334685365,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": true,
+          "multipleDivergences": 3,
+          "binanceDivergence": -10,
+          "isHighWinRateCondition": true,
+          "confidence": 0.897,
+          "details": {
+            "netflowScore": -14.7,
+            "mpiScore": -7.349556653146348,
+            "whaleScore": -70,
+            "retailScore": -40,
+            "divergenceScore": -60,
+            "priceChange24h": 7.349556653146348,
+            "exchangeNetflow": 2940,
+            "minerMPI": 1.4699113306292697,
+            "whaleBias": -1,
+            "retailFomo": 100,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "HIGH"
+      },
+      "onchain": {
+        "inflow": 2940,
+        "mpi": 1.4699113306292697
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 100,
+        "newsImpact": 58.79645322517079
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1764748800000,
+      "timestampIso": "2025-12-03T08:00:00.000Z",
+      "priceUsd": 92765.65,
+      "change24h": 7.278388387255089,
+      "futurePrice": 92605,
+      "futureChange": -0.17317832624467588,
+      "isWin": true,
+      "isLoss": false,
+      "divergence": {
+        "onchainScore": -21.833388387255088,
+        "socialScore": -58,
+        "onchainSocialDivergence": -36.166611612744916,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": true,
+        "multipleDivergences": 3,
+        "isHighWinRateCondition": false
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.7,
+        "reason": "MULTIPLE_DIVERGENCES",
+        "divergence": {
+          "onchainScore": -21.833388387255088,
+          "socialScore": -58,
+          "onchainSocialDivergence": -36.166611612744916,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": true,
+          "multipleDivergences": 3,
+          "binanceDivergence": -10,
+          "isHighWinRateCondition": false,
+          "confidence": 0.7,
+          "details": {
+            "netflowScore": -14.555,
+            "mpiScore": -7.278388387255089,
+            "whaleScore": -70,
+            "retailScore": -40,
+            "divergenceScore": -60,
+            "priceChange24h": 7.278388387255089,
+            "exchangeNetflow": 2911,
+            "minerMPI": 1.4556776774510178,
+            "whaleBias": -1,
+            "retailFomo": 100,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "MEDIUM"
+      },
+      "onchain": {
+        "inflow": 2911,
+        "mpi": 1.4556776774510178
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 100,
+        "newsImpact": 58.22710709804071
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1764763200000,
+      "timestampIso": "2025-12-03T12:00:00.000Z",
+      "priceUsd": 92937.39,
+      "change24h": 6.5011654263718714,
+      "futurePrice": 91987.22,
+      "futureChange": -1.0223764622613118,
+      "isWin": true,
+      "isLoss": false,
+      "divergence": {
+        "onchainScore": -19.501165426371873,
+        "socialScore": -58,
+        "onchainSocialDivergence": -38.49883457362813,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": true,
+        "multipleDivergences": 3,
+        "isHighWinRateCondition": false
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.7,
+        "reason": "MULTIPLE_DIVERGENCES",
+        "divergence": {
+          "onchainScore": -19.501165426371873,
+          "socialScore": -58,
+          "onchainSocialDivergence": -38.49883457362813,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": true,
+          "multipleDivergences": 3,
+          "binanceDivergence": -10,
+          "isHighWinRateCondition": false,
+          "confidence": 0.7,
+          "details": {
+            "netflowScore": -13,
+            "mpiScore": -6.501165426371872,
+            "whaleScore": -70,
+            "retailScore": -40,
+            "divergenceScore": -60,
+            "priceChange24h": 6.5011654263718714,
+            "exchangeNetflow": 2600,
+            "minerMPI": 1.3002330852743744,
+            "whaleBias": -1,
+            "retailFomo": 100,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "MEDIUM"
+      },
+      "onchain": {
+        "inflow": 2600,
+        "mpi": 1.3002330852743744
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 100,
+        "newsImpact": 52.00932341097497
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1765310400000,
+      "timestampIso": "2025-12-09T20:00:00.000Z",
+      "priceUsd": 93116.76,
+      "change24h": 2.551588151178984,
+      "futurePrice": 87573.23,
+      "futureChange": -5.95331066072316,
+      "isWin": true,
+      "isLoss": false,
+      "divergence": {
+        "onchainScore": -17.05021476302546,
+        "socialScore": -46.454961634327425,
+        "onchainSocialDivergence": -29.404746871301967,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": false,
+        "multipleDivergences": 2,
+        "isHighWinRateCondition": false
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.7,
+        "reason": "MULTIPLE_DIVERGENCES",
+        "divergence": {
+          "onchainScore": -17.05021476302546,
+          "socialScore": -46.454961634327425,
+          "onchainSocialDivergence": -29.404746871301967,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": false,
+          "multipleDivergences": 2,
+          "binanceDivergence": 0,
+          "isHighWinRateCondition": false,
+          "confidence": 0.7,
+          "details": {
+            "netflowScore": -10.889193573957979,
+            "mpiScore": -6.1610211890674815,
+            "whaleScore": -70,
+            "retailScore": -10.206352604715939,
+            "divergenceScore": -37.654764453536956,
+            "priceChange24h": 2.551588151178984,
+            "exchangeNetflow": 2177.8387147915955,
+            "minerMPI": 1.2322042378134963,
+            "whaleBias": -1,
+            "retailFomo": 62.75794075589492,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "MEDIUM"
+      },
+      "onchain": {
+        "inflow": 2177.8387147915955,
+        "mpi": 1.2322042378134963
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 62.75794075589492,
+        "newsImpact": 20.412705209431873
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    },
+    {
+      "timestamp": 1766188800000,
+      "timestampIso": "2025-12-20T00:00:00.000Z",
+      "priceUsd": 88005.63,
+      "change24h": 2.8044546058589184,
+      "futurePrice": 87401.07,
+      "futureChange": -0.6869560504254076,
+      "isWin": true,
+      "isLoss": false,
+      "divergence": {
+        "onchainScore": -24.513248236528064,
+        "socialScore": -51.49690463908132,
+        "onchainSocialDivergence": -26.983656402553258,
+        "priceOnchainDivergence": true,
+        "priceSocialDivergence": true,
+        "isStrongDivergence": false,
+        "multipleDivergences": 2,
+        "isHighWinRateCondition": true
+      },
+      "signal": {
+        "signal": "SELL",
+        "confidence": 0.8141774861409802,
+        "reason": "X_FOMO_CQ_SELLOFF",
+        "divergence": {
+          "onchainScore": -24.513248236528064,
+          "socialScore": -51.49690463908132,
+          "onchainSocialDivergence": -26.983656402553258,
+          "priceOnchainDivergence": true,
+          "priceSocialDivergence": true,
+          "isStrongDivergence": false,
+          "multipleDivergences": 2,
+          "binanceDivergence": 0,
+          "isHighWinRateCondition": true,
+          "confidence": 0.8141774861409802,
+          "details": {
+            "netflowScore": -16.906612099450726,
+            "mpiScore": -7.606636137077337,
+            "whaleScore": -70,
+            "retailScore": -23.217818423435673,
+            "divergenceScore": -47.41336381757675,
+            "priceChange24h": 2.8044546058589184,
+            "exchangeNetflow": 3381.3224198901453,
+            "minerMPI": 1.5213272274154674,
+            "whaleBias": -1,
+            "retailFomo": 79.0222730292946,
+            "binanceData": {
+              "fundingRate": 0.00002885,
+              "longShortRatio": 2.2268
+            }
+          }
+        },
+        "urgency": "HIGH"
+      },
+      "onchain": {
+        "inflow": 3381.3224198901453,
+        "mpi": 1.5213272274154674
+      },
+      "social": {
+        "whaleBias": -1,
+        "retailFomo": 79.0222730292946,
+        "newsImpact": 22.435636846871347
+      },
+      "binanceData": {
+        "fundingRate": 0.00002885,
+        "longShortRatio": 2.2268
+      }
+    }
+  ]
+}

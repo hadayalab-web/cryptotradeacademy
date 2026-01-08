@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-01-07T16:36:53.889Z",
+  "windows": {
+    "short_last_100": {
+      "total": 3,
+      "wins": 1,
+      "losses": 2,
+      "winRate": 0.3333333333333333,
+      "minTrades": 30,
+      "threshold": 0.8,
+      "pass": false,
+      "lastUpdated": "2026-01-07T16:36:53.887Z"
+    }
+  }
+}

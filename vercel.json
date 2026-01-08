@@ -1,7 +1,23 @@
 {
   "crons": [
     { "path": "/api/cron", "schedule": "*/15 * * * *" },
-    { "path": "/api/weekly-report", "schedule": "0 0 * * 0" },
-    { "path": "/api/notion-analyzer", "schedule": "0 */6 * * *" }
-  ]
+    { "path": "/api/weekly-report", "schedule": "0 0 * * 0" }
+  ],
+  "functions": {
+    "api/cron.js": {
+      "includeFiles": ["config/**"]
+    },
+    "api/prepare.js": {
+      "includeFiles": ["config/**"]
+    },
+    "api/weekly-report.js": {
+      "includeFiles": ["config/**"]
+    },
+    "api/analytics.js": {
+      "includeFiles": ["config/**"]
+    },
+    "api/track.js": {
+      "includeFiles": ["config/**"]
+    }
+  }
 }

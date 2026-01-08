@@ -1,4 +1,4 @@
-﻿// logic/tier1_btc/trapDetector.js
+// logic/tier1_btc/trapDetector.js
 
 /**
  * Detect Traps using Price vs On-chain + Sentiment Divergence
@@ -45,7 +45,7 @@ function detectTrap(ctx = {}) {
       isTrap: true,
       type: 'FOMO_BULL_TRAP',
       label: 'Retail FOMO bull trap',
-      side: 'SHORT',
+      // sideプロパティは削除（BUY/SELL/LONG/SHORTは完全削除）
       confidence: 'HIGH',
       reason:
         'Strong price pump with heavy inflows while retail FOMO is extreme and whales are not supporting.',
@@ -83,7 +83,7 @@ function detectTrap(ctx = {}) {
       isTrap: true,
       type: 'BULL_TRAP',
       label: 'Whale distribution trap',
-      side: 'SHORT',
+      // sideプロパティは削除（BUY/SELL/LONG/SHORTは完全削除）
       confidence: 'HIGH',
       reason:
         'Strong price pump with high exchange inflows suggests distribution by whales.',
@@ -97,7 +97,7 @@ function detectTrap(ctx = {}) {
       isTrap: true,
       type: 'BEAR_TRAP',
       label: 'Whale accumulation trap',
-      side: 'LONG',
+      // sideプロパティは削除（BUY/SELL/LONG/SHORTは完全削除）
       confidence: 'HIGH',
       reason:
         'Strong price dump with large negative exchange inflows suggests accumulation.',

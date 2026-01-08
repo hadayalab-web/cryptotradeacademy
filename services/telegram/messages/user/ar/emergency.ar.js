@@ -11,12 +11,8 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowAbs = Math.abs(inflow || 0);
 
   const trapLabel = trap?.label || 'Whale Trap';
-  const trapSide =
-    trap?.side === 'SHORT'
-      ? '🔻 فخ على جانب SHORT'
-      : trap?.side === 'LONG'
-        ? '🔺 فخ على جانب LONG'
-        : '⚠️ تم رصد فخ في السوق';
+  // BUY/SELL/LONG/SHORT تم حذفه بالكامل - يتم عرض اكتشاف الفخ فقط
+  const trapSide = '⚠️ تم رصد فخ في السوق';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);

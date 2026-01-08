@@ -194,16 +194,22 @@ function decideSignal(ctx) {
   // 調整後のスコアを使用（ただし、判定は元のスコアで行う）
   // adjustedScoreは表示用、判定はscoreを使用
 
+  // BUY/SELLシグナル生成は完全削除（トラップアラートのみ使用）
+  // レジーム判定のみ維持（後方互換性のため）
   if (score >= HARD_SIGNAL_THRESH && confidence >= MIN_CONF_FOR_TRADE && smartMoneyScore > 0) {
     regime = 'ACCUMULATION';
-    signal = 'BUY';
+    signal = 'NONE'; // BUY/SELLは完全削除
   } else if (score <= -HARD_SIGNAL_THRESH && confidence >= MIN_CONF_FOR_TRADE && smartMoneyScore < 0) {
     regime = 'DISTRIBUTION';
-    signal = 'SELL';
+    signal = 'NONE'; // BUY/SELLは完全削除
   } else if (score >= SOFT_REGIME_THRESH) {
     regime = 'BULLISH';
+    signal = 'NONE'; // BUY/SELLは完全削除
   } else if (score <= -SOFT_REGIME_THRESH) {
     regime = 'BEARISH';
+    signal = 'NONE'; // BUY/SELLは完全削除
+  } else {
+    signal = 'NONE'; // デフォルト
   }
 
   return {

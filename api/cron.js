@@ -52,11 +52,11 @@ const { fetchUSDKRWRate } = require('../services/exchange/rate');
 
 const { buildMarketContext, decideSignal, decideSignalAdvanced } = require('../logic/core/marketCore');
 const { generateSignal } = require('../logic/tier1_btc/signalGen');
-const { BASE } = require('../config/thresholds');
+const { BASE } = require('./config/thresholds');
 // 市場別プロファイル（MIN_CONF_FOR_TRADE取得用）
 let marketProfiles = null;
 try {
-  marketProfiles = require('../config/marketProfiles');
+  marketProfiles = require('./config/marketProfiles');
 } catch (e) {
   // marketProfiles.jsがない場合は無視
 }
@@ -70,6 +70,10 @@ const messageLogger = require('../services/core/messageLogger');
 const { analyzeMarket, analyzeXSentimentLive } = require('../services/grok/client');
 // 高解像度Grok X解析
 const { analyzeXSentimentHighResolutionCompat } = require('../services/grok/highResolution');
+// USP3: Dr. Grokの心理的サポート機能
+const { diagnoseUserSentimentCompat } = require('../services/grok/psychologicalSupport');
+// USP1: トラップ防御エンジン
+const { detectTrapDetection, generateTrapAlert, detectMarketBug, evaluateMarketBugSignal } = require('../logic/core/trapDetector');
 // GPT解析サービス（CryptoQuantデータ解析用）
 const { analyzeCryptoQuantData, generateCryptoQuantAnalysis, generateNonUserImpactReport } = require('../services/gpt/client');
 const { sendMessage, sendPhoto, sendVideo } = require('../services/telegram/bot');
@@ -163,7 +167,7 @@ function shouldWatch({ score, confidence, trap, isRegularSlot }) {
 
 // --- Main Cron Handler -----------------------------------------
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const debugBypass = req.query?.debug === 'local';
   const authHeader = req.headers.authorization;
 
@@ -285,10 +289,11 @@ export default async function handler(req, res) {
           urgency: gptCryptoQuantAnalysis.urgency,
         });
 
-        // GPT解析結果をシグナル判定に反映（緊急配信用）
-        if (gptCryptoQuantAnalysis.signal === 'SELL' && gptCryptoQuantAnalysis.confidence >= 0.80) {
+        // GPT解析結果はトラップアラート生成に使用（BUY/SELLシグナル生成は削除）
+        if (gptCryptoQuantAnalysis.confidence >= 0.80) {
+          // GPT解析結果はトラップアラート生成に使用（BUY/SELLシグナルは生成しない）
           gptSignalDecision = {
-            signal: 'SELL',
+            signal: 'NONE', // BUY/SELLシグナルは完全削除
             confidence: gptCryptoQuantAnalysis.confidence,
             reasoning: gptCryptoQuantAnalysis.reasoning,
             urgency: gptCryptoQuantAnalysis.urgency,
@@ -362,12 +367,13 @@ export default async function handler(req, res) {
     // Phase 2: decideSignalAdvanced使用（市場別補正）
     let coreDecision = decideSignalAdvanced ? decideSignalAdvanced(ctx) : decideSignal(ctx);
     
-    // GPT解析結果がある場合は、シグナルを上書き（緊急配信用）
-    if (gptSignalDecision && gptSignalDecision.signal === 'SELL') {
-      console.log('[GPT] Overriding signal with GPT analysis result');
+    // GPT解析結果はトラップアラート生成に使用（BUY/SELLシグナル生成は削除）
+    if (gptSignalDecision && gptSignalDecision.confidence >= 0.80) {
+      console.log('[GPT] Using GPT analysis for trap alert generation (BUY/SELL signal generation removed)');
+      // GPT解析結果はトラップアラート生成に使用（BUY/SELLシグナルは生成しない）
       coreDecision = {
         ...coreDecision,
-        signal: 'SELL',
+        signal: 'NONE', // BUY/SELLシグナルは完全削除
         confidence: gptSignalDecision.confidence,
       };
     }
@@ -378,12 +384,10 @@ export default async function handler(req, res) {
       direction: coreDecision.signal,
     });
 
-    // side is derived from tradeSignal.signal
+    // sideは常にFLAT（BUY/SELL/LONG/SHORTは完全削除）
     let side = 'FLAT';
-    if (tradeSignal.signal === 'BUY') side = 'LONG';
-    if (tradeSignal.signal === 'SELL') side = 'SHORT';
 
-    // 信頼度スコアベースの統一品質ゲート（全方位BUY/SELL/LONG/SHORT対応）
+    // 信頼度スコアベースの統一品質ゲート（トラップアラートのみ対応）
     // MIN_CONF_FOR_TRADE未満の信頼度のシグナルは配信しない
     const market = getMarketCode(LANG);
     let minConfForTrade = BASE?.MIN_CONF_FOR_TRADE ?? 0.45;
@@ -398,19 +402,18 @@ export default async function handler(req, res) {
       }
     }
     
-    if (tradeSignal.signal !== 'NONE' && coreDecision.confidence < minConfForTrade) {
-      logger.info('Signal blocked by confidence gate', {
-        signal: tradeSignal.signal,
-        confidence: coreDecision.confidence,
+    // 信頼度ゲートはトラップアラートのみに適用（BUY/SELLシグナルは完全削除）
+    // トラップアラートの信頼度がMIN_CONF_FOR_TRADE未満の場合は配信しない
+    if (trapAlert && trapAlert.alert && trapAlert.confidence < minConfForTrade) {
+      logger.info('Trap alert blocked by confidence gate', {
+        recommendation: trapAlert.recommendation,
+        confidence: trapAlert.confidence,
         minRequired: minConfForTrade,
       });
-      tradeSignal.signal = 'NONE';
-      side = 'FLAT';
-      coreDecision.signal = 'NONE';
-    } else if (tradeSignal.signal !== 'NONE') {
-      logger.info('Signal passed confidence gate', {
-        signal: tradeSignal.signal,
-        confidence: coreDecision.confidence,
+    } else if (trapAlert && trapAlert.alert) {
+      logger.info('Trap alert passed confidence gate', {
+        recommendation: trapAlert.recommendation,
+        confidence: trapAlert.confidence,
       });
     }
 
@@ -513,9 +516,7 @@ export default async function handler(req, res) {
         direction: coreDecision.signal,
       });
 
-      side = 'FLAT';
-      if (tradeSignal.signal === 'BUY') side = 'LONG';
-      if (tradeSignal.signal === 'SELL') side = 'SHORT';
+      side = 'FLAT'; // BUY/SELL/LONG/SHORTは完全削除
 
       entry = priceUsd;
       tp = tradeSignal.tp;
@@ -584,10 +585,8 @@ export default async function handler(req, res) {
       direction: coreDecision.signal,
     });
     
-    // side is derived from tradeSignal.signal
+    // sideは常にFLAT（BUY/SELL/LONG/SHORTは完全削除）
     side = 'FLAT';
-    if (tradeSignal.signal === 'BUY') side = 'LONG';
-    if (tradeSignal.signal === 'SELL') side = 'SHORT';
     
     entry = priceUsd;
     tp = tradeSignal.tp;
@@ -794,7 +793,9 @@ export default async function handler(req, res) {
         );
         grokXAnalysis = grokSent;
         
+        // 高解像度Xデータを取得
         if (grokSent && typeof grokSent === 'object') {
+          highResXData = grokSent._highResolution || grokSent.highResolution || null;
           xSentiment = {
             whaleBias: Number(grokSent.whaleBias) || 0,
             retailFomo: Number(grokSent.retailFomo) || 50,
@@ -809,6 +810,85 @@ export default async function handler(req, res) {
 
       // 後方互換性のため、aiAnalysisにGPT解析結果を設定
       aiAnalysis = gptRegularAnalysis || aiAnalysis;
+      
+      // ===== USP1: トラップ防御とトレンド転換先回り =====
+      let trapDetection = null;
+      let trapAlert = null;
+      try {
+        console.log('[Trap Detector] Detecting traps and trend reversals...');
+        trapDetection = detectTrapDetection({
+          exchangeNetflow: inflow,
+          minerMPI: mpi,
+          whaleBias: xSentiment.whaleBias || 0,
+          retailFomo: xSentiment.retailFomo || 50,
+          priceChange24h: change24h,
+          highResCQ: highResCQData,
+          highResX: highResXData,
+          binanceData: binanceData || null,
+        });
+        
+        if (trapDetection.trapDetected) {
+          console.log('[Trap Detector] Trap detected:', {
+            trapType: trapDetection.trapType,
+            trapSeverity: trapDetection.trapSeverity,
+            trapScore: trapDetection.trapScore,
+            trendReversalSignal: trapDetection.trendReversalSignal,
+          });
+          
+          // トラップベースのアラート生成
+          trapAlert = generateTrapAlert({
+            exchangeNetflow: inflow,
+            minerMPI: mpi,
+            whaleBias: xSentiment.whaleBias || 0,
+            retailFomo: xSentiment.retailFomo || 50,
+            priceChange24h: change24h,
+            highResCQ: highResCQData,
+            highResX: highResXData,
+            binanceData: binanceData || null,
+          });
+          
+          // トラップアラートのみ使用（BUY/SELLシグナル生成ロジックは完全削除）
+          if (trapAlert.alert && trapAlert.confidence >= 0.75) {
+            console.log('[Trap Detector] High-confidence trap alert detected:', trapAlert);
+            // トラップアラートの推奨のみを使用（BUY/SELLシグナルは生成しない）
+          }
+        }
+      } catch (error) {
+        console.warn('[Trap Detector] Error detecting traps:', error.message);
+      }
+      
+      // 後方互換性のため、marketBugDetectionも設定
+      const marketBugDetection = trapDetection;
+      
+      // ===== USP3: Dr. Grokの心理的サポート =====
+      let psychologicalSupport = null;
+      try {
+        console.log('[Dr. Grok] Diagnosing user sentiment and providing psychological support...');
+        psychologicalSupport = await diagnoseUserSentimentCompat(
+          {
+            price_usd_display: priceUsd,
+            change_24h: change24h,
+            market_score: snapshot.market_score,
+            trapDetection: trapDetection,
+            marketBug: marketBugDetection, // 後方互換性
+            trapAlert: trapAlert,
+            divergenceSignal: divergenceSignalResult,
+          },
+          xSentiment,
+          LANG
+        );
+        
+        if (psychologicalSupport && psychologicalSupport.psychologicalState !== 'UNKNOWN') {
+          console.log('[Dr. Grok] Psychological diagnosis completed:', {
+            state: psychologicalSupport.psychologicalState,
+            risk: psychologicalSupport.psychologicalRisk,
+            supportLevel: psychologicalSupport.psychologicalSupportLevel || psychologicalSupport.medicalSupportLevel,
+          });
+        }
+      } catch (error) {
+        console.warn('[Dr. Grok] Error providing psychological support:', error.message);
+      }
+      
     } else if (needsLongReport && shouldCallGrok && !isRegularSlot) {
       // 緊急配信時: 既存のGrok分析を維持（後方互換性）
       const marketSummaryPayload = {
@@ -957,12 +1037,19 @@ export default async function handler(req, res) {
       let finalHighResX = highResXData;
       let divergenceSignalResult = baseCoreDecision?.divergenceSignal || coreDecision?.divergenceSignal || null;
       
-      const regularText = formatRegularBriefing({
-        snapshot, // Phase 3: スナップショット全体
+      let regularText = formatRegularBriefing({
+        snapshot, // Phase 3: スナップショット全体（後方互換性のため残す）
         now,
+        inflow: snapshot.inflow,
+        mpi: snapshot.mpi,
+        sentimentLabel: snapshot.sentiment_label,
+        priceUsd: snapshot.price_usd_display,
+        change24h: snapshot.change_24h,
+        score: snapshot.market_score,
         tradeSignal,
         trap,
-        aiAnalysis: finalAnalysis, // GPT解析結果を使用
+        aiAnalysis: finalAnalysis, // 後方互換性のため残す
+        stats: null, // reserved
         lang: LANG,
         // Phase 2: A/Bテスト識別子
         variant,
@@ -972,19 +1059,33 @@ export default async function handler(req, res) {
         whaleFlows: cqDeep?.whaleFlows,
         liquidations: cqDeep?.liquidations,
         kimchiPremium: cqDeep?.kimchiPremium,
-        upbitPrice: cqDeep?.upbitPrice ?? priceUsd,
-        binancePrice: cqDeep?.binancePrice ?? priceUsd,
+        upbitPrice: cqDeep?.upbitPrice ?? snapshot.price_usd_display,
+        binancePrice: cqDeep?.binancePrice ?? snapshot.price_usd_display,
         riskReward: cqDeep?.riskReward,
         nupl: cqDeep?.longTerm?.nupl,
         sopr30d: cqDeep?.longTerm?.sopr30d,
+        // Phase1-Product: 新機能データ
+        noTradeAlert: null, // 将来の実装用
+        trapRisk: null, // 将来の実装用
+        exitMap: null, // 将来の実装用
         // 新規: サービス未利用ユーザーの悲惨な状況
         nonUserImpactReport,
         missedOpportunities: missedOpportunities ? formatMissedOpportunities(missedOpportunities, LANG) : null,
-        grokXAnalysis, // Grok X解析結果
+        // ニュース番組構造用: GPTリポーターとGrok X解析を分離
+        gptReporterAnalysis: gptRegularAnalysis ?? null, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
+        grokXAnalysis: grokXAnalysis ?? null, // Grok X解析結果（Xセンチメント分析）
         // 高解像度データ
         highResCQ: finalHighResCQ,
         highResX: finalHighResX,
         divergenceSignal: divergenceSignalResult,
+        // USP1: トラップ防御結果
+        trapDetection: trapDetection || null,
+        marketBug: marketBugDetection || null, // 後方互換性
+        trapAlert: trapAlert || null,
+        // USP3: Dr. Grokの心理的サポート
+        psychologicalSupport: psychologicalSupport || null,
+        // USP2: Geminiコンテンツ生成（後で更新される可能性があるため、一旦false）
+        hasGeminiContent: false,
       });
 
       // Phase 4: 保存されたコンテンツを読み込む（定時5分前に生成されたもの）
@@ -1012,6 +1113,7 @@ export default async function handler(req, res) {
       }
 
       // ===== 定期配信: Geminiコンテンツ生成（Veo動画 + Nano Banana画像） =====
+      // USP2: トラップ防御結果を画像生成に反映
       let imageUrl = savedImageUrl;
       let videoUrl = savedVideoUrl;
       
@@ -1019,7 +1121,15 @@ export default async function handler(req, res) {
       if (!imageUrl && ENABLE_GEMINI_IMAGES) {
         try {
           console.log('[Gemini] Attempting to generate market image (Nano Banana Pro)...');
-          imageUrl = await generateMarketImage(snapshot, LANG);
+          // トラップ防御結果をスナップショットに追加
+          const enhancedSnapshot = {
+            ...snapshot,
+            trapDetection: trapDetection,
+            marketBug: marketBugDetection, // 後方互換性
+            trapAlert: trapAlert,
+            divergenceSignal: divergenceSignalResult,
+          };
+          imageUrl = await generateMarketImage(enhancedSnapshot, LANG);
           
           if (imageUrl) {
             console.log('[Gemini] Image generated successfully');
@@ -1032,12 +1142,21 @@ export default async function handler(req, res) {
       }
 
       // 動画生成（Veo 3.1）- 定期配信時のみ
+      // USP2: トラップ防御結果を動画生成に反映
       if (!videoUrl) {
         try {
           console.log('[Gemini] Attempting to generate market video (Veo 3.1)...');
           // GPT解析結果またはGrok分析をサマリーとして使用
           const videoSummary = finalAnalysis || grokXAnalysis || 'Market analysis unavailable';
-          videoUrl = await generateMarketVideo(snapshot, videoSummary, LANG);
+          // トラップ防御結果をスナップショットに追加
+          const enhancedSnapshot = {
+            ...snapshot,
+            trapDetection: trapDetection,
+            marketBug: marketBugDetection, // 後方互換性
+            trapAlert: trapAlert,
+            divergenceSignal: divergenceSignalResult,
+          };
+          videoUrl = await generateMarketVideo(enhancedSnapshot, videoSummary, LANG);
           
           if (videoUrl) {
             console.log('[Gemini] Video generated successfully');
@@ -1047,6 +1166,55 @@ export default async function handler(req, res) {
         } catch (error) {
           console.warn('[Gemini] Video generation failed, continuing without video:', error.message);
         }
+      }
+
+      // USP2: Geminiコンテンツが生成されたかどうかを確認し、メッセージを再生成
+      const hasGeminiContent = !!(imageUrl || videoUrl);
+      if (hasGeminiContent) {
+        // メッセージを再生成（USP2の表示を更新）
+        const regularTextUpdated = formatRegularBriefing({
+          snapshot,
+          now,
+          inflow: snapshot.inflow,
+          mpi: snapshot.mpi,
+          sentimentLabel: snapshot.sentiment_label,
+          priceUsd: snapshot.price_usd_display,
+          change24h: snapshot.change_24h,
+          score: snapshot.market_score,
+          tradeSignal,
+          trap,
+          aiAnalysis: finalAnalysis, // 後方互換性のため残す
+          stats: null,
+          lang: LANG,
+          variant,
+          messageId,
+          trapScore: cqDeep?.trapScore,
+          whaleFlows: cqDeep?.whaleFlows,
+          liquidations: cqDeep?.liquidations,
+          kimchiPremium: cqDeep?.kimchiPremium,
+          upbitPrice: cqDeep?.upbitPrice ?? snapshot.price_usd_display,
+          binancePrice: cqDeep?.binancePrice ?? snapshot.price_usd_display,
+          riskReward: cqDeep?.riskReward,
+          nupl: cqDeep?.longTerm?.nupl,
+          sopr30d: cqDeep?.longTerm?.sopr30d,
+          noTradeAlert: null,
+          trapRisk: null,
+          exitMap: null,
+          nonUserImpactReport,
+          missedOpportunities: missedOpportunities ? formatMissedOpportunities(missedOpportunities, LANG) : null,
+          // ニュース番組構造用: GPTリポーターとGrok X解析を分離
+          gptReporterAnalysis: gptRegularAnalysis || null, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
+          grokXAnalysis: grokXAnalysis || null, // Grok X解析結果（Xセンチメント分析）
+          highResCQ: finalHighResCQ,
+          highResX: finalHighResX,
+          divergenceSignal: divergenceSignalResult,
+          trapDetection: trapDetection || null,
+          marketBug: marketBugDetection || null, // 後方互換性
+          trapAlert: trapAlert || null,
+          psychologicalSupport: psychologicalSupport || null,
+          hasGeminiContent: true,
+        });
+        regularText = regularTextUpdated;
       }
 
       // Phase 4: メッセージ送信とログ記録
@@ -1132,6 +1300,27 @@ export default async function handler(req, res) {
       const variant = Math.random() < 0.5 ? 'A' : 'B';
       const messageId = `msg_${Date.now()}_${LANG}_${variant}_STANDBY_BREAK`;
 
+      // ===== USP3: Dr. Grokの心理的サポート =====
+      let psychologicalSupportSTANDBY = null;
+      try {
+        console.log('[Dr. Grok] Diagnosing user sentiment for STANDBY_BREAK...');
+        psychologicalSupportSTANDBY = await diagnoseUserSentimentCompat(
+          {
+            price_usd_display: priceUsd,
+            change_24h: change24h,
+            market_score: coreDecision.score,
+            trapDetection: null, // STANDBY_BREAKではトラップ防御は不要
+            marketBug: null, // 後方互換性
+            trapAlert: null,
+            divergenceSignal: null,
+          },
+          xSentiment,
+          LANG
+        );
+      } catch (error) {
+        console.warn('[Dr. Grok] Error providing psychological support for STANDBY_BREAK:', error.message);
+      }
+
       const standbyBreakText = formatRegularBriefing({
         snapshot, // Phase 3: スナップショット
         now,
@@ -1158,6 +1347,15 @@ export default async function handler(req, res) {
         riskReward: cqDeep?.riskReward,
         nupl: cqDeep?.longTerm?.nupl,
         sopr30d: cqDeep?.longTerm?.sopr30d,
+        // USP1: トラップ防御結果
+        trapDetection: null, // STANDBY_BREAKではトラップ防御は不要
+        marketBug: null, // 後方互換性
+        trapAlert: null,
+        divergenceSignal: null,
+        // USP3: Dr. Grokの心理的サポート
+        psychologicalSupport: psychologicalSupportSTANDBY || null,
+        // USP2: Geminiコンテンツ生成（STANDBY_BREAKでは生成しない）
+        hasGeminiContent: false,
       });
 
       // Phase 2: メッセージ送信とログ記録
@@ -1188,6 +1386,27 @@ export default async function handler(req, res) {
       const variant = Math.random() < 0.5 ? 'A' : 'B';
       const messageId = `msg_${Date.now()}_${LANG}_${variant}_WATCH`;
 
+      // ===== USP3: Dr. Grokの心理的サポート =====
+      let psychologicalSupportWATCH = null;
+      try {
+        console.log('[Dr. Grok] Diagnosing user sentiment for WATCH...');
+        psychologicalSupportWATCH = await diagnoseUserSentimentCompat(
+          {
+            price_usd_display: priceUsd,
+            change_24h: change24h,
+            market_score: coreDecision.score,
+            trapDetection: null, // WATCHではトラップ防御は不要
+            marketBug: null, // 後方互換性
+            trapAlert: null,
+            divergenceSignal: null,
+          },
+          xSentiment,
+          LANG
+        );
+      } catch (error) {
+        console.warn('[Dr. Grok] Error providing psychological support for WATCH:', error.message);
+      }
+
       // Phase 2: WATCHメッセージもformatRegularBriefingを使用（多言語対応）
       // ただし、aiAnalysisは不要（コスト削減のため）
       const watchText = formatRegularBriefing({
@@ -1216,6 +1435,15 @@ export default async function handler(req, res) {
         riskReward: cqDeep?.riskReward,
         nupl: cqDeep?.longTerm?.nupl,
         sopr30d: cqDeep?.longTerm?.sopr30d,
+        // USP1: トラップ防御結果
+        trapDetection: null, // WATCHではトラップ防御は不要
+        marketBug: null, // 後方互換性
+        trapAlert: null,
+        divergenceSignal: null,
+        // USP3: Dr. Grokの心理的サポート
+        psychologicalSupport: psychologicalSupportWATCH || null,
+        // USP2: Geminiコンテンツ生成（WATCHでは生成しない）
+        hasGeminiContent: false,
       });
 
       // Phase 2: メッセージ送信とログ記録
@@ -1246,6 +1474,27 @@ export default async function handler(req, res) {
       const variant = Math.random() < 0.5 ? 'A' : 'B';
       const messageId = `msg_${Date.now()}_${LANG}_${variant}_WATCH_LEGACY`;
 
+      // ===== USP3: Dr. Grokの心理的サポート =====
+      let psychologicalSupportWATCHLegacy = null;
+      try {
+        console.log('[Dr. Grok] Diagnosing user sentiment for WATCH (legacy)...');
+        psychologicalSupportWATCHLegacy = await diagnoseUserSentimentCompat(
+          {
+            price_usd_display: priceUsd,
+            change_24h: change24h,
+            market_score: coreDecision.score,
+            trapDetection: null, // WATCHではトラップ防御は不要
+            marketBug: null, // 後方互換性
+            trapAlert: null,
+            divergenceSignal: null,
+          },
+          xSentiment,
+          LANG
+        );
+      } catch (error) {
+        console.warn('[Dr. Grok] Error providing psychological support for WATCH (legacy):', error.message);
+      }
+
       // Legacyモードでも多言語対応を維持
       const watchText = formatRegularBriefing({
         snapshot, // Phase 3: スナップショット
@@ -1269,6 +1518,15 @@ export default async function handler(req, res) {
         riskReward: cqDeep?.riskReward,
         nupl: cqDeep?.longTerm?.nupl,
         sopr30d: cqDeep?.longTerm?.sopr30d,
+        // USP1: トラップ防御結果
+        trapDetection: null, // WATCHではトラップ防御は不要
+        marketBug: null, // 後方互換性
+        trapAlert: null,
+        divergenceSignal: null,
+        // USP3: Dr. Grokの心理的サポート
+        psychologicalSupport: psychologicalSupportWATCHLegacy || null,
+        // USP2: Geminiコンテンツ生成（Legacy WATCHでは生成しない）
+        hasGeminiContent: false,
       });
 
       // Phase 2: メッセージ送信とログ記録

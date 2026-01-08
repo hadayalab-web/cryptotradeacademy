@@ -11,12 +11,8 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowAbs = Math.abs(inflow || 0);
 
   const trapLabel = trap?.label || 'Whale Trap';
-  const trapSide =
-    trap?.side === 'SHORT'
-      ? '🔻 Trampa en el lado SHORT'
-      : trap?.side === 'LONG'
-        ? '🔺 Trampa en el lado LONG'
-        : '⚠️ Trampa detectada';
+  // BUY/SELL/LONG/SHORT completamente eliminado - solo se muestra la detección de trampa
+  const trapSide = '⚠️ Trampa detectada';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);

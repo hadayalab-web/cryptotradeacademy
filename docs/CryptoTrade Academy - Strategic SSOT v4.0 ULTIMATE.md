@@ -1172,12 +1172,10 @@ LTV測定:
   └─ EN/AR/ES/JA/KO/PT-BRすべてにPhase1-Product機能表示追加
 ✅ 週次検証ログ公開機能実装完了
   └─ verificationLogger.js、weekly-verification-report.js、api/weekly-report.js
-✅ Notionメッセージ定期解析自動化完了
-  └─ notion-message-analyzer-cron.js、api/notion-analyzer.js
 ✅ テスト実行完了
   └─ Phase1-Product機能テスト、Telegramテンプレートテスト（全6言語）
 ✅ Vercel Cron設定追加完了
-  └─ 週次レポート（毎週日曜00:00 UTC）、Notion解析（6時間ごと）
+  └─ 週次レポート（毎週日曜00:00 UTC）
 ```
 
 
@@ -1250,7 +1248,6 @@ v4.1 (2026-01-05 11:00 UTC):
   - api/cron.js統合完了
   - 全言語テンプレート更新完了（6市場）
   - 週次検証ログ公開機能実装
-  - Notionメッセージ定期解析自動化
   - テスト実行完了
 ```
 
