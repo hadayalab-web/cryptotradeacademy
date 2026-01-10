@@ -12,7 +12,8 @@ const TZ_UTC = 'UTC';
 // 入力スキーマ検証
 const SignalSchema = z.object({
   ts: z.union([z.string(), z.number(), z.date()]),
-  side: z.enum(['LONG', 'SHORT', 'FLAT']).optional(),
+  // 過去データとの互換性のため、LONG/SHORTも許容（新しいデータではAVOID_LONG/AVOID_SHORT/STANDBYのみ）
+  side: z.enum(['LONG', 'SHORT', 'FLAT', 'AVOID_LONG', 'AVOID_SHORT', 'STANDBY']).optional(),
   entry: z.number().optional(),
   tp: z.number().optional(),
   sl: z.number().optional(),
@@ -175,17 +176,21 @@ async function calculateMissedOpportunities(signalsLogPath = null, hoursBack = 2
       
       recentSignals.push(validated.data);
       
-      // シグナルがLONGまたはSHORTの場合、潜在的な利益を計算
-      if (validated.data.side === 'LONG' || validated.data.side === 'SHORT') {
+      // シグナルがLONG/SHORT/AVOID_LONG/AVOID_SHORTの場合、潜在的な利益を計算
+      // 過去データとの互換性のため、LONG/SHORTも処理（新しいデータではAVOID_LONG/AVOID_SHORTのみ）
+      if (validated.data.side === 'LONG' || validated.data.side === 'SHORT' || 
+          validated.data.side === 'AVOID_LONG' || validated.data.side === 'AVOID_SHORT') {
         const entry = validated.data.entry || validated.data.metrics?.priceUsd || 0;
         const tp = validated.data.tp || 0;
         const sl = validated.data.sl || 0;
         
         if (entry > 0 && tp > 0) {
           let potentialProfit = 0;
-          if (validated.data.side === 'LONG') {
+          // LONG/AVOID_LONG: エントリー価格よりTPが高い場合に利益
+          if (validated.data.side === 'LONG' || validated.data.side === 'AVOID_LONG') {
             potentialProfit = ((tp - entry) / entry) * 100;
-          } else if (validated.data.side === 'SHORT') {
+          // SHORT/AVOID_SHORT: エントリー価格よりTPが低い場合に利益
+          } else if (validated.data.side === 'SHORT' || validated.data.side === 'AVOID_SHORT') {
             potentialProfit = ((entry - tp) / entry) * 100;
           }
           

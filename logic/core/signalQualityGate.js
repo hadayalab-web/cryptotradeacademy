@@ -1,102 +1,66 @@
 // logic/core/signalQualityGate.js
-// SELL/SHORTシグナルの80%勝率要件をチェックするゲート関数
-
-const fs = require('fs');
-const path = require('path');
-
-// メトリクスファイルのパス
-const METRICS_PATH = path.join(__dirname, '..', '..', 'data', 'signal_quality_metrics.json');
-
-// キャッシュ設定（5分間有効）
-const CACHE_TTL_MS = 5 * 60 * 1000;
-
-let cache = { loadedAt: 0, data: null };
+// SSOT Trap Defense BTC準拠の統一品質ゲート
+// trapScore>=60 & multipleDivergences>=3 の条件を満たした場合のみ alert=true を返す
 
 /**
- * メトリクスファイルを読み込む（キャッシュ付き）
+ * 統一品質ゲート（SSOT準拠）
+ * trapScore>=60 & multipleDivergences>=3 の条件を満たした場合のみ alert=true を返す
+ * 
+ * @param {Object} trapDetection - トラップ検出結果
+ * @param {number} trapDetection.trapScore - トラップスコア（0-100）
+ * @param {Object} trapDetection.divergence - ダイバージェンス検出結果
+ * @param {number} trapDetection.divergence.multipleDivergences - 複数ダイバージェンス数
+ * @returns {boolean} 品質ゲートを通過した場合 true
  */
-function loadMetrics() {
-  const now = Date.now();
-
-  // キャッシュが有効な場合はキャッシュを返す
-  if (cache.data && (now - cache.loadedAt) < CACHE_TTL_MS) {
-    return cache.data;
+function passesQualityGate(trapDetection) {
+  if (!trapDetection || !trapDetection.divergence) {
+    return false;
   }
-
-  try {
-    if (!fs.existsSync(METRICS_PATH)) {
-      console.warn(`[signalQualityGate] Metrics file not found: ${METRICS_PATH}`);
-      return null;
-    }
-
-    const raw = fs.readFileSync(METRICS_PATH, 'utf8');
-    const data = JSON.parse(raw);
-    cache = { loadedAt: now, data };
-    return data;
-  } catch (error) {
-    console.warn(`[signalQualityGate] Error loading metrics: ${error.message}`);
-    // メトリクスが無い/壊れている場合は安全側（配信停止）
-    return null;
-  }
+  
+  const trapScore = trapDetection.trapScore || 0;
+  const multipleDivergences = trapDetection.divergence.multipleDivergences || 0;
+  
+  // SSOT要件: trapScore>=60 & multipleDivergences>=3
+  return trapScore >= 60 && multipleDivergences >= 3;
 }
 
 /**
- * SELL/SHORTシグナルの配信可否を評価
- *
- * @param {Object} options - 評価オプション
- * @param {number} options.minWinRate - 最低勝率（デフォルト: 0.80）
- * @returns {Object} { pass: boolean, reason: string, details: Object }
+ * トラップアラートに品質ゲートを適用
+ * 品質ゲートを通過しない場合は alert=false, recommendation=STANDBY を返す
+ * 
+ * @param {Object} trapAlert - トラップアラート（generateTrapAlertの返却値）
+ * @param {Object} trapDetection - トラップ検出結果
+ * @returns {Object} 品質ゲート適用後のトラップアラート
  */
-function evaluateShortSellGate({ minWinRate = 0.80 } = {}) {
-  const metrics = loadMetrics();
-
-  if (!metrics || !metrics.windows || !metrics.windows.short_last_100) {
+function applyQualityGate(trapAlert, trapDetection) {
+  if (!trapAlert || !trapDetection) {
     return {
-      pass: false,
-      reason: 'NO_METRICS',
-      details: null,
-      message: 'Signal quality metrics not available',
+      alert: false,
+      type: null,
+      severity: 'NONE',
+      confidence: 0,
+      recommendation: 'STANDBY',
+      trapDetection,
+      divergenceSignal: null,
+      urgency: 'LOW',
     };
   }
-
-  const w = metrics.windows.short_last_100;
-
-  // 最低サンプル数チェック
-  if (w.total < (w.minTrades ?? 30)) {
+  
+  // 品質ゲートを通過しない場合
+  if (!passesQualityGate(trapDetection)) {
     return {
-      pass: false,
-      reason: 'INSUFFICIENT_SAMPLE',
-      details: w,
-      message: `Insufficient sample size: ${w.total} < ${w.minTrades ?? 30}`,
+      ...trapAlert,
+      alert: false, // 品質ゲート未通過のため alert=false
+      recommendation: 'STANDBY', // 必ず STANDBY を返す
+      urgency: 'LOW',
     };
   }
-
-  // 勝率チェック
-  if (w.winRate < minWinRate) {
-    return {
-      pass: false,
-      reason: 'LOW_WINRATE',
-      details: w,
-      message: `Win rate ${(w.winRate * 100).toFixed(2)}% < ${minWinRate * 100}%`,
-    };
-  }
-
-  return {
-    pass: true,
-    reason: 'OK',
-    details: w,
-    message: `Win rate ${(w.winRate * 100).toFixed(2)}% >= ${minWinRate * 100}%`,
-  };
-}
-
-/**
- * キャッシュをクリア（テスト用）
- */
-function clearCache() {
-  cache = { loadedAt: 0, data: null };
+  
+  // 品質ゲートを通過した場合、元のアラートを返す
+  return trapAlert;
 }
 
 module.exports = {
-  evaluateShortSellGate,
-  clearCache,
+  passesQualityGate,
+  applyQualityGate,
 };

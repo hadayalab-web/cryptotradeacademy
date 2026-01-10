@@ -203,62 +203,63 @@ function detectDivergence(params = {}) {
                                      whaleBias >= 0.4; // クジラバイアスがプラス（大口が買い）
 
   // ===== 6. 信頼度計算（CQデータ + X解析の組み合わせ） =====
+  // Step 2: 内部変数名を統一（BUY/SELL → AVOID_LONG/AVOID_SHORT）
   let confidence = 0;
-  let signalDirection = 'NONE'; // 'SELL', 'BUY', 'NONE'
+  let signalDirection = 'NONE'; // 'AVOID_SHORT', 'AVOID_LONG', 'NONE' (内部処理用、外部には露出しない)
   
-  // SELL/SHORTシグナル（高勝率条件）
+  // AVOID_SHORTシグナル（高勝率条件）
   if (isHighWinRateSellCondition) {
     // X煽り + CQ売り抜けパターン（70%超を目指す）
     const fomoStrength = Math.min(1, (retailFomo - 68.82) / (80.37 - 68.82)); // Q1-中央値を0-1に正規化
     const selloffStrength = Math.min(1, (exchangeNetflow - 2572) / (4266 - 2572)); // Q1-Q3を0-1に正規化
     const onchainStrength = Math.min(1, Math.abs(onchainScore - (-30.32)) / 10); // Q1基準の強度
     confidence = 0.70 + fomoStrength * 0.15 + selloffStrength * 0.10 + onchainStrength * 0.05; // 0.70 ~ 1.00
-    signalDirection = 'SELL';
+    signalDirection = 'AVOID_SHORT'; // SELL → AVOID_SHORT
   }
-  // BUY/LONGシグナル（高勝率条件）
+  // AVOID_LONGシグナル（高勝率条件）
   else if (isHighWinRateBuyCondition) {
     // 下落局面 + 大口買い集めパターン
     const buyoffStrength = Math.min(1, Math.abs(exchangeNetflow) / 3000); // アウトフロー強度
     const mpiStrength = Math.min(1, Math.abs(minerMPI) / 2); // MPIマイナス強度
     const onchainStrength = Math.min(1, (onchainScore - 20) / 30); // オンチェーン強気強度
     confidence = 0.70 + buyoffStrength * 0.15 + mpiStrength * 0.10 + onchainStrength * 0.05; // 0.70 ~ 1.00
-    signalDirection = 'BUY';
+    signalDirection = 'AVOID_LONG'; // BUY → AVOID_LONG
   }
   // 通常のダイバージェンス検出（フォールバック）
   else if (retailFomo >= 70 && exchangeNetflow > 2000 && priceChange24h > 0) {
     // X煽り + CQ売り抜け（条件を満たさないが傾向あり）
     confidence = 0.60 + Math.min(0.1, (retailFomo - 70) / 30 * 0.1);
-    signalDirection = 'SELL';
+    signalDirection = 'AVOID_SHORT'; // SELL → AVOID_SHORT
   } else if (retailFomo <= 30 && exchangeNetflow < -2000 && priceChange24h < 0) {
     // Xセンチメント低い + CQ買い集め（下落局面）
     confidence = 0.60 + Math.min(0.1, Math.abs(exchangeNetflow) / 3000 * 0.1);
-    signalDirection = 'BUY';
+    signalDirection = 'AVOID_LONG'; // BUY → AVOID_LONG
   } else if (isPriceOnchainDivergence && onchainScore < -20 && priceChange24h > 0) {
-    // 価格とオンチェーンのズレ（SELL）
+    // 価格とオンチェーンのズレ（AVOID_SHORT）
     confidence = 0.65 + Math.min(0.1, Math.abs(onchainScore) / 100);
-    signalDirection = 'SELL';
+    signalDirection = 'AVOID_SHORT'; // SELL → AVOID_SHORT
   } else if (isPriceOnchainDivergence && onchainScore > 20 && priceChange24h < 0) {
-    // 価格とオンチェーンのズレ（BUY）
+    // 価格とオンチェーンのズレ（AVOID_LONG）
     confidence = 0.65 + Math.min(0.1, Math.abs(onchainScore) / 100);
-    signalDirection = 'BUY';
+    signalDirection = 'AVOID_LONG'; // BUY → AVOID_LONG
   } else if (isPriceSocialDivergence && socialScore < -20 && priceChange24h > 0) {
-    // 価格とXセンチメントのズレ（SELL）
+    // 価格とXセンチメントのズレ（AVOID_SHORT）
     confidence = 0.60 + Math.min(0.1, Math.abs(socialScore) / 100);
-    signalDirection = 'SELL';
+    signalDirection = 'AVOID_SHORT'; // SELL → AVOID_SHORT
   } else if (isPriceSocialDivergence && socialScore > 20 && priceChange24h < 0) {
-    // 価格とXセンチメントのズレ（BUY）
+    // 価格とXセンチメントのズレ（AVOID_LONG）
     confidence = 0.60 + Math.min(0.1, Math.abs(socialScore) / 100);
-    signalDirection = 'BUY';
+    signalDirection = 'AVOID_LONG'; // BUY → AVOID_LONG
   } else if (isStrongDivergence && Math.abs(onchainSocialDivergence) > 25) {
     // オンチェーンとXセンチメントのズレ
     if (onchainSocialDivergence < -25 && priceChange24h > 0) {
-      // SELLシグナル
+      // AVOID_SHORTシグナル
       confidence = 0.55 + Math.min(0.1, Math.abs(onchainSocialDivergence) / 100);
-      signalDirection = 'SELL';
+      signalDirection = 'AVOID_SHORT'; // SELL → AVOID_SHORT
     } else if (onchainSocialDivergence > 25 && priceChange24h < 0) {
-      // BUYシグナル
+      // AVOID_LONGシグナル
       confidence = 0.55 + Math.min(0.1, Math.abs(onchainSocialDivergence) / 100);
-      signalDirection = 'BUY';
+      signalDirection = 'AVOID_LONG'; // BUY → AVOID_LONG
     }
   }
   
@@ -279,10 +280,10 @@ function detectDivergence(params = {}) {
     // Binance補正
     binanceDivergence,
     
-    // 高勝率条件（SELL/BUY）
+    // 高勝率条件（AVOID_SHORT/AVOID_LONG）
     isHighWinRateSellCondition,
     isHighWinRateBuyCondition,
-    signalDirection, // 'SELL', 'BUY', 'NONE'
+    signalDirection, // 'AVOID_SHORT', 'AVOID_LONG', 'NONE' (内部処理用、外部には露出しない)
     confidence,
     
     // 詳細情報
@@ -318,11 +319,11 @@ function evaluateDivergenceSignal(params = {}) {
   // BUY/SELLシグナル生成は完全削除（トラップアラートのみ使用）
   // ダイバージェンス情報のみ返す（後方互換性のため）
   
-  // シグナルなし（BUY/SELLは完全削除）
+  // シグナルなし（AVOID_LONG/AVOID_SHORT/STANDBYのみ）
   return {
-    signal: 'NONE', // BUY/SELLは完全削除
+    signal: 'STANDBY', // AVOID_LONG/AVOID_SHORT/STANDBYのみ（BUY/SELLは完全削除）
     confidence: divergence.confidence,
-    reason: 'BUY/SELL_SIGNAL_GENERATION_REMOVED', // BUY/SELLシグナル生成は完全削除
+    reason: 'TRAP_DEFENSE_STANDBY', // SSOT準拠: "70%の時間、何もするな"
     divergence,
     urgency: 'LOW',
   };
@@ -443,13 +444,14 @@ function evaluateDivergenceSignalHighResolution(params = {}) {
   // 高解像度データによる信頼度補正後の判定
   const enhancedConfidence = divergence.highResolution?.enhancedConfidence || divergence.confidence;
   
-  // ===== SELL/SHORTシグナル判定（高解像度強化版） =====
+  // ===== AVOID_SHORTシグナル判定（高解像度強化版） =====
+  // SSOT準拠: BUY/SELL/LONG/SHORTは完全削除、AVOID_LONG/AVOID_SHORT/STANDBYのみ使用
   // 高勝率条件を満たす場合、より厳格な条件を適用（confidence 0.75以上）
   if (divergence.isHighWinRateSellCondition && 
       enhancedConfidence >= 0.75 && // 0.70 → 0.75 に厳格化
       divergence.multipleDivergences >= 3) { // 2 → 3 に厳格化（複数のダイバージェンスが同時に発生）
     return {
-      signal: 'SELL',
+      signal: 'AVOID_SHORT', // SELL → AVOID_SHORT
       confidence: enhancedConfidence,
       reason: 'X_FOMO_CQ_SELLOFF_HIGH_WINRATE_HIGHRES',
       divergence,
@@ -458,12 +460,12 @@ function evaluateDivergenceSignalHighResolution(params = {}) {
     };
   }
   
-  // 通常の高勝率SELL条件（confidence 0.70以上、multipleDivergences 2以上）
+  // 通常の高勝率AVOID_SHORT条件（confidence 0.70以上、multipleDivergences 2以上）
   if (divergence.isHighWinRateSellCondition && 
       enhancedConfidence >= 0.70 && 
       divergence.multipleDivergences >= 2) {
     return {
-      signal: 'SELL',
+      signal: 'AVOID_SHORT', // SELL → AVOID_SHORT
       confidence: enhancedConfidence,
       reason: 'X_FOMO_CQ_SELLOFF_HIGH_WINRATE',
       divergence,
@@ -472,13 +474,14 @@ function evaluateDivergenceSignalHighResolution(params = {}) {
     };
   }
   
-  // ===== BUY/LONGシグナル判定（高解像度強化版） =====
-  // 高勝率BUY条件
+  // ===== AVOID_LONGシグナル判定（高解像度強化版） =====
+  // SSOT準拠: BUY/LONG → AVOID_LONG
+  // 高勝率AVOID_LONG条件
   if (divergence.isHighWinRateBuyCondition && 
       enhancedConfidence >= 0.75 && // 0.70 → 0.75 に厳格化
       divergence.multipleDivergences >= 3) { // 2 → 3 に厳格化
     return {
-      signal: 'BUY',
+      signal: 'AVOID_LONG', // BUY → AVOID_LONG
       confidence: enhancedConfidence,
       reason: 'CQ_ACCUMULATION_X_PANIC_HIGH_WINRATE_HIGHRES',
       divergence,
@@ -487,12 +490,12 @@ function evaluateDivergenceSignalHighResolution(params = {}) {
     };
   }
   
-  // 通常の高勝率BUY条件
+  // 通常の高勝率AVOID_LONG条件
   if (divergence.isHighWinRateBuyCondition && 
       enhancedConfidence >= 0.70 && 
       divergence.multipleDivergences >= 2) {
     return {
-      signal: 'BUY',
+      signal: 'AVOID_LONG', // BUY → AVOID_LONG
       confidence: enhancedConfidence,
       reason: 'CQ_ACCUMULATION_X_PANIC_HIGH_WINRATE',
       divergence,
@@ -502,35 +505,36 @@ function evaluateDivergenceSignalHighResolution(params = {}) {
   }
   
   // 既存のフォールバック条件（通常のダイバージェンス検出）
-  if (divergence.signalDirection === 'SELL' && 
+  // Step 2: 内部変数名を統一（BUY/SELL → AVOID_LONG/AVOID_SHORT）
+  if (divergence.signalDirection === 'AVOID_SHORT' && 
       divergence.multipleDivergences >= 2 && 
       enhancedConfidence >= 0.60) {
     return {
-      signal: 'SELL',
+      signal: 'AVOID_SHORT',
       confidence: enhancedConfidence,
-      reason: 'MULTIPLE_DIVERGENCES_SELL',
+      reason: 'MULTIPLE_DIVERGENCES_AVOID_SHORT',
       divergence,
       urgency: 'MEDIUM',
       highResolution: divergence.highResolution,
     };
   }
   
-  if (divergence.signalDirection === 'BUY' && 
+  if (divergence.signalDirection === 'AVOID_LONG' && 
       divergence.multipleDivergences >= 2 && 
       enhancedConfidence >= 0.60) {
     return {
-      signal: 'BUY',
+      signal: 'AVOID_LONG',
       confidence: enhancedConfidence,
-      reason: 'MULTIPLE_DIVERGENCES_BUY',
+      reason: 'MULTIPLE_DIVERGENCES_AVOID_LONG',
       divergence,
       urgency: 'MEDIUM',
       highResolution: divergence.highResolution,
     };
   }
   
-  // シグナルなし
+  // シグナルなし（SSOT準拠: STANDBYを返す）
   return {
-    signal: 'NONE',
+    signal: 'STANDBY', // NONE → STANDBY
     confidence: enhancedConfidence,
     reason: 'INSUFFICIENT_DIVERGENCE',
     divergence,

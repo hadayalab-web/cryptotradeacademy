@@ -2,15 +2,62 @@
 // GPT APIを使用したCryptoQuantデータ解析サービス（最適化版）
 
 const OpenAI = require('openai');
-const pRetry = require('p-retry');
+// p-retryはES Moduleのため動的インポートを使用
+let pRetry, AbortError;
 const { z } = require('zod');
-const LRUCache = require('lru-cache');
+
+// Step 2-2: JSON出力のスキーマ検証（zod）
+// GPTの出力形式を検証するスキーマ
+const GPTAnalysisSchema = z.object({
+  signal: z.enum(['AVOID_SHORT', 'AVOID_LONG', 'STANDBY', 'NONE']),
+  confidence: z.number().min(0).max(1),
+  reasoning: z.string(),
+  urgency: z.enum(['high', 'medium', 'low']),
+  keyIndicators: z.array(z.string()),
+  riskLevel: z.enum(['high', 'medium', 'low']),
+});
+
+// スキーマ検証失敗時のデフォルト値（フェイルクローズ: STANDBY）
+const DEFAULT_STANDBY_RESPONSE = {
+  signal: 'STANDBY',
+  confidence: 0,
+  reasoning: 'Schema validation failed. Falling back to STANDBY (SSOT: "70% of the time, do nothing").',
+  urgency: 'low',
+  keyIndicators: [],
+  riskLevel: 'medium',
+};
+// P1修正: LRUCache require の互換修正（lru-cache v7+ は default export、v6- は named export）
+const LRUCacheModule = require('lru-cache');
+// lru-cache v7+ は default export、v6- は named export (LRUCache)
+const LRUCache = (typeof LRUCacheModule === 'function') 
+  ? LRUCacheModule 
+  : (LRUCacheModule.default ?? LRUCacheModule.LRUCache ?? LRUCacheModule);
 const { kv } = require('@vercel/kv');
-const { recordMetric } = require('../utils/metrics');
+// recordMetric はオプショナル（存在しない場合は無視）
+let recordMetric;
+try {
+  recordMetric = require('../utils/metrics').recordMetric;
+} catch (error) {
+  recordMetric = () => Promise.resolve(); // 存在しない場合は何もしない
+}
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-// コスト最適化: GPT-4o-miniをデフォルトに（環境変数で上書き可能）
-const GPT_MODEL = process.env.GPT_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+// Phase 2: 用途別モデル環境変数の分割（SSOT準拠）
+const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'production';
+
+// 開発環境: すべてハイエンドモデルを使用（Composer最優先）
+// 本番環境: 用途別モデルを使用（コスト最適化）
+const isDevelopment = APP_ENV === 'development';
+
+// 用途別モデル定義
+// P0修正: 本番デフォルトを実在するモデル名に変更（gpt-5.2-2025-12-11は存在しない可能性があるため）
+const GPT_MODEL_SUMMARY = process.env.GPT_MODEL_SUMMARY || (isDevelopment ? 'gpt-4o' : 'gpt-4o-mini');
+const GPT_MODEL_ANALYSIS = process.env.GPT_MODEL_ANALYSIS || (isDevelopment ? 'gpt-4o' : 'gpt-4o');
+const GPT_MODEL_GATE = process.env.GPT_MODEL_GATE || (isDevelopment ? 'gpt-4o' : 'gpt-4o'); // 最終ゲートは常にハイエンド（本番でもgpt-4o）
+
+// 後方互換性のため、GPT_MODELも残す（デフォルトはSUMMARY）
+const GPT_MODEL = process.env.GPT_MODEL || process.env.OPENAI_MODEL || GPT_MODEL_SUMMARY;
+
 const GPT_CACHE_TTL_SECONDS = Number(process.env.GPT_CACHE_TTL_SECONDS || 900); // 15分
 const GPT_TIMEOUT_MS = Number(process.env.GPT_TIMEOUT_MS || 25000);
 
@@ -174,6 +221,18 @@ const MarketContextSchema = z.object({
  * @returns {Promise<Object>} GPT解析結果 {signal, confidence, reasoning, urgency}
  */
 async function analyzeCryptoQuantData(cryptoQuantData, marketContext, lang = 'en') {
+  // p-retryを動的インポート（ES Module対応）
+  if (!pRetry) {
+    try {
+      const pRetryModule = await import('p-retry');
+      pRetry = pRetryModule.default || pRetryModule;
+      AbortError = pRetryModule.AbortError;
+    } catch (error) {
+      console.error('[p-retry] Failed to import:', error);
+      throw error;
+    }
+  }
+
   const logger = createStructuredLogger('analyzeCryptoQuantData');
   
   if (!OPENAI_API_KEY) {
@@ -216,8 +275,8 @@ async function analyzeCryptoQuantData(cryptoQuantData, marketContext, lang = 'en
   const safeMCData = escapeForPrompt(JSON.stringify(validatedMC.data, null, 2));
 
   const systemPrompt = `You are a quantitative crypto market analyst specializing in on-chain data analysis.
-Your expertise: Interpreting CryptoQuant metrics (Exchange Netflow, MPI, NUPL, SOPR) to detect early trend reversal signals.
-Your goal: Identify SELL/SHORT opportunities with 80%+ win rate accuracy.
+Your expertise: Interpreting CryptoQuant metrics (Exchange Netflow, MPI, NUPL, SOPR) to detect early trap signals.
+Your goal: Identify AVOID_SHORT/AVOID_LONG opportunities with 80%+ win rate accuracy (SSOT Trap Defense BTC: "70% of the time, do nothing. Defend until clear advantage emerges.").
 
 Key metrics to analyze:
 - Exchange Netflow: Positive = bearish (coins entering exchanges, potential selling pressure)
@@ -229,7 +288,7 @@ IMPORTANT: If the provided data is empty, null, or insufficient, explicitly stat
 
 Return ONLY valid JSON. No markdown. No code fences.
 Schema: {
-  "signal": "SELL" | "NONE",
+  "signal": "AVOID_SHORT" | "AVOID_LONG" | "STANDBY" | "NONE",
   "confidence": number (0-1),
   "reasoning": string,
   "urgency": "high" | "medium" | "low",
@@ -247,14 +306,17 @@ ${safeMCData}
 
 Language: ${targetLang}
 
-Task: Determine if a SELL/SHORT signal should be triggered based on on-chain data.
-Focus on trend reversal patterns and early warning signs.
-Only recommend SELL if multiple indicators align and confidence is high (>=0.80).
-If data is missing or insufficient, set signal to "NONE" and urgency to "low".`;
+Task: Determine if an AVOID_SHORT/AVOID_LONG signal should be triggered based on on-chain data.
+Focus on trap detection patterns and early warning signs (SSOT Trap Defense BTC: trapScore>=60 & multipleDivergences>=3).
+Only recommend AVOID_SHORT/AVOID_LONG if multiple indicators align and confidence is high (>=0.80).
+If data is missing or insufficient, set signal to "STANDBY" and urgency to "low".`;
 
+  // Phase 2: 用途別モデルを使用（SUMMARY: 前処理・要約）
+  const modelToUse = GPT_MODEL_SUMMARY;
+  
   // キャッシュキー生成
   const cacheKey = buildCacheKey({
-    model: GPT_MODEL,
+    model: modelToUse,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
@@ -293,7 +355,7 @@ If data is missing or insufficient, set signal to "NONE" and urgency to "low".`;
             Authorization: `Bearer ${OPENAI_API_KEY}`,
           },
           body: JSON.stringify({
-            model: GPT_MODEL,
+            model: modelToUse, // Phase 2: 用途別モデルを使用
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userContent },
@@ -316,14 +378,14 @@ If data is missing or insufficient, set signal to "NONE" and urgency to "low".`;
         if (isRetryableError(err)) {
           throw err;
         }
-        throw pRetry.AbortError(err);
+        throw new AbortError(err);
       }
 
       const json = await completion.json();
       return json;
     } catch (error) {
       if (error.name === 'AbortError') {
-        throw pRetry.AbortError(error);
+        throw new AbortError(error);
       }
       throw error;
     }
@@ -393,7 +455,7 @@ If data is missing or insufficient, set signal to "NONE" and urgency to "low".`;
     };
   }
 
-  // JSONパース
+  // Step 2-2: JSONパース + スキーマ検証
   let analysis;
   try {
     analysis = JSON.parse(text);
@@ -402,24 +464,24 @@ If data is missing or insufficient, set signal to "NONE" and urgency to "low".`;
       textPreview: text.substring(0, 200),
       error: parseError.message,
     });
-    return {
-      signal: 'NONE',
-      confidence: 0,
-      reasoning: `GPT response parse error: ${text.substring(0, 200)}`,
-      urgency: 'low',
-      keyIndicators: [],
-      riskLevel: 'medium',
-    };
+    // フェイルクローズ: STANDBYを返す
+    return DEFAULT_STANDBY_RESPONSE;
   }
 
-  const finalResult = {
-    signal: analysis.signal || 'NONE',
-    confidence: Number(analysis.confidence) || 0,
-    reasoning: analysis.reasoning || 'No reasoning provided',
-    urgency: analysis.urgency || 'low',
-    keyIndicators: Array.isArray(analysis.keyIndicators) ? analysis.keyIndicators : [],
-    riskLevel: analysis.riskLevel || 'medium',
-  };
+  // Step 2-2: zodスキーマ検証
+  const validationResult = GPTAnalysisSchema.safeParse(analysis);
+  if (!validationResult.success) {
+    logger.warn('Schema validation failed', {
+      errors: validationResult.error.errors,
+      receivedData: analysis,
+      textPreview: text.substring(0, 200),
+    });
+    // フェイルクローズ: STANDBYを返す（SSOT準拠: "70%の時間、何もするな"）
+    return DEFAULT_STANDBY_RESPONSE;
+  }
+
+  // 検証成功: 検証済みデータを使用
+  const finalResult = validationResult.data;
 
   // キャッシュに保存
   memoryCache.set(cacheKey, finalResult);
@@ -439,6 +501,18 @@ If data is missing or insufficient, set signal to "NONE" and urgency to "low".`;
  * @returns {Promise<string>} GPTによる詳細分析テキスト
  */
 async function generateCryptoQuantAnalysis(cryptoQuantData, marketContext, lang = 'en') {
+  // p-retryを動的インポート（ES Module対応）
+  if (!pRetry) {
+    try {
+      const pRetryModule = await import('p-retry');
+      pRetry = pRetryModule.default || pRetryModule;
+      AbortError = pRetryModule.AbortError;
+    } catch (error) {
+      console.error('[p-retry] Failed to import:', error);
+      throw error;
+    }
+  }
+
   const logger = createStructuredLogger('generateCryptoQuantAnalysis');
   
   if (!OPENAI_API_KEY) {
@@ -489,9 +563,12 @@ Provide:
 Keep the analysis concise but informative (300-500 words).
 If data is missing or insufficient, state that clearly.`;
 
+  // Phase 2: 用途別モデルを使用（ANALYSIS: 統合推論）
+  const modelToUse = GPT_MODEL_ANALYSIS;
+  
   // キャッシュキー生成
   const cacheKey = buildCacheKey({
-    model: GPT_MODEL,
+    model: modelToUse,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
@@ -529,7 +606,7 @@ If data is missing or insufficient, state that clearly.`;
             Authorization: `Bearer ${OPENAI_API_KEY}`,
           },
           body: JSON.stringify({
-            model: GPT_MODEL,
+            model: modelToUse, // Phase 2: 用途別モデルを使用
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userContent },
@@ -551,14 +628,14 @@ If data is missing or insufficient, state that clearly.`;
         if (isRetryableError(err)) {
           throw err;
         }
-        throw pRetry.AbortError(err);
+        throw new AbortError(err);
       }
 
       const json = await completion.json();
       return json;
     } catch (error) {
       if (error.name === 'AbortError') {
-        throw pRetry.AbortError(error);
+        throw new AbortError(error);
       }
       throw error;
     }
@@ -624,6 +701,18 @@ If data is missing or insufficient, state that clearly.`;
  * @returns {Promise<string>} 報道コンテンツ
  */
 async function generateNonUserImpactReport(marketData, missedOpportunities, lang = 'en') {
+  // p-retryを動的インポート（ES Module対応）
+  if (!pRetry) {
+    try {
+      const pRetryModule = await import('p-retry');
+      pRetry = pRetryModule.default || pRetryModule;
+      AbortError = pRetryModule.AbortError;
+    } catch (error) {
+      console.error('[p-retry] Failed to import:', error);
+      throw error;
+    }
+  }
+
   const logger = createStructuredLogger('generateNonUserImpactReport');
   
   if (!OPENAI_API_KEY) {
@@ -663,9 +752,12 @@ Tone: Professional but impactful. Use data to support the narrative.
 Length: 400-600 words.
 If data is missing or insufficient, state that clearly.`;
 
+  // Phase 2: 用途別モデルを使用（SUMMARY: 前処理・要約）
+  const modelToUse = GPT_MODEL_SUMMARY;
+  
   // キャッシュキー生成
   const cacheKey = buildCacheKey({
-    model: GPT_MODEL,
+    model: modelToUse,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
@@ -703,7 +795,7 @@ If data is missing or insufficient, state that clearly.`;
             Authorization: `Bearer ${OPENAI_API_KEY}`,
           },
           body: JSON.stringify({
-            model: GPT_MODEL,
+            model: modelToUse, // Phase 2: 用途別モデルを使用
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userContent },
@@ -725,14 +817,14 @@ If data is missing or insufficient, state that clearly.`;
         if (isRetryableError(err)) {
           throw err;
         }
-        throw pRetry.AbortError(err);
+        throw new AbortError(err);
       }
 
       const json = await completion.json();
       return json;
     } catch (error) {
       if (error.name === 'AbortError') {
-        throw pRetry.AbortError(error);
+        throw new AbortError(error);
       }
       throw error;
     }
@@ -795,4 +887,8 @@ module.exports = {
   generateCryptoQuantAnalysis,
   generateNonUserImpactReport,
   escapeForPrompt, // エクスポート（他のファイルで使用可能）
+  // Phase 2: 用途別モデルをエクスポート（他のファイルで使用可能）
+  GPT_MODEL_SUMMARY,
+  GPT_MODEL_ANALYSIS,
+  GPT_MODEL_GATE,
 };

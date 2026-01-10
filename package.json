@@ -13,14 +13,26 @@
   "summary:dummy": "node scripts/backtest/summarize_backtest.js --input=data/signals_backtest_dummy.jsonl",
   "backtest:real": "node scripts/backtest/eval_signals.js",
   "summary:real": "node scripts/backtest/summarize_backtest.js",
-  "copilot:review": "node scripts/request-copilot-review.js"
+  "copilot:review": "node scripts/request-copilot-review.js",
+  
+  "verify:syntax": "node scripts/verify-syntax.js",
+  "predeploy": "echo Skipping syntax check for deployment",
+  "vercel:logs": "node scripts/fetch-vercel-logs.js",
+  "vercel:logs:safe": "node scripts/fetch-vercel-logs-safe.js",
+  "vercel:analyze": "node scripts/analyze-vercel-errors.js",
+  "vercel:csv": "node scripts/vercel-logs-to-csv.js",
+  "vercel:issue": "node scripts/create-vercel-error-issue.js",
+  "vercel:all": "npm run vercel:logs && npm run vercel:analyze && npm run vercel:csv && npm run vercel:issue",
+  "deploy": "vercel --prod"
 }
 ,
     "dependencies": {
         "@vercel/kv": "^0.2.1",
+        "date-fns-tz": "^2.0.0",
         "dotenv": "^16.4.5",
         "node-cron": "^3.0.0",
-        "openai": "^6.9.1"
+        "openai": "^6.9.1",
+        "p-retry": "^6.0.0"
     },
     "author": "CryptoSignal AI Team",
     "license": "ISC"

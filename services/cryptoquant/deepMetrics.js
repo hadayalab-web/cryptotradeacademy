@@ -29,6 +29,7 @@ const SCORE_LONG_SHORT_IMBALANCE = 15;
 
 /**
  * Whale Ratio取得（EN市場用）
+ * Step 2-4: EMERGENCY判定指標のキャッシュバイパス対応
  *
  * Exchange Whale Ratio represents the proportion of the top 10 largest inflow transactions
  * versus total inflow. High values (>85%) indicate whale selling pressure.
@@ -36,16 +37,19 @@ const SCORE_LONG_SHORT_IMBALANCE = 15;
  * Endpoint: /btc/flow-indicator/exchange-whale-ratio
  * Parameters: exchange=all_exchange, window=day, limit=1
  *
+ * @param {object} options - オプション
+ * @param {boolean} options.skipCache - キャッシュをスキップするか（EMERGENCY判定時など）
  * @returns {Promise<Object>} { whaleRatio, interpretation }
  */
-async function getWhaleFlows() {
+async function getWhaleFlows(options = {}) {
   try {
     // Exchange Whale Ratioを取得（トップ10のインフロー / 全体のインフロー）
+    // Step 2-4: EMERGENCY判定指標のキャッシュバイパス（trapScore計算に使用）
     const whaleRatioData = await fetchCryptoQuant('/btc/flow-indicator/exchange-whale-ratio', {
       exchange: 'all_exchange',
       window: 'day',
       limit: 1,
-    });
+    }, { skipCache: options.skipCache });
 
     const point = whaleRatioData?.result?.data?.[0];
     const whaleRatio = point?.exchange_whale_ratio ?? point?.value ?? point?.whale_ratio ?? 0;
@@ -86,20 +90,58 @@ async function getWhaleFlows() {
  * - /derivatives/liquidations-long/btc
  * - /derivatives/liquidations-short/btc
  *
+ * Phase 3: 機能フラグで制御（404エンドポイントを呼ばない）
+ *
  * @returns {Promise<Object>} { longLiquidations, shortLiquidations, totalLiquidations }
  */
-async function getLiquidations() {
+/**
+ * Liquidations取得
+ * Step 2-4: EMERGENCY判定指標のキャッシュバイパス対応
+ * @param {object} options - オプション
+ * @param {boolean} options.skipCache - キャッシュをスキップするか（EMERGENCY判定時など）
+ */
+async function getLiquidations(options = {}) {
+  // Phase 3: 機能フラグで制御
+  const { isEndpointAvailable } = require('./capabilities');
+  
+  // エンドポイントが利用不可の場合は早期リターン
+  const longAvailable = await isEndpointAvailable('LIQUIDATIONS_LONG');
+  const shortAvailable = await isEndpointAvailable('LIQUIDATIONS_SHORT');
+  
+  if (!longAvailable && !shortAvailable) {
+    // 両方とも利用不可の場合は安全なデフォルトを返す
+    return {
+      longLiquidations: 0,
+      shortLiquidations: 0,
+      totalLiquidations: 0,
+    };
+  }
+  
   try {
-    const [longData, shortData] = await Promise.all([
-      fetchCryptoQuant('/derivatives/liquidations-long/btc', {
-        window: 'day',
-        limit: 1,
-      }),
-      fetchCryptoQuant('/derivatives/liquidations-short/btc', {
-        window: 'day',
-        limit: 1,
-      }),
-    ]);
+    const promises = [];
+    if (longAvailable) {
+      promises.push(
+        fetchCryptoQuant('/derivatives/liquidations-long/btc', {
+          window: 'day',
+          limit: 1,
+        }, { skipCache: options.skipCache })
+      );
+    } else {
+      promises.push(Promise.resolve(null));
+    }
+    
+    if (shortAvailable) {
+      promises.push(
+        fetchCryptoQuant('/derivatives/liquidations-short/btc', {
+          window: 'day',
+          limit: 1,
+        }, { skipCache: options.skipCache })
+      );
+    } else {
+      promises.push(Promise.resolve(null));
+    }
+    
+    const [longData, shortData] = await Promise.all(promises);
 
     const longPoint = longData?.result?.data?.[0];
     const shortPoint = shortData?.result?.data?.[0];
@@ -114,16 +156,8 @@ async function getLiquidations() {
       totalLiquidations,
     };
   } catch (error) {
-    // Liquidations endpoint is not available in CryptoQuant API (returns 404)
-    // Return safe defaults - this is expected behavior
-    if (error.message.includes('404')) {
-      // Expected: endpoint not available, use Logger.debug to avoid noise
-      const { Logger } = require('../utils/logger');
-      Logger.debug('deepMetrics', 'Liquidations endpoint not available (expected)', { error: error.message });
-    } else {
-      // Unexpected error, log as warning
-      console.warn('[deepMetrics] Error fetching liquidations:', error.message);
-    }
+    // 予期しないエラーの場合のみログ出力
+    console.warn('[deepMetrics] Error fetching liquidations:', error.message);
     return {
       longLiquidations: 0,
       shortLiquidations: 0,
@@ -211,9 +245,19 @@ function calculateKimchiPremium(upbitPrice, binancePrice, usdKrwRate) {
  * - 0 to 0.5: Optimism/Anxiety
  * - Below 0: Fear/Capitulation (potential bottom)
  *
+ * Phase 3: 機能フラグで制御（404エンドポイントを呼ばない）
+ *
  * @returns {Promise<number>} Net Unrealized Profit/Loss
  */
 async function getNUPL() {
+  // Phase 3: 機能フラグで制御
+  const { isEndpointAvailable } = require('./capabilities');
+  
+  // エンドポイントが利用不可の場合は早期リターン
+  if (!(await isEndpointAvailable('NUPL'))) {
+    return 0;
+  }
+  
   try {
     const data = await fetchCryptoQuant('/utxo-data/nupl/btc', {
       window: 'day',
@@ -225,16 +269,8 @@ async function getNUPL() {
 
     return nupl;
   } catch (error) {
-    // NUPL endpoint is not available in CryptoQuant API (returns 404)
-    // Return safe default - this is expected behavior
-    if (error.message.includes('404')) {
-      // Expected: endpoint not available, use Logger.debug to avoid noise
-      const { Logger } = require('../utils/logger');
-      Logger.debug('deepMetrics', 'NUPL endpoint not available (expected)', { error: error.message });
-    } else {
-      // Unexpected error, log as warning
-      console.warn('[deepMetrics] Error fetching NUPL:', error.message);
-    }
+    // 予期しないエラーの場合のみログ出力
+    console.warn('[deepMetrics] Error fetching NUPL:', error.message);
     return 0;
   }
 }
@@ -391,8 +427,10 @@ function calculateRiskReward(nupl, sopr30d) {
 
 /**
  * 市場別深掘りデータ取得（Phase 2）
+ * Step 2-4: EMERGENCY判定指標のキャッシュバイパス対応
  * @param {string} market - 市場コード (EN/AR/KO/JA/ES/PT-BR)
  * @param {Object} options - 追加オプション（価格情報など）
+ * @param {boolean} options.skipCache - キャッシュをスキップするか（EMERGENCY判定時など）
  * @returns {Promise<Object>} 市場別深掘りデータ
  */
 async function getCQDeepMetrics(market, options = {}) {
@@ -425,9 +463,10 @@ async function getCQDeepMetrics(market, options = {}) {
     switch (market) {
       case 'EN': {
         // EN市場: Whale Ratio + Liquidations + trapScore
+        // Step 2-4: EMERGENCY判定指標のキャッシュバイパス（trapScore/liquidationsは常に新鮮なデータが必要）
         const [whaleData, liquidations] = await Promise.all([
-          getWhaleFlows(),
-          getLiquidations(),
+          getWhaleFlows({ skipCache: options.skipCache }),
+          getLiquidations({ skipCache: options.skipCache }),
         ]);
 
         // Phase 2+: Binanceデータを取得（trapScore計算に使用）

@@ -38,34 +38,44 @@ async function evaluateTrigger(market, currentState, lastState, cqDeep = {}) {
 
     // 現在のスコアとシグナル
     const currentScore = currentState.score ?? 0;
-    const currentSignal = currentState.signal || 'BUG_STANDBY';
+    const currentSignal = currentState.signal || 'TRAP_STANDBY'; // Phase 1: BUG_STANDBY → TRAP_STANDBY
     const trapScore = currentState.trapScore ?? cqDeep.trapScore ?? 0;
+    // Phase 4: liquidations取得（CryptoQuant優先、失敗時はBinance）
     // PR #14: liquidations の構造が { longLiquidations, shortLiquidations, totalLiquidations } に変更
     const liquidationsData = cqDeep.liquidations ?? 0;
-    const liquidations = typeof liquidationsData === 'number'
+    let liquidations = typeof liquidationsData === 'number'
       ? liquidationsData
       : (liquidationsData?.totalLiquidations ?? 0);
+    
+    // Phase 4: CryptoQuantからの取得が失敗した場合（0または未定義）、Binanceから取得を試みる
+    // 注: この関数は同期的に実行されるため、Binance取得は事前にapi/cron.jsで実行済みであることを前提とする
+    // ここでは cqDeep.liquidations に既にBinanceからのデータが含まれている可能性がある
     const kimchiPremium = cqDeep.kimchiPremium ?? 0;
     const mpi = cqDeep.mpi ?? cqDeep.minerMPI ?? 0;
 
     // 前回のスコア
     const lastScore = lastState.lastScore ?? 0;
-    const lastSignal = lastState.lastSignal || 'BUG_STANDBY';
+    const lastSignal = lastState.lastSignal || 'TRAP_STANDBY'; // Phase 1: BUG_STANDBY → TRAP_STANDBY
     const hoursSinceLastUpdate = getHoursSinceLastUpdate(lastState.lastUpdateTime);
 
     // スコア変動
     const scoreChange = Math.abs(currentScore - lastScore);
 
-  // 1. EMERGENCY判定（最優先）
+  // Phase 4: EMERGENCY判定（最優先、SSOT準拠）
+  // SSOT要件: trapScore>=60, liquidations>$500M, kimchiPremium>8% (KO市場のみ)
+  // Step 1: SSOT閾値統一 - 品質ゲートとEMERGENCYトリガーを統一（trapScore>=60）
   const emergencyConfig = triggers.EMERGENCY || {};
   let emergencyReason = null;
 
+  // SSOT準拠: trapScore>=60 を基準（品質ゲートと統一）
   if (trapScore >= (emergencyConfig.trapScore || 60)) {
     emergencyReason = `trapScore ${trapScore} >= ${emergencyConfig.trapScore || 60}`;
-  } else if (liquidations >= (emergencyConfig.liquidations || 500000000)) {
-    emergencyReason = `liquidations $${liquidations} >= $${emergencyConfig.liquidations || 500000000}`;
-  } else if (market === 'KO' && kimchiPremium >= (emergencyConfig.kimchiPremium || 0.08)) {
-    emergencyReason = `kimchiPremium ${(kimchiPremium * 100).toFixed(2)}% >= ${((emergencyConfig.kimchiPremium || 0.08) * 100).toFixed(2)}%`;
+  } else if (liquidations > (emergencyConfig.liquidations || 500000000)) {
+    // SSOT準拠: liquidations>$500M（Binance等の代替ソースも検討）
+    emergencyReason = `liquidations $${(liquidations / 1000000).toFixed(1)}M > $${((emergencyConfig.liquidations || 500000000) / 1000000).toFixed(0)}M`;
+  } else if (market === 'KO' && kimchiPremium > (emergencyConfig.kimchiPremium || 0.08)) {
+    // SSOT準拠: kimchiPremium>8% (KO市場のみ)
+    emergencyReason = `kimchiPremium ${(kimchiPremium * 100).toFixed(2)}% > ${((emergencyConfig.kimchiPremium || 0.08) * 100).toFixed(0)}%`;
   }
 
   if (emergencyReason) {
@@ -96,17 +106,18 @@ async function evaluateTrigger(market, currentState, lastState, cqDeep = {}) {
     };
   }
 
-  // 3. STANDBY_BREAK判定
+  // Phase 4: STANDBY_BREAK判定（SSOT準拠）
+  // Phase 1: BUG_STANDBY → TRAP_STANDBY に統一
   const standbyConfig = triggers.STANDBY_BREAK || {};
   const requiredHours = standbyConfig.hoursSinceLastActive || 24;
 
-  if (lastSignal === 'BUG_STANDBY' && hoursSinceLastUpdate >= requiredHours) {
+  if (lastSignal === 'TRAP_STANDBY' && hoursSinceLastUpdate >= requiredHours) {
     // 24時間以上STANDBYが続いた後、条件が成立した場合
-    if (currentSignal !== 'BUG_STANDBY') {
+    if (currentSignal !== 'TRAP_STANDBY') {
       return {
         shouldSend: true,
         triggerType: 'STANDBY_BREAK',
-        reason: `STANDBY_BREAK: ${hoursSinceLastUpdate.toFixed(1)}h since last BUG_STANDBY, now ${currentSignal}`,
+        reason: `STANDBY_BREAK: ${hoursSinceLastUpdate.toFixed(1)}h since last TRAP_STANDBY, now ${currentSignal}`,
       };
     }
   }

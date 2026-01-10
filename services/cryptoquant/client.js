@@ -1,26 +1,178 @@
 ﻿// services/cryptoquant/client.js
 // Node.js 18+ Native Fetchを使用
+// Phase 3: キャッシュ導入と分散レート制限対応
 
 const BASE_URL = "https://api.cryptoquant.com/v1";
 const API_KEY = process.env.CRYPTOQUANT_API_KEY;
+const { kv } = require('@vercel/kv');
+
+// Phase 3: 分散レート制限（Professionalプラン: concurrency=1, Premium以上: concurrency=2-3）
+const CRYPTOQUANT_PLAN = process.env.CRYPTOQUANT_PLAN || 'professional';
+const CONCURRENCY = CRYPTOQUANT_PLAN === 'premium' || CRYPTOQUANT_PLAN === 'enterprise' ? 2 : 1;
+
+// Phase 3: p-limitの動的インポート（ES Module対応）
+// p-limitが利用不可の場合はフォールバック実装を使用
+// P1修正: p-limit require の互換修正（default ?? mod）
+let pLimit;
+try {
+  const pLimitModule = require('p-limit');
+  pLimit = pLimitModule.default ?? pLimitModule;
+} catch (error) {
+  console.warn('[CQ Client] p-limit not available, using fallback implementation');
+  // フォールバック: シンプルなキュー実装（concurrency制御）
+  pLimit = (concurrency) => {
+    let running = 0;
+    const queue = [];
+    
+    const processQueue = async () => {
+      if (running >= concurrency || queue.length === 0) return;
+      
+      running++;
+      const { fn, resolve, reject } = queue.shift();
+      
+      try {
+        const result = await fn();
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      } finally {
+        running--;
+        processQueue();
+      }
+    };
+    
+    return async (fn) => {
+      return new Promise((resolve, reject) => {
+        queue.push({ fn, resolve, reject });
+        processQueue();
+      });
+    };
+  };
+}
+
+const rateLimitQueue = pLimit(CONCURRENCY);
+const { checkTokenBucket } = require('./rateLimiter');
+
+// Phase 3: キャッシュキー生成
+function buildCacheKey(endpoint, params) {
+  const normalized = {
+    endpoint,
+    params: Object.keys(params).sort().reduce((acc, key) => {
+      acc[key] = params[key];
+      return acc;
+    }, {}),
+  };
+  return `cq:cache:${Buffer.from(JSON.stringify(normalized)).toString('base64url')}`;
+}
+
+// Phase 3: TTL計算（windowパラメータに基づいて決定）
+function getCacheTTL(params) {
+  const window = params.window || 'day';
+  
+  // day/window=day&limit=1 系: TTL 2〜6時間（cron周期に合わせる）
+  if (window === 'day') {
+    return 4 * 60 * 60; // 4時間（cron周期6時間の2/3）
+  }
+  
+  // hour/4hour 系: TTL 5〜15分（Premium時のみ）
+  if (window === 'hour' || window === '4hour') {
+    return 10 * 60; // 10分
+  }
+  
+  // デフォルト: 1時間
+  return 60 * 60;
+}
+
+// Phase 3: KVからキャッシュを取得
+async function getKVCache(key) {
+  try {
+    if (!kv) return null;
+    const cached = await kv.get(key);
+    if (cached) {
+      console.log(`💾 Cache hit: ${key.substring(0, 50)}...`);
+    }
+    return cached;
+  } catch (error) {
+    console.warn('[CQ Cache] Error reading from KV:', error.message);
+    return null;
+  }
+}
+
+// Phase 3: KVにキャッシュを保存
+async function setKVCache(key, value, ttlSeconds) {
+  try {
+    if (!kv) return false;
+    await kv.set(key, value, { ex: ttlSeconds });
+    return true;
+  } catch (error) {
+    console.warn('[CQ Cache] Error saving to KV:', error.message);
+    return false;
+  }
+}
+
+// Phase 3: stale-while-revalidate 対応のキャッシュ取得
+async function getCacheWithStaleRevalidate(key, ttlSeconds) {
+  const cached = await getKVCache(key);
+  if (cached) {
+    // stale-while-revalidate: 古い値を返しつつ、バックグラウンドで更新
+    // 今回はシンプルに、キャッシュがあればそれを返す
+    return cached;
+  }
+  return null;
+}
 
 /**
  * Generic Fetch Wrapper for CryptoQuant
+ * Phase 3: キャッシュ導入と分散レート制限対応
+ * Step 2-4: EMERGENCY判定指標のキャッシュバイパス/強制更新ポリシー
+ * 
  * @param {string} endpoint 
  * @param {object} params 
+ * @param {object} options - オプション
+ * @param {boolean} options.skipCache - キャッシュをスキップするか（EMERGENCY判定時など）
  */
-async function fetchCryptoQuant(endpoint, params = {}) {
+async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
     if (!API_KEY) {
         console.error("⚠️ CRYPTOQUANT_API_KEY is not set in .env.local");
         return null;
     }
 
+    // Phase 3: キャッシュキー生成
+    const cacheKey = buildCacheKey(endpoint, params);
+    const ttlSeconds = getCacheTTL(params);
+    
+    // Step 2-4: EMERGENCY判定指標のキャッシュバイパス
+    // skipCacheオプションがtrueの場合はキャッシュをスキップ（常に新鮮なデータを取得）
+    if (!options.skipCache) {
+      // Phase 3: キャッシュチェック（stale-while-revalidate）
+      const cached = await getCacheWithStaleRevalidate(cacheKey, ttlSeconds);
+      if (cached) {
+        return cached;
+      }
+    } else {
+      console.log(`[CQ Client] Cache bypassed for EMERGENCY indicators: ${endpoint}`);
+    }
+
     const url = new URL(`${BASE_URL}${endpoint}`);
     Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
-    console.log(`🌐 Fetching: ${url.toString()}`);
-
-    try {
+    // Phase 3: 分散レート制限（キュー + トークンバケットで制御）
+    const data = await rateLimitQueue(async () => {
+      // トークンバケットでレート制限チェック
+      const canProceed = await checkTokenBucket();
+      if (!canProceed) {
+        // レート制限超過の場合は待機
+        await new Promise(resolve => setTimeout(resolve, 3000)); // 3秒待機
+        // 再チェック
+        const retryCanProceed = await checkTokenBucket();
+        if (!retryCanProceed) {
+          throw new Error('Rate limit exceeded');
+        }
+      }
+      
+      console.log(`🌐 Fetching: ${url.toString()}`);
+      
+      try {
         // Node.js標準のfetchを使用 (require不要)
         const response = await fetch(url.toString(), {
             headers: {
@@ -34,12 +186,19 @@ async function fetchCryptoQuant(endpoint, params = {}) {
         }
 
         const data = await response.json();
+        
+        // Phase 3: キャッシュに保存
+        await setKVCache(cacheKey, data, ttlSeconds);
+        
         return data;
 
-    } catch (error) {
+      } catch (error) {
         console.error(`❌ CryptoQuant Request Failed:`, error.message);
         throw error;
-    }
+      }
+    });
+    
+    return data;
 }
 
 module.exports = { fetchCryptoQuant };

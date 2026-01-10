@@ -1,7 +1,8 @@
 // api/prepare.js
 // 定時配信5分前にマーケット分析・サマリー作成・コンテンツ生成を実行
 
-const pRetry = require('p-retry');
+// p-retryはES Moduleのため動的インポートを使用
+let pRetry;
 const { zonedTimeToUtc, formatInTimeZone } = require('date-fns-tz');
 const { z } = require('zod');
 const { createLogger, TZ_UTC } = require('../utils/logger');
@@ -86,6 +87,17 @@ async function fetchFearGreed() {
 // --- Main Prepare Handler -----------------------------------------
 
 module.exports = async function handler(req, res) {
+  // p-retryを動的インポート（ES Module対応）
+  if (!pRetry) {
+    try {
+      const pRetryModule = await import('p-retry');
+      pRetry = pRetryModule.default || pRetryModule;
+    } catch (error) {
+      console.error('[p-retry] Failed to import:', error);
+      throw error;
+    }
+  }
+
   const debugBypass = req.query?.debug === 'local';
   const authHeader = req.headers.authorization;
 

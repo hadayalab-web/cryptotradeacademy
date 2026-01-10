@@ -31,23 +31,17 @@ module.exports = async function handler(req, res) {
 
     // イベントログを読み込み（クリック、登録、ブロックなど）
     // まずメッセージIDを取得してから、イベントログを読み込む
-    const messages = messageLogger.readLogs({
-      snapshot_id,
-      lang,
-      variant,
-      message_type,
-      time_window,
-    });
+    // 注: messagesは既に上で取得済み
     const messageIds = messages.map((msg) => msg.message_id);
 
     // メッセージIDに紐づくイベントを読み込み
     const allEvents = [];
     for (const msgId of messageIds) {
-      const events = messageLogger.readEvents({
+      const msgEvents = messageLogger.readEvents({
         message_id: msgId,
         time_window,
       });
-      allEvents.push(...events);
+      allEvents.push(...msgEvents);
     }
     const events = allEvents;
 

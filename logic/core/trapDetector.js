@@ -6,6 +6,7 @@ const { detectDivergenceHighResolution, evaluateDivergenceSignalHighResolution }
 const { TrendReversalDetector } = require('./trendReversalDetector');
 const { detectTrap } = require('../tier1_btc/trapDetector');
 const { calculateTrapRisk } = require('../tier1_btc/trapRiskScorer');
+const { applyQualityGate } = require('./signalQualityGate');
 
 /**
  * トラップ検知エンジン（統合版）
@@ -231,28 +232,34 @@ function generateTrapAlert(params = {}) {
         recommendation = 'STANDBY';
       }
       
-      return {
+      const trapAlert = {
         alert: true,
         type: alertType,
         severity: trapDetection.trapSeverity,
         confidence: Math.min(1.0, trapDetection.trapScore / 100),
         recommendation,
         trapDetection,
-        divergenceSignal: divergenceSignal.signal !== 'NONE' ? divergenceSignal : null,
+        divergenceSignal: divergenceSignal.signal !== 'STANDBY' ? divergenceSignal : null, // NONE → STANDBY
         urgency: trapDetection.trapSeverity === 'CRITICAL' ? 'CRITICAL' : trapDetection.trapSeverity === 'HIGH' ? 'HIGH' : 'MEDIUM',
       };
+      
+      // SSOT準拠: 統一品質ゲートを適用（trapScore>=60 & multipleDivergences>=3）
+      return applyQualityGate(trapAlert, trapDetection);
     }
     
-    return {
+    const trapAlert = {
       alert: false,
       type: null,
       severity: 'NONE',
       confidence: 0,
-      recommendation: 'NONE',
+      recommendation: 'STANDBY', // NONE → STANDBY
       trapDetection,
-      divergenceSignal: divergenceSignal.signal !== 'NONE' ? divergenceSignal : null,
+      divergenceSignal: divergenceSignal.signal !== 'STANDBY' ? divergenceSignal : null, // NONE → STANDBY
       urgency: 'LOW',
     };
+    
+    // SSOT準拠: 統一品質ゲートを適用
+    return applyQualityGate(trapAlert, trapDetection);
   }
   
   // トラップが検出されているが、シグナルが生成されていない場合
@@ -268,7 +275,7 @@ function generateTrapAlert(params = {}) {
       recommendation = 'AVOID_SHORT';
     }
     
-    return {
+    const trapAlert = {
       alert: true,
       type: alertType,
       severity: trapDetection.trapSeverity,
@@ -278,19 +285,25 @@ function generateTrapAlert(params = {}) {
       divergenceSignal: null,
       urgency: trapDetection.trapSeverity === 'CRITICAL' ? 'HIGH' : 'MEDIUM',
     };
+    
+    // SSOT準拠: 統一品質ゲートを適用
+    return applyQualityGate(trapAlert, trapDetection);
   }
   
   // トラップが検出されていない場合
-  return {
+  const trapAlert = {
     alert: false,
     type: null,
     severity: 'NONE',
     confidence: 0,
-    recommendation: 'NONE',
+    recommendation: 'STANDBY', // NONE → STANDBY
     trapDetection,
     divergenceSignal: null,
     urgency: 'LOW',
   };
+  
+  // SSOT準拠: 統一品質ゲートを適用
+  return applyQualityGate(trapAlert, trapDetection);
 }
 
 // 後方互換性のため、旧関数名もエクスポート

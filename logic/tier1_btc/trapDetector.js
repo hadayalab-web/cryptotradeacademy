@@ -66,7 +66,7 @@ function detectTrap(ctx = {}) {
       isTrap: true,
       type: 'PANIC_BEAR_TRAP',
       label: 'Panic bear trap',
-      side: 'LONG',
+      side: 'AVOID_LONG', // LONG → AVOID_LONG (SSOT準拠)
       confidence: 'HIGH',
       reason:
         'Sharp dump with heavy outflows while retail panic is extreme and whales show accumulation bias.',

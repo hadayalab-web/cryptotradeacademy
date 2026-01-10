@@ -169,8 +169,12 @@ function generateWeeklyReport(logEntries, startDate, endDate) {
     },
     breakdown: {
       bySignal: {
+        // 過去データとの互換性のため、BUY/SELLも集計（新しいデータではAVOID_LONG/AVOID_SHORT/STANDBYのみ）
         BUY: filteredLogs.filter(log => log.signal === 'BUY').length,
         SELL: filteredLogs.filter(log => log.signal === 'SELL').length,
+        AVOID_LONG: filteredLogs.filter(log => log.signal === 'AVOID_LONG').length,
+        AVOID_SHORT: filteredLogs.filter(log => log.signal === 'AVOID_SHORT').length,
+        STANDBY: filteredLogs.filter(log => log.signal === 'STANDBY').length,
         NONE: filteredLogs.filter(log => log.signal === 'NONE').length,
       },
       byMarket: filteredLogs.reduce((acc, log) => {

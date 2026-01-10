@@ -5,19 +5,44 @@
   ],
   "functions": {
     "api/cron.js": {
-      "includeFiles": "config/**"
+      "includeFiles": [
+        "config/**",
+        "services/**",
+        "logic/**",
+        "utils/**"
+      ]
     },
     "api/prepare.js": {
-      "includeFiles": "config/**"
+      "includeFiles": [
+        "config/**",
+        "services/**",
+        "logic/**",
+        "utils/**"
+      ]
     },
     "api/weekly-report.js": {
-      "includeFiles": "config/**"
+      "includeFiles": [
+        "config/**",
+        "services/**",
+        "logic/**",
+        "utils/**"
+      ]
     },
     "api/analytics.js": {
-      "includeFiles": "config/**"
+      "includeFiles": [
+        "config/**",
+        "services/**",
+        "logic/**",
+        "utils/**"
+      ]
     },
     "api/track.js": {
-      "includeFiles": "config/**"
+      "includeFiles": [
+        "config/**",
+        "services/**",
+        "logic/**",
+        "utils/**"
+      ]
     }
   }
 }

@@ -6,9 +6,22 @@ const { getMarketProfile } = require('../../api/config/marketProfiles');
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
 
-// モデル名は env で上書き可能（デフォルトは reasoning ）
-const GROK_MODEL_REASONING = process.env.GROK_MODEL_REASONING || 'grok-4-0709';
-const GROK_MODEL_LIVE = process.env.GROK_MODEL_LIVE || GROK_MODEL_REASONING;
+// Phase 2: 用途別モデル環境変数の分割（SSOT準拠）
+const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'production';
+
+// 開発環境: すべてハイエンドモデルを使用（Composer最優先）
+// 本番環境: 用途別モデルを使用（コスト最適化）
+const isDevelopment = APP_ENV === 'development';
+
+// 用途別モデル定義
+const GROK_MODEL_MARKET = process.env.GROK_MODEL_MARKET || (isDevelopment ? 'grok-4-1-fast-reasoning' : 'grok-4-0709');
+const GROK_MODEL_MARKET_EMERGENCY = process.env.GROK_MODEL_MARKET_EMERGENCY || 'grok-4-1-fast-reasoning';
+const GROK_MODEL_X_LIVE = process.env.GROK_MODEL_X_LIVE || 'grok-4-1-fast-reasoning';
+const GROK_MODEL_HIGH_RES = process.env.GROK_MODEL_HIGH_RES || 'grok-4-1-fast-reasoning';
+
+// 後方互換性のため、GROK_MODEL_REASONINGとGROK_MODEL_LIVEも残す
+const GROK_MODEL_REASONING = process.env.GROK_MODEL_REASONING || GROK_MODEL_MARKET;
+const GROK_MODEL_LIVE = process.env.GROK_MODEL_LIVE || GROK_MODEL_X_LIVE;
 
 // ---- offline notice -------------------------------------------------
 if (!XAI_API_KEY) {
@@ -46,9 +59,10 @@ function safeJsonParse(text) {
 /**
  * 市場別ペルソナプロンプトを生成
  * @param {string} market - 市場コード (EN/AR/KO/JA/ES/PT-BR)
+ * @param {string} riskMode - リスクモード ('normal' | 'critical' | 'high')
  * @returns {string} システムプロンプト
  */
-function getMarketPersonaPrompt(market = 'EN') {
+function getMarketPersonaPrompt(market = 'EN', riskMode = 'normal') {
   const profile = getMarketProfile(market);
   const persona = profile?.persona || 'PRECISION_SNIPER';
   const tagline = profile?.tagline || 'Market Referee - Spot traps before you fall';
@@ -83,6 +97,20 @@ function getMarketPersonaPrompt(market = 'EN') {
   };
 
   const basePrompt = personaPrompts[persona] || personaPrompts.PRECISION_SNIPER;
+
+  // 高リスク時に「辛口モード」プロンプトを追加
+  if (riskMode === 'critical' || riskMode === 'high') {
+    const criticalModePrompt = 
+      '⚠️ CRITICAL MODE ACTIVATED: A high-risk trap has been detected. ' +
+      'Be brutally honest and direct. No sugar-coating. ' +
+      'Point out specific risks and flaws in the current market analysis without hesitation. ' +
+      'Your role is to prevent traders from making costly mistakes. ' +
+      'If you see a trap, call it out clearly and forcefully. ' +
+      'Explain WHY this is dangerous, WHAT could go wrong, and WHAT to avoid. ' +
+      'Prioritize capital protection over opportunity.';
+    return `${basePrompt} Tagline: "${tagline}".\n\n${criticalModePrompt}`;
+  }
+
   return `${basePrompt} Tagline: "${tagline}".`;
 }
 
@@ -153,19 +181,42 @@ function formatCryptoQuantContext(cqDeep = {}, market = 'EN') {
  * @param {string} lang - 言語コード
  * @param {string} market - 市場コード (EN/AR/KO/JA/ES/PT-BR)
  * @param {Object} cqDeep - CryptoQuant深掘りデータ（オプション）
+ * @param {Object} trapInfo - トラップ検出情報（オプション）{trapSeverity: 'NONE'|'LOW'|'MEDIUM'|'HIGH'|'CRITICAL', trapScore: number}
  * @returns {Promise<string>} Grok分析結果
  */
-async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market = 'EN', cqDeep = null) {
+async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market = 'EN', cqDeep = null, trapInfo = null) {
   if (!XAI_API_KEY) return 'HOLD - Grok offline.';
 
   const targetLang = (lang || 'en').toLowerCase();
   const marketCode = market || 'EN';
 
-  // 市場別ペルソナプロンプトを取得
-  const systemPrompt = getMarketPersonaPrompt(marketCode);
+  // トラップ検出情報からリスクモードを決定
+  let riskMode = 'normal';
+  if (trapInfo) {
+    const severity = trapInfo.trapSeverity || trapInfo.severity || 'NONE';
+    const trapScore = trapInfo.trapScore || trapInfo.score || 0;
+    if (severity === 'CRITICAL' || trapScore >= 70) {
+      riskMode = 'critical';
+    } else if (severity === 'HIGH' || trapScore >= 50) {
+      riskMode = 'high';
+    }
+  }
+
+  // リスクモードに応じてペルソナプロンプトを取得（高リスク時は「辛口モード」を適用）
+  const systemPrompt = getMarketPersonaPrompt(marketCode, riskMode);
 
   // ユーザーコンテンツを構築
   let userContent = `Market data: ${marketDataJson}\nSentiment: ${xSentimentJson}\nLanguage: ${targetLang}`;
+
+  // トラップ検出情報をコンテキストに追加（高リスク時）
+  if (trapInfo && riskMode !== 'normal') {
+    const trapContext = `\n\n⚠️ TRAP DETECTION ALERT:\n` +
+      `Trap Severity: ${trapInfo.trapSeverity || trapInfo.severity || 'UNKNOWN'}\n` +
+      `Trap Score: ${(trapInfo.trapScore || trapInfo.score || 0).toFixed(0)}/100 (higher = more risk)\n` +
+      `Trap Type: ${trapInfo.trapType || trapInfo.type || 'UNKNOWN'}\n` +
+      `This is a high-risk situation. Provide direct, critical analysis focused on risk avoidance.`;
+    userContent += trapContext;
+  }
 
   // CryptoQuant深掘りデータをコンテキストに追加
   if (cqDeep) {
@@ -175,9 +226,15 @@ async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market
     }
   }
 
+  // Phase 2: 用途別モデルを使用（MARKET: 定期市場分析）
+  // 緊急配信時は MARKET_EMERGENCY を使用（trapInfo が存在する場合）
+  const modelToUse = (trapInfo && (trapInfo.trapSeverity === 'CRITICAL' || trapInfo.trapSeverity === 'HIGH' || (trapInfo.trapScore || 0) >= 50))
+    ? GROK_MODEL_MARKET_EMERGENCY
+    : GROK_MODEL_MARKET;
+  
   try {
     const completion = await openai.chat.completions.create({
-      model: GROK_MODEL_REASONING,
+      model: modelToUse, // Phase 2: 用途別モデルを使用
       messages: [
         {
           role: 'system',
@@ -212,9 +269,12 @@ async function analyzeXSentimentLive(prompt, lang = 'en') {
 
   const targetLang = (lang || 'en').toLowerCase();
 
+  // Phase 2: 用途別モデルを使用（X_LIVE: Xリアルタイム）
+  const modelToUse = GROK_MODEL_X_LIVE;
+  
   try {
     const completion = await openai.chat.completions.create({
-      model: GROK_MODEL_LIVE,
+      model: modelToUse, // Phase 2: 用途別モデルを使用
       messages: [
         {
           role: 'system',
@@ -254,4 +314,9 @@ module.exports = {
   analyzeMarket,
   analyzeXSentimentLive,
   isRateLimitError,
+  // Phase 2: 用途別モデルをエクスポート（他のファイルで使用可能）
+  GROK_MODEL_MARKET,
+  GROK_MODEL_MARKET_EMERGENCY,
+  GROK_MODEL_X_LIVE,
+  GROK_MODEL_HIGH_RES,
 };

@@ -2,7 +2,8 @@
 
 // --- Imports ----------------------------------------------------
 
-const pRetry = require('p-retry');
+// p-retryはES Moduleのため動的インポートを使用
+let pRetry;
 const { zonedTimeToUtc, formatInTimeZone } = require('date-fns-tz');
 const { createLogger, TZ_UTC } = require('../utils/logger');
 
@@ -45,6 +46,8 @@ const { getExchangeInflow, getMinerPositionIndex } = require(
 const { getCQDeepMetrics } = require('../services/cryptoquant/deepMetrics');
 // 高解像度CryptoQuantデータ取得
 const { getHighResolutionCQData } = require('../services/cryptoquant/highResolution');
+// Phase 3: CryptoQuant capabilities初期化
+const { initializeCapabilities } = require('../services/cryptoquant/capabilities');
 // 価格取得サービス（KO市場用）
 const { fetchBTCKRWPrice } = require('../services/upbit/client');
 const { fetch24hTicker, getComplementaryData } = require('../services/binance/client');
@@ -168,6 +171,25 @@ function shouldWatch({ score, confidence, trap, isRegularSlot }) {
 // --- Main Cron Handler -----------------------------------------
 
 module.exports = async function handler(req, res) {
+  // Phase 3: CryptoQuant capabilities初期化（起動時に一度だけ）
+  try {
+    await initializeCapabilities();
+  } catch (error) {
+    console.warn('[Phase 3] Failed to initialize CryptoQuant capabilities:', error.message);
+    // エラーが発生しても処理は続行（フォールバック動作）
+  }
+  
+  // p-retryを動的インポート（ES Module対応）
+  if (!pRetry) {
+    try {
+      const pRetryModule = await import('p-retry');
+      pRetry = pRetryModule.default || pRetryModule;
+    } catch (error) {
+      console.error('[p-retry] Failed to import:', error);
+      throw error;
+    }
+  }
+
   const debugBypass = req.query?.debug === 'local';
   const authHeader = req.headers.authorization;
 
@@ -300,7 +322,7 @@ module.exports = async function handler(req, res) {
             keyIndicators: gptCryptoQuantAnalysis.keyIndicators || [],
             riskLevel: gptCryptoQuantAnalysis.riskLevel || 'medium',
           };
-          logger.info('High-confidence SELL signal detected', {
+          logger.info('High-confidence trap alert detected (AVOID_SHORT/AVOID_LONG)', {
             confidence: gptSignalDecision.confidence,
             urgency: gptSignalDecision.urgency,
           });
@@ -389,7 +411,7 @@ module.exports = async function handler(req, res) {
 
     // 信頼度スコアベースの統一品質ゲート（トラップアラートのみ対応）
     // MIN_CONF_FOR_TRADE未満の信頼度のシグナルは配信しない
-    const market = getMarketCode(LANG);
+    let market = getMarketCode(LANG);
     let minConfForTrade = BASE?.MIN_CONF_FOR_TRADE ?? 0.45;
     if (marketProfiles) {
       try {
@@ -402,20 +424,8 @@ module.exports = async function handler(req, res) {
       }
     }
     
-    // 信頼度ゲートはトラップアラートのみに適用（BUY/SELLシグナルは完全削除）
-    // トラップアラートの信頼度がMIN_CONF_FOR_TRADE未満の場合は配信しない
-    if (trapAlert && trapAlert.alert && trapAlert.confidence < minConfForTrade) {
-      logger.info('Trap alert blocked by confidence gate', {
-        recommendation: trapAlert.recommendation,
-        confidence: trapAlert.confidence,
-        minRequired: minConfForTrade,
-      });
-    } else if (trapAlert && trapAlert.alert) {
-      logger.info('Trap alert passed confidence gate', {
-        recommendation: trapAlert.recommendation,
-        confidence: trapAlert.confidence,
-      });
-    }
+    // 注: trapAlertは後で生成されるため、ここでのチェックは削除
+    // 信頼度ゲートは trapAlert 生成後（832行目以降）で適用される
 
     let entry = priceUsd;
     let tp = tradeSignal.tp;
@@ -429,7 +439,10 @@ module.exports = async function handler(req, res) {
       mpi,
     });
 
-    // GPT解析結果がある場合、緊急度を反映
+    // Phase 4: EMERGENCY判定（SSOT準拠）
+    // Step 1: SSOT閾値統一 - trapScore>=60 に統一（品質ゲートと統一）
+    // 注: trapScoreは後で取得されるため、ここでは一時的な判定のみ
+    // 最終的なEMERGENCY判定は eventTriggers.js で行う
     const needsEmergency = (trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot) ||
                            (gptSignalDecision && gptSignalDecision.urgency === 'high' && !isRegularSlot);
 
@@ -451,8 +464,11 @@ module.exports = async function handler(req, res) {
     let aiAnalysis = null;
     let xIntel = null; // for debugging/telemetry
 
-    // 6. Grok (X intel only) - 高解像度解析を使用
+    // 高解像度データ変数を先に宣言（Phase 2とPhase 3で使用）
+    let highResCQData = null;
     let highResXData = null;
+
+    // 6. Grok (X intel only) - 高解像度解析を使用
     if (needsXIntel) {
       try {
         // 高解像度X解析を実行（複数クエリ並列実行、より詳細な構造化出力）
@@ -477,15 +493,15 @@ module.exports = async function handler(req, res) {
         );
         // フォールバック: 標準のX解析
         try {
-          const grokSent = await analyzeXSentimentLive(
+          const fallbackGrokSent = await analyzeXSentimentLive(
             'latest BTC price action, funding, liquidations, whale activity, ETF flows on X',
           );
-          xIntel = grokSent;
-          if (grokSent && typeof grokSent === 'object') {
+          xIntel = fallbackGrokSent;
+          if (fallbackGrokSent && typeof fallbackGrokSent === 'object') {
             xSentiment = {
-              whaleBias: Number(grokSent.whaleBias) || 0,
-              retailFomo: Number(grokSent.retailFomo) || 50,
-              newsImpact: Number(grokSent.newsImpact) || 0,
+              whaleBias: Number(fallbackGrokSent.whaleBias) || 0,
+              retailFomo: Number(fallbackGrokSent.retailFomo) || 50,
+              newsImpact: Number(fallbackGrokSent.newsImpact) || 0,
             };
           }
         } catch (fallbackErr) {
@@ -541,8 +557,7 @@ module.exports = async function handler(req, res) {
     // Phase 3: Market Snapshot生成（全言語で同一データを保証）
     // 重要: EN市場基準で統一スコアを計算（市場別補正は適用しない）
     // 高解像度データが利用可能な場合は含める
-    let highResCQData = null;
-    let highResXData = null;
+    // 注: highResCQData と highResXData は既に上で宣言済み
     
     // 高解像度データがまだ取得されていない場合は、ここで取得
     // (イベント駆動パスでは既に取得済みの場合がある)
@@ -592,7 +607,11 @@ module.exports = async function handler(req, res) {
     tp = tradeSignal.tp;
     sl = tradeSignal.sl;
 
-    // After sentiment re-check, recompute emergency (trap may upgrade)
+    // Phase 4: EMERGENCY判定（SSOT準拠）
+    // Step 1: SSOT閾値統一 - trapScore>=60 に統一（品質ゲートと統一）
+    // 注: trapScoreは cqDeep.trapScore または trapDetection.trapScore から取得
+    // 最終的なEMERGENCY判定は eventTriggers.js で行う（trapScore>=60, liquidations>$500M, kimchiPremium>8%）
+    // ここでは一時的な判定のみ（後方互換性のため）
     const finalNeedsEmergency =
       trap.isTrap && trap.confidence === 'HIGH' && !isRegularSlot;
 
@@ -607,14 +626,22 @@ module.exports = async function handler(req, res) {
 
     if (ENABLE_EVENT_DRIVEN && stateManager && evaluateTrigger) {
       try {
-        const market = getMarketCode(LANG);
+        // marketは既に上で宣言済み（392行目）、再代入のみ
+        market = getMarketCode(LANG);
 
         // 前回状態取得
         const lastState = await stateManager.getLastState(market);
 
+        // Step 2-4: EMERGENCY判定指標のキャッシュバイパス判定
+        // 前回の状態からEMERGENCY判定が必要かどうかを事前にチェック
+        // ただし、正確な判定には最新データが必要なため、常にskipCache: trueとする
+        // （EMERGENCY判定は誤報を避けるため、常に最新データを使用）
+        const shouldSkipCacheForEmergency = true; // EMERGENCY判定時は常にキャッシュをバイパス
+
         // Phase 2: CryptoQuant深掘りデータ取得（先に取得）
         // 高解像度データも並列取得
-        let highResCQData = null;
+        // 注: highResCQDataは既に上で宣言済み（455行目）、再初期化
+        highResCQData = null;
         try {
           // KO市場の場合のみ、実際の価格情報を取得
           let priceOptions = {};
@@ -653,6 +680,11 @@ module.exports = async function handler(req, res) {
             };
           }
 
+          // Step 2-4: EMERGENCY判定指標のキャッシュバイパス
+          // イベント駆動配信時は、EMERGENCY判定に使う指標（trapScore, liquidations, kimchiPremium）を
+          // 常に最新データで取得（キャッシュをバイパス）
+          priceOptions.skipCache = shouldSkipCacheForEmergency;
+
           // 標準深掘りデータと高解像度データを並列取得
           // 注意: ProfessionalプランではAPI解像度が「1日まで」のため、'day'のみを使用
           // Premiumプラン以上の場合は環境変数CRYPTOQUANT_PLAN=premiumで複数時間窓が利用可能
@@ -663,11 +695,30 @@ module.exports = async function handler(req, res) {
               limit: 24,
               includeWhaleRatio: true,
               includeLiquidations: true,
+              // Step 2-4: EMERGENCY判定指標のキャッシュバイパス
+              skipCache: shouldSkipCacheForEmergency,
             }),
           ]);
           
           if (deepData.status === 'fulfilled') {
             cqDeep = { ...cqDeep, ...deepData.value };
+            
+            // Phase 4: liquidationsが取得できなかった場合、Binanceから取得を試みる
+            const { getLiquidationsWithFallback } = require('../services/binance/liquidations');
+            if (!cqDeep.liquidations || (cqDeep.liquidations.totalLiquidations || 0) === 0) {
+              try {
+                const binanceLiquidations = await getLiquidationsWithFallback(cqDeep.liquidations);
+                if (binanceLiquidations && binanceLiquidations.totalLiquidations > 0) {
+                  cqDeep.liquidations = binanceLiquidations;
+                  console.log('[Phase 4] Liquidations fetched from Binance fallback:', {
+                    total: binanceLiquidations.totalLiquidations,
+                    source: binanceLiquidations.source,
+                  });
+                }
+              } catch (error) {
+                console.warn('[Phase 4] Error fetching liquidations from Binance fallback:', error.message);
+              }
+            }
           } else {
             console.warn('[Phase 2] Error fetching deep metrics:', deepData.reason?.message);
           }
@@ -683,13 +734,14 @@ module.exports = async function handler(req, res) {
         }
 
         // 現在状態の構築（trapScore計算が必要な場合）
-        // signalの正規化: NONE/FLAT → BUG_STANDBY
-        // BUG_STANDBY = "70%の時間、何もするな"戦略（Trap Defense Academyの差別化ポイント）
-        // "BUG"という名前だが、これはバグではなく意図的な戦略（市場のノイズを無視し、重要なシグナルのみに反応）
+        // signalの正規化: NONE/FLAT → TRAP_STANDBY
+        // TRAP_STANDBY = "70%の時間、何もするな"戦略（Trap Defense Academyの差別化ポイント）
+        // SSOT準拠: BUG → TRAP に統一
         let normalizedSignal = coreDecision.signal || tradeSignal.signal;
         
         // 信頼度スコアベースの統一品質ゲート（イベント駆動モード、全方位対応）
-        const market = getMarketCode(LANG);
+        // 注: marketは既に上で宣言済み（392行目）、再代入
+        market = getMarketCode(LANG);
         let minConfForTrade = BASE?.MIN_CONF_FOR_TRADE ?? 0.45;
         if (marketProfiles) {
           try {
@@ -702,16 +754,16 @@ module.exports = async function handler(req, res) {
           }
         }
         
-        if (normalizedSignal !== 'NONE' && normalizedSignal !== 'BUG_STANDBY' && 
+        if (normalizedSignal !== 'NONE' && normalizedSignal !== 'TRAP_STANDBY' && 
             coreDecision.confidence < minConfForTrade) {
           console.log(`[Confidence Gate] Blocked in event-driven mode: confidence ${coreDecision.confidence.toFixed(2)} < ${minConfForTrade}`);
-          normalizedSignal = 'BUG_STANDBY';
-        } else if (normalizedSignal !== 'NONE' && normalizedSignal !== 'BUG_STANDBY') {
+          normalizedSignal = 'TRAP_STANDBY';
+        } else if (normalizedSignal !== 'NONE' && normalizedSignal !== 'TRAP_STANDBY') {
           console.log(`[Confidence Gate] Passed in event-driven mode: confidence ${coreDecision.confidence.toFixed(2)} >= ${minConfForTrade}`);
         }
         
         if (!normalizedSignal || normalizedSignal === 'NONE' || normalizedSignal === 'FLAT') {
-          normalizedSignal = 'BUG_STANDBY';
+          normalizedSignal = 'TRAP_STANDBY';
         }
 
         const currentState = {
@@ -847,10 +899,29 @@ module.exports = async function handler(req, res) {
             binanceData: binanceData || null,
           });
           
+          // Phase 4: trapDetectionのtrapScoreを cqDeep に反映（EMERGENCY判定で使用）
+          // Step 1: SSOT閾値統一 - trapScore>=60 に統一（品質ゲートと統一）
+          if (trapDetection && trapDetection.trapScore) {
+            cqDeep.trapScore = trapDetection.trapScore;
+          }
+          
           // トラップアラートのみ使用（BUY/SELLシグナル生成ロジックは完全削除）
-          if (trapAlert.alert && trapAlert.confidence >= 0.75) {
-            console.log('[Trap Detector] High-confidence trap alert detected:', trapAlert);
+          // SSOT準拠: 統一品質ゲート（trapScore>=60 & multipleDivergences>=3）が適用済み
+          if (trapAlert.alert) {
+            console.log('[Trap Detector] Quality-gated trap alert detected:', {
+              type: trapAlert.type,
+              recommendation: trapAlert.recommendation,
+              confidence: trapAlert.confidence,
+              trapScore: trapDetection.trapScore,
+              multipleDivergences: trapDetection.divergence?.multipleDivergences || 0,
+            });
             // トラップアラートの推奨のみを使用（BUY/SELLシグナルは生成しない）
+          } else {
+            console.log('[Trap Detector] Trap alert blocked by quality gate:', {
+              trapScore: trapDetection.trapScore,
+              multipleDivergences: trapDetection.divergence?.multipleDivergences || 0,
+              required: 'trapScore>=60 & multipleDivergences>=3',
+            });
           }
         }
       } catch (error) {
@@ -889,7 +960,8 @@ module.exports = async function handler(req, res) {
         console.warn('[Dr. Grok] Error providing psychological support:', error.message);
       }
       
-    } else if (needsLongReport && shouldCallGrok && !isRegularSlot) {
+    } else if (needsLongReport && !isRegularSlot) {
+      // 注: shouldCallGrok は未定義だったため削除（needsLongReport で十分）
       // 緊急配信時: 既存のGrok分析を維持（後方互換性）
       const marketSummaryPayload = {
         asset: 'BTC',
@@ -907,13 +979,21 @@ module.exports = async function handler(req, res) {
       };
 
       try {
-        // Phase 2: 市場コードとCryptoQuant深掘りデータをGrokに渡す
+        // トラップ検出情報を準備（高リスク時に「辛口モード」を有効化）
+        const trapInfo = trapDetection ? {
+          trapSeverity: trapDetection.trapSeverity || 'NONE',
+          trapScore: trapDetection.trapScore || 0,
+          trapType: trapDetection.trapType || null,
+        } : null;
+
+        // Phase 2: 市場コードとCryptoQuant深掘りデータ、トラップ検出情報をGrokに渡す
         aiAnalysis = await analyzeMarket(
           JSON.stringify(marketSummaryPayload),
           JSON.stringify(xSentiment),
           LANG,
           getMarketCode(LANG),
           cqDeep,
+          trapInfo,
         );
       } catch (err) {
         console.warn(
@@ -961,7 +1041,8 @@ module.exports = async function handler(req, res) {
       // Phase 2: イベント駆動が無効な場合でも深掘りデータを取得
       if (!ENABLE_EVENT_DRIVEN || !stateManager) {
         try {
-          const market = getMarketCode(LANG);
+          // 注: marketは既に上で宣言済み（392行目）、再代入
+          market = getMarketCode(LANG);
           const deepData = await getCQDeepMetrics(market, {
             upbitPrice: priceUsd,
             binancePrice: priceUsd,
@@ -974,7 +1055,8 @@ module.exports = async function handler(req, res) {
       }
 
       // Phase 3: 市場別オプションデータをスナップショットに追加
-      const market = getMarketCode(LANG);
+      // 注: marketは既に上で宣言済み（392行目）、再代入
+      market = getMarketCode(LANG);
       if (LANG === 'ko' && cqDeep?.kimchiPremium != null) {
         marketSnapshotService.addLocalOptional(snapshot.snapshot_id, 'KO', {
           kimchiPremium: cqDeep.kimchiPremium,
@@ -1092,7 +1174,8 @@ module.exports = async function handler(req, res) {
       let savedImageUrl = null;
       let savedVideoUrl = null;
       try {
-        const market = getMarketCode(LANG);
+        // 注: marketは既に上で宣言済み（392行目）、再代入
+        market = getMarketCode(LANG);
         const savedContent = await getContent(market);
         
         if (savedContent) {
@@ -1218,10 +1301,11 @@ module.exports = async function handler(req, res) {
       }
 
       // Phase 4: メッセージ送信とログ記録
-      // 動画がある場合は先に動画を送信
-      if (savedVideoUrl) {
-        console.log('[Content] Sending saved video...');
-        await sendVideo(savedVideoUrl, regularText.substring(0, 1024));
+      // 動画がある場合は先に動画を送信（savedVideoUrlまたはvideoUrlのいずれかが存在する場合）
+      const finalVideoUrl = videoUrl || savedVideoUrl;
+      if (finalVideoUrl) {
+        console.log('[Content] Sending video...');
+        await sendVideo(finalVideoUrl, regularText.substring(0, 1024));
       }
       
       // 画像がある場合は先に画像を送信

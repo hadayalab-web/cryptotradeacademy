@@ -106,14 +106,6 @@ function formatRegularBriefing({
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
-  // USP3: Dr. Grokの心理的サポート
-  psychologicalSupport, // 心理的サポート診断結果
-  // USP2: Geminiコンテンツ生成
-  hasGeminiContent = false, // Gemini画像・動画が生成されたかどうか
-  // ニュース番組構造用パラメータ
-  gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
-  grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
-}) {
   const lines = [];
   lines.push('🌤️ CryptoWeather Alert - Trap Defense Report');
   lines.push(`📺 ニュース番組 @ ${ts}`);

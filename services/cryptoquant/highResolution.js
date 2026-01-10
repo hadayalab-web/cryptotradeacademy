@@ -20,7 +20,14 @@ const DEFAULT_WINDOWS = (process.env.CRYPTOQUANT_PLAN === 'premium' || process.e
  * @param {number} limit - 各時間窓での取得ポイント数
  * @returns {Promise<Object>} 時間窓別のデータとトレンド分析
  */
-async function getExchangeNetflowMultiTimeframe(windows = DEFAULT_WINDOWS, limit = 24) {
+/**
+ * Step 2-4: EMERGENCY判定指標のキャッシュバイパス対応
+ * @param {string[]} windows - 時間窓の配列
+ * @param {number} limit - 各時間窓での取得ポイント数
+ * @param {object} options - オプション
+ * @param {boolean} options.skipCache - キャッシュをスキップするか（EMERGENCY判定時など）
+ */
+async function getExchangeNetflowMultiTimeframe(windows = DEFAULT_WINDOWS, limit = 24, options = {}) {
   const results = {};
   
   try {
@@ -32,7 +39,7 @@ async function getExchangeNetflowMultiTimeframe(windows = DEFAULT_WINDOWS, limit
           exchange: 'all_exchange',
           window,
           limit,
-        });
+        }, { skipCache: options.skipCache });
         
         const points = data?.result?.data || [];
         if (points.length === 0) return { window, data: [], trend: null };
@@ -94,7 +101,14 @@ async function getExchangeNetflowMultiTimeframe(windows = DEFAULT_WINDOWS, limit
  * @param {number} limit - 各時間窓での取得ポイント数
  * @returns {Promise<Object>} 時間窓別のMPIデータとトレンド分析
  */
-async function getMPIMultiTimeframe(windows = DEFAULT_WINDOWS, limit = 24) {
+/**
+ * Step 2-4: EMERGENCY判定指標のキャッシュバイパス対応
+ * @param {string[]} windows - 時間窓の配列
+ * @param {number} limit - 各時間窓での取得ポイント数
+ * @param {object} options - オプション
+ * @param {boolean} options.skipCache - キャッシュをスキップするか（EMERGENCY判定時など）
+ */
+async function getMPIMultiTimeframe(windows = DEFAULT_WINDOWS, limit = 24, options = {}) {
   const results = {};
   
   try {
@@ -105,7 +119,7 @@ async function getMPIMultiTimeframe(windows = DEFAULT_WINDOWS, limit = 24) {
         const data = await fetchCryptoQuant('/btc/flow-indicator/mpi', {
           window,
           limit,
-        });
+        }, { skipCache: options.skipCache });
         
         const points = data?.result?.data || [];
         if (points.length === 0) return { window, data: [], trend: null };
@@ -179,16 +193,19 @@ async function getHighResolutionCQData(options = {}) {
     // Professionalプラン制限（20リクエスト/分）に対応:
     // - Professionalプランでは合計5リクエスト（netflow: 1, MPI: 1, whaleRatio: 1, liquidations: 2）
     // - 3秒間隔で実行されるため、約12-15秒で完了（制限内）
+    // Step 2-4: EMERGENCY判定指標のキャッシュバイパス
+    const skipCache = options.skipCache || false;
     const [netflowMulti, mpiMulti, whaleRatioData, liquidationsData] = await Promise.allSettled([
-      getExchangeNetflowMultiTimeframe(windows, limit),
-      getMPIMultiTimeframe(windows, limit),
+      getExchangeNetflowMultiTimeframe(windows, limit, { skipCache }),
+      getMPIMultiTimeframe(windows, limit, { skipCache }),
       includeWhaleRatio ? (async () => {
         try {
+          // Step 2-4: EMERGENCY判定指標のキャッシュバイパス
           const data = await fetchCryptoQuant('/btc/flow-indicator/exchange-whale-ratio', {
             exchange: 'all_exchange',
             window: 'day',
             limit: limit,
-          });
+          }, { skipCache: options.skipCache });
           const points = data?.result?.data || [];
           const values = points.map(p => p.exchange_whale_ratio ?? p.value ?? 0);
           return {
@@ -204,17 +221,40 @@ async function getHighResolutionCQData(options = {}) {
       })() : Promise.resolve(null),
       includeLiquidations ? (async () => {
         try {
-          // liquidationsはlong/shortを並列取得（client.jsのrate limitingで制御）
-          const [longData, shortData] = await Promise.all([
-            fetchCryptoQuant('/derivatives/liquidations-long/btc', {
-              window: 'day',
-              limit: limit,
-            }).catch(() => null),
-            fetchCryptoQuant('/derivatives/liquidations-short/btc', {
-              window: 'day',
-              limit: limit,
-            }).catch(() => null),
-          ]);
+          // Phase 3: 機能フラグで制御（404エンドポイントを呼ばない）
+          const { isEndpointAvailable } = require('./capabilities');
+          const longAvailable = await isEndpointAvailable('LIQUIDATIONS_LONG');
+          const shortAvailable = await isEndpointAvailable('LIQUIDATIONS_SHORT');
+          
+          if (!longAvailable && !shortAvailable) {
+            return null;
+          }
+          
+          // liquidationsはlong/shortを並列取得（利用可能なもののみ）
+          const promises = [];
+          if (longAvailable) {
+            promises.push(
+              fetchCryptoQuant('/derivatives/liquidations-long/btc', {
+                window: 'day',
+                limit: limit,
+              }, { skipCache: options.skipCache }).catch(() => null)
+            );
+          } else {
+            promises.push(Promise.resolve(null));
+          }
+          
+          if (shortAvailable) {
+            promises.push(
+              fetchCryptoQuant('/derivatives/liquidations-short/btc', {
+                window: 'day',
+                limit: limit,
+              }, { skipCache: options.skipCache }).catch(() => null)
+            );
+          } else {
+            promises.push(Promise.resolve(null));
+          }
+          
+          const [longData, shortData] = await Promise.all(promises);
           
           const longPoints = longData?.result?.data || [];
           const shortPoints = shortData?.result?.data || [];
