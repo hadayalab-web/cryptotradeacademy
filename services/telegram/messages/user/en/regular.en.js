@@ -165,8 +165,6 @@ function formatRegularBriefing({
         lines.push(`   📊 Confidence: ${(trapAlert.confidence * 100).toFixed(0)}%`);
       }
     }
-    
-    }
   } else {
     lines.push('🛡️ USP1: Trap Defense - No trap detected currently');
   }
