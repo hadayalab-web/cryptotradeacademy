@@ -24,8 +24,7 @@
   "vercel:issue": "node scripts/create-vercel-error-issue.js",
   "vercel:all": "npm run vercel:logs && npm run vercel:analyze && npm run vercel:csv && npm run vercel:issue",
   "deploy": "vercel --prod"
-}
-,
+    },
     "dependencies": {
         "@vercel/kv": "^0.2.1",
         "date-fns-tz": "^2.0.0",
