@@ -1,0 +1,137 @@
+{
+  "timestamp": "2026-01-14T14:27:21.088Z",
+  "testData": {
+    "now": "2026-01-14T14:27:20.834Z",
+    "inflow": -1250.5,
+    "mpi": 0.65,
+    "sentimentLabel": "NEUTRAL",
+    "priceUsd": 43250,
+    "change24h": 2.35,
+    "score": 15,
+    "tradeSignal": "STANDBY",
+    "trap": {
+      "isTrap": false,
+      "confidence": "LOW"
+    },
+    "trapScore": 35,
+    "whaleFlows": {
+      "whaleRatio": 0.42,
+      "netFlow": -850
+    },
+    "liquidations": {
+      "long": 12500000,
+      "short": 8900000
+    },
+    "trapDetection": {
+      "trapScore": 35,
+      "riskLevel": "LOW",
+      "signals": [
+        "MINIMAL_TRAP_INDICATORS"
+      ]
+    },
+    "psychologicalSupport": {
+      "diagnosis": "Market conditions are stable. Maintain discipline.",
+      "recommendation": "Continue monitoring. No immediate action needed."
+    },
+    "gptReporterAnalysis": {
+      "headline": "Market shows minimal trap indicators",
+      "summary": "Current market conditions appear relatively safe with low trap risk."
+    },
+    "grokXAnalysis": {
+      "sentiment": "NEUTRAL",
+      "risk": "LOW"
+    },
+    "showContent": {
+      "opening": "Welcome to Trap Defense BTC briefing.",
+      "trapScore": 35,
+      "whatToAvoid": "No major traps detected.",
+      "evidence": [
+        "Low whale activity",
+        "Stable sentiment"
+      ],
+      "mentalNote": "Stay disciplined. Market is relatively safe.",
+      "callToAction": "Continue monitoring for changes."
+    },
+    "hasGeminiContent": true
+  },
+  "results": {
+    "en": {
+      "regular": {
+        "success": false,
+        "error": "gptNewsText.trim is not a function"
+      },
+      "minimal": {
+        "success": true,
+        "message": "🌤️ Trap Defense BTC - Free Minimal Report\n📅 2026-01-14 14:27:20 UTC\n\n🎯 Today's Trap Score\n━━━━━━━━━━━━━━━━━━━━\n35/100\n\n✅ LOW TRAP RISK: Minimal trap indicators. Market conditions appear relatively safe.\n\n💰 BTC Price: $43,250 (+2.35% / 24h)\n\n━━━━━━━━━━━━━━━━━━━━\n🔒 Want to Know Why?\n\nThe detailed analysis behind this Trap Score, including:\n• Why AVOID_LONG or AVOID_SHORT?\n• Detailed on-chain data analysis\n• Mental training guidance\n• Dr. Grok's psychological support\n\n🚀 Upgrade to Full Access\nStarting at $69/month • 1-day free trial • Cancel anytime\n\n━━━━━━━━━━━━━━━━━━━━\nThis is a free minimal report. For detailed analysis and trap alerts, upgrade to Trap Defense BTC.\n\nFor educational purposes only. Not financial advice.",
+        "length": 733
+      }
+    },
+    "ja": {
+      "regular": {
+        "success": true,
+        "message": "🌤️ CryptoWeather Alert - Trap Defense Report\n📺 ニュース番組 @ 2026-01-14 14:27:20 UTC\n\n🎯 トレード・ヴァーディクト\n🛡️ シグナル: TRAP STANDBY (Defense Active)\n• 想定エントリー（スポット参考）: $43,250\n• モード: Trap Standby — 明確な優位性が出るまで勝利の準備。守りを優先。\n• Take Profit: n/a\n• Stop Loss: n/a\n\n✨ 本日のハイライト (3つのUSP)\n\n🛡️ USP1: トラップ防御 - 現在トラップは検知されていません\n━━━━━━━━━━━━━━━━━━━━\n📺 【オープニング】安住紳一郎スタイル：信頼感のある市場解説\n━━━━━━━━━━━━━━━━━━━━\n📰 [object Object]\n\n━━━━━━━━━━━━━━━━━━━━\n📊 【証拠】なぜ待つべきか？データに基づく理由\n[オンチェーンデータで実証済み]\n━━━━━━━━━━━━━━━━━━━━\n✅ トラップスコア: 35/100 は低いトラップリスクを示しています。\n💡 証拠: 市場状況は比較的安全に見えますが、トラップパターンに注意を払い続けてください。\n\n💡 なぜ待つべきか？（証拠ベース）\n   ✅ トラップスコア 35/100: 低いトラップリスクですが、警戒を続けてください。\n   🛡️ 低リスクの状況でも、忍耐は戦略的な強さです。\n\n━━━━━━━━━━━━━━━━━━━━\n📊 【データ提示】NanoBananaインフォグラフィック\n━━━━━━━━━━━━━━━━━━━━\n🎬 添付画像/動画をチェック！\n\n━━━━━━━━━━━━━━━━━━━━\n💊 【コメンテーター】Dr. Grok の見立て（安住紳一郎スタイル：データに基づく冷静な分析）\n━━━━━━━━━━━━━━━━━━━━\n💚 心理状態: 😐 undefined (リスク: 💡 undefined)\n\n━━━━━━━━━━━━━━━━━━━━\n📺 【クロージング】次回をお楽しみに\n━━━━━━━━━━━━━━━━━━━━\n\n💰 BTC 現在価格: $43,250 (+2.35% / 24h)\n📊 取引所ネットフロー: Outflow 1251 BTC\n⛏ Miners' Position Index (MPI): 0.65\n🧠 投資家センチメント: *NEUTRAL*\n\n📈 マーケットスコア: 15/100\n✅ トラップ検知: 重大なトラップは検知されていません。\n\n本情報は教育目的で提供されるものであり、投資助言・金融商品の勧誘を行うものではありません。",
+        "length": 1178
+      },
+      "minimal": {
+        "success": true,
+        "message": "🌤️ Trap Defense BTC - 無料ミニマムレポート\n📅 2026-01-14 14:27:20 UTC\n\n🎯 本日のTrap Score\n━━━━━━━━━━━━━━━━━━━━\n35/100\n\n✅ 低リスク: トラップ指標は最小限です。市場状況は比較的安全に見えます。\n\n💰 BTC価格: $43,250 (+2.35% / 24h)\n\n━━━━━━━━━━━━━━━━━━━━\n🔒 詳細を知りたいですか？\n\nこのTrap Scoreの背後にある詳細分析には以下が含まれます：\n• なぜAVOID_LONGまたはAVOID_SHORTなのか？\n• 詳細なオンチェーンデータ分析\n• メンタルトレーニングガイダンス\n• Dr. Grokの心理的サポート\n\n🚀 フルアクセスにアップグレード\n月額$69から • 1日無料トライアル • いつでもキャンセル可能\n\n━━━━━━━━━━━━━━━━━━━━\nこれは無料のミニマムレポートです。詳細分析とトラップアラートについては、Trap Defense BTCにアップグレードしてください。\n\n教育目的のみ。金融アドバイスではありません。",
+        "length": 505
+      }
+    },
+    "ko": {
+      "regular": {
+        "success": true,
+        "message": "🌤️ CryptoWeather Alert - Trap Defense Report\n📺 뉴스 프로그램 @ 2026-01-14 14:27:20 UTC\n\n🎯 트레이드 verdict\n🛡️ 시그널: TRAP STANDBY (Defense Active)\n• 진입가 (스팟 기준): $43,250\n• 모드: Trap Standby — 명확한 에지까지 승리 준비. 방어 우선.\n• Take Profit: n/a\n• Stop Loss: n/a\n\n✨ 오늘의 하이라이트 (3 USPs)\n\n🛡️ USP1: 트랩 방어 - 현재 감지된 트랩 없음\n━━━━━━━━━━━━━━━━━━━━\n📺 【오프닝】GPT 리포터의 긴급 트랩 뉴스\n━━━━━━━━━━━━━━━━━━━━\n📰 [object Object]\n\n━━━━━━━━━━━━━━━━━━━━\n📊 【증거】왜 기다려야 하는가? 데이터 기반 이유\n[온체인 데이터로 입증됨]\n━━━━━━━━━━━━━━━━━━━━\n✅ 트랩 점수: 35/100은 낮은 트랩 위험을 나타냅니다.\n💡 증거: 시장 상황이 상대적으로 안전해 보이지만, 트랩 패턴에 대해 경계를 유지하세요.\n\n💡 왜 기다려야 하는가? (증거 기반)\n   ✅ 트랩 점수 35/100: 낮은 트랩 위험이지만 경계를 유지하세요.\n   🛡️ 낮은 위험 상황에서도 인내는 전략적 강점입니다.\n\n━━━━━━━━━━━━━━━━━━━━\n📊 【데이터 제시】NanoBanana 인포그래픽\n━━━━━━━━━━━━━━━━━━━━\n🎬 첨부된 미디어를 확인하세요!\n\n━━━━━━━━━━━━━━━━━━━━\n💊 【코멘테이터】Dr. Grok의 의견\n━━━━━━━━━━━━━━━━━━━━\n💚 심리 상태: 😐 undefined (위험: 💡 undefined)\n\n━━━━━━━━━━━━━━━━━━━━\n📺 【클로징】다음 회차를 기대해 주세요\n━━━━━━━━━━━━━━━━━━━━\n\n💰 BTC 가격: $43,250 (+2.35% / 24h)\n📊 거래소 순유입: Outflow 1251 BTC\n⛏ Miners' Position Index (MPI): 0.65\n🧠 시장 심리: NEUTRAL\n\n📈 시장 점수: 15/100\n✅ 트랩 감지기: 치명적인 트랩은 감지되지 않았습니다.\n\n교육 목적의 정보 제공일 뿐이며, 투자/재무 자문을 구성하지 않습니다.",
+        "length": 1127
+      },
+      "minimal": {
+        "success": true,
+        "message": "🌤️ Trap Defense BTC - 무료 미니멈 리포트\n📅 2026-01-14 14:27:20 UTC\n\n🎯 오늘의 Trap Score\n━━━━━━━━━━━━━━━━━━━━\n35/100\n\n✅ 낮은 리스크: 트랩 지표가 최소한입니다. 시장 상황이 상대적으로 안전해 보입니다.\n\n💰 BTC 가격: $43,250 (+2.35% / 24h)\n\n━━━━━━━━━━━━━━━━━━━━\n🔒 이유를 알고 싶으신가요?\n\n이 Trap Score 뒤에 있는 상세 분석에는 다음이 포함됩니다:\n• 왜 AVOID_LONG 또는 AVOID_SHORT인가?\n• 상세한 온체인 데이터 분석\n• 멘탈 트레이닝 가이드\n• Dr. Grok의 심리적 지원\n\n🚀 전체 액세스로 업그레이드\n월 $69부터 • 1일 무료 체험 • 언제든지 취소 가능\n\n━━━━━━━━━━━━━━━━━━━━\n이것은 무료 미니멈 리포트입니다. 상세 분석과 트랩 알림을 위해서는 Trap Defense BTC로 업그레이드하세요.\n\n교육 목적으로만 제공됩니다. 금융 조언이 아닙니다.",
+        "length": 520
+      }
+    },
+    "es": {
+      "regular": {
+        "success": true,
+        "message": "🌤️ CryptoWeather Alert - Trap Defense Report\n📺 Programa de Noticias @ 2026-01-14 14:27:20 UTC\n\n🎯 Veredicto de trading\n🛡️ Señal: TRAP STANDBY (Defense Active)\n• Entrada (spot ref.): $43,250\n• Modo: Trap Standby — preparación para la victoria hasta ventaja clara. Priorizar defensa.\n• Take Profit: n/a\n• Stop Loss: n/a\n\n✨ Destacados de hoy (3 USPs)\n\n🛡️ USP1: Defensa de Trampas - No se detectan trampas actualmente\n━━━━━━━━━━━━━━━━━━━━\n📺 【Apertura】Noticias de Trampa Urgente del Reportero GPT\n━━━━━━━━━━━━━━━━━━━━\n📰 [object Object]\n\n━━━━━━━━━━━━━━━━━━━━\n📊 【Presentación de Datos】Infografía NanoBanana\n━━━━━━━━━━━━━━━━━━━━\n🎬 ¡Revisa los medios adjuntos!\n\n━━━━━━━━━━━━━━━━━━━━\n💊 【Comentarista】Dr. Grok: Análisis Apasionado y Racional\n━━━━━━━━━━━━━━━━━━━━\n💚 Estado Psicológico: 😐 undefined (Riesgo: 💡 undefined)\n\n━━━━━━━━━━━━━━━━━━━━\n📺 【Cierre】No se pierda el próximo episodio\n━━━━━━━━━━━━━━━━━━━━\n\n💰 Precio BTC: $43,250 (+2.35% / 24h)\n📊 Flujo neto de exchanges: Outflow 1251 BTC\n⛏ Miners' Position Index (MPI): 0.65\n🧠 Sentimiento: NEUTRAL\n\n📈 Puntuación de mercado: 15/100\n✅ Detector de trampas: No se detectan trampas críticas.\n\nSolo para fines educativos. No constituye asesoramiento financiero.",
+        "length": 1210
+      },
+      "minimal": {
+        "success": true,
+        "message": "🌤️ Trap Defense BTC - Informe Mínimo Gratuito\n📅 2026-01-14 14:27:20 UTC\n\n🎯 Trap Score de Hoy\n━━━━━━━━━━━━━━━━━━━━\n35/100\n\n✅ BAJO RIESGO DE TRAMPA: Indicadores de trampa mínimos. Las condiciones del mercado parecen relativamente seguras.\n\n💰 Precio de BTC: $43,250 (+2.35% / 24h)\n\n━━━━━━━━━━━━━━━━━━━━\n🔒 ¿Quieres Saber Por Qué?\n\nEl análisis detallado detrás de este Trap Score incluye:\n• ¿Por qué AVOID_LONG o AVOID_SHORT?\n• Análisis detallado de datos on-chain\n• Guía de entrenamiento mental\n• Apoyo psicológico del Dr. Grok\n\n🚀 Actualiza a Acceso Completo\nDesde $69/mes • Prueba gratuita de 1 día • Cancela en cualquier momento\n\n━━━━━━━━━━━━━━━━━━━━\nEste es un informe mínimo gratuito. Para análisis detallado y alertas de trampas, actualiza a Trap Defense BTC.\n\nSolo con fines educativos. No es asesoramiento financiero.",
+        "length": 826
+      }
+    },
+    "pt-br": {
+      "regular": {
+        "success": true,
+        "message": "🌤️ CryptoWeather Alert - Trap Defense Report\n📺 Programa de Notícias @ 2026-01-14 14:27:20 UTC\n\n🎯 Veredito de trade\n🛡️ Sinal: TRAP STANDBY (Defense Active)\n• Entrada (ref. spot): $43,250\n• Modo: Trap Standby — preparação para a vitória até edge claro. Priorizar defesa.\n• Take Profit: n/a\n• Stop Loss: n/a\n\n✨ Destaques de hoje (3 USPs)\n\n🛡️ USP1: Defesa de Armadilhas - Nenhuma armadilha detectada atualmente\n━━━━━━━━━━━━━━━━━━━━\n📺 【Abertura】Notícias Urgentes de Armadilha do Repórter GPT\n━━━━━━━━━━━━━━━━━━━━\n📰 [object Object]\n\n━━━━━━━━━━━━━━━━━━━━\n📊 【Apresentação de Dados】Infográfico NanoBanana\n━━━━━━━━━━━━━━━━━━━━\n🎬 Verifique as mídias anexas!\n\n━━━━━━━━━━━━━━━━━━━━\n💊 【Comentarista】Dr. Grok: Análise Apaixonada e Racional\n━━━━━━━━━━━━━━━━━━━━\n💚 Estado Psicológico: 😐 undefined (Risco: 💡 undefined)\n\n━━━━━━━━━━━━━━━━━━━━\n📺 【Encerramento】Não perca o próximo episódio\n━━━━━━━━━━━━━━━━━━━━\n\n💰 Preço do BTC: $43,250 (+2.35% / 24h)\n📊 Fluxo líquido nas exchanges: Outflow 1251 BTC\n⛏ Miners' Position Index (MPI): 0.65\n🧠 Sentimento de mercado: *NEUTRAL*\n\n📈 Score de mercado: 15/100\n✅ Detector de armadilhas: Nenhuma armadilha crítica detectada.\n\nApenas para fins educacionais. Não constitui recomendação ou aconselhamento financeiro.",
+        "length": 1246
+      },
+      "minimal": {
+        "success": true,
+        "message": "🌤️ Trap Defense BTC - Relatório Mínimo Gratuito\n📅 2026-01-14 14:27:20 UTC\n\n🎯 Trap Score de Hoje\n━━━━━━━━━━━━━━━━━━━━\n35/100\n\n✅ BAIXO RISCO DE ARMADILHA: Indicadores de armadilha mínimos. As condições do mercado parecem relativamente seguras.\n\n💰 Preço do BTC: $43,250 (+2.35% / 24h)\n\n━━━━━━━━━━━━━━━━━━━━\n🔒 Quer Saber Por Quê?\n\nA análise detalhada por trás deste Trap Score inclui:\n• Por que AVOID_LONG ou AVOID_SHORT?\n• Análise detalhada de dados on-chain\n• Orientação de treinamento mental\n• Suporte psicológico do Dr. Grok\n\n🚀 Atualize para Acesso Completo\nA partir de $69/mês • Teste gratuito de 1 dia • Cancele a qualquer momento\n\n━━━━━━━━━━━━━━━━━━━━\nEste é um relatório mínimo gratuito. Para análise detalhada e alertas de armadilhas, atualize para Trap Defense BTC.\n\nApenas para fins educacionais. Não é aconselhamento financeiro.",
+        "length": 842
+      }
+    },
+    "ar": {
+      "regular": {
+        "success": true,
+        "message": "🌤️ CryptoWeather Alert - Trap Defense Report\n📺 برنامج الأخبار @ 2026-01-14 14:27:20 UTC\n\n🎯 حكم التداول\n🛡️ الإشارة: TRAP STANDBY (Defense Active)\n• سعر الدخول (مرجع سبوت): $43,250\n• الوضع: Trap Standby — الاستعداد للنصر حتى أفضلية واضحة. أولوية للدفاع.\n• Take Profit: n/a\n• Stop Loss: n/a\n\n✨ أبرز اليوم (3 USPs)\n\n🛡️ USP1: دفاع الفخ - لا توجد فخاخ مكتشفة حالياً\n━━━━━━━━━━━━━━━━━━━━\n📺 【الافتتاحية】أخبار الفخ العاجلة من مراسل GPT\n━━━━━━━━━━━━━━━━━━━━\n📰 [object Object]\n\n━━━━━━━━━━━━━━━━━━━━\n📊 【عرض البيانات】رسم بياني NanoBanana\n━━━━━━━━━━━━━━━━━━━━\n🎬 تحقق من الوسائط المرفقة!\n\n━━━━━━━━━━━━━━━━━━━━\n💊 【المعلق】Dr. Grok: تحليل عاطفي وعقلاني\n━━━━━━━━━━━━━━━━━━━━\n💚 الحالة النفسية: 😐 undefined (المخاطرة: 💡 undefined)\n\n━━━━━━━━━━━━━━━━━━━━\n📺 【الختام】ترقبوا الحلقة القادمة\n━━━━━━━━━━━━━━━━━━━━\n\n💰 سعر BTC: $43,250 (+2.35% / 24h)\n📊 صافي تدفق البورصات: Outflow 1251 BTC\n⛏ مؤشر مراكز المعدّنين (MPI): 0.65\n🧠 حالة الشعور في السوق: *NEUTRAL*\n\n📈 درجة السوق: 15/100\n✅ كاشف الفخاخ: لا توجد فخاخ حرجة مكتشفة.\n\nلأغراض تعليمية فقط. لا يُعدّ هذا نصيحة مالية أو استثمارية.",
+        "length": 1068
+      },
+      "minimal": {
+        "success": true,
+        "message": "🌤️ Trap Defense BTC - تقرير أدنى مجاني\n📅 2026-01-14 14:27:20 UTC\n\n🎯 Trap Score اليوم\n━━━━━━━━━━━━━━━━━━━━\n35/100\n\n✅ مخاطر الفخ منخفضة: مؤشرات الفخ ضئيلة. ظروف السوق تبدو آمنة نسبياً.\n\n💰 سعر BTC: $43,250 (+2.35% / 24h)\n\n━━━━━━━━━━━━━━━━━━━━\n🔒 تريد أن تعرف لماذا؟\n\nالتحليل المفصل وراء هذا Trap Score يتضمن:\n• لماذا AVOID_LONG أو AVOID_SHORT؟\n• تحليل مفصل لبيانات on-chain\n• إرشادات التدريب العقلي\n• الدعم النفسي من Dr. Grok\n\n🚀 ترقية إلى الوصول الكامل\nبدءاً من $69/شهر • تجربة مجانية ليوم واحد • إلغاء في أي وقت\n\n━━━━━━━━━━━━━━━━━━━━\nهذا تقرير أدنى مجاني. للتحليل المفصل وتنبيهات الفخ، قم بالترقية إلى Trap Defense BTC.\n\nلأغراض تعليمية فقط. ليست نصيحة مالية.",
+        "length": 661
+      }
+    }
+  },
+  "summary": {
+    "total": 6,
+    "regularSuccess": 5,
+    "regularFailed": 1,
+    "minimalSuccess": 6,
+    "minimalFailed": 0
+  }
+}
