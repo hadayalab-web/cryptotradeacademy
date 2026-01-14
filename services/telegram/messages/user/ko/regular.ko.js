@@ -83,7 +83,7 @@ function formatRegularBriefing({
   const rrLine = tradeSignal?.rr != null ? `• 손익비 (RR): ${tradeSignal.rr.toFixed(2)}` : '';
 
   const isNoTrade = true; // 항상 대기 모드 (BUY/SELL 시그널 완전 삭제)
-  const modeLine = isNoTrade ? '• 모드: Trap Standby — 명확한 에지까지 대기. 방어 우선.' : '';
+  const modeLine = isNoTrade ? '• 모드: Trap Standby — 명확한 에지까지 승리 준비. 방어 우선.' : '';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -150,6 +150,77 @@ function formatRegularBriefing({
     : gptNewsText;
   lines.push(`📰 ${gptNewsDisplay}`);
   lines.push('');
+  
+  // 【改善1: Evidenceセクションの独立】証拠（Evidence）セクションを独立させて明確に表示
+  // Trap RiskスコアまたはTrap Detectionスコアから証拠を生成（KO版はデータ重視）
+  const trapScoreForEvidence = trapRisk?.trapRiskScore ?? trapDetection?.trapScore ?? null;
+  const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
+  
+  if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📊 【증거】왜 기다려야 하는가? 데이터 기반 이유');
+    lines.push('[온체인 데이터로 입증됨]');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    
+    if (trapScoreForEvidence !== null) {
+      const trapScoreRounded = Math.round(trapScoreForEvidence);
+      if (trapScoreRounded >= 50) {
+        lines.push(`🎯 트랩 점수: ${trapScoreRounded}/100은 상당한 트랩 위험을 나타냅니다.`);
+        if (trapTypeForEvidence) {
+          const trapTypeDisplay = trapTypeForEvidence.replace(/_/g, ' ');
+          lines.push(`⚠️ 트랩 유형: ${trapTypeDisplay} 감지됨.`);
+        }
+        // KO版はデータ重視のため、より詳細なデータ説明を追加
+        lines.push(`💡 증거: 다중 다이버전스와 온체인 이상 징후가 "관망 모드"가 신중함을 시사합니다.`);
+        lines.push(`📈 상세 데이터:`);
+        if (trapDetection?.details) {
+          const details = trapDetection.details;
+          if (details.multipleDivergences >= 2) {
+            lines.push(`   • 다중 다이버전스: ${details.multipleDivergences}건`);
+          }
+          if (details.anomalyDetected) {
+            lines.push(`   • 고해상도 이상 감지: 확인됨`);
+          }
+          if (Math.abs(details.onchainSocialDivergence || 0) > 40) {
+            lines.push(`   • 온체인/소셜 다이버전스: ${Math.abs(details.onchainSocialDivergence).toFixed(1)}%`);
+          }
+        }
+        lines.push(`📈 왜 기다려야 하는가? 데이터는 ${trapScoreRounded >= 70 ? '강한' : '중간 정도의'} 신호를 보여주며, 지금 진입하면 시장 트랩에 노출될 수 있습니다.`);
+      } else {
+        lines.push(`✅ 트랩 점수: ${trapScoreRounded}/100은 낮은 트랩 위험을 나타냅니다.`);
+        lines.push(`💡 증거: 시장 상황이 상대적으로 안전해 보이지만, 트랩 패턴에 대해 경계를 유지하세요.`);
+      }
+    } else if (trapDetection || trapAlert) {
+      // フォールバック: trapDetectionやtrapAlertから証拠を生成
+      if (trapDetection && trapDetection.trapDetected) {
+        lines.push(`🎯 트랩 감지: ${trapDetection.trapType || '이상 감지'} (점수: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
+        lines.push(`💡 증거: 온체인 데이터 기반 다중 이상이 감지되었습니다.`);
+      } else if (trapAlert && trapAlert.alert) {
+        lines.push(`🚨 트랩 알림: ${trapAlert.type} (심각도: ${trapAlert.severity})`);
+        lines.push(`💡 증거: 온체인 데이터와 센티먼트 분석에 의해 시장 트랩 위험이 감지되었습니다.`);
+      }
+    }
+    
+    // 【改善2: 「70%待機戦略」の証拠ベース説明の統合】
+    if (trapScoreForEvidence !== null && trapScoreForEvidence >= 30) {
+      const trapScoreRounded = Math.round(trapScoreForEvidence);
+      lines.push('');
+      lines.push(`💡 왜 기다려야 하는가? (증거 기반)`);
+      if (trapScoreRounded >= 70) {
+        lines.push(`   🚨 트랩 점수 ${trapScoreRounded}/100: 강한 신호가 잠재적인 시장 트랩을 나타냅니다.`);
+        lines.push(`   📊 데이터는 다중 다이버전스와 온체인 이상을 보여줍니다.`);
+        lines.push(`   🛡️ 전략적 준비는 약점이 아닙니다—승리 준비입니다. 70%의 시간은 승리 준비를 하세요.`);
+      } else if (trapScoreRounded >= 50) {
+        lines.push(`   ⚡ 트랩 점수 ${trapScoreRounded}/100: 중간 정도의 트랩 지표가 감지되었습니다.`);
+        lines.push(`   📊 일부 다이버전스가 주의를 촉구합니다.`);
+        lines.push(`   🛡️ 방어를 최우선으로. 승리 준비를—더 명확한 시장 신호를 기다리세요.`);
+      } else {
+        lines.push(`   ✅ 트랩 점수 ${trapScoreRounded}/100: 낮은 트랩 위험이지만 경계를 유지하세요.`);
+        lines.push(`   🛡️ 낮은 위험 상황에서도 인내는 전략적 강점입니다.`);
+      }
+    }
+    lines.push('');
+  }
   
   // USP2: Geminiコンテンツ生成（データ提示セクション）
   if (hasGeminiContent) {

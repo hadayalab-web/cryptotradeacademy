@@ -1,8 +1,20 @@
 // services/telegram/bot.js
 // Node.js 18+ 標準 fetch を使用した Telegram Bot クライアント
+// 
+// 注意: Trap Defense BTCのインテリジェンス・レポート配信には
+// グループ（Group）ではなくチャンネル（Channel）を使用することを推奨します。
+// 理由: 一方向配信、スパムなし、管理が簡単、プロフェッショナルな印象
+// 詳細: docs/TELEGRAM_CHANNEL_VS_GROUP.md を参照
 
+// 1つのBot Tokenで全資産を管理（簡素化）
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID; // BTC用チャンネルID（デフォルト）
+// チャンネルIDは通常 -100 で始まります（例: -1001234567890）
+
+// 後方互換性のため、無料ミニマム版用の環境変数もサポート
+// ただし、sendMessageToAssetを使用することを推奨
+const TELEGRAM_BOT_TOKEN_MINIMAL = process.env.TELEGRAM_BOT_TOKEN_MINIMAL;
+const TELEGRAM_CHAT_ID_MINIMAL = process.env.TELEGRAM_CHAT_ID_MINIMAL; // 無料版チャンネルID
 
 if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
   console.warn("⚠️ TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set in .env.local");
@@ -260,4 +272,161 @@ async function sendVideo(videoUrl, caption = '') {
   }
 }
 
-module.exports = { sendMessage, sendPhoto, sendVideo };
+/**
+ * Send a message to a specific Telegram chat by asset type.
+ * Uses a single Bot Token for all assets, but different Chat IDs per asset.
+ * @param {string} text - Message text
+ * @param {string} asset - Asset type ('BTC', 'ETH', 'SOL', 'MINIMAL', etc.)
+ */
+async function sendMessageToAsset(text, asset = 'BTC') {
+  // 1つのBot Tokenを使用（全資産共通）
+  const botToken = TELEGRAM_BOT_TOKEN;
+  
+  // 資産タイプごとのChat IDを環境変数から取得
+  const chatIdMap = {
+    'BTC': TELEGRAM_CHAT_ID,
+    'ETH': process.env.TELEGRAM_CHAT_ID_ETH,
+    'SOL': process.env.TELEGRAM_CHAT_ID_SOL,
+    'MINIMAL': process.env.TELEGRAM_CHAT_ID_MINIMAL,
+  };
+  
+  const chatId = chatIdMap[asset] || TELEGRAM_CHAT_ID; // フォールバック: BTC用Chat ID
+  
+  if (!botToken || !chatId) {
+    console.warn(`⚠️ Telegram credentials missing for ${asset}. Bot Token: ${!!botToken}, Chat ID: ${!!chatId}`);
+    return;
+  }
+
+  const url = new URL(`https://api.telegram.org/bot${botToken}/sendMessage`);
+  const body = {
+    chat_id: chatId,
+    text,
+    parse_mode: "Markdown"
+  };
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Telegram API Error: ${response.status} ${response.statusText} - ${errText}`);
+    }
+
+    const data = await response.json();
+    console.log(`📨 Telegram sent to ${asset}:`, JSON.stringify(data, null, 2));
+    return data;
+  } catch (error) {
+    console.error(`❌ Telegram sendMessageToAsset failed for ${asset}:`, error.message);
+    throw error;
+  }
+}
+
+/**
+ * Send a message to the minimal version Telegram chat (free users).
+ * @deprecated Use sendMessageToAsset(text, 'MINIMAL') instead
+ * @param {string} text
+ */
+async function sendMessageMinimal(text) {
+  // 後方互換性のため、sendMessageToAssetを呼び出す
+  return sendMessageToAsset(text, 'MINIMAL');
+}
+
+/**
+ * Send a message directly to a specific Telegram user (by chat ID).
+ * Used for bot commands and direct user communication.
+ * @param {string} chatId - Telegram chat ID (user ID)
+ * @param {string} text - Message text
+ * @param {Object} options - Optional parameters (parse_mode, etc.)
+ */
+async function sendMessageToUser(chatId, text, options = {}) {
+  const botToken = TELEGRAM_BOT_TOKEN;
+  
+  if (!botToken || !chatId) {
+    console.warn(`⚠️ Telegram credentials missing. Bot Token: ${!!botToken}, Chat ID: ${!!chatId}`);
+    return;
+  }
+
+  const url = new URL(`https://api.telegram.org/bot${botToken}/sendMessage`);
+  const body = {
+    chat_id: chatId,
+    text,
+    parse_mode: options.parse_mode || "Markdown",
+    ...options,
+  };
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Telegram API Error: ${response.status} ${response.statusText} - ${errText}`);
+    }
+
+    const data = await response.json();
+    console.log(`📨 Telegram sent to user ${chatId}:`, JSON.stringify(data, null, 2));
+    return data;
+  } catch (error) {
+    console.error(`❌ Telegram sendMessageToUser failed for ${chatId}:`, error.message);
+    throw error;
+  }
+}
+
+/**
+ * Send a message to a specific Telegram channel by series and market code.
+ * Uses a single Bot Token, but different Chat IDs per series/market combination.
+ * @param {string} text - Message text
+ * @param {string} series - Series type ('BTC', 'OTHER', etc.)
+ * @param {string} marketCode - Market code ('EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR')
+ * @returns {Promise<Object>} Telegram API response
+ */
+async function sendMessageToChannel(text, series = 'BTC', marketCode = 'EN') {
+  const botToken = TELEGRAM_BOT_TOKEN;
+  
+  // 環境変数名を生成（例: TELEGRAM_CHAT_ID_BTC_EN）
+  // PT-BRは環境変数名でPT_BRに変換
+  const marketCodeEnv = marketCode.replace('-', '_');
+  const envVarName = `TELEGRAM_CHAT_ID_${series}_${marketCodeEnv}`;
+  const chatId = process.env[envVarName];
+  
+  if (!botToken || !chatId) {
+    console.warn(`⚠️ Telegram credentials missing for ${series}/${marketCode}. Bot Token: ${!!botToken}, Chat ID: ${!!chatId} (env: ${envVarName})`);
+    return;
+  }
+
+  const url = new URL(`https://api.telegram.org/bot${botToken}/sendMessage`);
+  const body = {
+    chat_id: chatId,
+    text,
+    parse_mode: "Markdown"
+  };
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Telegram API Error: ${response.status} ${response.statusText} - ${errText}`);
+    }
+
+    const data = await response.json();
+    console.log(`📨 Telegram sent to ${series}/${marketCode}:`, JSON.stringify(data, null, 2));
+    return data;
+  } catch (error) {
+    console.error(`❌ Telegram sendMessageToChannel failed for ${series}/${marketCode}:`, error.message);
+    throw error;
+  }
+}
+
+module.exports = { sendMessage, sendPhoto, sendVideo, sendMessageMinimal, sendMessageToUser, sendMessageToAsset, sendMessageToChannel };

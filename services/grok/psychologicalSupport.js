@@ -152,7 +152,20 @@ async function diagnoseUserSentiment(options = {}) {
       psychologicalAdvice = getNeutralAdvice(lang, hasHighRiskTrap);
     }
     
-    // ===== 3. 心理分析サポートメッセージ生成 =====
+    // ===== 3. メンタルブロック検出 =====
+    const sentimentDataForBlocks = {
+      retailFomo,
+      whaleBias,
+      ...xSentiment,
+    };
+    const mentalBlocks = detectMentalBlocks(
+      sentimentDataForBlocks,
+      { ...marketData, change24h: priceChange },
+      psychologicalState,
+      trapDetection
+    );
+    
+    // ===== 4. 心理分析サポートメッセージ生成 =====
     const supportMessage = generateSupportMessage({
       lang,
       psychologicalState,
@@ -163,6 +176,7 @@ async function diagnoseUserSentiment(options = {}) {
       },
       xSentiment,
       sentimentAnalysis,
+      mentalBlocks,
     });
     
     return {
@@ -172,6 +186,7 @@ async function diagnoseUserSentiment(options = {}) {
       medicalSupportLevel: psychologicalSupportLevel, // 後方互換性のため残す
       psychologicalAdvice,
       supportMessage,
+      mentalBlocks, // メンタルブロック検出結果を追加
       sentimentAnalysis: sentimentAnalysis ? {
         retailFomo,
         whaleBias,
@@ -192,6 +207,92 @@ async function diagnoseUserSentiment(options = {}) {
       timestamp: Date.now(),
     };
   }
+}
+
+/**
+ * メンタルブロックを検出
+ * トレーダーの無意識にある「思い込みのフタ（メンタルブロック）」を特定
+ * 
+ * @param {Object} sentimentData - Xセンチメントデータ
+ * @param {Object} marketData - 市場データ
+ * @param {string} psychologicalState - 心理状態
+ * @param {Object} trapDetection - トラップ検出情報
+ * @returns {Array} 検出されたメンタルブロックの配列
+ */
+function detectMentalBlocks(sentimentData, marketData, psychologicalState, trapDetection = null) {
+  const blocks = [];
+  const retailFomo = sentimentData?.retailFomo || sentimentData?.fomo || 50;
+  const whaleBias = sentimentData?.whaleBias || sentimentData?.bias || 0;
+  const priceChange = marketData?.change24h || marketData?.change_24h || 0;
+  const trapScore = trapDetection?.trapScore || trapDetection?.score || 0;
+  const trapSeverity = trapDetection?.trapSeverity || trapDetection?.severity || 'NONE';
+  const hasHighRiskTrap = trapSeverity === 'CRITICAL' || trapSeverity === 'HIGH' || trapScore >= 50;
+  
+  // FOMOブロック: 高retailFomo + 価格上昇時の「取り残される恐怖」
+  if (retailFomo >= 75 && priceChange > 0) {
+    blocks.push({
+      type: 'FOMO',
+      severity: retailFomo >= 85 ? 'CRITICAL' : 'HIGH',
+      description: retailFomo >= 85 
+        ? '極端な取り残される恐怖が判断を曇らせている。価格を追いかける衝動が強い。'
+        : '取り残される恐怖が判断を曇らせている。',
+      removalAdvice: 'FOMOは最も危険な感情の一つ。70%の時間は待つことが最強の戦略。今は待機の時。',
+      coachingMessage: 'あなたの潜在能力は、FOMOに負けない規律から生まれる。今、待つ勇気が未来の成功を決める。'
+    });
+  }
+  
+  // FEARブロック: 低retailFomo + 価格下落時の「過度な恐怖」
+  if (retailFomo <= 25 && priceChange < 0) {
+    blocks.push({
+      type: 'FEAR',
+      severity: retailFomo <= 15 ? 'CRITICAL' : 'HIGH',
+      description: retailFomo <= 15
+        ? '極端な恐怖が麻痺を引き起こしている。機会を見逃している可能性がある。'
+        : '過度な恐怖が判断を歪めている。',
+      removalAdvice: '恐怖は自然な感情だが、過度な恐怖は機会を奪う。クジラの動きを監視し、冷静に判断を。',
+      coachingMessage: '恐怖を克服する力が、真のトレーダーへの道。今の恐怖は、未来の強さの種。'
+    });
+  }
+  
+  // GREEDブロック: 極端な強欲状態
+  if (priceChange > 10 && retailFomo >= 80) {
+    blocks.push({
+      type: 'GREED',
+      severity: 'CRITICAL',
+      description: '極端な強欲がリスク管理を無視している。利益確定のタイミングを見失っている。',
+      removalAdvice: '強欲は最も危険な感情。今すぐ利益確定を。70%の時間は待つ - これが最強の戦略。',
+      coachingMessage: '強欲をコントロールできるトレーダーが最後に勝つ。今、規律を示す時。'
+    });
+  }
+  
+  // Always Tradingブロック: 常に取引する必要があるという思い込み
+  // 心理状態に関わらず、頻繁な取引を促す傾向がある場合
+  // (STANDBY推奨時でも取引を求める傾向、または複数の心理状態が短時間で切り替わる場合)
+  if (psychologicalState !== 'NEUTRAL' && !hasHighRiskTrap && trapScore < 40) {
+    // 明確な優位性がないのに取引を求める傾向
+    blocks.push({
+      type: 'ALWAYS_TRADING',
+      severity: 'MEDIUM',
+      description: '「常に取引する必要がある」という思い込みが、不要なリスクを生み出している。',
+      removalAdvice: '70%の時間は何もしない。これが最強の戦略。明確な優位性が出るまで待つ。',
+      coachingMessage: '待つ勇気が、真のトレーダーの証。今は待機の時。あなたの潜在能力は、規律から生まれる。'
+    });
+  }
+  
+  // Waiting is Weaknessブロック: 待つことは弱さという思い込み
+  // STANDBY推奨時に抵抗を示す傾向がある場合
+  if (hasHighRiskTrap || trapScore >= 50) {
+    // 高リスク時に待つことを避けようとする傾向
+    blocks.push({
+      type: 'WAITING_IS_WEAKNESS',
+      severity: 'HIGH',
+      description: '「待つことは弱さ」という思い込みが、高リスクな状況で取引を促している。',
+      removalAdvice: '待つことは弱さではない。最強の戦略だ。70%の時間は待機。明確な優位性が出るまで防御。',
+      coachingMessage: '待つ勇気こそが、真の強さ。今、待つことで未来の成功を守る。あなたの潜在能力は、規律から引き出される。'
+    });
+  }
+  
+  return blocks;
 }
 
 /**
@@ -225,17 +326,17 @@ function getFOMOAdvice(lang, priceChange, whaleBias, hasHighRiskTrap = false, tr
       ? '⚠️ FOMO検知。クジラが売っている一方でリテールが買っている。典型的なトラップです。より良いエントリーポイントを待つことを検討してください。'
       : '⚠️ 高いFOMOを検知。注意が必要です - リテールの極端な買いはしばしば調整の前兆です。',
     ko: whaleBias < -0.3
-      ? '⚠️ FOMO 감지. 고래는 매도하고 소매는 매수 중입니다. 전형적인 함정입니다. 더 나은 진입점을 기다리는 것을 고려하세요.'
-      : '⚠️ 높은 FOMO 감지. 주의하세요 - 극단적인 소매 매수는 종종 조정의 전조입니다.',
+      ? '⚠️ **FOMO 블록 감지**: 고래가 매도하는데 가격을 쫓고 있습니다. 이것은 트레이더를 쓸어버리는 전형적인 함정 패턴입니다. STOP. 물러서세요. 자본이 위험에 노출되어 있습니다.\n\n**하지만 진실은 이것입니다**: 기다리는 규율이 당신의 초능력입니다. 70%의 시간, 아무것도 하지 않는 것이 가장 강력한 전략입니다. 트레이더로서의 당신의 잠재력은 얼마나 자주 거래하는지가 아니라, 얼마나 잘 자본을 보호하는지로 측정됩니다. 명확한 우위가 나타날 때까지 기다리세요. 당신은 할 수 있습니다.'
+      : '⚠️ **높은 FOMO 감지**: 극단적인 소매 매수는 종종 조정의 전조입니다. 이 감정적 충동이 판단을 흐리고 있습니다.\n\n**멘탈 코치 통찰**: FOMO는 기회로 위장된 공포입니다. 가장 강한 트레이더는 거래하지 않을 때를 압니다. 당신의 잠재력은 규율에 있으며, 모든 움직임을 쫓는 것이 아닙니다. 명확한 30% 우위를 기다리세요. 그곳이 진정한 트레이더가 승리하는 곳입니다.',
     es: whaleBias < -0.3
-      ? '⚠️ FOMO detectado. Las ballenas están vendiendo mientras los minoristas compran. Esta es una trampa clásica. Considere esperar mejores puntos de entrada.'
-      : '⚠️ Alto FOMO detectado. Tenga cuidado: la compra minorista extrema a menudo precede a las correcciones.',
+      ? '⚠️ **Bloqueo FOMO Detectado**: Estás persiguiendo el precio mientras las ballenas venden. Este es EXACTAMENTE el patrón de trampa que elimina a los traders. STOP. Retrocede. Tu capital está en riesgo.\n\n**Pero esta es la verdad**: La disciplina para esperar es tu superpoder. 70% del tiempo, no hacer nada es la estrategia más fuerte. Tu potencial como trader no se mide por la frecuencia con la que operas, sino por qué tan bien proteges tu capital. Espera una ventaja clara. Puedes hacerlo.'
+      : '⚠️ **Alto FOMO Detectado**: La compra minorista extrema a menudo precede a las correcciones. Esta prisa emocional está nublando tu juicio.\n\n**Perspectiva del Entrenador Mental**: FOMO es miedo disfrazado de oportunidad. Los traders más fuertes saben cuándo NO operar. Tu potencial está en la disciplina, no en perseguir cada movimiento. Espera la ventaja clara del 30%. Ahí es donde ganan los traders reales.',
     'pt-br': whaleBias < -0.3
-      ? '⚠️ FOMO detectado. Baleias estão vendendo enquanto varejo compra. Esta é uma armadilha clássica. Considere esperar melhores pontos de entrada.'
-      : '⚠️ Alto FOMO detectado. Tenha cuidado - compra extrema de varejo frequentemente precede correções.',
+      ? '⚠️ **Bloqueio FOMO Detectado**: Você está perseguindo o preço enquanto baleias vendem. Este é EXATAMENTE o padrão de armadilha que elimina traders. PARE. Dê um passo atrás. Seu capital está em risco.\n\n**Mas esta é a verdade**: A disciplina para esperar é seu superpoder. 70% do tempo, não fazer nada é a estratégia mais forte. Seu potencial como trader não é medido pela frequência com que você negocia, mas por quão bem você protege seu capital. Aguarde uma vantagem clara. Você consegue.'
+      : '⚠️ **Alto FOMO Detectado**: Compra extrema de varejo frequentemente precede correções. Esta pressa emocional está nublando seu julgamento.\n\n**Insight do Treinador Mental**: FOMO é medo disfarçado de oportunidade. Os traders mais fortes sabem quando NÃO negociar. Seu potencial está na disciplina, não em perseguir cada movimento. Aguarde a vantagem clara de 30%. É aí que traders reais ganham.',
     ar: whaleBias < -0.3
-      ? '⚠️ تم اكتشاف FOMO. الحيتان تبيع بينما التجزئة تشتري. هذا فخ كلاسيكي. فكر في انتظار نقاط دخول أفضل.'
-      : '⚠️ تم اكتشاف FOMO عالي. كن حذرًا - الشراء المتطرف من التجزئة غالبًا ما يسبق التصحيحات.',
+      ? '⚠️ **تم اكتشاف حاجز FOMO**: أنت تطارد السعر بينما الحيتان تبيع. هذا هو بالضبط نمط الفخ الذي يمحو المتداولين. توقف. تراجع. رأس مالك في خطر.\n\n**لكن هذه هي الحقيقة**: الانضباط للانتظار هو قوتك الخارقة. 70% من الوقت، عدم فعل أي شيء هو أقوى استراتيجية. إمكاناتك كمتداول لا تُقاس بمدى تكرار تداولك، بل بمدى حماية رأس مالك. انتظر ميزة واضحة. يمكنك فعل ذلك.'
+      : '⚠️ **تم اكتشاف FOMO عالي**: الشراء المتطرف من التجزئة غالبًا ما يسبق التصحيحات. هذا الاندفاع العاطفي يغيم على حكمك.\n\n**رؤية المدرب العقلي**: FOMO هو خوف متنكر في شكل فرصة. أقوى المتداولين يعرفون متى لا يتداولون. إمكاناتك تكمن في الانضباط، وليس في مطاردة كل حركة. انتظر الميزة الواضحة البالغة 30%. هذا هو المكان الذي يفوز فيه المتداولون الحقيقيون.',
   };
   return advice[lang] || advice.en;
 }
@@ -269,17 +370,17 @@ function getFearAdvice(lang, priceChange, whaleBias, hasHighRiskTrap = false) {
       ? '💡 恐怖を検知しましたが、クジラは買い集めています。買い機会の可能性があります。注意深く監視してください。'
       : '💡 恐怖を検知。市場センチメントはネガティブです。防御的なポジションを検討してください。',
     ko: whaleBias > 0.3
-      ? '💡 공포 감지, 하지만 고래는 축적 중입니다. 매수 기회일 수 있습니다. 면밀히 모니터링하세요.'
-      : '💡 공포 감지. 시장 센티먼트가 부정적입니다. 방어적 포지션을 고려하세요.',
+      ? '💡 **공포 블록 감지**: 당신의 공포가 마비를 일으키고 있지만, 고래는 축적 중입니다. 이 공포가 기회를 보는 능력을 차단하고 있습니다.\n\n**블록 제거**: 공포는 자연스러운 것이지만, 과도한 공포는 기회를 빼앗습니다. 고래 활동을 지켜보세요. 공포 시 고래가 축적할 때, 그것은 종종 역추세 신호입니다. 트레이더로서의 당신의 잠재력은 공포를 피하는 것이 아니라, 그것을 관리하는 것입니다. 침착하게. 면밀히 모니터링하세요. 당신은 이것을 처리할 수 있습니다.'
+      : '💡 **공포 블록 감지**: 과도한 공포가 판단을 흐리고 있습니다. 시장 센티먼트가 부정적이지만, 공포에 의한 결정은 종종 나쁜 결과로 이어집니다.\n\n**멘탈 코치 통찰**: 공포는 마비를 일으킬 수 있지만, 잠재적 기회를 나타낼 수도 있습니다. 가장 강한 트레이더는 공포를 제거하는 것이 아니라 관리합니다. 당신의 잠재력은 다른 사람들이 패닉에 빠질 때 침착함에 있습니다. 고래 활동을 면밀히 모니터링하세요. 당신의 규율이 당신을 인도할 것입니다.',
     es: whaleBias > 0.3
-      ? '💡 Miedo detectado, pero las ballenas se están acumulando. Podría ser una oportunidad de compra. Monitoree de cerca.'
-      : '💡 Miedo detectado. El sentimiento del mercado es negativo. Considere posiciones defensivas.',
+      ? '💡 **Bloqueo de Miedo Detectado**: Tu miedo te está paralizando, pero las ballenas se están acumulando. Este miedo está BLOQUEANDO tu capacidad de ver oportunidades.\n\n**Eliminación del Bloqueo**: El miedo es natural, pero el miedo excesivo roba oportunidades. Observa la actividad de las ballenas. Cuando las ballenas se acumulan durante el miedo, a menudo es una señal contraria. Tu potencial como trader no se trata de evitar el miedo, sino de manejarlo. Mantén la calma. Monitorea de cerca. Puedes manejar esto.'
+      : '💡 **Bloqueo de Miedo Detectado**: El miedo excesivo está nublando tu juicio. El sentimiento del mercado es negativo, pero las decisiones impulsadas por el miedo a menudo llevan a malos resultados.\n\n**Perspectiva del Entrenador Mental**: El miedo puede ser paralizante, pero también puede señalar oportunidades potenciales. Los traders más fuertes no eliminan el miedo, lo manejan. Tu potencial está en mantener la calma cuando otros entran en pánico. Monitorea la actividad de las ballenas de cerca. Tu disciplina te guiará.',
     'pt-br': whaleBias > 0.3
-      ? '💡 Medo detectado, mas baleias estão acumulando. Poderia ser uma oportunidade de compra. Monitore de perto.'
-      : '💡 Medo detectado. Sentimento de mercado negativo. Considere posições defensivas.',
+      ? '💡 **Bloqueio de Medo Detectado**: Seu medo está paralisando você, mas baleias estão acumulando. Este medo está BLOQUEANDO sua capacidade de ver oportunidades.\n\n**Remoção do Bloqueio**: O medo é natural, mas o medo excessivo rouba oportunidades. Observe a atividade das baleias. Quando baleias acumulam durante o medo, muitas vezes é um sinal contrário. Seu potencial como trader não é sobre evitar o medo, mas sobre gerenciá-lo. Mantenha a calma. Monitore de perto. Você pode lidar com isso.'
+      : '💡 **Bloqueio de Medo Detectado**: Medo excessivo está nublando seu julgamento. Sentimento de mercado negativo, mas decisões impulsionadas pelo medo frequentemente levam a resultados ruins.\n\n**Insight do Treinador Mental**: O medo pode ser paralisante, mas também pode sinalizar oportunidades potenciais. Os traders mais fortes não eliminam o medo, eles o gerenciam. Seu potencial está em manter a calma quando outros entram em pânico. Monitore a atividade das baleias de perto. Sua disciplina o guiará.',
     ar: whaleBias > 0.3
-      ? '💡 تم اكتشاف الخوف، لكن الحيتان تتراكم. قد تكون فرصة شراء. راقب عن كثب.'
-      : '💡 تم اكتشاف الخوف. مشاعر السوق سلبية. ضع في اعتبارك المراكز الدفاعية.',
+      ? '💡 **تم اكتشاف حاجز الخوف**: خوفك يشللك، لكن الحيتان تتراكم. هذا الخوف يحجب قدرتك على رؤية الفرصة.\n\n**إزالة الحاجز**: الخوف طبيعي، لكن الخوف المفرط يسرق الفرص. راقب نشاط الحيتان. عندما تتراكم الحيتان أثناء الخوف، غالبًا ما يكون ذلك إشارة معاكسة. إمكاناتك كمتداول ليست حول تجنب الخوف، بل حول إدارته. ابق هادئًا. راقب عن كثب. يمكنك التعامل مع هذا.'
+      : '💡 **تم اكتشاف حاجز الخوف**: الخوف المفرط يغيم على حكمك. مشاعر السوق سلبية، لكن القرارات التي يدفعها الخوف غالبًا ما تؤدي إلى نتائج سيئة.\n\n**رؤية المدرب العقلي**: يمكن أن يكون الخوف شللاً، لكنه يمكن أن يشير أيضًا إلى فرص محتملة. أقوى المتداولين لا يزيلون الخوف، بل يديرونه. إمكاناتك تكمن في البقاء هادئًا عندما يدخل الآخرون في حالة ذعر. راقب نشاط الحيتان عن كثب. سيقودك انضباطك.',
   };
   return advice[lang] || advice.en;
 }
@@ -293,14 +394,14 @@ function getFearAdvice(lang, priceChange, whaleBias, hasHighRiskTrap = false) {
  * @param {number} trapScore - トラップスコア
  */
 function getGreedAdvice(lang, priceChange, whaleBias, hasHighRiskTrap = false, trapScore = 0) {
-  // 常にCRITICALメッセージを提供（GREED状態は常に高リスク）
+  // 常にCRITICALメッセージを提供（GREED状態は常に高リスク）- 「厳しいが励ましも含む」トーン
   const advice = {
     en: hasHighRiskTrap && trapScore >= 70
-      ? '🚨 CRITICAL: Extreme greed + HIGH-RISK TRAP detected. Price surge with extreme retail FOMO. Whales ARE distributing. This is a CLASSIC TRAP. HIGH RISK of immediate reversal. TAKE PROFITS NOW. Tighten stops aggressively. DO NOT add to positions. Protect your capital immediately.'
-      : '🚨 CRITICAL: Extreme greed detected. Price surge with high retail FOMO. Whales may be distributing. HIGH RISK of reversal. Consider taking profits or tightening stops. If trap conditions are present, AVOID new entries.',
+      ? '🚨 **CRITICAL: Greed Block Detected** + HIGH-RISK TRAP: Extreme greed is BLINDING you. Price surge with extreme retail FOMO. Whales ARE distributing. This is EXACTLY the trap that wipes out traders. Your greed is making you ignore the danger.\n\n**STOP NOW**: TAKE PROFITS IMMEDIATELY. Tighten stops aggressively. DO NOT add to positions. Your capital is at CRITICAL RISK.\n\n**Mental Coach Truth**: Greed is the most dangerous emotion. But here\'s what separates winners from losers: Winners control greed. Losers let greed control them. You have the discipline to protect your capital. Use it NOW. Your potential as a trader isn\'t about maximizing every trade - it\'s about surviving to trade another day. Protect your capital. You\'ve got this.'
+      : '🚨 **CRITICAL: Greed Block Detected**: Extreme greed is clouding your judgment. Price surge with high retail FOMO. Whales may be distributing. HIGH RISK of reversal.\n\n**Block Removal**: Greed makes you ignore risk management. This is EXACTLY when you need discipline most. Consider taking profits or tightening stops. If trap conditions are present, AVOID new entries.\n\n**Mental Coach Insight**: Greed is fear of missing out disguised as opportunity. The strongest traders know when to take profits. Your potential lies in controlling greed, not letting it control you. Protect your capital. That\'s how winners stay in the game.',
     ja: hasHighRiskTrap && trapScore >= 70
-      ? '🚨 重大: 極端な強欲 + 高リスクトラップを検知。価格急騰と極端なリテールFOMO。クジラは配布中です。これは典型的なトラップです。即座に反転する高いリスク。今すぐ利益確定してください。積極的にストップロスを締めてください。ポジションを追加しないでください。すぐに資金を保護してください。'
-      : '🚨 重大: 極端な強欲を検知。価格急騰と高いリテールFOMO。クジラは配布している可能性があります。反転の高いリスク。利益確定またはストップロスを締めることを検討してください。トラップ条件が存在する場合、新しいエントリーを避けてください。',
+      ? '🚨 **重大: 強欲ブロック検出** + 高リスクトラップ: 極端な強欲があなたを盲目にしています。価格急騰と極端なリテールFOMO。クジラは配布中です。これはトレーダーを一掃する典型的なトラップです。あなたの強欲が危険を無視させています。\n\n**今すぐSTOP**: 今すぐ利益確定してください。積極的にストップロスを締めてください。ポジションを追加しないでください。あなたの資金は重大なリスクにさらされています。\n\n**メンタルコーチの真実**: 強欲は最も危険な感情です。しかし、勝者と敗者を分けるものはこれです：勝者は強欲をコントロールします。敗者は強欲にコントロールされます。あなたには資金を保護する規律があります。今すぐそれを使ってください。トレーダーとしてのあなたの潜在能力は、すべての取引を最大化することではなく、別の日に取引するために生き残ることです。資金を保護してください。あなたならできます。'
+      : '🚨 **重大: 強欲ブロック検出**: 極端な強欲が判断を曇らせています。価格急騰と高いリテールFOMO。クジラは配布している可能性があります。反転の高いリスク。\n\n**ブロック解除**: 強欲はリスク管理を無視させます。これは最も規律が必要な時です。利益確定またはストップロスを締めることを検討してください。トラップ条件が存在する場合、新しいエントリーを避けてください。\n\n**メンタルコーチの洞察**: 強欲は機会に偽装された取り残される恐怖です。最強のトレーダーは利益確定のタイミングを知っています。あなたの潜在能力は強欲をコントロールすることにあり、それにコントロールされることではありません。資金を保護してください。それが勝者がゲームに残る方法です。',
     ko: hasHighRiskTrap && trapScore >= 70
       ? '🚨 중요: 극단적인 탐욕 + 고위험 함정 감지. 가격 급등과 극단적인 소매 FOMO. 고래가 분배 중입니다. 이것은 전형적인 함정입니다. 즉각적인 반전의 높은 위험. 지금 이익을 실현하세요. 공격적으로 손절매를 강화하세요. 포지션에 추가하지 마세요. 즉시 자본을 보호하세요.'
       : '🚨 중요: 극단적인 탐욕 감지. 가격 급등과 높은 소매 FOMO. 고래가 분배 중일 수 있습니다. 반전의 높은 위험. 이익 실현 또는 손절매를 강화하는 것을 고려하세요. 함정 조건이 존재하는 경우, 새로운 진입을 피하세요.',
@@ -340,11 +441,11 @@ function getPanicAdvice(lang, priceChange, whaleBias, hasHighRiskTrap = false) {
   
   const advice = {
     en: whaleBias > 0.3
-      ? '🆘 PANIC detected, but whales are buying. This may be a contrarian opportunity. However, wait for confirmation before entering.'
-      : '🆘 CRITICAL: Extreme panic detected. Market is oversold. Wait for stabilization before making decisions.',
+      ? '🆘 **Panic Block Detected**: Your panic is making you irrational, but whales are buying. This panic is BLOCKING your ability to see opportunity.\n\n**Block Removal**: Panic leads to irrational decisions. Breathe. When whales buy during panic, it\'s often a contrarian signal. But WAIT for confirmation. Your potential as a trader isn\'t about eliminating panic - it\'s about managing it. Stay calm. Wait for confirmation before entering. You can handle this.'
+      : '🆘 **CRITICAL: Panic Block Detected**: Extreme panic is paralyzing you. Market is oversold, but panic-driven decisions often lead to poor outcomes.\n\n**Mental Coach Truth**: Panic is fear amplified. The strongest traders don\'t eliminate panic - they breathe through it. Your potential lies in staying calm when others panic. Wait for stabilization before making decisions. Your discipline will guide you through this. You\'ve got this.',
     ja: whaleBias > 0.3
-      ? '🆘 パニックを検知しましたが、クジラは買っています。逆張りの機会の可能性があります。ただし、エントリー前に確認を待ってください。'
-      : '🆘 重要: 極端なパニックを検知。市場は売られすぎています。決定を下す前に安定化を待ってください。',
+      ? '🆘 **パニックブロック検出**: あなたのパニックが非合理的にさせていますが、クジラは買っています。このパニックが機会を見る能力をブロックしています。\n\n**ブロック解除**: パニックは非合理的な決定につながります。深呼吸してください。パニック時にクジラが買う場合、それはしばしば逆張りシグナルです。しかし、確認を待ってください。トレーダーとしてのあなたの潜在能力は、パニックを排除することではなく、それを管理することです。冷静に。エントリー前に確認を待ってください。あなたなら対処できます。'
+      : '🆘 **重大: パニックブロック検出**: 極端なパニックが麻痺を引き起こしています。市場は売られすぎていますが、パニックに駆られた決定はしばしば悪い結果につながります。\n\n**メンタルコーチの真実**: パニックは増幅された恐怖です。最強のトレーダーはパニックを排除するのではなく、それを乗り越えます。あなたの潜在能力は、他の人がパニックになるときに冷静でいることにあります。決定を下す前に安定化を待ってください。あなたの規律があなたを導きます。あなたならできます。',
     ko: whaleBias > 0.3
       ? '🆘 공황 감지, 하지만 고래는 매수 중입니다. 역추세 기회일 수 있습니다. 그러나 진입 전 확인을 기다리세요.'
       : '🆘 중요: 극단적인 공황 감지. 시장이 과매도되었습니다. 결정을 내리기 전에 안정화를 기다리세요.',
@@ -383,8 +484,8 @@ function getEuphoriaAdvice(lang, priceChange, whaleBias, hasHighRiskTrap = false
   }
   
   const advice = {
-    en: '⚠️ Euphoria detected. Both whales and retail are bullish. Market may be overextended. Consider profit-taking.',
-    ja: '⚠️ ユーフォリアを検知。クジラとリテールの両方が強気です。市場は過度に拡張している可能性があります。利益確定を検討してください。',
+    en: '⚠️ **Euphoria Block Detected**: Euphoria is making you ignore risk. Both whales and retail are bullish, but this often precedes corrections. Market may be overextended.\n\n**Block Removal**: Euphoria is a warning sign disguised as success. The strongest traders take profits during euphoria. Your potential lies in recognizing when euphoria is masking danger. Consider profit-taking. Your discipline will protect your gains.',
+    ja: '⚠️ **ユーフォリアブロック検出**: ユーフォリアがリスクを無視させています。クジラとリテールの両方が強気ですが、これはしばしば調整の前兆です。市場は過度に拡張している可能性があります。\n\n**ブロック解除**: ユーフォリアは成功に偽装された警告サインです。最強のトレーダーはユーフォリア時に利益確定します。あなたの潜在能力は、ユーフォリアが危険を隠しているときを認識することにあります。利益確定を検討してください。あなたの規律が利益を保護します。',
     ko: '⚠️ 유포리아 감지. 고래와 소매 모두 강세입니다. 시장이 과도하게 확장되었을 수 있습니다. 이익 실현을 고려하세요.',
     es: '⚠️ Euforia detectada. Tanto ballenas como minoristas son alcistas. El mercado puede estar sobre extendido. Considere tomar ganancias.',
     'pt-br': '⚠️ Euforia detectada. Tanto baleias quanto varejo são altistas. O mercado pode estar sobre extendido. Considere realizar lucros.',
@@ -413,8 +514,8 @@ function getConfusionAdvice(lang, hasHighRiskTrap = false) {
   }
   
   const advice = {
-    en: '💭 Market sentiment is mixed. No clear direction. This is a "BUG STANDBY" situation. Wait for clearer signals.',
-    ja: '💭 市場センチメントは混在しています。明確な方向性がありません。これは「BUG STANDBY」状況です。より明確なシグナルを待ってください。',
+    en: '💭 **Confusion Block Detected**: Market sentiment is mixed - confusion is clouding your judgment. No clear direction. This is a "BUG STANDBY" situation.\n\n**Block Removal**: When confused, the best action is often inaction. This confusion is BLOCKING your ability to make clear decisions. Wait for clarity. 70% of the time, doing nothing is the strongest strategy.\n\n**Mental Coach Insight**: Confusion is uncertainty amplified. The strongest traders know when NOT to trade. Your potential lies in waiting for clarity, not forcing trades in confusion. Wait for clearer signals. Your discipline will protect your capital.',
+    ja: '💭 **混乱ブロック検出**: 市場センチメントは混在しています - 混乱が判断を曇らせています。明確な方向性がありません。これは「BUG STANDBY」状況です。\n\n**ブロック解除**: 混乱しているとき、最善の行動はしばしば無行動です。この混乱が明確な決定をする能力をブロックしています。明確さを待ってください。70%の時間、何もしないことが最強の戦略です。\n\n**メンタルコーチの洞察**: 混乱は増幅された不確実性です。最強のトレーダーは取引しない時を知っています。あなたの潜在能力は、混乱の中で取引を強制することではなく、明確さを待つことにあります。より明確なシグナルを待ってください。あなたの規律が資金を保護します。',
     ko: '💭 시장 센티먼트가 혼재되어 있습니다. 명확한 방향이 없습니다. 이것은 "BUG STANDBY" 상황입니다. 더 명확한 신호를 기다리세요.',
     es: '💭 El sentimiento del mercado está mezclado. Sin dirección clara. Esta es una situación "BUG STANDBY". Espere señales más claras.',
     'pt-br': '💭 Sentimento de mercado misto. Sem direção clara. Esta é uma situação "BUG STANDBY". Aguarde sinais mais claros.',
@@ -443,12 +544,12 @@ function getNeutralAdvice(lang, hasHighRiskTrap = false) {
   }
   
   const advice = {
-    en: '✅ Market sentiment is balanced. No extreme emotions detected. Continue monitoring for opportunities.',
-    ja: '✅ 市場センチメントはバランスが取れています。極端な感情は検知されていません。機会を継続的に監視してください。',
-    ko: '✅ 시장 센티먼트가 균형을 이루고 있습니다. 극단적인 감정이 감지되지 않았습니다. 기회를 계속 모니터링하세요.',
-    es: '✅ El sentimiento del mercado está equilibrado. No se detectaron emociones extremas. Continúe monitoreando oportunidades.',
-    'pt-br': '✅ Sentimento de mercado equilibrado. Nenhuma emoção extrema detectada. Continue monitorando oportunidades.',
-    ar: '✅ مشاعر السوق متوازنة. لم يتم اكتشاف عواطف متطرفة. استمر في مراقبة الفرص.',
+    en: '✅ **Neutral State - No Mental Blocks Detected**: Market sentiment is balanced. No extreme emotions detected. Conditions are stable.\n\n**Mental Coach Insight**: This is the ideal state. No mental blocks are clouding your judgment. Continue monitoring. Maintain discipline and wait for high-probability setups. Your potential as a trader shines when you can maintain this calm state. Keep protecting your capital. You\'re doing great.',
+    ja: '✅ **中立状態 - メンタルブロック未検出**: 市場センチメントはバランスが取れています。極端な感情は検知されていません。条件は安定しています。\n\n**メンタルコーチの洞察**: これは理想的な状態です。メンタルブロックが判断を曇らせていません。監視を継続してください。規律を維持し、高確率のセットアップを待ってください。トレーダーとしてのあなたの潜在能力は、この冷静な状態を維持できるときに輝きます。資金の保護を続けてください。素晴らしいです。',
+    ko: '✅ **중립 상태 - 정신적 블록 미감지**: 시장 센티먼트가 균형을 이루고 있습니다. 극단적인 감정이 감지되지 않았습니다. 조건이 안정적입니다.\n\n**멘탈 코치 통찰**: 이것은 이상적인 상태입니다. 정신적 블록이 판단을 흐리지 않고 있습니다. 모니터링을 계속하세요. 규율을 유지하고 고확률 설정을 기다리세요. 트레이더로서의 당신의 잠재력은 이 차분한 상태를 유지할 수 있을 때 빛납니다. 자본 보호를 계속하세요. 잘하고 있습니다.',
+    es: '✅ **Estado Neutral - Sin Bloqueos Mentales Detectados**: El sentimiento del mercado está equilibrado. No se detectaron emociones extremas. Las condiciones son estables.\n\n**Perspectiva del Entrenador Mental**: Este es el estado ideal. No hay bloqueos mentales nublando tu juicio. Continúa monitoreando. Mantén la disciplina y espera configuraciones de alta probabilidad. Tu potencial como trader brilla cuando puedes mantener este estado tranquilo. Sigue protegiendo tu capital. Lo estás haciendo genial.',
+    'pt-br': '✅ **Estado Neutro - Sem Bloqueios Mentais Detectados**: Sentimento de mercado equilibrado. Nenhuma emoção extrema detectada. Condições estão estáveis.\n\n**Insight do Treinador Mental**: Este é o estado ideal. Nenhum bloqueio mental está nublando seu julgamento. Continue monitorando. Mantenha a disciplina e aguarde configurações de alta probabilidade. Seu potencial como trader brilha quando você pode manter este estado calmo. Continue protegendo seu capital. Você está indo muito bem.',
+    ar: '✅ **حالة محايدة - لم يتم اكتشاف حواجز عقلية**: مشاعر السوق متوازنة. لم يتم اكتشاف عواطف متطرفة. الظروف مستقرة.\n\n**رؤية المدرب العقلي**: هذه هي الحالة المثالية. لا توجد حواجز عقلية تغيم على حكمك. استمر في المراقبة. حافظ على الانضباط وانتظر الإعدادات عالية الاحتمالية. إمكاناتك كمتداول تتألق عندما يمكنك الحفاظ على هذه الحالة الهادئة. استمر في حماية رأس مالك. أنت تبلي بلاءً حسناً.',
   };
   return advice[lang] || advice.en;
 }
@@ -464,6 +565,7 @@ function generateSupportMessage(options = {}) {
     marketData = {},
     xSentiment = {},
     sentimentAnalysis = null,
+    mentalBlocks = [],
   } = options;
   
   const priceChange = marketData.change24h || marketData.change_24h || 0;
@@ -562,7 +664,21 @@ Psychological Advice: Continue monitoring. Maintain discipline and wait for high
   };
   
   const langMessages = messages[lang] || messages.en;
-  return langMessages[psychologicalState] || langMessages.NEUTRAL;
+  const baseMessage = langMessages[psychologicalState] || langMessages.NEUTRAL;
+  
+  // メンタルブロック検出結果を統合
+  let mentalBlockSection = '';
+  if (Array.isArray(mentalBlocks) && mentalBlocks.length > 0) {
+    // メンタルブロックを文字列に変換
+    const blockMessages = mentalBlocks.map(block => {
+      const severityEmoji = block.severity === 'CRITICAL' ? '🚨' :
+                           block.severity === 'HIGH' ? '⚠️' : '💡';
+      return `\n\n${severityEmoji} **${block.type} Block**: ${block.description}\n💡 ${block.removalAdvice}`;
+    });
+    mentalBlockSection = '\n\n**Mental Blocks Detected:**' + blockMessages.join('');
+  }
+  
+  return baseMessage + mentalBlockSection;
 }
 
 /**

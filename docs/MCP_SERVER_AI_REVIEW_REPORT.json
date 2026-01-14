@@ -1,0 +1,545 @@
+{
+  "timestamp": "2026-01-10T14:15:57.056Z",
+  "reviewers": {
+    "gpt": {
+      "role": "CTO/CPO",
+      "review": {
+        "technicalReview": {
+          "architecture": {
+            "score": 82,
+            "issues": [
+              "tool探索が毎回 `tools.find()` の線形探索で、ツール数増加時に無駄が出る（O(n)）",
+              "ツール実装（tools.js）側のZod検証・例外契約がこのサーバー層から見えず、境界（tool I/O契約）が暗黙になりやすい",
+              "エラーの返却フォーマットがJSON文字列固定で、MCPのcontent拡張（structured content）や将来の互換性に弱い",
+              "起動時/終了時のライフサイクル（SIGINT/SIGTERM、未処理Promise、transport切断）を考慮していない",
+              "観測性（request-id、ツール実行時間、成功/失敗メトリクス）が不足し、運用時に原因特定しづらい"
+            ],
+            "recommendations": [
+              "Tool Registryを配列から `Map<string, Tool>` に変更し、ルーティングをO(1)化。ListToolsはMapから生成",
+              "ツールのメタ情報に `inputSchema` / `outputSchema`（Zod）を持たせ、サーバー層で入力検証を統一（tool.handlerの前に必ずparse）",
+              "レスポンスは原則JSONだが、エラーは `error` オブジェクトのスキーマを固定し、将来的に `content` に structured payload を入れられる設計（例: type: 'text' + type: 'json' の併用）",
+              "Graceful shutdown（SIGINT/SIGTERMハンドリング、未完了処理のキャンセル/タイムアウト）を追加",
+              "観測性の基本（requestId付与、durationMs、toolName、resultSize、errorCode）をstderrへ構造化ログで出す"
+            ]
+          },
+          "codeQuality": {
+            "score": 78,
+            "issues": [
+              "CallToolRequestSchemaの `arguments` が `unknown` になりがちで、tool.handlerへ型のないまま渡している（型安全性がtool側任せ）",
+              "返却値 `result` の型が不明で、JSON化失敗（循環参照など）時の扱いが未定義",
+              "ESM運用は良いが、`main` / `start` / `dev` のエントリがズレると事故りやすい（index.tsがどこか不明瞭）",
+              "エラーのJSON stringifyを毎回手書きしており、重複・揺れが起きやすい"
+            ],
+            "recommendations": [
+              "Tool定義をジェネリクス化（`Tool<I, O>`）し、Zodから `z.infer<>` で入出力型を自動推論。handlerの型を強制",
+              "`safeJsonStringify`（循環参照対策）か、返却はプレーンJSONのみ許可してZod出力検証を行う",
+              "エントリポイントを `src/index.ts` -> `dist/index.js` に統一し、package.jsonに `bin` を追加（CLIとしてのインストール/実行を安定化）",
+              "エラーレスポンス生成を `toErrorPayload(err)` に集約し、コード/メッセージ/リトライ可否/traceId を一元管理"
+            ]
+          },
+          "robustness": {
+            "score": 74,
+            "issues": [
+              "ツール実行のタイムアウトがなく、外部API呼び出しがハングするとMCPが詰まる可能性",
+              "同時実行制御がなく、重いツールが並列に走るとメモリ/レート制限/外部API枯渇を招く",
+              "リトライ方針がサーバー層にない（tool側に任せると実装が分散し、統一性が崩れる）",
+              "ログが `console.error` のみで、レベル/構造化/PIIマスキング/相関IDが不足"
+            ],
+            "recommendations": [
+              "AbortControllerでツール実行にデフォルトタイムアウト（例: 60s）を付与し、timeout時は `TIMEOUT` として返す",
+              "簡易キュー（p-limit等）でツールごとの並列数上限を設定（例: AI系は2、軽量ツールは10）",
+              "リトライは「外部API・ネットワーク系のみ」「指数バックオフ」「上限回数」「idempotencyが担保できるもののみ」に限定して共通実装化",
+              "構造化ログ（JSON）+ requestId + toolName + durationMs + errorCode。PII/secretのマスキング関数を導入"
+            ]
+          },
+          "extensibility": {
+            "score": 80,
+            "issues": [
+              "ツール追加はしやすいが、ツールのカテゴリ/権限/コスト（重い/軽い）のメタ情報がなく、運用ポリシーを載せにくい",
+              "設定が環境変数に散り始めると破綻しやすい（MCP_DEBUG, MCP_PRETTY_JSON など）",
+              "テストのための依存性注入（logger, clock, transport, tool registry）が弱い",
+              "tools.jsが巨大化すると境界が曖昧になりがち（ドメイン別分割・自動登録が欲しい）"
+            ],
+            "recommendations": [
+              "Toolメタに `tags`, `cost`, `timeoutMs`, `maxConcurrency`, `requiresNetwork` などを追加し、サーバー層で共通制御",
+              "設定は `config.ts` に集約し、Zodで環境変数を検証（起動時にfail-fast）",
+              "Server生成を `createServer({ registry, logger, config })` にしてユニットテスト可能にする",
+              "ツールは `tools/index.ts` で自動集約（ドメイン別に `tools/planning`, `tools/realtime` 等）し、登録の規約を固定"
+            ]
+          },
+          "security": {
+            "score": 76,
+            "issues": [
+              "入力検証がサーバー層で保証されていないため、tool側の検証漏れがそのまま脆弱性/障害要因になる",
+              "内部エラー時に `err.message` をログ出力するが、上流例外にAPIキー等が混ざるとstderrに漏れる可能性",
+              "外部APIキー管理（関連コードに direct-ai-api 呼び出し）がある前提で、env検証・マスキング・誤出力防止が必要",
+              "ツール名が未知の場合のエラーはOKだが、列挙可能性（ツール探索）や濫用（DoS）へのレート制限がない"
+            ],
+            "recommendations": [
+              "サーバー層で `tool.inputSchema.parse(args)` を必須化し、未検証入力をtoolに渡さない",
+              "ログマスキング（`process.env`由来のsecretパターン、`Authorization`、`apiKey`等キー名）を実装し、例外メッセージもフィルタ",
+              "configロード時に必須APIキーの存在/形式をZodで検証し、欠落時は起動失敗（安全側）",
+              "簡易レート制限/同時実行制限を導入し、重いツールへの濫用を抑止（特にAI呼び出し）"
+            ]
+          },
+          "performance": {
+            "score": 79,
+            "issues": [
+              "toolルーティングが線形探索で、ツールが増えるとわずかに遅くなる",
+              "JSON stringifyが大きいpayloadでCPUを食う可能性（pretty printは特に）",
+              "重い外部API呼び出し（AI）を想定すると、並列制御・キャッシュ・タイムアウトがないと待ち行列が肥大化する",
+              "レスポンスサイズが無制限で、巨大出力がSTDIOを詰まらせるリスク"
+            ],
+            "recommendations": [
+              "Tool RegistryをMap化 + handlerの前後で計測し、遅いツールを可視化して改善サイクルを回す",
+              "pretty JSONは開発時のみ（devで強制ON、prodで強制OFFなど）にし、サイズ上限（例: 1MB）を超えたら要約/分割/エラー",
+              "外部API結果の短期キャッシュ（同一入力ハッシュ、TTL数十秒〜数分）を導入し、連続呼び出しを削減",
+              "ツールごとに `maxConcurrency` を設定し、AI系の同時実行を抑える（p-limit等）"
+            ]
+          }
+        },
+        "priorityFixes": [
+          {
+            "priority": "CRITICAL",
+            "issue": "サーバー層で入力検証が保証されず、tool側の検証漏れが即バグ/脆弱性/障害につながる",
+            "fix": "Tool定義にZodのinputSchemaを必須化し、CallToolで `parse` してからhandlerに渡す。ValidationErrorはここで一元発生させる",
+            "code": "```ts\n// tools.ts 側の想定インターフェース\nimport { z } from 'zod';\n\nexport type ToolDef<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = {\n  name: string;\n  description: string;\n  inputSchema: I;\n  outputSchema?: O; // 任意だが推奨\n  handler: (input: z.infer<I>, ctx: { signal: AbortSignal; requestId: string }) => Promise<unknown>;\n};\n\n// index.ts 側（CallTool）\nconst tool = toolMap.get(name);\nif (!tool) throw new AppError('UNKNOWN_TOOL', `Unknown tool: ${name}`, false);\n\nconst parsed = tool.inputSchema.safeParse(args ?? {});\nif (!parsed.success) throw new ValidationError('INVALID_ARGUMENTS', parsed.error.message);\n\nconst result = await tool.handler(parsed.data, { signal, requestId });\n```"
+          },
+          {
+            "priority": "CRITICAL",
+            "issue": "ツール実行のタイムアウト/キャンセルがなく、外部API等でハングするとサーバーが詰まる",
+            "fix": "AbortControllerでデフォルトタイムアウトを導入し、tool.handlerにsignalを渡す（fetch等に伝播）。timeout時は専用エラーコードで返す",
+            "code": "```ts\nfunction withTimeout<T>(ms: number) {\n  const controller = new AbortController();\n  const timer = setTimeout(() => controller.abort(), ms);\n  return { signal: controller.signal, dispose: () => clearTimeout(timer) };\n}\n\n// CallTool内\nconst timeoutMs = tool.timeoutMs ?? Number(process.env.MCP_TOOL_TIMEOUT_MS ?? 60000);\nconst { signal, dispose } = withTimeout(timeoutMs);\ntry {\n  const result = await tool.handler(parsedArgs, { signal, requestId });\n  return ok(result);\n} catch (e) {\n  if (signal.aborted) throw new AppError('TIMEOUT', `Tool timed out: ${name}`, true);\n  throw e;\n} finally {\n  dispose();\n}\n```"
+          },
+          {
+            "priority": "HIGH",
+            "issue": "重いツールの同時実行制御がなく、レート制限超過・メモリ増大・待ち行列肥大化が起きうる",
+            "fix": "ツールごとにmaxConcurrencyを持たせ、p-limit等で制御。最低限「AI系は2」などの上限を設定",
+            "code": "```ts\nimport pLimit from 'p-limit';\n\nconst limiters = new Map<string, ReturnType<typeof pLimit>>();\nfunction getLimiter(toolName: string, n: number) {\n  const key = `${toolName}:${n}`;\n  if (!limiters.has(key)) limiters.set(key, pLimit(n));\n  return limiters.get(key)!;\n}\n\n// CallTool内\nconst limiter = getLimiter(name, tool.maxConcurrency ?? 4);\nconst result = await limiter(() => tool.handler(parsedArgs, { signal, requestId }));\n```"
+          },
+          {
+            "priority": "HIGH",
+            "issue": "ログが構造化されておらず、相関ID・実行時間・エラーコードが追えない。例外メッセージに機密が混ざるとstderr漏洩の恐れ",
+            "fix": "requestIdを生成し、構造化ログ（JSON）で出力。マスキング関数でsecret/PIIを除去してからログ化",
+            "code": "```ts\nimport crypto from 'node:crypto';\n\nconst mask = (obj: any) => {\n  const s = JSON.stringify(obj);\n  return s\n    .replace(/(api[_-]?key\"\\s*:\\s*\")([^\"]+)/ig, '$1***')\n    .replace(/(authorization\"\\s*:\\s*\")([^\"]+)/ig, '$1***');\n};\n\nconst requestId = crypto.randomUUID();\nconst t0 = Date.now();\ntry {\n  // ...\n} catch (err) {\n  console.error(mask({ level: 'error', requestId, tool: name, code: 'INTERNAL_ERROR', message: err instanceof Error ? err.message : String(err) }));\n  throw err;\n} finally {\n  console.error(JSON.stringify({ level: 'info', requestId, tool: name, durationMs: Date.now() - t0 }));\n}\n```"
+          },
+          {
+            "priority": "MEDIUM",
+            "issue": "ツール探索が配列線形でスケールしない／重複名の検出がない",
+            "fix": "起動時にMap化し、重複tool名があればfail-fast",
+            "code": "```ts\nconst toolMap = new Map(tools.map(t => [t.name, t] as const));\nif (toolMap.size !== tools.length) {\n  throw new Error('Duplicate tool name detected');\n}\n\nserver.setRequestHandler(ListToolsRequestSchema, async () => ({\n  tools: Array.from(toolMap.values()).map(({ handler, inputSchema, outputSchema, ...meta }) => meta)\n}));\n```"
+          },
+          {
+            "priority": "MEDIUM",
+            "issue": "レスポンスサイズ無制限でSTDIO詰まりやメモリ使用量増大のリスク",
+            "fix": "最大レスポンスサイズを設定し、超過時は要約 or エラー（TOO_LARGE）を返す。pretty JSONはprodで無効化",
+            "code": "```ts\nconst MAX_BYTES = Number(process.env.MCP_MAX_RESPONSE_BYTES ?? 1_000_000);\nconst text = JSON.stringify(result);\nif (Buffer.byteLength(text, 'utf8') > MAX_BYTES) {\n  throw new AppError('RESPONSE_TOO_LARGE', 'Response exceeded size limit', false);\n}\n```"
+          }
+        ],
+        "overallScore": 78,
+        "summary": "現状は「Tool Registry + 安全なエラーフォーマット + ESM」で土台は良く、最短で実用レベルに到達しています。一方で“最強”にするには、(1) サーバー層での入出力スキーマ強制（Zod）による契約の明文化、(2) タイムアウト/キャンセル・並列数制御・リトライ方針の共通化、(3) 構造化ログ＋マスキング＋相関IDによる運用性/安全性の強化、の3点が最優先です。これらを入れると、ツール増加・外部AI依存・本番運用に耐えるMCP基盤になります。"
+      }
+    },
+    "grok": {
+      "role": "CFO/CRO/CGO",
+      "review": {
+        "businessReview": {
+          "valueProposition": {
+            "score": 82,
+            "strengths": [
+              "逆算思考エンジン（backcasting）がCEO/経営層の戦略立案に特化し、未来ゴールから計画生成する独自価値",
+              "Cursor IDEユーザー向けツール4つで、即戦力としてROI（時間短縮・意思決定加速）が明確"
+            ],
+            "weaknesses": [
+              "競合（ChatGPTプラグインやNotion AI等）と差別化が技術的に薄く、マーケティングで強調不足",
+              "ROIの定量データ（例: 計画生成時間がX%短縮）がなく、ユーザー説得力が弱い"
+            ],
+            "recommendations": [
+              "ケーススタディ（CEOインタビュー動画）を作成し、ROIを「1回の計画生成で1週間分の戦略作業を代替」と数値化",
+              "競合優位性を「Cursor IDEネイティブ統合 + 専用ツール4つ」で強調したLPを構築"
+            ]
+          },
+          "userExperience": {
+            "score": 72,
+            "strengths": [
+              "シンプルなツール呼び出しインターフェース（generate_backcasting_plan等）で直感的",
+              "ESMベースで軽量・高速起動が可能"
+            ],
+            "weaknesses": [
+              "エラーメッセージがJSON固定でユーザー寄り（非技術者CEO向け）に分かりにくい",
+              "ドキュメントが不足し、ツールの使い方/入力例が不明瞭",
+              "タイムアウト/レート制限なしでUX劣化（ハング/遅延）"
+            ],
+            "recommendations": [
+              "エラーメッセージを「人間語」（例: '計画生成に時間がかかりすぎました。ゴールを簡略化してください'）に変換し、CEO向けに優しく",
+              "README.mdにインタラクティブ例（Cursor IDEスクショ + サンプルプロンプト）を追加、Quickstartガイド作成",
+              "優先Fix（入力検証/タイムアウト）を即適用し、安定UXを確保"
+            ]
+          },
+          "marketFit": {
+            "score": 85,
+            "strengths": [
+              "ターゲット（Cursor IDEユーザー=CEO/経営層）がニッチで熱心、逆算思考が戦略家に刺さる",
+              "無料オープンソース前提で初期参入障壁低く、IDE拡張としてバイラルしやすい"
+            ],
+            "weaknesses": [
+              "価格設定未定義（無料のみ？有料SaaS化？）で長期収益化不明",
+              "マーケティング戦略なし、Cursorコミュニティ外へのリーチ不足"
+            ],
+            "recommendations": [
+              "Freemiumモデル（無料コア + 有料エンタープライズ版: カスタムツール/優先サポート）で価格設定",
+              "Cursor Discord/HackerNewsでβリリース、CEOインフルエンサー（Twitter/X）コラボでプロモート"
+            ]
+          },
+          "profitability": {
+            "score": 68,
+            "strengths": [
+              "サーバー運用コスト低（Node.js軽量）、APIコスト（AI呼び出し）はツール実行ベースで課金可能",
+              "スケーラビリティ基盤（Map化/並列制御推奨）でユーザー増に対応可"
+            ],
+            "weaknesses": [
+              "外部API（direct-ai-api等）コストがユーザー増加で爆発、キャッシュ/最適化不足",
+              "収益化モデル未定義（OSS無料前提で寄付頼み？）",
+              "レスポンスサイズ無制限で運用コスト（メモリ/帯域）増大リスク"
+            ],
+            "recommendations": [
+              "APIコストをユーザー課金に転嫁（Usage-based pricing: $0.01/計画生成）、短期キャッシュ導入で50%削減",
+              "SaaS版をVercel/Cloudflareでホスト、月額$29/CEOユーザーでARR目標$100K設定",
+              "優先Fix（maxConcurrency/サイズ制限）でコストを予測可能に"
+            ]
+          },
+          "growthStrategy": {
+            "score": 65,
+            "strengths": [
+              "ツール拡張性高（新ツール追加容易）、ドメイン別分割で成長余地大",
+              "Cursor IDEエコシステム内で自然拡散可能"
+            ],
+            "weaknesses": [
+              "ユーザー獲得/リテンション戦略なし（プロモ無しでオーガニック頼み）",
+              "新機能ロードマップ未定義、拡張性が技術的に課題（設定散乱/テスト弱）"
+            ],
+            "recommendations": [
+              "獲得: Cursorマーケットプレイス登録 + Reddit/r/SaaS投稿、目標MAU 1K in 3ヶ月",
+              "リテンション: 週次ニュースレター（新計画テンプレ） + In-app analyticsでNPS向上",
+              "拡張: Q1に「財務予測ツール」「競合分析ツール」追加、config.ts統一で開発加速"
+            ]
+          },
+          "riskAssessment": {
+            "technical": [
+              "入力検証/タイムアウト未実装で本番障害（ハング/脆弱性）",
+              "ログ/観測性不足で運用デバッグ不能",
+              "並列制御なしでスケール失敗"
+            ],
+            "market": [
+              "Cursor IDE依存でユーザー基盤狭小（IDEシェア変動リスク）",
+              "CEO層のAI疲労で採用遅れ"
+            ],
+            "competition": [
+              "Anthropic/Perplexityのエージェントツール進化で差別化喪失",
+              "無料OSSコピー（fork）増加"
+            ],
+            "mitigations": [
+              "CRITICAL Fix即適用（Zod検証/タイムアウト/ログ）で技術安定化",
+              "多IDE対応（VSCode版）開発で市場分散、独自DB蓄積でMoat構築",
+              "プロプライエタリ版（SaaS）+ Contributor License Agreementで競合抑止"
+            ]
+          }
+        },
+        "priorityImprovements": [
+          {
+            "priority": "CRITICAL",
+            "area": "技術基盤強化",
+            "improvement": "GPTレビュー優先Fix全適用（入力Zod検証、タイムアウト、並列制御、構造化ログ）",
+            "expectedImpact": "障害ゼロ化+運用コスト30%減、信頼性向上でユーザー定着率2倍"
+          },
+          {
+            "priority": "CRITICAL",
+            "area": "収益モデル定義",
+            "improvement": "Freemium SaaS化（無料OSS + $29/月エンタープライズ）、APIコスト転嫁",
+            "expectedImpact": "ARR $50K/年達成、コスト回収で黒字化"
+          },
+          {
+            "priority": "HIGH",
+            "area": "UX/ドキュメント",
+            "improvement": "CEO向けエラーメッセージ人間語化 + Quickstartガイド/動画作成",
+            "expectedImpact": "オンボーディング時間50%短縮、NPS+20pts"
+          },
+          {
+            "priority": "HIGH",
+            "area": "マーケティング",
+            "improvement": "Cursorコミュニティ投稿 + CEOインタビューキャンペーン開始",
+            "expectedImpact": "MAU 500人獲得、バイラル係数1.2へ"
+          },
+          {
+            "priority": "MEDIUM",
+            "area": "拡張ロードマップ",
+            "improvement": "新ツール2つ追加（財務/競合分析）+ config統一",
+            "expectedImpact": "機能価値30%向上、リテンション率向上"
+          }
+        ],
+        "overallScore": 75,
+        "summary": "技術土台は78点と堅実だが、ビジネス面で収益/成長戦略が未熟（overall75点）。CRITICAL改善（技術Fix+収益化）で即プロダクト化可能、3ヶ月でMAU1K/ARR$50K目指せ。競合に先手を取るため、Cursorエコ特化+CEO ROIストーリーを武器に急げ。"
+      }
+    },
+    "gemini": {
+      "role": "CMO/CKO",
+      "review": {
+        "marketingReview": {
+          "failureCases": [
+            {
+              "case": "汎用チャットボットの皮を被ったツール群",
+              "failureReason": "「何でもできる」は「何をしていいかわからない」と同義。ユーザーにプロンプトエンジニアリングを強要し、CEOの認知負荷を高めて離脱を招いた。",
+              "lesson": "CEO向けツールは「自由度」よりも「正解への最短ルート（Opinionated Design）」を提供するべき。逆算思考というフレームワークを強制するUXは正解。"
+            },
+            {
+              "case": "ブラックボックス化したAIエージェント",
+              "failureReason": "思考プロセスが不透明なまま結論だけを出力したため、経営層がその戦略を信頼できず、意思決定に使われなかった。",
+              "lesson": "「Explainable AI（説明可能なAI）」の要素が必須。backcastingの各ステップ（なぜその中間ゴールを設定したか）の根拠を言語化して提示する必要がある。"
+            },
+            {
+              "case": "セキュリティ意識の低い統合ツール",
+              "failureReason": "自社の戦略データが学習に使われる懸念や、APIキーの誤送信リスクが払拭できず、エンタープライズ導入審査で落ちた。",
+              "lesson": "「Your Data Stays Yours」のメッセージと、それを裏付ける技術的証拠（ローカル実行、マスキングログ等）がマーケティング上の最強の武器になる。"
+            }
+          ],
+          "bestPractices": [
+            {
+              "practice": "Output as a Deliverable (成果物としての出力)",
+              "description": "単なるチャットの返答ではなく、そのまま会議資料やメモとして使えるフォーマットで出力する。",
+              "implementation": "Markdown形式でH1/H2、Bullet points、Tableを駆使した構造化テキストを返す。`export_strategy_doc` のような機能。"
+            },
+            {
+              "practice": "Progressive Disclosure (段階的開示)",
+              "description": "一度に全てを見せず、概要→詳細→アクションプランと、ユーザーの関心に合わせて情報を深掘りさせる。",
+              "implementation": "初期出力は「サマリーと3つの主要マイルストーン」に絞り、「詳細を展開」するための追加コマンドをサジェストする。"
+            },
+            {
+              "practice": "Persona-Based Error Handling (ペルソナ別エラーハンドリング)",
+              "description": "システムエラーをユーザーの文脈（ビジネス用語）に翻訳して伝える。",
+              "implementation": "TimeOutエラーを「思考時間が足りませんでした。タスクを分割して再実行しますか？」のように、対話的な提案に変換する。"
+            }
+          ],
+          "missingFeatures": [
+            {
+              "feature": "Strategy Export / Reporting",
+              "priority": "HIGH",
+              "description": "生成された逆算計画を、即座に共有可能なMarkdownレポートやPDF用テキストとして整形出力する機能。",
+              "expectedImpact": "CEOがチームに共有する手間をゼロにし、ツールの「実務利用率」を劇的に高める。"
+            },
+            {
+              "feature": "Risk Simulation (Pre-mortem)",
+              "priority": "MEDIUM",
+              "description": "「この計画が失敗するとしたら何が原因か？」をシミュレーションし、対策を提示する機能。",
+              "expectedImpact": "楽観的な計画生成に留まらず、経営者の「不安」に寄り添うことで信頼を獲得する。"
+            },
+            {
+              "feature": "KPI Dashboard Generator",
+              "priority": "MEDIUM",
+              "description": "計画に基づき、追うべきKPIのリストと計測頻度をJSON/CSVで出力する。",
+              "expectedImpact": "戦略を実行フェーズ（Dashboardツール等）に落とし込む際のブリッジとなり、継続利用を促す。"
+            }
+          ],
+          "marketingStrategy": {
+            "promotion": [
+              "Product Hunt / Hacker Newsでの「Strategy as Code」キャンペーン",
+              "Cursor IDEユーザーコミュニティでの「開発者のための経営戦略テンプレート」配布",
+              "技術系創業者（Technical Founders）へのダイレクトマーケティング"
+            ],
+            "targetAudience": [
+              "Technical CEO/CTO (コードが書ける経営者)",
+              "Solopreneur (一人起業家・開発者)",
+              "Product Managers (製品戦略をコードベースで管理したい層)"
+            ],
+            "differentiation": [
+              "「未来からの逆算」という特化型アルゴリズム（汎用LLMとの違い）",
+              "IDEネイティブであること（コンテキストスイッチなしで戦略立案）",
+              "「エンジニアリングのアプローチで経営を解く」という世界観"
+            ]
+          },
+          "knowledgeManagement": {
+            "documentation": {
+              "score": 40,
+              "strengths": [
+                "ツール定義自体はシンプル",
+                "エンジニアには理解しやすい構造"
+              ],
+              "weaknesses": [
+                "ビジネスユーザー（CEO）向けの「使い方」がない",
+                "「なぜ逆算思考なのか」という概念説明（Why）が不足"
+              ],
+              "recommendations": [
+                "「Concept」セクションを追加し、逆算思考のメリットを解説",
+                "実際の使用例（Use Case）をストーリー形式で記述"
+              ]
+            },
+            "userGuide": {
+              "score": 30,
+              "strengths": [],
+              "weaknesses": [
+                "コマンドリファレンスしかない",
+                "オンボーディングのステップバイステップガイドがない"
+              ],
+              "recommendations": [
+                "「最初の5分で戦略を作る」Quickstart Guideの作成",
+                "CursorのComposer機能で使える「推奨プロンプト集」の提供"
+              ]
+            },
+            "troubleshooting": {
+              "score": 20,
+              "strengths": [],
+              "weaknesses": [
+                "エラーコードの意味が不明",
+                "解決策が提示されていない"
+              ],
+              "recommendations": [
+                "「よくある質問（FAQ）」と「エラー対照表」の作成",
+                "エラー発生時に「次に何をすべきか」をサジェストするガイドライン"
+              ]
+            }
+          },
+          "communityBuilding": {
+            "needs": [
+              "戦略テンプレートの共有（SaaS用、受託開発用など）",
+              "成功事例（Showcase）の蓄積"
+            ],
+            "feedbackMechanism": [
+              "GitHub Discussionsを活用した「Feature Request」",
+              "ツール実行後の簡易フィードバック（Good/Bad）収集機能（将来的に）"
+            ],
+            "improvementProcess": [
+              "ユーザーが作成した「逆算プロンプト」をライブラリ化",
+              "定期的なリリースノートで「ユーザーの声」が反映されたことを強調"
+            ]
+          }
+        },
+        "priorityImprovements": [
+          {
+            "priority": "CRITICAL",
+            "area": "ブランディング・信頼性",
+            "improvement": "CTO指摘の「堅牢性・セキュリティ修正」をマーケティングメッセージ（Enterprise Ready）として昇華させる",
+            "expectedImpact": "「おもちゃ」ではなく「実務ツール」としての信頼獲得。導入障壁の撤廃。"
+          },
+          {
+            "priority": "HIGH",
+            "area": "UX / オンボーディング",
+            "improvement": "READMEおよびドキュメントに「CEO向けクイックスタート（コピペ用プロンプト付き）」を追加",
+            "expectedImpact": "初回利用時の「Wowモーメント（感動体験）」到達率を向上させ、離脱を防ぐ。"
+          },
+          {
+            "priority": "HIGH",
+            "area": "機能（Output Quality）",
+            "improvement": "出力結果をMarkdownレポート形式に整形し、そのままチーム共有可能にする",
+            "expectedImpact": "ユーザーの周囲（チームメンバー）を巻き込み、バイラル係数を高める。"
+          },
+          {
+            "priority": "MEDIUM",
+            "area": "コミュニティ",
+            "improvement": "「Strategy as Code」を掲げたGitHubリポジトリの整備と事例募集",
+            "expectedImpact": "開発者層のファン化と、オーガニックな拡散。"
+          }
+        ],
+        "overallScore": 72,
+        "summary": "プロダクトの「核（逆算思考エンジン）」は非常に魅力的ですが、現在は「エンジニア向けのAPI」の状態であり、「多忙なCEO向けのソリューション」にはなっていません。マーケティングの観点では、技術的な堅牢性（CTO指摘事項）を「信頼」に変換し、出力形式を「成果物」レベルに引き上げることが最優先です。ドキュメントを「マニュアル」から「プレイブック（戦略の教科書）」へと進化させることで、単なるツールを超えた「経営パートナー」としての地位を確立できます。"
+      }
+    }
+  },
+  "summary": {
+    "overallScores": {
+      "technical": 78,
+      "business": 75,
+      "marketing": 72
+    },
+    "priorityFixes": [
+      {
+        "priority": "CRITICAL",
+        "issue": "サーバー層で入力検証が保証されず、tool側の検証漏れが即バグ/脆弱性/障害につながる",
+        "fix": "Tool定義にZodのinputSchemaを必須化し、CallToolで `parse` してからhandlerに渡す。ValidationErrorはここで一元発生させる",
+        "code": "```ts\n// tools.ts 側の想定インターフェース\nimport { z } from 'zod';\n\nexport type ToolDef<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = {\n  name: string;\n  description: string;\n  inputSchema: I;\n  outputSchema?: O; // 任意だが推奨\n  handler: (input: z.infer<I>, ctx: { signal: AbortSignal; requestId: string }) => Promise<unknown>;\n};\n\n// index.ts 側（CallTool）\nconst tool = toolMap.get(name);\nif (!tool) throw new AppError('UNKNOWN_TOOL', `Unknown tool: ${name}`, false);\n\nconst parsed = tool.inputSchema.safeParse(args ?? {});\nif (!parsed.success) throw new ValidationError('INVALID_ARGUMENTS', parsed.error.message);\n\nconst result = await tool.handler(parsed.data, { signal, requestId });\n```"
+      },
+      {
+        "priority": "CRITICAL",
+        "issue": "ツール実行のタイムアウト/キャンセルがなく、外部API等でハングするとサーバーが詰まる",
+        "fix": "AbortControllerでデフォルトタイムアウトを導入し、tool.handlerにsignalを渡す（fetch等に伝播）。timeout時は専用エラーコードで返す",
+        "code": "```ts\nfunction withTimeout<T>(ms: number) {\n  const controller = new AbortController();\n  const timer = setTimeout(() => controller.abort(), ms);\n  return { signal: controller.signal, dispose: () => clearTimeout(timer) };\n}\n\n// CallTool内\nconst timeoutMs = tool.timeoutMs ?? Number(process.env.MCP_TOOL_TIMEOUT_MS ?? 60000);\nconst { signal, dispose } = withTimeout(timeoutMs);\ntry {\n  const result = await tool.handler(parsedArgs, { signal, requestId });\n  return ok(result);\n} catch (e) {\n  if (signal.aborted) throw new AppError('TIMEOUT', `Tool timed out: ${name}`, true);\n  throw e;\n} finally {\n  dispose();\n}\n```"
+      },
+      {
+        "priority": "HIGH",
+        "issue": "重いツールの同時実行制御がなく、レート制限超過・メモリ増大・待ち行列肥大化が起きうる",
+        "fix": "ツールごとにmaxConcurrencyを持たせ、p-limit等で制御。最低限「AI系は2」などの上限を設定",
+        "code": "```ts\nimport pLimit from 'p-limit';\n\nconst limiters = new Map<string, ReturnType<typeof pLimit>>();\nfunction getLimiter(toolName: string, n: number) {\n  const key = `${toolName}:${n}`;\n  if (!limiters.has(key)) limiters.set(key, pLimit(n));\n  return limiters.get(key)!;\n}\n\n// CallTool内\nconst limiter = getLimiter(name, tool.maxConcurrency ?? 4);\nconst result = await limiter(() => tool.handler(parsedArgs, { signal, requestId }));\n```"
+      },
+      {
+        "priority": "HIGH",
+        "issue": "ログが構造化されておらず、相関ID・実行時間・エラーコードが追えない。例外メッセージに機密が混ざるとstderr漏洩の恐れ",
+        "fix": "requestIdを生成し、構造化ログ（JSON）で出力。マスキング関数でsecret/PIIを除去してからログ化",
+        "code": "```ts\nimport crypto from 'node:crypto';\n\nconst mask = (obj: any) => {\n  const s = JSON.stringify(obj);\n  return s\n    .replace(/(api[_-]?key\"\\s*:\\s*\")([^\"]+)/ig, '$1***')\n    .replace(/(authorization\"\\s*:\\s*\")([^\"]+)/ig, '$1***');\n};\n\nconst requestId = crypto.randomUUID();\nconst t0 = Date.now();\ntry {\n  // ...\n} catch (err) {\n  console.error(mask({ level: 'error', requestId, tool: name, code: 'INTERNAL_ERROR', message: err instanceof Error ? err.message : String(err) }));\n  throw err;\n} finally {\n  console.error(JSON.stringify({ level: 'info', requestId, tool: name, durationMs: Date.now() - t0 }));\n}\n```"
+      },
+      {
+        "priority": "MEDIUM",
+        "issue": "ツール探索が配列線形でスケールしない／重複名の検出がない",
+        "fix": "起動時にMap化し、重複tool名があればfail-fast",
+        "code": "```ts\nconst toolMap = new Map(tools.map(t => [t.name, t] as const));\nif (toolMap.size !== tools.length) {\n  throw new Error('Duplicate tool name detected');\n}\n\nserver.setRequestHandler(ListToolsRequestSchema, async () => ({\n  tools: Array.from(toolMap.values()).map(({ handler, inputSchema, outputSchema, ...meta }) => meta)\n}));\n```"
+      },
+      {
+        "priority": "MEDIUM",
+        "issue": "レスポンスサイズ無制限でSTDIO詰まりやメモリ使用量増大のリスク",
+        "fix": "最大レスポンスサイズを設定し、超過時は要約 or エラー（TOO_LARGE）を返す。pretty JSONはprodで無効化",
+        "code": "```ts\nconst MAX_BYTES = Number(process.env.MCP_MAX_RESPONSE_BYTES ?? 1_000_000);\nconst text = JSON.stringify(result);\nif (Buffer.byteLength(text, 'utf8') > MAX_BYTES) {\n  throw new AppError('RESPONSE_TOO_LARGE', 'Response exceeded size limit', false);\n}\n```"
+      },
+      {
+        "priority": "CRITICAL",
+        "area": "技術基盤強化",
+        "improvement": "GPTレビュー優先Fix全適用（入力Zod検証、タイムアウト、並列制御、構造化ログ）",
+        "expectedImpact": "障害ゼロ化+運用コスト30%減、信頼性向上でユーザー定着率2倍"
+      },
+      {
+        "priority": "CRITICAL",
+        "area": "収益モデル定義",
+        "improvement": "Freemium SaaS化（無料OSS + $29/月エンタープライズ）、APIコスト転嫁",
+        "expectedImpact": "ARR $50K/年達成、コスト回収で黒字化"
+      },
+      {
+        "priority": "HIGH",
+        "area": "UX/ドキュメント",
+        "improvement": "CEO向けエラーメッセージ人間語化 + Quickstartガイド/動画作成",
+        "expectedImpact": "オンボーディング時間50%短縮、NPS+20pts"
+      },
+      {
+        "priority": "HIGH",
+        "area": "マーケティング",
+        "improvement": "Cursorコミュニティ投稿 + CEOインタビューキャンペーン開始",
+        "expectedImpact": "MAU 500人獲得、バイラル係数1.2へ"
+      },
+      {
+        "priority": "MEDIUM",
+        "area": "拡張ロードマップ",
+        "improvement": "新ツール2つ追加（財務/競合分析）+ config統一",
+        "expectedImpact": "機能価値30%向上、リテンション率向上"
+      },
+      {
+        "priority": "CRITICAL",
+        "area": "ブランディング・信頼性",
+        "improvement": "CTO指摘の「堅牢性・セキュリティ修正」をマーケティングメッセージ（Enterprise Ready）として昇華させる",
+        "expectedImpact": "「おもちゃ」ではなく「実務ツール」としての信頼獲得。導入障壁の撤廃。"
+      },
+      {
+        "priority": "HIGH",
+        "area": "UX / オンボーディング",
+        "improvement": "READMEおよびドキュメントに「CEO向けクイックスタート（コピペ用プロンプト付き）」を追加",
+        "expectedImpact": "初回利用時の「Wowモーメント（感動体験）」到達率を向上させ、離脱を防ぐ。"
+      },
+      {
+        "priority": "HIGH",
+        "area": "機能（Output Quality）",
+        "improvement": "出力結果をMarkdownレポート形式に整形し、そのままチーム共有可能にする",
+        "expectedImpact": "ユーザーの周囲（チームメンバー）を巻き込み、バイラル係数を高める。"
+      },
+      {
+        "priority": "MEDIUM",
+        "area": "コミュニティ",
+        "improvement": "「Strategy as Code」を掲げたGitHubリポジトリの整備と事例募集",
+        "expectedImpact": "開発者層のファン化と、オーガニックな拡散。"
+      }
+    ]
+  }
+}

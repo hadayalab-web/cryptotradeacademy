@@ -80,7 +80,7 @@ function formatRegularBriefing({
   const rrLine = tradeSignal?.rr != null ? `• Riesgo/beneficio (RR): ${tradeSignal.rr.toFixed(2)}` : '';
 
   const isNoTrade = true; // Siempre modo de espera (señales BUY/SELL completamente eliminadas)
-  const modeLine = isNoTrade ? '• Modo: Trap Standby — esperar ventaja clara. Priorizar defensa.' : '';
+  const modeLine = isNoTrade ? '• Modo: Trap Standby — preparación para la victoria hasta ventaja clara. Priorizar defensa.' : '';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -158,8 +158,9 @@ function formatRegularBriefing({
   }
   
   // 【コメンテーター】Dr. Grok癒し系コメンテーター（固定コーナー）
+  // CMO提案: Dr. Grokのキャラクターをより強く（情熱的かつ冷静に）押し出す
   lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('💊 【Comentarista】Opinión de Dr. Grok');
+  lines.push('💊 【Comentarista】Dr. Grok: Análisis Apasionado y Racional');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   
   // Grok X解析結果（Xセンチメント分析）

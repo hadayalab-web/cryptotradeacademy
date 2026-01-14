@@ -313,7 +313,7 @@ If data is missing or insufficient, set signal to "STANDBY" and urgency to "low"
 
   // Phase 2: 用途別モデルを使用（SUMMARY: 前処理・要約）
   const modelToUse = GPT_MODEL_SUMMARY;
-  
+
   // キャッシュキー生成
   const cacheKey = buildCacheKey({
     model: modelToUse,
@@ -537,16 +537,28 @@ async function generateCryptoQuantAnalysis(cryptoQuantData, marketContext, lang 
   const safeCQData = escapeForPrompt(JSON.stringify(validatedCQ.data, null, 2));
   const safeMCData = escapeForPrompt(JSON.stringify(validatedMC.data, null, 2));
 
-  const systemPrompt = `You are a quantitative crypto market analyst providing detailed on-chain data analysis.
-Your expertise: Interpreting CryptoQuant metrics to explain market dynamics and trend reversals.
-Your style: Professional, data-driven, clear explanations.
+  const systemPrompt = `You are a Mental Trainer for Crypto Traders, specializing in Trap Defence philosophy.
+Your mission: "Don't fall into traps!" - Guide traders to avoid emotional trading mistakes.
 
-IMPORTANT: If the provided data is empty, null, or insufficient, explicitly state that in your analysis. Do not speculate or hallucinate.
+Your expertise:
+1. Interpreting CryptoQuant on-chain data from a psychological perspective
+2. Explaining how market data relates to trader emotions (FOMO, FEAR, GREED, PANIC)
+3. Teaching Trap Defence discipline: "70% of the time, do nothing. Defend until clear advantage emerges."
+4. Providing actionable mental training advice based on on-chain metrics
+
+Your style: 
+- Empathetic but firm guidance
+- Data-driven psychological insights
+- Clear explanations of trap patterns
+- Emphasis on discipline and patience
+
+IMPORTANT: Always connect on-chain data to trader psychology. Explain WHY waiting is important, not just WHAT the data shows.
+If the provided data is empty, null, or insufficient, explicitly state that in your analysis. Do not speculate or hallucinate.
 
 Language: ${targetLang}
 Format your response in ${targetLang === 'ja' ? 'Japanese' : targetLang === 'ko' ? 'Korean' : 'English'}.`;
 
-  const userContent = `Analyze the following CryptoQuant data and provide a detailed market analysis:
+  const userContent = `As a Mental Trainer, analyze the following CryptoQuant data and provide psychological guidance:
 
 CryptoQuant Data:
 ${safeCQData}
@@ -555,17 +567,24 @@ Market Context:
 ${safeMCData}
 
 Provide:
-1. Key insights from on-chain metrics
-2. Trend reversal signals (if any)
-3. Risk assessment
-4. Market outlook (next 24-48 hours)
+1. Psychological interpretation of on-chain metrics (How does this data relate to trader emotions?)
+2. Trap patterns detected and why they are dangerous
+3. Mental training advice: What should traders do/avoid based on this data?
+4. Trap Defence discipline: Why waiting is important right now
+5. Actionable guidance: Specific steps to avoid falling into traps
 
-Keep the analysis concise but informative (300-500 words).
-If data is missing or insufficient, state that clearly.`;
+Focus on:
+- "Don't fall into traps!" message
+- Teaching the importance of "70% standby" strategy
+- Connecting data to trader psychology (FOMO, FEAR, GREED, etc.)
+- Providing clear, actionable mental training advice
+
+Keep the analysis empathetic but firm (400-600 words).
+If data is missing or insufficient, state that clearly and provide general Trap Defence wisdom.`;
 
   // Phase 2: 用途別モデルを使用（ANALYSIS: 統合推論）
   const modelToUse = GPT_MODEL_ANALYSIS;
-  
+
   // キャッシュキー生成
   const cacheKey = buildCacheKey({
     model: modelToUse,
@@ -754,7 +773,7 @@ If data is missing or insufficient, state that clearly.`;
 
   // Phase 2: 用途別モデルを使用（SUMMARY: 前処理・要約）
   const modelToUse = GPT_MODEL_SUMMARY;
-  
+
   // キャッシュキー生成
   const cacheKey = buildCacheKey({
     model: modelToUse,

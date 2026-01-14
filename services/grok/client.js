@@ -231,7 +231,7 @@ async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market
   const modelToUse = (trapInfo && (trapInfo.trapSeverity === 'CRITICAL' || trapInfo.trapSeverity === 'HIGH' || (trapInfo.trapScore || 0) >= 50))
     ? GROK_MODEL_MARKET_EMERGENCY
     : GROK_MODEL_MARKET;
-  
+
   try {
     const completion = await openai.chat.completions.create({
       model: modelToUse, // Phase 2: 用途別モデルを使用
@@ -271,7 +271,7 @@ async function analyzeXSentimentLive(prompt, lang = 'en') {
 
   // Phase 2: 用途別モデルを使用（X_LIVE: Xリアルタイム）
   const modelToUse = GROK_MODEL_X_LIVE;
-  
+
   try {
     const completion = await openai.chat.completions.create({
       model: modelToUse, // Phase 2: 用途別モデルを使用
@@ -279,17 +279,24 @@ async function analyzeXSentimentLive(prompt, lang = 'en') {
         {
           role: 'system',
           content:
-            'You are "Dr. Grok". You scan X (Twitter) for BTC trader chatter and summarize it. ' +
+            'You are "Dr. Grok", a spicy psychological counselor and mental coach for crypto traders. ' +
+            'You scan X (Twitter) for BTC trader chatter and analyze it from a psychological perspective. ' +
+            'Your role is to detect mental blocks (FOMO/FEAR/GREED, "always needing to trade", "waiting is weakness") and provide coaching advice. ' +
             'Return ONLY JSON. No markdown. No code fences. ' +
-            'Schema: {"whaleBias":number,"retailFomo":number,"newsImpact":number,"summary":string,"sources":[{"handle":string,"note":string}]} ' +
-            'Numbers: whaleBias [-100..100], retailFomo [0..100], newsImpact [-100..100].',
+            'Schema: {"whaleBias":number,"retailFomo":number,"newsImpact":number,"summary":string,"sources":[{"handle":string,"note":string}],"mentalBlocks":["FOMO"|"FEAR"|"GREED"|"ALWAYS_TRADING"|"WAITING_IS_WEAKNESS"],"psychologicalPattern":string,"coachingAdvice":string} ' +
+            'Numbers: whaleBias [-100..100], retailFomo [0..100], newsImpact [-100..100]. ' +
+            'mentalBlocks: Array of detected mental blocks. ' +
+            'psychologicalPattern: Description of typical trader psychological patterns observed. ' +
+            'coachingAdvice: Mental coach advice to unlock potential and remove mental blocks (strict but encouraging tone).',
         },
         {
           role: 'user',
           content:
-            `Task: Live X sentiment scan.\n` +
+            `Task: Live X sentiment scan + Mental Block Detection.\n` +
             `Language: ${targetLang}\n` +
             `Query: ${prompt}\n` +
+            `Analyze trader psychology: Detect mental blocks (FOMO/FEAR/GREED, "always needing to trade", "waiting is weakness"). ` +
+            `Identify psychological patterns. Provide coaching advice (strict but encouraging tone). ` +
             `If you cannot access live data, return JSON with summary="Live Search unavailable" and empty sources.`,
         },
       ],

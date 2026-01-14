@@ -1,0 +1,21 @@
+{
+  "name": "@cryptosignal-ai/backcasting-engine-mcp",
+  "version": "1.0.0",
+  "description": "MCP Server: 逆算思考エンジン（Backcasting Engine）",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx watch index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0",
+    "@types/node": "^20.0.0"
+  }
+}

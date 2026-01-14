@@ -92,7 +92,7 @@ function formatRegularBriefing({
 
   const isNoTrade = true; // 常に待機モード（BUY/SELLシグナルは完全削除）
   const modeLine = isNoTrade
-    ? '• モード: Trap Standby — 明確な優位性が出るまで待機。守りを優先。'
+    ? '• モード: Trap Standby — 明確な優位性が出るまで勝利の準備。守りを優先。'
     : '';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
@@ -185,10 +185,10 @@ function formatRegularBriefing({
   
   // ===== 【ニュース番組構造】オープニング → データ → 解説 → コメンテーター → クロージング =====
   lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('📺 【オープニング】GPTリポーターからの緊急トラップニュース');
+  lines.push('📺 【オープニング】安住紳一郎スタイル：信頼感のある市場解説');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   
-  // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
+  // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース（安住紳一郎氏のような落ち着いた解説トーン）
   const gptNewsText = gptReporterAnalysis || aiAnalysis || 'データ解析中...';
   const gptNewsLimit = 800;
   const gptNewsDisplay = gptNewsText.length > gptNewsLimit 
@@ -196,6 +196,63 @@ function formatRegularBriefing({
     : gptNewsText;
   lines.push(`📰 ${gptNewsDisplay}`);
   lines.push('');
+  
+  // 【改善1: Evidenceセクションの独立】証拠（Evidence）セクションを独立させて明確に表示
+  // Trap RiskスコアまたはTrap Detectionスコアから証拠を生成
+  const trapScoreForEvidence = trapRisk?.trapRiskScore ?? trapDetection?.trapScore ?? null;
+  const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
+  
+  if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📊 【証拠】なぜ待つべきか？データに基づく理由');
+    lines.push('[オンチェーンデータで実証済み]');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    
+    if (trapScoreForEvidence !== null) {
+      const trapScoreRounded = Math.round(trapScoreForEvidence);
+      if (trapScoreRounded >= 50) {
+        lines.push(`🎯 トラップスコア: ${trapScoreRounded}/100 は重大なトラップリスクを示しています。`);
+        if (trapTypeForEvidence) {
+          const trapTypeDisplay = trapTypeForEvidence.replace(/_/g, ' ');
+          lines.push(`⚠️ トラップタイプ: ${trapTypeDisplay} を検知しました。`);
+        }
+        lines.push(`💡 証拠: 複数のダイバージェンスとオンチェーン異常により、「待機モード」が賢明です。`);
+        lines.push(`📈 なぜ待つべきか？データは、${trapScoreRounded >= 70 ? '強い' : '中程度の'}シグナルを示しており、今エントリーすると市場のトラップにさらされる可能性があります。`);
+      } else {
+        lines.push(`✅ トラップスコア: ${trapScoreRounded}/100 は低いトラップリスクを示しています。`);
+        lines.push(`💡 証拠: 市場状況は比較的安全に見えますが、トラップパターンに注意を払い続けてください。`);
+      }
+    } else if (trapDetection || trapAlert) {
+      // フォールバック: trapDetectionやtrapAlertから証拠を生成
+      if (trapDetection && trapDetection.trapDetected) {
+        lines.push(`🎯 トラップ検知: ${trapDetection.trapType || '異常検知'} (スコア: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
+        lines.push(`💡 証拠: オンチェーンデータに基づく複数の異常が検知されました。`);
+      } else if (trapAlert && trapAlert.alert) {
+        lines.push(`🚨 トラップアラート: ${trapAlert.type} (深刻度: ${trapAlert.severity})`);
+        lines.push(`💡 証拠: オンチェーンデータとセンチメント分析により、市場のトラップリスクが検知されました。`);
+      }
+    }
+    
+    // 【改善2: 「70%待機戦略」の証拠ベース説明の統合】
+    if (trapScoreForEvidence !== null && trapScoreForEvidence >= 30) {
+      const trapScoreRounded = Math.round(trapScoreForEvidence);
+      lines.push('');
+      lines.push(`💡 なぜ待つべきか？（証拠ベース）`);
+      if (trapScoreRounded >= 70) {
+        lines.push(`   🚨 トラップスコア ${trapScoreRounded}/100: 強いシグナルが潜在的な市場トラップを示しています。`);
+        lines.push(`   📊 データは複数のダイバージェンスとオンチェーン異常を示しています。`);
+        lines.push(`   🛡️ 戦略的な準備は弱さではありません—勝利の準備です。70%の時間は、勝利の準備をしてください。`);
+      } else if (trapScoreRounded >= 50) {
+        lines.push(`   ⚡ トラップスコア ${trapScoreRounded}/100: 中程度のトラップ指標を検知しました。`);
+        lines.push(`   📊 一部のダイバージェンスが注意を促しています。`);
+        lines.push(`   🛡️ 防御を最優先に。勝利の準備を—より明確な市場シグナルを待ちましょう。`);
+      } else {
+        lines.push(`   ✅ トラップスコア ${trapScoreRounded}/100: 低いトラップリスクですが、警戒を続けてください。`);
+        lines.push(`   🛡️ 低リスクの状況でも、忍耐は戦略的な強さです。`);
+      }
+    }
+    lines.push('');
+  }
   
   // USP2: Geminiコンテンツ生成（データ提示セクション）
   if (hasGeminiContent) {
@@ -210,8 +267,9 @@ function formatRegularBriefing({
   // 必要に応じて追加の解説セクションをここに追加可能
   
   // 【コメンテーター】Dr. Grok癒し系コメンテーター（固定コーナー）
+  // 安住紳一郎スタイル：落ち着いた解説トーンで、データに基づいた信頼感のある見立て
   lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('💊 【コメンテーター】Dr. Grok の見立て');
+  lines.push('💊 【コメンテーター】Dr. Grok の見立て（安住紳一郎スタイル：データに基づく冷静な分析）');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   
   // Grok X解析結果（Xセンチメント分析）

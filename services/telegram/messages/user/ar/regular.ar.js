@@ -80,7 +80,7 @@ function formatRegularBriefing({
   const rrLine = tradeSignal?.rr != null ? `• نسبة المخاطرة إلى العائد (RR): ${tradeSignal.rr.toFixed(2)}` : '';
 
   const isNoTrade = true; // وضع الانتظار دائماً (تم حذف إشارات BUY/SELL بالكامل)
-  const modeLine = isNoTrade ? '• الوضع: Trap Standby — انتظر أفضلية واضحة. أولوية للدفاع.' : '';
+  const modeLine = isNoTrade ? '• الوضع: Trap Standby — الاستعداد للنصر حتى أفضلية واضحة. أولوية للدفاع.' : '';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -158,8 +158,9 @@ function formatRegularBriefing({
   }
   
   // 【コメンテーター】Dr. Grok癒し系コメンテーター（固定コーナー）
+  // CMO提案: Dr. Grokのキャラクターをより強く（情熱的かつ冷静に）押し出す
   lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('💊 【المعلق】رأي Dr. Grok');
+  lines.push('💊 【المعلق】Dr. Grok: تحليل عاطفي وعقلاني');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   
   // Grok X解析結果（Xセンチメント分析）
