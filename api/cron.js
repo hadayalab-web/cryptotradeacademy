@@ -1581,12 +1581,19 @@ module.exports = async function handler(req, res) {
 
         // 無料版チャンネルに送信
         if (ENABLE_TELEGRAM) {
-          // 無料版チャンネルIDが設定されている場合
-          if (process.env.TELEGRAM_CHAT_ID_MINIMAL) {
-            const sendResult = await sendMessageToAsset(minimalText, 'MINIMAL');
-            console.log('[Free Version] Sent successfully:', sendResult?.message_id || 'N/A');
+          // 言語コードを環境変数形式に変換（en -> EN, pt-br -> PT_BR）
+          const langCodeForEnv = LANG.toUpperCase().replace('-', '_');
+          
+          // 言語別無料版チャンネルIDまたはデフォルトのMINIMALチャンネルIDを確認
+          const langSpecificEnvVar = `TELEGRAM_CHAT_ID_MINIMAL_${langCodeForEnv}`;
+          const hasLangSpecificChannel = !!process.env[langSpecificEnvVar];
+          const hasDefaultChannel = !!process.env.TELEGRAM_CHAT_ID_MINIMAL;
+          
+          if (hasLangSpecificChannel || hasDefaultChannel) {
+            const sendResult = await sendMessageToAsset(minimalText, 'MINIMAL', langCodeForEnv);
+            console.log(`[Free Version] Sent successfully to ${LANG} (${langCodeForEnv}):`, sendResult?.message_id || 'N/A');
           } else {
-            console.warn('[Free Version] TELEGRAM_CHAT_ID_MINIMAL not set, skipping free version delivery');
+            console.warn(`[Free Version] Neither ${langSpecificEnvVar} nor TELEGRAM_CHAT_ID_MINIMAL is set, skipping free version delivery for ${LANG}`);
           }
         }
       } catch (error) {

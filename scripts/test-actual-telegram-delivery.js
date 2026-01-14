@@ -185,7 +185,9 @@ async function testActualDelivery() {
         console.log(`\n📤 無料版メッセージを送信中...`);
         console.log(`   文字数: ${minimalMessage.length}文字`);
 
-        const freeResult = await sendMessageToAsset(minimalMessage, 'MINIMAL');
+        // 言語コードを環境変数形式に変換（en -> EN, pt-br -> PT_BR）
+        const langCodeForEnv = code.replace('-', '_');
+        const freeResult = await sendMessageToAsset(minimalMessage, 'MINIMAL', langCodeForEnv);
         const messageId = freeResult?.result?.message_id || freeResult?.message_id || 'N/A';
         const chatTitle = freeResult?.result?.chat?.title || freeResult?.chat?.title || 'N/A';
         

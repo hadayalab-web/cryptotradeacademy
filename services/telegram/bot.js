@@ -277,23 +277,43 @@ async function sendVideo(videoUrl, caption = '') {
  * Uses a single Bot Token for all assets, but different Chat IDs per asset.
  * @param {string} text - Message text
  * @param {string} asset - Asset type ('BTC', 'ETH', 'SOL', 'MINIMAL', etc.)
+ * @param {string} langCode - Language code ('EN', 'JA', 'KO', 'ES', 'PT_BR', 'AR') for MINIMAL asset
  */
-async function sendMessageToAsset(text, asset = 'BTC') {
+async function sendMessageToAsset(text, asset = 'BTC', langCode = null) {
   // 1つのBot Tokenを使用（全資産共通）
   const botToken = TELEGRAM_BOT_TOKEN;
   
-  // 資産タイプごとのChat IDを環境変数から取得
-  const chatIdMap = {
-    'BTC': TELEGRAM_CHAT_ID,
-    'ETH': process.env.TELEGRAM_CHAT_ID_ETH,
-    'SOL': process.env.TELEGRAM_CHAT_ID_SOL,
-    'MINIMAL': process.env.TELEGRAM_CHAT_ID_MINIMAL,
-  };
+  let chatId;
   
-  const chatId = chatIdMap[asset] || TELEGRAM_CHAT_ID; // フォールバック: BTC用Chat ID
+  // MINIMAL資産で言語コードが指定されている場合、言語別チャンネルIDを参照
+  if (asset === 'MINIMAL' && langCode) {
+    // 言語コードを環境変数名形式に変換（pt-br -> PT_BR, en -> EN）
+    const langCodeUpper = langCode.toUpperCase().replace('-', '_');
+    const envVarName = `TELEGRAM_CHAT_ID_MINIMAL_${langCodeUpper}`;
+    chatId = process.env[envVarName];
+    
+    // 言語別チャンネルIDが設定されていない場合、デフォルトのMINIMALチャンネルIDにフォールバック
+    if (!chatId) {
+      chatId = process.env.TELEGRAM_CHAT_ID_MINIMAL;
+      if (chatId) {
+        console.warn(`⚠️ Language-specific channel ID not found for MINIMAL/${langCodeUpper}, using default MINIMAL channel`);
+      }
+    }
+  } else {
+    // 資産タイプごとのChat IDを環境変数から取得
+    const chatIdMap = {
+      'BTC': TELEGRAM_CHAT_ID,
+      'ETH': process.env.TELEGRAM_CHAT_ID_ETH,
+      'SOL': process.env.TELEGRAM_CHAT_ID_SOL,
+      'MINIMAL': process.env.TELEGRAM_CHAT_ID_MINIMAL,
+    };
+    
+    chatId = chatIdMap[asset] || TELEGRAM_CHAT_ID; // フォールバック: BTC用Chat ID
+  }
   
   if (!botToken || !chatId) {
-    console.warn(`⚠️ Telegram credentials missing for ${asset}. Bot Token: ${!!botToken}, Chat ID: ${!!chatId}`);
+    const assetLabel = langCode ? `${asset}/${langCode}` : asset;
+    console.warn(`⚠️ Telegram credentials missing for ${assetLabel}. Bot Token: ${!!botToken}, Chat ID: ${!!chatId}`);
     return;
   }
 
@@ -317,10 +337,12 @@ async function sendMessageToAsset(text, asset = 'BTC') {
     }
 
     const data = await response.json();
-    console.log(`📨 Telegram sent to ${asset}:`, JSON.stringify(data, null, 2));
+    const assetLabel = langCode ? `${asset}/${langCode}` : asset;
+    console.log(`📨 Telegram sent to ${assetLabel}:`, JSON.stringify(data, null, 2));
     return data;
   } catch (error) {
-    console.error(`❌ Telegram sendMessageToAsset failed for ${asset}:`, error.message);
+    const assetLabel = langCode ? `${asset}/${langCode}` : asset;
+    console.error(`❌ Telegram sendMessageToAsset failed for ${assetLabel}:`, error.message);
     throw error;
   }
 }
