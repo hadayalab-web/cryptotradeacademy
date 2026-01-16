@@ -45,7 +45,8 @@
 
 ### العربية (AR)
 - **有料版**: ✅ 送信成功（Message ID: 4, Chat: Trap Deffence BTC Trial - Arabic）
-  - ⚠️ **注意**: 有料版がTrialチャンネルに送信されている（チャンネルID設定の確認が必要）
+  - ⚠️ **注意**: 有料版がTrialチャンネルに送信されていた（チャンネルID設定が逆だった）
+  - ✅ **修正済み**: 正しいチャンネルIDをドキュメントに記載
 - **無料版**: ✅ 送信成功（Message ID: 未確認）
 
 ---
@@ -70,11 +71,15 @@
 
 ### 2. AR版の有料版チャンネルID設定
 
-**問題**: AR版の有料版メッセージがTrialチャンネルに送信されている
+**問題**: AR版の有料版メッセージがTrialチャンネルに送信されていた
 
-**原因**: `TELEGRAM_CHAT_ID_BTC_AR`がTrialチャンネルIDに設定されている可能性
+**原因**: `TELEGRAM_CHAT_ID_BTC_AR`がTrialチャンネルIDに設定されていた
 
-**解決策**: AR版の有料版チャンネルIDを確認・修正
+**解決策**: 以下の正しいチャンネルIDをVercel Dashboardで設定
+
+**正しいチャンネルID**:
+- **AR版（有料版）**: `TELEGRAM_CHAT_ID_BTC_AR=-1003665969002` (Trap Deffence BTC - Arabic)
+- **ARミニマム版**: `TELEGRAM_CHAT_ID_MINIMAL_AR=-1003310820145` (Trap Deffence BTC Trial - Arabic)
 
 ---
 

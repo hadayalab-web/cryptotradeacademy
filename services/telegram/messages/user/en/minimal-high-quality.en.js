@@ -274,7 +274,8 @@ ${mentalNote}`;
   // CTA（アップセル最適化：開発資金確保のため緊迫感のあるCTA + YouTube VSL）
   // WhopリンクとVSLリンクを環境変数から取得
   const whopUpgradeLink = process.env.WHOP_UPGRADE_LINK || process.env.WHOP_PRODUCT_LINK_EN || 'https://whop.com/trap-defense-btc';
-  const vslLink = process.env.VSL_YOUTUBE_LINK || '';
+  // VSL2: バックエンド（有料版コンバージョン用）
+  const vslLink = process.env.VSL2_YOUTUBE_LINK || process.env.VSL_YOUTUBE_LINK || '';
   
   message += `\n\n━━━━━━━━━━━━━━━━━━━━
 🚀 Unlock Full Intelligence Report
@@ -298,7 +299,7 @@ The difference between protecting capital and losing it is often just one missed
 ${vslLink}`;
   }
 
-  message += `\n\n🎯 Start Your 1-Day Free Trial
+  message += `\n\n🎯 Upgrade to Full Access
 → Upgrade now: ${whopUpgradeLink}
 $69/month • Cancel anytime
 

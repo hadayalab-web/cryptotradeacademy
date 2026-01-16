@@ -1,5 +1,5 @@
 {
-    "name": "cryptosignal-ai",
+    "name": "cryptotradeacademy",
     "version": "1.0.0",
     "description": "AI-driven Crypto Signal Bot with Whale Analysis",
     "main": "api/cron.js",
@@ -10,6 +10,14 @@
         "test:email": "node scripts/test-email-delivery.js",
         "test:all-languages": "node scripts/test-all-languages-messages.js",
         "test:telegram-delivery": "node scripts/test-actual-telegram-delivery.js",
+        "test:vsl1": "node scripts/test-vsl1-manual.js",
+        "test:vsl2": "node scripts/test-vsl2-manual.js",
+        "test:bot-command": "node scripts/test-bot-command.js",
+        "test:vsl-workflow": "node scripts/test-vsl-workflow-complete.js",
+        "test:value-post": "node scripts/test-value-post.js",
+        "test:vsl1-reminder": "node scripts/test-vsl1-reminder.js",
+        "test:vsl2-last-call": "node scripts/test-vsl2-last-call.js",
+        "test:add-free-user": "node scripts/test-add-free-user.js",
         "monitor": "node scripts/monitor_process.js",
         "backtest:dummy": "node scripts/backtest/eval_signals.js --input=data/signals_log_dummy.jsonl --output=data/signals_backtest_dummy.jsonl",
         "summary:dummy": "node scripts/backtest/summarize_backtest.js --input=data/signals_backtest_dummy.jsonl",
@@ -35,6 +43,6 @@
         "p-retry": "^6.0.0",
         "resend": "^6.7.0"
     },
-    "author": "CryptoSignal AI Team",
+    "author": "CryptoTrade Academy Team",
     "license": "ISC"
 }

@@ -2,7 +2,7 @@
 // 無料版登録用Telegram Botコマンドハンドラー
 
 const { addFreeUser, isFreeUser, removeFreeUser, getFreeUserCount } = require('../free-users/manager');
-const { sendMessageToAsset, sendMessageToUser } = require('./bot');
+const { sendMessageToUser } = require('./bot');
 
 /**
  * Telegram Botコマンドを処理する
@@ -40,22 +40,27 @@ async function handleBotCommand(update) {
  */
 async function handleStartCommand(chatId, username, firstName, message) {
   try {
-    // リファラルコードをチェック（例: /start ref_abc123）
+    // リファラルコードをチェック（例: /start minimal または /start ref_abc123）
     const parts = message.split(' ');
-    const referralCode = parts.length > 1 ? parts[1] : null;
+    const param = parts.length > 1 ? parts[1] : null;
+    const isMinimal = param === 'minimal';
+    const referralCode = param && param !== 'minimal' ? param : null;
 
-    // 無料版ユーザーとして登録
-    const isNewUser = addFreeUser(chatId);
+    // 無料版ユーザーとして登録（ユーザー名も保存）
+    const userName = firstName || username || null;
+    const isNewUser = addFreeUser(chatId, userName);
 
     const welcomeMessage = `🌤️ Welcome to Trap Defense BTC - Free Version!
 
-${isNewUser ? '✅ You\'ve been registered for free reports!' : '👋 Welcome back!'}
+${isNewUser ? '✅ You\'ve been registered! Get the trap avoidance logic that pros use (FREE).' : '👋 Welcome back!'}
 
 📊 What You'll Get:
-• Daily Trap Score (0-100)
+• Daily Trap Score (0-100) - Identify Bitcoin traps before they hit
 • Quick market insights
 • Dr. Grok's mental notes
 • Basic trap alerts
+
+⚠️ Don't lose your capital. Get free daily trap alerts now.
 
 🚀 Want More?
 Upgrade to Full Access for:
@@ -98,7 +103,8 @@ For educational purposes only. Not financial advice.`;
  */
 async function handleFreeCommand(chatId, username, firstName) {
   try {
-    const isNewUser = addFreeUser(chatId);
+    const userName = firstName || username || null;
+    const isNewUser = addFreeUser(chatId, userName);
 
     const message = isNewUser
       ? `✅ You've been registered for free Trap Defense BTC reports!
@@ -137,7 +143,8 @@ Use /upgrade to unlock full access.`;
 async function handleUpgradeCommand(chatId, username, firstName) {
   try {
     const whopUpgradeLink = process.env.WHOP_UPGRADE_LINK || process.env.WHOP_PRODUCT_LINK_EN || 'https://whop.com/trap-defense-btc';
-    const vslLink = process.env.VSL_YOUTUBE_LINK || '';
+    // VSL2: バックエンド（有料版コンバージョン用）
+    const vslLink = process.env.VSL2_YOUTUBE_LINK || process.env.VSL_YOUTUBE_LINK || '';
 
     let message = `🚀 Upgrade to Full Access
 
@@ -156,7 +163,7 @@ Unlock the complete Trap Defense BTC experience:
 ${vslLink}`;
     }
 
-    message += `\n\n🎯 Start Your 1-Day Free Trial
+    message += `\n\n🎯 Upgrade Now
 → ${whopUpgradeLink}
 
 $69/month • Cancel anytime

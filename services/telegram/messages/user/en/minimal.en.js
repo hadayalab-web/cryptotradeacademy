@@ -75,7 +75,7 @@ The detailed analysis behind this Trap Score, including:
 • Dr. Grok's psychological support
 
 🚀 Upgrade to Full Access
-Starting at $69/month • 1-day free trial • Cancel anytime
+Starting at $69/month • Cancel anytime
 
 ━━━━━━━━━━━━━━━━━━━━
 This is a free minimal report. For detailed analysis and trap alerts, upgrade to Trap Defense BTC.

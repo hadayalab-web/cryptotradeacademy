@@ -75,7 +75,7 @@ A análise detalhada por trás deste Trap Score inclui:
 • Suporte psicológico do Dr. Grok
 
 🚀 Atualize para Acesso Completo
-A partir de $69/mês • Teste gratuito de 1 dia • Cancele a qualquer momento
+A partir de $69/mês • Cancele a qualquer momento
 
 ━━━━━━━━━━━━━━━━━━━━
 Este é um relatório mínimo gratuito. Para análise detalhada e alertas de armadilhas, atualize para Trap Defense BTC.
