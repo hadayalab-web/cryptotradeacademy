@@ -119,10 +119,10 @@ function checkEnvVars() {
 
   // VSL Linksのデフォルト値チェック
   if (!process.env.VSL1_YOUTUBE_LINK) {
-    results.warnings.push('VSL1_YOUTUBE_LINK が設定されていません（デフォルト値が使用されます: https://youtu.be/fXgVsKhqDjI）');
+    results.warnings.push('VSL1_YOUTUBE_LINK が設定されていません（デフォルト値が使用されます: https://youtu.be/OqvqngJOiXc）');
   }
   if (!process.env.VSL2_YOUTUBE_LINK) {
-    results.warnings.push('VSL2_YOUTUBE_LINK が設定されていません（デフォルト値が使用されます: https://youtu.be/OqvqngJOiXc）');
+    results.warnings.push('VSL2_YOUTUBE_LINK が設定されていません（デフォルト値が使用されます: https://youtu.be/fXgVsKhqDjI）');
   }
 
   // CRON_SECRETの警告（本番環境では必須）

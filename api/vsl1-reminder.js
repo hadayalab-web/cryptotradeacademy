@@ -4,7 +4,7 @@
 
 const { getFreeUsersForVSL1Reminder } = require('../services/free-users/manager');
 
-const VSL1_YOUTUBE_LINK = process.env.VSL1_YOUTUBE_LINK || 'https://youtu.be/fXgVsKhqDjI';
+const VSL1_YOUTUBE_LINK = process.env.VSL1_YOUTUBE_LINK || 'https://youtu.be/OqvqngJOiXc';
 
 /**
  * VSL1リマインドメッセージを生成（EN版）

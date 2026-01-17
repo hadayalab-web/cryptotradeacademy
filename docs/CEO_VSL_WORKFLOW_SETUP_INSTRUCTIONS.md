@@ -137,8 +137,8 @@ X_POSTING_DRY_RUN=false  # 本番環境では false に設定
 **設定方法**:
 
 ```bash
-VSL1_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
-VSL2_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
+VSL1_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
+VSL2_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
 ```
 
 **理由**: 

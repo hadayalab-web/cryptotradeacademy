@@ -19,6 +19,8 @@
         "test:vsl2-last-call": "node scripts/test-vsl2-last-call.js",
         "test:add-free-user": "node scripts/test-add-free-user.js",
         "test:x-post": "node scripts/test-x-post.js",
+        "check:setup": "node scripts/check-vsl-workflow-setup.js",
+        "verify:deployment": "node scripts/verify-vercel-deployment.js",
         "monitor": "node scripts/monitor_process.js",
         "backtest:dummy": "node scripts/backtest/eval_signals.js --input=data/signals_log_dummy.jsonl --output=data/signals_backtest_dummy.jsonl",
         "summary:dummy": "node scripts/backtest/summarize_backtest.js --input=data/signals_backtest_dummy.jsonl",

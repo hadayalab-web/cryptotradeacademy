@@ -53,7 +53,7 @@ ${new Date().toISOString()}`;
       console.log('3️⃣ VSL1メッセージのテスト投稿中...');
       const vsl1Message = `🎬 Watch This: Two traders started with the same capital...
 
-https://youtu.be/fXgVsKhqDjI
+https://youtu.be/OqvqngJOiXc
 
 Three months later:
 • Trader A: Lost months of profits in 1 week

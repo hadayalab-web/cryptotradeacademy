@@ -113,13 +113,13 @@ KV_REST_API_TOKEN=your-kv-token
 
 ```bash
 # 必須（デフォルト値あり、推奨: 明示的に設定）
-VSL1_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
-VSL2_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
+VSL1_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
+VSL2_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
 ```
 
 **デフォルト値**:
-- `VSL1_YOUTUBE_LINK`: `https://youtu.be/fXgVsKhqDjI`
-- `VSL2_YOUTUBE_LINK`: `https://youtu.be/OqvqngJOiXc`
+- `VSL1_YOUTUBE_LINK`: `https://youtu.be/OqvqngJOiXc`
+- `VSL2_YOUTUBE_LINK`: `https://youtu.be/fXgVsKhqDjI`
 
 ---
 

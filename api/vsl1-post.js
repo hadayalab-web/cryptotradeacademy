@@ -7,7 +7,7 @@ const { postTweet } = require('../services/x/client');
 const { getXConfigStatus } = require('../services/x/config');
 const { selectVsl1Variant, buildVsl1Tweet } = require('../services/x/vsl1-strategy');
 
-const VSL1_YOUTUBE_LINK = process.env.VSL1_YOUTUBE_LINK || 'https://youtu.be/fXgVsKhqDjI';
+const VSL1_YOUTUBE_LINK = process.env.VSL1_YOUTUBE_LINK || 'https://youtu.be/OqvqngJOiXc';
 const X_VSL1_SENTIMENT_PROMPT = process.env.X_VSL1_SENTIMENT_PROMPT ||
   'latest BTC price action, funding, liquidations, whale activity, ETF flows on X';
 

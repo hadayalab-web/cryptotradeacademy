@@ -5,7 +5,7 @@
 const { sendMessage } = require('../services/telegram/bot');
 const { getFreeUsersForVSL2, markVSL2Sent } = require('../services/free-users/manager');
 
-const VSL2_YOUTUBE_LINK = process.env.VSL2_YOUTUBE_LINK || process.env.VSL_YOUTUBE_LINK || 'https://youtu.be/OqvqngJOiXc';
+const VSL2_YOUTUBE_LINK = process.env.VSL2_YOUTUBE_LINK || process.env.VSL_YOUTUBE_LINK || 'https://youtu.be/fXgVsKhqDjI';
 const PROMO_CODE = 'DEFEND50';
 
 // LANG を正規化（en, es, pt-br, ar, ja, ko だけ許可）
