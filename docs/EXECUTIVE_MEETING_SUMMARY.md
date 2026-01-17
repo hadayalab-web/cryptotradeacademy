@@ -8,6 +8,101 @@
 
 ---
 
+## 👥 役員MTG構成
+
+### 参加メンバー
+
+| 役職 | 担当者/モデル | 参加方法 | 役割 |
+|------|--------------|----------|------|
+| **CEO** | 人間（手動操作） | 常時参加 | 意思決定者、Gemini CMOの手動呼び出し |
+| **COO** | Cursor/Composer 1 | 常時参加 | ファシリテーター、実装・デプロイメント担当 |
+| **CSO+CFO** | Grok（grok-4-1-fast-reasoning） | MCPサーバー経由で毎回自動出席 | 戦略・財務分析担当 |
+| **CMO** | Gemini | CursorのAIモデル変更でCEOが手動で呼び出し | マーケティング戦略担当 |
+
+### 参加方法の詳細
+
+#### Grok: CSO+CFO（grok-4-1-fast-reasoning）
+- **参加方法**: MCPサーバー経由で毎回自動出席
+- **役割**: 
+  - 戦略的視点（CSO）: データフロー最適化、インテリジェント投稿戦略、エンゲージメント最大化
+  - 財務的視点（CFO）: コスト最適化、ROI分析、収益予測
+- **使用モデル**: `grok-4-1-fast-reasoning`
+
+#### Gemini: CMO
+- **参加方法**: CursorのAIモデル変更機能でCEO（人間）が手動で呼び出し
+- **役割**: 
+  - マーケティング戦略（CMO）: ブランドボイス、コンテンツ戦略、ユーザー教育
+  - 知識管理（CKO）: ドキュメント管理、ナレッジベース構築
+- **呼び出しタイミング**: CEOが必要に応じて手動でCursorのAIモデルをGeminiに切り替えて呼び出し
+
+#### COO: Cursor/Composer 1（ファシリテーター）
+- **参加方法**: 常時参加（デフォルト）
+- **役割**: 
+  - ミーティングのファシリテーション
+  - 実装・デプロイメントの実行
+  - 技術的な質問への回答
+  - ドキュメント作成・更新
+
+#### CEO: 人間
+- **参加方法**: 常時参加
+- **役割**: 
+  - 最終意思決定
+  - Gemini CMOの手動呼び出し
+  - 戦略的方向性の決定
+
+### Grok CSO+CFOの自動出席設定方法
+
+Grok（grok-4-1-fast-reasoning）をMCPサーバー経由で毎回自動出席させるには、以下の設定が必要です：
+
+#### MCPサーバー設定（`~/.cursor/mcp.json`）
+
+```json
+{
+  "mcpServers": {
+    "grok-cso-cfo": {
+      "command": "node",
+      "args": ["path/to/grok-mcp-server.js"],
+      "env": {
+        "XAI_API_KEY": "your-xai-api-key",
+        "XAI_BASE_URL": "https://api.x.ai/v1",
+        "GROK_MODEL": "grok-4-1-fast-reasoning"
+      }
+    }
+  }
+}
+```
+
+#### 自動出席の実装方法
+
+1. **MCPサーバー側で自動呼び出し**
+   - 役員MTG開始時に自動的にGrokを呼び出す
+   - プロンプトに「CSO+CFO」の役割を明示
+
+2. **Cursor側での設定**
+   - Cursorの設定でMCPサーバーを有効化
+   - 役員MTGドキュメントを開いた際に自動的にGrokを呼び出す
+
+#### 使用例
+
+役員MTGでGrok CSO+CFOを呼び出す際のプロンプト例：
+
+```
+あなたはTrap Defence BTCのCSO（Chief Strategy Officer）兼CFO（Chief Financial Officer）として、
+以下の視点から分析してください：
+
+【戦略的視点（CSO）】
+- データフロー最適化戦略
+- インテリジェント投稿戦略
+- エンゲージメント最大化戦略
+
+【財務的視点（CFO）】
+- コスト最適化
+- ROI分析
+- 収益予測
+```
+
+---
+
 ## 📋 エグゼクティブサマリー
 
 Trap Defence BTCのVSL（Video Sales Letter）ワークフローが正常に起動し、自動化されたマーケティングフローが本格稼働を開始しました。Grok AIによるセンチメント分析とX（Twitter）API連携により、インテリジェントな自動投稿システムが構築され、コンバージョン率の向上が期待されます。

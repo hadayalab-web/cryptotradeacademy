@@ -6,6 +6,7 @@
     { "path": "/api/vsl2-free-users", "schedule": "0 * * * *" },
     { "path": "/api/vsl1-reminder", "schedule": "0 */12 * * *" },
     { "path": "/api/vsl2-last-call", "schedule": "0 * * * *" },
-    { "path": "/api/promo-stock-monitor", "schedule": "*/15 * * * *" }
+    { "path": "/api/promo-stock-monitor", "schedule": "*/15 * * * *" },
+    { "path": "/api/monthly-engagement-report", "schedule": "0 0 1 * *" }
   ]
 }

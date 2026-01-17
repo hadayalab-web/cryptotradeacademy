@@ -230,7 +230,28 @@ async function generateMarketVideo(marketData, lang = 'en') {
   }
 }
 
+/**
+ * 汎用的な画像生成関数（プロンプト指定）
+ * @param {string} prompt - 画像生成プロンプト
+ * @param {string} aspectRatio - アスペクト比
+ * @returns {Promise<string|null>} 生成された画像のData URL
+ */
+async function generateImage(prompt, aspectRatio = '16:9') {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn('[Gemini ImageGenerator] API key not provided');
+      return null;
+    }
+    return await callGeminiImageAPI(prompt, apiKey, 'nano-banana-pro', aspectRatio);
+  } catch (error) {
+    console.error('[Gemini ImageGenerator] Error generating image:', error);
+    return null;
+  }
+}
+
 module.exports = {
   generateMarketImage,
   generateMarketVideo,
+  generateImage,
 };

@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { hasTimePassed, isWithinTimeRange } = require('../../utils/timezone');
 
 // 無料版ユーザーリストの保存先（フォールバック用）
 const FREE_USERS_FILE = path.join(__dirname, '../../data/free-users.json');
@@ -18,6 +19,13 @@ try {
 
 // ストレージタイプを判定（KVが利用可能かどうか）
 const USE_KV = kvStorage && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
+const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
+
+function normalizeLang(value) {
+  if (!value) return null;
+  const base = String(value).trim().toLowerCase().split('.')[0].replace('_', '-');
+  return SUPPORTED_LANGS.includes(base) ? base : null;
+}
 
 /**
  * 無料版ユーザーリストを読み込む
@@ -47,17 +55,19 @@ async function loadFreeUsers() {
           chatId,
           joinedAt: new Date().toISOString(), // 既存ユーザーは現在時刻を設定
           vsl2Sent: false,
-          vsl2LastCallSent: false
+          vsl2LastCallSent: false,
+          lang: null,
         }));
       }
       
       // 後方互換性: オブジェクト配列だがvsl2LastCallSentが未定義の場合
       if (Array.isArray(parsed) && parsed.length > 0) {
         return parsed.map(user => {
-          if (typeof user === 'object' && user.vsl2LastCallSent === undefined) {
+          if (typeof user === 'object') {
             return {
               ...user,
-              vsl2LastCallSent: false
+              vsl2LastCallSent: user.vsl2LastCallSent ?? false,
+              lang: normalizeLang(user.lang) || user.lang || null,
             };
           }
           return user;
@@ -71,7 +81,6 @@ async function loadFreeUsers() {
   } catch (error) {
     console.error('[FreeUsers] Error loading free users:', error.message);
     return [];
-  }
   }
 }
 
@@ -92,7 +101,8 @@ async function saveFreeUsers(users) {
         chatId: user,
         joinedAt: new Date().toISOString(),
         vsl2Sent: false,
-        vsl2LastCallSent: false
+        vsl2LastCallSent: false,
+        lang: null,
       } : user);
     }
   }
@@ -126,34 +136,84 @@ async function saveFreeUsers(users) {
 
 /**
  * 無料版ユーザーを追加する
+ * Grok CSO+CFO推奨: ユニークchatIdチェック強化
  * @param {string} chatId - TelegramチャットID
  * @param {string} userName - ユーザー名（オプション）
+ * @param {string} lang - 言語コード（オプション）
  * @returns {Promise<boolean>} 追加に成功したかどうか（新規ユーザーの場合true）
  */
-async function addFreeUser(chatId, userName = null) {
+async function addFreeUser(chatId, userName = null, lang = null) {
   if (!chatId) {
     console.warn('[FreeUsers] Invalid chatId:', chatId);
     return false;
   }
-  
+
+  // chatIdの正規化（文字列として扱う）
+  const normalizedChatId = String(chatId).trim();
+  if (!normalizedChatId) {
+    console.warn('[FreeUsers] Empty chatId after normalization');
+    return false;
+  }
+
+  const normalizedLang = normalizeLang(lang);
   const users = await loadFreeUsers();
-  const existingUserIndex = users.findIndex(u => (typeof u === 'string' ? u : u.chatId) === chatId);
+  
+  // ユニークチェック: chatIdで厳密に検索（Grok CSO+CFO推奨）
+  const existingUserIndex = users.findIndex(u => {
+    const userChatId = typeof u === 'string' ? u : (u.chatId ? String(u.chatId).trim() : null);
+    return userChatId === normalizedChatId;
+  });
   
   if (existingUserIndex === -1) {
     // 新規ユーザーを追加
-      users.push({
-        chatId,
-        joinedAt: new Date().toISOString(),
-        vsl2Sent: false,
-        vsl2LastCallSent: false,
-        userName: userName || null
-      });
+    users.push({
+      chatId: normalizedChatId,
+      joinedAt: new Date().toISOString(),
+      vsl2Sent: false,
+      vsl2LastCallSent: false,
+      userName: userName || null,
+      lang: normalizedLang,
+    });
     await saveFreeUsers(users);
-    console.log(`[FreeUsers] Added free user: ${chatId} (joinedAt: ${new Date().toISOString()})`);
+    console.log(`[FreeUsers] Added free user: ${normalizedChatId} (lang: ${normalizedLang || 'unknown'}, joinedAt: ${new Date().toISOString()})`);
     return true;
   } else {
     // 既存ユーザーの場合、joinedAtは更新しない（初回参加日時を保持）
-    console.log(`[FreeUsers] User already exists: ${chatId}`);
+    const existingUser = users[existingUserIndex];
+    let updated = false;
+    if (typeof existingUser === 'object') {
+      // 言語情報の補完（既存ユーザーに言語が無い場合）
+      if (normalizedLang && !existingUser.lang) {
+        existingUser.lang = normalizedLang;
+        updated = true;
+        console.log(`[FreeUsers] Updated lang for existing user: ${normalizedChatId} -> ${normalizedLang}`);
+      }
+      // ユーザー名の補完
+      if (userName && !existingUser.userName) {
+        existingUser.userName = userName;
+        updated = true;
+      }
+      // chatIdの正規化（既存データの整合性確保）
+      if (existingUser.chatId !== normalizedChatId) {
+        existingUser.chatId = normalizedChatId;
+        updated = true;
+      }
+    } else {
+      // 旧形式（文字列）を新形式（オブジェクト）に変換
+      users[existingUserIndex] = {
+        chatId: normalizedChatId,
+        joinedAt: new Date().toISOString(),
+        vsl2Sent: false,
+        vsl2LastCallSent: false,
+        userName: userName || null,
+        lang: normalizedLang,
+      };
+      updated = true;
+    }
+    if (updated) {
+      await saveFreeUsers(users);
+    }
+    console.log(`[FreeUsers] User already exists: ${normalizedChatId} (duplicate prevented)`);
     return false;
   }
 }
@@ -208,19 +268,18 @@ async function getFreeUserCount() {
  */
 async function getFreeUsersForVSL2() {
   const users = await loadFreeUsers();
-  const now = new Date();
-  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 48時間→24時間に変更
   
   return users
     .filter(user => {
       const userObj = typeof user === 'string' ? {
         chatId: user,
         joinedAt: new Date(0).toISOString(), // 旧形式は0時点
-        vsl2Sent: false
+        vsl2Sent: false,
+        lang: null,
       } : user;
       
-      const joinedAt = new Date(userObj.joinedAt);
-      const is24HoursPassed = joinedAt <= twentyFourHoursAgo; // 48時間→24時間に変更
+      // Grok CSO+CFO推奨: タイムゾーン補正を使用（UTC基準で厳密に判定）
+      const is24HoursPassed = hasTimePassed(userObj.joinedAt, 24);
       const isNotSent = !userObj.vsl2Sent;
       
       return is24HoursPassed && isNotSent;
@@ -229,13 +288,15 @@ async function getFreeUsersForVSL2() {
       const userObj = typeof user === 'string' ? {
         chatId: user,
         joinedAt: new Date(0).toISOString(),
-        vsl2Sent: false
+        vsl2Sent: false,
+        lang: null,
       } : user;
       
       return {
         chatId: userObj.chatId,
         joinedAt: userObj.joinedAt,
-        userName: userObj.userName || null
+        userName: userObj.userName || null,
+        lang: normalizeLang(userObj.lang) || null,
       };
     });
 }
@@ -243,41 +304,41 @@ async function getFreeUsersForVSL2() {
 /**
  * 12-24時間経過した無料版ユーザーを取得（VSL1リマインド対象）
  * Gemini CMO提案: 12時間後にリマインドメッセージを送信
+ * Grok CSO+CFO推奨: タイムゾーン補正追加
  * @returns {Promise<Array<Object>>} {chatId, joinedAt, userName}
  */
 async function getFreeUsersForVSL1Reminder() {
   const users = await loadFreeUsers();
-  const now = new Date();
-  const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
-  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   
   return users
     .filter(user => {
       const userObj = typeof user === 'string' ? {
         chatId: user,
         joinedAt: new Date(0).toISOString(),
-        vsl2Sent: false
+        vsl2Sent: false,
+        lang: null,
       } : user;
       
-      const joinedAt = new Date(userObj.joinedAt);
+      // Grok CSO+CFO推奨: タイムゾーン補正を使用（UTC基準で厳密に判定）
       // 12時間以上経過、かつ24時間未満（VSL2送信前）
-      const is12HoursPassed = joinedAt <= twelveHoursAgo;
-      const isLessThan24Hours = joinedAt > twentyFourHoursAgo;
+      const isWithinRange = isWithinTimeRange(userObj.joinedAt, 12, 24);
       const isNotSent = !userObj.vsl2Sent;
       
-      return is12HoursPassed && isLessThan24Hours && isNotSent;
+      return isWithinRange && isNotSent;
     })
     .map(user => {
       const userObj = typeof user === 'string' ? {
         chatId: user,
         joinedAt: new Date(0).toISOString(),
-        vsl2Sent: false
+        vsl2Sent: false,
+        lang: null,
       } : user;
       
       return {
         chatId: userObj.chatId,
         joinedAt: userObj.joinedAt,
-        userName: userObj.userName || null
+        userName: userObj.userName || null,
+        lang: normalizeLang(userObj.lang) || null,
       };
     });
 }
@@ -285,13 +346,11 @@ async function getFreeUsersForVSL1Reminder() {
 /**
  * 22時間経過した無料版ユーザーを取得（VSL2 Last Call対象）
  * Gemini CMO提案: 24時間経過の2時間前（22時間後）に通知を送信
+ * Grok CSO+CFO推奨: タイムゾーン補正追加
  * @returns {Promise<Array<Object>>} {chatId, joinedAt, userName}
  */
 async function getFreeUsersForVSL2LastCall() {
   const users = await loadFreeUsers();
-  const now = new Date();
-  const twentyTwoHoursAgo = new Date(now.getTime() - 22 * 60 * 60 * 1000); // 22時間前
-  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24時間前
   
   return users
     .filter(user => {
@@ -299,30 +358,32 @@ async function getFreeUsersForVSL2LastCall() {
         chatId: user,
         joinedAt: new Date(0).toISOString(),
         vsl2Sent: false,
-        vsl2LastCallSent: false
+        vsl2LastCallSent: false,
+        lang: null,
       } : user;
       
-      const joinedAt = new Date(userObj.joinedAt);
+      // Grok CSO+CFO推奨: タイムゾーン補正を使用（UTC基準で厳密に判定）
       // 22時間以上経過、かつ24時間未満（VSL2送信前、Last Call対象）
-      const is22HoursPassed = joinedAt <= twentyTwoHoursAgo;
-      const isLessThan24Hours = joinedAt > twentyFourHoursAgo;
+      const isWithinRange = isWithinTimeRange(userObj.joinedAt, 22, 24);
       const isNotSent = !userObj.vsl2Sent;
       const isLastCallNotSent = !userObj.vsl2LastCallSent; // Last Call未送信
       
-      return is22HoursPassed && isLessThan24Hours && isNotSent && isLastCallNotSent;
+      return isWithinRange && isNotSent && isLastCallNotSent;
     })
     .map(user => {
       const userObj = typeof user === 'string' ? {
         chatId: user,
         joinedAt: new Date(0).toISOString(),
         vsl2Sent: false,
-        vsl2LastCallSent: false
+        vsl2LastCallSent: false,
+        lang: null,
       } : user;
       
       return {
         chatId: userObj.chatId,
         joinedAt: userObj.joinedAt,
-        userName: userObj.userName || null
+        userName: userObj.userName || null,
+        lang: normalizeLang(userObj.lang) || null,
       };
     });
 }
@@ -347,7 +408,8 @@ async function markVSL2Sent(chatId) {
         chatId: user,
         joinedAt: new Date().toISOString(),
         vsl2Sent: true,
-        vsl2LastCallSent: false
+        vsl2LastCallSent: false,
+        lang: null,
       };
     } else {
       users[userIndex].vsl2Sent = true;
@@ -385,7 +447,8 @@ async function markVSL2LastCallSent(chatId) {
         chatId: user,
         joinedAt: new Date().toISOString(),
         vsl2Sent: false,
-        vsl2LastCallSent: true
+        vsl2LastCallSent: true,
+        lang: null,
       };
     } else {
       users[userIndex].vsl2LastCallSent = true;

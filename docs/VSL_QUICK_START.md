@@ -72,8 +72,8 @@ npm run test:vsl2
 `.env`ファイルまたはVercel Dashboardで設定:
 
 ```env
-VSL1_YOUTUBE_LINK=https://youtu.be/zdLFYwFJQd4
-VSL2_YOUTUBE_LINK=https://youtu.be/vjz896hTPPw
+VSL1_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
+VSL2_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
 TELEGRAM_BOT_TOKEN_EN=xxx
 TELEGRAM_CHAT_ID_MINIMAL_EN=xxx
 WHOP_PRODUCT_URL_EN=https://whop.com/aio-media-llc/trap-defense-btc-en/

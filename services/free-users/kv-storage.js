@@ -37,17 +37,19 @@ async function loadFreeUsers() {
         joinedAt: new Date().toISOString(),
         vsl2Sent: false,
         vsl2LastCallSent: false,
-        userName: null
+        userName: null,
+        lang: null,
       }));
     }
 
     // 後方互換性: オブジェクト配列だがvsl2LastCallSentが未定義の場合
     if (Array.isArray(users) && users.length > 0) {
       return users.map(user => {
-        if (typeof user === 'object' && user.vsl2LastCallSent === undefined) {
+        if (typeof user === 'object') {
           return {
             ...user,
-            vsl2LastCallSent: false
+            vsl2LastCallSent: user.vsl2LastCallSent ?? false,
+            lang: user.lang ?? null,
           };
         }
         return user;
@@ -87,7 +89,8 @@ async function saveFreeUsers(users) {
           joinedAt: new Date().toISOString(),
           vsl2Sent: false,
           vsl2LastCallSent: false,
-          userName: null
+          userName: null,
+          lang: null,
         } : user);
       }
     }

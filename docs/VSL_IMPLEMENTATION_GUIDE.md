@@ -9,13 +9,13 @@
 ## 📹 VSL情報
 
 ### VSL1: フロントエンド（無料オプトイン誘導用）
-- **URL**: https://youtu.be/zdLFYwFJQd4
+- **URL**: https://youtu.be/OqvqngJOiXc
 - **目的**: 投稿から無料版へのオプトイン誘導
 - **使用場所**: Telegram/X投稿に埋め込み
 - **CTA**: Telegram Bot経由のワンクリック参加（@TrapDefenceBot /start minimal）
 
 ### VSL2: バックエンド（Whopプロモコード使用アピール）
-- **URL**: https://youtu.be/vjz896hTPPw
+- **URL**: https://youtu.be/fXgVsKhqDjI
 - **目的**: 無料版ユーザーへのWhopプロモコード（DEFEND50）使用アピール
 - **使用場所**: 
   - 無料版ユーザーへのDM/メール
@@ -33,13 +33,13 @@ Vercel Dashboardで以下の環境変数を設定してください：
 
 ```bash
 # VSL1: フロントエンド（無料オプトイン誘導用）
-VSL1_YOUTUBE_LINK=https://youtu.be/zdLFYwFJQd4
+VSL1_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
 
 # VSL2: バックエンド（有料版コンバージョン用）
-VSL2_YOUTUBE_LINK=https://youtu.be/vjz896hTPPw
+VSL2_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
 
 # 後方互換性のため、既存のVSL_YOUTUBE_LINKも設定
-VSL_YOUTUBE_LINK=https://youtu.be/vjz896hTPPw  # VSL2を使用
+VSL_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI  # VSL2を使用
 ```
 
 ---
@@ -74,7 +74,7 @@ VSL_YOUTUBE_LINK=https://youtu.be/vjz896hTPPw  # VSL2を使用
 1. Whop Dashboardにアクセス
 2. 各市場のプロダクトページを編集
 3. **Product Media** → **Hero Section** → **Video URL**
-4. VSL2のYouTube URLを貼り付け: `https://youtu.be/vjz896hTPPw`
+4. VSL2のYouTube URLを貼り付け: `https://youtu.be/fXgVsKhqDjI`
 5. Video Settings:
    - Autoplay: ON（自動再生）
    - Loop: OFF（1回のみ）
@@ -98,7 +98,7 @@ VSL_YOUTUBE_LINK=https://youtu.be/vjz896hTPPw  # VSL2を使用
 ```
 🎬 Watch This: Two traders started with the same capital...
 
-[VSL1埋め込み: https://youtu.be/zdLFYwFJQd4]
+[VSL1埋め込み: https://youtu.be/OqvqngJOiXc]
 
 Three months later:
 • Trader A: Lost months of profits in 1 week

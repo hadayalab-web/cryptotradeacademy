@@ -11,7 +11,7 @@
 ## ✅ YouTubeリンク配置の確認完了
 
 ### VSL1（無料版オプトイン誘導）
-- **正しいURL**: `https://youtu.be/fXgVsKhqDjI`
+- **正しいURL**: `https://youtu.be/OqvqngJOiXc`
 - **実装箇所**:
   - ✅ `api/vsl1-post.js` - デフォルト値更新済み
   - ✅ `api/vsl1-reminder.js` - デフォルト値更新済み
@@ -19,7 +19,7 @@
 - **用途**: Telegram/X投稿、無料版オプトイン誘導
 
 ### VSL2（無料版ユーザーへのアップセル）
-- **正しいURL**: `https://youtu.be/OqvqngJOiXc`
+- **正しいURL**: `https://youtu.be/fXgVsKhqDjI`
 - **実装箇所**:
   - ✅ `api/vsl2-free-users.js` - デフォルト値更新済み
   - ✅ `api/vsl2-last-call.js` - デフォルト値更新済み
@@ -108,9 +108,9 @@
 
 #### VSL YouTubeリンク
 ```
-VSL1_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
-VSL2_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
-VSL_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
+VSL1_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
+VSL2_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
+VSL_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
 ```
 
 #### 言語別Whop URL（オプション、推奨）
@@ -184,8 +184,8 @@ CRON_SECRET=...
 **YouTubeリンクの配置は完璧に修正されました。**
 
 ### 修正内容
-1. ✅ VSL1 YouTubeリンク: `https://youtu.be/fXgVsKhqDjI` に更新
-2. ✅ VSL2 YouTubeリンク: `https://youtu.be/OqvqngJOiXc` に更新
+1. ✅ VSL1 YouTubeリンク: `https://youtu.be/OqvqngJOiXc` に更新
+2. ✅ VSL2 YouTubeリンク: `https://youtu.be/fXgVsKhqDjI` に更新
 3. ✅ 言語別Whop URLの統一実装完了
 4. ✅ 全ファイルの整合性確認完了
 

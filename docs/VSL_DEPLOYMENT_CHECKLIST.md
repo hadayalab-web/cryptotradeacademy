@@ -9,12 +9,12 @@
 ## 📹 VSL情報
 
 ### VSL1: フロントエンド（無料オプトイン誘導用）
-- **URL**: https://youtu.be/zdLFYwFJQd4
+- **URL**: https://youtu.be/OqvqngJOiXc
 - **目的**: 投稿から無料版へのオプトイン誘導
 - **使用場所**: Telegram/X投稿に埋め込み
 
 ### VSL2: バックエンド（Whopプロモコード使用アピール）
-- **URL**: https://youtu.be/QpAJa4ZkfmE
+- **URL**: https://youtu.be/fXgVsKhqDjI
 - **目的**: 無料版ユーザーへのWhopプロモコード（DEFEND50）使用アピール
 - **使用場所**: 
   - 無料版ユーザーへのDM/メール
@@ -45,13 +45,13 @@
 
 ```bash
 # VSL1: フロントエンド（無料オプトイン誘導用）
-VSL1_YOUTUBE_LINK=https://youtu.be/zdLFYwFJQd4
+VSL1_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
 
 # VSL2: バックエンド（有料版コンバージョン用）
-VSL2_YOUTUBE_LINK=https://youtu.be/QpAJa4ZkfmE
+VSL2_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
 
 # 後方互換性のため、既存のVSL_YOUTUBE_LINKも設定（VSL2を使用）
-VSL_YOUTUBE_LINK=https://youtu.be/QpAJa4ZkfmE
+VSL_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
 ```
 
 **設定手順**:
@@ -67,7 +67,7 @@ VSL_YOUTUBE_LINK=https://youtu.be/QpAJa4ZkfmE
 1. [Whop Dashboard](https://whop.com/dashboard)にアクセス
 2. **Products** → 更新したい市場のプロダクトを選択
 3. **Edit** → **Product Media** → **Hero Section** → **Video URL**
-4. VSL2のYouTube URLを貼り付け: `https://youtu.be/QpAJa4ZkfmE`
+4. VSL2のYouTube URLを貼り付け: `https://youtu.be/fXgVsKhqDjI`
 5. Video Settings:
    - **Autoplay**: ON（自動再生）
    - **Loop**: OFF（1回のみ）
@@ -98,7 +98,7 @@ node scripts/test-actual-telegram-delivery.js
 **期待される表示**:
 ```
 🎬 Watch Our Story (2 min):
-https://youtu.be/QpAJa4ZkfmE
+https://youtu.be/fXgVsKhqDjI
 ```
 
 ### 2. `/upgrade`コマンドでのVSL2表示確認

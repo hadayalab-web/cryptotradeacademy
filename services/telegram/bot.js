@@ -7,6 +7,7 @@
 // 詳細: docs/TELEGRAM_CHANNEL_VS_GROUP.md を参照
 
 // 1つのBot Tokenで全資産を管理（簡素化）
+// MINIMALのみ、互換性として TELEGRAM_BOT_TOKEN_MINIMAL を許可
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID; // BTC用チャンネルID（デフォルト）
 // チャンネルIDは通常 -100 で始まります（例: -1001234567890）
@@ -15,6 +16,41 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID; // BTC用チャンネルI
 // ただし、sendMessageToAssetを使用することを推奨
 const TELEGRAM_BOT_TOKEN_MINIMAL = process.env.TELEGRAM_BOT_TOKEN_MINIMAL;
 const TELEGRAM_CHAT_ID_MINIMAL = process.env.TELEGRAM_CHAT_ID_MINIMAL; // 無料版チャンネルID
+
+/**
+ * MINIMALチャンネルのChat IDを言語に応じて解決
+ * 互換性: JP/KR/PTBR の別名も許可
+ * Grok CSO+CFO推奨: 全言語フォールバック（言語別ID → EN → デフォルト）
+ */
+function resolveMinimalChatId(langCode) {
+  if (!langCode) {
+    // ENチャンネルを優先、なければデフォルト
+    return process.env.TELEGRAM_CHAT_ID_MINIMAL_EN || TELEGRAM_CHAT_ID_MINIMAL;
+  }
+  
+  const normalized = String(langCode).toUpperCase().replace('-', '_');
+  const variants = [normalized];
+  if (normalized === 'PT_BR') variants.push('PTBR');
+  if (normalized === 'JA') variants.push('JP');
+  if (normalized === 'KO') variants.push('KR');
+
+  // 1. 言語別チャンネルIDを優先
+  for (const variant of variants) {
+    const envVarName = `TELEGRAM_CHAT_ID_MINIMAL_${variant}`;
+    const chatId = process.env[envVarName];
+    if (chatId) return chatId;
+  }
+
+  // 2. ENチャンネルにフォールバック（Grok CSO+CFO推奨）
+  const enChatId = process.env.TELEGRAM_CHAT_ID_MINIMAL_EN;
+  if (enChatId) {
+    console.warn(`⚠️ ${langCode}言語用チャンネルIDが未設定、ENチャンネルにフォールバック`);
+    return enChatId;
+  }
+
+  // 3. デフォルトチャンネルにフォールバック
+  return TELEGRAM_CHAT_ID_MINIMAL;
+}
 
 if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
   console.warn("⚠️ TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set in .env.local");
@@ -63,14 +99,20 @@ async function sendMessage(text) {
  * Supports HTTP URLs and Base64 Data URLs.
  * @param {string} photoUrl - HTTP URL or data:image/...;base64,... format
  * @param {string} caption - Photo caption (max 1024 characters)
+ * @param {string|number} chatId - Optional chat ID override
+ * @param {string} botToken - Optional bot token override
+ * @param {Object} options - Optional parameters (reply_markup, parse_mode, etc.)
  */
-async function sendPhoto(photoUrl, caption = '') {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+async function sendPhoto(photoUrl, caption = '', chatId = null, botToken = null, options = {}) {
+  const token = botToken || TELEGRAM_BOT_TOKEN;
+  const targetChatId = chatId || TELEGRAM_CHAT_ID;
+
+  if (!token || !targetChatId) {
     console.error("❌ Telegram credentials are missing. Skipping sendPhoto.");
     return;
   }
 
-  const url = new URL(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`);
+  const url = new URL(`https://api.telegram.org/bot${token}/sendPhoto`);
 
   try {
     let response;
@@ -95,7 +137,7 @@ async function sendPhoto(photoUrl, caption = '') {
       formDataParts.push(
         `--${boundary}\r\n`,
         `Content-Disposition: form-data; name="chat_id"\r\n\r\n`,
-        `${TELEGRAM_CHAT_ID}\r\n`
+        `${targetChatId}\r\n`
       );
 
       // photo (ファイル)
@@ -118,6 +160,22 @@ async function sendPhoto(photoUrl, caption = '') {
           `${caption.substring(0, 1024)}\r\n`
         );
       }
+      
+      // parse_mode
+      formDataParts.push(
+        `--${boundary}\r\n`,
+        `Content-Disposition: form-data; name="parse_mode"\r\n\r\n`,
+        `${options.parse_mode || 'Markdown'}\r\n`
+      );
+
+      // reply_markup (オプション)
+      if (options.reply_markup) {
+        formDataParts.push(
+          `--${boundary}\r\n`,
+          `Content-Disposition: form-data; name="reply_markup"\r\n\r\n`,
+          `${JSON.stringify(options.reply_markup)}\r\n`
+        );
+      }
 
       // 終了境界線
       formDataParts.push(`--${boundary}--\r\n`);
@@ -138,10 +196,11 @@ async function sendPhoto(photoUrl, caption = '') {
     } else {
       // HTTP URLの場合は通常のJSONで送信
       const body = {
-        chat_id: TELEGRAM_CHAT_ID,
+        chat_id: targetChatId,
         photo: photoUrl,
         caption: caption ? caption.substring(0, 1024) : undefined,
-        parse_mode: "Markdown"
+        parse_mode: options.parse_mode || "Markdown",
+        ...options
       };
 
       response = await fetch(url.toString(), {
@@ -278,26 +337,23 @@ async function sendVideo(videoUrl, caption = '') {
  * @param {string} text - Message text
  * @param {string} asset - Asset type ('BTC', 'ETH', 'SOL', 'MINIMAL', etc.)
  * @param {string} langCode - Language code ('EN', 'JA', 'KO', 'ES', 'PT_BR', 'AR') for MINIMAL asset
+ * @param {Object} options - Optional parameters (parse_mode, reply_markup, etc.)
  */
-async function sendMessageToAsset(text, asset = 'BTC', langCode = null) {
+async function sendMessageToAsset(text, asset = 'BTC', langCode = null, options = {}) {
   // 1つのBot Tokenを使用（全資産共通）
-  const botToken = TELEGRAM_BOT_TOKEN;
+  // MINIMALのみ、互換性として TELEGRAM_BOT_TOKEN_MINIMAL を許可
+  const botToken = TELEGRAM_BOT_TOKEN || (asset === 'MINIMAL' ? TELEGRAM_BOT_TOKEN_MINIMAL : null);
   
   let chatId;
   
-  // MINIMAL資産で言語コードが指定されている場合、言語別チャンネルIDを参照
   if (asset === 'MINIMAL' && langCode) {
-    // 言語コードを環境変数名形式に変換（pt-br -> PT_BR, en -> EN）
-    const langCodeUpper = langCode.toUpperCase().replace('-', '_');
-    const envVarName = `TELEGRAM_CHAT_ID_MINIMAL_${langCodeUpper}`;
-    chatId = process.env[envVarName];
-    
+    // 言語別チャンネルIDを解決（別名も許可）
+    chatId = resolveMinimalChatId(langCode);
+
     // 言語別チャンネルIDが設定されていない場合、デフォルトのMINIMALチャンネルIDにフォールバック
     if (!chatId) {
-      chatId = process.env.TELEGRAM_CHAT_ID_MINIMAL;
-      if (chatId) {
-        console.warn(`⚠️ Language-specific channel ID not found for MINIMAL/${langCodeUpper}, using default MINIMAL channel`);
-      }
+      const langCodeUpper = langCode.toUpperCase().replace('-', '_');
+      console.warn(`⚠️ Language-specific channel ID not found for MINIMAL/${langCodeUpper}, and default MINIMAL channel is missing`);
     }
   } else {
     // 資産タイプごとのChat IDを環境変数から取得
@@ -321,7 +377,8 @@ async function sendMessageToAsset(text, asset = 'BTC', langCode = null) {
   const body = {
     chat_id: chatId,
     text,
-    parse_mode: "Markdown"
+    parse_mode: options.parse_mode || "Markdown",
+    ...options,
   };
 
   try {
@@ -348,6 +405,38 @@ async function sendMessageToAsset(text, asset = 'BTC', langCode = null) {
 }
 
 /**
+ * Send a photo to a specific Telegram chat by asset type.
+ * @param {string} photoUrl - HTTP URL or data:image/...
+ * @param {string} caption - Message text
+ * @param {string} asset - Asset type ('BTC', 'ETH', 'SOL', 'MINIMAL', etc.)
+ * @param {string} langCode - Language code
+ * @param {Object} options - Optional parameters (parse_mode, reply_markup, etc.)
+ */
+async function sendPhotoToAsset(photoUrl, caption, asset = 'BTC', langCode = null, options = {}) {
+  const botToken = TELEGRAM_BOT_TOKEN || (asset === 'MINIMAL' ? TELEGRAM_BOT_TOKEN_MINIMAL : null);
+  let chatId;
+
+  if (asset === 'MINIMAL' && langCode) {
+    chatId = resolveMinimalChatId(langCode);
+  } else {
+    const chatIdMap = {
+      'BTC': TELEGRAM_CHAT_ID,
+      'ETH': process.env.TELEGRAM_CHAT_ID_ETH,
+      'SOL': process.env.TELEGRAM_CHAT_ID_SOL,
+      'MINIMAL': process.env.TELEGRAM_CHAT_ID_MINIMAL,
+    };
+    chatId = chatIdMap[asset] || TELEGRAM_CHAT_ID;
+  }
+
+  if (!botToken || !chatId) {
+    console.warn(`⚠️ Credentials missing for sendPhotoToAsset (${asset}/${langCode})`);
+    return;
+  }
+
+  return await sendPhoto(photoUrl, caption, chatId, botToken, options);
+}
+
+/**
  * Send a message to the minimal version Telegram chat (free users).
  * @deprecated Use sendMessageToAsset(text, 'MINIMAL') instead
  * @param {string} text
@@ -365,7 +454,7 @@ async function sendMessageMinimal(text) {
  * @param {Object} options - Optional parameters (parse_mode, etc.)
  */
 async function sendMessageToUser(chatId, text, options = {}) {
-  const botToken = TELEGRAM_BOT_TOKEN;
+  const botToken = TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN_MINIMAL; // DMはどちらでも送れるように
   
   if (!botToken || !chatId) {
     console.warn(`⚠️ Telegram credentials missing. Bot Token: ${!!botToken}, Chat ID: ${!!chatId}`);
@@ -399,6 +488,25 @@ async function sendMessageToUser(chatId, text, options = {}) {
     console.error(`❌ Telegram sendMessageToUser failed for ${chatId}:`, error.message);
     throw error;
   }
+}
+
+/**
+ * Send a photo directly to a specific Telegram user (by chat ID).
+ * @param {string} chatId - Telegram chat ID (user ID)
+ * @param {string} photoUrl - Photo URL or Data URL
+ * @param {string} caption - Caption
+ * @param {Object} options - Optional parameters
+ */
+async function sendPhotoToUser(chatId, photoUrl, caption, options = {}) {
+  const botToken = TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN_MINIMAL;
+  if (!botToken || !chatId) {
+    console.warn(`⚠️ Credentials missing for sendPhotoToUser`);
+    return;
+  }
+  
+  // Reuse existing sendPhoto but override chatId/token logic inside it or call it with explicit params
+  // sendPhoto has signature: (photoUrl, caption = '', chatId = null, botToken = null)
+  return await sendPhoto(photoUrl, caption, chatId, botToken);
 }
 
 /**
@@ -451,4 +559,14 @@ async function sendMessageToChannel(text, series = 'BTC', marketCode = 'EN') {
   }
 }
 
-module.exports = { sendMessage, sendPhoto, sendVideo, sendMessageMinimal, sendMessageToUser, sendMessageToAsset, sendMessageToChannel };
+module.exports = { 
+  sendMessage, 
+  sendPhoto, 
+  sendVideo, 
+  sendMessageMinimal, 
+  sendMessageToUser, 
+  sendPhotoToUser, // Added
+  sendMessageToAsset, 
+  sendPhotoToAsset, // Added
+  sendMessageToChannel 
+};

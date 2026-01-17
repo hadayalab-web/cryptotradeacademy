@@ -4,7 +4,14 @@
 
 const { getFreeUsersForVSL1Reminder } = require('../services/free-users/manager');
 
-const VSL1_YOUTUBE_LINK = process.env.VSL1_YOUTUBE_LINK || 'https://youtu.be/OqvqngJOiXc';
+// VSL1リンク: 環境変数が設定されていない場合、正しいVSL1リンクを使用
+// VSL2リンクとの混同を防ぐため、明示的にチェック
+let VSL1_YOUTUBE_LINK_RAW = process.env.VSL1_YOUTUBE_LINK || 'https://youtu.be/OqvqngJOiXc';
+if (VSL1_YOUTUBE_LINK_RAW.includes('fXgVsKhqDjI')) {
+  console.error('❌ CRITICAL ERROR: VSL1_YOUTUBE_LINK is set to VSL2 link! Using correct VSL1 link.');
+  VSL1_YOUTUBE_LINK_RAW = 'https://youtu.be/OqvqngJOiXc';
+}
+const VSL1_YOUTUBE_LINK = VSL1_YOUTUBE_LINK_RAW;
 
 /**
  * VSL1リマインドメッセージを生成（EN版）

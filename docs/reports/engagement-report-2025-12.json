@@ -1,0 +1,66 @@
+{
+  "period": {
+    "start": "2025-11-30T15:00:00.000Z",
+    "end": "2025-12-31T14:59:59.999Z",
+    "month": 12,
+    "year": 2025
+  },
+  "summary": {
+    "totalUsers": 0,
+    "newUsersLastMonth": 0,
+    "usersWithoutLang": 0,
+    "langCoverageRate": 0
+  },
+  "vsl2": {
+    "sentUsers": 0,
+    "sendRate": 0,
+    "sendRateByLang": {
+      "en": 0,
+      "es": 0,
+      "pt-br": 0,
+      "ar": 0,
+      "ja": 0,
+      "ko": 0
+    }
+  },
+  "timing": {
+    "accuracy": 0,
+    "onTime": 0,
+    "late": 0,
+    "early": 0,
+    "total": 0
+  },
+  "languages": {
+    "en": {
+      "total": 0,
+      "withLang": 0,
+      "withoutLang": 0
+    },
+    "es": {
+      "total": 0,
+      "withLang": 0,
+      "withoutLang": 0
+    },
+    "pt-br": {
+      "total": 0,
+      "withLang": 0,
+      "withoutLang": 0
+    },
+    "ar": {
+      "total": 0,
+      "withLang": 0,
+      "withoutLang": 0
+    },
+    "ja": {
+      "total": 0,
+      "withLang": 0,
+      "withoutLang": 0
+    },
+    "ko": {
+      "total": 0,
+      "withLang": 0,
+      "withoutLang": 0
+    }
+  },
+  "generatedAt": "2026-01-17T12:53:10.903Z"
+}

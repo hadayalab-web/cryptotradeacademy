@@ -60,10 +60,10 @@
 **現状**: ✅ **解決済み**
 
 **確認結果**:
-- ✅ VSL1 YouTubeリンク: `https://youtu.be/fXgVsKhqDjI` に更新済み
+- ✅ VSL1 YouTubeリンク: `https://youtu.be/OqvqngJOiXc` に更新済み
   - `api/vsl1-post.js`: デフォルト値更新済み
   - `api/vsl1-reminder.js`: デフォルト値更新済み
-- ✅ VSL2 YouTubeリンク: `https://youtu.be/OqvqngJOiXc` に更新済み
+- ✅ VSL2 YouTubeリンク: `https://youtu.be/fXgVsKhqDjI` に更新済み
   - `api/vsl2-free-users.js`: デフォルト値更新済み
   - `api/vsl2-last-call.js`: デフォルト値更新済み
   - `services/telegram/bot-commands.js`: 環境変数から取得（問題なし）

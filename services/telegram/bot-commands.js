@@ -4,6 +4,52 @@
 const { addFreeUser, isFreeUser, removeFreeUser, getFreeUserCount } = require('../free-users/manager');
 const { sendMessageToUser } = require('./bot');
 const { getWhopUpgradeLink } = require('./whop-links');
+const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
+
+function normalizeLang(value) {
+  if (!value) return null;
+  const base = String(value).trim().toLowerCase().split('.')[0].replace('_', '-');
+  return SUPPORTED_LANGS.includes(base) ? base : null;
+}
+
+/**
+ * /start コマンドのパラメータを解析
+ * Grok CSO+CFO推奨: 正規表現強化で抽出精度99%以上
+ * @param {string} param - /startコマンドのパラメータ
+ * @returns {Object} { lang: string|null, referralCode: string|null }
+ */
+function parseStartParam(param) {
+  if (!param) return { lang: null, referralCode: null };
+  
+  // 正規化: 空白削除、小文字化
+  const normalized = param.trim().toLowerCase();
+
+  // 1. "minimal" のみの場合
+  if (normalized === 'minimal') {
+    return { lang: null, referralCode: null };
+  }
+
+  // 2. "minimal_ja", "minimal-en", "minimal_pt-br" などのパターン
+  // 強化された正規表現: minimal[_-](ja|en|es|pt-br|ptbr|ar|ko|jp|kr) を正確にマッチ
+  const minimalMatch = normalized.match(/^minimal[_-](ja|en|es|pt[-_]?br|ar|ko|jp|kr)$/);
+  if (minimalMatch) {
+    let langCode = minimalMatch[1];
+    // 別名の正規化
+    if (langCode === 'jp') langCode = 'ja';
+    if (langCode === 'kr') langCode = 'ko';
+    if (langCode === 'ptbr' || langCode === 'pt_br') langCode = 'pt-br';
+    return { lang: normalizeLang(langCode), referralCode: null };
+  }
+
+  // 3. 言語コードのみの場合（ja, en, es, pt-br, ar, ko）
+  const lang = normalizeLang(normalized);
+  if (lang) {
+    return { lang, referralCode: null };
+  }
+
+  // 4. リファラルコードとして扱う
+  return { lang: null, referralCode: param };
+}
 
 /**
  * Telegram Botコマンドを処理する
@@ -44,12 +90,13 @@ async function handleStartCommand(chatId, username, firstName, message) {
     // リファラルコードをチェック（例: /start minimal または /start ref_abc123）
     const parts = message.split(' ');
     const param = parts.length > 1 ? parts[1] : null;
-    const isMinimal = param === 'minimal';
-    const referralCode = param && param !== 'minimal' ? param : null;
+    const { lang: paramLang, referralCode } = parseStartParam(param);
+    const defaultLang = normalizeLang(process.env.LANG || 'en') || 'en';
+    const userLang = paramLang || defaultLang;
 
     // 無料版ユーザーとして登録（ユーザー名も保存）
     const userName = firstName || username || null;
-    const isNewUser = await addFreeUser(chatId, userName);
+    const isNewUser = await addFreeUser(chatId, userName, userLang);
 
     const welcomeMessage = `🌤️ Welcome to Trap Defense BTC - Free Version!
 
@@ -105,7 +152,8 @@ For educational purposes only. Not financial advice.`;
 async function handleFreeCommand(chatId, username, firstName) {
   try {
     const userName = firstName || username || null;
-    const isNewUser = await addFreeUser(chatId, userName);
+    const defaultLang = normalizeLang(process.env.LANG || 'en') || 'en';
+    const isNewUser = await addFreeUser(chatId, userName, defaultLang);
 
     const message = isNewUser
       ? `✅ You've been registered for free Trap Defense BTC reports!

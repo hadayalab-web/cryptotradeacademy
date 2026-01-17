@@ -12,14 +12,14 @@
 
 ### VSL1（無料版オプトイン誘導）
 
-**正しいURL**: `https://youtu.be/fXgVsKhqDjI`
+**正しいURL**: `https://youtu.be/OqvqngJOiXc`
 
 **実装箇所と確認結果**:
 
 | ファイル | 行番号 | 状態 | 備考 |
 |---------|--------|------|------|
-| `api/vsl1-post.js` | 6 | ✅ 修正済み | `https://youtu.be/fXgVsKhqDjI` |
-| `api/vsl1-reminder.js` | 7 | ✅ 修正済み | `https://youtu.be/fXgVsKhqDjI` |
+| `api/vsl1-post.js` | 6 | ✅ 修正済み | `https://youtu.be/OqvqngJOiXc` |
+| `api/vsl1-reminder.js` | 7 | ✅ 修正済み | `https://youtu.be/OqvqngJOiXc` |
 
 **内容**: "Two traders started trading Bitcoin..."（2人の男の物語）  
 **用途**: Telegram/X投稿、無料版オプトイン誘導
@@ -28,14 +28,14 @@
 
 ### VSL2（無料版ユーザーへのアップセル）
 
-**正しいURL**: `https://youtu.be/OqvqngJOiXc`
+**正しいURL**: `https://youtu.be/fXgVsKhqDjI`
 
 **実装箇所と確認結果**:
 
 | ファイル | 行番号 | 状態 | 備考 |
 |---------|--------|------|------|
-| `api/vsl2-free-users.js` | 8 | ✅ 修正済み | `https://youtu.be/OqvqngJOiXc` |
-| `api/vsl2-last-call.js` | 7 | ✅ 修正済み | `https://youtu.be/OqvqngJOiXc` |
+| `api/vsl2-free-users.js` | 8 | ✅ 修正済み | `https://youtu.be/fXgVsKhqDjI` |
+| `api/vsl2-last-call.js` | 7 | ✅ 修正済み | `https://youtu.be/fXgVsKhqDjI` |
 | `services/telegram/bot-commands.js` | 148 | ✅ 環境変数 | 環境変数から取得（問題なし） |
 | `services/telegram/messages/user/en/minimal-high-quality.en.js` | 280 | ✅ 環境変数 | 環境変数から取得（問題なし） |
 
@@ -55,7 +55,7 @@ const VSL1_YOUTUBE_LINK = process.env.VSL1_YOUTUBE_LINK || 'https://youtu.be/zdL
 
 **修正後**:
 ```javascript
-const VSL1_YOUTUBE_LINK = process.env.VSL1_YOUTUBE_LINK || 'https://youtu.be/fXgVsKhqDjI';
+const VSL1_YOUTUBE_LINK = process.env.VSL1_YOUTUBE_LINK || 'https://youtu.be/OqvqngJOiXc';
 ```
 
 ### VSL2 YouTubeリンク
@@ -67,7 +67,7 @@ const VSL2_YOUTUBE_LINK = process.env.VSL2_YOUTUBE_LINK || process.env.VSL_YOUTU
 
 **修正後**:
 ```javascript
-const VSL2_YOUTUBE_LINK = process.env.VSL2_YOUTUBE_LINK || process.env.VSL_YOUTUBE_LINK || 'https://youtu.be/OqvqngJOiXc';
+const VSL2_YOUTUBE_LINK = process.env.VSL2_YOUTUBE_LINK || process.env.VSL_YOUTUBE_LINK || 'https://youtu.be/fXgVsKhqDjI';
 ```
 
 ---
@@ -77,9 +77,9 @@ const VSL2_YOUTUBE_LINK = process.env.VSL2_YOUTUBE_LINK || process.env.VSL_YOUTU
 ### 必須環境変数
 
 ```
-VSL1_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
-VSL2_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
-VSL_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
+VSL1_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
+VSL2_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
+VSL_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
 ```
 
 **注意**: 環境変数が設定されていない場合、デフォルト値（修正済み）が使用されます。
@@ -91,27 +91,27 @@ VSL_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
 ### VSL1ワークフロー
 
 1. **VSL1投稿** (`api/vsl1-post.js`)
-   - ✅ YouTubeリンク: `https://youtu.be/fXgVsKhqDjI`
+   - ✅ YouTubeリンク: `https://youtu.be/OqvqngJOiXc`
    - ✅ メッセージ: "Two traders started with the same capital..."
    - ✅ Deep Link: `https://t.me/TrapDefenceBot?start=minimal`
    - ✅ Cron: `0 9,21 * * *`（1日2回）
 
 2. **VSL1リマインダー** (`api/vsl1-reminder.js`)
-   - ✅ YouTubeリンク: `https://youtu.be/fXgVsKhqDjI`
+   - ✅ YouTubeリンク: `https://youtu.be/OqvqngJOiXc`
    - ✅ タイミング: 12-24時間経過後
    - ✅ Cron: `0 */12 * * *`（12時間ごと）
 
 ### VSL2ワークフロー
 
 1. **VSL2無料ユーザー向け配信** (`api/vsl2-free-users.js`)
-   - ✅ YouTubeリンク: `https://youtu.be/OqvqngJOiXc`
+   - ✅ YouTubeリンク: `https://youtu.be/fXgVsKhqDjI`
    - ✅ メッセージ: "Special Offer for You..."
    - ✅ プロモコード: `DEFEND50`
    - ✅ タイミング: 24時間経過後
    - ✅ Cron: `0 * * * *`（1時間ごと）
 
 2. **VSL2ラストコール** (`api/vsl2-last-call.js`)
-   - ✅ YouTubeリンク: `https://youtu.be/OqvqngJOiXc`
+   - ✅ YouTubeリンク: `https://youtu.be/fXgVsKhqDjI`
    - ✅ メッセージ: "LAST CALL..."
    - ✅ プロモコード: `DEFEND50`
    - ✅ タイミング: 22時間経過後（24時間経過の2時間前）
@@ -134,8 +134,8 @@ VSL_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
 **YouTubeリンクの配置は100%正確です。**
 
 ### 修正完了項目
-1. ✅ VSL1 YouTubeリンク: `https://youtu.be/fXgVsKhqDjI` に更新
-2. ✅ VSL2 YouTubeリンク: `https://youtu.be/OqvqngJOiXc` に更新
+1. ✅ VSL1 YouTubeリンク: `https://youtu.be/OqvqngJOiXc` に更新
+2. ✅ VSL2 YouTubeリンク: `https://youtu.be/fXgVsKhqDjI` に更新
 3. ✅ 全ファイルの整合性確認完了
 4. ✅ リンターエラーなし
 

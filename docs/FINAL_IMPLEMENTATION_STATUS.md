@@ -77,8 +77,8 @@ KV_REST_API_TOKEN=your-kv-token
 ### 3. ✅ YouTubeリンク確認
 
 **確認結果**:
-- ✅ VSL1 YouTubeリンク: `https://youtu.be/fXgVsKhqDjI` に更新済み
-- ✅ VSL2 YouTubeリンク: `https://youtu.be/OqvqngJOiXc` に更新済み
+- ✅ VSL1 YouTubeリンク: `https://youtu.be/OqvqngJOiXc` に更新済み
+- ✅ VSL2 YouTubeリンク: `https://youtu.be/fXgVsKhqDjI` に更新済み
 
 **状態**: ✅ **すべて正しいURLに更新済み**
 
@@ -119,9 +119,9 @@ KV_REST_API_TOKEN=your-kv-token
 ### 環境変数設定（Vercel Dashboardで設定）
 ```
 # VSL YouTubeリンク
-VSL1_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
-VSL2_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
-VSL_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
+VSL1_YOUTUBE_LINK=https://youtu.be/OqvqngJOiXc
+VSL2_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
+VSL_YOUTUBE_LINK=https://youtu.be/fXgVsKhqDjI
 
 # Vercel KV（推奨）
 KV_REST_API_URL=https://your-kv-instance.upstash.io

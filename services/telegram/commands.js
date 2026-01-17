@@ -4,6 +4,13 @@
 const { addFreeUser, isFreeUser, removeFreeUser } = require('../free-users/manager');
 const { sendMessageToAsset } = require('./bot');
 const { getWhopUpgradeLink } = require('./whop-links');
+const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
+
+function normalizeLang(value) {
+  if (!value) return null;
+  const base = String(value).trim().toLowerCase().split('.')[0].replace('_', '-');
+  return SUPPORTED_LANGS.includes(base) ? base : null;
+}
 
 /**
  * /start コマンドハンドラー
@@ -57,7 +64,8 @@ For educational purposes only. Not financial advice.`;
     }
 
     // 無料版ユーザーとして登録
-    const added = await addFreeUser(chatId);
+    const defaultLang = normalizeLang(process.env.LANG || 'en') || 'en';
+    const added = await addFreeUser(chatId, username, defaultLang);
     
     if (added) {
       const successMessage = `🎉 Welcome to Trap Defense BTC Free!
