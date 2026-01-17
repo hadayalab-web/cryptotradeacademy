@@ -1,4 +1,7 @@
 # GitHub Issue Template: Copilot Review Request
+**最終更新**: 2026-01-17 14:07:03  
+**作成日時**: 2026-01-17 14:07:03  
+**作成日**: 2026-01-17  
 
 ## Issue Title
 ```

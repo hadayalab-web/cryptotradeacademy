@@ -1,4 +1,6 @@
 # Whop API連携テスト結果
+**作成日時**: 2026-01-17 14:07:03  
+**作成日**: 2026-01-17  
 
 **テスト実施日**: 2026-01-27  
 **テスト対象**: Whop API v2 連携機能（Cursor用CLIツール）
@@ -275,4 +277,4 @@ const expand = Array.isArray(args.expand) ? args.expand : (args.expand ? [args.e
 ---
 
 **テスト実施者**: COO (Cursor/Composer 1)  
-**最終更新**: 2026-01-27
+**最終更新**: 2026-01-17 14:07:03

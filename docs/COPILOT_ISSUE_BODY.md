@@ -1,4 +1,7 @@
 # [URGENT] Vercel deployment error - config/marketProfiles not found
+**最終更新**: 2026-01-17 14:07:03  
+**作成日時**: 2026-01-17 14:07:03  
+**作成日**: 2026-01-17  
 
 @copilot 以下のVercelデプロイエラーについて、レビュー・テスト・デバッグをお願いします。
 

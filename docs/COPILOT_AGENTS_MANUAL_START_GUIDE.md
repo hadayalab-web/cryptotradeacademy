@@ -1,4 +1,6 @@
 # GitHub Copilot Agents 手動起動手順 - PR #18
+**最終更新**: 2026-01-17 14:07:03  
+**作成日**: 2026-01-17  
 
 **PR #18**: https://github.com/hadayalab-web/cryptosignal-ai/pull/18
 
@@ -112,5 +114,5 @@ See: `docs/COPILOT_VERCEL_DEBUG_REQUEST_2025-12-25.md`
 
 ---
 
-**作成日時**: 2025-12-25
+**作成日時**: 2026-01-17 14:07:03
 

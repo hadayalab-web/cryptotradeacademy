@@ -1,4 +1,7 @@
 # WhaleShield (CryptoSignal AI)
+**最終更新**: 2026-01-17 14:07:03  
+**作成日時**: 2026-01-17 14:07:03  
+**作成日**: 2026-01-17  
 
 ## Overview
 Automated BTC signal bot that combines on-chain whale data (CryptoQuant) and AI analysis (Grok) to generate high-conviction trading signals and trap alerts.[file:91][file:113]  
