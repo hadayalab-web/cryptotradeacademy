@@ -4,7 +4,7 @@
 
 const { getFreeUsersForVSL1Reminder } = require('../services/free-users/manager');
 
-const VSL1_YOUTUBE_LINK = process.env.VSL1_YOUTUBE_LINK || 'https://youtu.be/zdLFYwFJQd4';
+const VSL1_YOUTUBE_LINK = process.env.VSL1_YOUTUBE_LINK || 'https://youtu.be/fXgVsKhqDjI';
 
 /**
  * VSL1リマインドメッセージを生成（EN版）
@@ -34,7 +34,7 @@ Did you watch the VSL1 video yet? If not, check out this chart:
 async function sendVSL1Reminder() {
   try {
     // 12-24時間経過した無料版ユーザーを取得（VSL2未送信）
-    const freeUsers = getFreeUsersForVSL1Reminder();
+    const freeUsers = await getFreeUsersForVSL1Reminder();
     
     if (freeUsers.length === 0) {
       console.log('ℹ️ No free users to send VSL1 reminder (12-24 hours passed, VSL2 not sent yet)');

@@ -119,13 +119,16 @@ function formatRegularBriefing({
                      trapData.trapSeverity === 'HIGH' || trapData.bugSeverity === 'HIGH' ? '⚠️' :
                      trapData.trapSeverity === 'MEDIUM' || trapData.bugSeverity === 'MEDIUM' ? '⚡' : '💡';
     const trapType = trapData.trapType || trapData.bugType || 'شذوذ';
+    const trapTypeText = trapType.replace(/_/g, ' ');
     const trapScore = trapData.trapScore || trapData.bugScore || 0;
-    lines.push(`🛡️ USP1: دفاع الفخ - ${trapEmoji} ${trapType} (الدرجة: ${trapScore.toFixed(0)}/100)`);
+    lines.push(`🛡️ USP1: دفاع الفخ - ${trapEmoji} ${trapTypeText} (الدرجة: ${trapScore.toFixed(0)}/100)`);
     
     // Display trap alert details if available
     if (trapAlert && trapAlert.alert) {
-      lines.push(`   🚨 نوع التنبيه: ${trapAlert.type} (الشدة: ${trapAlert.severity})`);
-      lines.push(`   💡 التوصية: ${trapAlert.recommendation}`);
+      const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
+      const recommendationText = trapAlert.recommendation ? trapAlert.recommendation.replace(/_/g, '-') : 'UNKNOWN';
+      lines.push(`   🚨 نوع التنبيه: ${alertTypeText} (الشدة: ${trapAlert.severity})`);
+      lines.push(`   💡 التوصية: ${recommendationText}`);
       if (trapAlert.confidence) {
         lines.push(`   📊 الثقة: ${(trapAlert.confidence * 100).toFixed(0)}%`);
       }

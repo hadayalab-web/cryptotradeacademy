@@ -122,13 +122,16 @@ function formatRegularBriefing({
                      trapData.trapSeverity === 'HIGH' || trapData.bugSeverity === 'HIGH' ? '⚠️' :
                      trapData.trapSeverity === 'MEDIUM' || trapData.bugSeverity === 'MEDIUM' ? '⚡' : '💡';
     const trapType = trapData.trapType || trapData.bugType || '이상';
+    const trapTypeText = trapType.replace(/_/g, ' ');
     const trapScore = trapData.trapScore || trapData.bugScore || 0;
-    lines.push(`🛡️ USP1: 트랩 방어 - ${trapEmoji} ${trapType} (점수: ${trapScore.toFixed(0)}/100)`);
+    lines.push(`🛡️ USP1: 트랩 방어 - ${trapEmoji} ${trapTypeText} (점수: ${trapScore.toFixed(0)}/100)`);
     
     // Display trap alert details if available
     if (trapAlert && trapAlert.alert) {
-      lines.push(`   🚨 알림 유형: ${trapAlert.type} (심각도: ${trapAlert.severity})`);
-      lines.push(`   💡 권장사항: ${trapAlert.recommendation}`);
+      const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
+      const recommendationText = trapAlert.recommendation ? trapAlert.recommendation.replace(/_/g, '-') : 'UNKNOWN';
+      lines.push(`   🚨 알림 유형: ${alertTypeText} (심각도: ${trapAlert.severity})`);
+      lines.push(`   💡 권장사항: ${recommendationText}`);
       if (trapAlert.confidence) {
         lines.push(`   📊 신뢰도: ${(trapAlert.confidence * 100).toFixed(0)}%`);
       }
@@ -193,10 +196,12 @@ function formatRegularBriefing({
     } else if (trapDetection || trapAlert) {
       // フォールバック: trapDetectionやtrapAlertから証拠を生成
       if (trapDetection && trapDetection.trapDetected) {
-        lines.push(`🎯 트랩 감지: ${trapDetection.trapType || '이상 감지'} (점수: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
+        const trapTypeText = (trapDetection.trapType || '이상 감지').replace(/_/g, ' ');
+        lines.push(`🎯 트랩 감지: ${trapTypeText} (점수: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
         lines.push(`💡 증거: 온체인 데이터 기반 다중 이상이 감지되었습니다.`);
       } else if (trapAlert && trapAlert.alert) {
-        lines.push(`🚨 트랩 알림: ${trapAlert.type} (심각도: ${trapAlert.severity})`);
+        const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
+        lines.push(`🚨 트랩 알림: ${alertTypeText} (심각도: ${trapAlert.severity})`);
         lines.push(`💡 증거: 온체인 데이터와 센티먼트 분석에 의해 시장 트랩 위험이 감지되었습니다.`);
       }
     }

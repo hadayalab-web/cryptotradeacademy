@@ -1,0 +1,156 @@
+[
+  {
+    "id": "exp_kNjwicRuzMyUve",
+    "experience_type": "has_interface",
+    "name": "TD BTC - Japanese",
+    "description": "",
+    "properties": {
+      "cancel_action": null,
+      "shuffleable": true,
+      "interface_dev_mode": false
+    },
+    "products": [
+      "prod_756mUZhSfLAkL"
+    ],
+    "access_passes": [
+      "prod_756mUZhSfLAkL"
+    ]
+  },
+  {
+    "id": "exp_ccrtkzF9AlC3mr",
+    "experience_type": "has_interface",
+    "name": "TD BTC - Korean",
+    "description": "",
+    "properties": {
+      "cancel_action": null,
+      "shuffleable": true,
+      "interface_dev_mode": false
+    },
+    "products": [
+      "prod_HouQTKTN1F7vD"
+    ],
+    "access_passes": [
+      "prod_HouQTKTN1F7vD"
+    ]
+  },
+  {
+    "id": "exp_o40eOeNVDJ2lur",
+    "experience_type": "has_interface",
+    "name": "TD BTC - Portuguese",
+    "description": "",
+    "properties": {
+      "cancel_action": null,
+      "shuffleable": true,
+      "interface_dev_mode": false
+    },
+    "products": [
+      "prod_Cpz4oQla16GUB"
+    ],
+    "access_passes": [
+      "prod_Cpz4oQla16GUB"
+    ]
+  },
+  {
+    "id": "exp_VTqZLUP9zr0JGN",
+    "experience_type": "has_interface",
+    "name": "TD BTC - Arabic",
+    "description": "",
+    "properties": {
+      "cancel_action": null,
+      "shuffleable": true,
+      "interface_dev_mode": false
+    },
+    "products": [
+      "prod_l4ipnvNhwFpdQ"
+    ],
+    "access_passes": [
+      "prod_l4ipnvNhwFpdQ"
+    ]
+  },
+  {
+    "id": "exp_3pSG4nHHqTW5hb",
+    "experience_type": "has_interface",
+    "name": "TD BTC - Spanish",
+    "description": "",
+    "properties": {
+      "cancel_action": null,
+      "shuffleable": true,
+      "interface_dev_mode": false
+    },
+    "products": [
+      "prod_Eg1V8et0WTg69"
+    ],
+    "access_passes": [
+      "prod_Eg1V8et0WTg69"
+    ]
+  },
+  {
+    "id": "exp_Hhg1ggwaR6aO3T",
+    "experience_type": "has_interface",
+    "name": "TD BTC - English",
+    "description": "",
+    "properties": {
+      "cancel_action": null,
+      "shuffleable": true,
+      "interface_dev_mode": false
+    },
+    "products": [
+      "prod_6RjqaJMGyEw1F"
+    ],
+    "access_passes": [
+      "prod_6RjqaJMGyEw1F"
+    ]
+  },
+  {
+    "id": "exp_unViF2Z8QKhXMm",
+    "experience_type": "has_interface",
+    "name": "Chat",
+    "description": null,
+    "properties": {
+      "cancel_action": null,
+      "shuffleable": true,
+      "interface_dev_mode": false
+    },
+    "products": [],
+    "access_passes": []
+  },
+  {
+    "id": "exp_bDV7AnWGZGZeMt",
+    "experience_type": "has_interface",
+    "name": "Telegram_CSAI – SS (EN)",
+    "description": "",
+    "properties": {
+      "cancel_action": null,
+      "shuffleable": true,
+      "interface_dev_mode": false
+    },
+    "products": [],
+    "access_passes": []
+  },
+  {
+    "id": "exp_GGwCRve0fComaD",
+    "experience_type": "has_interface",
+    "name": "Telegram_CSAI – SS (JA)",
+    "description": "",
+    "properties": {
+      "cancel_action": null,
+      "shuffleable": true,
+      "interface_dev_mode": false
+    },
+    "products": [],
+    "access_passes": []
+  },
+  {
+    "id": "exp_8naLeXfZOaGO57",
+    "experience_type": "has_interface",
+    "name": "Telegram_CSAI – SS (KO)",
+    "description": "",
+    "properties": {
+      "cancel_action": null,
+      "shuffleable": true,
+      "interface_dev_mode": false
+    },
+    "products": [],
+    "access_passes": []
+  }
+]

@@ -3,6 +3,7 @@
 
 const { addFreeUser, isFreeUser, removeFreeUser, getFreeUserCount } = require('../free-users/manager');
 const { sendMessageToUser } = require('./bot');
+const { getWhopUpgradeLink } = require('./whop-links');
 
 /**
  * Telegram Botコマンドを処理する
@@ -48,7 +49,7 @@ async function handleStartCommand(chatId, username, firstName, message) {
 
     // 無料版ユーザーとして登録（ユーザー名も保存）
     const userName = firstName || username || null;
-    const isNewUser = addFreeUser(chatId, userName);
+    const isNewUser = await addFreeUser(chatId, userName);
 
     const welcomeMessage = `🌤️ Welcome to Trap Defense BTC - Free Version!
 
@@ -104,7 +105,7 @@ For educational purposes only. Not financial advice.`;
 async function handleFreeCommand(chatId, username, firstName) {
   try {
     const userName = firstName || username || null;
-    const isNewUser = addFreeUser(chatId, userName);
+    const isNewUser = await addFreeUser(chatId, userName);
 
     const message = isNewUser
       ? `✅ You've been registered for free Trap Defense BTC reports!
@@ -142,7 +143,7 @@ Use /upgrade to unlock full access.`;
  */
 async function handleUpgradeCommand(chatId, username, firstName) {
   try {
-    const whopUpgradeLink = process.env.WHOP_UPGRADE_LINK || process.env.WHOP_PRODUCT_LINK_EN || 'https://whop.com/trap-defense-btc';
+    const whopUpgradeLink = getWhopUpgradeLink();
     // VSL2: バックエンド（有料版コンバージョン用）
     const vslLink = process.env.VSL2_YOUTUBE_LINK || process.env.VSL_YOUTUBE_LINK || '';
 
@@ -220,8 +221,8 @@ For educational purposes only. Not financial advice.`;
  */
 async function handleStatusCommand(chatId, username, firstName) {
   try {
-    const isFree = isFreeUser(chatId);
-    const totalFreeUsers = getFreeUserCount();
+    const isFree = await isFreeUser(chatId);
+    const totalFreeUsers = await getFreeUserCount();
 
     const statusMessage = isFree
       ? `✅ Status: Free Version Active

@@ -1,0 +1,31 @@
+{
+  "description": "Example product description updated via API",
+  "headline": "Example headline updated via API",
+  "product_highlights": [
+    {
+      "content": "Real-time trap detection with AI analysis",
+      "highlightType": "benefit",
+      "title": "AI Trap Detection"
+    },
+    {
+      "content": "Whale movement alerts and exit liquidity tracking",
+      "highlightType": "benefit",
+      "title": "Whale Tracking"
+    },
+    {
+      "content": "Advanced metrics and deep analysis tools",
+      "highlightType": "benefit",
+      "title": "Deep Metrics"
+    },
+    {
+      "content": "Community access and voting rights",
+      "highlightType": "benefit",
+      "title": "Community Access"
+    },
+    {
+      "content": "Partner hub invitation and affiliate opportunities",
+      "highlightType": "benefit",
+      "title": "Partner Hub"
+    }
+  ]
+}

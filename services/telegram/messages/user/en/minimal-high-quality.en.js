@@ -2,6 +2,8 @@
 // services/telegram/messages/user/en/minimal-high-quality.en.js
 // Trap Score + 簡易分析 + 簡易Dr. Grokコメント + Mental Note
 
+const { getWhopUpgradeLink } = require('../../../whop-links');
+
 /**
  * Trap Scoreの説明を取得
  */
@@ -180,7 +182,7 @@ function formatMinimalHighQualityBriefing({
 
   // 【改善1: ニュース番組形式の追加】Openingセクションを追加
   let message = `🌤️ Trap Defense BTC - Free Report
-🚨 [BREAKING: TRAP DEFENCE BRIEFING]
+🚨 BREAKING: TRAP DEFENCE BRIEFING
 📺 【Opening】Market Intelligence Briefing
 📅 ${ts}
 
@@ -273,7 +275,7 @@ ${mentalNote}`;
 
   // CTA（アップセル最適化：開発資金確保のため緊迫感のあるCTA + YouTube VSL）
   // WhopリンクとVSLリンクを環境変数から取得
-  const whopUpgradeLink = process.env.WHOP_UPGRADE_LINK || process.env.WHOP_PRODUCT_LINK_EN || 'https://whop.com/trap-defense-btc';
+  const whopUpgradeLink = getWhopUpgradeLink();
   // VSL2: バックエンド（有料版コンバージョン用）
   const vslLink = process.env.VSL2_YOUTUBE_LINK || process.env.VSL_YOUTUBE_LINK || '';
   
@@ -285,7 +287,7 @@ You're seeing a glimpse. Full members get:
 ✨ Complete Intelligence Report
 • Full on-chain analysis (all indicators)
 • AI-powered market insights & trap detection
-• Real-time alerts: AVOID_LONG / AVOID_SHORT / STANDBY
+• Real-time alerts: AVOID-LONG / AVOID-SHORT / STANDBY
 • Exit Map & Mental Training guidance
 • Full Dr. Grok psychological support
 • Real-time X sentiment analysis

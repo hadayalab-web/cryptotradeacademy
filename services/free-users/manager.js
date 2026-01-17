@@ -1,17 +1,40 @@
 // services/free-users/manager.js
 // 無料版ユーザー管理システム（参加日時・VSL2送信済みフラグ管理）
+// Vercel KV対応（永続化）
 
 const fs = require('fs');
 const path = require('path');
 
-// 無料版ユーザーリストの保存先
+// 無料版ユーザーリストの保存先（フォールバック用）
 const FREE_USERS_FILE = path.join(__dirname, '../../data/free-users.json');
+
+// Vercel KVストレージ（優先）
+let kvStorage = null;
+try {
+  kvStorage = require('./kv-storage');
+} catch (error) {
+  console.warn('[FreeUsers] KV storage not available, using file storage:', error.message);
+}
+
+// ストレージタイプを判定（KVが利用可能かどうか）
+const USE_KV = kvStorage && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
 
 /**
  * 無料版ユーザーリストを読み込む
- * @returns {Array<Object>} ユーザーオブジェクトの配列 {chatId, joinedAt, vsl2Sent}
+ * @returns {Promise<Array<Object>>|Array<Object>} ユーザーオブジェクトの配列 {chatId, joinedAt, vsl2Sent}
  */
-function loadFreeUsers() {
+async function loadFreeUsers() {
+  // Vercel KVが利用可能な場合はKVから読み込む
+  if (USE_KV && kvStorage) {
+    try {
+      return await kvStorage.loadFreeUsers();
+    } catch (error) {
+      console.error('[FreeUsers] KV load failed, falling back to file storage:', error.message);
+      // フォールバック: ファイルストレージにフォールバック
+    }
+  }
+
+  // フォールバック: ファイルストレージ
   try {
     if (fs.existsSync(FREE_USERS_FILE)) {
       const data = fs.readFileSync(FREE_USERS_FILE, 'utf8');
@@ -49,13 +72,42 @@ function loadFreeUsers() {
     console.error('[FreeUsers] Error loading free users:', error.message);
     return [];
   }
+  }
 }
 
 /**
  * 無料版ユーザーリストを保存する
  * @param {Array<Object>} users - ユーザーオブジェクトの配列
+ * @returns {Promise<Array<Object>>|Array<Object>} 保存されたユーザー配列
  */
-function saveFreeUsers(users) {
+async function saveFreeUsers(users) {
+  // 重複を除去（chatIdで）
+  const uniqueUsers = [];
+  const seenChatIds = new Set();
+  for (const user of users) {
+    const chatId = typeof user === 'string' ? user : user.chatId;
+    if (!seenChatIds.has(chatId)) {
+      seenChatIds.add(chatId);
+      uniqueUsers.push(typeof user === 'string' ? {
+        chatId: user,
+        joinedAt: new Date().toISOString(),
+        vsl2Sent: false,
+        vsl2LastCallSent: false
+      } : user);
+    }
+  }
+
+  // Vercel KVが利用可能な場合はKVに保存
+  if (USE_KV && kvStorage) {
+    try {
+      return await kvStorage.saveFreeUsers(uniqueUsers);
+    } catch (error) {
+      console.error('[FreeUsers] KV save failed, falling back to file storage:', error.message);
+      // フォールバック: ファイルストレージにフォールバック
+    }
+  }
+
+  // フォールバック: ファイルストレージ
   try {
     // ディレクトリが存在しない場合は作成
     const dir = path.dirname(FREE_USERS_FILE);
@@ -63,24 +115,8 @@ function saveFreeUsers(users) {
       fs.mkdirSync(dir, { recursive: true });
     }
     
-    // 重複を除去（chatIdで）
-    const uniqueUsers = [];
-    const seenChatIds = new Set();
-    for (const user of users) {
-      const chatId = typeof user === 'string' ? user : user.chatId;
-      if (!seenChatIds.has(chatId)) {
-        seenChatIds.add(chatId);
-        uniqueUsers.push(typeof user === 'string' ? {
-          chatId: user,
-          joinedAt: new Date().toISOString(),
-          vsl2Sent: false,
-          vsl2LastCallSent: false
-        } : user);
-      }
-    }
-    
     fs.writeFileSync(FREE_USERS_FILE, JSON.stringify(uniqueUsers, null, 2), 'utf8');
-    console.log(`[FreeUsers] Saved ${uniqueUsers.length} free users`);
+    console.log(`[FreeUsers] Saved ${uniqueUsers.length} free users to file`);
     return uniqueUsers;
   } catch (error) {
     console.error('[FreeUsers] Error saving free users:', error.message);
@@ -92,15 +128,15 @@ function saveFreeUsers(users) {
  * 無料版ユーザーを追加する
  * @param {string} chatId - TelegramチャットID
  * @param {string} userName - ユーザー名（オプション）
- * @returns {boolean} 追加に成功したかどうか（新規ユーザーの場合true）
+ * @returns {Promise<boolean>} 追加に成功したかどうか（新規ユーザーの場合true）
  */
-function addFreeUser(chatId, userName = null) {
+async function addFreeUser(chatId, userName = null) {
   if (!chatId) {
     console.warn('[FreeUsers] Invalid chatId:', chatId);
     return false;
   }
   
-  const users = loadFreeUsers();
+  const users = await loadFreeUsers();
   const existingUserIndex = users.findIndex(u => (typeof u === 'string' ? u : u.chatId) === chatId);
   
   if (existingUserIndex === -1) {
@@ -112,7 +148,7 @@ function addFreeUser(chatId, userName = null) {
         vsl2LastCallSent: false,
         userName: userName || null
       });
-    saveFreeUsers(users);
+    await saveFreeUsers(users);
     console.log(`[FreeUsers] Added free user: ${chatId} (joinedAt: ${new Date().toISOString()})`);
     return true;
   } else {
@@ -125,18 +161,18 @@ function addFreeUser(chatId, userName = null) {
 /**
  * 無料版ユーザーを削除する（有料版にアップグレードした場合など）
  * @param {string} chatId - TelegramチャットID
- * @returns {boolean} 削除に成功したかどうか
+ * @returns {Promise<boolean>} 削除に成功したかどうか
  */
-function removeFreeUser(chatId) {
+async function removeFreeUser(chatId) {
   if (!chatId) {
     return false;
   }
   
-  const users = loadFreeUsers();
+  const users = await loadFreeUsers();
   const index = users.findIndex(u => (typeof u === 'string' ? u : u.chatId) === chatId);
   if (index !== -1) {
     users.splice(index, 1);
-    saveFreeUsers(users);
+    await saveFreeUsers(users);
     console.log(`[FreeUsers] Removed free user: ${chatId}`);
     return true;
   }
@@ -146,31 +182,32 @@ function removeFreeUser(chatId) {
 /**
  * 無料版ユーザーかどうかを確認する
  * @param {string} chatId - TelegramチャットID
- * @returns {boolean}
+ * @returns {Promise<boolean>}
  */
-function isFreeUser(chatId) {
+async function isFreeUser(chatId) {
   if (!chatId) {
     return false;
   }
-  const users = loadFreeUsers();
+  const users = await loadFreeUsers();
   return users.some(u => (typeof u === 'string' ? u : u.chatId) === chatId);
 }
 
 /**
  * 無料版ユーザーの総数を取得する
- * @returns {number}
+ * @returns {Promise<number>}
  */
-function getFreeUserCount() {
-  return loadFreeUsers().length;
+async function getFreeUserCount() {
+  const users = await loadFreeUsers();
+  return users.length;
 }
 
 /**
  * 24時間経過した無料版ユーザーを取得（VSL2未送信）
  * Gemini CMO提案: 48時間→24時間に短縮（ユーザーの熱量が高いうちにアプローチ）
- * @returns {Array<Object>} {chatId, joinedAt, userName}
+ * @returns {Promise<Array<Object>>} {chatId, joinedAt, userName}
  */
-function getFreeUsersForVSL2() {
-  const users = loadFreeUsers();
+async function getFreeUsersForVSL2() {
+  const users = await loadFreeUsers();
   const now = new Date();
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 48時間→24時間に変更
   
@@ -206,10 +243,10 @@ function getFreeUsersForVSL2() {
 /**
  * 12-24時間経過した無料版ユーザーを取得（VSL1リマインド対象）
  * Gemini CMO提案: 12時間後にリマインドメッセージを送信
- * @returns {Array<Object>} {chatId, joinedAt, userName}
+ * @returns {Promise<Array<Object>>} {chatId, joinedAt, userName}
  */
-function getFreeUsersForVSL1Reminder() {
-  const users = loadFreeUsers();
+async function getFreeUsersForVSL1Reminder() {
+  const users = await loadFreeUsers();
   const now = new Date();
   const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -248,10 +285,10 @@ function getFreeUsersForVSL1Reminder() {
 /**
  * 22時間経過した無料版ユーザーを取得（VSL2 Last Call対象）
  * Gemini CMO提案: 24時間経過の2時間前（22時間後）に通知を送信
- * @returns {Array<Object>} {chatId, joinedAt, userName}
+ * @returns {Promise<Array<Object>>} {chatId, joinedAt, userName}
  */
-function getFreeUsersForVSL2LastCall() {
-  const users = loadFreeUsers();
+async function getFreeUsersForVSL2LastCall() {
+  const users = await loadFreeUsers();
   const now = new Date();
   const twentyTwoHoursAgo = new Date(now.getTime() - 22 * 60 * 60 * 1000); // 22時間前
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24時間前
@@ -293,14 +330,14 @@ function getFreeUsersForVSL2LastCall() {
 /**
  * VSL2送信済みフラグを設定
  * @param {string} chatId - TelegramチャットID
- * @returns {boolean} 更新に成功したかどうか
+ * @returns {Promise<boolean>} 更新に成功したかどうか
  */
-function markVSL2Sent(chatId) {
+async function markVSL2Sent(chatId) {
   if (!chatId) {
     return false;
   }
   
-  const users = loadFreeUsers();
+  const users = await loadFreeUsers();
   const userIndex = users.findIndex(u => (typeof u === 'string' ? u : u.chatId) === chatId);
   
   if (userIndex !== -1) {
@@ -319,7 +356,7 @@ function markVSL2Sent(chatId) {
         users[userIndex].vsl2LastCallSent = false;
       }
     }
-    saveFreeUsers(users);
+    await saveFreeUsers(users);
     console.log(`[FreeUsers] Marked VSL2 sent for user: ${chatId}`);
     return true;
   }
@@ -331,14 +368,14 @@ function markVSL2Sent(chatId) {
  * VSL2 Last Call送信済みフラグを設定
  * Gemini CMO提案: Last Call送信済みフラグを管理
  * @param {string} chatId - TelegramチャットID
- * @returns {boolean} 更新に成功したかどうか
+ * @returns {Promise<boolean>} 更新に成功したかどうか
  */
-function markVSL2LastCallSent(chatId) {
+async function markVSL2LastCallSent(chatId) {
   if (!chatId) {
     return false;
   }
   
-  const users = loadFreeUsers();
+  const users = await loadFreeUsers();
   const userIndex = users.findIndex(u => (typeof u === 'string' ? u : u.chatId) === chatId);
   
   if (userIndex !== -1) {
@@ -357,7 +394,7 @@ function markVSL2LastCallSent(chatId) {
         users[userIndex].vsl2Sent = false;
       }
     }
-    saveFreeUsers(users);
+    await saveFreeUsers(users);
     console.log(`[FreeUsers] Marked VSL2 Last Call sent for user: ${chatId}`);
     return true;
   }

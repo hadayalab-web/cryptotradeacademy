@@ -81,7 +81,8 @@ function formatRegularBriefing({
       const trapEmoji = trapSeverity === 'CRITICAL' ? '🚨' :
                         trapSeverity === 'HIGH' ? '⚠️' :
                         trapSeverity === 'MEDIUM' ? '⚡' : '💡';
-      trapLine = `${trapEmoji} Trap Detector: ${trapDetection.trapType || 'Trap'} detected (Severity: ${trapSeverity}, Score: ${trapScore}/100)`;
+      const trapTypeLabel = (trapDetection.trapType || 'Trap').replace(/_/g, ' ');
+      trapLine = `${trapEmoji} Trap Detector: ${trapTypeLabel} detected (Severity: ${trapSeverity}, Score: ${trapScore}/100)`;
     }
   } else if (trap?.isTrap) {
     trapLine = `🧨 Trap Detector: ${trap.label || 'Potential trap'} (*${trap.confidence}* confidence)`;
@@ -198,8 +199,10 @@ function formatRegularBriefing({
     
     // Display trap alert details if available
     if (trapAlert && trapAlert.alert) {
-      lines.push(`   🚨 Alert Type: ${trapAlert.type} (Severity: ${trapAlert.severity})`);
-      lines.push(`   💡 Recommendation: ${trapAlert.recommendation}`);
+      const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
+      const recommendationText = trapAlert.recommendation ? trapAlert.recommendation.replace(/_/g, '-') : 'UNKNOWN';
+      lines.push(`   🚨 Alert Type: ${alertTypeText} (Severity: ${trapAlert.severity})`);
+      lines.push(`   💡 Recommendation: ${recommendationText}`);
       if (trapAlert.confidence) {
         lines.push(`   📊 Confidence: ${(trapAlert.confidence * 100).toFixed(0)}%`);
       }
@@ -408,7 +411,8 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
         lines.push('');
         if (trapScoreForEvidence !== null && trapScoreForEvidence >= 30) {
           const trapScoreRounded = Math.round(trapScoreForEvidence);
-          lines.push(`💡 Action (Evidence-Based): Trap Score ${trapScoreRounded}/100 indicates ${trapScoreRounded >= 70 ? 'strong' : 'moderate'} trap risk.`);
+          const trapRiskLabel = trapScoreRounded >= 70 ? 'strong' : trapScoreRounded >= 50 ? 'moderate' : 'low';
+          lines.push(`💡 Action (Evidence-Based): Trap Score ${trapScoreRounded}/100 indicates ${trapRiskLabel} trap risk.`);
           lines.push(`   🛡️ Set alerts and step away. The best trade is often the one you don't make.`);
           lines.push(`   📊 Strategic preparation is victory preparation, not weakness. 70% of the time, prepare for victory.`);
         } else {

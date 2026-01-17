@@ -131,10 +131,11 @@ function formatRegularBriefing({
     const trapSeverity = trapData.trapSeverity || trapData.bugSeverity;
     const trapScore = trapData.trapScore || trapData.bugScore;
     const trapType = trapData.trapType || trapData.bugType;
+    const trapTypeText = (trapType || '異常検知').replace(/_/g, ' ');
     const trapEmoji = trapSeverity === 'CRITICAL' ? '🚨' :
                      trapSeverity === 'HIGH' ? '⚠️' :
                      trapSeverity === 'MEDIUM' ? '⚡' : '💡';
-    lines.push(`🛡️ USP1: トラップ防御 - ${trapEmoji} ${trapType || '異常検知'} (スコア: ${trapScore.toFixed(0)}/100)`);
+    lines.push(`🛡️ USP1: トラップ防御 - ${trapEmoji} ${trapTypeText} (スコア: ${trapScore.toFixed(0)}/100)`);
     
     // スコア算出根拠（components）を表示
     const details = trapData.details || {};
@@ -170,7 +171,8 @@ function formatRegularBriefing({
       const alertEmoji = trapAlert.severity === 'CRITICAL' ? '🚨' :
                         trapAlert.severity === 'HIGH' ? '⚠️' :
                         trapAlert.severity === 'MEDIUM' ? '⚡' : '💡';
-      lines.push(`   ${alertEmoji} トラップアラート: ${trapAlert.type} (深刻度: ${trapAlert.severity})`);
+      const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
+      lines.push(`   ${alertEmoji} トラップアラート: ${alertTypeText} (深刻度: ${trapAlert.severity})`);
       if (trapAlert.recommendation && trapAlert.recommendation !== 'NONE') {
         const recText = trapAlert.recommendation === 'AVOID_LONG' ? 'ロング回避 - 待機推奨' :
                        trapAlert.recommendation === 'AVOID_SHORT' ? 'ショート回避 - 待機推奨' :
@@ -225,10 +227,12 @@ function formatRegularBriefing({
     } else if (trapDetection || trapAlert) {
       // フォールバック: trapDetectionやtrapAlertから証拠を生成
       if (trapDetection && trapDetection.trapDetected) {
-        lines.push(`🎯 トラップ検知: ${trapDetection.trapType || '異常検知'} (スコア: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
+        const trapTypeText = (trapDetection.trapType || '異常検知').replace(/_/g, ' ');
+        lines.push(`🎯 トラップ検知: ${trapTypeText} (スコア: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
         lines.push(`💡 証拠: オンチェーンデータに基づく複数の異常が検知されました。`);
       } else if (trapAlert && trapAlert.alert) {
-        lines.push(`🚨 トラップアラート: ${trapAlert.type} (深刻度: ${trapAlert.severity})`);
+        const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
+        lines.push(`🚨 トラップアラート: ${alertTypeText} (深刻度: ${trapAlert.severity})`);
         lines.push(`💡 証拠: オンチェーンデータとセンチメント分析により、市場のトラップリスクが検知されました。`);
       }
     }

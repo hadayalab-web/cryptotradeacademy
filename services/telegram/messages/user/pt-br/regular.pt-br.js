@@ -119,13 +119,16 @@ function formatRegularBriefing({
                      trapData.trapSeverity === 'HIGH' || trapData.bugSeverity === 'HIGH' ? '⚠️' :
                      trapData.trapSeverity === 'MEDIUM' || trapData.bugSeverity === 'MEDIUM' ? '⚡' : '💡';
     const trapType = trapData.trapType || trapData.bugType || 'Anomalia';
+    const trapTypeText = trapType.replace(/_/g, ' ');
     const trapScore = trapData.trapScore || trapData.bugScore || 0;
-    lines.push(`🛡️ USP1: Defesa de Armadilhas - ${trapEmoji} ${trapType} (Pontuação: ${trapScore.toFixed(0)}/100)`);
+    lines.push(`🛡️ USP1: Defesa de Armadilhas - ${trapEmoji} ${trapTypeText} (Pontuação: ${trapScore.toFixed(0)}/100)`);
     
     // Display trap alert details if available
     if (trapAlert && trapAlert.alert) {
-      lines.push(`   🚨 Tipo de Alerta: ${trapAlert.type} (Severidade: ${trapAlert.severity})`);
-      lines.push(`   💡 Recomendação: ${trapAlert.recommendation}`);
+      const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
+      const recommendationText = trapAlert.recommendation ? trapAlert.recommendation.replace(/_/g, '-') : 'UNKNOWN';
+      lines.push(`   🚨 Tipo de Alerta: ${alertTypeText} (Severidade: ${trapAlert.severity})`);
+      lines.push(`   💡 Recomendação: ${recommendationText}`);
       if (trapAlert.confidence) {
         lines.push(`   📊 Confiança: ${(trapAlert.confidence * 100).toFixed(0)}%`);
       }

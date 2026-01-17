@@ -18,6 +18,7 @@
         "test:vsl1-reminder": "node scripts/test-vsl1-reminder.js",
         "test:vsl2-last-call": "node scripts/test-vsl2-last-call.js",
         "test:add-free-user": "node scripts/test-add-free-user.js",
+        "test:x-post": "node scripts/test-x-post.js",
         "monitor": "node scripts/monitor_process.js",
         "backtest:dummy": "node scripts/backtest/eval_signals.js --input=data/signals_log_dummy.jsonl --output=data/signals_backtest_dummy.jsonl",
         "summary:dummy": "node scripts/backtest/summarize_backtest.js --input=data/signals_backtest_dummy.jsonl",
@@ -36,9 +37,11 @@
     },
     "dependencies": {
         "@vercel/kv": "^0.2.1",
+        "crypto": "^1.0.1",
         "date-fns-tz": "^2.0.0",
         "dotenv": "^16.6.1",
         "node-cron": "^3.0.0",
+        "oauth-1.0a": "^2.2.6",
         "openai": "^6.9.1",
         "p-retry": "^6.0.0",
         "resend": "^6.7.0"

@@ -1,0 +1,70 @@
+[
+  {
+    "id": "promo_kg5pOJdZpngW",
+    "plans": [
+      "plan_SatV2J5R7gvHn",
+      "plan_L1xVv19322pC3",
+      "plan_CKOj1QCfnlr1j"
+    ],
+    "amount_off": "50.0",
+    "base_currency": "usd",
+    "code": "defend50",
+    "new_users_only": false,
+    "number_of_intervals": 1,
+    "plan_ids": [
+      "plan_SatV2J5R7gvHn",
+      "plan_L1xVv19322pC3",
+      "plan_CKOj1QCfnlr1j"
+    ],
+    "promo_type": "percentage",
+    "status": "active",
+    "stock": 50,
+    "unlimited_stock": false,
+    "uses": 0,
+    "created_at": 1768384973,
+    "expiration_datetime": 1769785200,
+    "metadata": {},
+    "duration": "once",
+    "existing_memberships_only": false
+  },
+  {
+    "id": "promo_Bo6R8xGzHsew",
+    "plans": [],
+    "amount_off": "50.0",
+    "base_currency": "usd",
+    "code": "defend50",
+    "new_users_only": false,
+    "number_of_intervals": 1,
+    "plan_ids": [],
+    "promo_type": "percentage",
+    "status": "archived",
+    "stock": 50,
+    "unlimited_stock": false,
+    "uses": 0,
+    "created_at": 1768384744,
+    "expiration_datetime": null,
+    "metadata": {},
+    "duration": "once",
+    "existing_memberships_only": false
+  },
+  {
+    "id": "promo_9ziVFc08cfdr",
+    "plans": [],
+    "amount_off": "50.0",
+    "base_currency": "usd",
+    "code": "founding50",
+    "new_users_only": false,
+    "number_of_intervals": 0,
+    "plan_ids": [],
+    "promo_type": "flat_amount",
+    "status": "archived",
+    "stock": 0,
+    "unlimited_stock": true,
+    "uses": 0,
+    "created_at": 1763556022,
+    "expiration_datetime": null,
+    "metadata": {},
+    "duration": "forever",
+    "existing_memberships_only": false
+  }
+]

@@ -3,6 +3,7 @@
 
 const { addFreeUser, isFreeUser, removeFreeUser } = require('../free-users/manager');
 const { sendMessageToAsset } = require('./bot');
+const { getWhopUpgradeLink } = require('./whop-links');
 
 /**
  * /start コマンドハンドラー
@@ -42,7 +43,7 @@ For educational purposes only. Not financial advice.`;
 async function handleFreeCommand(chatId, username = null) {
   try {
     // 既に登録済みかチェック
-    if (isFreeUser(chatId)) {
+    if (await isFreeUser(chatId)) {
       const alreadyRegisteredMessage = `✅ You're already registered for free reports!
 
 You'll receive daily Trap Score reports and market insights.
@@ -56,7 +57,7 @@ For educational purposes only. Not financial advice.`;
     }
 
     // 無料版ユーザーとして登録
-    const added = addFreeUser(chatId);
+    const added = await addFreeUser(chatId);
     
     if (added) {
       const successMessage = `🎉 Welcome to Trap Defense BTC Free!
@@ -93,6 +94,7 @@ For educational purposes only. Not financial advice.`;
  * 有料版へのアップグレードを案内
  */
 async function handleUpgradeCommand(chatId, username = null) {
+  const whopUpgradeLink = getWhopUpgradeLink();
   const upgradeMessage = `🚀 Upgrade to Full Intelligence Report
 
 Unlock complete market intelligence:
@@ -108,8 +110,8 @@ Unlock complete market intelligence:
 💡 Why Upgrade?
 The difference between protecting capital and losing it is often just one missed trap signal.
 
-🎯 Start Your 1-Day Free Trial
-→ Upgrade now: https://whop.com/trap-defense-btc
+🎯 Upgrade Now
+→ Upgrade now: ${whopUpgradeLink}
 $69/month • Cancel anytime
 
 For educational purposes only. Not financial advice.`;

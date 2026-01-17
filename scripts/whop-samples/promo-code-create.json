@@ -1,0 +1,9 @@
+{
+  "code": "DEFEND50",
+  "promo_type": "percentage",
+  "amount_off": 50,
+  "base_currency": "usd",
+  "unlimited_stock": true,
+  "one_per_customer": true,
+  "new_users_only": true
+}
