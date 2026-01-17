@@ -274,11 +274,36 @@ async function main() {
   
   if (result && result.latestDeployment) {
     await checkVSLEndpoints(result.latestDeployment.url);
+    
+    // デプロイメント完了報告をCEOに送信（オプション）
+    const sendReport = process.argv.includes('--send-ceo-report');
+    if (sendReport) {
+      try {
+        const { sendDeploymentReport } = require('../services/email/ceo-report');
+        const changes = [
+          'VSLリンク順番修正（VSL1: OqvqngJOiXc → VSL2: fXgVsKhqDjI）',
+          'CEO報告メール機能追加',
+          'ドキュメント日付フォーマット標準化',
+        ];
+        
+        await sendDeploymentReport({
+          deploymentId: result.latestDeployment.uid,
+          url: `https://${result.latestDeployment.url}`,
+          status: result.latestDeployment.readyState,
+          changes,
+        });
+        
+        console.log('\n✅ CEO報告メール送信完了');
+      } catch (error) {
+        console.warn('\n⚠️  CEO報告メール送信失敗:', error.message);
+      }
+    }
   }
 
   console.log('='.repeat(80));
   console.log('📋 確認完了');
   console.log('='.repeat(80));
+  console.log('\n💡 CEO報告メールを送信する場合: node scripts/check-vercel-api.js --send-ceo-report');
 }
 
 if (require.main === module) {
