@@ -108,11 +108,11 @@ function formatRegularBriefing({
   if (rrLine) lines.push(rrLine);
   lines.push('');
 
-  // ===== 【USPハイライト】3つの独自機能 =====
-  lines.push('✨ Destaques de hoje (3 USPs)');
+  // ===== 【コア機能ハイライト】3つの強み =====
+  lines.push('✨ Destaques de hoje (3 Características Principais)');
   lines.push('');
   
-  // USP1: Trap Defense (prioritize trapDetection, fallback to marketBug for backward compatibility)
+  // Core Feature 1: Trap Defense (prioritize trapDetection, fallback to marketBug for backward compatibility)
   const trapData = trapDetection || marketBug;
   if (trapData && (trapData.trapDetected || trapData.bugDetected)) {
     const trapEmoji = trapData.trapSeverity === 'CRITICAL' || trapData.bugSeverity === 'CRITICAL' ? '🚨' :
@@ -121,7 +121,7 @@ function formatRegularBriefing({
     const trapType = trapData.trapType || trapData.bugType || 'Anomalia';
     const trapTypeText = trapType.replace(/_/g, ' ');
     const trapScore = trapData.trapScore || trapData.bugScore || 0;
-    lines.push(`🛡️ USP1: Defesa de Armadilhas - ${trapEmoji} ${trapTypeText} (Pontuação: ${trapScore.toFixed(0)}/100)`);
+    lines.push(`🛡️ Característica Principal 1: Defesa de Armadilhas - ${trapEmoji} ${trapTypeText} (Pontuação: ${trapScore.toFixed(0)}/100)`);
     
     // Display trap alert details if available
     if (trapAlert && trapAlert.alert) {
@@ -134,7 +134,7 @@ function formatRegularBriefing({
       }
     }
   } else {
-    lines.push('🛡️ USP1: Defesa de Armadilhas - Nenhuma armadilha detectada atualmente');
+    lines.push('🛡️ Característica Principal 1: Defesa de Armadilhas - Nenhuma armadilha detectada atualmente');
   }
   
   // ===== 【ニュース番組構造】オープニング → データ → 解説 → コメンテーター → クロージング =====

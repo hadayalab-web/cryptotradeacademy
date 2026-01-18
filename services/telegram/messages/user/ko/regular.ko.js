@@ -111,11 +111,11 @@ function formatRegularBriefing({
   if (rrLine) lines.push(rrLine);
   lines.push('');
 
-  // ===== 【USPハイライト】3つの独自機能 =====
-  lines.push('✨ 오늘의 하이라이트 (3 USPs)');
+  // ===== 【コア機能ハイライト】3つの強み =====
+  lines.push('✨ 오늘의 하이라이트 (3가지 핵심 기능)');
   lines.push('');
   
-  // USP1: Trap Defense (prioritize trapDetection, fallback to marketBug for backward compatibility)
+  // Core Feature 1: Trap Defense (prioritize trapDetection, fallback to marketBug for backward compatibility)
   const trapData = trapDetection || marketBug;
   if (trapData && (trapData.trapDetected || trapData.bugDetected)) {
     const trapEmoji = trapData.trapSeverity === 'CRITICAL' || trapData.bugSeverity === 'CRITICAL' ? '🚨' :
@@ -124,7 +124,7 @@ function formatRegularBriefing({
     const trapType = trapData.trapType || trapData.bugType || '이상';
     const trapTypeText = trapType.replace(/_/g, ' ');
     const trapScore = trapData.trapScore || trapData.bugScore || 0;
-    lines.push(`🛡️ USP1: 트랩 방어 - ${trapEmoji} ${trapTypeText} (점수: ${trapScore.toFixed(0)}/100)`);
+    lines.push(`🛡️ 핵심 기능 1: 트랩 방어 - ${trapEmoji} ${trapTypeText} (점수: ${trapScore.toFixed(0)}/100)`);
     
     // Display trap alert details if available
     if (trapAlert && trapAlert.alert) {
@@ -137,7 +137,7 @@ function formatRegularBriefing({
       }
     }
   } else {
-    lines.push('🛡️ USP1: 트랩 방어 - 현재 감지된 트랩 없음');
+    lines.push('🛡️ 핵심 기능 1: 트랩 방어 - 현재 감지된 트랩 없음');
   }
   
   // ===== 【ニュース番組構造】オープニング → データ → 解説 → コメンテーター → クロージング =====

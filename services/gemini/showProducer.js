@@ -57,13 +57,13 @@ async function generateShowScript(options = {}) {
       ar: 'نفهم خوفك من فقدان رأس المال. لقد كنا هناك.',
     }[lang] || 'We understand your fear of losing capital.',
     authority: {
-      en: 'USP1: Trap Defense Engine | USP2: Gemini Content | USP3: GPT Mental Trainer + Dr. Grok',
-      ja: 'USP1: トラップ防御エンジン | USP2: Geminiコンテンツ | USP3: GPTメンタルトレーナー + Dr. Grok',
-      ko: 'USP1: 함정 방어 엔진 | USP2: Gemini 콘텐츠 | USP3: GPT 멘탈 트레이너 + Dr. Grok',
-      es: 'USP1: Motor de Defensa de Trampas | USP2: Contenido Gemini | USP3: Entrenador Mental GPT + Dr. Grok',
-      'pt-br': 'USP1: Motor de Defesa de Armadilhas | USP2: Conteúdo Gemini | USP3: Treinador Mental GPT + Dr. Grok',
-      ar: 'USP1: محرك الدفاع عن الفخاخ | USP2: محتوى Gemini | USP3: مدرب عقلي GPT + Dr. Grok',
-    }[lang] || 'USP1: Trap Defense Engine | USP2: Gemini Content | USP3: GPT Mental Trainer + Dr. Grok',
+      en: 'Core Feature 1: Trap Defense Engine | Core Feature 2: Gemini Content | Core Feature 3: GPT Mental Trainer + Dr. Grok',
+      ja: 'コア機能1: トラップ防御エンジン | コア機能2: Geminiコンテンツ | コア機能3: GPTメンタルトレーナー + Dr. Grok',
+      ko: '핵심 기능 1: 함정 방어 엔진 | 핵심 기능 2: Gemini 콘텐츠 | 핵심 기능 3: GPT 멘탈 트레이너 + Dr. Grok',
+      es: 'Característica Principal 1: Motor de Defensa de Trampas | Característica Principal 2: Contenido Gemini | Característica Principal 3: Entrenador Mental GPT + Dr. Grok',
+      'pt-br': 'Característica Principal 1: Motor de Defesa de Armadilhas | Característica Principal 2: Conteúdo Gemini | Característica Principal 3: Treinador Mental GPT + Dr. Grok',
+      ar: 'الميزة الأساسية 1: محرك الدفاع عن الفخاخ | الميزة الأساسية 2: محتوى Gemini | الميزة الأساسية 3: مدرب عقلي GPT + Dr. Grok',
+    }[lang] || 'Core Feature 1: Trap Defense Engine | Core Feature 2: Gemini Content | Core Feature 3: GPT Mental Trainer + Dr. Grok',
   };
 
   // 4. 計画の提示

@@ -121,11 +121,11 @@ function formatRegularBriefing({
   if (rrLine) lines.push(rrLine);
   lines.push('');
 
-  // ===== 【USPハイライト】3つの独自機能 =====
-  lines.push('✨ 本日のハイライト (3つのUSP)');
+  // ===== 【コア機能ハイライト】3つの強み =====
+  lines.push('✨ 本日のハイライト (3つのコア機能)');
   lines.push('');
   
-  // USP1: トラップ防御（透明性向上：スコア算出根拠を表示）
+  // Core Feature 1: トラップ防御（透明性向上：スコア算出根拠を表示）
   const trapData = trapDetection || marketBug; // 後方互換性
   if (trapData && (trapData.trapDetected || trapData.bugDetected)) {
     const trapSeverity = trapData.trapSeverity || trapData.bugSeverity;
@@ -135,7 +135,7 @@ function formatRegularBriefing({
     const trapEmoji = trapSeverity === 'CRITICAL' ? '🚨' :
                      trapSeverity === 'HIGH' ? '⚠️' :
                      trapSeverity === 'MEDIUM' ? '⚡' : '💡';
-    lines.push(`🛡️ USP1: トラップ防御 - ${trapEmoji} ${trapTypeText} (スコア: ${trapScore.toFixed(0)}/100)`);
+    lines.push(`🛡️ コア機能1: トラップ防御 - ${trapEmoji} ${trapTypeText} (スコア: ${trapScore.toFixed(0)}/100)`);
     
     // スコア算出根拠（components）を表示
     const details = trapData.details || {};
@@ -182,7 +182,7 @@ function formatRegularBriefing({
       lines.push(`   📊 確度: ${(trapAlert.confidence * 100).toFixed(0)}%`);
     }
   } else {
-    lines.push('🛡️ USP1: トラップ防御 - 現在トラップは検知されていません');
+    lines.push('🛡️ コア機能1: トラップ防御 - 現在トラップは検知されていません');
   }
   
   // ===== 【ニュース番組構造】オープニング → データ → 解説 → コメンテーター → クロージング =====
