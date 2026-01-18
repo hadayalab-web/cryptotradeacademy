@@ -243,6 +243,7 @@ async function generateImage(prompt, aspectRatio = '16:9') {
       console.warn('[Gemini ImageGenerator] API key not provided');
       return null;
     }
+    // モデルは nano-banana-pro (Imagen 3) を使用
     return await callGeminiImageAPI(prompt, apiKey, 'nano-banana-pro', aspectRatio);
   } catch (error) {
     console.error('[Gemini ImageGenerator] Error generating image:', error);
@@ -250,8 +251,50 @@ async function generateImage(prompt, aspectRatio = '16:9') {
   }
 }
 
+/**
+ * 風刺画風（Editorial Cartoon）のサムネイル画像を生成
+ * 世界共通のコンテンツとして、知的でウィットに富んだ風刺画スタイルを採用
+ * 
+ * @param {string} concept - 画像のコンセプト（例: "Whale Trap", "FOMO Crowd"）
+ * @returns {Promise<string|null>} 生成された画像のData URL
+ */
+async function generateEditorialCartoon(concept) {
+  // スタイル定義: The Economist や The New Yorker 風の知的で詳細な風刺画
+  const style = `
+    Style: High-quality editorial political cartoon style, similar to The Economist or The New Yorker cover illustrations. 
+    Technique: Intricate cross-hatching texture, hand-drawn aesthetic, ink and watercolor feel. 
+    Mood: Satirical, witty, intellectual, dramatic lighting. 
+    Composition: Cinematic perspective, clear visual metaphor.
+    Colors: Muted, sophisticated palette with one or two symbolic accent colors (e.g., Green for greed/money, Red for danger).
+    No text, no labels, purely visual storytelling.
+  `;
+  
+  let subject = "";
+  
+  // コンセプト別の被写体定義
+  switch (concept) {
+    case 'Whale Trap':
+      subject = "A tiny, determined retail trader in a small wooden boat navigating a stormy ocean of financial charts. Below the surface, a gigantic, shadowy Whale (representing market manipulation) is silently opening its massive mouth to swallow the boat along with a glowing 'Green Candle' bait hanging on a hook. The water surface represents the boundary between visible price action and hidden institutional liquidity.";
+      break;
+    case 'FOMO Crowd':
+      subject = "A herd of lemmings dressed in business suits running blindly and enthusiastically towards a cliff edge that looks like a steep drop in a cryptocurrency chart. In the background, sophisticated whales (fat cats in tuxedos) are watching calmly from a safe, luxurious VIP lounge, drinking wine and laughing. The contrast between the chaotic crowd and the calm manipulators.";
+      break;
+    case 'Market Manipulation':
+      subject = "A giant hand emerging from the clouds, moving small trader figures on a chessboard like pawns. The chessboard is made of green and red candlestick patterns. The atmosphere is mysterious and overwhelming.";
+      break;
+    default:
+      subject = `A satirical illustration depicting ${concept} in the cryptocurrency market. Highlighting the disparity between institutional power and individual traders.`;
+  }
+
+  const prompt = `${subject} ${style}`;
+  
+  console.log(`[Gemini ImageGenerator] Generating Editorial Cartoon: ${concept}`);
+  return await generateImage(prompt, '16:9');
+}
+
 module.exports = {
   generateMarketImage,
   generateMarketVideo,
   generateImage,
+  generateEditorialCartoon, // 追加
 };

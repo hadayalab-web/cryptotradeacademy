@@ -7,10 +7,10 @@ const { enqueueLead, dequeueLead, completeLead, failLead, getQueueStats } = requ
 const { HIGH_PRIORITY_KEYWORDS } = require('../services/lead-discovery/keywordMonitor');
 
 /**
- * キーワードからX検索クエリを生成
- * @param {string[]} keywords - キーワード配列
+ * キーワードからGrok検索クエリを生成
+ * @param {string[]} keywords - キーワード配列（未使用、後方互換性のため残す）
  * @param {string} lang - 言語コード
- * @returns {string} X検索クエリ
+ * @returns {string} Grok検索クエリ
  */
 function buildXSearchQuery(keywords, lang = 'en') {
   // 言語別の高優先度キーワードを取得
@@ -19,9 +19,9 @@ function buildXSearchQuery(keywords, lang = 'en') {
   // 高優先度キーワードを優先的に使用（最大5つ）
   const keywordsToUse = langKeywords.slice(0, 5);
   
-  // X検索クエリを構築（OR検索、リツイート除外、言語指定）
-  const queryParts = keywordsToUse.map(kw => `"${kw}"`).join(' OR ');
-  return `${queryParts} -is:retweet lang:${lang}`;
+  // Grokに投げるクエリを構築（自然言語）
+  const keywordList = keywordsToUse.join(', ');
+  return `Find BTC traders on X who are experiencing: ${keywordList}. Look for posts mentioning losses, hacks, FOMO, or fear. Return specific X handles (@username) and tweet content. Language: ${lang}`;
 }
 
 /**
@@ -81,11 +81,10 @@ async function handleLeadDiscovery(req, res) {
         }
       }
       
-      // 2.2 トレンドからリード発見（全世界 + 主要地域）
-      const woeids = [1, 23424856]; // 1 = 全世界、23424856 = 日本
-      for (const woeid of woeids) {
+      // 2.2 Grokでトレンドからリード発見（全言語）
+      for (const lang of languages) {
         try {
-          const trendLeads = await discoverLeadsFromTrends('en', woeid);
+          const trendLeads = await discoverLeadsFromTrends(lang, 1); // woeidは使用しない（Grokが自動判定）
           stats.x.discovered += trendLeads.length;
           
           for (const lead of trendLeads) {

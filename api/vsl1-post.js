@@ -6,7 +6,7 @@
 
 const { sendMessageToAsset, sendPhotoToAsset } = require('../services/telegram/bot');
 const { analyzeXSentimentLive } = require('../services/grok/client');
-const { postTweet } = require('../services/x/client');
+const { postTweet, uploadMedia } = require('../services/x/client');
 const { getXConfigStatus } = require('../services/x/config');
 const { selectVsl1Variant, buildVsl1Tweet } = require('../services/x/vsl1-strategy');
 const { generateVSL1Message } = require('../services/telegram/messages/vsl1');
@@ -278,6 +278,22 @@ async function postVSL1() {
         console.log(`ℹ️ X API not configured, missing: ${xStatus.missing.join(', ')}`);
         results.x = { success: false, error: 'X API credentials missing', missing: xStatus.missing };
       } else {
+        // 画像のアップロード（VSL1用サムネイルがある場合）
+        // Gemini CMO: 風刺画「Whale Trap」を添付してCTR向上を狙う
+        let mediaId = null;
+        if (vsl1ThumbnailDataUrl) {
+          try {
+             // data:image/png;base64,..... からBase64部分のみ抽出
+             const base64Data = vsl1ThumbnailDataUrl.replace(/^data:image\/\w+;base64,/, "");
+             const imageBuffer = Buffer.from(base64Data, 'base64');
+             mediaId = await uploadMedia(imageBuffer);
+             console.log(`✅ VSL1 thumbnail uploaded to X. Media ID: ${mediaId}`);
+          } catch (uploadError) {
+             console.error(`⚠️ Failed to upload VSL1 thumbnail to X: ${uploadError.message}`);
+             // 画像アップロード失敗しても投稿は継続
+          }
+        }
+
         // 多言語投稿が有効な場合、全言語に投稿
         const xLangs = enableMultiLangX ? targetLangs : [getXPostLang(targetLangs)];
         const xResults = [];
@@ -295,18 +311,22 @@ async function postVSL1() {
                 tweet: xPayload.tweet,
                 variant: xPayload.variant,
                 reason: xPayload.reason,
+                hasMedia: !!mediaId
               });
             } else {
-              const tweetResult = await postTweet(xPayload.tweet);
+              // 画像がある場合は mediaIds を渡す
+              const mediaIds = mediaId ? [mediaId] : [];
+              const tweetResult = await postTweet(xPayload.tweet, mediaIds);
               xResults.push({
                 lang: xLang,
                 success: true,
                 tweetId: tweetResult.id,
                 variant: xPayload.variant,
                 reason: xPayload.reason,
+                hasMedia: !!mediaId
               });
               xSuccessCount++;
-              console.log(`✅ VSL1 posted to X (Twitter) [${xLang}]: ${tweetResult.id}`);
+              console.log(`✅ VSL1 posted to X (Twitter) [${xLang}]: ${tweetResult.id} (Media: ${!!mediaId})`);
               
               // レート制限対策（X API: 50投稿/15分）
               if (xLangs.length > 1) {

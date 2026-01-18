@@ -259,6 +259,61 @@ async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market
   }
 }
 
+/**
+ * GrokでXからリードを発見（リード発見専用）
+ * @param {string} prompt - リード発見クエリ
+ * @param {string} lang - 言語コード
+ * @returns {Promise<Object>} リード情報を含むJSON
+ */
+async function discoverLeadsOnX(prompt, lang = 'en') {
+  if (!XAI_API_KEY) {
+    return { sources: [], summary: 'Grok offline' };
+  }
+
+  const targetLang = (lang || 'en').toLowerCase();
+  const modelToUse = GROK_MODEL_X_LIVE;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: modelToUse,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are "Dr. Grok", scanning X (Twitter) to find BTC traders who need help. ' +
+            'Find traders who have lost money, been hacked, or are experiencing FOMO/fear. ' +
+            'Return ONLY JSON. No markdown. No code fences. ' +
+            'Schema: {"sources":[{"handle":string,"note":string,"tweetId":string}],"summary":string} ' +
+            'sources: Array of X handles (@username), tweet content (note), and tweet IDs. ' +
+            'tweetId: The numeric tweet ID (required for replying). ' +
+            'If tweet ID is not available, use null. ' +
+            'Focus on finding traders who mention: lost BTC, stolen wallet, hack attack, lost everything, afraid to trade, lost money trading.',
+        },
+        {
+          role: 'user',
+          content:
+            `Task: Find BTC traders on X who need protection/help.\n` +
+            `Language: ${targetLang}\n` +
+            `Query: ${prompt}\n` +
+            `Return specific X handles (@username), tweet content, and tweet IDs. ` +
+            `Focus on traders experiencing losses, hacks, or FOMO.`,
+        },
+      ],
+      max_tokens: 1000,
+      temperature: 0.4,
+    });
+
+    const text = completion?.choices?.[0]?.message?.content?.trim();
+    if (!text) return { sources: [], summary: 'No results' };
+
+    const obj = safeJsonParse(text);
+    return obj || { sources: [], summary: text };
+  } catch (error) {
+    logCompactError('discoverLeadsOnX', error);
+    return { sources: [], summary: 'Error: ' + error.message };
+  }
+}
+
 // ---- X sentiment Live Search ---------------------------------------
 // 目的：X上の雰囲気を「構造化JSON」で返す（後方互換：文字列でもOK）
 async function analyzeXSentimentLive(prompt, lang = 'en') {
@@ -320,6 +375,7 @@ async function analyzeXSentimentLive(prompt, lang = 'en') {
 module.exports = {
   analyzeMarket,
   analyzeXSentimentLive,
+  discoverLeadsOnX, // リード発見専用（Grok X AI API）
   isRateLimitError,
   // Phase 2: 用途別モデルをエクスポート（他のファイルで使用可能）
   GROK_MODEL_MARKET,

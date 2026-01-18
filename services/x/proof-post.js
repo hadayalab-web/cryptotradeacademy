@@ -3,6 +3,8 @@
 
 const { postTweet, uploadMedia } = require('./client');
 const { generateTrapScoreCard } = require('./image-generator');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * 有料版メッセージの一部をマスクして証拠用テキストを生成
@@ -146,15 +148,17 @@ function maskMessageForProof(fullMessage, options = {}) {
  * @param {Object} options.trapAlert - Trap Alert結果
  * @param {string} options.lang - 言語コード（デフォルト: 'en'）
  * @param {string} options.socialProofText - 社会的証明テキスト（オプション）
+ * @param {boolean} options.useCartoon - 風刺画を追加するか（デフォルト: false）
  * @returns {Promise<Object>} 投稿結果 {id, text, url}
  */
 async function postProofToX(fullMessage, options = {}) {
   const maskedText = maskMessageForProof(fullMessage, options);
   
-  let mediaId = null;
+  const mediaIds = [];
+  const { useCartoon = false } = options;
 
+  // 1. Trap Score Card画像を生成・アップロード
   try {
-    // 画像生成とアップロード
     console.log('[X Proof Post] Generating Trap Score Card image...');
     
     const { trapScore, trapDetection } = options;
@@ -179,28 +183,48 @@ async function postProofToX(fullMessage, options = {}) {
         date: dateStr
     });
     
-    console.log('[X Proof Post] Uploading image to X...');
-    mediaId = await uploadMedia(imageBuffer);
-    console.log(`[X Proof Post] Image uploaded successfully. Media ID: ${mediaId}`);
+    console.log('[X Proof Post] Uploading Trap Score Card to X...');
+    const scoreCardMediaId = await uploadMedia(imageBuffer);
+    mediaIds.push(scoreCardMediaId);
+    console.log(`[X Proof Post] Trap Score Card uploaded successfully. Media ID: ${scoreCardMediaId}`);
     
   } catch (imgError) {
-    console.error('[X Proof Post] Image generation/upload failed, proceeding with text only:', imgError.message);
-    // 画像生成失敗でもテキスト投稿は継続する
+    console.error('[X Proof Post] Trap Score Card generation/upload failed:', imgError.message);
+    // スコアカード生成失敗でも続行
+  }
+
+  // 2. 風刺画を追加（オプション）
+  if (useCartoon) {
+    try {
+      const cartoonPath = path.join(process.cwd(), 'public/images/thumbnails/cartoon_manipulation.png');
+      if (fs.existsSync(cartoonPath)) {
+        console.log('[X Proof Post] Loading editorial cartoon...');
+        const cartoonBuffer = fs.readFileSync(cartoonPath);
+        const cartoonMediaId = await uploadMedia(cartoonBuffer);
+        mediaIds.push(cartoonMediaId);
+        console.log(`[X Proof Post] Editorial cartoon uploaded successfully. Media ID: ${cartoonMediaId}`);
+      } else {
+        console.warn('[X Proof Post] Editorial cartoon not found at:', cartoonPath);
+      }
+    } catch (cartoonError) {
+      console.error('[X Proof Post] Editorial cartoon upload failed:', cartoonError.message);
+      // 風刺画アップロード失敗でも続行
+    }
   }
 
   try {
-    const mediaIds = mediaId ? [mediaId] : [];
-    const result = await postTweet(maskedText, mediaIds);
+    const result = await postTweet(maskedText, mediaIds.length > 0 ? mediaIds : undefined);
     const tweetUrl = `https://twitter.com/i/web/status/${result.id}`;
     
-    console.log(`[X Proof Post] Posted successfully: ${tweetUrl}`);
+    console.log(`[X Proof Post] Posted successfully: ${tweetUrl} (Media count: ${mediaIds.length})`);
     
     return {
       id: result.id,
       text: result.text,
       url: tweetUrl,
       maskedText,
-      hasMedia: !!mediaId
+      hasMedia: mediaIds.length > 0,
+      mediaCount: mediaIds.length
     };
   } catch (error) {
     console.error('[X Proof Post] Failed to post:', error.message);

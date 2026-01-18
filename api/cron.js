@@ -162,6 +162,7 @@ const ENABLE_GEMINI_IMAGES = process.env.ENABLE_GEMINI_IMAGES === 'true';
 // COO推奨: Telegram配信に戻す（コスト最適化、運用負荷最小化、即時性の確保）
 const ENABLE_TELEGRAM = process.env.ENABLE_TELEGRAM !== 'false'; // デフォルトでtrue（明示的にfalseにしない限り有効）
 const ENABLE_X_PROOF_POST = process.env.ENABLE_X_PROOF_POST === 'true';
+const X_PROOF_USE_CARTOON = process.env.X_PROOF_USE_CARTOON === 'true'; // 風刺画を追加するか
 const CTA_LINK_REGEX = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
 const SOCIAL_PROOF_BUTTON = {
   inline_keyboard: [[
@@ -1498,6 +1499,7 @@ module.exports = async function handler(req, res) {
                 trapAlert,
                 lang: targetLang,
                 socialProofText,
+                useCartoon: X_PROOF_USE_CARTOON, // 風刺画を追加（環境変数で制御）
               });
             } catch (error) {
               console.error('[X Proof Post] Failed to post proof:', error.message);
