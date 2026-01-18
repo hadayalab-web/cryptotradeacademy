@@ -209,10 +209,174 @@ async function getMe() {
   }
 }
 
+/**
+ * ツイートを検索（X API v2）
+ * @param {string} query - 検索クエリ（Twitter検索構文）
+ * @param {Object} options - 検索オプション
+ * @param {number} options.maxResults - 最大結果数（10-100、デフォルト: 10）
+ * @param {string} options.startTime - 開始時刻（ISO 8601形式、例: "2023-01-01T00:00:00Z"）
+ * @param {string} options.endTime - 終了時刻（ISO 8601形式）
+ * @param {string} options.sinceId - このID以降のツイートを取得
+ * @param {string} options.untilId - このID以前のツイートを取得
+ * @param {string} options.nextToken - ページネーショントークン
+ * @param {string} options.sortOrder - ソート順（"relevancy" | "recency"、デフォルト: "relevancy"）
+ * @returns {Promise<Object>} 検索結果 {data, meta}
+ */
+async function searchTweets(query, options = {}) {
+  if (!query || query.trim().length === 0) {
+    throw new Error('Search query is required');
+  }
+
+  const {
+    maxResults = 10,
+    startTime,
+    endTime,
+    sinceId,
+    untilId,
+    nextToken,
+    sortOrder = 'relevancy',
+  } = options;
+
+  // クエリパラメータを構築
+  const params = new URLSearchParams({
+    query: query.trim(),
+    max_results: Math.min(Math.max(10, maxResults), 100).toString(),
+    'tweet.fields': 'id,text,author_id,created_at,public_metrics,lang',
+    'user.fields': 'id,name,username,public_metrics',
+    'expansions': 'author_id',
+    sort_order: sortOrder,
+  });
+
+  if (startTime) params.append('start_time', startTime);
+  if (endTime) params.append('end_time', endTime);
+  if (sinceId) params.append('since_id', sinceId);
+  if (untilId) params.append('until_id', untilId);
+  if (nextToken) params.append('next_token', nextToken);
+
+  try {
+    const response = await xApiRequest(`/tweets/search/recent?${params.toString()}`);
+    return {
+      data: response.data || [],
+      includes: response.includes || {},
+      meta: response.meta || {},
+    };
+  } catch (error) {
+    console.error('[X API] Failed to search tweets:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * ツイートにリプライを投稿
+ * @param {string} text - リプライ本文
+ * @param {string} inReplyToTweetId - リプライ先のツイートID
+ * @param {string[]} mediaIds - 添付するメディアIDの配列 (オプション)
+ * @returns {Promise<Object>} 投稿結果 {id, text}
+ */
+async function replyToTweet(text, inReplyToTweetId, mediaIds = []) {
+  if (!text || text.trim().length === 0) {
+    throw new Error('Reply text is required');
+  }
+  if (!inReplyToTweetId) {
+    throw new Error('inReplyToTweetId is required');
+  }
+
+  // X API v2の文字数制限は280文字
+  if (text.length > 280) {
+    console.warn(`[X API] Reply text exceeds 280 characters (${text.length}), truncating...`);
+    text = text.substring(0, 277) + '...';
+  }
+
+  const body = {
+    text: text.trim(),
+    reply: {
+      in_reply_to_tweet_id: inReplyToTweetId,
+    },
+  };
+
+  if (mediaIds && mediaIds.length > 0) {
+    body.media = {
+      media_ids: mediaIds
+    };
+  }
+
+  try {
+    const response = await xApiRequest('/tweets', {
+      method: 'POST',
+      body,
+    });
+
+    console.log(`[X API] Reply posted successfully: ${response.data?.id}`);
+    return {
+      id: response.data?.id,
+      text: response.data?.text,
+    };
+  } catch (error) {
+    console.error('[X API] Failed to reply to tweet:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * トレンドを取得（X API v1.1を使用）
+ * @param {number} woeid - Where On Earth ID（1 = 全世界、23424856 = 日本など）
+ * @returns {Promise<Array>} トレンド情報の配列
+ */
+async function getTrends(woeid = 1) {
+  const X_API_BASE_URL_V1 = process.env.X_API_BASE_URL_V1 || 'https://api.twitter.com/1.1';
+  const url = `${X_API_BASE_URL_V1}/trends/place.json`;
+  
+  const method = 'GET';
+  
+  const token = {
+    key: X_API_ACCESS_TOKEN,
+    secret: X_API_ACCESS_TOKEN_SECRET,
+  };
+
+  const requestData = {
+    url: `${url}?id=${woeid}`,
+    method,
+  };
+
+  const authHeader = oauth.toHeader(oauth.authorize(requestData, token));
+
+  const headers = {
+    ...authHeader,
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const response = await fetch(`${url}?id=${woeid}`, {
+      method,
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { detail: errorText };
+      }
+      throw new Error(`X API Error: ${response.status} - ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    return data[0]?.trends || [];
+  } catch (error) {
+    console.error('[X API] Failed to get trends:', error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   xApiRequest,
   postTweet,
+  replyToTweet,
   uploadMedia,
   getUserByUsername,
   getMe,
+  searchTweets,
+  getTrends,
 };

@@ -8,6 +8,9 @@
     { "path": "/api/vsl1-reminder", "schedule": "0 */12 * * *" },
     { "path": "/api/vsl2-last-call", "schedule": "0 * * * *" },
     { "path": "/api/promo-stock-monitor", "schedule": "*/15 * * * *" },
-    { "path": "/api/monthly-engagement-report", "schedule": "0 0 1 * *" }
+    { "path": "/api/monthly-engagement-report", "schedule": "0 0 1 * *" },
+    { "path": "/api/lead-discovery", "schedule": "*/30 * * * *" },
+    { "path": "/api/lead-discovery/process", "schedule": "*/5 * * * *" },
+    { "path": "/api/lead-discovery/dashboard", "schedule": "0 0 * * 0" }
   ]
 }

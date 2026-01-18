@@ -15,24 +15,26 @@ const VSL1_YOUTUBE_LINK = VSL1_YOUTUBE_LINK_RAW;
 
 /**
  * VSL1リマインドメッセージを生成（EN版）
- * Gemini CMO提案: 実績画像を添付するか、短いプッシュメッセージ
+ * FOMO要素を追加: 「24時間限定防御」「今すぐ守れ」メッセージで緊急性を植え付け
  */
 function generateVSL1ReminderMessage(userName = 'there') {
-  return `💡 Quick Reminder, ${userName}!
+  const hoursLeft = Math.floor(Math.random() * 12) + 1; // 1-12時間のランダム
+  
+  return `⏰ URGENT: ${hoursLeft} Hours Left, ${userName}!
 
-Did you watch the VSL1 video yet? If not, check out this chart:
+Did you watch the VSL1 video yet? Time is running out!
 
-📊 Yesterday's Performance:
+🔥 LIMITED TIME DEFENSE:
 • Trap Defence identified a potential trap
-• Users avoided significant losses
+• Users avoided significant losses TODAY
 • Market moved as predicted
 
-🎬 Watch the full story: ${VSL1_YOUTUBE_LINK}
+🎬 Watch NOW before it's too late: ${VSL1_YOUTUBE_LINK}
 
 🚀 Get the trap avoidance logic that pros use (FREE):
 → @TrapDefenceBot /start minimal
 
-⚠️ Don't lose your capital. Watch this 1-minute video before you trade.`;
+⚠️ Don't lose your capital. Watch this 1-minute video NOW - ${hoursLeft} hours left to protect yourself!`;
 }
 
 /**
