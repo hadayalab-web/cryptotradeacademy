@@ -1,11 +1,10 @@
 // services/gemini/showProducer.js
 // Gemini番組プロデューサー（簡素化版）- ストーリーブランド戦略2.0の7つのフレームワークを活用
 // USP2: メール配信ニュースレター形式のテキストベース番組編集長（Editor）
-// 
-// 変更: Veo動画、NanoBanana画像、HeyGenを削除し、テキストベースの簡易版に変更
+// "Legendary Swipes" 搭載
 
-// const { generateMarketImage } = require('./imageGenerator'); // 削除: 画像生成は不要
-// const { generateMarketVideo } = require('./videoGenerator'); // 削除: 動画生成は不要
+const { getRandomSwipe } = require('./swipes');
+const { generateText, escapeForPrompt } = require('../gpt/client');
 
 // キーアイディア: すべてのストーリーに一貫性を与える核となる概念
 const KEY_IDEA = {
@@ -19,14 +18,6 @@ const KEY_IDEA = {
 
 /**
  * ストーリーブランド戦略2.0の7つのフレームワークに基づいて番組スクリプトを生成
- * 
- * @param {Object} options - 番組生成オプション
- * @param {Object} options.marketData - 市場データ
- * @param {Object} options.cryptoQuantData - CryptoQuantオンチェーンデータ
- * @param {Object} options.trapDetection - トラップ検出情報
- * @param {Object} options.psychologicalSupport - 心理サポート情報
- * @param {string} options.lang - 言語コード
- * @returns {Promise<Object>} 番組スクリプト
  */
 async function generateShowScript(options = {}) {
   const {
@@ -52,7 +43,6 @@ async function generateShowScript(options = {}) {
   };
 
   // 2. 問題の特定（悪役）
-  // CryptoQuantデータの構造を確認: Exchange Flows, Market Indicator, Miner Flows, Network Indicator, Fund Data
   const villain = identifyVillain(marketData, cryptoQuantData, trapDetection, psychologicalSupport, lang);
 
   // 3. 導き手の登場（Trap Defense BTC）
@@ -116,7 +106,6 @@ async function generateShowScript(options = {}) {
 
 /**
  * 悪役（問題）を特定
- * ストーリーブランド戦略2.0: 外的問題、内的問題、哲学的問題の3レベル
  */
 function identifyVillain(marketData, cryptoQuantData, trapDetection, psychologicalSupport, lang) {
   const villain = {
@@ -242,8 +231,7 @@ function createCallToAction(lang, keyIdea) {
 }
 
 /**
- * リソースを統合して番組を構成（簡素化版）
- * テキストベースのみ、動画・画像生成は削除
+ * リソースを統合して番組を構成（簡素化版 + Legendary Swipes）
  */
 async function integrateResources(options = {}) {
   const {
@@ -254,7 +242,7 @@ async function integrateResources(options = {}) {
     lang = 'en',
   } = options;
 
-  // 番組スクリプトを生成
+  // 番組スクリプトを生成（静的テンプレート）
   const script = await generateShowScript({
     marketData,
     cryptoQuantData,
@@ -263,21 +251,53 @@ async function integrateResources(options = {}) {
     lang,
   });
 
-  // 簡素化版: テキストベースのみ
-  // 1. Opening（オープニング）: テキストのみ（動画生成削除）
-  // 2. Data Presentation（データ提示）: テキスト表のみ（画像生成削除）
-  // 3. Analysis（分析）: GPT Mental Trainerの解説は既に生成済み（cron.jsで）
-  // 4. Commentary（コメンタリー）: Dr. Grokの心理サポートは既に生成済み（cron.jsで）
+  // "Legendary Swipes" を使用してOpening Narrativeを動的生成
+  let openingNarrative = script.hero.desire;
+  
+  try {
+    // スワイプをランダムに選択
+    const swipe = getRandomSwipe();
+    console.log(`[Gemini Show Producer] Using Swipe: ${swipe.name}`);
+    
+    // プロンプト用のコンテキストを作成
+    const context = {
+      priceChange: marketData.change_24h,
+      price: marketData.price_usd_display,
+      trapScore: trapDetection?.trapScore || 0,
+      trapType: trapDetection?.trapType || 'None',
+      sentiment: marketData.sentiment_label,
+      targetLang: lang,
+    };
+    
+    const safeContext = escapeForPrompt(JSON.stringify(context, null, 2));
+    
+    // プロンプト構築
+    const systemPrompt = `You are a world-class copywriter specializing in direct response marketing.
+Your task is to write a short, dramatic opening hook for a daily crypto trading newsletter.
+You must strictly follow the provided "Swipe" structure.
+Target Audience: Crypto traders who are tired of losing money due to emotions/traps.
+Tone: Professional, dramatic, empathetic, yet disciplined.
+Language: ${lang === 'ja' ? 'Japanese' : lang === 'ko' ? 'Korean' : 'English'}`;
+
+    const userPrompt = swipe.promptTemplate.replace('{{context}}', safeContext);
+    
+    // GPT生成（3秒程度のタイムアウトで、失敗時は静的テキストにフォールバック）
+    const generatedText = await generateText(systemPrompt, userPrompt, { temperature: 0.8, max_tokens: 300 });
+    
+    if (generatedText && !generatedText.includes('failed')) {
+      openingNarrative = generatedText.replace(/^["']|["']$/g, ''); // クォート削除
+    }
+  } catch (e) {
+    console.warn('[Gemini Show Producer] Swipe generation failed, using static narrative:', e.message);
+  }
 
   return {
     script,
     opening: {
-      // video: null, // 削除: 動画生成は不要
-      narrative: script.hero.desire,
+      narrative: openingNarrative,
       problem: script.villain.external?.description || script.villain.philosophical,
     },
     dataPresentation: {
-      // image: null, // 削除: 画像生成は不要
       cryptoQuantData: {
         // Exchange Flows
         exchangeInflow: cryptoQuantData?.exchangeInflow || cryptoQuantData?.netflow?.timeframes?.day?.current || null,
@@ -295,8 +315,6 @@ async function integrateResources(options = {}) {
         // Fund Data (ETF Flows - 将来実装予定)
         etfFlows: cryptoQuantData?.etfFlows || null,
       },
-      // Data Presentation: 問題の可視化（Story Arcと重複しないよう、詳細なデータ説明を含める）
-      // Story Arcが最初の文のみを使用するため、Data Presentationには全文を含める
       problemVisualization: script.villain.external?.description 
         ? `Market trap detected: ${script.villain.external.type || 'TRAP'} (Severity: ${script.villain.external.severity || 'NONE'}, Score: ${script.villain.external.score || 0}/100). ${script.villain.external.description}`
         : (script.villain.philosophical ? `Market conditions require careful analysis. ${script.villain.philosophical}` : null),
@@ -319,17 +337,12 @@ async function integrateResources(options = {}) {
 
 /**
  * 物語の円環を開く/閉じる
- * ストーリーブランド戦略2.0: 物語の円環を開く（問題の提示）、物語の円環を閉じる（成功する結末）
- * 改善: Story ArcとData Presentationの重複を避けるため、Story Arcには問題の提示のみを含める
  */
 function createNarrativeArc(script, lang) {
   const keyIdea = KEY_IDEA[lang] || KEY_IDEA.en;
   
-  // 物語の円環を開く: 問題の提示（データの詳細は含めない）
-  // villain.external.descriptionの全文ではなく、最初の文のみを使用して重複を避ける
   let villainDescription = '';
   if (script.villain.external?.description) {
-    // 最初の文のみを抽出（ピリオドまたは句点で区切る）
     const firstSentence = script.villain.external.description.split(/[。.]/)[0];
     villainDescription = firstSentence ? `${firstSentence}.` : script.villain.external.description;
   } else {
@@ -345,7 +358,6 @@ function createNarrativeArc(script, lang) {
     ar: `تريد حماية رأس مالك، لكن الفخاخ في كل مكان. ${villainDescription}`,
   }[lang] || `You want to protect your capital, but traps are everywhere.`;
   
-  // 物語の円環を閉じる: 成功する結末
   const close = {
     en: `${script.successEnding} Key Idea: ${keyIdea}`,
     ja: `${script.successEnding} キーアイディア: ${keyIdea}`,

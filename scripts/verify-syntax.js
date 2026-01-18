@@ -35,17 +35,20 @@ console.log('\n🔍 Checking for duplicate variable declarations...\n');
 files.forEach(file => {
   const content = fs.readFileSync(file, 'utf-8');
   const lines = content.split('\n');
-  const variableDeclarations = new Map();
-  
-  lines.forEach((line, index) => {
-    // let/const/var の宣言を検出
+  const scopeStack = [new Map()];
+
+  lines.forEach((rawLine, index) => {
+    const lineNum = index + 1;
+    const line = rawLine.replace(/\/\/.*$/, '');
+
+    // let/const/var の宣言を検出（簡易スコープ対応）
     const letMatch = line.match(/^\s*(let|const|var)\s+(\w+)/);
     if (letMatch) {
       const varName = letMatch[2];
-      const lineNum = index + 1;
-      
-      if (variableDeclarations.has(varName)) {
-        const prevLine = variableDeclarations.get(varName);
+      const currentScope = scopeStack[scopeStack.length - 1];
+
+      if (currentScope.has(varName)) {
+        const prevLine = currentScope.get(varName);
         console.error(`❌ ${path.relative(process.cwd(), file)}:${lineNum}: Duplicate declaration of '${varName}' (previously declared at line ${prevLine})`);
         errors.push({
           file: path.relative(process.cwd(), file),
@@ -55,8 +58,21 @@ files.forEach(file => {
         });
         hasError = true;
       } else {
-        variableDeclarations.set(varName, lineNum);
+        currentScope.set(varName, lineNum);
       }
+    }
+
+    // 簡易的なスコープ管理（{ と } をカウント）
+    const openCount = (line.match(/\{/g) || []).length;
+    const closeCount = (line.match(/\}/g) || []).length;
+
+    for (let i = 0; i < closeCount; i += 1) {
+      if (scopeStack.length > 1) {
+        scopeStack.pop();
+      }
+    }
+    for (let i = 0; i < openCount; i += 1) {
+      scopeStack.push(new Map());
     }
   });
 });

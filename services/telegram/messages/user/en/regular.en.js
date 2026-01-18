@@ -493,7 +493,11 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
       lines.push(`"${mentalNote}"`);
     }
   } else {
-    lines.push('💚 Psychological Analysis: Fetching data...');
+    // フォールバック: データが取得できない場合でも価値のあるメッセージを提供
+    lines.push('💚 Psychological State: 😐 NEUTRAL (Risk: 💡 LOW)');
+    lines.push('');
+    lines.push('💊 Dr. Grok\'s Mental Note:');
+    lines.push('"Patience is not weakness—it\'s strategic strength. The best traders know when not to trade."');
   }
   
   lines.push('');

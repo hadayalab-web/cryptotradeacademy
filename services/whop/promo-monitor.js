@@ -112,6 +112,10 @@ function generateStockReminderMessage(remainingStock, userName = 'there') {
   // メッセージを生成
   const urgencyEmoji = remainingStock <= 5 ? '🚨' : remainingStock <= 10 ? '⚠️' : '💡';
   
+  const lastChanceMessage = remainingStock <= 5 
+    ? '⏰ This is your LAST CHANCE! Don\'t miss out!' 
+    : '💡 Limited availability - Secure your spot now!';
+  
   return `${urgencyEmoji} **${threshold.message.toUpperCase()}**
 
 🎁 Special Reminder for You, ${userName}!
@@ -125,7 +129,7 @@ The promo code **${PROMO_CODE}** (50% OFF) is running out of spots.
 🚀 Get the pro's weapon at half price:
 ${WHOP_PRODUCT_URL}?promo=${PROMO_CODE}
 
-${remainingStock <= 5 ? '⏰ This is your LAST CHANCE! Don't miss out!' : '💡 Limited availability - Secure your spot now!'}`;
+${lastChanceMessage}`;
 }
 
 /**

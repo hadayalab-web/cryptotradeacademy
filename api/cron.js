@@ -13,6 +13,28 @@ const baseLang = rawLang.toLowerCase().split('.')[0].split('_')[0];
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 const LANG = SUPPORTED_LANGS.includes(baseLang) ? baseLang : 'en';
 
+// 多言語配信の設定（デフォルト: 6言語すべてに配信）
+function parseBoolean(value, defaultValue = false) {
+  if (value === undefined || value === null || value === '') return defaultValue;
+  const normalizedValue = String(value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'y', 'on'].includes(normalizedValue)) return true;
+  if (['0', 'false', 'no', 'n', 'off'].includes(normalizedValue)) return false;
+  return defaultValue;
+}
+const REGULAR_MULTI_LANG = parseBoolean(process.env.REGULAR_MULTI_LANG, true); // デフォルト: true（6言語すべてに配信）
+const MINIMAL_MULTI_LANG = parseBoolean(process.env.MINIMAL_MULTI_LANG, true); // デフォルト: true（6言語すべてに配信）
+
+// 配信対象言語を取得
+function getTargetLanguagesForRegular() {
+  if (REGULAR_MULTI_LANG) return SUPPORTED_LANGS;
+  return [LANG];
+}
+
+function getTargetLanguagesForMinimal() {
+  if (MINIMAL_MULTI_LANG) return SUPPORTED_LANGS;
+  return [LANG];
+}
+
 // 言語別テンプレートを lang-suffixed ファイルから読み込む
 function loadUserTemplates(lang) {
   try {
@@ -116,8 +138,10 @@ const { detectTrapDetection, generateTrapAlert, detectMarketBug, evaluateMarketB
 // GPT解析サービス（CryptoQuantデータ解析用）
 const { analyzeCryptoQuantData, generateCryptoQuantAnalysis, generateNonUserImpactReport } = require('../services/gpt/client');
 const { sendMessage, sendPhoto, sendVideo, sendMessageMinimal, sendMessageToChannel, sendMessageToAsset } = require('../services/telegram/bot');
+const { getSocialProofText } = require('../services/telegram/reaction-counter');
 // Resend Email送信サービス
 const { sendBatchEmails } = require('../services/email/resendClient');
+const { postProofToX } = require('../services/x/proof-post');
 // Gemini画像生成サービス（オプション）- 無効化: CEO指示により削除
 // const { generateMarketImage } = require('../services/gemini/imageGenerator');
 // Gemini動画生成サービス（定期配信用）- 無効化: CEO指示により削除
@@ -137,6 +161,13 @@ const ENABLE_GEMINI_IMAGES = process.env.ENABLE_GEMINI_IMAGES === 'true';
 // Telegram送信の有効化（デフォルト: true = Telegram配信を主要チャネルとして使用）
 // COO推奨: Telegram配信に戻す（コスト最適化、運用負荷最小化、即時性の確保）
 const ENABLE_TELEGRAM = process.env.ENABLE_TELEGRAM !== 'false'; // デフォルトでtrue（明示的にfalseにしない限り有効）
+const ENABLE_X_PROOF_POST = process.env.ENABLE_X_PROOF_POST === 'true';
+const CTA_LINK_REGEX = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
+const SOCIAL_PROOF_BUTTON = {
+  inline_keyboard: [[
+    { text: '🔥 I\'m Safe (Trap Avoided)', callback_data: 'action_saved' },
+  ]],
+};
 let stateManager, evaluateTrigger;
 
 if (ENABLE_EVENT_DRIVEN) {
@@ -147,6 +178,11 @@ if (ENABLE_EVENT_DRIVEN) {
   } catch (error) {
     console.warn('[Phase 1] Event-driven modules not found, falling back to legacy mode:', error.message);
   }
+}
+
+function extractCtaLinks(text) {
+  if (!text) return [];
+  return text.match(CTA_LINK_REGEX) || [];
 }
 
 // 市場コードの取得（LANGから推測、または環境変数から）
@@ -1119,16 +1155,32 @@ module.exports = async function handler(req, res) {
     }
     // ===== Phase 1 End =====
 
-    // 7-A. REGULAR
+    // 7-A. REGULAR（6言語すべてに配信）
     if (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && triggerType === 'REGULAR')) {
-      console.log('Sending REGULAR message...');
-
-      // Phase 2: イベント駆動が無効な場合でも深掘りデータを取得
+      console.log('Sending REGULAR message to all languages...');
+      
+      // 配信対象言語を取得（デフォルト: 6言語すべて）
+      const targetLangsForRegular = getTargetLanguagesForRegular();
+      console.log(`[REGULAR] Target languages: ${targetLangsForRegular.join(', ')}`);
+      
+      // ===== 定期配信: サービス未利用ユーザーの悲惨な状況を報道 =====
+      // 一度だけ計算して、各言語で使用
+      let missedOpportunities = null;
+      try {
+        // 見逃した機会を計算（一度だけ）
+        console.log('[MissedOpportunities] Calculating missed opportunities for non-users...');
+        missedOpportunities = await calculateMissedOpportunities(null, 24); // 過去24時間
+      } catch (error) {
+        console.warn('[MissedOpportunities] Error calculating missed opportunities:', error.message);
+        // エラー時は続行（必須ではない）
+      }
+      
+      // Phase 2: イベント駆動が無効な場合でも深掘りデータを取得（一度だけ）
       if (!ENABLE_EVENT_DRIVEN || !stateManager) {
         try {
-          // 注: marketは既に上で宣言済み（392行目）、再代入
-          market = getMarketCode(LANG);
-          const deepData = await getCQDeepMetrics(market, {
+          // 最初の言語の市場コードを使用（深掘りデータは全言語で共通）
+          const firstLangMarket = getMarketCode(targetLangsForRegular[0]);
+          const deepData = await getCQDeepMetrics(firstLangMarket, {
             upbitPrice: priceUsd,
             binancePrice: priceUsd,
             usdKrwRate: 1300,
@@ -1138,61 +1190,98 @@ module.exports = async function handler(req, res) {
           console.warn('[Phase 2] Error fetching deep metrics:', error.message);
         }
       }
-
-      // Phase 3: 市場別オプションデータをスナップショットに追加
-      // 注: marketは既に上で宣言済み（392行目）、再代入
-      market = getMarketCode(LANG);
-      if (LANG === 'ko' && cqDeep?.kimchiPremium != null) {
-        marketSnapshotService.addLocalOptional(snapshot.snapshot_id, 'KO', {
-          kimchiPremium: cqDeep.kimchiPremium,
-          upbitPrice: cqDeep.upbitPrice ?? priceUsd,
-          binancePrice: cqDeep.binancePrice ?? priceUsd,
-        });
-      }
-      if (LANG === 'en') {
-        marketSnapshotService.addLocalOptional(snapshot.snapshot_id, 'EN', {
-          trapScore: cqDeep?.trapScore,
-          whaleFlows: cqDeep?.whaleFlows,
-          liquidations: cqDeep?.liquidations,
-        });
-      }
-
-      // Phase 2: A/Bテストバリアント識別（50/50分割）
-      const AB_VARIANTS = ['A', 'B'];
-      const variant = Math.random() < 0.5 ? 'A' : 'B';
-      const messageId = `msg_${Date.now()}_${LANG}_${variant}`;
-
-      // ===== 定期配信: サービス未利用ユーザーの悲惨な状況を報道 =====
-      let nonUserImpactReport = null;
-      let missedOpportunities = null;
       
+      // Phase 4: 保存されたコンテンツを読み込む（定時5分前に生成されたもの）
+      // 一度だけ取得して、各言語で使用（最初の言語の市場コードを使用）
+      let savedImageUrl = null;
+      let savedVideoUrl = null;
       try {
-        // 見逃した機会を計算
-        console.log('[MissedOpportunities] Calculating missed opportunities for non-users...');
-        missedOpportunities = await calculateMissedOpportunities(null, 24); // 過去24時間
+        const firstLangMarket = getMarketCode(targetLangsForRegular[0]);
+        const savedContent = await getContent(firstLangMarket);
         
-        if (missedOpportunities.totalSignals > 0) {
-          // GPTで報道コンテンツを生成
-          const marketData = {
-            priceUsd,
-            change24h,
-            score: coreDecision.score,
-            signal: tradeSignal.signal,
-            sentiment: sentimentLabel,
-          };
-          
-          console.log('[GPT] Generating non-user impact report...');
-          nonUserImpactReport = await generateNonUserImpactReport(
-            marketData,
-            missedOpportunities,
-            LANG,
-          );
-          console.log('[GPT] Impact report generated:', nonUserImpactReport.substring(0, 200) + '...');
+        if (savedContent) {
+          console.log('[Content] Retrieved saved content from storage');
+          savedImageUrl = savedContent.imageUrl;
+          savedVideoUrl = savedContent.videoUrl;
+        } else {
+          console.log('[Content] No saved content found, using real-time generation');
         }
       } catch (error) {
-        console.warn('[MissedOpportunities] Error generating impact report:', error.message);
-        // エラー時は続行（必須ではない）
+        console.warn('[Content] Error retrieving saved content:', error.message);
       }
+      
+      // ===== 定期配信: Geminiコンテンツ生成（Veo動画 + Nano Banana画像） =====
+      // USP2: トラップ防御結果を画像生成に反映
+      // 注: 画像・動画生成は不要（CEO指示により簡素化）のため、nullで初期化
+      let imageUrl = savedImageUrl || null;
+      let videoUrl = savedVideoUrl || null;
+      
+      // 削除: 画像・動画生成は不要（CEO指示により簡素化）
+      // 画像生成（NanoBanana Pro）は無効化
+      // 動画生成（Veo 3.1）は無効化
+      
+      // 各言語ごとに配信
+      for (const targetLang of targetLangsForRegular) {
+        try {
+          console.log(`[REGULAR] Processing language: ${targetLang}`);
+          
+          // 言語別テンプレートを読み込む
+          const langTemplates = loadUserTemplates(targetLang);
+          const langFormatRegularBriefing = langTemplates.formatRegularBriefing;
+          if (!langFormatRegularBriefing) {
+            console.warn(`[REGULAR] Template not found for ${targetLang}, skipping`);
+            continue;
+          }
+
+          // Phase 3: 市場別オプションデータをスナップショットに追加
+          const targetMarket = getMarketCode(targetLang);
+          if (targetLang === 'ko' && cqDeep?.kimchiPremium != null) {
+            marketSnapshotService.addLocalOptional(snapshot.snapshot_id, 'KO', {
+              kimchiPremium: cqDeep.kimchiPremium,
+              upbitPrice: cqDeep.upbitPrice ?? priceUsd,
+              binancePrice: cqDeep.binancePrice ?? priceUsd,
+            });
+          }
+          if (targetLang === 'en') {
+            marketSnapshotService.addLocalOptional(snapshot.snapshot_id, 'EN', {
+              trapScore: cqDeep?.trapScore,
+              whaleFlows: cqDeep?.whaleFlows,
+              liquidations: cqDeep?.liquidations,
+            });
+          }
+
+          // Phase 2: A/Bテストバリアント識別（50/50分割）
+          const AB_VARIANTS = ['A', 'B'];
+          const variant = Math.random() < 0.5 ? 'A' : 'B';
+          const messageId = `msg_${Date.now()}_${targetLang}_${variant}`;
+
+          // ===== 定期配信: サービス未利用ユーザーの悲惨な状況を報道 =====
+          // 各言語ごとにGPTで報道コンテンツを生成
+          let langNonUserImpactReport = null;
+          
+          try {
+            if (missedOpportunities && missedOpportunities.totalSignals > 0) {
+              // GPTで報道コンテンツを生成（各言語ごとに異なる内容）
+              const impactMarketData = {
+                priceUsd,
+                change24h,
+                score: coreDecision.score,
+                signal: tradeSignal.signal,
+                sentiment: sentimentLabel,
+              };
+              
+              console.log(`[GPT] Generating non-user impact report for ${targetLang}...`);
+              langNonUserImpactReport = await generateNonUserImpactReport(
+                impactMarketData,
+                missedOpportunities,
+                targetLang,
+              );
+              console.log(`[GPT] Impact report generated for ${targetLang}:`, langNonUserImpactReport.substring(0, 200) + '...');
+            }
+          } catch (error) {
+            console.warn(`[MissedOpportunities] Error generating impact report for ${targetLang}:`, error.message);
+            // エラー時は続行（必須ではない）
+          }
 
       // Phase 3: スナップショットをテンプレートに渡す（全言語で統一データ）
       // GPT解析結果（gptRegularAnalysis）を優先的に使用
@@ -1204,401 +1293,362 @@ module.exports = async function handler(req, res) {
       let finalHighResX = highResXData;
       let divergenceSignalResult = baseCoreDecision?.divergenceSignal || coreDecision?.divergenceSignal || null;
       
-      let regularText = formatRegularBriefing({
-        snapshot, // Phase 3: スナップショット全体（後方互換性のため残す）
-        now,
-        inflow: snapshot.inflow,
-        mpi: snapshot.mpi,
-        sentimentLabel: snapshot.sentiment_label,
-        priceUsd: snapshot.price_usd_display,
-        change24h: snapshot.change_24h,
-        score: snapshot.market_score,
-        tradeSignal,
-        trap,
-        aiAnalysis: finalAnalysis, // 後方互換性のため残す
-        stats: null, // reserved
-        lang: LANG,
-        // Phase 2: A/Bテスト識別子
-        variant,
-        messageId,
-        // Phase 2: 市場別データ（後方互換性のため残す）
-        trapScore: cqDeep?.trapScore,
-        whaleFlows: cqDeep?.whaleFlows,
-        liquidations: cqDeep?.liquidations,
-        kimchiPremium: cqDeep?.kimchiPremium,
-        upbitPrice: cqDeep?.upbitPrice ?? snapshot.price_usd_display,
-        binancePrice: cqDeep?.binancePrice ?? snapshot.price_usd_display,
-        riskReward: cqDeep?.riskReward,
-        nupl: cqDeep?.longTerm?.nupl,
-        sopr30d: cqDeep?.longTerm?.sopr30d,
-        // Phase1-Product: 新機能データ
-        noTradeAlert: null, // 将来の実装用
-        trapRisk: null, // 将来の実装用
-        exitMap: null, // 将来の実装用
-        // 新規: サービス未利用ユーザーの悲惨な状況
-        nonUserImpactReport,
-        missedOpportunities: missedOpportunities ? formatMissedOpportunities(missedOpportunities, LANG) : null,
-        // ニュース番組構造用: GPTリポーターとGrok X解析を分離
-        gptReporterAnalysis: gptRegularAnalysis ?? null, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
-        grokXAnalysis: grokXAnalysis ?? null, // Grok X解析結果（Xセンチメント分析）
-        // 高解像度データ
-        highResCQ: finalHighResCQ,
-        highResX: finalHighResX,
-        divergenceSignal: divergenceSignalResult,
-        // USP1: トラップ防御結果
-        trapDetection: trapDetection || null,
-        marketBug: marketBugDetection || null, // 後方互換性
-        trapAlert: trapAlert || null,
-        // USP3: Dr. Grokの心理的サポート
-        psychologicalSupport: psychologicalSupport || null,
-        // USP2: Geminiコンテンツ生成（後で更新される可能性があるため、一旦false/null）
-        hasGeminiContent: false,
-        showContent: null, // 後でproduceShowの結果で更新される
-      });
-
-      // Phase 4: 保存されたコンテンツを読み込む（定時5分前に生成されたもの）
-      let savedImageUrl = null;
-      let savedVideoUrl = null;
-      try {
-        // 注: marketは既に上で宣言済み（392行目）、再代入
-        market = getMarketCode(LANG);
-        const savedContent = await getContent(market);
-        
-        if (savedContent) {
-          console.log('[Content] Retrieved saved content from storage');
-          savedImageUrl = savedContent.imageUrl;
-          savedVideoUrl = savedContent.videoUrl;
+          // 言語別のmissedOpportunitiesフォーマット
+          const langMissedOpportunitiesFormatted = missedOpportunities ? formatMissedOpportunities(missedOpportunities, targetLang) : null;
           
-          // 保存されたサマリーがあれば使用（より詳細な分析）
-          if (savedContent.summary && !finalAnalysis) {
-            aiAnalysis = savedContent.summary;
-            console.log('[Content] Using saved summary for analysis');
-          }
-        } else {
-          console.log('[Content] No saved content found, using real-time generation');
-        }
-      } catch (error) {
-        console.warn('[Content] Error retrieving saved content:', error.message);
-      }
-
-      // ===== 定期配信: Geminiコンテンツ生成（Veo動画 + Nano Banana画像） =====
-      // USP2: トラップ防御結果を画像生成に反映
-      let imageUrl = savedImageUrl;
-      let videoUrl = savedVideoUrl;
-      
-      // 削除: 画像・動画生成は不要（CEO指示により簡素化）
-      // 画像生成（NanoBanana Pro）は無効化
-      // if (!imageUrl && ENABLE_GEMINI_IMAGES) { ... }
-
-      // 動画生成（Veo 3.1）は無効化
-      // if (!videoUrl) { ... }
-
-      // ===== Gemini番組プロデューサー: ストーリーブランド戦略2.0 =====
-      let showContent = undefined; // produceShowが実行されたかどうかを判断するため、undefinedで初期化
-      try {
-        console.log('[Gemini Show Producer] Producing show with StoryBrand 2.0 framework...');
-        showContent = await produceShow({
-          marketData: {
-            price_usd_display: snapshot.price_usd_display,
-            change_24h: snapshot.change_24h,
-            market_score: snapshot.market_score,
-            sentiment_label: snapshot.sentiment_label,
+          let regularText = langFormatRegularBriefing({
+            snapshot, // Phase 3: スナップショット全体（後方互換性のため残す）
+            now,
             inflow: snapshot.inflow,
             mpi: snapshot.mpi,
-          },
-          cryptoQuantData: cqDeep,
-          trapDetection: trapDetection,
-          psychologicalSupport: psychologicalSupport,
-          gptMentalTrainerAnalysis: gptRegularAnalysis,
-          lang: LANG,
-        });
-        
-        if (showContent) {
-          console.log('[Gemini Show Producer] Show produced successfully (text-only version)');
-          // 削除: 画像・動画生成は不要（簡素化版）
-          // 番組プロデューサーはテキストベースのみ
-          // if (showContent.dataPresentation && showContent.dataPresentation.image) {
-          //   imageUrl = showContent.dataPresentation.image;
-          // }
-          // if (showContent.opening && showContent.opening.video) {
-          //   videoUrl = showContent.opening.video;
-          // }
-        } else {
-          console.log('[Gemini Show Producer] Show production returned null');
-        }
-      } catch (error) {
-        console.warn('[Gemini Show Producer] Error producing show:', error.message);
-        console.warn('[Gemini Show Producer] Error stack:', error.stack);
-        showContent = null; // エラー時もnullを明示的に設定
-      }
-
-      // USP2: Geminiコンテンツが生成されたかどうかを確認し、メッセージを再生成
-      const hasGeminiContent = !!(imageUrl || videoUrl);
-      // showContent（テキストベース）がある場合、またはhasGeminiContent（画像・動画）がある場合にメッセージを再生成
-      // 注意: showContentがnullでも、メッセージを再生成してshowContent: nullを明示的に渡す
-      if (showContent || hasGeminiContent || true) { // 常に再生成してshowContentを反映
-        // メッセージを再生成（USP2の表示を更新）
-        const regularTextUpdated = formatRegularBriefing({
-          snapshot,
-          now,
-          inflow: snapshot.inflow,
-          mpi: snapshot.mpi,
-          sentimentLabel: snapshot.sentiment_label,
-          priceUsd: snapshot.price_usd_display,
-          change24h: snapshot.change_24h,
-          score: snapshot.market_score,
-          tradeSignal,
-          trap,
-          aiAnalysis: finalAnalysis, // 後方互換性のため残す
-          stats: null,
-          lang: LANG,
-          variant,
-          messageId,
-          trapScore: cqDeep?.trapScore,
-          whaleFlows: cqDeep?.whaleFlows,
-          liquidations: cqDeep?.liquidations,
-          kimchiPremium: cqDeep?.kimchiPremium,
-          upbitPrice: cqDeep?.upbitPrice ?? snapshot.price_usd_display,
-          binancePrice: cqDeep?.binancePrice ?? snapshot.price_usd_display,
-          riskReward: cqDeep?.riskReward,
-          nupl: cqDeep?.longTerm?.nupl,
-          sopr30d: cqDeep?.longTerm?.sopr30d,
-          noTradeAlert: null,
-          trapRisk: null,
-          exitMap: null,
-          nonUserImpactReport,
-          missedOpportunities: missedOpportunities ? formatMissedOpportunities(missedOpportunities, LANG) : null,
-          // ニュース番組構造用: GPTリポーターとGrok X解析を分離
-          gptReporterAnalysis: gptRegularAnalysis || null, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
-          grokXAnalysis: grokXAnalysis || null, // Grok X解析結果（Xセンチメント分析）
-          highResCQ: finalHighResCQ,
-          highResX: finalHighResX,
-          divergenceSignal: divergenceSignalResult,
-          trapDetection: trapDetection || null,
-          marketBug: marketBugDetection || null, // 後方互換性
-          trapAlert: trapAlert || null,
-          psychologicalSupport: psychologicalSupport || null,
-          hasGeminiContent: hasGeminiContent, // 画像・動画がある場合のみtrue
-          showContent: showContent || null, // テキストベースのGeminiコンテンツ
-        });
-        regularText = regularTextUpdated;
-      }
-
-      // Phase 4: メッセージ送信とログ記録
-      // メール送信（デフォルト）
-      try {
-        // メールHTMLを生成
-        const emailHTML = formatRegularBriefingHTML({
-          now,
-          inflow: snapshot.inflow,
-          mpi: snapshot.mpi,
-          sentimentLabel: snapshot.sentiment_label,
-          priceUsd: snapshot.price_usd_display,
-          change24h: snapshot.change_24h,
-          score: snapshot.market_score,
-          tradeSignal,
-          trap,
-          aiAnalysis: finalAnalysis,
-          stats: null,
-          trapScore: cqDeep?.trapScore,
-          whaleFlows: cqDeep?.whaleFlows,
-          liquidations: cqDeep?.liquidations,
-          noTradeAlert: null,
-          trapRisk: null,
-          exitMap: null,
-          trapDetection: trapDetection || null,
-          marketBug: marketBugDetection || null,
-          trapAlert: trapAlert || null,
-          divergenceSignal: divergenceSignalResult,
-          psychologicalSupport: psychologicalSupport || null,
-          hasGeminiContent: hasGeminiContent,
-          gptReporterAnalysis: gptRegularAnalysis || null,
-          grokXAnalysis: grokXAnalysis || null,
-          geminiImageUrl: imageUrl || null,
-          geminiVideoUrl: videoUrl || savedVideoUrl || null,
-          cqDeep: cqDeep,
-          showContent: showContent,
-        });
-
-        // メール件名を生成
-        const trapEmoji = trapAlert && trapAlert.alert 
-          ? (trapAlert.severity === 'CRITICAL' ? '🚨' : trapAlert.severity === 'HIGH' ? '⚠️' : '⚡')
-          : '🛡️';
-        const emailSubject = `${trapEmoji} Trap Defense BTC Report - ${now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC')}`;
-
-        // ユーザーリストを取得（環境変数またはデータベースから）
-        const recipientEmails = getRecipientEmails(LANG);
-        
-        if (recipientEmails && recipientEmails.length > 0) {
-          console.log(`[Email] Sending regular briefing to ${recipientEmails.length} recipients (${LANG})...`);
-          
-          // バッチメール送信
-          const emailResult = await sendBatchEmails({
-            recipients: recipientEmails,
-            subject: emailSubject,
-            html: emailHTML,
-            emailOptions: {
-              lang: LANG,
-              messageType: 'REGULAR',
-            },
-          });
-
-          console.log(`[Email] Regular briefing sent: ${emailResult.totalSent}, Errors: ${emailResult.totalErrors}`);
-
-          // CTAリンクを抽出
-          const ctaLinkRegex = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
-          const ctaLinks = emailHTML.match(ctaLinkRegex) || [];
-
-          // 送信ログを記録
-          messageLogger.logMessage({
-            message_id: messageId,
-            snapshot_id: snapshot.snapshot_id,
-            lang: LANG,
+            sentimentLabel: snapshot.sentiment_label,
+            priceUsd: snapshot.price_usd_display,
+            change24h: snapshot.change_24h,
+            score: snapshot.market_score,
+            tradeSignal,
+            trap,
+            aiAnalysis: finalAnalysis, // 後方互換性のため残す
+            stats: null, // reserved
+            lang: targetLang,
+            // Phase 2: A/Bテスト識別子
             variant,
-            message_type: 'REGULAR',
-            sent_at: new Date().toISOString(),
-            email_sent: emailResult.totalSent,
-            email_errors: emailResult.totalErrors,
-            cta_links: ctaLinks,
+            messageId,
+            // Phase 2: 市場別データ（後方互換性のため残す）
+            trapScore: cqDeep?.trapScore,
+            whaleFlows: cqDeep?.whaleFlows,
+            liquidations: cqDeep?.liquidations,
+            kimchiPremium: cqDeep?.kimchiPremium,
+            upbitPrice: cqDeep?.upbitPrice ?? snapshot.price_usd_display,
+            binancePrice: cqDeep?.binancePrice ?? snapshot.price_usd_display,
+            riskReward: cqDeep?.riskReward,
+            nupl: cqDeep?.longTerm?.nupl,
+            sopr30d: cqDeep?.longTerm?.sopr30d,
+            // Phase1-Product: 新機能データ
+            noTradeAlert: null, // 将来の実装用
+            trapRisk: null, // 将来の実装用
+            exitMap: null, // 将来の実装用
+            // 新規: サービス未利用ユーザーの悲惨な状況
+            nonUserImpactReport: langNonUserImpactReport,
+            missedOpportunities: langMissedOpportunitiesFormatted,
+            // ニュース番組構造用: GPTリポーターとGrok X解析を分離
+            gptReporterAnalysis: gptRegularAnalysis ?? null, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
+            grokXAnalysis: grokXAnalysis ?? null, // Grok X解析結果（Xセンチメント分析）
+            // 高解像度データ
+            highResCQ: finalHighResCQ,
+            highResX: finalHighResX,
+            divergenceSignal: divergenceSignalResult,
+            // USP1: トラップ防御結果
+            trapDetection: trapDetection || null,
+            marketBug: marketBugDetection || null, // 後方互換性
+            trapAlert: trapAlert || null,
+            // USP3: Dr. Grokの心理的サポート
+            psychologicalSupport: psychologicalSupport || null,
+            // USP2: Geminiコンテンツ生成（後で更新される可能性があるため、一旦false/null）
+            hasGeminiContent: false,
+            showContent: null, // 後でproduceShowの結果で更新される
           });
-        } else {
-          console.warn(`[Email] No recipients found for lang=${LANG}`);
+
+          // 保存されたサマリーがあれば使用（より詳細な分析）
+          // 注: savedContentは既にループの外で取得済み
+
+          // ===== Gemini番組プロデューサー: ストーリーブランド戦略2.0 =====
+          let showContent = undefined; // produceShowが実行されたかどうかを判断するため、undefinedで初期化
+          try {
+            console.log(`[Gemini Show Producer] Producing show with StoryBrand 2.0 framework for ${targetLang}...`);
+            showContent = await produceShow({
+              marketData: {
+                price_usd_display: snapshot.price_usd_display,
+                change_24h: snapshot.change_24h,
+                market_score: snapshot.market_score,
+                sentiment_label: snapshot.sentiment_label,
+                inflow: snapshot.inflow,
+                mpi: snapshot.mpi,
+              },
+              cryptoQuantData: cqDeep,
+              trapDetection: trapDetection,
+              psychologicalSupport: psychologicalSupport,
+              gptMentalTrainerAnalysis: gptRegularAnalysis,
+              lang: targetLang,
+            });
+            
+            if (showContent) {
+              console.log(`[Gemini Show Producer] Show produced successfully for ${targetLang} (text-only version)`);
+              // 削除: 画像・動画生成は不要（簡素化版）
+              // 番組プロデューサーはテキストベースのみ
+            } else {
+              console.log(`[Gemini Show Producer] Show production returned null for ${targetLang}`);
+            }
+          } catch (error) {
+            console.warn(`[Gemini Show Producer] Error producing show for ${targetLang}:`, error.message);
+            console.warn(`[Gemini Show Producer] Error stack:`, error.stack);
+            showContent = null; // エラー時もnullを明示的に設定
+          }
+
+          // USP2: Geminiコンテンツが生成されたかどうかを確認し、メッセージを再生成
+          // 注: imageUrlとvideoUrlはループの外で定義されている
+          const hasGeminiContent = !!(imageUrl || videoUrl);
+          // showContent（テキストベース）がある場合、またはhasGeminiContent（画像・動画）がある場合にメッセージを再生成
+          // 注意: showContentがnullでも、メッセージを再生成してshowContent: nullを明示的に渡す
+          if (showContent || hasGeminiContent || true) { // 常に再生成してshowContentを反映
+            // メッセージを再生成（USP2の表示を更新）
+            const regularTextUpdated = langFormatRegularBriefing({
+              snapshot,
+              now,
+              inflow: snapshot.inflow,
+              mpi: snapshot.mpi,
+              sentimentLabel: snapshot.sentiment_label,
+              priceUsd: snapshot.price_usd_display,
+              change24h: snapshot.change_24h,
+              score: snapshot.market_score,
+              tradeSignal,
+              trap,
+              aiAnalysis: finalAnalysis, // 後方互換性のため残す
+              stats: null,
+              lang: targetLang,
+              variant,
+              messageId,
+              trapScore: cqDeep?.trapScore,
+              whaleFlows: cqDeep?.whaleFlows,
+              liquidations: cqDeep?.liquidations,
+              kimchiPremium: cqDeep?.kimchiPremium,
+              upbitPrice: cqDeep?.upbitPrice ?? snapshot.price_usd_display,
+              binancePrice: cqDeep?.binancePrice ?? snapshot.price_usd_display,
+              riskReward: cqDeep?.riskReward,
+              nupl: cqDeep?.longTerm?.nupl,
+              sopr30d: cqDeep?.longTerm?.sopr30d,
+              noTradeAlert: null,
+              trapRisk: null,
+              exitMap: null,
+              nonUserImpactReport: langNonUserImpactReport,
+              missedOpportunities: langMissedOpportunitiesFormatted,
+              // ニュース番組構造用: GPTリポーターとGrok X解析を分離
+              gptReporterAnalysis: gptRegularAnalysis || null, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
+              grokXAnalysis: grokXAnalysis || null, // Grok X解析結果（Xセンチメント分析）
+              highResCQ: finalHighResCQ,
+              highResX: finalHighResX,
+              divergenceSignal: divergenceSignalResult,
+              trapDetection: trapDetection || null,
+              marketBug: marketBugDetection || null, // 後方互換性
+              trapAlert: trapAlert || null,
+              psychologicalSupport: psychologicalSupport || null,
+              hasGeminiContent: hasGeminiContent, // 画像・動画がある場合のみtrue
+              showContent: showContent || null, // テキストベースのGeminiコンテンツ
+            });
+            regularText = regularTextUpdated;
+          }
+
+          // Phase 4: メッセージ送信とログ記録
+          // メール送信は廃止（Telegramのみ配信）
+          // メール送信コードは削除されました - Telegram配信のみ
+
+          // Telegram送信（オプション、環境変数で有効化）
+          if (ENABLE_TELEGRAM) {
+            const finalVideoUrl = videoUrl || savedVideoUrl;
+            if (finalVideoUrl) {
+              console.log(`[Telegram] Sending video (${targetLang})...`);
+              await sendVideo(finalVideoUrl, regularText.substring(0, 1024));
+            }
+            
+            if (imageUrl) {
+              await sendPhoto(imageUrl, regularText.substring(0, 1024), null, null, { reply_markup: SOCIAL_PROOF_BUTTON });
+            }
+            
+            // 市場コードとシリーズを取得して適切なチャンネルに送信
+            const marketCode = getMarketCode(targetLang); // 'EN', 'AR', 'KO', etc.
+            const series = 'BTC'; // 現在はBTCのみ、将来的に'OTHER'なども対応可能
+            
+            // 複数チャンネル対応: sendMessageToChannelを使用
+            let regularSendResult;
+            // 環境変数名はハイフンをアンダースコアに変換（PT-BR → PT_BR）
+            const marketCodeEnv = marketCode.replace('-', '_');
+            const channelIdEnvVar = `TELEGRAM_CHAT_ID_${series}_${marketCodeEnv}`;
+            if (process.env[channelIdEnvVar]) {
+              // 新しい方式: シリーズ+市場コードでチャンネル指定
+              regularSendResult = await sendMessageToChannel(regularText, series, marketCode, { reply_markup: SOCIAL_PROOF_BUTTON });
+              console.log(`[Telegram] REGULAR message sent to ${series}/${marketCode} (${targetLang})`);
+            } else if (process.env.TELEGRAM_CHAT_ID) {
+              // 後方互換性: 既存のTELEGRAM_CHAT_IDを使用
+              regularSendResult = await sendMessage(regularText, { reply_markup: SOCIAL_PROOF_BUTTON });
+              console.log(`[Telegram] REGULAR message sent to default channel (${targetLang})`);
+            } else {
+              console.warn(`[Telegram] No channel ID configured for ${series}/${marketCode} (env: ${channelIdEnvVar}) or TELEGRAM_CHAT_ID`);
+            }
+            const telegramMessageId = regularSendResult?.message_id || regularSendResult?.raw?.result?.message_id;
+
+            messageLogger.logMessage({
+              message_id: messageId,
+              snapshot_id: snapshot.snapshot_id,
+              lang: targetLang,
+              variant,
+              message_type: 'REGULAR',
+              sent_at: new Date().toISOString(),
+              telegram_message_id: telegramMessageId,
+              cta_links: extractCtaLinks(regularText),
+            });
+          }
+
+          // X Proof Post（英語版のみ）
+          if (ENABLE_X_PROOF_POST && targetLang === 'en') {
+            try {
+              const proofTrapScore = cqDeep?.trapScore ?? trapDetection?.trapScore ?? null;
+              const socialProofText = getSocialProofText();
+              await postProofToX(regularText, {
+                trapScore: proofTrapScore,
+                trapDetection,
+                trapAlert,
+                lang: targetLang,
+                socialProofText,
+              });
+            } catch (error) {
+              console.error('[X Proof Post] Failed to post proof:', error.message);
+            }
+          }
+
+          sent += 1;
+          console.log(`[REGULAR] Successfully sent to ${targetLang}`);
+        } catch (langError) {
+          console.error(`[REGULAR] Error processing language ${targetLang}:`, langError.message);
+          // エラーが発生しても他の言語の配信を続行
         }
-      } catch (emailError) {
-        console.error('[Email] Error sending regular briefing:', emailError);
-        // エラー時もログを記録
-        messageLogger.logMessage({
-          message_id: messageId,
-          snapshot_id: snapshot.snapshot_id,
-          lang: LANG,
-          variant,
-          message_type: 'REGULAR',
-          sent_at: new Date().toISOString(),
-          email_error: emailError.message,
-        });
       }
-
-      // Telegram送信（オプション、環境変数で有効化）
-      if (ENABLE_TELEGRAM) {
-        const finalVideoUrl = videoUrl || savedVideoUrl;
-        if (finalVideoUrl) {
-          console.log('[Telegram] Sending video...');
-          await sendVideo(finalVideoUrl, regularText.substring(0, 1024));
-        }
-        
-        if (imageUrl) {
-          await sendPhoto(imageUrl, regularText.substring(0, 1024));
-        }
-        
-        // 市場コードとシリーズを取得して適切なチャンネルに送信
-        const marketCode = getMarketCode(LANG); // 'EN', 'AR', 'KO', etc.
-        const series = 'BTC'; // 現在はBTCのみ、将来的に'OTHER'なども対応可能
-        
-        // 複数チャンネル対応: sendMessageToChannelを使用
-        let sendResult;
-        const channelIdEnvVar = `TELEGRAM_CHAT_ID_${series}_${marketCode}`;
-        if (process.env[channelIdEnvVar]) {
-          // 新しい方式: シリーズ+市場コードでチャンネル指定
-          sendResult = await sendMessageToChannel(regularText, series, marketCode);
-        } else if (TELEGRAM_CHAT_ID) {
-          // 後方互換性: 既存のTELEGRAM_CHAT_IDを使用
-          sendResult = await sendMessage(regularText);
-        } else {
-          console.warn(`[Telegram] No channel ID configured for ${series}/${marketCode} (env: ${channelIdEnvVar}) or TELEGRAM_CHAT_ID`);
-        }
-        const telegramMessageId = sendResult?.message_id || sendResult?.raw?.result?.message_id;
-
-        const ctaLinkRegex = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
-        const ctaLinks = regularText.match(ctaLinkRegex) || [];
-
-        messageLogger.logMessage({
-          message_id: messageId,
-          snapshot_id: snapshot.snapshot_id,
-          lang: LANG,
-          variant,
-          message_type: 'REGULAR',
-          sent_at: new Date().toISOString(),
-          telegram_message_id: telegramMessageId,
-          cta_links: ctaLinks,
-        });
-      }
-
-      sent += 1;
     }
 
     // 7-A-MINIMAL. 無料版リードマグネット配信（Trap Score + 簡易分析 + Dr. Grokコメント）
     // 環境変数が設定されている場合のみ実行
     // 注意: TELEGRAM_BOT_TOKEN_MINIMALがなくても、TELEGRAM_BOT_TOKENとTELEGRAM_CHAT_ID_MINIMALがあれば動作
-    const ENABLE_MINIMAL_VERSION = (process.env.TELEGRAM_BOT_TOKEN_MINIMAL || TELEGRAM_BOT_TOKEN) && process.env.TELEGRAM_CHAT_ID_MINIMAL;
-    if (ENABLE_MINIMAL_VERSION && formatMinimalBriefing && shouldSend && isRegularSlot) {
-      try {
-        console.log('[Free Version] Sending free briefing to lead magnet users...');
-        
-        // Trap Scoreを取得（trapDetectionから、または計算済みの値から）
-        let minimalTrapScore = null;
-        if (trapDetection && trapDetection.trapScore) {
-          minimalTrapScore = trapDetection.trapScore;
-        } else if (cqDeep && cqDeep.trapScore) {
-          minimalTrapScore = cqDeep.trapScore;
-        } else if (trap && trap.isTrap) {
-          // フォールバック: trapオブジェクトから推定
-          minimalTrapScore = trap.confidence === 'HIGH' ? 80 : trap.confidence === 'MEDIUM' ? 50 : 30;
-        }
+    // 無料版は有料版と同じスケジュールで配信（isRegularSlotがtrueの場合のみ、またはforce=trueの場合）
+    // 注意: UTC 21時（JST 6時）は定期配信スロットではないため、無料版も配信されない
+    // ただし、force=trueの場合は強制配信
+    // 6言語すべてに配信（デフォルト: MINIMAL_MULTI_LANG=true）
+    // 無料版チャンネルIDの解決関数（vsl2-post.jsと同様のロジック）
+    function resolveMinimalChatId(lang) {
+      const normalizedLangCode = lang.toUpperCase().replace('-', '_');
+      const variants = [normalizedLangCode];
+      if (normalizedLangCode === 'PT_BR') variants.push('PTBR');
+      if (normalizedLangCode === 'JA') variants.push('JP');
+      if (normalizedLangCode === 'KO') variants.push('KR');
 
-        // Trap Dataを準備（minimal-high-quality版用）
-        const trapData = {
-          trapAlert: trapAlert || null,
-          exchangeNetflow: inflow,
-          whaleRatio: cqDeep?.whaleFlows?.whaleRatio || null,
-        };
+      // 1. 言語別チャンネルIDを優先
+      for (const variant of variants) {
+        const envVarName = `TELEGRAM_CHAT_ID_MINIMAL_${variant}`;
+        const resolvedChatId = process.env[envVarName];
+        if (resolvedChatId) return resolvedChatId;
+      }
 
-        // Market Dataを準備
-        const marketData = {
-          mpi: mpi,
-          priceUsd: priceUsd,
-          change24h: change24h,
-        };
+      // 2. ENチャンネルにフォールバック
+      const enChatId = process.env.TELEGRAM_CHAT_ID_MINIMAL_EN;
+      if (enChatId) return enChatId;
 
-        // Sentiment Dataを準備（Grok X解析結果から）
-        const sentimentData = grokXAnalysis ? {
-          sentiment: grokXAnalysis.sentiment || sentimentLabel,
-          risk: grokXAnalysis.risk || null,
-        } : {
-          sentiment: sentimentLabel,
-        };
+      // 3. デフォルトチャンネルにフォールバック
+      return process.env.TELEGRAM_CHAT_ID_MINIMAL || null;
+    }
+    
+    const hasMinimalBotToken = !!(process.env.TELEGRAM_BOT_TOKEN_MINIMAL || process.env.TELEGRAM_BOT_TOKEN);
+    // 配信対象言語のいずれかにチャンネルIDがあれば有効化
+    const targetLangsForMinimal = getTargetLanguagesForMinimal();
+    const hasAnyMinimalChatId = targetLangsForMinimal.some(lang => resolveMinimalChatId(lang) !== null);
+    const ENABLE_MINIMAL_VERSION = hasMinimalBotToken && hasAnyMinimalChatId;
+    
+    if (ENABLE_MINIMAL_VERSION && shouldSend && (isRegularSlot || force)) {
+      console.log('[Free Version] Sending free briefing to all languages...');
+      
+      // 配信対象言語を取得（デフォルト: 6言語すべて）
+      const targetLangsForMinimal = getTargetLanguagesForMinimal();
+      console.log(`[MINIMAL] Target languages: ${targetLangsForMinimal.join(', ')}`);
+      
+      // Trap Scoreを取得（複数のソースから優先順位で取得）
+      let minimalTrapScore = null;
+      if (trapDetection && trapDetection.trapScore != null) {
+        minimalTrapScore = trapDetection.trapScore;
+      } else if (cqDeep && cqDeep.trapScore != null) {
+        minimalTrapScore = cqDeep.trapScore;
+      } else if (trap && trap.isTrap) {
+        // フォールバック: trapオブジェクトから推定
+        minimalTrapScore = trap.confidence === 'HIGH' ? 80 : trap.confidence === 'MEDIUM' ? 50 : 30;
+      } else if (trap && !trap.isTrap) {
+        // トラップが検出されていない場合、低リスクスコアを設定
+        minimalTrapScore = 15; // 低リスクのデフォルト値
+      }
+      
+      // Whale Ratioを取得（複数のソースから優先順位で取得）
+      let whaleRatioValue = null;
+      if (cqDeep?.whaleFlows?.whaleRatio != null) {
+        whaleRatioValue = cqDeep.whaleFlows.whaleRatio;
+      } else if (highResCQData?.whaleRatio != null) {
+        whaleRatioValue = highResCQData.whaleRatio;
+      } else if (cqDeep?.whaleRatio != null) {
+        whaleRatioValue = cqDeep.whaleRatio;
+      }
 
-        // 無料版メッセージを生成（minimal-high-quality版を使用）
-        const minimalText = formatMinimalBriefing({
-          now,
-          trapScore: minimalTrapScore,
-          priceUsd,
-          change24h,
-          trapData,
-          marketData,
-          sentimentData,
-          lang: LANG,
-        });
+      // Trap Dataを準備（minimal-high-quality版用）
+      const trapData = {
+        trapAlert: trapAlert || null,
+        exchangeNetflow: inflow,
+        whaleRatio: whaleRatioValue,
+      };
 
-        // 無料版チャンネルに送信
-        if (ENABLE_TELEGRAM) {
-          // 言語コードを環境変数形式に変換（en -> EN, pt-br -> PT_BR）
-          const langCodeForEnv = LANG.toUpperCase().replace('-', '_');
+      // Market Dataを準備
+      const minimalMarketData = {
+        mpi: mpi,
+        priceUsd: priceUsd,
+        change24h: change24h,
+      };
+
+      // Sentiment Dataを準備（Grok X解析結果から）
+      const sentimentData = grokXAnalysis ? {
+        sentiment: grokXAnalysis.sentiment || sentimentLabel,
+        risk: grokXAnalysis.risk || null,
+      } : {
+        sentiment: sentimentLabel,
+      };
+
+      // 各言語ごとに配信
+      for (const targetLang of targetLangsForMinimal) {
+        try {
+          console.log(`[MINIMAL] Processing language: ${targetLang}`);
           
-          // 言語別無料版チャンネルIDまたはデフォルトのMINIMALチャンネルIDを確認
-          const langSpecificEnvVar = `TELEGRAM_CHAT_ID_MINIMAL_${langCodeForEnv}`;
-          const hasLangSpecificChannel = !!process.env[langSpecificEnvVar];
-          const hasDefaultChannel = !!process.env.TELEGRAM_CHAT_ID_MINIMAL;
-          
-          if (hasLangSpecificChannel || hasDefaultChannel) {
-            const sendResult = await sendMessageToAsset(minimalText, 'MINIMAL', langCodeForEnv);
-            console.log(`[Free Version] Sent successfully to ${LANG} (${langCodeForEnv}):`, sendResult?.message_id || 'N/A');
-          } else {
-            console.warn(`[Free Version] Neither ${langSpecificEnvVar} nor TELEGRAM_CHAT_ID_MINIMAL is set, skipping free version delivery for ${LANG}`);
+          // 言語別テンプレートを読み込む
+          const langTemplates = loadUserTemplates(targetLang);
+          const langFormatMinimalBriefing = langTemplates.formatMinimalBriefing;
+          if (!langFormatMinimalBriefing) {
+            console.warn(`[MINIMAL] Template not found for ${targetLang}, skipping`);
+            continue;
           }
+
+          // 無料版メッセージを生成（minimal-high-quality版を使用）
+          const minimalText = langFormatMinimalBriefing({
+            now,
+            trapScore: minimalTrapScore,
+            priceUsd,
+            change24h,
+            trapData,
+            marketData: minimalMarketData,
+            sentimentData,
+            lang: targetLang,
+          });
+
+          // 無料版チャンネルに送信
+          if (ENABLE_TELEGRAM) {
+            // 言語コードを環境変数形式に変換（en -> EN, pt-br -> PT_BR）
+            const langCodeForEnv = targetLang.toUpperCase().replace('-', '_');
+            
+            // 無料版チャンネルIDを解決
+            const minimalChatId = resolveMinimalChatId(targetLang);
+            
+            if (minimalChatId) {
+              const minimalSendResult = await sendMessageToAsset(minimalText, 'MINIMAL', langCodeForEnv, { reply_markup: SOCIAL_PROOF_BUTTON });
+              console.log(`[Free Version] Sent successfully to ${targetLang} (${langCodeForEnv}):`, minimalSendResult?.message_id || 'N/A');
+            } else {
+              console.warn(`[Free Version] No chat ID found for ${targetLang}, skipping free version delivery`);
+            }
+          }
+          
+          console.log(`[MINIMAL] Successfully sent to ${targetLang}`);
+        } catch (langError) {
+          console.error(`[MINIMAL] Error processing language ${targetLang}:`, langError.message);
+          console.error(`[MINIMAL] Stack:`, langError.stack);
+          // エラーが発生しても他の言語の配信を続行
         }
-      } catch (error) {
-        console.error('[Free Version] Error sending free briefing:', error.message);
-        console.error('[Free Version] Stack:', error.stack);
       }
     }
 
@@ -1673,9 +1723,6 @@ module.exports = async function handler(req, res) {
 
           console.log(`[Email] Emergency alert sent: ${emailResult.totalSent}, Errors: ${emailResult.totalErrors}`);
 
-          const ctaLinkRegex = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
-          const ctaLinks = emergencyEmailHTML.match(ctaLinkRegex) || [];
-
           messageLogger.logMessage({
             message_id: messageId,
             snapshot_id: snapshot?.snapshot_id,
@@ -1685,7 +1732,7 @@ module.exports = async function handler(req, res) {
             sent_at: new Date().toISOString(),
             email_sent: emailResult.totalSent,
             email_errors: emailResult.totalErrors,
-            cta_links: ctaLinks,
+            cta_links: extractCtaLinks(emergencyEmailHTML),
           });
         } else {
           console.warn(`[Email] No recipients found for emergency alert (lang=${LANG})`);
@@ -1705,11 +1752,8 @@ module.exports = async function handler(req, res) {
 
       // Telegram送信（オプション）
       if (ENABLE_TELEGRAM) {
-        const sendResult = await sendMessage(alertText);
-        const telegramMessageId = sendResult?.message_id || sendResult?.raw?.result?.message_id;
-
-        const ctaLinkRegex = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
-        const ctaLinks = alertText.match(ctaLinkRegex) || [];
+        const emergencySendResult = await sendMessage(alertText);
+        const telegramMessageId = emergencySendResult?.message_id || emergencySendResult?.raw?.result?.message_id;
 
         messageLogger.logMessage({
           message_id: messageId,
@@ -1719,7 +1763,7 @@ module.exports = async function handler(req, res) {
           message_type: 'EMERGENCY',
           sent_at: new Date().toISOString(),
           telegram_message_id: telegramMessageId,
-          cta_links: ctaLinks,
+          cta_links: extractCtaLinks(alertText),
         });
       }
 
@@ -1794,12 +1838,8 @@ module.exports = async function handler(req, res) {
       });
 
       // Phase 2: メッセージ送信とログ記録
-      const sendResult = await sendMessage(standbyBreakText);
-      const telegramMessageId = sendResult?.message_id || sendResult?.raw?.result?.message_id;
-
-      // Phase 2: CTAリンクを抽出
-      const ctaLinkRegex = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
-      const ctaLinks = standbyBreakText.match(ctaLinkRegex) || [];
+      const standbySendResult = await sendMessage(standbyBreakText);
+      const telegramMessageId = standbySendResult?.message_id || standbySendResult?.raw?.result?.message_id;
 
       messageLogger.logMessage({
         message_id: messageId,
@@ -1809,7 +1849,7 @@ module.exports = async function handler(req, res) {
         message_type: 'STANDBY_BREAK',
         sent_at: new Date().toISOString(),
         telegram_message_id: telegramMessageId,
-        cta_links: ctaLinks,
+        cta_links: extractCtaLinks(standbyBreakText),
       });
 
       sent += 1;
@@ -1882,12 +1922,8 @@ module.exports = async function handler(req, res) {
       });
 
       // Phase 2: メッセージ送信とログ記録
-      const sendResult = await sendMessage(watchText);
-      const telegramMessageId = sendResult?.message_id || sendResult?.raw?.result?.message_id;
-
-      // Phase 2: CTAリンクを抽出
-      const ctaLinkRegex = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
-      const ctaLinks = watchText.match(ctaLinkRegex) || [];
+      const watchSendResult = await sendMessage(watchText);
+      const telegramMessageId = watchSendResult?.message_id || watchSendResult?.raw?.result?.message_id;
 
       messageLogger.logMessage({
         message_id: messageId,
@@ -1897,7 +1933,7 @@ module.exports = async function handler(req, res) {
         message_type: 'WATCH',
         sent_at: new Date().toISOString(),
         telegram_message_id: telegramMessageId,
-        cta_links: ctaLinks,
+        cta_links: extractCtaLinks(watchText),
       });
 
       sent += 1;
@@ -1965,12 +2001,8 @@ module.exports = async function handler(req, res) {
       });
 
       // Phase 2: メッセージ送信とログ記録
-      const sendResult = await sendMessage(watchText);
-      const telegramMessageId = sendResult?.message_id || sendResult?.raw?.result?.message_id;
-
-      // Phase 2: CTAリンクを抽出
-      const ctaLinkRegex = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
-      const ctaLinks = watchText.match(ctaLinkRegex) || [];
+      const watchLegacySendResult = await sendMessage(watchText);
+      const telegramMessageId = watchLegacySendResult?.message_id || watchLegacySendResult?.raw?.result?.message_id;
 
       messageLogger.logMessage({
         message_id: messageId,
@@ -1980,7 +2012,7 @@ module.exports = async function handler(req, res) {
         message_type: 'WATCH',
         sent_at: new Date().toISOString(),
         telegram_message_id: telegramMessageId,
-        cta_links: ctaLinks,
+        cta_links: extractCtaLinks(watchText),
       });
 
       sent += 1;

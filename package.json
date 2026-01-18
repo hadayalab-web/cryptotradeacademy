@@ -40,6 +40,7 @@
     },
     "dependencies": {
         "@vercel/kv": "^0.2.1",
+        "canvas": "^3.2.1",
         "crypto": "^1.0.1",
         "date-fns-tz": "^2.0.0",
         "dotenv": "^16.6.1",
@@ -47,7 +48,8 @@
         "oauth-1.0a": "^2.2.6",
         "openai": "^6.9.1",
         "p-retry": "^6.0.0",
-        "resend": "^6.7.0"
+        "resend": "^6.7.0",
+        "zod": "^3.25.76"
     },
     "author": "CryptoTrade Academy Team",
     "license": "ISC"

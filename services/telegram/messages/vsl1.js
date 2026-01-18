@@ -18,7 +18,7 @@ Three months later:
 The difference? Trader B stopped guessing and used **Trap Defence BTC**.
 
 ⚠️ **Stop donating your money to the market.**
-Watch this 4-minute video before your next trade.
+Watch this 1-minute video before your next trade.
 
 🚀 **Get the "Whale Trap" filter used by pros (FREE):**
 👉 ${deepLink}
@@ -39,8 +39,8 @@ ${vsl1Link}
 
 違いはたった一つ。トレーダーBは「Trap Defence」で罠を回避していました。
 
-⚠️ **大切なお金を失う前に、この4分間の動画を見てください。**
-「なぜ、あなたのロームは狩られるのか？」その答えがここにあります。
+⚠️ **大切なお金を失う前に、この1分間の動画を見てください。**
+「なぜ、あなたの資金は狩られるのか？」その答えがここにあります。
 
 🚀 **プロが使う「トラップ回避ロジック」を無料で入手：**
 👉 ${deepLink}
@@ -62,7 +62,7 @@ Tres meses después:
 ¿La diferencia? El Trader B dejó de adivinar y usó **Trap Defence BTC**.
 
 ⚠️ **Deja de regalar tu dinero a las ballenas.**
-Antes de abrir tu próxima operación, mira este video de 4 minutos.
+Antes de abrir tu próxima operación, mira este video de 1 minuto.
 
 🚀 **Obtén la lógica "Anti-Trampas" de los profesionales (GRATIS):**
 👉 ${deepLink}
@@ -84,7 +84,7 @@ Três meses depois:
 A diferença? O Trader B usou o **Trap Defence BTC**.
 
 ⚠️ **Pare de entregar seu lucro para o mercado.**
-Assista a este vídeo de 4 minutos antes de operar novamente.
+Assista a este vídeo de 1 minuto antes de operar novamente.
 
 🚀 **Pegue a lógica que os profissionais usam para evitar armadilhas (GRÁTIS):**
 👉 ${deepLink}
@@ -127,7 +127,7 @@ ${vsl1Link}
 
 차이점은 단 하나. 트레이더 B는 **Trap Defence BTC**를 사용했습니다.
 
-⚠️ **세력에게 당하기 전에 이 4분짜리 영상을 꼭 시청하세요.**
+⚠️ **세력에게 당하기 전에 이 1분짜리 영상을 꼭 시청하세요.**
 여러분의 시드머니를 지키는 방법이 담겨 있습니다.
 
 🚀 **상위 1%가 사용하는 '함정 회피 로직' 무료 받기:**

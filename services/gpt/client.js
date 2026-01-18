@@ -901,12 +901,161 @@ If data is missing or insufficient, state that clearly.`;
   return finalText;
 }
 
+/**
+ * 汎用的なテキスト生成関数（スワイプなど）
+ * @param {string} systemPrompt - システムプロンプト
+ * @param {string} userPrompt - ユーザープロンプト
+ * @param {Object} options - オプション (temperature, max_tokens)
+ * @returns {Promise<string>} 生成されたテキスト
+ */
+async function generateText(systemPrompt, userPrompt, options = {}) {
+  // p-retryを動的インポート（ES Module対応）
+  if (!pRetry) {
+    try {
+      const pRetryModule = await import('p-retry');
+      pRetry = pRetryModule.default || pRetryModule;
+      AbortError = pRetryModule.AbortError;
+    } catch (error) {
+      console.error('[p-retry] Failed to import:', error);
+      throw error;
+    }
+  }
+
+  const logger = createStructuredLogger('generateText');
+  
+  if (!OPENAI_API_KEY) {
+    return 'GPT offline - cannot generate text.';
+  }
+
+  const { temperature = 0.7, max_tokens = 1000 } = options;
+
+  // Phase 2: 用途別モデルを使用（SUMMARY: 前処理・要約、汎用生成）
+  const modelToUse = GPT_MODEL_SUMMARY;
+
+  // キャッシュキー生成
+  const cacheKey = buildCacheKey({
+    model: modelToUse,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    temperature,
+    max_tokens,
+  });
+
+  // キャッシュチェック
+  const memHit = memoryCache.get(cacheKey);
+  if (memHit) {
+    await recordMetric({ type: 'memory_cache_hit' }).catch(() => {});
+    return memHit;
+  }
+
+  const kvHit = await getKVCache(cacheKey);
+  if (kvHit) {
+    memoryCache.set(cacheKey, kvHit);
+    await recordMetric({ type: 'kv_cache_hit' }).catch(() => {});
+    return kvHit;
+  }
+
+  // メトリクス: API呼び出しを記録
+  await recordMetric({ type: 'call' }).catch(() => {});
+
+  // GPT API呼び出し（リトライ付き）
+  const attempt = async () => {
+    try {
+      const completion = await fetchWithTimeout(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: modelToUse,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+            max_tokens,
+            temperature,
+          }),
+        },
+        GPT_TIMEOUT_MS
+      );
+
+      if (!completion.ok) {
+        const text = await completion.text().catch(() => '');
+        const status = completion.status;
+        const err = new Error(`OpenAI API error: ${status}`);
+        err.status = status;
+        err.response = text;
+        
+        if (isRetryableError(err)) {
+          throw err;
+        }
+        throw new AbortError(err);
+      }
+
+      const json = await completion.json();
+      return json;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new AbortError(error);
+      }
+      throw error;
+    }
+  };
+
+  let result;
+  try {
+    result = await pRetry(attempt, {
+      retries: 3,
+      factor: 2,
+      minTimeout: 800,
+      maxTimeout: 4000,
+      onFailedAttempt: (error) => {
+        logger.warn('GPT API retry', {
+          attemptNumber: error.attemptNumber,
+          retriesLeft: error.retriesLeft,
+          status: error?.status,
+          message: error?.message?.substring(0, 200),
+          apiKeyMasked: maskSecret(OPENAI_API_KEY),
+        });
+      },
+    });
+  } catch (error) {
+    logger.error('GPT API failed after retries', {
+      error: error?.message,
+      status: error?.status,
+      apiKeyMasked: maskSecret(OPENAI_API_KEY),
+    });
+    
+    // メトリクス: エラーを記録
+    const errorType = isRateLimitError(error) ? 'rate_limit_error' 
+      : (error?.status >= 500 && error?.status <= 599) ? 'server_error' 
+      : 'error';
+    await recordMetric({ type: errorType }).catch(() => {});
+    
+    return 'Text generation failed due to API error.';
+  }
+
+  const text = result?.choices?.[0]?.message?.content?.trim();
+  const finalText = text || 'Text generation failed.';
+
+  // キャッシュに保存
+  memoryCache.set(cacheKey, finalText);
+  await setKVCache(cacheKey, finalText, GPT_CACHE_TTL_SECONDS);
+
+  return finalText;
+}
+
 module.exports = {
   analyzeCryptoQuantData,
   generateCryptoQuantAnalysis,
   generateNonUserImpactReport,
-  escapeForPrompt, // エクスポート（他のファイルで使用可能）
-  // Phase 2: 用途別モデルをエクスポート（他のファイルで使用可能）
+  generateText, // 追加
+  escapeForPrompt,
   GPT_MODEL_SUMMARY,
   GPT_MODEL_ANALYSIS,
   GPT_MODEL_GATE,

@@ -1,5 +1,5 @@
 // 無料ハイクオリティ版Telegram配信用のテキストフォーマット関数
-// services/telegram/messages/user/en/minimal-high-quality.en.js
+// services/telegram/messages/user/ja/minimal-high-quality.ja.js
 // Trap Score + 簡易分析 + 簡易Dr. Grokコメント + Mental Note
 
 /**
@@ -7,22 +7,22 @@
  */
 function getTrapScoreDescription(trapScore) {
   if (trapScore == null || trapScore === undefined) {
-    return 'Trap Score is being calculated. Please check back later.';
+    return 'Trap Scoreを計算中です。しばらくしてから再度ご確認ください。';
   }
   
   const score = Number(trapScore);
   if (isNaN(score)) {
-    return 'Trap Score is being calculated. Please check back later.';
+    return 'Trap Scoreを計算中です。しばらくしてから再度ご確認ください。';
   }
 
   if (score >= 70) {
-    return '⚠️ HIGH TRAP RISK: Strong signals indicate potential market traps. Exercise extreme caution.';
+    return '⚠️ 高リスク: 市場トラップの可能性が高いシグナルが検出されました。極度の注意が必要です。';
   } else if (score >= 50) {
-    return '⚡ MODERATE TRAP RISK: Some trap indicators detected. Stay vigilant.';
+    return '⚡ 中リスク: 一部のトラップ指標が検出されました。警戒を怠らないでください。';
   } else if (score >= 30) {
-    return '✅ LOW TRAP RISK: Minimal trap indicators. Market conditions appear relatively safe.';
+    return '✅ 低リスク: トラップ指標は最小限です。市場状況は比較的安全に見えます。';
   } else {
-    return '✅ VERY LOW TRAP RISK: Very few trap indicators detected. Market conditions appear safe.';
+    return '✅ 非常に低リスク: トラップ指標はほとんど検出されていません。市場状況は安全に見えます。';
   }
 }
 
@@ -40,9 +40,9 @@ function generateWhatToAvoid(trapScore, trapData = null) {
   if (trapData) {
     if (trapData.trapAlert) {
       if (trapData.trapAlert.type === 'AVOID_LONG') {
-        avoidItems.push('Avoid LONG positions - High trap risk detected');
+        avoidItems.push('LONGポジションを避ける - 高いトラップリスクが検出されました');
       } else if (trapData.trapAlert.type === 'AVOID_SHORT') {
-        avoidItems.push('Avoid SHORT positions - High trap risk detected');
+        avoidItems.push('SHORTポジションを避ける - 高いトラップリスクが検出されました');
       }
     }
   }
@@ -50,11 +50,11 @@ function generateWhatToAvoid(trapScore, trapData = null) {
   // デフォルトの回避行動
   if (avoidItems.length === 0) {
     if (trapScore >= 70) {
-      avoidItems.push('Avoid entering new positions - Strong trap signals detected');
-      avoidItems.push('Wait for clearer market signals before trading');
+      avoidItems.push('新しいポジションを開くことを避ける - 強いトラップシグナルが検出されました');
+      avoidItems.push('取引前に市場シグナルがより明確になるまで待つ');
     } else if (trapScore >= 50) {
-      avoidItems.push('Exercise caution - Some trap indicators present');
-      avoidItems.push('Consider waiting for better entry opportunities');
+      avoidItems.push('注意を払う - 一部のトラップ指標が存在します');
+      avoidItems.push('より良いエントリー機会を待つことを検討する');
     }
   }
 
@@ -73,14 +73,14 @@ function generateEvidence(trapData = null, marketData = null) {
       const netflow = trapData.exchangeNetflow; // BTC単位
       const sign = netflow >= 0 ? '+' : '';
       const absValue = Math.abs(netflow);
-      const flowDir = netflow >= 0 ? 'inflow' : 'outflow';
+      const flowDir = netflow >= 0 ? '流入' : '流出';
       // BTC単位で表示（有料版と統一）
-      evidenceItems.push(`Exchange Netflow: ${sign}${absValue.toFixed(0)} BTC (${flowDir})`);
+      evidenceItems.push(`取引所ネットフロー: ${sign}${absValue.toFixed(0)} BTC (${flowDir})`);
     }
 
     if (trapData.whaleRatio !== undefined && trapData.whaleRatio !== null) {
       const whaleRatio = trapData.whaleRatio * 100;
-      evidenceItems.push(`Whale Ratio: ${whaleRatio.toFixed(0)}% (${whaleRatio >= 80 ? 'high selling pressure' : 'normal'})`);
+      evidenceItems.push(`クジラ比率: ${whaleRatio.toFixed(0)}% (${whaleRatio >= 80 ? '高い売り圧力' : '正常'})`);
     }
   }
 
@@ -89,14 +89,14 @@ function generateEvidence(trapData = null, marketData = null) {
     if (marketData.mpi !== undefined) {
       const mpi = marketData.mpi;
       if (mpi > 2.0) {
-        evidenceItems.push(`Miner Position Index: ${mpi.toFixed(2)} (miners selling)`);
+        evidenceItems.push(`マイナーポジションインデックス: ${mpi.toFixed(2)} (マイナーが売却中)`);
       }
     }
   }
 
   // デフォルトの根拠（データがない場合）
   if (evidenceItems.length === 0) {
-    evidenceItems.push('On-chain data analysis indicates trap risk');
+    evidenceItems.push('オンチェーンデータ分析がトラップリスクを示しています');
   }
 
   return evidenceItems.slice(0, 2); // 最大2つまで
@@ -110,19 +110,19 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
 
   if (!trapScore || trapScore < 30) {
     // Trap Scoreが低い場合でも、デフォルトのメッセージを提供
-    comments.push('"Patience is strategic strength. Keep waiting for clear opportunities."');
+    comments.push('"忍耐は戦略的な強さだ。明確な機会を待ち続けよう。"');
   } else if (trapScore >= 70) {
-    comments.push('"FOMO is high right now. Don\'t let greed override your defense strategy. Wait."');
+    comments.push('"FOMOが今高い。貪欲が防御戦略を上回らないように。待とう。"');
   } else if (trapScore >= 50) {
-    comments.push('"Stay disciplined. The market is testing your patience. Defense first."');
+    comments.push('"規律を保とう。市場はあなたの忍耐を試している。防御第一。"');
   } else {
-    comments.push('"Good discipline. Keep waiting for clear opportunities."');
+    comments.push('"良い規律だ。明確な機会を待ち続けよう。"');
   }
 
   // Sentiment Dataから追加コメント
   if (sentimentData) {
     if (sentimentData.sentiment === 'FOMO' || sentimentData.sentiment === 'GREED') {
-      comments.push('"Market sentiment is emotional. This is when traps occur. Stay calm."');
+      comments.push('"市場のセンチメントは感情的だ。これがトラップが発生する時だ。冷静さを保とう。"');
     }
   }
 
@@ -133,7 +133,7 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
  * Mental Noteを生成
  */
 function generateMentalNote() {
-  return '"70% of the time, do nothing. Defense until clear advantage emerges."';
+  return '"70%の時間、何もしない。明確な優位性が現れるまで防御する。"';
 }
 
 /**
@@ -148,7 +148,7 @@ function generateMentalNote() {
  * @param {Object} options.trapData - Trap Data（オプション）
  * @param {Object} options.marketData - Market Data（オプション）
  * @param {Object} options.sentimentData - Sentiment Data（オプション）
- * @param {string} options.lang - 言語コード（デフォルト: 'en'）
+ * @param {string} options.lang - 言語コード（デフォルト: 'ja'）
  * @returns {string} Telegramメッセージ文字列
  */
 function formatMinimalHighQualityBriefing({
@@ -159,7 +159,7 @@ function formatMinimalHighQualityBriefing({
   trapData = null,
   marketData = null,
   sentimentData = null,
-  lang = 'en',
+  lang = 'ja',
 } = {}) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
   
@@ -167,8 +167,8 @@ function formatMinimalHighQualityBriefing({
   const scoreDescription = getTrapScoreDescription(trapScore);
   
   const priceLine = priceUsd != null && change24h != null
-    ? `💰 BTC Price: $${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })} (${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}% / 24h)`
-    : '💰 BTC Price: Fetching...';
+    ? `💰 BTC価格: $${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })} (${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}% / 24h)`
+    : '💰 BTC価格: 取得中...';
 
   const whatToAvoid = generateWhatToAvoid(trapScore, trapData);
   const evidence = generateEvidence(trapData, marketData);
@@ -176,13 +176,13 @@ function formatMinimalHighQualityBriefing({
   const mentalNote = generateMentalNote();
 
   // 【改善1: ニュース番組形式の追加】Openingセクションを追加
-  let message = `🌤️ Trap Defense BTC - Free Report
-🚨 BREAKING: TRAP DEFENCE BRIEFING
-📺 【Opening】Market Intelligence Briefing
+  let message = `🌤️ Trap Defense BTC - 無料レポート
+🚨 BREAKING: トラップ防御ブリーフィング
+📺 【オープニング】市場インテリジェンスブリーフィング
 📅 ${ts}
 
 ━━━━━━━━━━━━━━━━━━━━
-🎯 Today's Trap Score
+🎯 本日のTrap Score
 ━━━━━━━━━━━━━━━━━━━━
 ${scoreDisplay}/100
 ${scoreDescription}
@@ -194,26 +194,26 @@ ${priceLine}`;
   if (trapScore !== null && trapScore >= 30) {
     const trapScoreRounded = Math.round(trapScore);
     message += `\n\n━━━━━━━━━━━━━━━━━━━━
-📖 【Market Story】The Problem
+📖 【市場ストーリー】問題
 ━━━━━━━━━━━━━━━━━━━━`;
     
     if (trapScoreRounded >= 70) {
-      message += `\n🚨 The market is showing strong trap signals. Despite what price charts might suggest, on-chain data reveals hidden risks.`;
-      message += `\n💡 The Problem: Multiple divergences and anomalies indicate potential market traps. Entering now could expose you to significant risk.`;
+      message += `\n🚨 市場は強いトラップシグナルを示しています。価格チャートが示唆するものにもかかわらず、オンチェーンデータは隠れたリスクを明らかにしています。`;
+      message += `\n💡 問題: 複数のダイバージェンスと異常が潜在的な市場トラップを示しています。今入場すると、重大なリスクにさらされる可能性があります。`;
     } else if (trapScoreRounded >= 50) {
-      message += `\n⚡ The market is showing moderate trap indicators. Some divergences suggest caution.`;
-      message += `\n💡 The Problem: Trap signals are present. Rushing into trades now could lead to losses.`;
+      message += `\n⚡ 市場は中程度のトラップ指標を示しています。一部のダイバージェンスが注意を促しています。`;
+      message += `\n💡 問題: トラップシグナルが存在します。今急いで取引すると損失につながる可能性があります。`;
     } else {
-      message += `\n✅ Market conditions appear relatively safe, but trap patterns can emerge quickly.`;
-      message += `\n💡 The Problem: Even in low-risk conditions, patience is strategic strength.`;
+      message += `\n✅ 市場状況は比較的安全に見えますが、トラップパターンは急速に出現する可能性があります。`;
+      message += `\n💡 問題: 低リスク条件でも、忍耐は戦略的な強さです。`;
     }
   }
 
   // Step 2: 証拠（Evidence）セクション
   if (evidence && evidence.length > 0) {
     message += `\n\n━━━━━━━━━━━━━━━━━━━━
-📊 【Evidence】Why Wait? Data-Backed Reasons
-PROVED BY ON-CHAIN DATA
+📊 【証拠】なぜ待つのか？データに基づく理由
+オンチェーンデータで証明済み
 ━━━━━━━━━━━━━━━━━━━━`;
     evidence.forEach(item => {
       message += `\n• ${item}`;
@@ -222,16 +222,16 @@ PROVED BY ON-CHAIN DATA
     // 【改善2: 「70%待機戦略」の証拠ベース説明の統合】EvidenceとMental Noteを連動
     if (trapScore !== null && trapScore >= 30) {
       const trapScoreRounded = Math.round(trapScore);
-      message += `\n\n💡 Why Wait? (Evidence-Based)`;
+      message += `\n\n💡 なぜ待つのか？（証拠ベース）`;
       if (trapScoreRounded >= 70) {
-        message += `\n   🚨 Trap Score ${trapScoreRounded}/100: Strong signals indicate potential market traps.`;
-        message += `\n   🛡️ Strategic preparation is not weakness—it's victory preparation. 70% of the time, prepare for victory.`;
+        message += `\n   🚨 Trap Score ${trapScoreRounded}/100: 強いシグナルが潜在的な市場トラップを示しています。`;
+        message += `\n   🛡️ 戦略的な準備は弱さではない—それは勝利への準備だ。70%の時間、勝利のために準備しよう。`;
       } else if (trapScoreRounded >= 50) {
-        message += `\n   ⚡ Trap Score ${trapScoreRounded}/100: Moderate trap indicators detected.`;
-        message += `\n   🛡️ Defense first. Wait for clearer market signals.`;
+        message += `\n   ⚡ Trap Score ${trapScoreRounded}/100: 中程度のトラップ指標が検出されました。`;
+        message += `\n   🛡️ 防御第一。より明確な市場シグナルを待とう。`;
       } else {
-        message += `\n   ✅ Trap Score ${trapScoreRounded}/100: Low trap risk, but remain vigilant.`;
-        message += `\n   🛡️ Even in low-risk conditions, strategic preparation is victory preparation.`;
+        message += `\n   ✅ Trap Score ${trapScoreRounded}/100: 低トラップリスクだが、警戒を怠らない。`;
+        message += `\n   🛡️ 低リスク条件でも、戦略的な準備は勝利への準備だ。`;
       }
     }
   }
@@ -239,7 +239,7 @@ PROVED BY ON-CHAIN DATA
   // Step 3: 解決策（What to Avoid）
   if (whatToAvoid && whatToAvoid.length > 0) {
     message += `\n\n━━━━━━━━━━━━━━━━━━━━
-🚫 【Solution】What to Avoid
+🚫 【解決策】避けるべきこと
 ━━━━━━━━━━━━━━━━━━━━`;
     whatToAvoid.forEach(item => {
       message += `\n• ${item}`;
@@ -250,7 +250,7 @@ PROVED BY ON-CHAIN DATA
   // 【改善1: ニュース番組形式の追加】コメンテーターセクション
   if (drGrokComment) {
     message += `\n\n━━━━━━━━━━━━━━━━━━━━
-💊 【Commentator】Dr. Grok's Quick Insight
+💊 【コメンテーター】Dr. Grokのクイックインサイト
 ━━━━━━━━━━━━━━━━━━━━
 ${drGrokComment}`;
   }
@@ -258,39 +258,39 @@ ${drGrokComment}`;
   // 【改善1: ストーリー構造の追加】成功する結末（Mental Note）
   if (mentalNote) {
     message += `\n\n━━━━━━━━━━━━━━━━━━━━
-✅ 【Success Ending】Mental Note
+✅ 【成功する結末】メンタルノート
 ━━━━━━━━━━━━━━━━━━━━
 ${mentalNote}`;
   }
   
   // 【改善1: ニュース番組形式の追加】Closingセクションを追加
   message += `\n\n━━━━━━━━━━━━━━━━━━━━
-📺 【Closing】Stay tuned for the next episode
+📺 【クロージング】次回もお楽しみに
 ━━━━━━━━━━━━━━━━━━━━`;
 
   // CTA（アップセル最適化：開発資金確保のため緊迫感のあるCTA）
   // VSL2とWhopリンクは別途配信されるため、定期配信のMinimal Briefingには含めない
   
   message += `\n\n━━━━━━━━━━━━━━━━━━━━
-🚀 Unlock Full Intelligence Report
+🚀 完全なインテリジェンスレポートを解除
 
-You're seeing a glimpse. Full members get:
+あなたは一部を見ています。フルメンバーは以下を取得します：
 
-✨ Complete Intelligence Report
-• Full on-chain analysis (all indicators)
-• AI-powered market insights & trap detection
-• Real-time alerts: AVOID-LONG / AVOID-SHORT / STANDBY
-• Exit Map & Mental Training guidance
-• Full Dr. Grok psychological support
-• Real-time X sentiment analysis
+✨ 完全なインテリジェンスレポート
+• 完全なオンチェーン分析（すべての指標）
+• AI駆動の市場インサイトとトラップ検出
+• リアルタイムアラート: AVOID-LONG / AVOID-SHORT / STANDBY
+• エグジットマップとメンタルトレーニングガイダンス
+• 完全なDr. Grokの心理的サポート
+• リアルタイムXセンチメント分析
 
-💡 Why Upgrade?
-The difference between protecting capital and losing it is often just one missed trap signal.
+💡 なぜアップグレードするのか？
+資本を保護することと失うことの違いは、しばしば1つの見逃したトラップシグナルだけです。
 
 ━━━━━━━━━━━━━━━━━━━━
-This is a free report. For detailed analysis and trap alerts, upgrade to Trap Defense BTC.
+これは無料レポートです。詳細分析とトラップアラートについては、Trap Defense BTCにアップグレードしてください。
 
-For educational purposes only. Not financial advice.`;
+教育目的のみ。金融アドバイスではありません。`;
 
   return message.trim();
 }

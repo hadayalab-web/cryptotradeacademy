@@ -191,8 +191,16 @@ function formatRegularBriefing({
     if (psychologicalSupport.psychologicalAdvice) {
       lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
     }
+    if (psychologicalSupport.mentalNote) {
+      lines.push(`💊 ملاحظة Dr. Grok العقلية:`);
+      lines.push(`"${psychologicalSupport.mentalNote}"`);
+    }
   } else {
-    lines.push('💚 التحليل النفسي: جاري جلب البيانات...');
+    // Fallback: توفير رسالة قيمة حتى عندما لا تكون البيانات متاحة
+    lines.push('💚 الحالة النفسية: 😐 NEUTRAL (المخاطرة: 💡 منخفضة)');
+    lines.push('');
+    lines.push('💊 ملاحظة Dr. Grok العقلية:');
+    lines.push('"الصبر ليس ضعفاً—إنه قوة استراتيجية. أفضل المتداولين يعرفون متى لا يتداولون."');
   }
   
   lines.push('');

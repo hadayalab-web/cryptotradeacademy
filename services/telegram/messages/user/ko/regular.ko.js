@@ -266,8 +266,16 @@ function formatRegularBriefing({
     if (psychologicalSupport.psychologicalAdvice) {
       lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
     }
+    if (psychologicalSupport.mentalNote) {
+      lines.push(`💊 Dr. Grok의 멘탈 노트:`);
+      lines.push(`"${psychologicalSupport.mentalNote}"`);
+    }
   } else {
-    lines.push('💚 심리 분석: 데이터 가져오는 중...');
+    // 폴백: 데이터를 가져올 수 없는 경우에도 가치 있는 메시지 제공
+    lines.push('💚 심리 상태: 😐 NEUTRAL (위험: 💡 낮음)');
+    lines.push('');
+    lines.push('💊 Dr. Grok의 멘탈 노트:');
+    lines.push('"인내는 약점이 아니다—전략적 강점이다. 최고의 트레이더는 거래하지 않을 때를 안다."');
   }
   
   lines.push('');

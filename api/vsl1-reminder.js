@@ -32,7 +32,7 @@ Did you watch the VSL1 video yet? If not, check out this chart:
 🚀 Get the trap avoidance logic that pros use (FREE):
 → @TrapDefenceBot /start minimal
 
-⚠️ Don't lose your capital. Watch this 4-minute video before you trade.`;
+⚠️ Don't lose your capital. Watch this 1-minute video before you trade.`;
 }
 
 /**

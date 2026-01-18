@@ -1,10 +1,13 @@
 // services/telegram/bot-commands.js
-// 無料版登録用Telegram Botコマンドハンドラー
+// 無料版登録用Telegram Botコマンドハンドラー + Callback Queryハンドラー
 
 const { addFreeUser, isFreeUser, removeFreeUser, getFreeUserCount } = require('../free-users/manager');
 const { sendMessageToUser } = require('./bot');
 const { getWhopUpgradeLink } = require('./whop-links');
+const { incrementSavedCount } = require('./reaction-counter'); // 集計サービス
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
+
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 function normalizeLang(value) {
   if (!value) return null;
@@ -57,8 +60,15 @@ function parseStartParam(param) {
  * @returns {Promise<Object>} レスポンス
  */
 async function handleBotCommand(update) {
+  // Callback Query (ボタン押下) の処理
+  if (update.callback_query) {
+    return handleCallbackQuery(update.callback_query);
+  }
+
+  // 通常のメッセージコマンドの処理
   if (!update.message || !update.message.text) {
-    return { success: false, error: 'Invalid update format' };
+    // エラーではないが、処理対象外
+    return { success: false, ignored: true, error: 'Invalid update format' };
   }
 
   const message = update.message.text.trim();
@@ -80,6 +90,87 @@ async function handleBotCommand(update) {
   }
 
   return { success: false, error: 'Unknown command' };
+}
+
+/**
+ * Callback Query (ボタン押下) を処理
+ */
+async function handleCallbackQuery(query) {
+  const { id, data, from } = query;
+  
+  try {
+    // "saved" アクションの処理
+    if (data === 'action_saved') {
+      const userId = from.id.toString();
+      
+      // カウントアップ
+      const counts = incrementSavedCount(userId);
+      
+      // ユーザーにフィードバック（ポップアップ通知）
+      // answerCallbackQuery を使用（showAlert: trueで通知を表示）
+      const notificationText = `🔥 Defense Confirmed! (Today: ${counts.today} protected)`;
+      await answerCallbackQuery(id, notificationText, true);
+      
+      console.log(`[BotCommands] Callback query processed: action_saved for user ${userId}, counts:`, counts);
+      
+      return { success: true, action: 'saved', counts };
+    }
+    
+    // 未知のアクション
+    await answerCallbackQuery(id, 'Unknown action', false);
+    return { success: false, error: 'Unknown callback action' };
+    
+  } catch (error) {
+    console.error('[BotCommands] Error handling callback query:', error);
+    // エラー時でも必ずanswerCallbackQueryを呼び出す（Telegramの要件）
+    try {
+      await answerCallbackQuery(id, 'An error occurred. Please try again.', false);
+    } catch (answerError) {
+      console.error('[BotCommands] Failed to answer callback query on error:', answerError);
+    }
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Telegram API: answerCallbackQuery
+ * ボタンを押した後のローディング状態を消し、オプションでテキストを表示する
+ */
+async function answerCallbackQuery(callbackQueryId, text = null, showAlert = false) {
+  if (!TELEGRAM_BOT_TOKEN) {
+    console.error('[BotCommands] TELEGRAM_BOT_TOKEN is not set');
+    return;
+  }
+  
+  const url = new URL(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`);
+  const body = {
+    callback_query_id: callbackQueryId,
+    text: text,
+    show_alert: showAlert
+  };
+  
+  try {
+    console.log(`[BotCommands] Answering callback query: id=${callbackQueryId}, text="${text}", showAlert=${showAlert}`);
+    
+    const response = await fetch(url.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      console.error(`[BotCommands] answerCallbackQuery failed: ${response.status}`, responseData);
+      return false;
+    } else {
+      console.log(`[BotCommands] Callback query answered successfully:`, responseData);
+      return true;
+    }
+  } catch (error) {
+    console.error('[BotCommands] Error answering callback query:', error);
+    return false;
+  }
 }
 
 /**

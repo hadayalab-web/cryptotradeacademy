@@ -54,15 +54,15 @@ function getMarketCode(lang) {
 
 // 外部データ取得ヘルパー
 async function fetchBtcPrice() {
-  const url = new URL(
+  const priceUrl = new URL(
     'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',
   );
-  const res = await fetch(url.toString());
-  if (!res.ok) {
-    throw new Error(`Price API Error: ${res.status} ${res.statusText}`);
+  const priceRes = await fetch(priceUrl.toString());
+  if (!priceRes.ok) {
+    throw new Error(`Price API Error: ${priceRes.status} ${priceRes.statusText}`);
   }
-  const json = await res.json();
-  const data = json.bitcoin || {};
+  const priceJson = await priceRes.json();
+  const data = priceJson.bitcoin || {};
   return {
     priceUsd: Number(data.usd) || 0,
     change24h: Number(data.usd_24h_change) || 0,
@@ -70,13 +70,13 @@ async function fetchBtcPrice() {
 }
 
 async function fetchFearGreed() {
-  const url = new URL('https://api.alternative.me/fng/?limit=1');
-  const res = await fetch(url.toString());
-  if (!res.ok) {
-    throw new Error(`FNG API Error: ${res.status} ${res.statusText}`);
+  const fngUrl = new URL('https://api.alternative.me/fng/?limit=1');
+  const fngRes = await fetch(fngUrl.toString());
+  if (!fngRes.ok) {
+    throw new Error(`FNG API Error: ${fngRes.status} ${fngRes.statusText}`);
   }
-  const json = await res.json();
-  const point = json?.data?.[0];
+  const fngJson = await fngRes.json();
+  const point = fngJson?.data?.[0];
   if (!point) return { value: null, label: 'Unknown' };
   return {
     value: Number(point.value) || null,
@@ -443,7 +443,6 @@ module.exports = async function handler(req, res) {
       },
     });
   } catch (error) {
-    const logger = createLogger('handler');
     logger.error('Prepare job error', {
       error: error?.message,
       stack: error?.stack?.substring(0, 500),

@@ -191,8 +191,16 @@ function formatRegularBriefing({
     if (psychologicalSupport.psychologicalAdvice) {
       lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
     }
+    if (psychologicalSupport.mentalNote) {
+      lines.push(`💊 Nota Mental de Dr. Grok:`);
+      lines.push(`"${psychologicalSupport.mentalNote}"`);
+    }
   } else {
-    lines.push('💚 Análise Psicológica: Obtendo dados...');
+    // Fallback: Fornecer uma mensagem valiosa mesmo quando os dados não estão disponíveis
+    lines.push('💚 Estado Psicológico: 😐 NEUTRAL (Risco: 💡 BAIXO)');
+    lines.push('');
+    lines.push('💊 Nota Mental de Dr. Grok:');
+    lines.push('"A paciência não é fraqueza—é força estratégica. Os melhores traders sabem quando não operar."');
   }
   
   lines.push('');

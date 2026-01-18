@@ -54,7 +54,7 @@ function getUserLang(user) {
  * @returns {Object} Telegram Inline Keyboard Markup
  */
 function generateVSL2InlineKeyboard(lang = DEFAULT_LANG) {
-  const whopUrl = getWhopProductUrl(lang);
+  const whopProductUrl = getWhopProductUrl(lang);
   return {
     inline_keyboard: [
       [
@@ -66,7 +66,7 @@ function generateVSL2InlineKeyboard(lang = DEFAULT_LANG) {
       [
         {
           text: '🚀 Get 50% OFF Now',
-          url: `${whopUrl}?promo=${PROMO_CODE}`
+          url: `${whopProductUrl}?promo=${PROMO_CODE}`
         }
       ]
     ]
@@ -110,8 +110,8 @@ async function sendVSL2ToFreeUsers() {
     for (const user of freeUsers) {
       try {
         const userLang = getUserLang(user);
-        const whopUrl = getWhopProductUrl(userLang);
-        const message = generateVSL2Message(userLang, user.userName || 'there', VSL2_YOUTUBE_LINK, whopUrl, PROMO_CODE);
+        const userWhopUrl = getWhopProductUrl(userLang);
+        const message = generateVSL2Message(userLang, user.userName || 'there', VSL2_YOUTUBE_LINK, userWhopUrl, PROMO_CODE);
         
         // Gemini CMO提案: インラインボタンを追加
         const inlineKeyboard = generateVSL2InlineKeyboard(userLang);

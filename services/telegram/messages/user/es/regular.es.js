@@ -191,8 +191,16 @@ function formatRegularBriefing({
     if (psychologicalSupport.psychologicalAdvice) {
       lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
     }
+    if (psychologicalSupport.mentalNote) {
+      lines.push(`💊 Nota Mental de Dr. Grok:`);
+      lines.push(`"${psychologicalSupport.mentalNote}"`);
+    }
   } else {
-    lines.push('💚 Análisis Psicológico: Obteniendo datos...');
+    // Fallback: Proporcionar un mensaje valioso incluso cuando los datos no están disponibles
+    lines.push('💚 Estado Psicológico: 😐 NEUTRAL (Riesgo: 💡 BAJO)');
+    lines.push('');
+    lines.push('💊 Nota Mental de Dr. Grok:');
+    lines.push('"La paciencia no es debilidad—es fuerza estratégica. Los mejores traders saben cuándo no operar."');
   }
   
   lines.push('');

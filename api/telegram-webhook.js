@@ -16,8 +16,12 @@ async function handler(req, res) {
   try {
     const update = req.body;
 
+    // デバッグログ（本番環境では削除推奨）
+    console.log('[Telegram Webhook] Received update:', JSON.stringify(update, null, 2));
+
     // Telegram Updateオブジェクトの検証
     if (!update || !update.update_id) {
+      console.warn('[Telegram Webhook] Invalid update object:', update);
       return res.status(400).json({ error: 'Invalid Telegram update' });
     }
 
@@ -25,9 +29,11 @@ async function handler(req, res) {
     const result = await handleBotCommand(update);
 
     if (result.success) {
+      console.log('[Telegram Webhook] Command processed successfully:', result.action || 'unknown');
       return res.status(200).json({ ok: true, result });
     } else {
       // コマンドではない、または処理不要なメッセージの場合は200を返す（Telegramの要件）
+      console.log('[Telegram Webhook] Command ignored:', result.error || 'Not a command');
       return res.status(200).json({ ok: true, ignored: true, reason: result.error || 'Not a command' });
     }
   } catch (error) {

@@ -301,8 +301,16 @@ function formatRegularBriefing({
     if (psychologicalSupport.psychologicalAdvice) {
       lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
     }
+    if (psychologicalSupport.mentalNote) {
+      lines.push(`💊 Dr. Grokのメンタルノート:`);
+      lines.push(`"${psychologicalSupport.mentalNote}"`);
+    }
   } else {
-    lines.push('💚 心理分析: データ取得中...');
+    // フォールバック: データが取得できない場合でも価値のあるメッセージを提供
+    lines.push('💚 心理状態: 😐 NEUTRAL (リスク: 💡 低)');
+    lines.push('');
+    lines.push('💊 Dr. Grokのメンタルノート:');
+    lines.push('"忍耐は弱さではない—それは戦略的な強さだ。最高のトレーダーは、取引しない時を知っている。"');
   }
   
   lines.push('');

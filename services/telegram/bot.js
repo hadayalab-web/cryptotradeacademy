@@ -59,8 +59,9 @@ if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
 /**
  * Send a message to the configured Telegram chat.
  * @param {string} text
+ * @param {Object} options - Optional parameters (parse_mode, reply_markup, etc.)
  */
-async function sendMessage(text) {
+async function sendMessage(text, options = {}) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
     console.error("❌ Telegram credentials are missing. Skipping sendMessage.");
     return;
@@ -70,7 +71,8 @@ async function sendMessage(text) {
   const body = {
     chat_id: TELEGRAM_CHAT_ID,
     text,
-    parse_mode: "Markdown"
+    parse_mode: options.parse_mode || "Markdown",
+    ...options,
   };
 
   try {
@@ -515,9 +517,10 @@ async function sendPhotoToUser(chatId, photoUrl, caption, options = {}) {
  * @param {string} text - Message text
  * @param {string} series - Series type ('BTC', 'OTHER', etc.)
  * @param {string} marketCode - Market code ('EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR')
+ * @param {Object} options - Optional parameters (parse_mode, reply_markup, etc.)
  * @returns {Promise<Object>} Telegram API response
  */
-async function sendMessageToChannel(text, series = 'BTC', marketCode = 'EN') {
+async function sendMessageToChannel(text, series = 'BTC', marketCode = 'EN', options = {}) {
   const botToken = TELEGRAM_BOT_TOKEN;
   
   // 環境変数名を生成（例: TELEGRAM_CHAT_ID_BTC_EN）
@@ -535,7 +538,8 @@ async function sendMessageToChannel(text, series = 'BTC', marketCode = 'EN') {
   const body = {
     chat_id: chatId,
     text,
-    parse_mode: "Markdown"
+    parse_mode: options.parse_mode || "Markdown",
+    ...options,
   };
 
   try {

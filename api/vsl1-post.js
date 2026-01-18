@@ -1,5 +1,8 @@
 // api/vsl1-post.js
-// VSL1自動投稿（Telegram/X） - 無料版オプトイン誘導
+// VSL1自動投稿（X/Twitterのみ） - 無料版オプトイン誘導
+// 注意: VSL1は無料版オプトイン誘導用のため、無料版チャンネル（MINIMAL）には配信しない
+// 無料版チャンネルに配信すると、既に無料版に登録しているユーザーに不要なメッセージが届いてしまう
+// VSL1はX/Twitterのみに配信し、無料版に登録していない人（Grokが見つけてきたリスト）に対してオプトインを促す
 
 const { sendMessageToAsset, sendPhotoToAsset } = require('../services/telegram/bot');
 const { analyzeXSentimentLive } = require('../services/grok/client');
@@ -27,8 +30,8 @@ const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 
 function normalizeLang(value) {
   if (!value) return null;
-  const base = String(value).trim().toLowerCase().split('.')[0].replace('_', '-');
-  return SUPPORTED_LANGS.includes(base) ? base : null;
+  const normalizedBase = String(value).trim().toLowerCase().split('.')[0].replace('_', '-');
+  return SUPPORTED_LANGS.includes(normalizedBase) ? normalizedBase : null;
 }
 
 // LANG を正規化（en, es, pt-br, ar, ja, ko だけ許可）
@@ -37,9 +40,9 @@ const LANG = DEFAULT_LANG;
 
 function parseBoolean(value, defaultValue = false) {
   if (value === undefined || value === null || value === '') return defaultValue;
-  const normalized = String(value).trim().toLowerCase();
-  if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) return true;
-  if (['0', 'false', 'no', 'n', 'off'].includes(normalized)) return false;
+  const normalizedValue = String(value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'y', 'on'].includes(normalizedValue)) return true;
+  if (['0', 'false', 'no', 'n', 'off'].includes(normalizedValue)) return false;
   return defaultValue;
 }
 
@@ -87,29 +90,29 @@ function getTelegramDeepLink(lang) {
   let botUsername = process.env.TELEGRAM_BOT_USERNAME || 'TrapDefenceBot';
   // @記号を削除（TelegramのDeep Linkでは不要）
   botUsername = botUsername.replace(/^@/, '');
-  const normalized = normalizeLang(lang);
-  const startParam = normalized ? `minimal_${normalized}` : 'minimal';
+  const normalizedLang = normalizeLang(lang);
+  const startParam = normalizedLang ? `minimal_${normalizedLang}` : 'minimal';
   return `https://t.me/${botUsername}?start=${startParam}`;
 }
 
 function resolveMinimalChatId(lang) {
-  const normalized = normalizeLang(lang);
-  if (!normalized) {
+  const normalizedLangCode = normalizeLang(lang);
+  if (!normalizedLangCode) {
     // ENチャンネルを優先、なければデフォルト
     return process.env.TELEGRAM_CHAT_ID_MINIMAL_EN || process.env.TELEGRAM_CHAT_ID_MINIMAL || null;
   }
   
-  const base = normalized.toUpperCase().replace('-', '_');
-  const variants = [base];
-  if (base === 'PT_BR') variants.push('PTBR');
-  if (base === 'JA') variants.push('JP');
-  if (base === 'KO') variants.push('KR');
+  const normalizedBaseCode = normalizedLangCode.toUpperCase().replace('-', '_');
+  const variants = [normalizedBaseCode];
+  if (normalizedBaseCode === 'PT_BR') variants.push('PTBR');
+  if (normalizedBaseCode === 'JA') variants.push('JP');
+  if (normalizedBaseCode === 'KO') variants.push('KR');
 
   // 1. 言語別チャンネルIDを優先
   for (const variant of variants) {
     const envVarName = `TELEGRAM_CHAT_ID_MINIMAL_${variant}`;
-    const chatId = process.env[envVarName];
-    if (chatId) return chatId;
+    const resolvedChatId = process.env[envVarName];
+    if (resolvedChatId) return resolvedChatId;
   }
 
   // 2. ENチャンネルにフォールバック（Grok CSO+CFO推奨）
@@ -157,7 +160,7 @@ function getXPostLang(targetLangs) {
  * @returns {Promise<string>} 生成されたメッセージ
  */
 async function generateVSL1Post(lang, options = {}) {
-  const deepLink = getTelegramDeepLink(lang);
+  const telegramDeepLink = getTelegramDeepLink(lang);
   const useDynamicGeneration = parseBoolean(process.env.VSL1_USE_DYNAMIC_GENERATION, false);
   
   if (useDynamicGeneration) {
@@ -165,7 +168,7 @@ async function generateVSL1Post(lang, options = {}) {
       // Grok CSO+CFO推奨: Gemini動的メッセージ生成
       const optimizedMessage = await optimizeVSL1Message({
         lang: lang || 'en',
-        deepLink,
+        deepLink: telegramDeepLink,
         vsl1Link: VSL1_YOUTUBE_LINK,
         engagementData: options.engagementData,
         marketSentiment: options.marketSentiment,
@@ -177,7 +180,7 @@ async function generateVSL1Post(lang, options = {}) {
   }
   
   // フォールバック: 既存のテンプレート
-  return toTelegramHtml(generateVSL1Message(lang || 'en', deepLink, VSL1_YOUTUBE_LINK));
+  return toTelegramHtml(generateVSL1Message(lang || 'en', telegramDeepLink, VSL1_YOUTUBE_LINK));
 }
 
 /**
@@ -202,10 +205,10 @@ async function buildXPostPayload(lang) {
     }
   }
 
-  const deepLink = getTelegramDeepLink(lang || LANG);
+  const tweetDeepLink = getTelegramDeepLink(lang || LANG);
   const tweet = buildVsl1Tweet({
     vsl1Link: VSL1_YOUTUBE_LINK,
-    deepLink,
+    deepLink: tweetDeepLink,
     variant: variantInfo.variant,
     lang: lang || LANG, // Grok CSO+CFO推奨: 言語別ツイート生成
   });
@@ -249,75 +252,11 @@ async function postVSL1() {
       console.error('❌ Error loading VSL1 thumbnail:', err.message);
     }
 
-    // Telegram MINIMALチャンネルに投稿（言語別）
-    for (const lang of targetLangs) {
-      try {
-        const chatId = resolveMinimalChatId(lang);
-        if (!chatId) {
-          const langCodeUpper = lang.toUpperCase().replace('-', '_');
-          telegramResults[lang] = {
-            success: false,
-            error: `Missing TELEGRAM_CHAT_ID_MINIMAL_${langCodeUpper} (and TELEGRAM_CHAT_ID_MINIMAL)`,
-          };
-          console.error(`❌ Telegram post skipped (${lang}): missing chat ID`);
-          continue;
-        }
-        if (!telegramConfig.botTokenSet) {
-          telegramResults[lang] = {
-            success: false,
-            error: 'Missing TELEGRAM_BOT_TOKEN (and TELEGRAM_BOT_TOKEN_MINIMAL)',
-          };
-          console.error(`❌ Telegram post skipped (${lang}): missing bot token`);
-          continue;
-        }
-        
-        // Grok CSO+CFO推奨: A/Bテスト（メッセージバリアント）
-        const useABTest = parseBoolean(process.env.VSL1_AB_TEST_ENABLED, false);
-        let message;
-        let variant = 'default';
-        
-        if (useABTest) {
-          // A/Bテスト: テンプレート vs 動的生成
-          const testUserId = `lang:${lang}`; // 言語ごとにテスト
-          variant = await getVariant('vsl1-message', testUserId, ['template', 'dynamic'], { split: 0.5 });
-          
-          if (variant === 'dynamic') {
-            message = await generateVSL1Post(lang, {
-              engagementData: null, // TODO: 過去のエンゲージメントデータを取得
-              marketSentiment: null, // TODO: 市場センチメントを取得
-            });
-          } else {
-          message = toTelegramHtml(
-            generateVSL1Message(lang || 'en', getTelegramDeepLink(lang), VSL1_YOUTUBE_LINK)
-          );
-          }
-          
-          // インプレッションを記録
-          await recordABTestEvent('vsl1-message', variant, 'impression', { lang });
-        } else {
-          message = await generateVSL1Post(lang, {
-            engagementData: null,
-            marketSentiment: null,
-          });
-        }
-        
-        if (vsl1ThumbnailDataUrl) {
-          // サムネイル付きで送信
-          await sendPhotoToAsset(vsl1ThumbnailDataUrl, message, 'MINIMAL', lang, { parse_mode: 'HTML' });
-          console.log(`✅ VSL1 posted (with photo) to Telegram MINIMAL/${lang.toUpperCase()} [${variant}]`);
-        } else {
-          // テキストのみ送信
-          await sendMessageToAsset(message, 'MINIMAL', lang, { parse_mode: 'HTML' });
-          console.log(`✅ VSL1 posted (text only) to Telegram MINIMAL/${lang.toUpperCase()} [${variant}]`);
-        }
-        
-        telegramResults[lang] = { success: true, variant };
-        telegramSuccessCount += 1;
-      } catch (error) {
-        telegramResults[lang] = { success: false, error: error.message };
-        console.error(`❌ Telegram post failed (${lang}): ${error.message}`);
-      }
-    }
+    // VSL1投稿は無料版オプトイン誘導用のため、無料版チャンネル（MINIMAL）には配信しない
+    // 無料版チャンネルに配信すると、既に無料版に登録しているユーザーに不要なメッセージが届いてしまう
+    // VSL1はX/Twitterのみに配信し、無料版に登録していない人（Grokが見つけてきたリスト）に対してオプトインを促す
+    console.log('ℹ️ VSL1 is for opt-in lead generation, skipping Telegram MINIMAL channel (already registered users)');
+    console.log('ℹ️ VSL1 will be posted to X/Twitter only to reach new prospects');
 
     results.telegram = {
       success: telegramSuccessCount === targetLangs.length && targetLangs.length > 0,

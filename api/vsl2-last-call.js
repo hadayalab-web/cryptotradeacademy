@@ -54,13 +54,13 @@ function getUserLang(user) {
  * @returns {Object} Telegram Inline Keyboard Markup
  */
 function generateVSL2LastCallInlineKeyboard(lang = DEFAULT_LANG) {
-  const whopUrl = getWhopProductUrl(lang);
+  const whopProductUrl = getWhopProductUrl(lang);
   return {
     inline_keyboard: [
       [
         {
           text: '🚨 Get 50% OFF Now (Last Call)',
-          url: `${whopUrl}?promo=${PROMO_CODE}`
+          url: `${whopProductUrl}?promo=${PROMO_CODE}`
         }
       ],
       [
@@ -108,12 +108,12 @@ async function sendVSL2LastCall() {
     for (const user of freeUsers) {
       try {
         const userLang = getUserLang(user);
-        const whopUrl = getWhopProductUrl(userLang);
+        const userWhopUrl = getWhopProductUrl(userLang);
         const message = generateVSL2LastCallMessage(
           userLang,
           user.userName || 'there',
           VSL2_YOUTUBE_LINK,
-          whopUrl,
+          userWhopUrl,
           PROMO_CODE
         );
         
