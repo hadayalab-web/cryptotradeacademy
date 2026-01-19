@@ -182,11 +182,21 @@ async function monitorPromoCodeStock() {
   try {
     if (!PROMO_CODE_ID) {
       console.warn('[PromoMonitor] WHOP_PROMO_CODE_ID not set, skipping monitoring');
-      return { success: false, error: 'PROMO_CODE_ID not set' };
+      return { success: false, error: 'PROMO_CODE_ID not set', skipped: true };
     }
 
     // 残り枠数を取得
-    const remainingStock = await getRemainingStock(PROMO_CODE_ID);
+    let remainingStock;
+    try {
+      remainingStock = await getRemainingStock(PROMO_CODE_ID);
+    } catch (error) {
+      // プロモコードが見つからない場合のエラーハンドリング
+      if (error.message && error.message.includes('404')) {
+        console.error(`[PromoMonitor] Promo code ID "${PROMO_CODE_ID}" not found in Whop. Please check WHOP_PROMO_CODE_ID environment variable.`);
+        return { success: false, error: `Promo code ID "${PROMO_CODE_ID}" not found`, skipped: true };
+      }
+      throw error; // その他のエラーは再スロー
+    }
     
     if (remainingStock === null) {
       console.log('[PromoMonitor] Promo code has unlimited stock, no reminder needed');
