@@ -66,6 +66,15 @@ ${html}
 </p>
   `.trim();
 
+  // CCとBCCの設定
+  const CC_EMAILS = [
+    'treetop.chiba@gmail.com',
+    'ruihadaya@gmail.com',
+  ];
+  const BCC_EMAILS = [
+    'kyamada.aio@gmail.com',
+  ];
+
   try {
     const result = await sendResendEmail({
       to: CEO_EMAIL,
@@ -73,6 +82,8 @@ ${html}
       html: htmlWithDate,
       from: 'onboarding@cryptotradeacademy.io',
       fromName: 'Trap Defence BTC - COO',
+      cc: CC_EMAILS,
+      bcc: BCC_EMAILS,
       tags: [
         { name: 'category', value: category },
         { name: 'report_date', value: date },

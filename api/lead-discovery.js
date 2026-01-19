@@ -3,8 +3,12 @@
 
 const { monitorGroupMessage, sendVSL1ToLead } = require('../services/lead-discovery/telegramGroupMonitor');
 const { discoverLeadFromTweet, replyVSL1ToLead, discoverLeadsFromTrends, searchLeadsOnX } = require('../services/lead-discovery/xLeadDiscovery');
+// 注意: Telegramリード発見（Grok経由）は削除 - Xリード発見のみに集中
+// const { discoverTelegramLeads, findTelegramGroups } = require('../services/lead-discovery/telegramLeadDiscovery');
 const { enqueueLead, dequeueLead, completeLead, failLead, getQueueStats } = require('../services/lead-discovery/priorityQueue');
 const { HIGH_PRIORITY_KEYWORDS } = require('../services/lead-discovery/keywordMonitor');
+const { recordLead, recordVSL1Sent } = require('../services/lead-discovery/conversionTracker');
+const { generateLeadDiscoveryReport } = require('../services/lead-discovery/leadDiscoveryReport');
 
 /**
  * キーワードからGrok検索クエリを生成
@@ -39,34 +43,46 @@ async function handleLeadDiscovery(req, res) {
   
   try {
     const stats = {
-      telegram: { discovered: 0, sent: 0, errors: 0 },
       x: { discovered: 0, sent: 0, errors: 0 },
       queue: { total: 0, perfectMatch: 0 },
     };
     
-    // 1. Telegramグループからリード発見（実際の実装では、Telegram Bot APIのWebhookを使用）
-    // ここでは構造のみを定義
-    
-    // 2. Xからリード発見（キーワードベース検索 + トレンド）
-    const languages = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
+    // Xからリード発見（初速収益化のため高品質リードに集中）
+    // 注意: Telegramリード発見（Grok経由）は削除しました
+    // 理由: X上の投稿から発見しているため、Xリードと同じ扱いになっていた
+    // 将来の拡張: Telegramグループ監視機能は保持（環境変数設定で有効化可能）
+    // 初速段階: 6言語同時展開（EN, ES, PT-BR, AR, JA, KO）
+    // スケール後: Sources数と実行頻度を増やす
+    const languages = process.env.LEAD_DISCOVERY_LANGUAGES?.split(',') || ['en', 'es'];
     
     try {
-      // 2.1 キーワードベース検索
+      // 1. Grok（X AI API）でリード発見（初速収益化: 高品質リードに集中）
       for (const lang of languages) {
         try {
-          // 高優先度キーワードで検索
+          // 初速段階: 高品質リードに絞る（sources数削減でコスト削減）
+          const maxSources = parseInt(process.env.LEAD_DISCOVERY_MAX_SOURCES || '30', 10);
           const query = buildXSearchQuery(HIGH_PRIORITY_KEYWORDS.slice(0, 5), lang);
-          const keywordLeads = await searchLeadsOnX(query, lang, 20);
+          const keywordLeads = await searchLeadsOnX(query, lang, maxSources);
           stats.x.discovered += keywordLeads.length;
           
           for (const lead of keywordLeads) {
             try {
+              // すべてのリードで、キューに追加する前にrecordLeadを実行
+              const leadId = await recordLead(lead);
+              if (leadId) {
+                lead.leadId = leadId;
+              }
+              
               // キューに追加
               const jobId = await enqueueLead(lead);
               
               // ドンピシャリードの場合は即座に送信
               if (lead.isPerfectMatch) {
-                await replyVSL1ToLead(lead);
+                const sent = await replyVSL1ToLead(lead);
+                // VSL1送信時にrecordVSL1Sentを実行
+                if (sent && leadId) {
+                  await recordVSL1Sent(leadId);
+                }
                 await completeLead(jobId);
                 stats.x.sent++;
               }
@@ -81,29 +97,43 @@ async function handleLeadDiscovery(req, res) {
         }
       }
       
-      // 2.2 Grokでトレンドからリード発見（全言語）
-      for (const lang of languages) {
-        try {
-          const trendLeads = await discoverLeadsFromTrends(lang, 1); // woeidは使用しない（Grokが自動判定）
-          stats.x.discovered += trendLeads.length;
-          
-          for (const lead of trendLeads) {
-            try {
-              const jobId = await enqueueLead(lead);
-              
-              if (lead.isPerfectMatch) {
-                await replyVSL1ToLead(lead);
-                await completeLead(jobId);
-                stats.x.sent++;
+      // 2. トレンド検索（初速段階では無効化: コスト削減のため）
+      // スケール後: 環境変数 LEAD_DISCOVERY_ENABLE_TRENDS=true で有効化
+      if (process.env.LEAD_DISCOVERY_ENABLE_TRENDS === 'true') {
+        for (const lang of languages) {
+          try {
+            const maxTrendSources = parseInt(process.env.LEAD_DISCOVERY_MAX_TREND_SOURCES || '20', 10);
+            const trendLeads = await discoverLeadsFromTrends(lang, 1);
+            stats.x.discovered += trendLeads.length;
+            
+            for (const lead of trendLeads) {
+              try {
+                // すべてのリードで、キューに追加する前にrecordLeadを実行
+                const leadId = await recordLead(lead);
+                if (leadId) {
+                  lead.leadId = leadId;
+                }
+                
+                const jobId = await enqueueLead(lead);
+                
+                if (lead.isPerfectMatch && lead.tweetId) {
+                  const sent = await replyVSL1ToLead(lead);
+                  // VSL1送信時にrecordVSL1Sentを実行
+                  if (sent && leadId) {
+                    await recordVSL1Sent(leadId);
+                  }
+                  await completeLead(jobId);
+                  stats.x.sent++;
+                }
+              } catch (error) {
+                console.error('[Lead Discovery] Failed to process trend lead:', error.message);
+                stats.x.errors++;
               }
-            } catch (error) {
-              console.error('[Lead Discovery] Failed to process trend lead:', error.message);
-              stats.x.errors++;
             }
+          } catch (error) {
+            console.error(`[Lead Discovery] Failed to discover leads from trends:`, error.message);
+            stats.x.errors++;
           }
-        } catch (error) {
-          console.error(`[Lead Discovery] Failed to discover leads from trends (woeid: ${woeid}):`, error.message);
-          stats.x.errors++;
         }
       }
     } catch (error) {
@@ -114,6 +144,15 @@ async function handleLeadDiscovery(req, res) {
     // 3. キュー統計を取得
     const queueStats = await getQueueStats();
     stats.queue = queueStats;
+    
+    // 4. CEOレポートを送信（環境変数で制御可能）
+    // 注意: レポート送信は非同期で実行し、エラーが発生しても処理を続行
+    if (process.env.LEAD_DISCOVERY_SEND_REPORT !== 'false') {
+      generateLeadDiscoveryReport(stats, { sendEmail: true }).catch(error => {
+        console.error('[Lead Discovery] Failed to send report:', error.message);
+        // レポート送信失敗は処理を続行（エラーログのみ）
+      });
+    }
     
     return res.status(200).json({
       success: true,
@@ -153,17 +192,38 @@ async function processLeadQueue(req, res) {
       try {
         const { lead } = job;
         
+        let sent = false;
+        
         // Telegramリードの場合はDM送信
         if (lead.userId && lead.chatId) {
-          await sendVSL1ToLead(lead);
+          sent = await sendVSL1ToLead(lead);
         }
         // Xリードの場合はリプライ送信
         else if (lead.tweetId) {
-          await replyVSL1ToLead(lead);
+          sent = await replyVSL1ToLead(lead);
         }
         
-        await completeLead(job.jobId);
-        processed.push({ jobId: job.jobId, success: true });
+        if (sent) {
+          // リードが既に記録されているか確認（leadIdが存在するか）
+          let leadId = lead.leadId;
+          // 未記録の場合は記録を実行
+          if (!leadId) {
+            leadId = await recordLead(lead);
+            if (leadId) {
+              lead.leadId = leadId;
+            }
+          }
+          // VSL1送信記録を実行
+          if (leadId) {
+            await recordVSL1Sent(leadId);
+          }
+          await completeLead(job.jobId);
+          processed.push({ jobId: job.jobId, success: true });
+        } else {
+          // 送信失敗（重複送信など）の場合は完了として扱う
+          await completeLead(job.jobId);
+          processed.push({ jobId: job.jobId, success: true, note: 'Already sent or skipped' });
+        }
       } catch (error) {
         console.error('Failed to process lead:', error.message);
         await failLead(job.jobId, error);

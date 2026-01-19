@@ -9,8 +9,10 @@
     { "path": "/api/vsl2-last-call", "schedule": "0 * * * *" },
     { "path": "/api/promo-stock-monitor", "schedule": "*/15 * * * *" },
     { "path": "/api/monthly-engagement-report", "schedule": "0 0 1 * *" },
-    { "path": "/api/lead-discovery", "schedule": "*/30 * * * *" },
+    { "path": "/api/lead-discovery", "schedule": "0 */2 * * *" },
     { "path": "/api/lead-discovery/process", "schedule": "*/5 * * * *" },
-    { "path": "/api/lead-discovery/dashboard", "schedule": "0 0 * * 0" }
+    { "path": "/api/lead-discovery/cvr-dashboard", "schedule": "0 0 * * 0" },
+    { "path": "/api/lead-discovery/sync-purchases", "schedule": "0 */6 * * *" },
+    { "path": "/api/lead-discovery-daily-report", "schedule": "0 9 * * *" }
   ]
 }

@@ -13,6 +13,8 @@ const RESEND_API_URL = 'https://api.resend.com/emails';
  * @param {string} options.html - HTML形式のメール本文
  * @param {string} [options.from] - 送信元メールアドレス（デフォルト: onboarding@cryptotradeacademy.io）
  * @param {string} [options.fromName] - 送信元表示名（デフォルト: CryptoTrade Academy）
+ * @param {string|string[]} [options.cc] - CCメールアドレス（単一または配列）
+ * @param {string|string[]} [options.bcc] - BCCメールアドレス（単一または配列）
  * @param {string} [options.replyTo] - 返信先メールアドレス
  * @param {Array<{name: string, value: string}>} [options.tags] - トラッキング用タグ
  * @param {string} [options.lang] - 言語コード（タグに使用）
@@ -26,6 +28,8 @@ async function sendResendEmail(options = {}) {
     html,
     from = 'onboarding@cryptotradeacademy.io',
     fromName = 'CryptoTrade Academy',
+    cc,
+    bcc,
     replyTo,
     tags = [],
     lang = 'en',
@@ -63,6 +67,8 @@ async function sendResendEmail(options = {}) {
         to: Array.isArray(to) ? to : [to],
         subject: subject,
         html: html,
+        ...(cc && { cc: Array.isArray(cc) ? cc : [cc] }),
+        ...(bcc && { bcc: Array.isArray(bcc) ? bcc : [bcc] }),
         ...(replyTo && { replyTo }),
         ...(emailTags.length > 0 && { tags: emailTags }),
       }),

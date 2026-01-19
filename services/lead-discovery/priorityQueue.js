@@ -60,20 +60,19 @@ async function enqueueLead(lead, priority = PRIORITY_LEVELS.MEDIUM) {
  * @returns {Promise<Object|null>} リード情報またはnull
  */
 async function dequeueLead() {
-  // 優先度順に取得（1→2→3→4）
-  for (const level of Object.values(PRIORITY_LEVELS)) {
-    const job = await dequeue(QUEUE_NAME, { priority: level });
-    if (job) {
-      return {
-        jobId: job.id,
-        lead: job.data.lead,
-        priority: job.data.priority,
-        attempts: job.data.attempts,
-      };
-    }
+  // dequeue関数は既に優先度順（high → normal）で取得するため、
+  // 単純にdequeueを呼び出すだけで良い
+  const job = await dequeue(QUEUE_NAME);
+  if (!job) {
+    return null;
   }
   
-  return null;
+  return {
+    jobId: job.id,
+    lead: job.data.lead,
+    priority: job.data.priority,
+    attempts: job.data.attempts,
+  };
 }
 
 /**
@@ -100,15 +99,23 @@ async function failLead(jobId, error) {
  * @returns {Promise<Object>} 優先度別のキューサイズ
  */
 async function getQueueStats() {
-  const totalSize = await getQueueSize(QUEUE_NAME);
+  const queueSize = await getQueueSize(QUEUE_NAME);
   
-  // 優先度別のサイズを取得（実際の実装では、Vercel KVから優先度別に取得）
+  // getQueueSizeは {high, normal, delayed, processing, total} を返す
+  // 優先度レベルにマッピング:
+  // PERFECT_MATCH (1) → high
+  // HIGH (2) → high
+  // MEDIUM (3) → normal
+  // LOW (4) → normal
+  
   return {
-    total: totalSize,
-    perfectMatch: 0, // TODO: 優先度別に取得
-    high: 0,
-    medium: 0,
-    low: 0,
+    total: queueSize.total || 0,
+    perfectMatch: queueSize.high || 0, // PERFECT_MATCHはhighキューに格納される
+    high: queueSize.high || 0, // HIGHもhighキューに格納される
+    medium: queueSize.normal || 0, // MEDIUMはnormalキューに格納される
+    low: queueSize.normal || 0, // LOWもnormalキューに格納される
+    delayed: queueSize.delayed || 0,
+    processing: queueSize.processing || 0,
   };
 }
 
