@@ -42,9 +42,11 @@ async function enqueue(queueName, jobData, options = {}) {
     const queueKey = `${QUEUE_PREFIX}:${queueName}`;
     
     if (delay > 0) {
-      // 遅延キュー: スコア付きセットを使用
-      const executeAt = Date.now() + delay;
-      await kv.zadd(`${queueKey}:delayed`, executeAt, JSON.stringify(job));
+      // 遅延キュー: Vercel KVではsorted setsが使えないため、通常キューに追加
+      // 実際の遅延処理はworker側で実装する必要がある
+      // 簡易実装: 優先度を下げて通常キューに追加
+      console.warn('[Queue] Delay not fully supported in Vercel KV, adding to normal queue');
+      await kv.rpush(`${queueKey}:normal`, JSON.stringify(job));
     } else {
       // 通常キュー: リストを使用（優先度付き）
       if (priority > 0) {
@@ -78,22 +80,23 @@ async function dequeue(queueName) {
     const queueKey = `${QUEUE_PREFIX}:${queueName}`;
     
     // 1. 遅延キューから実行可能なジョブを取得
+    // 注意: Vercel KVではzrangebyscoreが使えないため、簡易実装を使用
+    // 遅延キューは通常のキーにタイムスタンプを付けて管理
     const delayedKey = `${queueKey}:delayed`;
-    const now = Date.now();
-    const readyJobs = await kv.zrangebyscore(delayedKey, 0, now, { limit: { offset: 0, count: 1 } });
-    
-    if (readyJobs && readyJobs.length > 0) {
-      const jobStr = readyJobs[0];
-      await kv.zrem(delayedKey, jobStr);
-      const job = JSON.parse(jobStr);
-      await markAsProcessing(queueName, job.id);
-      return job;
+    try {
+      // Vercel KVではsorted setsが使えないため、リストから全件取得してフィルタリング
+      // パフォーマンスを考慮し、遅延キューは使用しない（優先度キューで代替）
+      // 将来的にBullMQ等の本格的なキューシステムに移行することを推奨
+    } catch (error) {
+      // 遅延キュー処理をスキップ
+      console.warn('[Queue] Delayed queue not supported, skipping');
     }
     
     // 2. 優先度キューから取得
     const highPriorityJob = await kv.lpop(`${queueKey}:high`);
     if (highPriorityJob) {
-      const job = JSON.parse(highPriorityJob);
+      // Vercel KVは自動的にJSONをパースする場合があるため、型チェック
+      const job = typeof highPriorityJob === 'string' ? JSON.parse(highPriorityJob) : highPriorityJob;
       await markAsProcessing(queueName, job.id);
       return job;
     }
@@ -101,7 +104,8 @@ async function dequeue(queueName) {
     // 3. 通常キューから取得
     const normalJob = await kv.lpop(`${queueKey}:normal`);
     if (normalJob) {
-      const job = JSON.parse(normalJob);
+      // Vercel KVは自動的にJSONをパースする場合があるため、型チェック
+      const job = typeof normalJob === 'string' ? JSON.parse(normalJob) : normalJob;
       await markAsProcessing(queueName, job.id);
       return job;
     }
@@ -174,9 +178,11 @@ async function fail(queueName, jobId, error) {
     if (job.attempts < job.maxRetries) {
       const queueKey = `${QUEUE_PREFIX}:${queueName}`;
       // 指数バックオフ: 2^attempts秒待機
+      // Vercel KVではsorted setsが使えないため、通常キューに追加
+      // 実際の遅延処理はworker側で実装する必要がある
+      await kv.rpush(`${queueKey}:normal`, JSON.stringify(job));
       const delay = Math.pow(2, job.attempts) * 1000;
-      await kv.zadd(`${queueKey}:delayed`, Date.now() + delay, JSON.stringify(job));
-      console.log(`[Queue] Job requeued for retry: ${jobId} (attempt ${job.attempts}/${job.maxRetries}, delay: ${delay}ms)`);
+      console.log(`[Queue] Job requeued for retry: ${jobId} (attempt ${job.attempts}/${job.maxRetries}, delay: ${delay}ms - note: delay not enforced in Vercel KV)`);
       return true;
     } else {
       console.error(`[Queue] Job failed after max retries: ${jobId}`);
@@ -202,7 +208,8 @@ async function getQueueSize(queueName) {
     const queueKey = `${QUEUE_PREFIX}:${queueName}`;
     const highSize = await kv.llen(`${queueKey}:high`) || 0;
     const normalSize = await kv.llen(`${queueKey}:normal`) || 0;
-    const delayedSize = await kv.zcard(`${queueKey}:delayed`) || 0;
+    // Vercel KVではsorted setsが使えないため、delayedSizeは0
+    const delayedSize = 0;
     
     // 処理中のジョブ数を取得（簡易実装）
     const processingPattern = `${PROCESSING_PREFIX}:${queueName}:*`;

@@ -386,6 +386,96 @@ async function getCVRStats(startDate, endDate) {
   }
 }
 
+/**
+ * 言語別CVR統計を取得
+ * @param {string} startDate - 開始日（YYYY-MM-DD）
+ * @param {string} endDate - 終了日（YYYY-MM-DD）
+ * @returns {Promise<Object>} 言語別CVR統計
+ */
+async function getCVRStatsByLanguage(startDate, endDate) {
+  if (!kvClient) {
+    return {
+      byLanguage: {},
+      error: 'KV client not initialized',
+    };
+  }
+
+  try {
+    const byLanguage = {
+      en: { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      es: { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      'pt-br': { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      ar: { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      ja: { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      ko: { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      other: { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+    };
+
+    // 日付範囲のリードを取得
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const dates = [];
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      dates.push(d.toISOString().split('T')[0]);
+    }
+
+    const leadIds = new Set();
+    for (const dateKey of dates) {
+      const ids = await kvClient.smembers(`leads:${dateKey}`);
+      ids.forEach(id => leadIds.add(id));
+    }
+
+    // 各リードの詳細を取得して言語別に集計
+    for (const leadId of leadIds) {
+      const leadDataRaw = await kvClient.get(`lead:${leadId}`);
+      if (!leadDataRaw) continue;
+
+      // Vercel KVは自動的にJSONをパースする場合があるため、文字列かオブジェクトかをチェック
+      const leadData = typeof leadDataRaw === 'string' ? JSON.parse(leadDataRaw) : leadDataRaw;
+      
+      const lang = leadData.lang || 'other';
+      const langKey = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'].includes(lang) ? lang : 'other';
+      
+      const langStats = byLanguage[langKey];
+      langStats.totalLeads++;
+      
+      if (leadData.vsl1Sent) {
+        langStats.vsl1Sent++;
+      }
+      
+      if (leadData.converted) {
+        langStats.conversions++;
+        langStats.revenue += leadData.revenue || 0;
+      }
+
+      if (leadData.isPerfectMatch) {
+        langStats.perfectMatchLeads++;
+        if (leadData.converted) {
+          langStats.perfectMatchConversions++;
+        }
+      }
+    }
+
+    // CVR計算
+    for (const langKey in byLanguage) {
+      const langStats = byLanguage[langKey];
+      langStats.cvr = langStats.vsl1Sent > 0 ? (langStats.conversions / langStats.vsl1Sent) * 100 : 0;
+      langStats.perfectMatchCVR = langStats.perfectMatchLeads > 0 
+        ? (langStats.perfectMatchConversions / langStats.perfectMatchLeads) * 100 
+        : 0;
+    }
+
+    return { byLanguage };
+  } catch (error) {
+    console.error('[Conversion Tracker] Failed to get CVR stats by language:', error.message);
+    return {
+      byLanguage: {},
+      error: error.message,
+    };
+  }
+}
+
 module.exports = {
   generateLeadId,
   recordLead,
@@ -394,4 +484,5 @@ module.exports = {
   linkMembershipToLead,
   syncWhopPurchases,
   getCVRStats,
+  getCVRStatsByLanguage,
 };

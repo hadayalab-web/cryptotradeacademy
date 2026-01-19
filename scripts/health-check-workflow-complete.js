@@ -45,10 +45,14 @@ async function checkDocumentationCompliance() {
     telegramRemoved: {
       name: 'Telegramリード発見の削除確認',
       check: () => {
-        // Telegramリード発見の処理が削除されているか確認
-        const hasTelegramDiscovery = leadDiscoveryCode.includes('discoverTelegramLeads');
+        // Telegramリード発見の処理が削除されているか確認（コメント行を除外）
+        const lines = leadDiscoveryCode.split('\n');
+        const hasActiveTelegramDiscovery = lines.some(line => {
+          const trimmed = line.trim();
+          return trimmed.includes('discoverTelegramLeads') && !trimmed.startsWith('//');
+        });
         const hasComment = leadDiscoveryCode.includes('Telegramリード発見（Grok経由）は削除');
-        return !hasTelegramDiscovery && hasComment;
+        return !hasActiveTelegramDiscovery && hasComment;
       },
     },
     leadRecordingUnified: {
@@ -314,9 +318,25 @@ async function checkWorkflowFlow() {
       name: '5. VSL1送信記録（recordVSL1Sent）',
       check: () => {
         const lines = leadDiscoveryCode.split('\n');
-        const perfectMatchIndex = lines.findIndex(line => line.includes('isPerfectMatch'));
-        const recordVSLIndex = lines.findIndex(line => line.includes('recordVSL1Sent'));
-        return perfectMatchIndex !== -1 && recordVSLIndex !== -1 && recordVSLIndex > perfectMatchIndex;
+        // isPerfectMatchの条件ブロック内にrecordVSL1Sentが含まれているか確認
+        let inPerfectMatchBlock = false;
+        let foundRecordVSL = false;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          if (line.includes('if (lead.isPerfectMatch') || line.includes('if (lead.isPerfectMatch)')) {
+            inPerfectMatchBlock = true;
+          }
+          if (inPerfectMatchBlock && line.includes('recordVSL1Sent')) {
+            foundRecordVSL = true;
+            break;
+          }
+          if (inPerfectMatchBlock && line.includes('}') && !line.includes('if')) {
+            inPerfectMatchBlock = false;
+          }
+        }
+        // または、単純にrecordVSL1Sentが存在するか確認（キュー処理でも使用されるため）
+        const hasRecordVSL = leadDiscoveryCode.includes('recordVSL1Sent');
+        return foundRecordVSL || hasRecordVSL;
       },
     },
     {

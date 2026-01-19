@@ -95,6 +95,37 @@ function getTelegramDeepLink(lang) {
   return `https://t.me/${botUsername}?start=${startParam}`;
 }
 
+/**
+ * YouTube動画リンクに字幕パラメータを追加
+ * 6言語の字幕に対応（リードが自分で字幕を表示できるように）
+ * @param {string} videoUrl - YouTube動画URL
+ * @param {string} lang - 言語コード
+ * @returns {string} 字幕パラメータ付きYouTube URL
+ */
+function addYouTubeSubtitleParams(videoUrl, lang) {
+  if (!videoUrl || !videoUrl.includes('youtu.be/') && !videoUrl.includes('youtube.com/')) {
+    return videoUrl; // YouTubeリンクでない場合はそのまま返す
+  }
+  
+  const normalizedLang = normalizeLang(lang) || 'en';
+  
+  // YouTubeの言語コードマッピング（ISO 639-1形式）
+  const youtubeLangMap = {
+    'en': 'en',
+    'ja': 'ja',
+    'es': 'es',
+    'pt-br': 'pt', // YouTubeはpt-brをptとして扱う
+    'ar': 'ar',
+    'ko': 'ko',
+  };
+  
+  const youtubeLang = youtubeLangMap[normalizedLang] || 'en';
+  
+  // URLにパラメータを追加
+  const separator = videoUrl.includes('?') ? '&' : '?';
+  return `${videoUrl}${separator}cc_lang_pref=${youtubeLang}&cc_load_policy=1`;
+}
+
 function resolveMinimalChatId(lang) {
   const normalizedLangCode = normalizeLang(lang);
   if (!normalizedLangCode) {
@@ -149,6 +180,68 @@ function getXPostLang(targetLangs) {
   if (configured) return configured;
   if (Array.isArray(targetLangs) && targetLangs.length > 0) return targetLangs[0];
   return LANG;
+}
+
+/**
+ * VSL1メッセージ用のインラインボタンを生成（多言語対応）
+ * Gemini CMO提案: インラインボタンでワンタップアクセスを実現
+ * @param {string} lang - 言語コード
+ * @returns {Object} Telegram Inline Keyboard Markup
+ */
+function generateVSL1InlineKeyboard(lang) {
+  const deepLink = getTelegramDeepLink(lang);
+  const normalizedLang = normalizeLang(lang) || 'en';
+  
+  // YouTubeリンクに字幕パラメータを追加
+  const vsl1LinkWithSubtitles = addYouTubeSubtitleParams(VSL1_YOUTUBE_LINK, normalizedLang);
+  
+  // 言語別のボタンテキスト（クリック率向上のため最適化）
+  // 戦略: 緊急性・ベネフィット・行動喚起を強調
+  const buttonTexts = {
+    'en': {
+      video: '🎬 Watch 1-Min Video (Protect Your Capital)',
+      bot: '🚀 Get Free Trap Filter Now'
+    },
+    'ja': {
+      video: '🎬 資金を守る1分動画を見る',
+      bot: '🚀 無料でトラップ回避ロジックを今すぐ入手'
+    },
+    'es': {
+      video: '🎬 Ver Video 1 Min (Protege Tu Capital)',
+      bot: '🚀 Obtener Filtro Gratis Ahora'
+    },
+    'pt-br': {
+      video: '🎬 Assistir Vídeo 1 Min (Proteja Seu Capital)',
+      bot: '🚀 Obter Filtro Grátis Agora'
+    },
+    'ar': {
+      video: '🎬 شاهد فيديو 1 دقيقة (احم رأس مالك)',
+      bot: '🚀 احصل على الفلتر المجاني الآن'
+    },
+    'ko': {
+      video: '🎬 자금을 지키는 1분 영상 보기',
+      bot: '🚀 무료 트랩 필터 지금 받기'
+    }
+  };
+  
+  const texts = buttonTexts[normalizedLang] || buttonTexts['en'];
+  
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: texts.video,
+          url: vsl1LinkWithSubtitles
+        }
+      ],
+      [
+        {
+          text: texts.bot,
+          url: deepLink
+        }
+      ]
+    ]
+  };
 }
 
 /**
@@ -252,11 +345,53 @@ async function postVSL1() {
       console.error('❌ Error loading VSL1 thumbnail:', err.message);
     }
 
-    // VSL1投稿は無料版オプトイン誘導用のため、無料版チャンネル（MINIMAL）には配信しない
-    // 無料版チャンネルに配信すると、既に無料版に登録しているユーザーに不要なメッセージが届いてしまう
-    // VSL1はX/Twitterのみに配信し、無料版に登録していない人（Grokが見つけてきたリスト）に対してオプトインを促す
-    console.log('ℹ️ VSL1 is for opt-in lead generation, skipping Telegram MINIMAL channel (already registered users)');
-    console.log('ℹ️ VSL1 will be posted to X/Twitter only to reach new prospects');
+    // VSL1投稿: 無料版チャンネル（MINIMAL）に画像付きで配信
+    // Gemini CMO提案: VSL2と同じパターン（サムネイル画像 + メッセージ + インラインボタン）でリンクをクリックしやすく
+    if (telegramConfig.botTokenSet) {
+      const enableTelegramMinimal = parseBoolean(process.env.VSL1_TELEGRAM_MINIMAL_ENABLED, true);
+      
+      if (enableTelegramMinimal) {
+        for (const lang of targetLangs) {
+          try {
+            const chatId = resolveMinimalChatId(lang);
+            if (!chatId) {
+              console.warn(`⚠️ Skipping ${lang}: MINIMAL channel ID not configured`);
+              continue;
+            }
+
+            const message = await generateVSL1Post(lang);
+            const inlineKeyboard = generateVSL1InlineKeyboard(lang);
+            
+            if (vsl1ThumbnailDataUrl) {
+              // サムネイル画像付きで送信
+              await sendPhotoToAsset(vsl1ThumbnailDataUrl, message, 'MINIMAL', lang, {
+                reply_markup: inlineKeyboard,
+                parse_mode: 'HTML'
+              });
+              console.log(`✅ VSL1 sent (with photo) to MINIMAL channel [${lang}]`);
+            } else {
+              // テキストのみ送信（フォールバック）
+              await sendMessageToAsset(message, 'MINIMAL', lang, {
+                reply_markup: inlineKeyboard,
+                parse_mode: 'HTML'
+              });
+              console.log(`✅ VSL1 sent (text only) to MINIMAL channel [${lang}]`);
+            }
+            
+            telegramResults[lang] = { success: true, hasPhoto: !!vsl1ThumbnailDataUrl };
+            telegramSuccessCount++;
+            
+            // レート制限対策（20メッセージ/秒 = 50ms待機）
+            await new Promise(resolve => setTimeout(resolve, 100));
+          } catch (error) {
+            telegramResults[lang] = { success: false, error: error.message };
+            console.error(`❌ Failed to send VSL1 to MINIMAL channel [${lang}]:`, error.message);
+          }
+        }
+      } else {
+        console.log('ℹ️ VSL1 Telegram MINIMAL channel posting disabled by VSL1_TELEGRAM_MINIMAL_ENABLED');
+      }
+    }
 
     results.telegram = {
       success: telegramSuccessCount === targetLangs.length && targetLangs.length > 0,
@@ -368,7 +503,8 @@ async function postVSL1() {
 }
 
 // Vercel Cron実行時
-module.exports = async (req, res) => {
+// Vercel Cron実行時のハンドラー関数
+const handler = async (req, res) => {
   // CRON_SECRETチェック
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET;
@@ -384,3 +520,13 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
+
+// Vercel Cron実行時（12時間ごと）
+module.exports = handler;
+
+// テスト用にエクスポート
+module.exports.getTelegramDeepLink = getTelegramDeepLink;
+module.exports.resolveMinimalChatId = resolveMinimalChatId;
+module.exports.getTelegramConfigStatus = getTelegramConfigStatus;
+module.exports.generateVSL1InlineKeyboard = generateVSL1InlineKeyboard;
+module.exports.addYouTubeSubtitleParams = addYouTubeSubtitleParams;

@@ -9,8 +9,6 @@ const VSL1_MESSAGES = {
   // ------------------------------------------------------------------
   en: (deepLink, vsl1Link) => `🎬 **Two traders. Same capital. Different outcomes.**
 
-${vsl1Link}
-
 Three months later:
 ❌ **Trader A:** Liquidity for whales. Lost months of gains in 1 week.
 ✅ **Trader B:** Secured profits. Relaxed. Avoided the crash.
@@ -19,6 +17,9 @@ The difference? Trader B stopped guessing and used **Trap Defence BTC**.
 
 ⚠️ **Stop donating your money to the market.**
 Watch this 1-minute video before your next trade.
+
+${vsl1Link}
+💡 Subtitles available in 6 languages (EN, JA, ES, PT-BR, AR, KO) - enable in video settings
 
 🚀 **Get the "Whale Trap" filter used by pros (FREE):**
 👉 ${deepLink}
@@ -31,8 +32,6 @@ Watch this 1-minute video before your next trade.
   // ------------------------------------------------------------------
   ja: (deepLink, vsl1Link) => `🎬 **【実話】同じ資金で始めた2人のトレーダーの末路...**
 
-${vsl1Link}
-
 3ヶ月後の明暗：
 ❌ **トレーダーA：** たった1週間で利益を全焼。「相場の養分」となり退場。
 ✅ **トレーダーB：** 暴落前に撤退し、利益を確保。余裕の静観。
@@ -41,6 +40,9 @@ ${vsl1Link}
 
 ⚠️ **大切なお金を失う前に、この1分間の動画を見てください。**
 「なぜ、あなたの資金は狩られるのか？」その答えがここにあります。
+
+${vsl1Link}
+💡 動画の設定で字幕（日本語・英語・スペイン語・ポルトガル語・アラビア語・韓国語）を表示できます
 
 🚀 **プロが使う「トラップ回避ロジック」を無料で入手：**
 👉 ${deepLink}
@@ -53,8 +55,6 @@ ${vsl1Link}
   // ------------------------------------------------------------------
   es: (deepLink, vsl1Link) => `🎬 **Dos traders. El mismo capital. El mismo mercado.**
 
-${vsl1Link}
-
 Tres meses después:
 ❌ **Trader A:** Perdió meses de ganancias en una semana. El mercado se lo comió.
 ✅ **Trader B:** Aseguró ganancias. Evitó la caída. Durmió tranquilo.
@@ -63,6 +63,9 @@ Tres meses después:
 
 ⚠️ **Deja de regalar tu dinero a las ballenas.**
 Antes de abrir tu próxima operación, mira este video de 1 minuto.
+
+${vsl1Link}
+💡 Subtítulos disponibles en 6 idiomas (EN, JA, ES, PT-BR, AR, KO) - activa en configuración del video
 
 🚀 **Obtén la lógica "Anti-Trampas" de los profesionales (GRATIS):**
 👉 ${deepLink}
@@ -76,6 +79,7 @@ Antes de abrir tu próxima operación, mira este video de 1 minuto.
   'pt-br': (deepLink, vsl1Link) => `🎬 **Veja isto: Dois traders começaram com o mesmo capital...**
 
 ${vsl1Link}
+💡 Legendas disponíveis em 6 idiomas (EN, JA, ES, PT-BR, AR, KO) - ative nas configurações do vídeo
 
 Três meses depois:
 ❌ **Trader A:** Virou liquidez para as baleias. Perdeu tudo em 1 semana.
@@ -97,8 +101,6 @@ Assista a este vídeo de 1 minuto antes de operar novamente.
   // ------------------------------------------------------------------
   ar: (deepLink, vsl1Link) => `🎬 **شاهد هذا: متداولان بدأا بنفس رأس المال...**
 
-${vsl1Link}
-
 بعد ثلاثة أشهر:
 ❌ **التاجر (أ):** خسر أرباح أشهر في أسبوع واحد. أصبح ضحية للسوق.
 ✅ **التاجر (ب):** حافظ على أرباحه. تجنب الانهيار. يتداول بذكاء.
@@ -107,6 +109,9 @@ ${vsl1Link}
 
 ⚠️ **قبل أن تخسر رأس مالك، شاهد هذا الفيديو لمدة 4 دقائق.**
 تعلم كيف تتجنب فخاخ الحيتان.
+
+${vsl1Link}
+💡 الترجمات متاحة بـ 6 لغات (EN, JA, ES, PT-BR, AR, KO) - قم بتفعيلها في إعدادات الفيديو
 
 🚀 **احصل على "منطق كشف الفخاخ" الذي يستخدمه المحترفون (مجاناً):**
 👉 ${deepLink}
@@ -119,8 +124,6 @@ ${vsl1Link}
   // ------------------------------------------------------------------
   ko: (deepLink, vsl1Link) => `🎬 **똑같은 자본금으로 시작한 두 명의 트레이더...**
 
-${vsl1Link}
-
 3개월 후의 충격적인 결과:
 ❌ **트레이더 A:** 1주일 만에 수익 전액 반납. 세력의 설거지 대상이 됨.
 ✅ **트레이더 B:** 폭락 전 탈출, 수익 확정. 여유로운 관망.
@@ -130,11 +133,47 @@ ${vsl1Link}
 ⚠️ **세력에게 당하기 전에 이 1분짜리 영상을 꼭 시청하세요.**
 여러분의 시드머니를 지키는 방법이 담겨 있습니다.
 
+${vsl1Link}
+💡 자막 6개 언어 지원 (EN, JA, ES, PT-BR, AR, KO) - 영상 설정에서 활성화 가능
+
 🚀 **상위 1%가 사용하는 '함정 회피 로직' 무료 받기:**
 👉 ${deepLink}
 
 #Bitcoin #비트코인 #코인 #트레이딩 #개미털기방지 #TrapDefence`,
 };
+
+/**
+ * YouTubeリンクに字幕パラメータを追加
+ * @param {string} videoUrl - YouTube動画URL
+ * @param {string} lang - 言語コード
+ * @returns {string} 字幕パラメータ付きYouTube URL
+ */
+function addSubtitleParamsToYouTubeUrl(videoUrl, lang) {
+  if (!videoUrl || (!videoUrl.includes('youtu.be/') && !videoUrl.includes('youtube.com/'))) {
+    return videoUrl; // YouTubeリンクでない場合はそのまま返す
+  }
+  
+  // 言語コードの正規化
+  const normalizedLang = lang && typeof lang === 'string' 
+    ? lang.toLowerCase().replace('_', '-') 
+    : 'en';
+  
+  // YouTubeの言語コードマッピング（ISO 639-1形式）
+  const youtubeLangMap = {
+    'en': 'en',
+    'ja': 'ja',
+    'es': 'es',
+    'pt-br': 'pt', // YouTubeはpt-brをptとして扱う
+    'ar': 'ar',
+    'ko': 'ko',
+  };
+  
+  const youtubeLang = youtubeLangMap[normalizedLang] || 'en';
+  
+  // URLにパラメータを追加（既存のパラメータがある場合は&、ない場合は?）
+  const separator = videoUrl.includes('?') ? '&' : '?';
+  return `${videoUrl}${separator}cc_lang_pref=${youtubeLang}&cc_load_policy=1`;
+}
 
 /**
  * 言語に応じたVSL1メッセージを生成
@@ -147,11 +186,18 @@ function generateVSL1Message(lang, deepLink, vsl1Link) {
   const normalizedLang = lang && typeof lang === 'string' 
     ? lang.toLowerCase().replace('_', '-') 
     : 'en';
+  
+  // YouTubeリンクに字幕パラメータを追加
+  const vsl1LinkWithSubtitles = addSubtitleParamsToYouTubeUrl(vsl1Link, normalizedLang);
     
   // 対応するメッセージ関数を取得（デフォルトは英語）
   const messageFn = VSL1_MESSAGES[normalizedLang] || VSL1_MESSAGES.en;
   
-  return messageFn(deepLink, vsl1Link);
+  return messageFn(deepLink, vsl1LinkWithSubtitles);
 }
 
-module.exports = { generateVSL1Message, VSL1_MESSAGES };
+module.exports = { 
+  generateVSL1Message, 
+  VSL1_MESSAGES,
+  addSubtitleParamsToYouTubeUrl,
+};

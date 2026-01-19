@@ -12,7 +12,7 @@ const { discoverLeadsOnX } = require('../grok/client');
  * @param {number} maxResults - 最大結果数（Grokが返すsourcesから抽出）
  * @returns {Promise<Array>} リード情報の配列
  */
-async function searchLeadsOnX(query, lang = 'en', maxResults = 20) {
+async function searchLeadsOnX(query, lang = 'en', maxResults = 100) {
   try {
     // Grok（X AI API）でリード発見
     const grokResult = await discoverLeadsOnX(query, lang);
@@ -133,6 +133,25 @@ async function replyVSL1ToLead(lead) {
     return false;
   }
   
+  // 重複送信防止チェック
+  const { hasSentVSL1, markVSL1Sent } = require('./duplicatePrevention');
+  if (await hasSentVSL1(lead)) {
+    console.log(`[X Lead Discovery] VSL1 already sent to tweet ${lead.tweetId} (user: @${lead.username})`);
+    return false;
+  }
+  
+  // レート制限チェック
+  const { checkXApiRateLimit, waitForRateLimit } = require('./rateLimiter');
+  const canProceed = await checkXApiRateLimit();
+  if (!canProceed) {
+    console.warn('[X Lead Discovery] Rate limit exceeded, waiting...');
+    const waited = await waitForRateLimit(checkXApiRateLimit, 30000); // 最大30秒待機
+    if (!waited) {
+      console.error('[X Lead Discovery] Rate limit wait timeout');
+      return false;
+    }
+  }
+  
   try {
     // VSL1メッセージを生成（言語別）
     const { generateVSL1Message } = require('../telegram/messages/vsl1');
@@ -142,18 +161,52 @@ async function replyVSL1ToLead(lead) {
     const deepLink = getTelegramDeepLink(lead.lang);
     const message = generateVSL1Message(lead.lang, deepLink, VSL1_YOUTUBE_LINK);
     
+    console.log(`[X Lead Discovery] Sending VSL1 reply to tweet ${lead.tweetId} (@${lead.username}, lang: ${lead.lang})`);
+    
     // X投稿にリプライ（280文字制限に合わせて調整）
     // メッセージからHTMLタグを除去してテキストのみに
     const plainText = message.replace(/<[^>]*>/g, '').replace(/\n/g, ' ');
     const replyText = `${plainText.substring(0, 200)}... ${VSL1_YOUTUBE_LINK}`;
     
-    // X API v2でリプライを送信
-    await replyToTweet(replyText, lead.tweetId);
+    console.log(`[X Lead Discovery] Reply text (${replyText.length} chars): ${replyText.substring(0, 100)}...`);
     
-    console.log(`[X Lead Discovery] VSL1 reply sent to tweet ${lead.tweetId} (user: @${lead.username})`);
+    // X API v2でリプライを送信
+    try {
+      await replyToTweet(replyText, lead.tweetId);
+      console.log(`[X Lead Discovery] Reply sent successfully to tweet ${lead.tweetId}`);
+    } catch (replyError) {
+      console.error(`[X Lead Discovery] Failed to send reply to tweet ${lead.tweetId}:`, replyError.message);
+      console.error(`[X Lead Discovery] Error details:`, {
+        tweetId: lead.tweetId,
+        username: lead.username,
+        lang: lead.lang,
+        errorType: replyError.constructor.name,
+        errorMessage: replyError.message,
+        errorStack: replyError.stack,
+      });
+      throw replyError; // 再スローして外側のcatchで処理
+    }
+    
+    // 送信済みをマーク
+    try {
+      await markVSL1Sent(lead);
+      console.log(`[X Lead Discovery] Marked VSL1 as sent for tweet ${lead.tweetId}`);
+    } catch (markError) {
+      console.warn(`[X Lead Discovery] Failed to mark VSL1 as sent for tweet ${lead.tweetId}:`, markError.message);
+      // マーク失敗は致命的ではないので続行
+    }
+    
+    console.log(`[X Lead Discovery] ✅ Successfully sent VSL1 reply to tweet ${lead.tweetId} (@${lead.username})`);
     return true;
   } catch (error) {
-    console.error('[X Lead Discovery] Failed to reply VSL1 to lead:', error.message);
+    console.error(`[X Lead Discovery] ❌ Failed to reply VSL1 to lead:`, {
+      tweetId: lead?.tweetId,
+      username: lead?.username,
+      lang: lead?.lang,
+      errorType: error.constructor.name,
+      errorMessage: error.message,
+      errorStack: error.stack,
+    });
     return false;
   }
 }
@@ -174,7 +227,7 @@ async function discoverLeadsFromTrends(lang = 'en', woeid = 1) {
     const leads = [];
     
     if (grokResult && grokResult.sources && Array.isArray(grokResult.sources)) {
-      for (const source of grokResult.sources.slice(0, 10)) {
+      for (const source of grokResult.sources.slice(0, 50)) {
         if (source.handle && source.note) {
           const detectionResult = detectKeywords(source.note, lang);
           

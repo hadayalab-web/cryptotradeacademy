@@ -17,6 +17,7 @@ If you haven't upgraded yet, this is your final reminder to unlock the full Trap
 
 🎬 **Watch VSL2 now:**
 ${vsl2Link}
+💡 Subtitles available in 6 languages (EN, JA, ES, PT-BR, AR, KO) - enable in video settings
 
 💰 **50% OFF Coupon:**
 Code: \`${promoCode}\`
@@ -38,6 +39,7 @@ ${whopUrl}?promo=${promoCode}`,
 
 🎬 **VSL2はこちら:**
 ${vsl2Link}
+💡 動画の設定で字幕（日本語・英語・スペイン語・ポルトガル語・アラビア語・韓国語）を表示できます
 
 💰 **50%OFFクーポン:**
 コード: \`${promoCode}\`
@@ -58,6 +60,7 @@ Si aún no actualizaste, este es tu recordatorio final para desbloquear Trap Def
 
 🎬 **Mira el VSL2 ahora:**
 ${vsl2Link}
+💡 Subtítulos disponibles en 6 idiomas (EN, JA, ES, PT-BR, AR, KO) - activa en configuración del video
 
 💰 **Cupón 50% OFF:**
 Código: \`${promoCode}\`
@@ -98,6 +101,7 @@ ${whopUrl}?promo=${promoCode}`,
 
 🎬 **شاهد VSL2 الآن:**
 ${vsl2Link}
+💡 الترجمات متاحة بـ 6 لغات (EN, JA, ES, PT-BR, AR, KO) - قم بتفعيلها في إعدادات الفيديو
 
 💰 **كوبون خصم 50%:**
 الرمز: \`${promoCode}\`
@@ -118,6 +122,7 @@ ${whopUrl}?promo=${promoCode}`,
 
 🎬 **VSL2 지금 시청:**
 ${vsl2Link}
+💡 자막 6개 언어 지원 (EN, JA, ES, PT-BR, AR, KO) - 영상 설정에서 활성화 가능
 
 💰 **50% 할인 쿠폰:**
 코드: \`${promoCode}\`
@@ -125,6 +130,39 @@ ${vsl2Link}
 🚀 **업그레이드 신청:**
 ${whopUrl}?promo=${promoCode}`,
 };
+
+/**
+ * YouTubeリンクに字幕パラメータを追加
+ * @param {string} videoUrl - YouTube動画URL
+ * @param {string} lang - 言語コード
+ * @returns {string} 字幕パラメータ付きYouTube URL
+ */
+function addSubtitleParamsToYouTubeUrl(videoUrl, lang) {
+  if (!videoUrl || (!videoUrl.includes('youtu.be/') && !videoUrl.includes('youtube.com/'))) {
+    return videoUrl; // YouTubeリンクでない場合はそのまま返す
+  }
+  
+  // 言語コードの正規化
+  const normalizedLang = lang && typeof lang === 'string' 
+    ? lang.toLowerCase().replace('_', '-') 
+    : 'en';
+  
+  // YouTubeの言語コードマッピング（ISO 639-1形式）
+  const youtubeLangMap = {
+    'en': 'en',
+    'ja': 'ja',
+    'es': 'es',
+    'pt-br': 'pt', // YouTubeはpt-brをptとして扱う
+    'ar': 'ar',
+    'ko': 'ko',
+  };
+  
+  const youtubeLang = youtubeLangMap[normalizedLang] || 'en';
+  
+  // URLにパラメータを追加（既存のパラメータがある場合は&、ない場合は?）
+  const separator = videoUrl.includes('?') ? '&' : '?';
+  return `${videoUrl}${separator}cc_lang_pref=${youtubeLang}&cc_load_policy=1`;
+}
 
 /**
  * 言語に応じたVSL2 Last Callメッセージを生成
@@ -139,8 +177,15 @@ function generateVSL2LastCallMessage(lang, userName, vsl2Link, whopUrl, promoCod
     ? lang.toLowerCase().replace('_', '-')
     : 'en';
 
+  // YouTubeリンクに字幕パラメータを追加
+  const vsl2LinkWithSubtitles = addSubtitleParamsToYouTubeUrl(vsl2Link, normalizedLang);
+
   const messageFn = VSL2_LAST_CALL_MESSAGES[normalizedLang] || VSL2_LAST_CALL_MESSAGES.en;
-  return messageFn(userName, vsl2Link, whopUrl, promoCode);
+  return messageFn(userName, vsl2LinkWithSubtitles, whopUrl, promoCode);
 }
 
-module.exports = { generateVSL2LastCallMessage, VSL2_LAST_CALL_MESSAGES };
+module.exports = { 
+  generateVSL2LastCallMessage, 
+  VSL2_LAST_CALL_MESSAGES,
+  addSubtitleParamsToYouTubeUrl,
+};

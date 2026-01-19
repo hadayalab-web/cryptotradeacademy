@@ -3,7 +3,7 @@
 // Gemini CMO提案: 24時間経過の2時間前（22時間後）に「残り2時間で50%オフが終了します」という通知を送る
 
 const { getFreeUsersForVSL2LastCall, markVSL2LastCallSent } = require('../services/free-users/manager');
-const { generateVSL2LastCallMessage } = require('../services/telegram/messages/vsl2-last-call');
+const { generateVSL2LastCallMessage, addSubtitleParamsToYouTubeUrl } = require('../services/telegram/messages/vsl2-last-call');
 const { sendPhotoToUser } = require('../services/telegram/bot');
 const { retryWithExponentialBackoff } = require('../utils/retry');
 const fs = require('fs');
@@ -49,24 +49,61 @@ function getUserLang(user) {
 }
 
 /**
- * VSL2 Last Call用のインラインボタンを生成
+ * VSL2 Last Call用のインラインボタンを生成（多言語対応）
  * Gemini CMO提案: インラインボタンでワンタップアクセスを実現
+ * @param {string} lang - 言語コード
  * @returns {Object} Telegram Inline Keyboard Markup
  */
 function generateVSL2LastCallInlineKeyboard(lang = DEFAULT_LANG) {
-  const whopProductUrl = getWhopProductUrl(lang);
+  const normalizedLang = normalizeLang(lang) || DEFAULT_LANG;
+  const whopProductUrl = getWhopProductUrl(normalizedLang);
+  
+  // YouTubeリンクに字幕パラメータを追加
+  const vsl2LinkWithSubtitles = addSubtitleParamsToYouTubeUrl(VSL2_YOUTUBE_LINK, normalizedLang);
+  
+  // 言語別のボタンテキスト（クリック率向上のため最適化）
+  // 戦略: 緊急性・FOMO・行動喚起を強調
+  const buttonTexts = {
+    'en': {
+      purchase: '🚨 Get 50% OFF Now (Last Call)',
+      video: '🎬 Watch VSL2 Video'
+    },
+    'ja': {
+      purchase: '🚨 50%OFFで今すぐ購入（最終案内）',
+      video: '🎬 VSL2動画を見る'
+    },
+    'es': {
+      purchase: '🚨 Obtener 50% OFF Ahora (Último Aviso)',
+      video: '🎬 Ver Video VSL2'
+    },
+    'pt-br': {
+      purchase: '🚨 Obter 50% OFF Agora (Último Aviso)',
+      video: '🎬 Assistir Vídeo VSL2'
+    },
+    'ar': {
+      purchase: '🚨 احصل على 50% خصم الآن (آخر نداء)',
+      video: '🎬 شاهد فيديو VSL2'
+    },
+    'ko': {
+      purchase: '🚨 50% 할인 지금 받기 (마지막 안내)',
+      video: '🎬 VSL2 영상 보기'
+    }
+  };
+  
+  const texts = buttonTexts[normalizedLang] || buttonTexts['en'];
+  
   return {
     inline_keyboard: [
       [
         {
-          text: '🚨 Get 50% OFF Now (Last Call)',
+          text: texts.purchase,
           url: `${whopProductUrl}?promo=${PROMO_CODE}`
         }
       ],
       [
         {
-          text: '🎬 Watch VSL2 Video',
-          url: VSL2_YOUTUBE_LINK
+          text: texts.video,
+          url: vsl2LinkWithSubtitles
         }
       ]
     ]
@@ -89,17 +126,27 @@ async function sendVSL2LastCall() {
     
     console.log(`📊 Found ${freeUsers.length} free users ready for VSL2 Last Call`);
     
-    // サムネイル画像の準備
-    let vsl2ThumbnailDataUrl = null;
+    // VSL2 Last Call専用サムネイル画像の準備
+    let vsl2LastCallThumbnailDataUrl = null;
     try {
-      const thumbnailPath = path.join(process.cwd(), 'public/images/thumbnails/vsl2_thumbnail.png');
+      const thumbnailPath = path.join(process.cwd(), 'public/images/thumbnails/vsl2_last_call_thumbnail.png');
       if (fs.existsSync(thumbnailPath)) {
         const imageBuffer = fs.readFileSync(thumbnailPath);
         const base64Image = imageBuffer.toString('base64');
-        vsl2ThumbnailDataUrl = `data:image/png;base64,${base64Image}`;
+        vsl2LastCallThumbnailDataUrl = `data:image/png;base64,${base64Image}`;
+        console.log('🖼️ VSL2 Last Call Thumbnail loaded successfully');
+      } else {
+        // フォールバック: VSL2サムネイルを使用
+        const fallbackPath = path.join(process.cwd(), 'public/images/thumbnails/vsl2_thumbnail.png');
+        if (fs.existsSync(fallbackPath)) {
+          const imageBuffer = fs.readFileSync(fallbackPath);
+          const base64Image = imageBuffer.toString('base64');
+          vsl2LastCallThumbnailDataUrl = `data:image/png;base64,${base64Image}`;
+          console.log('⚠️ VSL2 Last Call thumbnail not found, using VSL2 thumbnail as fallback');
+        }
       }
     } catch (err) {
-      console.error('❌ Error loading VSL2 thumbnail:', err.message);
+      console.error('❌ Error loading VSL2 Last Call thumbnail:', err.message);
     }
 
     let sent = 0;
@@ -122,9 +169,9 @@ async function sendVSL2LastCall() {
         
         // Grok CSO+CFO推奨: 指数バックオフ・リトライロジック（最大3回）
         await retryWithExponentialBackoff(async () => {
-          if (vsl2ThumbnailDataUrl) {
+          if (vsl2LastCallThumbnailDataUrl) {
             // サムネイル付きで送信
-            await sendPhotoToUser(user.chatId, vsl2ThumbnailDataUrl, message, {
+            await sendPhotoToUser(user.chatId, vsl2LastCallThumbnailDataUrl, message, {
               reply_markup: inlineKeyboard
             });
             console.log(`✅ VSL2 Last Call sent (with photo) to user ${user.chatId} (${userLang})`);

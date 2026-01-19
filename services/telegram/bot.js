@@ -163,12 +163,14 @@ async function sendPhoto(photoUrl, caption = '', chatId = null, botToken = null,
         );
       }
       
-      // parse_mode
-      formDataParts.push(
-        `--${boundary}\r\n`,
-        `Content-Disposition: form-data; name="parse_mode"\r\n\r\n`,
-        `${options.parse_mode || 'Markdown'}\r\n`
-      );
+      // parse_mode（undefinedの場合は送信しない）
+      if (options.parse_mode !== undefined) {
+        formDataParts.push(
+          `--${boundary}\r\n`,
+          `Content-Disposition: form-data; name="parse_mode"\r\n\r\n`,
+          `${options.parse_mode}\r\n`
+        );
+      }
 
       // reply_markup (オプション)
       if (options.reply_markup) {
@@ -214,14 +216,40 @@ async function sendPhoto(photoUrl, caption = '', chatId = null, botToken = null,
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Telegram API Error: ${response.status} ${response.statusText} - ${errText}`);
+      let errorDetails;
+      try {
+        errorDetails = JSON.parse(errText);
+      } catch {
+        errorDetails = errText;
+      }
+      
+      const errorMsg = `Telegram API Error: ${response.status} ${response.statusText}`;
+      console.error(`❌ ${errorMsg}`);
+      console.error(`   Chat ID: ${targetChatId}`);
+      console.error(`   Error details:`, errorDetails);
+      console.error(`   Caption length: ${caption?.length || 0} chars`);
+      console.error(`   Photo URL type: ${photoUrl.startsWith('data:') ? 'data-url' : 'http-url'}`);
+      
+      throw new Error(`${errorMsg} - ${JSON.stringify(errorDetails)}`);
     }
 
     const data = await response.json();
-    console.log("📸 Telegram photo sent:", JSON.stringify(data, null, 2));
+    if (data.ok) {
+      console.log("📸 Telegram photo sent:", JSON.stringify(data, null, 2));
+    } else {
+      console.error(`❌ Telegram API returned error:`, data);
+      throw new Error(`Telegram API error: ${JSON.stringify(data)}`);
+    }
     return data;
   } catch (error) {
-    console.error("❌ Telegram sendPhoto failed:", error.message);
+    console.error("❌ Telegram sendPhoto failed:", {
+      errorType: error.constructor.name,
+      errorMessage: error.message,
+      chatId: targetChatId,
+      captionLength: caption?.length || 0,
+      photoUrlType: photoUrl?.startsWith('data:') ? 'data-url' : 'http-url',
+      errorStack: error.stack,
+    });
     throw error;
   }
 }
@@ -459,8 +487,9 @@ async function sendMessageToUser(chatId, text, options = {}) {
   const botToken = TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN_MINIMAL; // DMはどちらでも送れるように
   
   if (!botToken || !chatId) {
-    console.warn(`⚠️ Telegram credentials missing. Bot Token: ${!!botToken}, Chat ID: ${!!chatId}`);
-    return;
+    const errorMsg = `Telegram credentials missing. Bot Token: ${!!botToken}, Chat ID: ${!!chatId}`;
+    console.warn(`⚠️ ${errorMsg}`);
+    throw new Error(errorMsg);
   }
 
   const url = new URL(`https://api.telegram.org/bot${botToken}/sendMessage`);
@@ -480,14 +509,40 @@ async function sendMessageToUser(chatId, text, options = {}) {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Telegram API Error: ${response.status} ${response.statusText} - ${errText}`);
+      let errorDetails;
+      try {
+        errorDetails = JSON.parse(errText);
+      } catch {
+        errorDetails = errText;
+      }
+      
+      const errorMsg = `Telegram API Error: ${response.status} ${response.statusText}`;
+      console.error(`❌ ${errorMsg}`);
+      console.error(`   Chat ID: ${chatId}`);
+      console.error(`   Error details:`, errorDetails);
+      console.error(`   Message length: ${text.length} chars`);
+      console.error(`   Parse mode: ${body.parse_mode}`);
+      
+      throw new Error(`${errorMsg} - ${JSON.stringify(errorDetails)}`);
     }
 
     const data = await response.json();
-    console.log(`📨 Telegram sent to user ${chatId}:`, JSON.stringify(data, null, 2));
+    if (data.ok) {
+      console.log(`📨 Telegram sent to user ${chatId}:`, JSON.stringify(data, null, 2));
+    } else {
+      console.error(`❌ Telegram API returned error:`, data);
+      throw new Error(`Telegram API error: ${JSON.stringify(data)}`);
+    }
     return data;
   } catch (error) {
-    console.error(`❌ Telegram sendMessageToUser failed for ${chatId}:`, error.message);
+    console.error(`❌ Telegram sendMessageToUser failed for ${chatId}:`, {
+      errorType: error.constructor.name,
+      errorMessage: error.message,
+      chatId,
+      messageLength: text.length,
+      parseMode: body.parse_mode,
+      errorStack: error.stack,
+    });
     throw error;
   }
 }
@@ -502,13 +557,28 @@ async function sendMessageToUser(chatId, text, options = {}) {
 async function sendPhotoToUser(chatId, photoUrl, caption, options = {}) {
   const botToken = TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN_MINIMAL;
   if (!botToken || !chatId) {
-    console.warn(`⚠️ Credentials missing for sendPhotoToUser`);
-    return;
+    const errorMsg = `Credentials missing for sendPhotoToUser. Bot Token: ${!!botToken}, Chat ID: ${!!chatId}`;
+    console.warn(`⚠️ ${errorMsg}`);
+    throw new Error(errorMsg);
   }
   
-  // Reuse existing sendPhoto but override chatId/token logic inside it or call it with explicit params
-  // sendPhoto has signature: (photoUrl, caption = '', chatId = null, botToken = null)
-  return await sendPhoto(photoUrl, caption, chatId, botToken);
+  try {
+    // Reuse existing sendPhoto but override chatId/token logic inside it or call it with explicit params
+    // sendPhoto has signature: (photoUrl, caption = '', chatId = null, botToken = null, options = {})
+    const result = await sendPhoto(photoUrl, caption, chatId, botToken, options);
+    console.log(`📸 Telegram photo sent to user ${chatId}`);
+    return result;
+  } catch (error) {
+    console.error(`❌ Telegram sendPhotoToUser failed for ${chatId}:`, {
+      errorType: error.constructor.name,
+      errorMessage: error.message,
+      chatId,
+      captionLength: caption?.length || 0,
+      photoUrlType: photoUrl?.startsWith('data:') ? 'data-url' : 'http-url',
+      errorStack: error.stack,
+    });
+    throw error;
+  }
 }
 
 /**

@@ -4,7 +4,7 @@
 
 const { sendMessage, sendPhotoToUser, sendMessageToUser } = require('../services/telegram/bot');
 const { getFreeUsersForVSL2, markVSL2Sent } = require('../services/free-users/manager');
-const { generateVSL2Message } = require('../services/telegram/messages/vsl2');
+const { generateVSL2Message, addSubtitleParamsToYouTubeUrl } = require('../services/telegram/messages/vsl2');
 const { retryWithExponentialBackoff } = require('../utils/retry');
 const fs = require('fs');
 const path = require('path');
@@ -49,23 +49,60 @@ function getUserLang(user) {
 }
 
 /**
- * VSL2メッセージ用のインラインボタンを生成
+ * VSL2メッセージ用のインラインボタンを生成（多言語対応）
  * Gemini CMO提案: インラインボタンでワンタップアクセスを実現
+ * @param {string} lang - 言語コード
  * @returns {Object} Telegram Inline Keyboard Markup
  */
 function generateVSL2InlineKeyboard(lang = DEFAULT_LANG) {
-  const whopProductUrl = getWhopProductUrl(lang);
+  const normalizedLang = normalizeLang(lang) || DEFAULT_LANG;
+  const whopProductUrl = getWhopProductUrl(normalizedLang);
+  
+  // YouTubeリンクに字幕パラメータを追加
+  const vsl2LinkWithSubtitles = addSubtitleParamsToYouTubeUrl(VSL2_YOUTUBE_LINK, normalizedLang);
+  
+  // 言語別のボタンテキスト（クリック率向上のため最適化）
+  // 戦略: 緊急性・ベネフィット・行動喚起を強調
+  const buttonTexts = {
+    'en': {
+      video: '🎬 Watch Why Pros Always Win',
+      purchase: '🚀 Get 50% OFF Now'
+    },
+    'ja': {
+      video: '🎬 勝てる人の理由を見る',
+      purchase: '🚀 50%OFFで今すぐ購入'
+    },
+    'es': {
+      video: '🎬 Ver Por Qué Ganan los Pros',
+      purchase: '🚀 Obtener 50% OFF Ahora'
+    },
+    'pt-br': {
+      video: '🎬 Ver Por Que Pros Sempre Vencem',
+      purchase: '🚀 Obter 50% OFF Agora'
+    },
+    'ar': {
+      video: '🎬 شاهد لماذا يربح المحترفون',
+      purchase: '🚀 احصل على 50% خصم الآن'
+    },
+    'ko': {
+      video: '🎬 상위 1%가 이기는 이유 보기',
+      purchase: '🚀 50% 할인 지금 받기'
+    }
+  };
+  
+  const texts = buttonTexts[normalizedLang] || buttonTexts['en'];
+  
   return {
     inline_keyboard: [
       [
         {
-          text: '🎬 Watch VSL2 Video',
-          url: VSL2_YOUTUBE_LINK
+          text: texts.video,
+          url: vsl2LinkWithSubtitles
         }
       ],
       [
         {
-          text: '🚀 Get 50% OFF Now',
+          text: texts.purchase,
           url: `${whopProductUrl}?promo=${PROMO_CODE}`
         }
       ]

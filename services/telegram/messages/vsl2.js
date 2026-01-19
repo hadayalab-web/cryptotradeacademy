@@ -20,6 +20,7 @@ The "Minimal Version" is just a compass. The **Full Version** is the entire map.
 
 🎬 **Watch why the "Pros" always win:**
 ${vsl2Link}
+💡 Subtitles available in 6 languages (EN, JA, ES, PT-BR, AR, KO) - enable in video settings
 
 💰 **Exclusive 50% OFF Coupon:**
 Code: \`${promoCode}\`
@@ -46,6 +47,7 @@ ${whopUrl}?promo=${promoCode}
 
 🎬 **なぜ「勝てる人」は常に余裕なのか？その理由を公開:**
 ${vsl2Link}
+💡 動画の設定で字幕（日本語・英語・スペイン語・ポルトガル語・アラビア語・韓国語）を表示できます
 
 💰 **50%OFF 限定クーポン:**
 コード: \`${promoCode}\`
@@ -72,6 +74,7 @@ La versión gratuita es solo una brújula. La **Versión Completa** es el mapa d
 
 🎬 **Mira por qué los "Pros" siempre ganan:**
 ${vsl2Link}
+💡 Subtítulos disponibles en 6 idiomas (EN, JA, ES, PT-BR, AR, KO) - activa en configuración del video
 
 💰 **Cupón Exclusivo 50% OFF:**
 Código: \`${promoCode}\`
@@ -98,6 +101,7 @@ A versão gratuita é apenas uma bússola. A **Versão Completa** é o mapa inte
 
 🎬 **Veja por que os profissionais sempre vencem:**
 ${vsl2Link}
+💡 Legendas disponíveis em 6 idiomas (EN, JA, ES, PT-BR, AR, KO) - ative nas configurações do vídeo
 
 💰 **Cupón Exclusivo 50% OFF:**
 Código: \`${promoCode}\`
@@ -124,6 +128,7 @@ ${whopUrl}?promo=${promoCode}
 
 🎬 **شاهد لماذا يربح "المحترفون" دائماً:**
 ${vsl2Link}
+💡 الترجمات متاحة بـ 6 لغات (EN, JA, ES, PT-BR, AR, KO) - قم بتفعيلها في إعدادات الفيديو
 
 💰 **كوبون خصم حصري 50%:**
 الرمز: \`${promoCode}\`
@@ -150,6 +155,7 @@ ${whopUrl}?promo=${promoCode}
 
 🎬 **상위 1%가 항상 이기는 이유를 확인하세요:**
 ${vsl2Link}
+💡 자막 6개 언어 지원 (EN, JA, ES, PT-BR, AR, KO) - 영상 설정에서 활성화 가능
 
 💰 **50% 할인 한정 쿠폰:**
 코드: \`${promoCode}\`
@@ -159,6 +165,39 @@ ${whopUrl}?promo=${promoCode}
 
 💡 *한정된 시간 동안만 유효합니다.*`,
 };
+
+/**
+ * YouTubeリンクに字幕パラメータを追加
+ * @param {string} videoUrl - YouTube動画URL
+ * @param {string} lang - 言語コード
+ * @returns {string} 字幕パラメータ付きYouTube URL
+ */
+function addSubtitleParamsToYouTubeUrl(videoUrl, lang) {
+  if (!videoUrl || (!videoUrl.includes('youtu.be/') && !videoUrl.includes('youtube.com/'))) {
+    return videoUrl; // YouTubeリンクでない場合はそのまま返す
+  }
+  
+  // 言語コードの正規化
+  const normalizedLang = lang && typeof lang === 'string' 
+    ? lang.toLowerCase().replace('_', '-') 
+    : 'en';
+  
+  // YouTubeの言語コードマッピング（ISO 639-1形式）
+  const youtubeLangMap = {
+    'en': 'en',
+    'ja': 'ja',
+    'es': 'es',
+    'pt-br': 'pt', // YouTubeはpt-brをptとして扱う
+    'ar': 'ar',
+    'ko': 'ko',
+  };
+  
+  const youtubeLang = youtubeLangMap[normalizedLang] || 'en';
+  
+  // URLにパラメータを追加（既存のパラメータがある場合は&、ない場合は?）
+  const separator = videoUrl.includes('?') ? '&' : '?';
+  return `${videoUrl}${separator}cc_lang_pref=${youtubeLang}&cc_load_policy=1`;
+}
 
 /**
  * 言語に応じたVSL2メッセージを生成
@@ -172,10 +211,17 @@ function generateVSL2Message(lang, userName, vsl2Link, whopUrl, promoCode) {
   const normalizedLang = lang && typeof lang === 'string' 
     ? lang.toLowerCase().replace('_', '-') 
     : 'en';
+  
+  // YouTubeリンクに字幕パラメータを追加
+  const vsl2LinkWithSubtitles = addSubtitleParamsToYouTubeUrl(vsl2Link, normalizedLang);
     
   const messageFn = VSL2_MESSAGES[normalizedLang] || VSL2_MESSAGES.en;
   
-  return messageFn(userName, vsl2Link, whopUrl, promoCode);
+  return messageFn(userName, vsl2LinkWithSubtitles, whopUrl, promoCode);
 }
 
-module.exports = { generateVSL2Message, VSL2_MESSAGES };
+module.exports = { 
+  generateVSL2Message, 
+  VSL2_MESSAGES,
+  addSubtitleParamsToYouTubeUrl,
+};

@@ -281,25 +281,27 @@ async function discoverLeadsOnX(prompt, lang = 'en') {
           role: 'system',
           content:
             'You are "Dr. Grok", scanning X (Twitter) to find BTC traders who need help. ' +
-            'Find traders who have lost money, been hacked, or are experiencing FOMO/fear. ' +
+            'Find as many traders as possible who have lost money, been hacked, or are experiencing FOMO/fear. ' +
             'Return ONLY JSON. No markdown. No code fences. ' +
             'Schema: {"sources":[{"handle":string,"note":string,"tweetId":string}],"summary":string} ' +
             'sources: Array of X handles (@username), tweet content (note), and tweet IDs. ' +
+            'Return AT LEAST 50-100 sources if possible. More is better. ' +
             'tweetId: The numeric tweet ID (required for replying). ' +
             'If tweet ID is not available, use null. ' +
-            'Focus on finding traders who mention: lost BTC, stolen wallet, hack attack, lost everything, afraid to trade, lost money trading.',
+            'Focus on finding traders who mention: lost BTC, stolen wallet, hack attack, lost everything, afraid to trade, lost money trading, liquidation, margin call, trapped, FOMO, fear, panic, scam, fraud, rug pull.',
         },
         {
           role: 'user',
           content:
-            `Task: Find BTC traders on X who need protection/help.\n` +
+            `Task: Find HIGH-QUALITY BTC traders on X who need protection/help.\n` +
             `Language: ${targetLang}\n` +
             `Query: ${prompt}\n` +
-            `Return specific X handles (@username), tweet content, and tweet IDs. ` +
-            `Focus on traders experiencing losses, hacks, or FOMO.`,
+            `Focus on PERFECT MATCH leads: traders who have lost BTC, been hacked, or are in distress. ` +
+            `Return 20-30 HIGH-QUALITY X handles (@username), tweet content, and tweet IDs. ` +
+            `Prioritize quality over quantity. Only return leads that are clearly experiencing losses, hacks, or FOMO/fear.`,
         },
       ],
-      max_tokens: 1000,
+      max_tokens: 4000, // 最大限のリードを取得するため増加
       temperature: 0.4,
     });
 

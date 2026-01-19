@@ -22,10 +22,15 @@
 - `CRYPTOQUANT_API_KEY`
 - `GROK_API_KEY` または `XAI_API_KEY`
 - `OPENAI_API_KEY`（GPT API用）
+- `RESEND_API_KEY`（メール配信用）
+- `CEO_EMAIL`（CEOレポート送信先、デフォルト: chibaichi.work@gmail.com）
+- `WHOP_API_KEY`（Whop API用）
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - `CRON_SECRET`
 - Vercel KV関連（`KV_URL`, `KV_REST_API_URL`, `KV_REST_API_TOKEN` など）
+
+詳細は [Resend設定ガイド](./RESEND_SETUP.md) を参照してください。
 
 ### GPT API最適化設定（オプション）
 

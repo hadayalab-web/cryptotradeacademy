@@ -3,6 +3,11 @@
 // Gemini CMO提案: 12時間後にリマインドメッセージを送信してエンゲージメントを維持
 
 const { getFreeUsersForVSL1Reminder } = require('../services/free-users/manager');
+const { generateVSL1ReminderMessage } = require('../services/telegram/messages/vsl1-reminder');
+const { getTelegramDeepLink, generateVSL1InlineKeyboard } = require('./vsl1-post');
+const { sendMessageToUser, sendPhotoToUser } = require('../services/telegram/bot');
+const fs = require('fs');
+const path = require('path');
 
 // VSL1リンク: 環境変数が設定されていない場合、正しいVSL1リンクを使用
 // VSL2リンクとの混同を防ぐため、明示的にチェック
@@ -14,31 +19,35 @@ if (VSL1_YOUTUBE_LINK_RAW.includes('fXgVsKhqDjI')) {
 const VSL1_YOUTUBE_LINK = VSL1_YOUTUBE_LINK_RAW;
 
 /**
- * VSL1リマインドメッセージを生成（EN版）
- * FOMO要素を追加: 「24時間限定防御」「今すぐ守れ」メッセージで緊急性を植え付け
+ * 言語コードを正規化
  */
-function generateVSL1ReminderMessage(userName = 'there') {
-  const hoursLeft = Math.floor(Math.random() * 12) + 1; // 1-12時間のランダム
-  
-  return `⏰ URGENT: ${hoursLeft} Hours Left, ${userName}!
-
-Did you watch the VSL1 video yet? Time is running out!
-
-🔥 LIMITED TIME DEFENSE:
-• Trap Defence identified a potential trap
-• Users avoided significant losses TODAY
-• Market moved as predicted
-
-🎬 Watch NOW before it's too late: ${VSL1_YOUTUBE_LINK}
-
-🚀 Get the trap avoidance logic that pros use (FREE):
-→ @TrapDefenceBot /start minimal
-
-⚠️ Don't lose your capital. Watch this 1-minute video NOW - ${hoursLeft} hours left to protect yourself!`;
+function normalizeLang(value) {
+  if (!value) return null;
+  const normalized = String(value).toLowerCase().replace('_', '-');
+  const supported = ['en', 'ja', 'es', 'pt-br', 'ar', 'ko'];
+  return supported.includes(normalized) ? normalized : null;
 }
 
 /**
- * 無料版ユーザーにVSL1リマインドを送信
+ * VSL1リマインドサムネイル画像を読み込む
+ */
+function loadVSL1ReminderThumbnail() {
+  try {
+    const thumbnailPath = path.join(process.cwd(), 'public/images/thumbnails/vsl1_reminder_thumbnail.png');
+    if (fs.existsSync(thumbnailPath)) {
+      const imageBuffer = fs.readFileSync(thumbnailPath);
+      const base64Image = imageBuffer.toString('base64');
+      return `data:image/png;base64,${base64Image}`;
+    }
+    return null;
+  } catch (error) {
+    console.warn('⚠️ VSL1 Reminder thumbnail loading error:', error.message);
+    return null;
+  }
+}
+
+/**
+ * 無料版ユーザーにVSL1リマインドを送信（多言語対応）
  */
 async function sendVSL1Reminder() {
   try {
@@ -57,38 +66,52 @@ async function sendVSL1Reminder() {
     
     for (const user of freeUsers) {
       try {
-        const message = generateVSL1ReminderMessage(user.userName || 'there');
+        // ユーザーの言語を取得（デフォルト: en）
+        const userLang = normalizeLang(user.lang) || 'en';
+        const userName = user.userName || (userLang === 'ja' ? 'さん' : userLang === 'ko' ? '님' : 'there');
         
-        // Telegram DM送信（ユーザーID直接指定）
-        const botToken = process.env.TELEGRAM_BOT_TOKEN_EN || process.env.TELEGRAM_BOT_TOKEN;
-        if (!botToken) {
-          throw new Error('TELEGRAM_BOT_TOKEN_EN or TELEGRAM_BOT_TOKEN not set');
-        }
+        // Deep Linkを生成
+        const deepLink = getTelegramDeepLink(userLang);
         
-        const url = new URL(`https://api.telegram.org/bot${botToken}/sendMessage`);
-        const response = await fetch(url.toString(), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: user.chatId,
-            text: message,
-            parse_mode: 'Markdown'
-          })
-        });
+        // 多言語対応のリマインドメッセージを生成
+        const message = generateVSL1ReminderMessage(userLang, userName, deepLink, VSL1_YOUTUBE_LINK);
         
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`Telegram API Error: ${response.status} - ${errText}`);
+        // インラインボタンを生成（VSL1と同じ）
+        const inlineKeyboard = generateVSL1InlineKeyboard(userLang);
+        
+        console.log(`📨 Sending VSL1 reminder to user ${user.chatId} (lang: ${userLang}, userName: ${userName})`);
+        
+        // サムネイル画像を読み込む
+        const thumbnail = loadVSL1ReminderThumbnail();
+        
+        // Telegram DM送信（画像付き・インラインボタン付き）
+        if (thumbnail) {
+          await sendPhotoToUser(user.chatId, thumbnail, message, {
+            parse_mode: 'HTML',
+            reply_markup: inlineKeyboard,
+          });
+        } else {
+          // サムネイルがない場合はテキストのみ
+          await sendMessageToUser(user.chatId, message, {
+            parse_mode: 'HTML',
+            reply_markup: inlineKeyboard,
+          });
         }
         
         sent++;
-        console.log(`✅ VSL1 reminder sent to user ${user.chatId}`);
+        console.log(`✅ VSL1 reminder sent to user ${user.chatId} (${userLang})`);
         
         // レート制限対策（20メッセージ/秒 = 50ms待機）
         await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         failed++;
-        console.error(`❌ Failed to send VSL1 reminder to user ${user.chatId}:`, error.message);
+        console.error(`❌ Failed to send VSL1 reminder to user ${user.chatId}:`, {
+          errorType: error.constructor.name,
+          errorMessage: error.message,
+          chatId: user.chatId,
+          lang: user.lang,
+          errorStack: error.stack,
+        });
       }
     }
     
@@ -99,8 +122,8 @@ async function sendVSL1Reminder() {
   }
 }
 
-// Vercel Cron実行時（12時間ごと）
-module.exports = async (req, res) => {
+// Vercel Cron実行時のハンドラー関数
+const handler = async (req, res) => {
   // CRON_SECRETチェック
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET;
@@ -116,3 +139,12 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
+
+// Vercel Cron実行時（12時間ごと）
+module.exports = handler;
+
+// テスト用にエクスポート
+module.exports.generateVSL1ReminderMessage = (lang, userName, deepLink, vsl1Link, hoursLeft) => {
+  return generateVSL1ReminderMessage(lang, userName, deepLink, vsl1Link, hoursLeft);
+};
+module.exports.sendVSL1Reminder = sendVSL1Reminder;
