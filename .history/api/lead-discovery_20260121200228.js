@@ -100,7 +100,7 @@ async function handleLeadDiscovery(req, res) {
           // リード獲得を最大化するため、デフォルト値を30→50に変更
           const maxSources = parseInt(process.env.LEAD_DISCOVERY_MAX_SOURCES || "50", 10);
           console.log(`[Lead Discovery] Searching ${maxSources} sources for ${lang} language`);
-          const query = buildXSearchQuery(null, lang);
+          const query = buildXSearchQuery(HIGH_PRIORITY_KEYWORDS.slice(0, 5), lang);
           const keywordLeads = await searchLeadsOnX(query, lang, maxSources);
           stats.x.discovered += keywordLeads.length;
 
