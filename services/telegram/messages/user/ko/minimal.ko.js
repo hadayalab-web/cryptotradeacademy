@@ -54,18 +54,16 @@ function formatMinimalBriefing({
     ? `💰 BTC 가격: $${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })} (${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}% / 24h)`
     : '💰 BTC 가격: 가져오는 중...';
 
-  return `🌤️ Trap Defense BTC - 무료 미니멈 리포트
+  return `🌤️ Trap Defence BTC - 무료 미니멈 리포트
 📅 ${ts}
 
 🎯 오늘의 Trap Score
-━━━━━━━━━━━━━━━━━━━━
 ${scoreDisplay}/100
 
 ${scoreDescription}
 
 ${priceLine}
 
-━━━━━━━━━━━━━━━━━━━━
 🔒 이유를 알고 싶으신가요?
 
 이 Trap Score 뒤에 있는 상세 분석에는 다음이 포함됩니다:
@@ -77,8 +75,7 @@ ${priceLine}
 🚀 전체 액세스로 업그레이드
 월 $69부터 • 언제든지 취소 가능
 
-━━━━━━━━━━━━━━━━━━━━
-이것은 무료 미니멈 리포트입니다. 상세 분석과 트랩 알림을 위해서는 Trap Defense BTC로 업그레이드하세요.
+이것은 무료 미니멈 리포트입니다. 상세 분석과 트랩 알림을 위해서는 Trap Defence BTC로 업그레이드하세요.
 
 교육 목적으로만 제공됩니다. 금융 조언이 아닙니다.`.trim();
 }

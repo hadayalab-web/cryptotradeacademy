@@ -5,7 +5,8 @@
 const VSL1_REMINDER_MESSAGES = {
   // ------------------------------------------------------------------
   // English (Global Standard)
-  // Strategy: Urgency + FOMO + Social Proof
+  // Strategy: Urgency + FOMO + Social Proof + Problem Statement
+  // Optimized: Added "Why is your capital being hunted?" question for deeper engagement
   // ------------------------------------------------------------------
   en: (userName, deepLink, vsl1Link, hoursLeft) => `⏰ **${userName}, did you watch the video yet?**
 
@@ -17,6 +18,7 @@ The market doesn't wait. Every moment counts.
 • Market moved as predicted
 
 ⚠️ **Don't lose your capital. Watch this 1-minute video NOW before your next trade.**
+"Why is your capital being hunted?" The answer is here.
 
 ${vsl1Link}
 💡 Subtitles available in 6 languages (EN, JA, ES, PT-BR, AR, KO) - enable in video settings
@@ -24,7 +26,7 @@ ${vsl1Link}
 🚀 **Get the trap avoidance logic that pros use (FREE):**
 👉 ${deepLink}
 
-#Bitcoin #CryptoTrading #TrapDefence #StopLoss #SmartMoney`,
+#Bitcoin #CryptoTrading #TrapDefence #StopLoss #SmartMoney #WhaleFood`,
 
   // ------------------------------------------------------------------
   // Japanese (Trust & Reality)
@@ -52,7 +54,8 @@ ${vsl1Link}
 
   // ------------------------------------------------------------------
   // Spanish (Smart Decisions)
-  // Strategy: Urgency + Social Proof
+  // Strategy: Urgency + Social Proof + Problem Statement
+  // Optimized: Added "¿Por qué tu capital está siendo cazado?" question for deeper engagement
   // ------------------------------------------------------------------
   es: (userName, deepLink, vsl1Link, hoursLeft) => `⏰ **${userName}, ¿ya viste el video?**
 
@@ -64,6 +67,7 @@ El mercado no espera. Cada momento cuenta.
 • El mercado se movió como se predijo
 
 ⚠️ **No pierdas tu capital. Mira este video de 1 minuto AHORA antes de tu próxima operación.**
+"¿Por qué tu capital está siendo cazado?" La respuesta está aquí.
 
 ${vsl1Link}
 💡 Subtítulos disponibles en 6 idiomas (EN, JA, ES, PT-BR, AR, KO) - activa en configuración del video
@@ -71,11 +75,12 @@ ${vsl1Link}
 🚀 **Obtén la lógica "Anti-Trampas" de los profesionales (GRATIS):**
 👉 ${deepLink}
 
-#Bitcoin #Criptomonedas #Trading #TrapDefence #SmartMoney`,
+#Bitcoin #Criptomonedas #Trading #TrapDefence #SmartMoney #ComidaDeBallenas`,
 
   // ------------------------------------------------------------------
   // Portuguese (Brazil - Opportunity & Edge)
-  // Strategy: Urgency + Social Proof
+  // Strategy: Urgency + Social Proof + Problem Statement
+  // Optimized: Added "Por que seu capital está sendo caçado?" question for deeper engagement
   // ------------------------------------------------------------------
   'pt-br': (userName, deepLink, vsl1Link, hoursLeft) => `⏰ **${userName}, você já assistiu ao vídeo?**
 
@@ -87,6 +92,7 @@ O mercado não espera. Cada momento conta.
 • O mercado se moveu como previsto
 
 ⚠️ **Não perca seu capital. Assista a este vídeo de 1 minuto AGORA antes da sua próxima operação.**
+"Por que seu capital está sendo caçado?" A resposta está aqui.
 
 ${vsl1Link}
 💡 Legendas disponíveis em 6 idiomas (EN, JA, ES, PT-BR, AR, KO) - ative nas configurações do vídeo
@@ -94,11 +100,12 @@ ${vsl1Link}
 🚀 **Pegue a lógica que os profissionais usam para evitar armadilhas (GRÁTIS):**
 👉 ${deepLink}
 
-#Bitcoin #Cripto #DayTrade #TrapDefence #Baleias`,
+#Bitcoin #Cripto #DayTrade #TrapDefence #Baleias #ComidaDeBaleias`,
 
   // ------------------------------------------------------------------
   // Arabic (Wisdom & Protection)
-  // Strategy: Respectful tone + Urgency
+  // Strategy: Respectful tone + Urgency + Problem Statement
+  // Optimized: Added "لماذا يتم صيد رأس مالك؟" question for deeper engagement
   // ------------------------------------------------------------------
   ar: (userName, deepLink, vsl1Link, hoursLeft) => `⏰ **${userName}، هل شاهدت الفيديو بعد؟**
 
@@ -110,6 +117,7 @@ ${vsl1Link}
 • تحرك السوق كما تم التنبؤ
 
 ⚠️ **لا تخسر رأس مالك. شاهد هذا الفيديو لمدة دقيقة واحدة الآن قبل صفقتك القادمة.**
+"لماذا يتم صيد رأس مالك؟" الجواب هنا.
 
 ${vsl1Link}
 💡 الترجمات متاحة بـ 6 لغات (EN, JA, ES, PT-BR, AR, KO) - قم بتفعيلها في إعدادات الفيديو
@@ -117,11 +125,12 @@ ${vsl1Link}
 🚀 **احصل على "منطق كشف الفخاخ" الذي يستخدمه المحترفون (مجاناً):**
 👉 ${deepLink}
 
-#Bitcoin #Crypto #تداول #بيتكوين #TrapDefence`,
+#Bitcoin #Crypto #تداول #بيتكوين #TrapDefence #طعامالحيتان`,
 
   // ------------------------------------------------------------------
   // Korean (Speed & Competition)
-  // Strategy: High urgency + Social Proof
+  // Strategy: High urgency + Social Proof + Problem Statement
+  // Optimized: Added "왜 당신의 자본이 사냥당하는가?" question for deeper engagement
   // ------------------------------------------------------------------
   ko: (userName, deepLink, vsl1Link, hoursLeft) => `⏰ **${userName}님, 영상은 이미 보셨나요?**
 
@@ -133,7 +142,7 @@ ${vsl1Link}
 • 시장이 예측대로 움직였습니다
 
 ⚠️ **자금을 잃기 전에 이 1분짜리 영상을 지금 시청하세요.**
-여러분의 시드머니를 지키는 방법이 담겨 있습니다.
+"왜 당신의 자본이 사냥당하는가?" 답이 여기 있습니다.
 
 ${vsl1Link}
 💡 자막 6개 언어 지원 (EN, JA, ES, PT-BR, AR, KO) - 영상 설정에서 활성화 가능
@@ -141,7 +150,7 @@ ${vsl1Link}
 🚀 **상위 1%가 사용하는 '함정 회피 로직' 무료 받기:**
 👉 ${deepLink}
 
-#Bitcoin #비트코인 #코인 #트레이딩 #개미털기방지 #TrapDefence`,
+#Bitcoin #비트코인 #코인 #트레이딩 #개미털기방지 #TrapDefence #고래밥`,
 };
 
 /**

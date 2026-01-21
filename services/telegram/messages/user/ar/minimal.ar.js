@@ -54,18 +54,16 @@ function formatMinimalBriefing({
     ? `💰 سعر BTC: $${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })} (${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}% / 24h)`
     : '💰 سعر BTC: جاري الجلب...';
 
-  return `🌤️ Trap Defense BTC - تقرير أدنى مجاني
+  return `🌤️ Trap Defence BTC - تقرير أدنى مجاني
 📅 ${ts}
 
 🎯 Trap Score اليوم
-━━━━━━━━━━━━━━━━━━━━
 ${scoreDisplay}/100
 
 ${scoreDescription}
 
 ${priceLine}
 
-━━━━━━━━━━━━━━━━━━━━
 🔒 تريد أن تعرف لماذا؟
 
 التحليل المفصل وراء هذا Trap Score يتضمن:
@@ -77,8 +75,7 @@ ${priceLine}
 🚀 ترقية إلى الوصول الكامل
 بدءاً من $69/شهر • إلغاء في أي وقت
 
-━━━━━━━━━━━━━━━━━━━━
-هذا تقرير أدنى مجاني. للتحليل المفصل وتنبيهات الفخ، قم بالترقية إلى Trap Defense BTC.
+هذا تقرير أدنى مجاني. للتحليل المفصل وتنبيهات الفخ، قم بالترقية إلى Trap Defence BTC.
 
 لأغراض تعليمية فقط. ليست نصيحة مالية.`.trim();
 }

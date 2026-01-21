@@ -56,10 +56,11 @@ async function sendVSL1Reminder() {
     
     if (freeUsers.length === 0) {
       console.log('ℹ️ No free users to send VSL1 reminder (12-24 hours passed, VSL2 not sent yet)');
-      return { success: true, sent: 0, message: 'No users to send' };
+      return { success: true, sent: 0, message: 'No users to send', timestamp: new Date().toISOString() };
     }
     
     console.log(`📊 Found ${freeUsers.length} free users ready for VSL1 reminder`);
+    console.log(`🚀 Starting VSL1 reminder delivery to ${freeUsers.length} users at ${new Date().toISOString()}`);
     
     let sent = 0;
     let failed = 0;

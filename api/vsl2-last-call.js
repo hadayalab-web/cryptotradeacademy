@@ -66,27 +66,27 @@ function generateVSL2LastCallInlineKeyboard(lang = DEFAULT_LANG) {
   const buttonTexts = {
     'en': {
       purchase: '🚨 Get 50% OFF Now (Last Call)',
-      video: '🎬 Watch VSL2 Video'
+      video: '🎬 Watch Why Pros Always Win'
     },
     'ja': {
       purchase: '🚨 50%OFFで今すぐ購入（最終案内）',
-      video: '🎬 VSL2動画を見る'
+      video: '🎬 勝てる人の理由を見る'
     },
     'es': {
       purchase: '🚨 Obtener 50% OFF Ahora (Último Aviso)',
-      video: '🎬 Ver Video VSL2'
+      video: '🎬 Ver Por Qué Ganan los Pros'
     },
     'pt-br': {
       purchase: '🚨 Obter 50% OFF Agora (Último Aviso)',
-      video: '🎬 Assistir Vídeo VSL2'
+      video: '🎬 Ver Por Que Pros Sempre Vencem'
     },
     'ar': {
       purchase: '🚨 احصل على 50% خصم الآن (آخر نداء)',
-      video: '🎬 شاهد فيديو VSL2'
+      video: '🎬 شاهد لماذا يربح المحترفون'
     },
     'ko': {
       purchase: '🚨 50% 할인 지금 받기 (마지막 안내)',
-      video: '🎬 VSL2 영상 보기'
+      video: '🎬 상위 1%가 이기는 이유 보기'
     }
   };
   
@@ -121,10 +121,11 @@ async function sendVSL2LastCall() {
     
     if (freeUsers.length === 0) {
       console.log('ℹ️ No free users to send VSL2 Last Call (22 hours passed, VSL2 not sent yet)');
-      return { success: true, sent: 0, message: 'No users to send' };
+      return { success: true, sent: 0, message: 'No users to send', timestamp: new Date().toISOString() };
     }
     
     console.log(`📊 Found ${freeUsers.length} free users ready for VSL2 Last Call`);
+    console.log(`🚀 Starting VSL2 Last Call delivery to ${freeUsers.length} users at ${new Date().toISOString()}`);
     
     // VSL2 Last Call専用サムネイル画像の準備
     let vsl2LastCallThumbnailDataUrl = null;
@@ -221,9 +222,24 @@ async function sendVSL2LastCall() {
       }
     }
     
-    return { success: true, sent, failed, total: freeUsers.length };
+    const result = { 
+      success: true, 
+      sent, 
+      failed, 
+      total: freeUsers.length,
+      timestamp: new Date().toISOString(),
+      successRate: freeUsers.length > 0 ? Math.round((sent / freeUsers.length) * 100) : 0
+    };
+    
+    console.log(`✅ VSL2 Last Call delivery completed: ${sent}/${freeUsers.length} sent successfully (${result.successRate}% success rate)`);
+    if (failed > 0) {
+      console.warn(`⚠️ ${failed} users failed to receive VSL2 Last Call`);
+    }
+    
+    return result;
   } catch (error) {
     console.error('❌ VSL2 Last Call send failed:', error.message);
+    console.error('Stack trace:', error.stack);
     throw error;
   }
 }

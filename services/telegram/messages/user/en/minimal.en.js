@@ -54,18 +54,16 @@ function formatMinimalBriefing({
     ? `💰 BTC Price: $${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })} (${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}% / 24h)`
     : '💰 BTC Price: Fetching...';
 
-  return `🌤️ Trap Defense BTC - Free Minimal Report
+  return `🌤️ Trap Defence BTC - Free Minimal Report
 📅 ${ts}
 
 🎯 Today's Trap Score
-━━━━━━━━━━━━━━━━━━━━
 ${scoreDisplay}/100
 
 ${scoreDescription}
 
 ${priceLine}
 
-━━━━━━━━━━━━━━━━━━━━
 🔒 Want to Know Why?
 
 The detailed analysis behind this Trap Score, including:
@@ -77,8 +75,7 @@ The detailed analysis behind this Trap Score, including:
 🚀 Upgrade to Full Access
 Starting at $69/month • Cancel anytime
 
-━━━━━━━━━━━━━━━━━━━━
-This is a free minimal report. For detailed analysis and trap alerts, upgrade to Trap Defense BTC.
+This is a free minimal report. For detailed analysis and trap alerts, upgrade to Trap Defence BTC.
 
 For educational purposes only. Not financial advice.`.trim();
 }

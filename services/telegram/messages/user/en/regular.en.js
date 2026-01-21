@@ -51,7 +51,7 @@ function formatRegularBriefing({
 
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
-  const flowLine = `📊 Exchange Netflow: ${flowDir} ${flowAbs.toFixed(0)} BTC`;
+  const flowLine = `📊 Exchange Netflow: ${flowDir} ${flowAbs.toFixed(0)} BTC${inflow < 0 ? ' — Holders are keeping assets' : ' — Selling pressure detected'}`;
 
   const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
   const sentimentLine = `🧠 Sentiment: ${sentimentLabel || 'Unknown'}`;
@@ -73,7 +73,7 @@ function formatRegularBriefing({
   const scoreLine = `📈 Market Score: ${marketScore}/100${scoreInterpretation}`;
   
   // データの不整合修正: Trap Detectorの矛盾を修正（trapDetectionとtrapの整合性を確認）
-  let trapLine = '✅ Trap Detector: No critical trap detected.';
+  let trapLine = '✅ Trap Detector: No critical trap detected';
   if (trapDetection && trapDetection.trapDetected) {
     const trapSeverity = trapDetection.trapSeverity || 'NONE';
     const trapScore = trapDetection.trapScore || 0;
@@ -139,8 +139,9 @@ function formatRegularBriefing({
   }
 
   const lines = [];
-  lines.push('🌤️ CryptoWeather Alert - Trap Defense Report');
-  lines.push(`📺 News Program @ ${ts}`);
+  lines.push('🌤️ Trap Defence BTC - Paid Report');
+  lines.push(`🚨 BREAKING: Trap Defence Briefing`);
+  lines.push(`📅 ${ts}`);
   lines.push('');
 
   // ===== 【最重要】Trade Verdict（最上部に配置） =====
@@ -211,10 +212,7 @@ function formatRegularBriefing({
     lines.push('🛡️ Core Feature 1: Trap Defense - No trap detected currently');
   }
   
-  // ===== 【ニュース番組構造】オープニング → データ → 解説 → コメンテーター → クロージング =====
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('📺 【Opening】Market Intelligence from GPT Mental Trainer');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
   
   // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
   // エラーメッセージやnullの場合は、フォールバック処理
@@ -251,17 +249,43 @@ The MPI of ${mpiDisplay} suggests that miners are ${mpi >= 0 ? 'selling' : 'hold
 The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neutral' ? 'a lack of strong emotional drivers such as fear or greed among traders' : sentimentLabel === 'Greed' ? 'optimistic market conditions, but potential overextension' : 'cautious market conditions'}. This suggests a market in a wait-and-see mode, where traders are monitoring conditions carefully.`;
   }
   
-  // 文字数制限を緩和して、重要な情報が切れないようにする（1000文字まで）
-  const gptNewsLimit = 1000;
-  let gptNewsDisplay = gptNewsText.length > gptNewsLimit 
-    ? `${gptNewsText.slice(0, gptNewsLimit)}…` 
-    : gptNewsText;
+  // Telegram互換性: Markdown見出し（###）を削除してTelegramネイティブな形式に変換（先に実行）
+  let gptNewsDisplay = gptNewsText
+    .replace(/^###\s+/gm, '') // ###見出しを削除
+    .replace(/^##\s+/gm, '')   // ##見出しを削除
+    .replace(/^#\s+/gm, '');   // #見出しを削除
+  // プレーンテキストの見出しも改善（「Psychological Interpretation of On-Chain Metrics」など）
+  gptNewsDisplay = gptNewsDisplay.replace(/^Psychological Interpretation of On-Chain Metrics$/gm, '💡 Psychological Interpretation of On-Chain Metrics');
   
-  // Telegram互換性: Markdown見出し（###）を削除してTelegramネイティブな形式に変換
-  gptNewsDisplay = gptNewsDisplay
-    .replace(/^###\s+/gm, '◆ ') // ###見出しを◆記号に変換
-    .replace(/^##\s+/gm, '▼ ')   // ##見出しを▼記号に変換
-    .replace(/^#\s+/gm, '▶ ');   // #見出しを▶記号に変換
+  // 文字数制限を緩和して、重要な情報が切れないようにする（600文字まで）
+  const gptNewsLimit = 600;
+  if (gptNewsDisplay.length > gptNewsLimit) {
+    // 文の終わりで切るようにする（最後の文の終わりを探す）
+    const truncated = gptNewsDisplay.slice(0, gptNewsLimit);
+    // 文の終わりを探す（ピリオド、感嘆符、疑問符、改行）
+    const sentenceEnds = [
+      truncated.lastIndexOf('. '),
+      truncated.lastIndexOf('.\n'),
+      truncated.lastIndexOf('! '),
+      truncated.lastIndexOf('!\n'),
+      truncated.lastIndexOf('? '),
+      truncated.lastIndexOf('?\n'),
+      truncated.lastIndexOf('\n\n'),
+      truncated.lastIndexOf('\n')
+    ].filter(pos => pos !== -1);
+    
+    const lastSentenceEnd = sentenceEnds.length > 0 ? Math.max(...sentenceEnds) : -1;
+    
+    // 文の終わりが見つかった場合、その位置で切る（50%以上の場合のみ）
+    if (lastSentenceEnd > gptNewsLimit * 0.5) {
+      // 文の終わりの後にスペースがある場合は、その位置で切る
+      const endPos = truncated[lastSentenceEnd + 1] === ' ' ? lastSentenceEnd + 1 : lastSentenceEnd;
+      gptNewsDisplay = truncated.slice(0, endPos) + '…';
+    } else {
+      // 文の終わりが見つからない場合、単純に切る
+      gptNewsDisplay = truncated + '…';
+    }
+  }
   
   // モバイル最適化: 冒頭に1行の要約を追加（100点満点への最後の仕上げ）
   // トラップ検出状況に基づいて要約を生成
@@ -276,7 +300,7 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
     // Telegram Markdownでは [text] がリンクとして解釈されるため、[Summary]ではなく Summary: を使用
     summaryLine = `📰 Summary: On-chain metrics show a "Wait-and-See" mode. ${trapTypeDisplay} suggests a hidden trap despite stable prices.`;
   } else {
-    summaryLine = `📰 Summary: On-chain metrics show a "Wait-and-See" mode. Market conditions are stable, but remain vigilant for trap patterns.`;
+    summaryLine = `📰 Summary: On-chain metrics show a "Wait-and-See" mode. Market conditions are stable, but remain vigilant for trap patterns`;
   }
   lines.push(summaryLine);
   lines.push('');
@@ -307,9 +331,6 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
     
     // Step 1: 問題の提示（Story Arc）
     if (storyArcText || (!isDuplicate && dataPresentationText)) {
-      lines.push('━━━━━━━━━━━━━━━━━━━━');
-      lines.push('📖 【Core Feature 2: Intelligence Editor】Market Story');
-      lines.push('━━━━━━━━━━━━━━━━━━━━');
       
       // Story Arcを優先表示（問題の提示）
       if (storyArcText) {
@@ -331,8 +352,7 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
     // Step 2: 証拠（Evidence）セクションを独立させて明確に表示
     if (evidenceText || trapScoreForEvidence !== null) {
       lines.push('━━━━━━━━━━━━━━━━━━━━');
-      lines.push('📊 【Evidence】Why Wait? Data-Backed Reasons');
-      lines.push('[PROVED BY ON-CHAIN DATA]');
+      lines.push('📊 Data-Backed Reasons');
       lines.push('━━━━━━━━━━━━━━━━━━━━');
       
       if (evidenceText) {
@@ -342,85 +362,41 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
         if (trapScoreForEvidence !== null) {
           const trapScoreRounded = Math.round(trapScoreForEvidence);
           if (trapScoreRounded >= 50) {
-            lines.push(`🎯 Trap Score: ${trapScoreRounded}/100 indicates significant trap risk.`);
+            lines.push(`🎯 Trap Score: ${trapScoreRounded}/100 indicates significant trap risk`);
             if (trapTypeForEvidence) {
               const trapTypeDisplay = trapTypeForEvidence.replace(/_/g, ' ');
-              lines.push(`⚠️ Trap Type: ${trapTypeDisplay} detected.`);
+              lines.push(`⚠️ Trap Type: ${trapTypeDisplay} detected`);
             }
-            lines.push(`💡 Evidence: Multiple divergences and on-chain anomalies suggest a "Wait-and-See" mode is prudent.`);
-            lines.push(`📈 Why Wait? The data shows ${trapScoreRounded >= 70 ? 'strong' : 'moderate'} signals that entering now could expose you to market traps.`);
+            lines.push(`💡 Evidence: Multiple divergences and on-chain anomalies suggest a "Wait-and-See" mode is prudent`);
+            lines.push(`📈 Why Wait? The data shows ${trapScoreRounded >= 70 ? 'strong' : 'moderate'} signals that entering now could expose you to market traps`);
           } else {
-            lines.push(`✅ Trap Score: ${trapScoreRounded}/100 indicates low trap risk.`);
-            lines.push(`💡 Evidence: Market conditions appear relatively safe, but remain vigilant for trap patterns.`);
+            lines.push(`✅ Trap Score: ${trapScoreRounded}/100 indicates low trap risk`);
+            lines.push(`💡 Evidence: Market conditions appear relatively safe, but remain vigilant for trap patterns`);
           }
         }
       }
-      lines.push('');
-    }
-    
-    // Step 3: 解決策（Analysis: Trap Defense Engineの計画）
-    if (showContent.analysis?.trapDefenseEngine?.process) {
-      lines.push('━━━━━━━━━━━━━━━━━━━━');
-      lines.push('🛡️ 【Analysis】Trap Defense Strategy');
-      lines.push('━━━━━━━━━━━━━━━━━━━━');
-      lines.push(showContent.analysis.trapDefenseEngine.process);
-      if (showContent.analysis.trapDefenseEngine.promise) {
-        lines.push('');
-        lines.push(showContent.analysis.trapDefenseEngine.promise);
-      }
       
       // 【改善2: 「70%待機戦略」の証拠ベース説明の統合】
-      // Evidenceセクションと連動させて、「なぜ待つべきか」を証拠ベースで明確に説明
-      if (trapScoreForEvidence !== null && trapScoreForEvidence >= 30) {
+      // 戦略的インサイトセクションを追加
+      if (trapScoreForEvidence !== null) {
         const trapScoreRounded = Math.round(trapScoreForEvidence);
         lines.push('');
-        lines.push(`💡 Why Wait? (Evidence-Based)`);
+        lines.push(`💡 Strategic Insights`);
         if (trapScoreRounded >= 70) {
-          lines.push(`   🚨 Trap Score ${trapScoreRounded}/100: Strong signals indicate potential market traps.`);
-          lines.push(`   📊 The data shows multiple divergences and on-chain anomalies.`);
-          lines.push(`   🛡️ Strategic preparation is not weakness—it's victory preparation. 70% of the time, prepare for victory.`);
+          lines.push(`  🚨 Trap Score ${trapScoreRounded}/100: Strong signals indicate potential market traps`);
+          lines.push(`  📊 The data shows multiple divergences and on-chain anomalies`);
+          lines.push(`  🛡️ Strategic preparation is not weakness—it's victory preparation. 70% of the time, prepare for victory`);
         } else if (trapScoreRounded >= 50) {
-          lines.push(`   ⚡ Trap Score ${trapScoreRounded}/100: Moderate trap indicators detected.`);
-          lines.push(`   📊 Some divergences suggest caution.`);
-          lines.push(`   🛡️ Defense first. Prepare for victory—wait for clearer market signals.`);
+          lines.push(`  ⚡ Trap Score ${trapScoreRounded}/100: Moderate trap indicators detected`);
+          lines.push(`  📊 Some divergences suggest caution`);
+          lines.push(`  🛡️ Defense first. Prepare for victory—wait for clearer market signals`);
         } else {
-          lines.push(`   ✅ Trap Score ${trapScoreRounded}/100: Low trap risk, but remain vigilant.`);
-          lines.push(`   🛡️ Even in low-risk conditions, patience is strategic strength.`);
+          lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk, but markets always change`);
+          lines.push(`  🛡️ Low-risk times are when strategic preparation matters most. Continue defense until clear advantage emerges`);
+          lines.push(`  💎 Professional traders prioritize "waiting time" above all. Take the same strategy`);
         }
       }
       lines.push('');
-    }
-    
-    // Call to Action: 失敗を回避し、成功する結末へ
-    if (showContent.callToAction) {
-      if (showContent.callToAction.avoidFailure) {
-        lines.push('━━━━━━━━━━━━━━━━━━━━');
-        lines.push('⚠️ 【Avoid Failure】');
-        lines.push('━━━━━━━━━━━━━━━━━━━━');
-        lines.push(showContent.callToAction.avoidFailure);
-        lines.push('');
-      }
-      if (showContent.callToAction.successEnding) {
-        lines.push('━━━━━━━━━━━━━━━━━━━━');
-        lines.push('✅ 【Success Ending】');
-        lines.push('━━━━━━━━━━━━━━━━━━━━');
-        lines.push(showContent.callToAction.successEnding);
-        // Key Ideaの重複を避ける（Analysisセクションで既に表示済み）
-        // Success Endingでは具体的な行動喚起（非行動）を追加
-        // 【改善2: 「70%待機戦略」の証拠ベース説明の統合】Success Endingでも証拠ベースで説明
-        lines.push('');
-        if (trapScoreForEvidence !== null && trapScoreForEvidence >= 30) {
-          const trapScoreRounded = Math.round(trapScoreForEvidence);
-          const trapRiskLabel = trapScoreRounded >= 70 ? 'strong' : trapScoreRounded >= 50 ? 'moderate' : 'low';
-          lines.push(`💡 Action (Evidence-Based): Trap Score ${trapScoreRounded}/100 indicates ${trapRiskLabel} trap risk.`);
-          lines.push(`   🛡️ Set alerts and step away. The best trade is often the one you don't make.`);
-          lines.push(`   📊 Strategic preparation is victory preparation, not weakness. 70% of the time, prepare for victory.`);
-        } else {
-          lines.push('💡 Action: Set alerts and step away. The best trade is often the one you don\'t make.');
-          lines.push('📊 Strategic preparation is victory preparation, not weakness. 70% of the time, prepare for victory.');
-        }
-        lines.push('');
-      }
     }
   } else if (hasGeminiContent) {
     // 後方互換性: 画像・動画版（現在は使用されない）
@@ -429,6 +405,67 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
     lines.push('━━━━━━━━━━━━━━━━━━━━');
     lines.push('🎬 Check attached image/video!');
     lines.push('');
+  } else {
+    // showContentがない場合でも証拠セクションと戦略的インサイトセクションを表示
+    // Trap RiskスコアまたはTrap Detectionスコアから証拠を生成
+    const trapScoreForEvidence = trapRisk?.trapRiskScore ?? trapDetection?.trapScore ?? trapScore ?? null;
+    const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
+    
+    // データに基づく理由セクション（常に表示して価値を提供）
+    if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('📊 Data-Backed Reasons');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      
+      if (trapScoreForEvidence !== null) {
+        const trapScoreRounded = Math.round(trapScoreForEvidence);
+        if (trapScoreRounded >= 50) {
+          lines.push(`🎯 Trap Score: ${trapScoreRounded}/100 indicates significant trap risk`);
+          if (trapTypeForEvidence) {
+            const trapTypeDisplay = trapTypeForEvidence.replace(/_/g, ' ');
+            lines.push(`⚠️ Trap Type: ${trapTypeDisplay} detected`);
+          }
+          lines.push(`💡 Evidence: Multiple divergences and on-chain anomalies suggest a "Wait-and-See" mode is prudent`);
+          lines.push(`📈 Why Wait? The data shows ${trapScoreRounded >= 70 ? 'strong' : 'moderate'} signals that entering now could expose you to market traps`);
+        } else {
+          lines.push(`✅ Trap Score: ${trapScoreRounded}/100 indicates low trap risk`);
+          lines.push(`💡 Evidence: Market conditions appear relatively safe, but remain vigilant for trap patterns`);
+        }
+      } else if (trapDetection || trapAlert) {
+        // フォールバック: trapDetectionやtrapAlertから証拠を生成
+        if (trapDetection && trapDetection.trapDetected) {
+          const trapTypeText = (trapDetection.trapType || 'Anomaly').replace(/_/g, ' ');
+          lines.push(`🎯 Trap Detection: ${trapTypeText} (Score: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
+          lines.push(`💡 Evidence: Multiple on-chain anomalies detected based on data`);
+        } else if (trapAlert && trapAlert.alert) {
+          const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
+          lines.push(`🚨 Trap Alert: ${alertTypeText} (Severity: ${trapAlert.severity})`);
+          lines.push(`💡 Evidence: Market trap risk detected based on on-chain data and sentiment analysis`);
+        }
+      }
+      
+      // 【改善2: 「70%待機戦略」の証拠ベース説明の統合】
+      // 戦略的インサイトセクションを追加
+      if (trapScoreForEvidence !== null) {
+        const trapScoreRounded = Math.round(trapScoreForEvidence);
+        lines.push('');
+        lines.push(`💡 Strategic Insights`);
+        if (trapScoreRounded >= 70) {
+          lines.push(`  🚨 Trap Score ${trapScoreRounded}/100: Strong signals indicate potential market traps`);
+          lines.push(`  📊 The data shows multiple divergences and on-chain anomalies`);
+          lines.push(`  🛡️ Strategic preparation is not weakness—it's victory preparation. 70% of the time, prepare for victory`);
+        } else if (trapScoreRounded >= 50) {
+          lines.push(`  ⚡ Trap Score ${trapScoreRounded}/100: Moderate trap indicators detected`);
+          lines.push(`  📊 Some divergences suggest caution`);
+          lines.push(`  🛡️ Defense first. Prepare for victory—wait for clearer market signals`);
+        } else {
+          lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk, but markets always change`);
+          lines.push(`  🛡️ Low-risk times are when strategic preparation matters most. Continue defense until clear advantage emerges`);
+          lines.push(`  💎 Professional traders prioritize "waiting time" above all. Take the same strategy`);
+        }
+      }
+      lines.push('');
+    }
   }
   
   // 【解説】GPTリポーターの詳細解説（既にオープニングで表示済みの場合は省略）
@@ -436,15 +473,30 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
   
   // 【コメンテーター】Dr. Grokメンタルコーチ（固定コーナー）
   lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('💊 【Core Feature 3: Mental Coach】Dr. Grok\'s Take');
+  lines.push('💊 Dr. Grok\'s Quick Insight');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   
   // Grok X解析結果（Xセンチメント分析）
   if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
     const grokXLimit = 600;
-    const grokXDisplay = grokXAnalysis.length > grokXLimit 
-      ? `${grokXAnalysis.slice(0, grokXLimit)}…` 
-      : grokXAnalysis;
+    let grokXDisplay = grokXAnalysis;
+    if (grokXAnalysis.length > grokXLimit) {
+      // 文の終わりで切るようにする（最後の文の終わりを探す）
+      const truncated = grokXAnalysis.slice(0, grokXLimit);
+      const lastSentenceEnd = Math.max(
+        truncated.lastIndexOf('.'),
+        truncated.lastIndexOf('!'),
+        truncated.lastIndexOf('?'),
+        truncated.lastIndexOf('\n')
+      );
+      // 文の終わりが見つかった場合、その位置で切る
+      if (lastSentenceEnd > grokXLimit * 0.7) {
+        grokXDisplay = truncated.slice(0, lastSentenceEnd + 1) + '…';
+      } else {
+        // 文の終わりが見つからない場合、単純に切る
+        grokXDisplay = truncated + '…';
+      }
+    }
     lines.push(`📱 X Sentiment Analysis: ${grokXDisplay}`);
     lines.push('');
   }
@@ -466,6 +518,8 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
     if (psychologicalSupport.psychologicalAdvice) {
       lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
     }
+    
+    lines.push('');
     
     // Dr. Grokの「Mental Note」を独立した枠として強調表示
     lines.push('');
@@ -496,14 +550,12 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
     // フォールバック: データが取得できない場合でも価値のあるメッセージを提供
     lines.push('💚 Psychological State: 😐 NEUTRAL (Risk: 💡 LOW)');
     lines.push('');
+    lines.push('   💡 Market conditions are relatively stable. Maintain discipline');
+    lines.push('');
     lines.push('💊 Dr. Grok\'s Mental Note:');
     lines.push('"Patience is not weakness—it\'s strategic strength. The best traders know when not to trade."');
   }
   
-  lines.push('');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('📺 【Closing】Stay tuned for the next episode');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
   // ===== 基本市場データ（補足情報として後半に配置） =====

@@ -1,4 +1,6 @@
 // api/vsl2-post.js
+// ⚠️ DISABLED: 無料版チャンネル全体へのVSL2配信は誤った挙動のため無効化されました
+// VSL2は個別ユーザーへの配信のみ（/api/vsl2-free-usersで処理）
 // VSL2自動投稿（Telegram MINIMALチャンネル） - 無料版ユーザーへのアップセル/クーポン配信
 // VSL1は無料版オプトイン誘導用（X/Twitterのみ）、VSL2は無料版チャンネルに配信
 
@@ -139,7 +141,7 @@ function generateVSL2InlineKeyboard(lang = DEFAULT_LANG) {
     inline_keyboard: [
       [
         {
-          text: '🎬 Watch VSL2 Video',
+          text: '🎬 Watch Why Pros Always Win',
           url: VSL2_YOUTUBE_LINK
         }
       ],
@@ -154,6 +156,16 @@ function generateVSL2InlineKeyboard(lang = DEFAULT_LANG) {
 }
 
 async function postVSL2() {
+  // ⚠️ DISABLED: 無料版チャンネル全体へのVSL2配信は無効化されました
+  // VSL2は個別ユーザーへの配信のみ（/api/vsl2-free-usersで処理）
+  console.warn('⚠️ postVSL2() is disabled. VSL2 should only be sent to individual users via /api/vsl2-free-users');
+  return {
+    success: false,
+    message: 'VSL2 channel posting is disabled. Use /api/vsl2-free-users for individual user delivery.',
+    results: { telegram: { success: false, sent: 0, total: 0, byLang: {}, config: {} } },
+  };
+  
+  /* DISABLED CODE - DO NOT USE
   try {
     const results = {
       telegram: null,
@@ -254,10 +266,21 @@ async function postVSL2() {
     console.error('❌ VSL2 post failed:', error.message);
     throw error;
   }
+  */
 }
 
 // Vercel Cron実行時（VSL1と同じスケジュール: UTC 9時と21時、JST 18時と6時）
+// ⚠️ DISABLED: このエンドポイントは無効化されました（vercel.jsonからも削除済み）
 module.exports = async (req, res) => {
+  // ⚠️ DISABLED: 無料版チャンネル全体へのVSL2配信は無効化されました
+  console.warn('⚠️ /api/vsl2-post endpoint is disabled. VSL2 should only be sent to individual users via /api/vsl2-free-users');
+  return res.status(410).json({ 
+    error: 'This endpoint is disabled',
+    message: 'VSL2 channel posting is disabled. Use /api/vsl2-free-users for individual user delivery.',
+    disabled: true
+  });
+  
+  /* DISABLED CODE - DO NOT USE
   // CRON_SECRETチェック
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET;
@@ -272,6 +295,7 @@ module.exports = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
+  */
 };
 
 module.exports.postVSL2 = postVSL2;

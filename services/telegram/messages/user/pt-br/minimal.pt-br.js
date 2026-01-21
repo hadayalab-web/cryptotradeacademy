@@ -54,18 +54,16 @@ function formatMinimalBriefing({
     ? `💰 Preço do BTC: $${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })} (${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}% / 24h)`
     : '💰 Preço do BTC: Obtendo...';
 
-  return `🌤️ Trap Defense BTC - Relatório Mínimo Gratuito
+  return `🌤️ Trap Defence BTC - Relatório Mínimo Gratuito
 📅 ${ts}
 
 🎯 Trap Score de Hoje
-━━━━━━━━━━━━━━━━━━━━
 ${scoreDisplay}/100
 
 ${scoreDescription}
 
 ${priceLine}
 
-━━━━━━━━━━━━━━━━━━━━
 🔒 Quer Saber Por Quê?
 
 A análise detalhada por trás deste Trap Score inclui:
@@ -77,8 +75,7 @@ A análise detalhada por trás deste Trap Score inclui:
 🚀 Atualize para Acesso Completo
 A partir de $69/mês • Cancele a qualquer momento
 
-━━━━━━━━━━━━━━━━━━━━
-Este é um relatório mínimo gratuito. Para análise detalhada e alertas de armadilhas, atualize para Trap Defense BTC.
+Este é um relatório mínimo gratuito. Para análise detalhada e alertas de armadilhas, atualize para Trap Defence BTC.
 
 Apenas para fins educacionais. Não é aconselhamento financeiro.`.trim();
 }

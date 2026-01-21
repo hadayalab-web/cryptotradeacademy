@@ -46,8 +46,13 @@ function generateLeadId(lead) {
  */
 async function recordLead(lead) {
   if (!kvClient) {
-    console.warn('[Conversion Tracker] KV client not initialized');
-    return null;
+    console.error('[Conversion Tracker] ❌ CRITICAL: KV client not initialized! Lead will not be tracked.');
+    console.error('[Conversion Tracker] KV_REST_API_URL:', process.env.KV_REST_API_URL ? 'SET' : 'NOT SET');
+    console.error('[Conversion Tracker] KV_REST_API_TOKEN:', process.env.KV_REST_API_TOKEN ? 'SET' : 'NOT SET');
+    // 緊急修正: KVが設定されていない場合でも、リードIDを生成して返す（後で記録可能にする）
+    const leadId = generateLeadId(lead);
+    console.warn(`[Conversion Tracker] Generated leadId without KV: ${leadId} (@${lead.username || 'unknown'})`);
+    return leadId; // nullではなくleadIdを返す（後で記録可能にする）
   }
 
   const leadId = generateLeadId(lead);

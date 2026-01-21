@@ -46,14 +46,14 @@ function formatRegularBriefing({
   const priceLine = `💰 Precio BTC: ${formatUsd(priceUsd)} (${formatPercent(change24h)} / 24h)`;
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
-  const flowLine = `📊 Flujo neto de exchanges: ${flowDir} ${flowAbs.toFixed(0)} BTC`;
+  const flowLine = `📊 Flujo neto de exchanges: ${flowDir} ${flowAbs.toFixed(0)} BTC${inflow < 0 ? ' — Los tenedores mantienen activos' : ' — Presión de venta detectada'}`;
   const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
   const sentimentLine = `🧠 Sentimiento: ${sentimentLabel || 'Desconocido'}`;
 
   const scoreLine = `📈 Puntuación de mercado: ${Math.round(score ?? 0)}/100`;
   const trapLine = trap?.isTrap
     ? `🧨 Detector de trampas: ${trap.label || 'Posible trampa'} (${trap.confidence} confianza)`
-    : '✅ Detector de trampas: No se detectan trampas críticas.';
+    : '✅ Detector de trampas: No se detectan trampas críticas';
 
   let dirEmoji;
   let dirLabel;
@@ -74,13 +74,20 @@ function formatRegularBriefing({
     dirLabel = 'TRAP STANDBY (Defense Active)';
   }
 
-  const entryLine = `• Entrada (spot ref.): ${formatUsd(priceUsd)}`;
-  const tpLine = tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: n/a';
-  const slLine = tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: n/a';
-  const rrLine = tradeSignal?.rr != null ? `• Riesgo/beneficio (RR): ${tradeSignal.rr.toFixed(2)}` : '';
-
   const isNoTrade = true; // Siempre modo de espera (señales BUY/SELL completamente eliminadas)
-  const modeLine = isNoTrade ? '• Modo: Trap Standby — preparación para la victoria hasta ventaja clara. Priorizar defensa.' : '';
+  const entryLine = isNoTrade
+    ? '• Entrada: Preparación para la Victoria — Esperando Desencadenante Claro'
+    : `• Entrada (spot ref.): ${formatUsd(priceUsd)}`;
+  const tpLine = isNoTrade
+    ? '• Take Profit: TBD (Por Determinar)'
+    : (tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: n/a');
+  const slLine = isNoTrade
+    ? '• Stop Loss: TBD (Por Determinar)'
+    : (tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: n/a');
+  const rrLine = isNoTrade
+    ? '• Riesgo/beneficio (RR): Espera'
+    : (tradeSignal?.rr != null ? `• Riesgo/beneficio (RR): ${tradeSignal.rr.toFixed(2)}` : '');
+  const modeLine = isNoTrade ? '• Modo: Trap Standby — espera ventaja clara. Priorizar defensa' : '';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -94,8 +101,9 @@ function formatRegularBriefing({
   }
 
   const lines = [];
-  lines.push('🌤️ CryptoWeather Alert - Trap Defense Report');
-  lines.push(`📺 Programa de Noticias @ ${ts}`);
+  lines.push('🌤️ Trap Defence BTC - Informe de Pago');
+  lines.push(`🚨 BREAKING: Briefing de Defensa de Trampas`);
+  lines.push(`📅 ${ts}`);
   lines.push('');
 
   // ===== 【最重要】Trade Verdict（最上部に配置） =====
@@ -123,6 +131,34 @@ function formatRegularBriefing({
     const trapScore = trapData.trapScore || trapData.bugScore || 0;
     lines.push(`🛡️ Característica Principal 1: Defensa de Trampas - ${trapEmoji} ${trapTypeText} (Puntuación: ${trapScore.toFixed(0)}/100)`);
     
+    // Display score calculation components (transparency)
+    if (trapData.details) {
+      const components = [];
+      if (trapData.details.multipleDivergences >= 3) {
+        components.push(`Divergencias Múltiples (${trapData.details.multipleDivergences})`);
+      } else if (trapData.details.multipleDivergences >= 2) {
+        components.push(`Divergencias Múltiples (${trapData.details.multipleDivergences})`);
+      }
+      if (trapData.details.anomalyDetected) {
+        components.push('Anomalía de Alta Resolución');
+      }
+      if (trapData.details.accelerationDetected) {
+        components.push('Aceleración de Tendencia');
+      }
+      if (Math.abs(trapData.details.onchainSocialDivergence || 0) > 40) {
+        components.push('Divergencia Ballena/Minorista');
+      }
+      if (trapData.details.priceOnchainDivergence) {
+        components.push('Divergencia Precio/Onchain');
+      }
+      if (trapData.details.priceSocialDivergence) {
+        components.push('Divergencia Precio/Sentimiento');
+      }
+      if (components.length > 0) {
+        lines.push(`   📊 Componentes: ${components.join(' + ')}`);
+      }
+    }
+    
     // Display trap alert details if available
     if (trapAlert && trapAlert.alert) {
       const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
@@ -137,41 +173,195 @@ function formatRegularBriefing({
     lines.push('🛡️ Característica Principal 1: Defensa de Trampas - No se detectan trampas actualmente');
   }
   
-  // ===== 【ニュース番組構造】オープニング → データ → 解説 → コメンテーター → クロージング =====
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('📺 【Apertura】Noticias de Trampa Urgente del Reportero GPT');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  
+  // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
   // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
-  const gptNewsText = gptReporterAnalysis || aiAnalysis || 'Analizando datos...';
-  const gptNewsLimit = 800;
-  const gptNewsDisplay = gptNewsText.length > gptNewsLimit 
-    ? `${gptNewsText.slice(0, gptNewsLimit)}…` 
-    : gptNewsText;
-  lines.push(`📰 ${gptNewsDisplay}`);
+  // エラーメッセージやnullの場合は、フォールバック処理
+  let gptNewsText = gptReporterAnalysis || aiAnalysis || null;
+  
+  // エラーメッセージを検出（API error, unavailable, error等のキーワード）
+  if (gptNewsText && typeof gptNewsText === 'string') {
+    const errorKeywords = ['api error', 'unavailable', 'error', 'failed', 'timeout'];
+    const isError = errorKeywords.some(keyword => 
+      gptNewsText.toLowerCase().includes(keyword)
+    );
+    if (isError) {
+      gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
+    }
+  }
+  
+  // フォールバック: GPT分析が利用できない場合の代替メッセージ
+  if (!gptNewsText || gptNewsText.trim() === '') {
+    // CryptoQuantデータから基本的な分析を生成
+    const inflowDisplay = inflow >= 0 ? `Entrada ${Math.abs(inflow).toFixed(0)} BTC` : `Salida ${Math.abs(inflow).toFixed(0)} BTC`;
+    const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
+    const priceChangeDisplay = change24h >= 0 ? `+${change24h.toFixed(2)}%` : `${change24h.toFixed(2)}%`;
+    
+    gptNewsText = `💡 Interpretación Psicológica de Métricas On-Chain
+
+Los datos de CryptoQuant muestran ${inflowDisplay}, un Índice de Posición de Mineros (MPI) de ${mpiDisplay}, y sentimiento ${sentimentLabel.toLowerCase()}, mientras que el precio ha cambiado ${priceChangeDisplay} en 24 horas.
+
+Desde una perspectiva psicológica, estas métricas sugieren un entorno de mercado ${sentimentLabel.toLowerCase()}. El ${inflow >= 0 ? 'flujo de entrada' : 'flujo de salida'} indica ${inflow >= 0 ? 'más criptomonedas entrando a los exchanges' : 'más criptomonedas saliendo de los exchanges'}, lo que a menudo indica ${inflow >= 0 ? 'presión de venta potencial' : 'los tenedores aseguran sus activos fuera del exchange'}.
+
+El MPI de ${mpiDisplay} sugiere que los mineros están ${mpi >= 0 ? 'vendiendo' : 'manteniendo'}, lo que puede interpretarse como ${mpi >= 0 ? 'presión de oferta potencial' : 'confianza en el potencial futuro del mercado'}.
+
+▼ Contexto del Mercado
+
+El sentimiento ${sentimentLabel.toLowerCase()} refleja ${sentimentLabel === 'Neutral' ? 'una falta de impulsores emocionales fuertes como el miedo o la codicia entre los traders' : sentimentLabel === 'Greed' ? 'condiciones de mercado optimistas, pero posible sobre extensión' : 'condiciones de mercado cautelosas'}. Esto sugiere un mercado en modo de espera, donde los traders monitorean las condiciones cuidadosamente.`;
+  }
+  
+  // 文字数制限を緩和して、重要な情報が切れないようにする（600文字まで）
+  const gptNewsLimit = 600;
+  // Telegram互換性: Markdown見出し（###）を削除してTelegramネイティブな形式に変換（先に実行）
+  let gptNewsDisplay = gptNewsText
+    .replace(/^###\s+/gm, '') // ###見出しを削除
+    .replace(/^##\s+/gm, '')   // ##見出しを削除
+    .replace(/^#\s+/gm, '');   // #見出しを削除
+  // プレーンテキストの見出しも改善（「Interpretación Psicológica de Métricas On-Chain」など）
+  gptNewsDisplay = gptNewsDisplay.replace(/^Interpretación Psicológica de Métricas On-Chain$/gm, '💡 Interpretación Psicológica de Métricas On-Chain');
+  
+  if (gptNewsDisplay.length > gptNewsLimit) {
+    // 文の終わりで切るようにする（最後の文の終わりを探す）
+    const truncated = gptNewsDisplay.slice(0, gptNewsLimit);
+    // 文の終わりを探す（ピリオド、感嘆符、疑問符、改行）
+    const sentenceEnds = [
+      truncated.lastIndexOf('. '),
+      truncated.lastIndexOf('.\n'),
+      truncated.lastIndexOf('! '),
+      truncated.lastIndexOf('!\n'),
+      truncated.lastIndexOf('? '),
+      truncated.lastIndexOf('?\n'),
+      truncated.lastIndexOf('\n\n'),
+      truncated.lastIndexOf('\n')
+    ].filter(pos => pos !== -1);
+    
+    const lastSentenceEnd = sentenceEnds.length > 0 ? Math.max(...sentenceEnds) : -1;
+    
+    // 文の終わりが見つかった場合、その位置で切る（50%以上の場合のみ）
+    if (lastSentenceEnd > gptNewsLimit * 0.5) {
+      // 文の終わりの後にスペースがある場合は、その位置で切る
+      const endPos = truncated[lastSentenceEnd + 1] === ' ' ? lastSentenceEnd + 1 : lastSentenceEnd;
+      gptNewsDisplay = truncated.slice(0, endPos) + '…';
+    } else {
+      // 文の終わりが見つからない場合、単純に切る
+      gptNewsDisplay = truncated + '…';
+    }
+  }
+  
+  // モバイル最適化: 冒頭に1行の要約を追加
+  const trapDataForSummary = trapDetection || marketBug;
+  const hasTrapForSummary = trapDataForSummary && (trapDataForSummary.trapDetected || trapDataForSummary.bugDetected);
+  const trapTypeForSummary = trapDataForSummary?.trapType || trapDataForSummary?.bugType || '';
+  const trapSeverityForSummary = trapDataForSummary?.trapSeverity || trapDataForSummary?.bugSeverity || 'NONE';
+  
+  let summaryLine = '';
+  if (hasTrapForSummary && trapSeverityForSummary !== 'NONE') {
+    const trapTypeDisplay = trapTypeForSummary.replace(/_/g, ' ');
+    summaryLine = `📰 Resumen: Las métricas On-Chain muestran un modo "Espera". ${trapTypeDisplay} sugiere una trampa oculta a pesar de precios estables.`;
+  } else {
+    summaryLine = `📰 Resumen: Las métricas On-Chain muestran un modo "Espera". Las condiciones del mercado son estables, pero permanece alerta a patrones de trampa`;
+  }
+  lines.push(summaryLine);
   lines.push('');
+  
+  // 詳細な分析を表示
+  if (gptNewsDisplay && gptNewsDisplay !== 'Analizando datos...') {
+    lines.push(`📰 ${gptNewsDisplay}`);
+    lines.push('');
+  }
+  
+  // データに基づく理由セクション（常に表示して価値を提供）
+  const trapScoreForEvidence = trapRisk?.trapRiskScore ?? trapDetection?.trapScore ?? null;
+  const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
+  
+  if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
+    lines.push('📊 Razones Basadas en Datos');
+    
+    if (trapScoreForEvidence !== null) {
+      const trapScoreRounded = Math.round(trapScoreForEvidence);
+      if (trapScoreRounded >= 50) {
+        lines.push(`🎯 Puntuación de Trampa: ${trapScoreRounded}/100 indica riesgo significativo de trampa`);
+        if (trapTypeForEvidence) {
+          const trapTypeDisplay = trapTypeForEvidence.replace(/_/g, ' ');
+          lines.push(`⚠️ Tipo de Trampa: ${trapTypeDisplay} detectado`);
+        }
+        lines.push(`💡 Evidencia: Múltiples divergencias y anomalías on-chain sugieren que un modo "Espera" es prudente`);
+        lines.push(`📈 ¿Por qué esperar? Los datos muestran señales ${trapScoreRounded >= 70 ? 'fuertes' : 'moderadas'} de que entrar ahora podría exponerte a trampas del mercado`);
+      } else {
+        lines.push(`✅ Puntuación de Trampa: ${trapScoreRounded}/100 indica bajo riesgo de trampa`);
+        lines.push(`💡 Evidencia: Las condiciones del mercado parecen relativamente seguras, pero permanece alerta a patrones de trampa`);
+      }
+    } else if (trapDetection || trapAlert) {
+      // フォールバック: trapDetectionやtrapAlertから証拠を生成
+      if (trapDetection && trapDetection.trapDetected) {
+        const trapTypeText = (trapDetection.trapType || 'Anomalía').replace(/_/g, ' ');
+        lines.push(`🎯 Detección de Trampa: ${trapTypeText} (Puntuación: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
+        lines.push(`💡 Evidencia: Múltiples anomalías on-chain detectadas basadas en datos`);
+      } else if (trapAlert && trapAlert.alert) {
+        const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
+        lines.push(`🚨 Alerta de Trampa: ${alertTypeText} (Severidad: ${trapAlert.severity})`);
+        lines.push(`💡 Evidencia: Riesgo de trampa del mercado detectado basado en datos on-chain y análisis de sentimiento`);
+      }
+    }
+    
+    // 戦略的インサイトセクションを追加
+    if (trapScoreForEvidence !== null) {
+      const trapScoreRounded = Math.round(trapScoreForEvidence);
+      lines.push('');
+      lines.push(`💡 Insights Estratégicos`);
+      if (trapScoreRounded >= 70) {
+        lines.push(`  🚨 Puntuación de Trampa ${trapScoreRounded}/100: Señales fuertes indican trampas potenciales del mercado`);
+        lines.push(`  📊 Los datos muestran múltiples divergencias y anomalías on-chain`);
+        lines.push(`  🛡️ La preparación estratégica no es debilidad—es preparación para la victoria. 70% del tiempo, prepárate para la victoria`);
+      } else if (trapScoreRounded >= 50) {
+        lines.push(`  ⚡ Puntuación de Trampa ${trapScoreRounded}/100: Indicadores de trampa moderados detectados`);
+        lines.push(`  📊 Algunas divergencias sugieren precaución`);
+        lines.push(`  🛡️ Defensa primero. Prepárate para la victoria—espera señales de mercado más claras`);
+      } else {
+        lines.push(`  ✅ Puntuación de Trampa ${trapScoreRounded}/100: Actualmente bajo riesgo de trampa, pero los mercados siempre cambian`);
+        lines.push(`  🛡️ Los tiempos de bajo riesgo son cuando más importa la preparación estratégica. Continúa la defensa hasta que surja una ventaja clara`);
+        lines.push(`  💎 Los traders profesionales priorizan el "tiempo de espera" sobre todo. Toma la misma estrategia`);
+      }
+    }
+    lines.push('');
+  }
   
   // USP2: Geminiコンテンツ生成（データ提示セクション）
   if (hasGeminiContent) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 【Presentación de Datos】Infografía NanoBanana');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📊 Infografía NanoBanana');
     lines.push('🎬 ¡Revisa los medios adjuntos!');
     lines.push('');
   }
   
-  // 【コメンテーター】Dr. Grok癒し系コメンテーター（固定コーナー）
-  // CMO提案: Dr. Grokのキャラクターをより強く（情熱的かつ冷静に）押し出す
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('💊 【Comentarista】Dr. Grok: Análisis Apasionado y Racional');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  // 【コメンテーター】Dr. Grokメンタルコーチ（固定コーナー）
+  lines.push('💊 Insight Rápido de Dr. Grok');
   
   // Grok X解析結果（Xセンチメント分析）
   if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
     const grokXLimit = 600;
-    const grokXDisplay = grokXAnalysis.length > grokXLimit 
-      ? `${grokXAnalysis.slice(0, grokXLimit)}…` 
-      : grokXAnalysis;
+    let grokXDisplay = grokXAnalysis;
+    if (grokXAnalysis.length > grokXLimit) {
+      // 文の終わりで切るようにする（最後の文の終わりを探す）
+      const truncated = grokXAnalysis.slice(0, grokXLimit);
+      const sentenceEnds = [
+        truncated.lastIndexOf('. '),
+        truncated.lastIndexOf('.\n'),
+        truncated.lastIndexOf('! '),
+        truncated.lastIndexOf('!\n'),
+        truncated.lastIndexOf('? '),
+        truncated.lastIndexOf('?\n'),
+        truncated.lastIndexOf('\n\n'),
+        truncated.lastIndexOf('\n')
+      ].filter(pos => pos !== -1);
+      
+      const lastSentenceEnd = sentenceEnds.length > 0 ? Math.max(...sentenceEnds) : -1;
+      
+      if (lastSentenceEnd > grokXLimit * 0.5) {
+        const endPos = truncated[lastSentenceEnd + 1] === ' ' ? lastSentenceEnd + 1 : lastSentenceEnd;
+        grokXDisplay = truncated.slice(0, endPos) + '…';
+      } else {
+        grokXDisplay = truncated + '…';
+      }
+    }
     lines.push(`📱 Análisis de Sentimiento X: ${grokXDisplay}`);
     lines.push('');
   }
@@ -191,6 +381,9 @@ function formatRegularBriefing({
     if (psychologicalSupport.psychologicalAdvice) {
       lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
     }
+    
+    lines.push('');
+    
     if (psychologicalSupport.mentalNote) {
       lines.push(`💊 Nota Mental de Dr. Grok:`);
       lines.push(`"${psychologicalSupport.mentalNote}"`);
@@ -199,14 +392,12 @@ function formatRegularBriefing({
     // Fallback: Proporcionar un mensaje valioso incluso cuando los datos no están disponibles
     lines.push('💚 Estado Psicológico: 😐 NEUTRAL (Riesgo: 💡 BAJO)');
     lines.push('');
+    lines.push('   💡 Las condiciones del mercado son relativamente estables. Mantén la disciplina');
+    lines.push('');
     lines.push('💊 Nota Mental de Dr. Grok:');
     lines.push('"La paciencia no es debilidad—es fuerza estratégica. Los mejores traders saben cuándo no operar."');
   }
   
-  lines.push('');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('📺 【Cierre】No se pierda el próximo episodio');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
   // ===== 基本市場データ（補足情報として後半に配置） =====

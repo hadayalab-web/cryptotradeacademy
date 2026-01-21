@@ -50,7 +50,16 @@ function formatRegularBriefing({
 
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
-  const flowLine = `📊 取引所ネットフロー: ${flowDir} ${flowAbs.toFixed(0)} BTC`;
+  let flowLine = '';
+  if (inflow < 0) {
+    // 流出の場合：ポジティブなシグナルとして表現
+    flowLine = `📊 取引所ネットフロー: Outflow ${flowAbs.toFixed(0)} BTC — ホルダーが資産を保持中`;
+  } else if (inflow > 0) {
+    // 流入の場合：注意喚起として表現
+    flowLine = `📊 取引所ネットフロー: Inflow ${flowAbs.toFixed(0)} BTC — 売却圧力の可能性`;
+  } else {
+    flowLine = `📊 取引所ネットフロー: 均衡状態`;
+  }
 
   const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
   const sentimentLine = `🧠 投資家センチメント: *${sentimentLabel || '不明'}*`;
@@ -64,7 +73,7 @@ function formatRegularBriefing({
 
   const trapLine = trap?.isTrap
     ? `🧨 トラップ検知: ${trap.label || 'トラップの可能性'} (${trap.confidence} 信頼度)`
-    : '✅ トラップ検知: 重大なトラップは検知されていません。';
+    : '✅ トラップ検知: 重大なトラップは検知されていません';
 
   let dirEmoji;
   let dirLabel;
@@ -85,14 +94,24 @@ function formatRegularBriefing({
     dirLabel = 'TRAP STANDBY (Defense Active)';
   }
 
-  const entryLine = `• 想定エントリー（スポット参考）: ${formatUsd(priceUsd)}`;
-  const tpLine = tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: n/a';
-  const slLine = tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: n/a';
-  const rrLine = tradeSignal?.rr != null ? `• リスクリワード (RR): ${tradeSignal.rr.toFixed(2)}` : '';
-
   const isNoTrade = true; // 常に待機モード（BUY/SELLシグナルは完全削除）
+  
+  // Trade Verdictの表記最適化: Standby状態の時は「TBD」と表記
+  const entryLine = isNoTrade
+    ? '• 想定エントリー: 勝利の準備中 — 明確なトリガーを待機'
+    : `• 想定エントリー（スポット参考）: ${formatUsd(priceUsd)}`;
+  const tpLine = isNoTrade
+    ? '• Take Profit: TBD (決定待ち)'
+    : (tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: n/a');
+  const slLine = isNoTrade
+    ? '• Stop Loss: TBD (決定待ち)'
+    : (tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: n/a');
+  const rrLine = isNoTrade
+    ? '• リスクリワード (RR): 待機中'
+    : (tradeSignal?.rr != null ? `• リスクリワード (RR): ${tradeSignal.rr.toFixed(2)}` : '');
+
   const modeLine = isNoTrade
-    ? '• モード: Trap Standby — 明確な優位性が出るまで勝利の準備。守りを優先。'
+    ? '• モード: Trap Standby — 明確な優位性が出るまで勝利の準備。守りを優先'
     : '';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
@@ -107,8 +126,9 @@ function formatRegularBriefing({
   }
 
   const lines = [];
-  lines.push('🌤️ CryptoWeather Alert - Trap Defense Report');
-  lines.push(`📺 ニュース番組 @ ${ts}`);
+  lines.push('🌤️ Trap Defence BTC - 有料レポート');
+  lines.push(`🚨 BREAKING: トラップ防御ブリーフィング`);
+  lines.push(`📅 ${ts}`);
   lines.push('');
 
   // ===== 【最重要】トレード・ヴァーディクト（最上部に配置） =====
@@ -185,17 +205,100 @@ function formatRegularBriefing({
     lines.push('🛡️ コア機能1: トラップ防御 - 現在トラップは検知されていません');
   }
   
-  // ===== 【ニュース番組構造】オープニング → データ → 解説 → コメンテーター → クロージング =====
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('📺 【オープニング】安住紳一郎スタイル：信頼感のある市場解説');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
   
-  // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース（安住紳一郎氏のような落ち着いた解説トーン）
-  const gptNewsText = gptReporterAnalysis || aiAnalysis || 'データ解析中...';
-  const gptNewsLimit = 800;
-  const gptNewsDisplay = gptNewsText.length > gptNewsLimit 
-    ? `${gptNewsText.slice(0, gptNewsLimit)}…` 
-    : gptNewsText;
+  // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
+  // エラーメッセージやnullの場合は、フォールバック処理
+  let gptNewsText = gptReporterAnalysis || aiAnalysis || null;
+  
+  // エラーメッセージを検出（API error, unavailable, error等のキーワード）
+  if (gptNewsText && typeof gptNewsText === 'string') {
+    const errorKeywords = ['api error', 'unavailable', 'error', 'failed', 'timeout'];
+    const isError = errorKeywords.some(keyword => 
+      gptNewsText.toLowerCase().includes(keyword)
+    );
+    if (isError) {
+      gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
+    }
+  }
+  
+  // フォールバック: GPT分析が利用できない場合の代替メッセージ
+  if (!gptNewsText || gptNewsText.trim() === '') {
+    // CryptoQuantデータから基本的な分析を生成
+    const inflowDisplay = inflow >= 0 ? `流入 ${Math.abs(inflow).toFixed(0)} BTC` : `流出 ${Math.abs(inflow).toFixed(0)} BTC`;
+    const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
+    const priceChangeDisplay = change24h >= 0 ? `+${change24h.toFixed(2)}%` : `${change24h.toFixed(2)}%`;
+    
+    gptNewsText = `💡 オンチェーンメトリクスの心理的解釈
+
+CryptoQuantデータは、${inflowDisplay}、マイナーズポジションインデックス（MPI）${mpiDisplay}、${sentimentLabel.toLowerCase()}センチメントを示しており、価格は24時間で${priceChangeDisplay}変動しました。
+
+心理的観点から、これらのメトリクスは${sentimentLabel.toLowerCase()}市場環境を示唆しています。${inflow >= 0 ? '流入' : '流出'}は、${inflow >= 0 ? 'より多くの暗号通貨が取引所に流入している' : 'より多くの暗号通貨が取引所から流出している'}ことを示しており、これはしばしば${inflow >= 0 ? '潜在的な売却圧力' : 'ホルダーが取引所外で資産を保護している'}を意味します。
+
+${mpiDisplay}のMPIは、マイナーが${mpi >= 0 ? '売却している' : '保有している'}ことを示唆しており、これは${mpi >= 0 ? '潜在的な供給圧力' : '市場の将来の可能性への信頼'}と解釈できます。
+
+▼ 市場コンテキスト
+
+${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neutral' ? 'トレーダー間で恐怖や貪欲などの強い感情的ドライバーが不足している' : sentimentLabel === 'Greed' ? '楽観的な市場状況だが潜在的な過度な拡張' : '慎重な市場状況'}を反映しています。これは、トレーダーが条件を慎重に監視している待機モードの市場を示唆しています。`;
+  }
+  
+  // Telegram互換性: Markdown見出し（###）を削除してTelegramネイティブな形式に変換（先に実行）
+  let gptNewsDisplay = gptNewsText
+    .replace(/^###\s+/gm, '') // ###見出しを削除
+    .replace(/^##\s+/gm, '')   // ##見出しを削除
+    .replace(/^#\s+/gm, '');   // #見出しを削除
+  // プレーンテキストの見出しも改善（「オンチェーンメトリクスの心理的解釈」など）
+  gptNewsDisplay = gptNewsDisplay.replace(/^オンチェーンメトリクスの心理的解釈$/gm, '💡 オンチェーンメトリクスの心理的解釈');
+  
+  // 文字数制限を緩和して、重要な情報が切れないようにする（600文字まで）
+  const gptNewsLimit = 600;
+  if (gptNewsDisplay.length > gptNewsLimit) {
+    // 文の終わりで切るようにする（最後の文の終わりを探す）
+    const truncated = gptNewsDisplay.slice(0, gptNewsLimit);
+    // 文の終わりを探す（ピリオド、感嘆符、疑問符、改行）
+    const sentenceEnds = [
+      truncated.lastIndexOf('. '),
+      truncated.lastIndexOf('.\n'),
+      truncated.lastIndexOf('! '),
+      truncated.lastIndexOf('!\n'),
+      truncated.lastIndexOf('? '),
+      truncated.lastIndexOf('?\n'),
+      truncated.lastIndexOf('\n\n'),
+      truncated.lastIndexOf('\n')
+    ].filter(pos => pos !== -1);
+    
+    const lastSentenceEnd = sentenceEnds.length > 0 ? Math.max(...sentenceEnds) : -1;
+    
+    // 文の終わりが見つかった場合、その位置で切る（50%以上の場合のみ）
+    if (lastSentenceEnd > gptNewsLimit * 0.5) {
+      // 文の終わりの後にスペースがある場合は、その位置で切る
+      const endPos = truncated[lastSentenceEnd + 1] === ' ' ? lastSentenceEnd + 1 : lastSentenceEnd;
+      gptNewsDisplay = truncated.slice(0, endPos) + '…';
+    } else {
+      // 文の終わりが見つからない場合、単純に切る
+      gptNewsDisplay = truncated + '…';
+    }
+  }
+  
+  // モバイル最適化: 冒頭に1行の要約を追加（100点満点への最後の仕上げ）
+  // トラップ検出状況に基づいて要約を生成
+  const trapDataForSummary = trapDetection || marketBug;
+  const hasTrapForSummary = trapDataForSummary && (trapDataForSummary.trapDetected || trapDataForSummary.bugDetected);
+  const trapTypeForSummary = trapDataForSummary?.trapType || trapDataForSummary?.bugType || '';
+  const trapSeverityForSummary = trapDataForSummary?.trapSeverity || trapDataForSummary?.bugSeverity || 'NONE';
+  
+  let summaryLine = '';
+  if (hasTrapForSummary && trapSeverityForSummary !== 'NONE') {
+    const trapTypeDisplay = trapTypeForSummary.replace(/_/g, ' ');
+    // Telegram Markdownでは [text] がリンクとして解釈されるため、[Summary]ではなく Summary: を使用
+    summaryLine = `📰 要約: オンチェーンメトリクスは「待機モード」を示しています。${trapTypeDisplay}は安定した価格にもかかわらず、隠れたトラップを示唆しています。`;
+  } else {
+    summaryLine = `📰 要約: オンチェーンメトリクスは「待機モード」を示しています。市場状況は安定していますが、トラップパターンに注意を払い続けてください。`;
+  }
+  lines.push(summaryLine);
+  lines.push('');
+  
+  // 詳細な分析を表示
   lines.push(`📰 ${gptNewsDisplay}`);
   lines.push('');
   
@@ -204,55 +307,55 @@ function formatRegularBriefing({
   const trapScoreForEvidence = trapRisk?.trapRiskScore ?? trapDetection?.trapScore ?? null;
   const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
   
+  // データに基づく理由セクション（常に表示して価値を提供）
   if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 【証拠】なぜ待つべきか？データに基づく理由');
-    lines.push('[オンチェーンデータで実証済み]');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📊 データに基づく理由');
     
     if (trapScoreForEvidence !== null) {
       const trapScoreRounded = Math.round(trapScoreForEvidence);
       if (trapScoreRounded >= 50) {
-        lines.push(`🎯 トラップスコア: ${trapScoreRounded}/100 は重大なトラップリスクを示しています。`);
+        lines.push(`🎯 トラップスコア: ${trapScoreRounded}/100 は重大なトラップリスクを示しています`);
         if (trapTypeForEvidence) {
           const trapTypeDisplay = trapTypeForEvidence.replace(/_/g, ' ');
-          lines.push(`⚠️ トラップタイプ: ${trapTypeDisplay} を検知しました。`);
+          lines.push(`⚠️ トラップタイプ: ${trapTypeDisplay} を検知しました`);
         }
-        lines.push(`💡 証拠: 複数のダイバージェンスとオンチェーン異常により、「待機モード」が賢明です。`);
-        lines.push(`📈 なぜ待つべきか？データは、${trapScoreRounded >= 70 ? '強い' : '中程度の'}シグナルを示しており、今エントリーすると市場のトラップにさらされる可能性があります。`);
+        lines.push(`💡 証拠: 複数のダイバージェンスとオンチェーン異常により、「待機モード」が賢明です`);
+        lines.push(`📈 なぜ待つべきか？データは、${trapScoreRounded >= 70 ? '強い' : '中程度の'}シグナルを示しており、今エントリーすると市場のトラップにさらされる可能性があります`);
       } else {
-        lines.push(`✅ トラップスコア: ${trapScoreRounded}/100 は低いトラップリスクを示しています。`);
-        lines.push(`💡 証拠: 市場状況は比較的安全に見えますが、トラップパターンに注意を払い続けてください。`);
+        lines.push(`✅ トラップスコア: ${trapScoreRounded}/100 は低いトラップリスクを示しています`);
+        lines.push(`💡 証拠: 市場状況は比較的安全に見えますが、トラップパターンに注意を払い続けてください`);
       }
     } else if (trapDetection || trapAlert) {
       // フォールバック: trapDetectionやtrapAlertから証拠を生成
       if (trapDetection && trapDetection.trapDetected) {
         const trapTypeText = (trapDetection.trapType || '異常検知').replace(/_/g, ' ');
         lines.push(`🎯 トラップ検知: ${trapTypeText} (スコア: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
-        lines.push(`💡 証拠: オンチェーンデータに基づく複数の異常が検知されました。`);
+        lines.push(`💡 証拠: オンチェーンデータに基づく複数の異常が検知されました`);
       } else if (trapAlert && trapAlert.alert) {
         const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
         lines.push(`🚨 トラップアラート: ${alertTypeText} (深刻度: ${trapAlert.severity})`);
-        lines.push(`💡 証拠: オンチェーンデータとセンチメント分析により、市場のトラップリスクが検知されました。`);
+        lines.push(`💡 証拠: オンチェーンデータとセンチメント分析により、市場のトラップリスクが検知されました`);
       }
     }
     
     // 【改善2: 「70%待機戦略」の証拠ベース説明の統合】
-    if (trapScoreForEvidence !== null && trapScoreForEvidence >= 30) {
+    // 戦略的インサイトセクションを追加
+    if (trapScoreForEvidence !== null) {
       const trapScoreRounded = Math.round(trapScoreForEvidence);
       lines.push('');
-      lines.push(`💡 なぜ待つべきか？（証拠ベース）`);
+      lines.push(`💡 戦略的インサイト`);
       if (trapScoreRounded >= 70) {
-        lines.push(`   🚨 トラップスコア ${trapScoreRounded}/100: 強いシグナルが潜在的な市場トラップを示しています。`);
-        lines.push(`   📊 データは複数のダイバージェンスとオンチェーン異常を示しています。`);
-        lines.push(`   🛡️ 戦略的な準備は弱さではありません—勝利の準備です。70%の時間は、勝利の準備をしてください。`);
+        lines.push(`  🚨 トラップスコア ${trapScoreRounded}/100: 強いシグナルが潜在的な市場トラップを示しています`);
+        lines.push(`  📊 データは複数のダイバージェンスとオンチェーン異常を示しています`);
+        lines.push(`  🛡️ 戦略的な準備は弱さではない—勝利の準備だ。70%の時間、勝利のために準備しよう`);
       } else if (trapScoreRounded >= 50) {
-        lines.push(`   ⚡ トラップスコア ${trapScoreRounded}/100: 中程度のトラップ指標を検知しました。`);
-        lines.push(`   📊 一部のダイバージェンスが注意を促しています。`);
-        lines.push(`   🛡️ 防御を最優先に。勝利の準備を—より明確な市場シグナルを待ちましょう。`);
+        lines.push(`  ⚡ トラップスコア ${trapScoreRounded}/100: 中程度のトラップ指標を検知しました`);
+        lines.push(`  📊 一部のダイバージェンスが注意を促しています`);
+        lines.push(`  🛡️ 防御を最優先に。より明確な市場シグナルを待とう`);
       } else {
-        lines.push(`   ✅ トラップスコア ${trapScoreRounded}/100: 低いトラップリスクですが、警戒を続けてください。`);
-        lines.push(`   🛡️ 低リスクの状況でも、忍耐は戦略的な強さです。`);
+        lines.push(`  ✅ トラップスコア ${trapScoreRounded}/100: 現在は低トラップリスクですが、市場は常に変化します`);
+        lines.push(`  🛡️ 低リスク時こそ、戦略的な準備が重要です。明確な優位性が現れるまで防御を続けましょう`);
+        lines.push(`  💎 プロトレーダーは「待つ時間」を最優先します。あなたも同じ戦略を取りましょう`);
       }
     }
     lines.push('');
@@ -260,9 +363,7 @@ function formatRegularBriefing({
   
   // USP2: Geminiコンテンツ生成（データ提示セクション）
   if (hasGeminiContent) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 【データ提示】NanoBananaインフォグラフィック');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📊 NanoBananaインフォグラフィック');
     lines.push('🎬 添付画像/動画をチェック！');
     lines.push('');
   }
@@ -272,16 +373,29 @@ function formatRegularBriefing({
   
   // 【コメンテーター】Dr. Grok癒し系コメンテーター（固定コーナー）
   // 安住紳一郎スタイル：落ち着いた解説トーンで、データに基づいた信頼感のある見立て
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('💊 【コメンテーター】Dr. Grok の見立て（安住紳一郎スタイル：データに基づく冷静な分析）');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('💊 Dr. Grokのクイックインサイト');
   
   // Grok X解析結果（Xセンチメント分析）
   if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
     const grokXLimit = 600;
-    const grokXDisplay = grokXAnalysis.length > grokXLimit 
-      ? `${grokXAnalysis.slice(0, grokXLimit)}…` 
-      : grokXAnalysis;
+    let grokXDisplay = grokXAnalysis;
+    if (grokXAnalysis.length > grokXLimit) {
+      // 文の終わりで切るようにする（最後の文の終わりを探す）
+      const truncated = grokXAnalysis.slice(0, grokXLimit);
+      const lastSentenceEnd = Math.max(
+        truncated.lastIndexOf('.'),
+        truncated.lastIndexOf('!'),
+        truncated.lastIndexOf('?'),
+        truncated.lastIndexOf('\n')
+      );
+      // 文の終わりが見つかった場合、その位置で切る
+      if (lastSentenceEnd > grokXLimit * 0.7) {
+        grokXDisplay = truncated.slice(0, lastSentenceEnd + 1) + '…';
+      } else {
+        // 文の終わりが見つからない場合、単純に切る
+        grokXDisplay = truncated + '…';
+      }
+    }
     lines.push(`📱 Xセンチメント分析: ${grokXDisplay}`);
     lines.push('');
   }
@@ -313,10 +427,6 @@ function formatRegularBriefing({
     lines.push('"忍耐は弱さではない—それは戦略的な強さだ。最高のトレーダーは、取引しない時を知っている。"');
   }
   
-  lines.push('');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('📺 【クロージング】次回をお楽しみに');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
   // ===== 基本市場データ（補足情報として後半に配置） =====

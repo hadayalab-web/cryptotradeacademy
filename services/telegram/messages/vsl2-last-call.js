@@ -5,17 +5,18 @@
 const VSL2_LAST_CALL_MESSAGES = {
   // ------------------------------------------------------------------
   // English (Global Standard)
-  // Strategy: Clear "last call" with benefits recap.
+  // Strategy: Clear "last call" with benefits recap + Value Clarity
+  // Optimized: Added "complete defense system" and clearer value proposition
   // ------------------------------------------------------------------
   en: (userName, vsl2Link, whopUrl, promoCode) => `⏰ **Last Call, ${userName}!**
 
-If you haven't upgraded yet, this is your final reminder to unlock the full Trap Defence BTC system.
+If you haven't upgraded yet, this is your final chance. Get the complete defense system with the Full Version.
 
 ✅ Complete on-chain analysis  
 ✅ Real-time trap alerts  
 ✅ Dr. Grok support
 
-🎬 **Watch VSL2 now:**
+🎬 **Watch why the pros always win:**
 ${vsl2Link}
 💡 Subtitles available in 6 languages (EN, JA, ES, PT-BR, AR, KO) - enable in video settings
 
@@ -37,7 +38,7 @@ ${whopUrl}?promo=${promoCode}`,
 ✅ リアルタイムトラップ検知  
 ✅ Dr. Grokサポート
 
-🎬 **VSL2はこちら:**
+🎬 **勝てる人の理由を見る:**
 ${vsl2Link}
 💡 動画の設定で字幕（日本語・英語・スペイン語・ポルトガル語・アラビア語・韓国語）を表示できます
 
@@ -49,16 +50,18 @@ ${whopUrl}?promo=${promoCode}`,
 
   // ------------------------------------------------------------------
   // Spanish (Urgency & Value)
+  // Strategy: Clear "last call" with benefits recap + Value Clarity
+  // Optimized: Added "última oportunidad" and "sistema de defensa completo" for clearer value proposition
   // ------------------------------------------------------------------
   es: (userName, vsl2Link, whopUrl, promoCode) => `⏰ **¡Último aviso, ${userName}!**
 
-Si aún no actualizaste, este es tu recordatorio final para desbloquear Trap Defence BTC completo.
+Si aún no actualizaste, esta es tu última oportunidad. Obtén el sistema de defensa completo con la Versión Completa.
 
 ✅ Análisis on-chain completo  
 ✅ Alertas de trampas en tiempo real  
 ✅ Soporte Dr. Grok
 
-🎬 **Mira el VSL2 ahora:**
+🎬 **Mira por qué los pros siempre ganan:**
 ${vsl2Link}
 💡 Subtítulos disponibles en 6 idiomas (EN, JA, ES, PT-BR, AR, KO) - activa en configuración del video
 
@@ -70,17 +73,20 @@ ${whopUrl}?promo=${promoCode}`,
 
   // ------------------------------------------------------------------
   // Portuguese (Brazil - Urgency & Clarity)
+  // Strategy: Clear "last call" with benefits recap + Value Clarity
+  // Optimized: Added "última chance" and "sistema de defesa completo" for clearer value proposition
   // ------------------------------------------------------------------
   'pt-br': (userName, vsl2Link, whopUrl, promoCode) => `⏰ **Último aviso, ${userName}!**
 
-Se você ainda não fez o upgrade, este é o lembrete final para liberar o Trap Defence BTC completo.
+Se você ainda não fez o upgrade, esta é sua última chance. Obtenha o sistema de defesa completo com a Versão Completa.
 
 ✅ Análise on-chain completa  
 ✅ Alertas de armadilhas em tempo real  
 ✅ Suporte Dr. Grok
 
-🎬 **Assista ao VSL2 agora:**
+🎬 **Veja por que os profissionais sempre vencem:**
 ${vsl2Link}
+💡 Legendas disponíveis em 6 idiomas (EN, JA, ES, PT-BR, AR, KO) - ative nas configurações do vídeo
 
 💰 **Cupom 50% OFF:**
 Código: \`${promoCode}\`
@@ -90,16 +96,18 @@ ${whopUrl}?promo=${promoCode}`,
 
   // ------------------------------------------------------------------
   // Arabic (Respectful Urgency)
+  // Strategy: Clear "last call" with benefits recap + Value Clarity
+  // Optimized: Added "فرصتك الأخيرة" and "نظام الدفاع الكامل" for clearer value proposition
   // ------------------------------------------------------------------
   ar: (userName, vsl2Link, whopUrl, promoCode) => `⏰ **آخر تذكير لك يا ${userName}!**
 
-إذا لم تقم بالترقية بعد، فهذا آخر نداء للحصول على Trap Defence BTC الكامل.
+إذا لم تقم بالترقية بعد، فهذه فرصتك الأخيرة. احصل على نظام الدفاع الكامل مع النسخة الكاملة.
 
 ✅ تحليل كامل للسلسلة (On-Chain)  
 ✅ تنبيهات فورية للفخاخ  
 ✅ دعم Dr. Grok
 
-🎬 **شاهد VSL2 الآن:**
+🎬 **شاهد لماذا يربح المحترفون دائماً:**
 ${vsl2Link}
 💡 الترجمات متاحة بـ 6 لغات (EN, JA, ES, PT-BR, AR, KO) - قم بتفعيلها في إعدادات الفيديو
 
@@ -111,16 +119,18 @@ ${whopUrl}?promo=${promoCode}`,
 
   // ------------------------------------------------------------------
   // Korean (Urgency & Benefit Recap)
+  // Strategy: Clear "last call" with benefits recap + Value Clarity
+  // Optimized: Added "마지막 기회" and "완전한 방어 시스템" for clearer value proposition
   // ------------------------------------------------------------------
   ko: (userName, vsl2Link, whopUrl, promoCode) => `⏰ **${userName}님, 마지막 안내입니다!**
 
-아직 업그레이드하지 않았다면 지금이 마지막 기회입니다. 풀버전으로 완전한 방어 체계를 확보하세요.
+아직 업그레이드하지 않았다면 지금이 마지막 기회입니다. 완전판으로 완전한 방어 시스템을 확보하세요.
 
 ✅ 완전한 온체인 분석  
 ✅ 실시간 트랩 알림  
 ✅ Dr. Grok 지원
 
-🎬 **VSL2 지금 시청:**
+🎬 **상위 1%가 항상 이기는 이유 확인:**
 ${vsl2Link}
 💡 자막 6개 언어 지원 (EN, JA, ES, PT-BR, AR, KO) - 영상 설정에서 활성화 가능
 

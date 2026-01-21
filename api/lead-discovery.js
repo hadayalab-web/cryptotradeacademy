@@ -47,23 +47,42 @@ async function handleLeadDiscovery(req, res) {
       queue: { total: 0, perfectMatch: 0 },
     };
     
+    console.log('[Lead Discovery] Starting lead discovery process...');
+    console.log(`[Lead Discovery] Environment: LEAD_DISCOVERY_SEND_REPORT=${process.env.LEAD_DISCOVERY_SEND_REPORT || 'true (default)'}`);
+    console.log(`[Lead Discovery] Environment: LEAD_DISCOVERY_LANGUAGES=${process.env.LEAD_DISCOVERY_LANGUAGES || 'en,es,pt-br,ar,ja,ko (default)'}`);
+    console.log(`[Lead Discovery] Environment: LEAD_DISCOVERY_MAX_SOURCES=${process.env.LEAD_DISCOVERY_MAX_SOURCES || '50 (default)'}`);
+    
     // Xからリード発見（初速収益化のため高品質リードに集中）
     // 注意: Telegramリード発見（Grok経由）は削除しました
     // 理由: X上の投稿から発見しているため、Xリードと同じ扱いになっていた
     // 将来の拡張: Telegramグループ監視機能は保持（環境変数設定で有効化可能）
+    // 緊急修正: 6言語同時展開をデフォルトに変更（リード獲得を最大化）
     // 初速段階: 6言語同時展開（EN, ES, PT-BR, AR, JA, KO）
     // スケール後: Sources数と実行頻度を増やす
-    const languages = process.env.LEAD_DISCOVERY_LANGUAGES?.split(',') || ['en', 'es'];
+    const languages = process.env.LEAD_DISCOVERY_LANGUAGES?.split(',') || ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
+    console.log(`[Lead Discovery] Processing ${languages.length} languages: ${languages.join(', ')}`);
     
     try {
       // 1. Grok（X AI API）でリード発見（初速収益化: 高品質リードに集中）
       for (const lang of languages) {
         try {
+          // 緊急修正: sources数を増やしてリード獲得を最大化（デフォルト: 50）
           // 初速段階: 高品質リードに絞る（sources数削減でコスト削減）
-          const maxSources = parseInt(process.env.LEAD_DISCOVERY_MAX_SOURCES || '30', 10);
+          // リード獲得を最大化するため、デフォルト値を30→50に変更
+          const maxSources = parseInt(process.env.LEAD_DISCOVERY_MAX_SOURCES || '50', 10);
+          console.log(`[Lead Discovery] Searching ${maxSources} sources for ${lang} language`);
           const query = buildXSearchQuery(HIGH_PRIORITY_KEYWORDS.slice(0, 5), lang);
           const keywordLeads = await searchLeadsOnX(query, lang, maxSources);
           stats.x.discovered += keywordLeads.length;
+          
+          console.log(`[Lead Discovery] Found ${keywordLeads.length} leads for ${lang} language`);
+          console.log(`[Lead Discovery] Perfect matches: ${keywordLeads.filter(l => l.isPerfectMatch).length}`);
+          console.log(`[Lead Discovery] Leads with tweetId: ${keywordLeads.filter(l => l.tweetId).length}`);
+          
+          let recordedCount = 0;
+          let queuedCount = 0;
+          let sentCount = 0;
+          let errorCount = 0;
           
           for (const lead of keywordLeads) {
             try {
@@ -71,26 +90,57 @@ async function handleLeadDiscovery(req, res) {
               const leadId = await recordLead(lead);
               if (leadId) {
                 lead.leadId = leadId;
+                recordedCount++;
+                console.log(`[Lead Discovery] Recorded lead: ${leadId} (@${lead.username || lead.userId || 'unknown'}, tweetId: ${lead.tweetId || 'N/A'})`);
+              } else {
+                console.warn(`[Lead Discovery] ⚠️ Failed to record lead: @${lead.username || lead.userId || 'unknown'}`);
               }
               
               // キューに追加
               const jobId = await enqueueLead(lead);
+              queuedCount++;
               
               // ドンピシャリードの場合は即座に送信
               if (lead.isPerfectMatch) {
-                const sent = await replyVSL1ToLead(lead);
-                // VSL1送信時にrecordVSL1Sentを実行
-                if (sent && leadId) {
-                  await recordVSL1Sent(leadId);
+                if (!lead.tweetId) {
+                  console.warn(`[Lead Discovery] ⚠️ Perfect match lead has no tweetId, cannot send VSL1: @${lead.username || lead.userId || 'unknown'}`);
+                  continue;
                 }
-                await completeLead(jobId);
-                stats.x.sent++;
+                
+                console.log(`[Lead Discovery] Perfect match lead found, sending VSL1 immediately: @${lead.username || lead.userId || 'unknown'} (tweetId: ${lead.tweetId})`);
+                const sent = await replyVSL1ToLead(lead);
+                
+                // VSL1送信時にrecordVSL1Sentを実行
+                if (sent) {
+                  if (leadId) {
+                    await recordVSL1Sent(leadId);
+                    console.log(`[Lead Discovery] ✅ VSL1 sent successfully to lead: ${leadId} (@${lead.username})`);
+                  } else {
+                    console.warn(`[Lead Discovery] ⚠️ VSL1 sent but leadId is null: @${lead.username}`);
+                  }
+                  await completeLead(jobId);
+                  sentCount++;
+                  stats.x.sent++;
+                } else {
+                  console.error(`[Lead Discovery] ❌ Failed to send VSL1 to perfect match lead: @${lead.username} (tweetId: ${lead.tweetId})`);
+                  errorCount++;
+                }
+              } else {
+                console.log(`[Lead Discovery] Lead queued (not perfect match): @${lead.username || lead.userId || 'unknown'}`);
               }
             } catch (error) {
-              console.error('[Lead Discovery] Failed to process X lead:', error.message);
+              console.error('[Lead Discovery] ❌ Failed to process X lead:', error.message);
+              console.error('[Lead Discovery] Error stack:', error.stack);
+              errorCount++;
               stats.x.errors++;
             }
           }
+          
+          console.log(`[Lead Discovery] Processed ${keywordLeads.length} leads for ${lang}:`);
+          console.log(`[Lead Discovery]   - Recorded: ${recordedCount}`);
+          console.log(`[Lead Discovery]   - Queued: ${queuedCount}`);
+          console.log(`[Lead Discovery]   - Sent (VSL1): ${sentCount}`);
+          console.log(`[Lead Discovery]   - Errors: ${errorCount}`);
         } catch (error) {
           console.error(`[Lead Discovery] Failed to search leads for ${lang}:`, error.message);
           stats.x.errors++;
@@ -145,13 +195,20 @@ async function handleLeadDiscovery(req, res) {
     const queueStats = await getQueueStats();
     stats.queue = queueStats;
     
-    // 4. CEOレポートを送信（環境変数で制御可能）
-    // 注意: レポート送信は非同期で実行し、エラーが発生しても処理を続行
-    if (process.env.LEAD_DISCOVERY_SEND_REPORT !== 'false') {
-      generateLeadDiscoveryReport(stats, { sendEmail: true }).catch(error => {
-        console.error('[Lead Discovery] Failed to send report:', error.message);
-        // レポート送信失敗は処理を続行（エラーログのみ）
-      });
+    // 4. CEOレポートを送信（デフォルト: 有効、環境変数で無効化可能）
+    // 緊急修正: CEOレポートを確実に送信するように改善
+    const shouldSendReport = process.env.LEAD_DISCOVERY_SEND_REPORT !== 'false';
+    if (shouldSendReport) {
+      try {
+        await generateLeadDiscoveryReport(stats, { sendEmail: true });
+        console.log('[Lead Discovery] CEO report sent successfully');
+      } catch (error) {
+        console.error('[Lead Discovery] Failed to send CEO report:', error.message);
+        console.error('[Lead Discovery] Error stack:', error.stack);
+        // エラーが発生しても処理は続行（エラーログを詳細に出力）
+      }
+    } else {
+      console.warn('[Lead Discovery] CEO report sending is disabled by LEAD_DISCOVERY_SEND_REPORT=false');
     }
     
     return res.status(200).json({

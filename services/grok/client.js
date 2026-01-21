@@ -286,9 +286,10 @@ async function discoverLeadsOnX(prompt, lang = 'en') {
             'Schema: {"sources":[{"handle":string,"note":string,"tweetId":string}],"summary":string} ' +
             'sources: Array of X handles (@username), tweet content (note), and tweet IDs. ' +
             'Return AT LEAST 50-100 sources if possible. More is better. ' +
-            'tweetId: The numeric tweet ID (required for replying). ' +
-            'If tweet ID is not available, use null. ' +
-            'Focus on finding traders who mention: lost BTC, stolen wallet, hack attack, lost everything, afraid to trade, lost money trading, liquidation, margin call, trapped, FOMO, fear, panic, scam, fraud, rug pull.',
+            'tweetId: The numeric tweet ID (REQUIRED for replying - MUST be included). ' +
+            'If tweet ID is not available, use null, but prioritize tweets WITH tweet IDs. ' +
+            'Focus on finding traders who mention: lost BTC, stolen wallet, hack attack, lost everything, afraid to trade, lost money trading, liquidation, margin call, trapped, FOMO, fear, panic, scam, fraud, rug pull. ' +
+            'CRITICAL: Include tweetId for EVERY source. Without tweetId, we cannot reply to the tweet.',
         },
         {
           role: 'user',
@@ -297,12 +298,19 @@ async function discoverLeadsOnX(prompt, lang = 'en') {
             `Language: ${targetLang}\n` +
             `Query: ${prompt}\n` +
             `Focus on PERFECT MATCH leads: traders who have lost BTC, been hacked, or are in distress. ` +
-            `Return 20-30 HIGH-QUALITY X handles (@username), tweet content, and tweet IDs. ` +
-            `Prioritize quality over quantity. Only return leads that are clearly experiencing losses, hacks, or FOMO/fear.`,
+            `Return 50-100 HIGH-QUALITY X handles (@username), tweet content, and tweet IDs. ` +
+            `CRITICAL REQUIREMENTS:\n` +
+            `1. Include tweetId for EVERY source (numeric tweet ID, required for replying)\n` +
+            `2. Prioritize tweets WITH tweet IDs over those without\n` +
+            `3. Return as many sources as possible (aim for 50-100)\n` +
+            `4. Only return leads that are clearly experiencing losses, hacks, or FOMO/fear\n` +
+            `5. Include the actual tweet text in the "note" field\n` +
+            `6. Use the format: @username (without @ symbol in handle field)\n` +
+            `Example: {"handle":"username","note":"I lost all my BTC in a hack attack","tweetId":"1234567890123456789"}`,
         },
       ],
-      max_tokens: 4000, // 最大限のリードを取得するため増加
-      temperature: 0.4,
+      max_tokens: 8000, // 最大限のリードを取得するため増加（50-100 sources対応）
+      temperature: 0.3, // より一貫性のある結果のため温度を下げる
     });
 
     const text = completion?.choices?.[0]?.message?.content?.trim();

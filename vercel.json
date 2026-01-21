@@ -3,7 +3,6 @@
     { "path": "/api/cron", "schedule": "*/15 * * * *" },
     { "path": "/api/weekly-report", "schedule": "0 0 * * 0" },
     { "path": "/api/vsl1-post", "schedule": "0 9,21 * * *" },
-    { "path": "/api/vsl2-post", "schedule": "0 9,21 * * *" },
     { "path": "/api/vsl2-free-users", "schedule": "0 * * * *" },
     { "path": "/api/vsl1-reminder", "schedule": "0 */12 * * *" },
     { "path": "/api/vsl2-last-call", "schedule": "0 * * * *" },

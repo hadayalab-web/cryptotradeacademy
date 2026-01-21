@@ -47,9 +47,12 @@ function formatRegularBriefing({
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
   const priceLine = `💰 BTC 가격: ${formatUsd(priceUsd)} (${formatPercent(change24h)} / 24h)`;
-  const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
+  const flowDir = inflow >= 0 ? '유입' : '유출';
   const flowAbs = Math.abs(inflow || 0);
-  const flowLine = `📊 거래소 순유입: ${flowDir} ${flowAbs.toFixed(0)} BTC`;
+  const flowExplanation = inflow >= 0 
+    ? '유입: 거래소로 자금이 들어오고 있음 (잠재적 매도 압력)'
+    : '유출: 거래소에서 자금이 나가고 있음 (보유자들이 자산을 보호 중)';
+  const flowLine = `📊 거래소 순${flowDir}: ${flowAbs.toFixed(0)} BTC (${flowExplanation})`;
   const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
   const sentimentLine = `🧠 시장 심리: ${sentimentLabel || '알 수 없음'}`;
 
@@ -77,13 +80,25 @@ function formatRegularBriefing({
     dirLabel = 'TRAP STANDBY (Defense Active)';
   }
 
-  const entryLine = `• 진입가 (스팟 기준): ${formatUsd(priceUsd)}`;
-  const tpLine = tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: n/a';
-  const slLine = tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: n/a';
-  const rrLine = tradeSignal?.rr != null ? `• 손익비 (RR): ${tradeSignal.rr.toFixed(2)}` : '';
-
   const isNoTrade = true; // 항상 대기 모드 (BUY/SELL 시그널 완전 삭제)
-  const modeLine = isNoTrade ? '• 모드: Trap Standby — 명확한 에지까지 승리 준비. 방어 우선.' : '';
+  
+  // Trade Verdictの表記最適化: Standby状態の時は「TBD」と表記
+  const entryLine = isNoTrade
+    ? '• 진입가: 승리 준비 중 — 명확한 트리거 대기'
+    : `• 진입가 (스팟 기준): ${formatUsd(priceUsd)}`;
+  const tpLine = isNoTrade
+    ? '• Take Profit: TBD (결정 대기 중)'
+    : (tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: n/a');
+  const slLine = isNoTrade
+    ? '• Stop Loss: TBD (결정 대기 중)'
+    : (tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: n/a');
+  const rrLine = isNoTrade
+    ? '• 손익비 (RR): 대기 중'
+    : (tradeSignal?.rr != null ? `• 손익비 (RR): ${tradeSignal.rr.toFixed(2)}` : '');
+
+  const modeLine = isNoTrade
+    ? '• 모드: Trap Standby — 명확한 에지까지 승리 준비. 방어 우선.'
+    : '';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -97,13 +112,14 @@ function formatRegularBriefing({
   }
 
   const lines = [];
-  lines.push('🌤️ CryptoWeather Alert - Trap Defense Report');
-  lines.push(`📺 뉴스 프로그램 @ ${ts}`);
+  lines.push('🌤️ Trap Defence BTC - 유료 리포트');
+  lines.push(`🚨 긴급: Trap Defence 브리핑`);
+  lines.push(`📅 ${ts}`);
   lines.push('');
 
   // ===== 【最重要】Trade Verdict（最上部に配置） =====
-  lines.push('🎯 트레이드 verdict');
-  lines.push(`${dirEmoji} 시그널: ${dirLabel}`);
+  lines.push('🎯 Trade Verdict');
+  lines.push(`${dirEmoji} Signal: ${dirLabel}`);
   lines.push(entryLine);
   if (modeLine) lines.push(modeLine);
   if (tpLine) lines.push(tpLine);
@@ -126,6 +142,34 @@ function formatRegularBriefing({
     const trapScore = trapData.trapScore || trapData.bugScore || 0;
     lines.push(`🛡️ 핵심 기능 1: 트랩 방어 - ${trapEmoji} ${trapTypeText} (점수: ${trapScore.toFixed(0)}/100)`);
     
+    // Display score calculation components (transparency)
+    if (trapData.details) {
+      const components = [];
+      if (trapData.details.multipleDivergences >= 3) {
+        components.push(`다중 다이버전스 (${trapData.details.multipleDivergences}건)`);
+      } else if (trapData.details.multipleDivergences >= 2) {
+        components.push(`다중 다이버전스 (${trapData.details.multipleDivergences}건)`);
+      }
+      if (trapData.details.anomalyDetected) {
+        components.push('고해상도 이상');
+      }
+      if (trapData.details.accelerationDetected) {
+        components.push('트렌드 가속');
+      }
+      if (Math.abs(trapData.details.onchainSocialDivergence || 0) > 40) {
+        components.push('고래/소매 다이버전스');
+      }
+      if (trapData.details.priceOnchainDivergence) {
+        components.push('가격/온체인 다이버전스');
+      }
+      if (trapData.details.priceSocialDivergence) {
+        components.push('가격/센티먼트 다이버전스');
+      }
+      if (components.length > 0) {
+        lines.push(`   📊 구성 요소: ${components.join(' + ')}`);
+      }
+    }
+    
     // Display trap alert details if available
     if (trapAlert && trapAlert.alert) {
       const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
@@ -140,18 +184,108 @@ function formatRegularBriefing({
     lines.push('🛡️ 핵심 기능 1: 트랩 방어 - 현재 감지된 트랩 없음');
   }
   
-  // ===== 【ニュース番組構造】オープニング → データ → 解説 → コメンテーター → クロージング =====
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('📺 【오프닝】GPT 리포터의 긴급 트랩 뉴스');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
   
   // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
-  const gptNewsText = gptReporterAnalysis || aiAnalysis || '데이터 분석 중...';
-  const gptNewsLimit = 800;
-  const gptNewsDisplay = gptNewsText.length > gptNewsLimit 
-    ? `${gptNewsText.slice(0, gptNewsLimit)}…` 
-    : gptNewsText;
-  lines.push(`📰 ${gptNewsDisplay}`);
+  // エラーメッセージやnullの場合は、フォールバック処理
+  let gptNewsText = gptReporterAnalysis || aiAnalysis || null;
+  
+  // エラーメッセージを検出（API error, unavailable, error等のキーワード）
+  if (gptNewsText && typeof gptNewsText === 'string') {
+    const errorKeywords = ['api error', 'unavailable', 'error', 'failed', 'timeout'];
+    const isError = errorKeywords.some(keyword => 
+      gptNewsText.toLowerCase().includes(keyword)
+    );
+    if (isError) {
+      gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
+    }
+  }
+  
+  // フォールバック: GPT分析が利用できない場合の代替メッセージ
+  if (!gptNewsText || gptNewsText.trim() === '') {
+    // CryptoQuantデータから基本的な分析を生成
+    const inflowDisplay = inflow >= 0 ? `유입 ${Math.abs(inflow).toFixed(0)} BTC` : `유출 ${Math.abs(inflow).toFixed(0)} BTC`;
+    const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
+    const priceChangeDisplay = change24h >= 0 ? `+${change24h.toFixed(2)}%` : `${change24h.toFixed(2)}%`;
+    
+    gptNewsText = `💡 온체인 지표의 심리적 해석
+
+CryptoQuant 데이터는 ${inflowDisplay}, 채굴자 포지션 지수(MPI) ${mpiDisplay}, ${sentimentLabel.toLowerCase()} 센티먼트를 보여주며, 가격은 24시간 동안 ${priceChangeDisplay} 변동했습니다.
+
+심리적 관점에서 이러한 지표는 ${sentimentLabel.toLowerCase()} 시장 환경을 시사합니다. ${inflow >= 0 ? '유입' : '유출'}은 ${inflow >= 0 ? '더 많은 암호화폐가 거래소로 유입되고 있음' : '더 많은 암호화폐가 거래소에서 유출되고 있음'}을 나타내며, 이는 종종 ${inflow >= 0 ? '잠재적인 매도 압력' : '보유자들이 거래소 외부에서 자산을 보호하고 있음'}을 의미합니다.
+
+${mpiDisplay}의 MPI는 채굴자들이 ${mpi >= 0 ? '매도하고 있음' : '보유하고 있음'}을 시사하며, 이는 ${mpi >= 0 ? '잠재적인 공급 압력' : '시장의 미래 잠재력에 대한 신뢰'}로 해석될 수 있습니다.
+
+▼ 시장 맥락
+
+${sentimentLabel.toLowerCase()} 센티먼트는 ${sentimentLabel === 'Neutral' ? '트레이더들 사이에 공포나 탐욕과 같은 강한 감정적 동인이 부족함' : sentimentLabel === 'Greed' ? '낙관적인 시장 조건이지만 잠재적인 과도한 확장' : '신중한 시장 조건'}을 반영합니다. 이는 트레이더들이 조건을 신중하게 모니터링하는 관망 모드의 시장을 시사합니다.`;
+  }
+  
+  // Telegram互換性: Markdown見出し（###）を削除してTelegramネイティブな形式に変換（先に実行）
+  let gptNewsDisplay = gptNewsText
+    .replace(/^###\s+/gm, '') // ###見出しを削除
+    .replace(/^##\s+/gm, '')   // ##見出しを削除
+    .replace(/^#\s+/gm, '');   // #見出しを削除
+  // プレーンテキストの見出しも改善（英語と韓国語の両方に対応）
+  gptNewsDisplay = gptNewsDisplay
+    .replace(/^Psychological Interpretation of On-Chain Metrics$/gm, '💡 온체인 지표의 심리적 해석')
+    .replace(/^온체인 지표의 심리적 해석$/gm, '💡 온체인 지표의 심리적 해석'); // 韓国語見出しにも絵文字を追加
+  
+  // 文字数制限を緩和して、重要な情報が切れないようにする（600文字まで）
+  const gptNewsLimit = 600;
+  if (gptNewsDisplay.length > gptNewsLimit) {
+    // 文の終わりで切るようにする（最後の文の終わりを探す）
+    const truncated = gptNewsDisplay.slice(0, gptNewsLimit);
+    // 文の終わりを探す（ピリオド、感嘆符、疑問符、改行）
+    const sentenceEnds = [
+      truncated.lastIndexOf('. '),
+      truncated.lastIndexOf('.\n'),
+      truncated.lastIndexOf('! '),
+      truncated.lastIndexOf('!\n'),
+      truncated.lastIndexOf('? '),
+      truncated.lastIndexOf('?\n'),
+      truncated.lastIndexOf('\n\n'),
+      truncated.lastIndexOf('\n')
+    ].filter(pos => pos !== -1);
+    
+    const lastSentenceEnd = sentenceEnds.length > 0 ? Math.max(...sentenceEnds) : -1;
+    
+    // 文の終わりが見つかった場合、その位置で切る（50%以上の場合のみ）
+    if (lastSentenceEnd > gptNewsLimit * 0.5) {
+      // 文の終わりの後にスペースがある場合は、その位置で切る
+      const endPos = truncated[lastSentenceEnd + 1] === ' ' ? lastSentenceEnd + 1 : lastSentenceEnd;
+      gptNewsDisplay = truncated.slice(0, endPos) + '…';
+    } else {
+      // 文の終わりが見つからない場合、単純に切る
+      gptNewsDisplay = truncated + '…';
+    }
+  }
+  
+  // モバイル最適化: 冒頭に1行の要約を追加（100点満点への最後の仕上げ）
+  // トラップ検出状況に基づいて要約を生成
+  const trapDataForSummary = trapDetection || marketBug;
+  const hasTrapForSummary = trapDataForSummary && (trapDataForSummary.trapDetected || trapDataForSummary.bugDetected);
+  const trapTypeForSummary = trapDataForSummary?.trapType || trapDataForSummary?.bugType || '';
+  const trapSeverityForSummary = trapDataForSummary?.trapSeverity || trapDataForSummary?.bugSeverity || 'NONE';
+  
+  let summaryLine = '';
+  if (hasTrapForSummary && trapSeverityForSummary !== 'NONE') {
+    const trapTypeDisplay = trapTypeForSummary.replace(/_/g, ' ');
+    // Telegram Markdownでは [text] がリンクとして解釈されるため、[Summary]ではなく Summary: を使用
+    summaryLine = `📰 요약: 온체인 지표는 "관망 모드"를 보여줍니다. ${trapTypeDisplay}는 안정적인 가격에도 불구하고 숨겨진 트랩을 시사합니다.`;
+  } else {
+    summaryLine = `📰 요약: 온체인 지표는 "관망 모드"를 보여줍니다. 시장 조건은 안정적이지만 트랩 패턴에 대해 경계를 유지하세요.`;
+  }
+  lines.push(summaryLine);
+  lines.push('');
+  
+  // GPT分析の見出しを改善（プレーンテキスト見出しに絵文字を追加）
+  let gptNewsDisplayFinal = gptNewsDisplay;
+  // 「온체인 지표의 심리적 해석」という見出しに絵文字を追加
+  gptNewsDisplayFinal = gptNewsDisplayFinal.replace(/^온체인 지표의 심리적 해석$/gm, '💡 온체인 지표의 심리적 해석');
+  
+  // 英語版と統一するため、GPT分析の前に📰絵文字を追加
+  lines.push(`📰 ${gptNewsDisplayFinal}`);
   lines.push('');
   
   // 【改善1: Evidenceセクションの独立】証拠（Evidence）セクションを独立させて明確に表示
@@ -160,10 +294,7 @@ function formatRegularBriefing({
   const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
   
   if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 【증거】왜 기다려야 하는가? 데이터 기반 이유');
-    lines.push('[온체인 데이터로 입증됨]');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📊 왜 기다려야 하는가? 데이터 기반 이유');
     
     if (trapScoreForEvidence !== null) {
       const trapScoreRounded = Math.round(trapScoreForEvidence);
@@ -207,21 +338,23 @@ function formatRegularBriefing({
     }
     
     // 【改善2: 「70%待機戦略」の証拠ベース説明の統合】
-    if (trapScoreForEvidence !== null && trapScoreForEvidence >= 30) {
+    // 戦略的インサイトセクションを追加
+    if (trapScoreForEvidence !== null) {
       const trapScoreRounded = Math.round(trapScoreForEvidence);
       lines.push('');
-      lines.push(`💡 왜 기다려야 하는가? (증거 기반)`);
+      lines.push(`💡 전략적 인사이트`);
       if (trapScoreRounded >= 70) {
-        lines.push(`   🚨 트랩 점수 ${trapScoreRounded}/100: 강한 신호가 잠재적인 시장 트랩을 나타냅니다.`);
-        lines.push(`   📊 데이터는 다중 다이버전스와 온체인 이상을 보여줍니다.`);
-        lines.push(`   🛡️ 전략적 준비는 약점이 아닙니다—승리 준비입니다. 70%의 시간은 승리 준비를 하세요.`);
+        lines.push(`  🚨 트랩 점수 ${trapScoreRounded}/100: 강한 신호가 잠재적인 시장 트랩을 나타냅니다.`);
+        lines.push(`  📊 데이터는 다중 다이버전스와 온체인 이상을 보여줍니다.`);
+        lines.push(`  🛡️ 전략적 준비는 약점이 아닙니다—승리 준비입니다. 70%의 시간은 승리 준비를 하세요.`);
       } else if (trapScoreRounded >= 50) {
-        lines.push(`   ⚡ 트랩 점수 ${trapScoreRounded}/100: 중간 정도의 트랩 지표가 감지되었습니다.`);
-        lines.push(`   📊 일부 다이버전스가 주의를 촉구합니다.`);
-        lines.push(`   🛡️ 방어를 최우선으로. 승리 준비를—더 명확한 시장 신호를 기다리세요.`);
+        lines.push(`  ⚡ 트랩 점수 ${trapScoreRounded}/100: 중간 정도의 트랩 지표가 감지되었습니다.`);
+        lines.push(`  📊 일부 다이버전스가 주의를 촉구합니다.`);
+        lines.push(`  🛡️ 방어를 최우선으로. 승리 준비를—더 명확한 시장 신호를 기다리세요.`);
       } else {
-        lines.push(`   ✅ 트랩 점수 ${trapScoreRounded}/100: 낮은 트랩 위험이지만 경계를 유지하세요.`);
-        lines.push(`   🛡️ 낮은 위험 상황에서도 인내는 전략적 강점입니다.`);
+        lines.push(`  ✅ 트랩 점수 ${trapScoreRounded}/100: 현재 낮은 트랩 위험이지만 시장은 항상 변합니다.`);
+        lines.push(`  🛡️ 낮은 위험 시기가 전략적 준비가 가장 중요한 때입니다. 명확한 우위가 나타날 때까지 방어를 계속하세요.`);
+        lines.push(`  💎 전문 트레이더는 무엇보다 "대기 시간"을 우선시합니다. 같은 전략을 취하세요.`);
       }
     }
     lines.push('');
@@ -229,24 +362,35 @@ function formatRegularBriefing({
   
   // USP2: Geminiコンテンツ生成（データ提示セクション）
   if (hasGeminiContent) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 【데이터 제시】NanoBanana 인포그래픽');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📊 NanoBanana 인포그래픽');
     lines.push('🎬 첨부된 미디어를 확인하세요!');
     lines.push('');
   }
   
   // 【コメンテーター】Dr. Grok癒し系コメンテーター（固定コーナー）
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('💊 【코멘테이터】Dr. Grok의 의견');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('💊 Dr. Grok의 의견');
   
   // Grok X解析結果（Xセンチメント分析）
   if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
     const grokXLimit = 600;
-    const grokXDisplay = grokXAnalysis.length > grokXLimit 
-      ? `${grokXAnalysis.slice(0, grokXLimit)}…` 
-      : grokXAnalysis;
+    let grokXDisplay = grokXAnalysis;
+    if (grokXAnalysis.length > grokXLimit) {
+      // 文の終わりで切るようにする（最後の文の終わりを探す）
+      const truncated = grokXAnalysis.slice(0, grokXLimit);
+      const lastSentenceEnd = Math.max(
+        truncated.lastIndexOf('.'),
+        truncated.lastIndexOf('!'),
+        truncated.lastIndexOf('?'),
+        truncated.lastIndexOf('\n')
+      );
+      // 文の終わりが見つかった場合、その位置で切る
+      if (lastSentenceEnd > grokXLimit * 0.7) {
+        grokXDisplay = truncated.slice(0, lastSentenceEnd + 1) + '…';
+      } else {
+        // 文の終わりが見つからない場合、単純に切る
+        grokXDisplay = truncated + '…';
+      }
+    }
     lines.push(`📱 X 센티먼트 분석: ${grokXDisplay}`);
     lines.push('');
   }
@@ -278,10 +422,6 @@ function formatRegularBriefing({
     lines.push('"인내는 약점이 아니다—전략적 강점이다. 최고의 트레이더는 거래하지 않을 때를 안다."');
   }
   
-  lines.push('');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('📺 【클로징】다음 회차를 기대해 주세요');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
   // ===== 基本市場データ（補足情報として後半に配置） =====

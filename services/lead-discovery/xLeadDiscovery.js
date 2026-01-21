@@ -14,51 +14,79 @@ const { discoverLeadsOnX } = require('../grok/client');
  */
 async function searchLeadsOnX(query, lang = 'en', maxResults = 100) {
   try {
+    console.log(`[X Lead Discovery] Searching leads with Grok (lang: ${lang}, maxResults: ${maxResults})`);
+    console.log(`[X Lead Discovery] Query: ${query.substring(0, 100)}...`);
+    
     // Grok（X AI API）でリード発見
     const grokResult = await discoverLeadsOnX(query, lang);
     
+    console.log(`[X Lead Discovery] Grok returned ${grokResult?.sources?.length || 0} sources`);
+    
     // Grokの結果からリードを抽出
     const leads = [];
+    let skippedNoMatch = 0;
+    let skippedNoHandle = 0;
+    let skippedNoNote = 0;
     
     if (grokResult && grokResult.sources && Array.isArray(grokResult.sources)) {
+      console.log(`[X Lead Discovery] Processing ${grokResult.sources.length} sources from Grok`);
+      
       for (const source of grokResult.sources.slice(0, maxResults)) {
-        if (source.handle && source.note) {
-          // source.noteからキーワードを検出
-          const detectionResult = detectKeywords(source.note, lang);
-          
-          if (detectionResult.matched) {
-            const userData = {
-              engagementRate: 0.1, // Grokから取得できないためデフォルト値
-            };
-            
-            const score = calculateLeadScore(detectionResult, userData);
-            const isPerfect = isPerfectMatch(detectionResult, userData);
-            
-            // tweet IDを取得（Grokが返したtweetId、またはnull）
-            const tweetId = source.tweetId || null;
-            
-            leads.push({
-              userId: null,
-              username: source.handle.replace('@', ''),
-              tweetId: tweetId,
-              lang: detectionResult.lang,
-              text: source.note.substring(0, 200),
-              keywords: detectionResult.keywords,
-              priority: detectionResult.priority,
-              score,
-              isPerfectMatch: isPerfect,
-              engagementRate: 0.1,
-              timestamp: new Date().toISOString(),
-              source: 'grok',
-            });
-          }
+        if (!source.handle) {
+          skippedNoHandle++;
+          continue;
         }
+        
+        if (!source.note) {
+          skippedNoNote++;
+          continue;
+        }
+        
+        // source.noteからキーワードを検出
+        const detectionResult = detectKeywords(source.note, lang);
+        
+        if (!detectionResult.matched) {
+          skippedNoMatch++;
+          continue;
+        }
+        
+        const userData = {
+          engagementRate: 0.1, // Grokから取得できないためデフォルト値
+        };
+        
+        const score = calculateLeadScore(detectionResult, userData);
+        const isPerfect = isPerfectMatch(detectionResult, userData);
+        
+        // tweet IDを取得（Grokが返したtweetId、またはnull）
+        const tweetId = source.tweetId || null;
+        
+        leads.push({
+          userId: null,
+          username: source.handle.replace('@', ''),
+          tweetId: tweetId,
+          lang: detectionResult.lang,
+          text: source.note.substring(0, 200),
+          keywords: detectionResult.keywords,
+          priority: detectionResult.priority,
+          score,
+          isPerfectMatch: isPerfect,
+          engagementRate: 0.1,
+          timestamp: new Date().toISOString(),
+          source: 'grok',
+        });
       }
+      
+      console.log(`[X Lead Discovery] Extracted ${leads.length} leads from ${grokResult.sources.length} sources`);
+      console.log(`[X Lead Discovery] Skipped: ${skippedNoHandle} (no handle), ${skippedNoNote} (no note), ${skippedNoMatch} (no keyword match)`);
+      console.log(`[X Lead Discovery] Perfect matches: ${leads.filter(l => l.isPerfectMatch).length}`);
+    } else {
+      console.warn(`[X Lead Discovery] Grok result is invalid: ${JSON.stringify(grokResult).substring(0, 200)}`);
     }
     
     return leads;
   } catch (error) {
     console.error('[X Lead Discovery] Failed to search leads with Grok:', error.message);
+    console.error('[X Lead Discovery] Error stack:', error.stack);
     return [];
   }
 }

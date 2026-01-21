@@ -5,18 +5,19 @@
 const VSL2_MESSAGES = {
   // ------------------------------------------------------------------
   // English (Global Standard)
-  // Strategy: Emphasize the "Unfair Advantage" of the full version.
+  // Strategy: Emphasize the "Unfair Advantage" + Crypto Community Language
+  // Optimized: Added "whale tactics", "pro's edge", and more specific value propositions
   // ------------------------------------------------------------------
   en: (userName, vsl2Link, whopUrl, promoCode) => `🎁 **Special Offer for You, ${userName}!**
 
-💭 Still manually watching charts every day?
+💭 Still manually watching charts every day, getting exhausted?
 
-The "Minimal Version" is just a compass. The **Full Version** is the entire map.
+The "Minimal Version" is just a compass. The **Full Version** is the complete treasure map.
 
 **Why Upgrade?**
-✅ **Complete On-Chain Analysis:** See what whales are doing, not just price action.
-✅ **Real-Time Alerts:** Never miss a trap or a pump.
-✅ **Dr. Grok Support:** Your personal AI trading psychologist.
+✅ **Complete On-Chain Analysis:** See the "whale tactics" behind price movements, not just price action.
+✅ **Real-Time Alerts:** Never miss a trap or a pump. Get notified the moment it happens.
+✅ **Dr. Grok Support:** Your personal AI trading psychologist for mental management and strategy.
 
 🎬 **Watch why the "Pros" always win:**
 ${vsl2Link}
@@ -25,10 +26,10 @@ ${vsl2Link}
 💰 **Exclusive 50% OFF Coupon:**
 Code: \`${promoCode}\`
 
-🚀 **Unlock your unfair advantage now:**
+🚀 **Get the pro's edge at half price:**
 ${whopUrl}?promo=${promoCode}
 
-💡 *Offer valid for a limited time.*`,
+💡 *Offer valid for a limited time. Don't miss out.*`,
 
   // ------------------------------------------------------------------
   // Japanese (Trust & Detail)
@@ -59,18 +60,19 @@ ${whopUrl}?promo=${promoCode}
 
   // ------------------------------------------------------------------
   // Spanish (Smart Investment)
-  // Strategy: "Stop guessing, start knowing."
+  // Strategy: "Stop guessing, start knowing." + Crypto Community Language
+  // Optimized: Added "tácticas de ballenas", "ventaja del profesional", and more specific value propositions
   // ------------------------------------------------------------------
   es: (userName, vsl2Link, whopUrl, promoCode) => `🎁 **¡Oferta Especial para ti, ${userName}!**
 
-💭 ¿Sigues mirando gráficos todo el día?
+💭 ¿Sigues agotándote mirando gráficos todo el día?
 
-La versión gratuita es solo una brújula. La **Versión Completa** es el mapa del tesoro.
+La versión gratuita es solo una brújula. La **Versión Completa** es el mapa del tesoro completo.
 
 **¿Por qué actualizar?**
-✅ **Análisis On-Chain Completo:** Ve lo que hacen las ballenas, no solo el precio.
-✅ **Alertas en Tiempo Real:** Nunca pierdas una trampa o una subida.
-✅ **Soporte Dr. Grok:** Tu psicólogo de trading personal con IA.
+✅ **Análisis On-Chain Completo:** Ve las "tácticas de ballenas" detrás de los movimientos de precio, no solo el precio.
+✅ **Alertas en Tiempo Real:** Nunca pierdas una trampa o una subida. Recibe notificaciones al instante.
+✅ **Soporte Dr. Grok:** Tu psicólogo de trading personal con IA para gestión mental y estrategia.
 
 🎬 **Mira por qué los "Pros" siempre ganan:**
 ${vsl2Link}
@@ -79,52 +81,54 @@ ${vsl2Link}
 💰 **Cupón Exclusivo 50% OFF:**
 Código: \`${promoCode}\`
 
-🚀 **Obtén tu ventaja injusta ahora:**
+🚀 **Obtén la ventaja del profesional a mitad de precio:**
 ${whopUrl}?promo=${promoCode}
 
-💡 *Oferta por tiempo limitado.*`,
+💡 *Oferta por tiempo limitado. No te lo pierdas.*`,
 
   // ------------------------------------------------------------------
   // Portuguese (Brazil - Opportunity)
-  // Strategy: "Don't leave money on the table."
+  // Strategy: "Don't leave money on the table." + Crypto Community Language
+  // Optimized: Added "táticas das baleias", "vantagem do profissional", and more specific value propositions
   // ------------------------------------------------------------------
   'pt-br': (userName, vsl2Link, whopUrl, promoCode) => `🎁 **Oferta Especial para você, ${userName}!**
 
-💭 Ainda perdendo tempo olhando gráficos o dia todo?
+💭 Ainda se esgotando olhando gráficos o dia todo?
 
-A versão gratuita é apenas uma bússola. A **Versão Completa** é o mapa inteiro.
+A versão gratuita é apenas uma bússola. A **Versão Completa** é o mapa do tesouro completo.
 
 **Por que fazer o upgrade?**
-✅ **Análise On-Chain Completa:** Veja o que as baleias estão fazendo.
-✅ **Alertas em Tempo Real:** Nunca perca uma armadilha ou pump.
-✅ **Suporte Dr. Grok:** Seu psicólogo de trading pessoal (IA).
+✅ **Análise On-Chain Completa:** Veja as "táticas das baleias" por trás dos movimentos de preço, não apenas o preço.
+✅ **Alertas em Tempo Real:** Nunca perca uma armadilha ou pump. Receba notificações no instante.
+✅ **Suporte Dr. Grok:** Seu psicólogo de trading pessoal com IA para gestão mental e estratégia.
 
 🎬 **Veja por que os profissionais sempre vencem:**
 ${vsl2Link}
 💡 Legendas disponíveis em 6 idiomas (EN, JA, ES, PT-BR, AR, KO) - ative nas configurações do vídeo
 
-💰 **Cupón Exclusivo 50% OFF:**
+💰 **Cupom Exclusivo 50% OFF:**
 Código: \`${promoCode}\`
 
-🚀 **Garanta sua vantagem agora:**
+🚀 **Obtenha a vantagem do profissional pela metade do preço:**
 ${whopUrl}?promo=${promoCode}
 
-💡 *Oferta por tempo limitado.*`,
+💡 *Oferta por tempo limitado. Não perca.*`,
 
   // ------------------------------------------------------------------
   // Arabic (Exclusivity & Wisdom)
-  // Strategy: "The complete tool for the wise trader."
+  // Strategy: "The complete tool for the wise trader." + Crypto Community Language
+  // Optimized: Added "تكتيكات الحيتان", "ميزة المحترفين", and more specific value propositions
   // ------------------------------------------------------------------
   ar: (userName, vsl2Link, whopUrl, promoCode) => `🎁 **عرض خاص لك يا ${userName}!**
 
-💭 هل ما زلت تراقب الرسوم البيانية يدوياً كل يوم؟
+💭 هل ما زلت تستنزف نفسك في مراقبة الرسوم البيانية كل يوم؟
 
-النسخة المجانية هي مجرد بوصلة. **النسخة الكاملة** هي الخريطة الكاملة.
+النسخة المجانية هي مجرد بوصلة. **النسخة الكاملة** هي خريطة الكنز الكاملة.
 
 **لماذا الترقية؟**
-✅ **تحليل كامل للسلسلة (On-Chain):** شاهد ما تفعله الحيتان، وليس فقط حركة السعر.
-✅ **تنبيهات فورية:** لا تفوت أي فخ أو صعود مفاجئ.
-✅ **دعم Dr. Grok:** مستشارك النفسي للتداول بالذكاء الاصطناعي.
+✅ **تحليل كامل للسلسلة (On-Chain):** شاهد "تكتيكات الحيتان" وراء تحركات الأسعار، وليس فقط السعر.
+✅ **تنبيهات فورية:** لا تفوت أي فخ أو صعود مفاجئ. احصل على إشعارات فورية.
+✅ **دعم Dr. Grok:** مستشارك النفسي للتداول بالذكاء الاصطناعي لإدارة العقلية والاستراتيجية.
 
 🎬 **شاهد لماذا يربح "المحترفون" دائماً:**
 ${vsl2Link}
@@ -133,25 +137,26 @@ ${vsl2Link}
 💰 **كوبون خصم حصري 50%:**
 الرمز: \`${promoCode}\`
 
-🚀 **احصل على ميزة المحترفين الآن:**
+🚀 **احصل على ميزة المحترفين بنصف السعر:**
 ${whopUrl}?promo=${promoCode}
 
-💡 *العرض ساري لفترة محدودة.*`,
+💡 *العرض ساري لفترة محدودة. لا تفوت الفرصة.*`,
 
   // ------------------------------------------------------------------
   // Korean (Winning & Speed)
-  // Strategy: "Overwrite your limits." (限界突破)
+  // Strategy: "Overwrite your limits." (限界突破) + Crypto Community Language
+  // Optimized: Added "지치고 있나요?", "고래의 전략", and more specific value propositions
   // ------------------------------------------------------------------
   ko: (userName, vsl2Link, whopUrl, promoCode) => `🎁 **${userName}님을 위한 특별 제안!**
 
-💭 아직도 하루 종일 차트만 보고 계신가요?
+💭 아직도 하루 종일 차트만 보고 지치고 있나요?
 
-무료 버전은 나침반일 뿐입니다. **완전판(Full Version)**은 보물지도 그 자체입니다.
+무료 버전은 나침반일 뿐입니다. **완전판(Full Version)**은 완전한 보물지도입니다.
 
 **왜 업그레이드해야 할까요?**
-✅ **완벽한 온체인 분석:** 세력(고래)의 움직임을 실시간 포착
-✅ **실시간 알림:** 함정이나 급등 신호를 놓치지 마세요
-✅ **Dr. Grok 지원:** 멘탈 관리부터 전략까지 1:1 AI 코칭
+✅ **완벽한 온체인 분석:** 가격 움직임 뒤에 있는 "고래의 전략"을 보세요, 가격만이 아닙니다.
+✅ **실시간 알림:** 함정이나 급등 신호를 놓치지 마세요. 즉시 알림을 받으세요.
+✅ **Dr. Grok 지원:** 멘탈 관리부터 전략까지 AI가 완전 지원하는 개인 트레이딩 심리 상담사.
 
 🎬 **상위 1%가 항상 이기는 이유를 확인하세요:**
 ${vsl2Link}
@@ -160,10 +165,10 @@ ${vsl2Link}
 💰 **50% 할인 한정 쿠폰:**
 코드: \`${promoCode}\`
 
-🚀 **지금 바로 프로의 무기를 반값에 획득하세요:**
+🚀 **프로의 무기를 반값에 획득하세요:**
 ${whopUrl}?promo=${promoCode}
 
-💡 *한정된 시간 동안만 유효합니다.*`,
+💡 *한정된 시간 동안만 유효합니다. 놓치지 마세요.*`,
 };
 
 /**

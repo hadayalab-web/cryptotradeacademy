@@ -16,13 +16,13 @@ function getTrapScoreDescription(trapScore) {
   }
 
   if (score >= 70) {
-    return '⚠️ مخاطر الفخ عالية: إشارات قوية تشير إلى فخاخ السوق المحتملة. مارس الحذر الشديد.';
+    return '⚠️ مخاطر الفخ عالية: إشارات قوية تشير إلى فخاخ السوق المحتملة. مارس الحذر الشديد';
   } else if (score >= 50) {
-    return '⚡ مخاطر الفخ متوسطة: تم اكتشاف بعض مؤشرات الفخ. ابق متيقظاً.';
+    return '⚡ مخاطر الفخ متوسطة: تم اكتشاف بعض مؤشرات الفخ. ابق متيقظاً';
   } else if (score >= 30) {
-    return '✅ مخاطر الفخ منخفضة: مؤشرات الفخ ضئيلة. ظروف السوق تبدو آمنة نسبياً.';
+    return '✅ مخاطر الفخ منخفضة: مؤشرات الفخ ضئيلة. ظروف السوق تبدو آمنة نسبياً';
   } else {
-    return '✅ مخاطر الفخ منخفضة جداً: تم اكتشاف مؤشرات فخ قليلة جداً. ظروف السوق تبدو آمنة.';
+    return '✅ مخاطر الفخ منخفضة جداً: تم اكتشاف مؤشرات فخ قليلة جداً. ظروف السوق تبدو آمنة';
   }
 }
 
@@ -40,9 +40,9 @@ function generateWhatToAvoid(trapScore, trapData = null) {
   if (trapData) {
     if (trapData.trapAlert) {
       if (trapData.trapAlert.type === 'AVOID_LONG') {
-        avoidItems.push('تجنب مراكز LONG - تم اكتشاف مخاطر فخ عالية');
+        avoidItems.push('تجنب مراكز LONG — تم اكتشاف مخاطر فخ عالية');
       } else if (trapData.trapAlert.type === 'AVOID_SHORT') {
-        avoidItems.push('تجنب مراكز SHORT - تم اكتشاف مخاطر فخ عالية');
+        avoidItems.push('تجنب مراكز SHORT — تم اكتشاف مخاطر فخ عالية');
       }
     }
   }
@@ -50,10 +50,10 @@ function generateWhatToAvoid(trapScore, trapData = null) {
   // الإجراءات الافتراضية التي يجب تجنبها
   if (avoidItems.length === 0) {
     if (trapScore >= 70) {
-      avoidItems.push('تجنب فتح مراكز جديدة - تم اكتشاف إشارات فخ قوية');
+      avoidItems.push('تجنب فتح مراكز جديدة — تم اكتشاف إشارات فخ قوية');
       avoidItems.push('انتظر إشارات السوق الأكثر وضوحاً قبل التداول');
     } else if (trapScore >= 50) {
-      avoidItems.push('مارس الحذر - بعض مؤشرات الفخ موجودة');
+      avoidItems.push('مارس الحذر — بعض مؤشرات الفخ موجودة');
       avoidItems.push('فكر في انتظار فرص دخول أفضل');
     }
   }
@@ -71,16 +71,27 @@ function generateEvidence(trapData = null, marketData = null) {
   if (trapData) {
     if (trapData.exchangeNetflow !== undefined && trapData.exchangeNetflow !== null) {
       const netflow = trapData.exchangeNetflow; // بوحدات BTC
-      const sign = netflow >= 0 ? '+' : '';
       const absValue = Math.abs(netflow);
-      const flowDir = netflow >= 0 ? 'تدفق داخلي' : 'تدفق خارجي';
-      // عرض بوحدات BTC (موحد مع الإصدار المدفوع)
-      evidenceItems.push(`صافي تدفق البورصات: ${sign}${absValue.toFixed(0)} BTC (${flowDir})`);
+      if (netflow < 0) {
+        // التدفق الخارجي: إشارة إيجابية
+        evidenceItems.push(`صافي تدفق البورصات: ${absValue.toFixed(0)} BTC (تدفق خارجي) — الحائزون يحتفظون بالأصول`);
+      } else if (netflow > 0) {
+        // التدفق الداخلي: تحذير
+        evidenceItems.push(`صافي تدفق البورصات: +${absValue.toFixed(0)} BTC (تدفق داخلي) — احتمال ضغط بيع`);
+      } else {
+        evidenceItems.push(`صافي تدفق البورصات: متوازن`);
+      }
     }
 
     if (trapData.whaleRatio !== undefined && trapData.whaleRatio !== null) {
       const whaleRatio = trapData.whaleRatio * 100;
-      evidenceItems.push(`نسبة الحيتان: ${whaleRatio.toFixed(0)}% (${whaleRatio >= 80 ? 'ضغط بيع عالي' : 'طبيعي'})`);
+      if (whaleRatio >= 80) {
+        evidenceItems.push(`نسبة الحيتان: ${whaleRatio.toFixed(0)}% — تم اكتشاف ضغط بيع عالي`);
+      } else if (whaleRatio >= 50) {
+        evidenceItems.push(`نسبة الحيتان: ${whaleRatio.toFixed(0)}% — ضغط بيع مرتفع نسبياً`);
+      } else {
+        evidenceItems.push(`نسبة الحيتان: ${whaleRatio.toFixed(0)}% — النطاق الطبيعي (نشاط الحيتان مستقر)`);
+      }
     }
   }
 
@@ -89,7 +100,9 @@ function generateEvidence(trapData = null, marketData = null) {
     if (marketData.mpi !== undefined) {
       const mpi = marketData.mpi;
       if (mpi > 2.0) {
-        evidenceItems.push(`مؤشر مراكز المعدّنين: ${mpi.toFixed(2)} (المعدّنون يبيعون)`);
+        evidenceItems.push(`مؤشر مراكز المعدّنين: ${mpi.toFixed(2)} — المعدّنون يبيعون (الحذر مطلوب)`);
+      } else if (mpi < 0.5) {
+        evidenceItems.push(`مؤشر مراكز المعدّنين: ${mpi.toFixed(2)} — المعدّنون يحتفظون (إشارة إيجابية)`);
       }
     }
   }
@@ -109,20 +122,27 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
   const comments = [];
 
   if (!trapScore || trapScore < 30) {
-    // حتى عندما يكون Trap Score منخفضاً، توفير رسالة افتراضية
-    comments.push('"الصبر قوة استراتيجية. استمر في انتظار الفرص الواضحة."');
+    // Trap Score منخفض: توفير قيمة حتى في المخاطر المنخفضة
+    const lowRiskMessages = [
+      '"الصبر قوة استراتيجية. استمر في انتظار الفرص الواضحة."',
+      '"المخاطر منخفضة الآن، لكن الأسواق تتغير دائماً. عدم الاستعداد هو طريق الهزيمة."',
+      '"الدفاع ليس ضعفاً. 70% من الوقت، عدم فعل شيء هو أقوى استراتيجية."',
+    ];
+    comments.push(lowRiskMessages[Math.floor(Math.random() * lowRiskMessages.length)]);
   } else if (trapScore >= 70) {
-    comments.push('"FOMO مرتفع الآن. لا تدع الجشع يتغلب على استراتيجية دفاعك. انتظر."');
+    comments.push('"FOMO مرتفع الآن. لا تدع الجشع يتغلب على استراتيجية دفاعك. انتظر. هذا هو الوقت الأكثر خطورة."');
   } else if (trapScore >= 50) {
-    comments.push('"حافظ على الانضباط. السوق يختبر صبرك. الدفاع أولاً."');
+    comments.push('"حافظ على الانضباط. السوق يختبر صبرك. الدفاع أولاً. انتظر إشارات واضحة."');
   } else {
-    comments.push('"انضباط جيد. استمر في انتظار الفرص الواضحة."');
+    comments.push('"انضباط جيد. استمر في انتظار الفرص الواضحة. المخاطر المنخفضة لا تعني خفض حذرتك."');
   }
 
   // تعليق إضافي من Sentiment Data
   if (sentimentData) {
     if (sentimentData.sentiment === 'FOMO' || sentimentData.sentiment === 'GREED') {
       comments.push('"مشاعر السوق عاطفية. هذا عندما تحدث الفخاخ. حافظ على الهدوء."');
+    } else if (sentimentData.sentiment === 'FEAR') {
+      comments.push('"الخوف طبيعي. لكن القرارات القائمة على البيانات تحميك."');
     }
   }
 
@@ -132,8 +152,49 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
 /**
  * إنشاء Mental Note
  */
-function generateMentalNote() {
-  return '"70% من الوقت، لا تفعل شيئاً. الدفاع حتى تظهر ميزة واضحة."';
+function generateMentalNote(trapScore = null, avoidProTraderMessage = false, drGrokComment = null) {
+  const allMentalNotes = [
+    '"70% من الوقت، لا تفعل شيئاً. الدفاع حتى تظهر ميزة واضحة."',
+    '"حماية رأس المال هي الأولوية الأولى. عدم الخسارة أهم من الفوز."',
+    '"70% من السوق ضوضاء. تفاعل فقط مع الإشارات الواضحة. هذا هو طريق النصر."',
+    '"الانتظار ليس ضعفاً. إنه أقوى استراتيجية."',
+    '"الدفاع هو أعلى شكل من أشكال الهجوم. حماية رأس المال هي حيث يبدأ كل شيء."',
+    '"90% من المتداولين المحترفين يعطون الأولوية لوقت الانتظار. اتخذ نفس الاستراتيجية."',
+  ];
+  
+  // إذا تم استخدام "المتداولون المحترفون يعطون الأولوية لوقت الانتظار" في الرؤى الاستراتيجية، تجنبها في Mental Note
+  let availableNotes = allMentalNotes;
+  if (avoidProTraderMessage) {
+    availableNotes = availableNotes.filter(note => !note.includes('المتداولين المحترفين'));
+  }
+  
+  // تجنب التكرار مع تعليق Dr. Grok
+  if (drGrokComment) {
+    // إذا كان التعليق يحتوي على "70% من الوقت"، تجنب نفس العبارة في Mental Note
+    if (drGrokComment.includes('70% من الوقت') || drGrokComment.includes('70%')) {
+      availableNotes = availableNotes.filter(note => !note.includes('70% من الوقت') && !note.includes('70%'));
+    }
+    // إذا كان التعليق يحتوي على "الدفاع ليس ضعفاً"، تجنب نفس العبارة في Mental Note
+    if (drGrokComment.includes('الدفاع ليس ضعفاً')) {
+      availableNotes = availableNotes.filter(note => !note.includes('الدفاع ليس ضعفاً'));
+    }
+    // إذا كان التعليق يحتوي على "ليس ضعفاً"، تجنب نفس العبارة في Mental Note
+    if (drGrokComment.includes('ليس ضعفاً')) {
+      availableNotes = availableNotes.filter(note => !note.includes('ليس ضعفاً'));
+    }
+    // إذا كان التعليق يحتوي على "أقوى استراتيجية"، تجنب نفس العبارة في Mental Note
+    if (drGrokComment.includes('أقوى استراتيجية')) {
+      availableNotes = availableNotes.filter(note => !note.includes('أقوى استراتيجية'));
+    }
+  }
+  
+  // إذا لم تكن هناك رسائل متاحة، اختر من الكل
+  if (availableNotes.length === 0) {
+    availableNotes = allMentalNotes;
+  }
+  
+  const selectedNote = availableNotes[Math.floor(Math.random() * availableNotes.length)];
+  return selectedNote;
 }
 
 /**
@@ -173,12 +234,14 @@ function formatMinimalHighQualityBriefing({
   const whatToAvoid = generateWhatToAvoid(trapScore, trapData);
   const evidence = generateEvidence(trapData, marketData);
   const drGrokComment = generateDrGrokComment(trapScore, sentimentData);
-  const mentalNote = generateMentalNote();
+  
+  // إذا كان هناك احتمال استخدام "المتداولون المحترفون يعطون الأولوية لوقت الانتظار" في الرؤى الاستراتيجية، تجنبها في Mental Note
+  const trapScoreRounded = trapScore !== null ? Math.round(trapScore) : null;
+  const useProTraderMessageInInsight = trapScoreRounded !== null && trapScoreRounded < 50 && trapScoreRounded >= 0;
+  const mentalNote = generateMentalNote(trapScore, useProTraderMessageInInsight, drGrokComment);
 
-  // 【تحسين 1: إضافة تنسيق برنامج إخباري】إضافة قسم Opening
-  let message = `🌤️ Trap Defense BTC - تقرير مجاني
+  let message = `🌤️ Trap Defence BTC - تقرير مجاني
 🚨 BREAKING: بريفينغ دفاع الفخ
-📺 【الافتتاح】بريفينغ استخبارات السوق
 📅 ${ts}
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -189,49 +252,51 @@ ${scoreDescription}
 
 ${priceLine}`;
 
-  // 【تحسين 1: إضافة هيكل القصة】إضافة قسم عرض المشكلة
-  // الخطوة 1: عرض المشكلة (بناءً على Trap Score)
+  // قسم عرض المشكلة (بناءً على Trap Score)
   if (trapScore !== null && trapScore >= 30) {
     const trapScoreRounded = Math.round(trapScore);
-    message += `\n\n━━━━━━━━━━━━━━━━━━━━
-📖 【قصة السوق】المشكلة
-━━━━━━━━━━━━━━━━━━━━`;
     
     if (trapScoreRounded >= 70) {
-      message += `\n🚨 السوق يظهر إشارات فخ قوية. على الرغم مما قد توحي به مخططات الأسعار، فإن بيانات on-chain تكشف عن مخاطر خفية.`;
-      message += `\n💡 المشكلة: تشير عدة انحرافات وشذوذات إلى فخاخ سوق محتملة. الدخول الآن قد يعرضك لمخاطر كبيرة.`;
+      message += `\n\n🚨 السوق يظهر إشارات فخ قوية. على الرغم مما قد توحي به مخططات الأسعار، فإن بيانات on-chain تكشف عن مخاطر خفية`;
+      message += `\n💡 تشير عدة انحرافات وشذوذات إلى فخاخ سوق محتملة. الدخول الآن قد يعرضك لمخاطر كبيرة`;
     } else if (trapScoreRounded >= 50) {
-      message += `\n⚡ السوق يظهر مؤشرات فخ متوسطة. بعض الانحرافات تشير إلى الحذر.`;
-      message += `\n💡 المشكلة: إشارات الفخ موجودة. التسرع في التداول الآن قد يؤدي إلى خسائر.`;
+      message += `\n\n⚡ السوق يظهر مؤشرات فخ متوسطة. بعض الانحرافات تشير إلى الحذر`;
+      message += `\n💡 إشارات الفخ موجودة. التسرع في التداول الآن قد يؤدي إلى خسائر`;
     } else {
-      message += `\n✅ ظروف السوق تبدو آمنة نسبياً، لكن أنماط الفخ يمكن أن تظهر بسرعة.`;
-      message += `\n💡 المشكلة: حتى في ظروف المخاطر المنخفضة، الصبر قوة استراتيجية.`;
+      message += `\n\n✅ ظروف السوق تبدو آمنة نسبياً، لكن أنماط الفخ يمكن أن تظهر بسرعة`;
+      message += `\n💡 حتى في ظروف المخاطر المنخفضة، الصبر قوة استراتيجية`;
     }
+  } else if (trapScore !== null && trapScore < 30) {
+    // حتى في المخاطر المنخفضة، تقديم حالة السوق بشكل موجز
+    message += `\n\n💡 ظروف السوق الحالية مستقرة نسبياً، لكن من المهم أن تبقى متيقظاً دائماً`;
   }
 
   // الخطوة 2: قسم الدليل (Evidence)
+  // عرض قسم الدليل دائماً حتى في المخاطر المنخفضة (لتوفير القيمة)
   if (evidence && evidence.length > 0) {
     message += `\n\n━━━━━━━━━━━━━━━━━━━━
-📊 【الدليل】لماذا الانتظار؟ أسباب مبنية على البيانات
-مثبت ببيانات ON-CHAIN
+📊 أسباب مبنية على البيانات
 ━━━━━━━━━━━━━━━━━━━━`;
     evidence.forEach(item => {
       message += `\n• ${item}`;
     });
     
     // 【تحسين 2: دمج شرح قائم على الأدلة لـ"استراتيجية الانتظار 70%"】ربط Evidence و Mental Note
-    if (trapScore !== null && trapScore >= 30) {
+    // إضافة شرح حتى في المخاطر المنخفضة (لتوفير القيمة)
+    if (trapScore !== null) {
       const trapScoreRounded = Math.round(trapScore);
-      message += `\n\n💡 لماذا الانتظار؟ (قائم على الأدلة)`;
+      message += `\n\n💡 رؤى استراتيجية`;
       if (trapScoreRounded >= 70) {
-        message += `\n   🚨 Trap Score ${trapScoreRounded}/100: إشارات قوية تشير إلى فخاخ سوق محتملة.`;
-        message += `\n   🛡️ الاستعداد الاستراتيجي ليس ضعفاً—إنه استعداد للنصر. 70% من الوقت، استعد للنصر.`;
+        message += `\n  🚨 Trap Score ${trapScoreRounded}/100: إشارات قوية تشير إلى فخاخ سوق محتملة`;
+        message += `\n  🛡️ الاستعداد الاستراتيجي ليس ضعفاً—إنه استعداد للنصر. 70% من الوقت، استعد للنصر`;
       } else if (trapScoreRounded >= 50) {
-        message += `\n   ⚡ Trap Score ${trapScoreRounded}/100: تم اكتشاف مؤشرات فخ متوسطة.`;
-        message += `\n   🛡️ الدفاع أولاً. انتظر إشارات السوق الأكثر وضوحاً.`;
+        message += `\n  ⚡ Trap Score ${trapScoreRounded}/100: تم اكتشاف مؤشرات فخ متوسطة`;
+        message += `\n  🛡️ الدفاع أولاً. انتظر إشارات السوق الأكثر وضوحاً`;
       } else {
-        message += `\n   ✅ Trap Score ${trapScoreRounded}/100: مخاطر فخ منخفضة، لكن ابق متيقظاً.`;
-        message += `\n   🛡️ حتى في ظروف المخاطر المنخفضة، الاستعداد الاستراتيجي هو استعداد للنصر.`;
+        // توفير القيمة حتى في المخاطر المنخفضة
+        message += `\n  ✅ Trap Score ${trapScoreRounded}/100: مخاطر فخ منخفضة حالياً، لكن الأسواق تتغير دائماً`;
+        message += `\n  🛡️ أوقات المخاطر المنخفضة هي عندما يهم الاستعداد الاستراتيجي أكثر. استمر في الدفاع حتى تظهر ميزة واضحة`;
+        message += `\n  💎 المتداولون المحترفون يعطون الأولوية لـ"وقت الانتظار" فوق كل شيء. اتخذ نفس الاستراتيجية`;
       }
     }
   }
@@ -239,7 +304,7 @@ ${priceLine}`;
   // الخطوة 3: الحل (What to Avoid)
   if (whatToAvoid && whatToAvoid.length > 0) {
     message += `\n\n━━━━━━━━━━━━━━━━━━━━
-🚫 【الحل】ما يجب تجنبه
+🚫 ما يجب تجنبه
 ━━━━━━━━━━━━━━━━━━━━`;
     whatToAvoid.forEach(item => {
       message += `\n• ${item}`;
@@ -247,26 +312,20 @@ ${priceLine}`;
   }
 
   // الخطوة 4: النهاية الناجحة (تعليق Dr. Grok + Mental Note)
-  // 【تحسين 1: إضافة تنسيق برنامج إخباري】قسم المعلق
   if (drGrokComment) {
     message += `\n\n━━━━━━━━━━━━━━━━━━━━
-💊 【المعلق】رؤية سريعة من Dr. Grok
+💊 رؤية سريعة من Dr. Grok
 ━━━━━━━━━━━━━━━━━━━━
 ${drGrokComment}`;
   }
 
-  // 【تحسين 1: إضافة هيكل القصة】النهاية الناجحة (Mental Note)
+  // Mental Note
   if (mentalNote) {
     message += `\n\n━━━━━━━━━━━━━━━━━━━━
-✅ 【النهاية الناجحة】Mental Note
+✅ Mental Note
 ━━━━━━━━━━━━━━━━━━━━
 ${mentalNote}`;
   }
-  
-  // 【تحسين 1: إضافة تنسيق برنامج إخباري】إضافة قسم Closing
-  message += `\n\n━━━━━━━━━━━━━━━━━━━━
-📺 【الختام】ترقبوا الحلقة القادمة
-━━━━━━━━━━━━━━━━━━━━`;
 
   // CTA (تحسين الـupsell: CTA مع إلحاح لضمان أموال التطوير)
   // VSL2 ورابط Whop يتم توزيعهما بشكل منفصل، لذلك لا يتم تضمينهما في Minimal Briefing العادي
@@ -277,20 +336,27 @@ ${mentalNote}`;
 أنت ترى لمحة. الأعضاء الكاملون يحصلون على:
 
 ✨ تقرير الاستخبارات الكامل
-• تحليل on-chain كامل (جميع المؤشرات)
-• رؤى السوق المدعومة بالذكاء الاصطناعي وكشف الفخاخ
-• تنبيهات في الوقت الفعلي: EVITAR-LONG / EVITAR-SHORT / STANDBY
-• خريطة الخروج وإرشادات التدريب العقلي
-• الدعم النفسي الكامل من Dr. Grok
-• تحليل مشاعر X في الوقت الفعلي
+• تحليل on-chain كامل (جميع المؤشرات في الوقت الفعلي)
+• رؤى السوق المدعومة بالذكاء الاصطناعي وكشف الفخاخ (مراقبة على مدار الساعة)
+• تنبيهات في الوقت الفعلي: AVOID-LONG / AVOID-SHORT / STANDBY (إشعارات فورية)
+• خريطة الخروج وإرشادات التدريب العقلي (استراتيجيات عملية)
+• الدعم النفسي الكامل من Dr. Grok (حل العوائق العقلية)
+• تحليل مشاعر X في الوقت الفعلي (توقع مشاعر السوق)
 
-💡 لماذا الترقية؟
-الفرق بين حماية رأس المال وفقدانه غالباً ما يكون مجرد إشارة فخ فائتة.
+💎 كل هذا مصمم لحماية رأس مالك
+
+📊 النسخة المجانية مقابل النسخة الكاملة
+• مجاني: Trap Score فقط (تلميح اتجاهي)
+• كامل: جميع البيانات + تنبيهات في الوقت الفعلي (خطة عمل محددة)
+
+🛡️ إشارة واحدة فائتة يمكن أن تحدد ما إذا كنت تحمي أو تفقد رأس مالك
+
+🎯 قم بالترقية الآن واحصل على نظام الدفاع الكامل
 
 ━━━━━━━━━━━━━━━━━━━━
-هذا تقرير مجاني. للتحليل المفصل وتنبيهات الفخ، قم بالترقية إلى Trap Defense BTC.
+هذا تقرير مجاني. للتحليل المفصل وتنبيهات الفخ، قم بالترقية إلى Trap Defence BTC
 
-لأغراض تعليمية فقط. ليست نصيحة مالية.`;
+لأغراض تعليمية فقط. ليست نصيحة مالية`;
 
   return message.trim();
 }

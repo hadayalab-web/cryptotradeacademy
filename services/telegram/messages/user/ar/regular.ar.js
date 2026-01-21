@@ -46,14 +46,14 @@ function formatRegularBriefing({
   const priceLine = `💰 سعر BTC: ${formatUsd(priceUsd)} (${formatPercent(change24h)} / 24h)`;
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
-  const flowLine = `📊 صافي تدفق البورصات: ${flowDir} ${flowAbs.toFixed(0)} BTC`;
+  const flowLine = `📊 صافي تدفق البورصات: ${flowDir} ${flowAbs.toFixed(0)} BTC${inflow < 0 ? ' — الحائزون يحتفظون بالأصول' : ' — ضغط بيع محتمل'}`;
   const mpiLine = `⛏ مؤشر مراكز المعدّنين (MPI): ${(mpi ?? 0).toFixed(2)}`;
   const sentimentLine = `🧠 حالة الشعور في السوق: *${sentimentLabel || 'غير معروف'}*`;
 
   const scoreLine = `📈 درجة السوق: ${Math.round(score ?? 0)}/100`;
   const trapLine = trap?.isTrap
     ? `🧨 كاشف الفخاخ: ${trap.label || 'فخ محتمل'} (${trap.confidence} مستوى ثقة)`
-    : '✅ كاشف الفخاخ: لا توجد فخاخ حرجة مكتشفة.';
+    : '✅ كاشف الفخاخ: لا توجد فخاخ حرجة مكتشفة';
 
   let dirEmoji;
   let dirLabel;
@@ -74,13 +74,20 @@ function formatRegularBriefing({
     dirLabel = 'TRAP STANDBY (Defense Active)';
   }
 
-  const entryLine = `• سعر الدخول (مرجع سبوت): ${formatUsd(priceUsd)}`;
-  const tpLine = tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: n/a';
-  const slLine = tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: n/a';
-  const rrLine = tradeSignal?.rr != null ? `• نسبة المخاطرة إلى العائد (RR): ${tradeSignal.rr.toFixed(2)}` : '';
-
   const isNoTrade = true; // وضع الانتظار دائماً (تم حذف إشارات BUY/SELL بالكامل)
-  const modeLine = isNoTrade ? '• الوضع: Trap Standby — الاستعداد للنصر حتى أفضلية واضحة. أولوية للدفاع.' : '';
+  const entryLine = isNoTrade
+    ? '• الدخول: الاستعداد للنصر — انتظار محفز واضح'
+    : `• سعر الدخول (مرجع سبوت): ${formatUsd(priceUsd)}`;
+  const tpLine = isNoTrade
+    ? '• Take Profit: TBD (سيتم تحديده)'
+    : (tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: n/a');
+  const slLine = isNoTrade
+    ? '• Stop Loss: TBD (سيتم تحديده)'
+    : (tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: n/a');
+  const rrLine = isNoTrade
+    ? '• نسبة المخاطرة إلى العائد (RR): انتظار'
+    : (tradeSignal?.rr != null ? `• نسبة المخاطرة إلى العائد (RR): ${tradeSignal.rr.toFixed(2)}` : '');
+  const modeLine = isNoTrade ? '• الوضع: Trap Standby — انتظر أفضلية واضحة. أولوية للدفاع' : '';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -94,8 +101,9 @@ function formatRegularBriefing({
   }
 
   const lines = [];
-  lines.push('🌤️ CryptoWeather Alert - Trap Defense Report');
-  lines.push(`📺 برنامج الأخبار @ ${ts}`);
+  lines.push('🌤️ Trap Defence BTC - تقرير مدفوع');
+  lines.push(`🚨 BREAKING: بريفينغ دفاع الفخ`);
+  lines.push(`📅 ${ts}`);
   lines.push('');
 
   // ===== 【最重要】Trade Verdict（最上部に配置） =====
@@ -123,6 +131,34 @@ function formatRegularBriefing({
     const trapScore = trapData.trapScore || trapData.bugScore || 0;
     lines.push(`🛡️ الميزة الأساسية 1: دفاع الفخ - ${trapEmoji} ${trapTypeText} (الدرجة: ${trapScore.toFixed(0)}/100)`);
     
+    // Display score calculation components (transparency)
+    if (trapData.details) {
+      const components = [];
+      if (trapData.details.multipleDivergences >= 3) {
+        components.push(`انحرافات متعددة (${trapData.details.multipleDivergences})`);
+      } else if (trapData.details.multipleDivergences >= 2) {
+        components.push(`انحرافات متعددة (${trapData.details.multipleDivergences})`);
+      }
+      if (trapData.details.anomalyDetected) {
+        components.push('شذوذ عالي الدقة');
+      }
+      if (trapData.details.accelerationDetected) {
+        components.push('تسارع الاتجاه');
+      }
+      if (Math.abs(trapData.details.onchainSocialDivergence || 0) > 40) {
+        components.push('انحراف الحوت/التجزئة');
+      }
+      if (trapData.details.priceOnchainDivergence) {
+        components.push('انحراف السعر/Onchain');
+      }
+      if (trapData.details.priceSocialDivergence) {
+        components.push('انحراف السعر/المشاعر');
+      }
+      if (components.length > 0) {
+        lines.push(`   📊 المكونات: ${components.join(' + ')}`);
+      }
+    }
+    
     // Display trap alert details if available
     if (trapAlert && trapAlert.alert) {
       const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
@@ -137,41 +173,195 @@ function formatRegularBriefing({
     lines.push('🛡️ الميزة الأساسية 1: دفاع الفخ - لا توجد فخاخ مكتشفة حالياً');
   }
   
-  // ===== 【ニュース番組構造】オープニング → データ → 解説 → コメンテーター → クロージング =====
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('📺 【الافتتاحية】أخبار الفخ العاجلة من مراسل GPT');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  
+  // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
   // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
-  const gptNewsText = gptReporterAnalysis || aiAnalysis || 'جارٍ تحليل البيانات...';
-  const gptNewsLimit = 800;
-  const gptNewsDisplay = gptNewsText.length > gptNewsLimit 
-    ? `${gptNewsText.slice(0, gptNewsLimit)}…` 
-    : gptNewsText;
-  lines.push(`📰 ${gptNewsDisplay}`);
+  // エラーメッセージやnullの場合は、フォールバック処理
+  let gptNewsText = gptReporterAnalysis || aiAnalysis || null;
+  
+  // エラーメッセージを検出（API error, unavailable, error等のキーワード）
+  if (gptNewsText && typeof gptNewsText === 'string') {
+    const errorKeywords = ['api error', 'unavailable', 'error', 'failed', 'timeout'];
+    const isError = errorKeywords.some(keyword => 
+      gptNewsText.toLowerCase().includes(keyword)
+    );
+    if (isError) {
+      gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
+    }
+  }
+  
+  // フォールバック: GPT分析が利用できない場合の代替メッセージ
+  if (!gptNewsText || gptNewsText.trim() === '') {
+    // CryptoQuantデータから基本的な分析を生成
+    const inflowDisplay = inflow >= 0 ? `تدفق داخلي ${Math.abs(inflow).toFixed(0)} BTC` : `تدفق خارجي ${Math.abs(inflow).toFixed(0)} BTC`;
+    const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
+    const priceChangeDisplay = change24h >= 0 ? `+${change24h.toFixed(2)}%` : `${change24h.toFixed(2)}%`;
+    
+    gptNewsText = `💡 التفسير النفسي لمقاييس On-Chain
+
+تُظهر بيانات CryptoQuant ${inflowDisplay}، ومؤشر مراكز المعدّنين (MPI) ${mpiDisplay}، ومشاعر ${sentimentLabel.toLowerCase()}، بينما تغير السعر ${priceChangeDisplay} خلال 24 ساعة.
+
+من منظور نفسي، تشير هذه المقاييس إلى بيئة سوق ${sentimentLabel.toLowerCase()}. يشير ${inflow >= 0 ? 'التدفق الداخلي' : 'التدفق الخارجي'} إلى ${inflow >= 0 ? 'المزيد من العملات المشفرة تدخل البورصات' : 'المزيد من العملات المشفرة تغادر البورصات'}، مما يشير غالباً إلى ${inflow >= 0 ? 'ضغط بيع محتمل' : 'الحائزون يؤمنون أصولهم خارج البورصة'}.
+
+يشير MPI ${mpiDisplay} إلى أن المعدّنين ${mpi >= 0 ? 'يبيعون' : 'يحتفظون'}، مما يمكن تفسيره على أنه ${mpi >= 0 ? 'ضغط عرض محتمل' : 'ثقة في الإمكانات المستقبلية للسوق'}.
+
+▼ سياق السوق
+
+تعكس مشاعر ${sentimentLabel.toLowerCase()} ${sentimentLabel === 'Neutral' ? 'عدم وجود محركات عاطفية قوية مثل الخوف أو الجشع بين المتداولين' : sentimentLabel === 'Greed' ? 'ظروف سوق متفائلة، لكن احتمال المبالغة' : 'ظروف سوق حذرة'}. يشير هذا إلى سوق في وضع انتظار، حيث يراقب المتداولون الظروف بعناية.`;
+  }
+  
+  // 文字数制限を緩和して、重要な情報が切れないようにする（600文字まで）
+  const gptNewsLimit = 600;
+  // Telegram互換性: Markdown見出し（###）を削除してTelegramネイティブな形式に変換（先に実行）
+  let gptNewsDisplay = gptNewsText
+    .replace(/^###\s+/gm, '') // ###見出しを削除
+    .replace(/^##\s+/gm, '')   // ##見出しを削除
+    .replace(/^#\s+/gm, '');   // #見出しを削除
+  // プレーンテキストの見出しも改善（「التفسير النفسي لمقاييس On-Chain」など）
+  gptNewsDisplay = gptNewsDisplay.replace(/^التفسير النفسي لمقاييس On-Chain$/gm, '💡 التفسير النفسي لمقاييس On-Chain');
+  
+  if (gptNewsDisplay.length > gptNewsLimit) {
+    // 文の終わりで切るようにする（最後の文の終わりを探す）
+    const truncated = gptNewsDisplay.slice(0, gptNewsLimit);
+    // 文の終わりを探す（ピリオド、感嘆符、疑問符、改行）
+    const sentenceEnds = [
+      truncated.lastIndexOf('. '),
+      truncated.lastIndexOf('.\n'),
+      truncated.lastIndexOf('! '),
+      truncated.lastIndexOf('!\n'),
+      truncated.lastIndexOf('? '),
+      truncated.lastIndexOf('?\n'),
+      truncated.lastIndexOf('\n\n'),
+      truncated.lastIndexOf('\n')
+    ].filter(pos => pos !== -1);
+    
+    const lastSentenceEnd = sentenceEnds.length > 0 ? Math.max(...sentenceEnds) : -1;
+    
+    // 文の終わりが見つかった場合、その位置で切る（50%以上の場合のみ）
+    if (lastSentenceEnd > gptNewsLimit * 0.5) {
+      // 文の終わりの後にスペースがある場合は、その位置で切る
+      const endPos = truncated[lastSentenceEnd + 1] === ' ' ? lastSentenceEnd + 1 : lastSentenceEnd;
+      gptNewsDisplay = truncated.slice(0, endPos) + '…';
+    } else {
+      // 文の終わりが見つからない場合、単純に切る
+      gptNewsDisplay = truncated + '…';
+    }
+  }
+  
+  // モバイル最適化: 冒頭に1行の要約を追加
+  const trapDataForSummary = trapDetection || marketBug;
+  const hasTrapForSummary = trapDataForSummary && (trapDataForSummary.trapDetected || trapDataForSummary.bugDetected);
+  const trapTypeForSummary = trapDataForSummary?.trapType || trapDataForSummary?.bugType || '';
+  const trapSeverityForSummary = trapDataForSummary?.trapSeverity || trapDataForSummary?.bugSeverity || 'NONE';
+  
+  let summaryLine = '';
+  if (hasTrapForSummary && trapSeverityForSummary !== 'NONE') {
+    const trapTypeDisplay = trapTypeForSummary.replace(/_/g, ' ');
+    summaryLine = `📰 الملخص: تُظهر مقاييس On-Chain وضع "انتظار". يشير ${trapTypeDisplay} إلى فخ مخفي رغم الأسعار المستقرة.`;
+  } else {
+    summaryLine = `📰 الملخص: تُظهر مقاييس On-Chain وضع "انتظار". ظروف السوق مستقرة، لكن ابق متيقظاً لأنماط الفخ`;
+  }
+  lines.push(summaryLine);
   lines.push('');
+  
+  // 詳細な分析を表示
+  if (gptNewsDisplay && gptNewsDisplay !== 'جارٍ تحليل البيانات...') {
+    lines.push(`📰 ${gptNewsDisplay}`);
+    lines.push('');
+  }
+  
+  // データに基づく理由セクション（常に表示して価値を提供）
+  const trapScoreForEvidence = trapRisk?.trapRiskScore ?? trapDetection?.trapScore ?? null;
+  const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
+  
+  if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
+    lines.push('📊 أسباب مبنية على البيانات');
+    
+    if (trapScoreForEvidence !== null) {
+      const trapScoreRounded = Math.round(trapScoreForEvidence);
+      if (trapScoreRounded >= 50) {
+        lines.push(`🎯 درجة الفخ: ${trapScoreRounded}/100 تشير إلى مخاطر فخ كبيرة`);
+        if (trapTypeForEvidence) {
+          const trapTypeDisplay = trapTypeForEvidence.replace(/_/g, ' ');
+          lines.push(`⚠️ نوع الفخ: تم اكتشاف ${trapTypeDisplay}`);
+        }
+        lines.push(`💡 الدليل: تشير الانحرافات المتعددة والانحرافات on-chain إلى أن وضع "انتظار" حكيم`);
+        lines.push(`📈 لماذا الانتظار؟ تُظهر البيانات ${trapScoreRounded >= 70 ? 'قوية' : 'معتدلة'} إشارات أن الدخول الآن قد يعرضك لفخاخ السوق`);
+      } else {
+        lines.push(`✅ درجة الفخ: ${trapScoreRounded}/100 تشير إلى مخاطر فخ منخفضة`);
+        lines.push(`💡 الدليل: ظروف السوق تبدو آمنة نسبياً، لكن ابق متيقظاً لأنماط الفخ`);
+      }
+    } else if (trapDetection || trapAlert) {
+      // フォールバック: trapDetectionやtrapAlertから証拠を生成
+      if (trapDetection && trapDetection.trapDetected) {
+        const trapTypeText = (trapDetection.trapType || 'شذوذ').replace(/_/g, ' ');
+        lines.push(`🎯 اكتشاف الفخ: ${trapTypeText} (الدرجة: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
+        lines.push(`💡 الدليل: تم اكتشاف انحرافات متعددة on-chain بناءً على البيانات`);
+      } else if (trapAlert && trapAlert.alert) {
+        const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
+        lines.push(`🚨 تنبيه الفخ: ${alertTypeText} (الشدة: ${trapAlert.severity})`);
+        lines.push(`💡 الدليل: تم اكتشاف مخاطر فخ السوق بناءً على بيانات on-chain وتحليل المشاعر`);
+      }
+    }
+    
+    // 戦略的インサイトセクションを追加
+    if (trapScoreForEvidence !== null) {
+      const trapScoreRounded = Math.round(trapScoreForEvidence);
+      lines.push('');
+      lines.push(`💡 رؤى استراتيجية`);
+      if (trapScoreRounded >= 70) {
+        lines.push(`  🚨 درجة الفخ ${trapScoreRounded}/100: إشارات قوية تشير إلى فخاخ سوق محتملة`);
+        lines.push(`  📊 تُظهر البيانات انحرافات متعددة وانحرافات on-chain`);
+        lines.push(`  🛡️ الاستعداد الاستراتيجي ليس ضعفاً—إنه استعداد للنصر. 70% من الوقت، استعد للنصر`);
+      } else if (trapScoreRounded >= 50) {
+        lines.push(`  ⚡ درجة الفخ ${trapScoreRounded}/100: تم اكتشاف مؤشرات فخ معتدلة`);
+        lines.push(`  📊 بعض الانحرافات تشير إلى الحذر`);
+        lines.push(`  🛡️ الدفاع أولاً. استعد للنصر—انتظر إشارات سوق أوضح`);
+      } else {
+        lines.push(`  ✅ درجة الفخ ${trapScoreRounded}/100: مخاطر فخ منخفضة حالياً، لكن الأسواق تتغير دائماً`);
+        lines.push(`  🛡️ أوقات المخاطر المنخفضة هي عندما يهم الاستعداد الاستراتيجي أكثر. استمر في الدفاع حتى تظهر أفضلية واضحة`);
+        lines.push(`  💎 المتداولون المحترفون يعطون الأولوية لـ"وقت الانتظار" فوق كل شيء. اتخذ نفس الاستراتيجية`);
+      }
+    }
+    lines.push('');
+  }
   
   // USP2: Geminiコンテンツ生成（データ提示セクション）
   if (hasGeminiContent) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 【عرض البيانات】رسم بياني NanoBanana');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📊 رسم بياني NanoBanana');
     lines.push('🎬 تحقق من الوسائط المرفقة!');
     lines.push('');
   }
   
-  // 【コメンテーター】Dr. Grok癒し系コメンテーター（固定コーナー）
-  // CMO提案: Dr. Grokのキャラクターをより強く（情熱的かつ冷静に）押し出す
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('💊 【المعلق】Dr. Grok: تحليل عاطفي وعقلاني');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  // 【コメンテーター】Dr. Grokメンタルコーチ（固定コーナー）
+  lines.push('💊 رؤية سريعة من Dr. Grok');
   
   // Grok X解析結果（Xセンチメント分析）
   if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
     const grokXLimit = 600;
-    const grokXDisplay = grokXAnalysis.length > grokXLimit 
-      ? `${grokXAnalysis.slice(0, grokXLimit)}…` 
-      : grokXAnalysis;
+    let grokXDisplay = grokXAnalysis;
+    if (grokXAnalysis.length > grokXLimit) {
+      // 文の終わりで切るようにする（最後の文の終わりを探す）
+      const truncated = grokXAnalysis.slice(0, grokXLimit);
+      const sentenceEnds = [
+        truncated.lastIndexOf('. '),
+        truncated.lastIndexOf('.\n'),
+        truncated.lastIndexOf('! '),
+        truncated.lastIndexOf('!\n'),
+        truncated.lastIndexOf('? '),
+        truncated.lastIndexOf('?\n'),
+        truncated.lastIndexOf('\n\n'),
+        truncated.lastIndexOf('\n')
+      ].filter(pos => pos !== -1);
+      
+      const lastSentenceEnd = sentenceEnds.length > 0 ? Math.max(...sentenceEnds) : -1;
+      
+      if (lastSentenceEnd > grokXLimit * 0.5) {
+        const endPos = truncated[lastSentenceEnd + 1] === ' ' ? lastSentenceEnd + 1 : lastSentenceEnd;
+        grokXDisplay = truncated.slice(0, endPos) + '…';
+      } else {
+        grokXDisplay = truncated + '…';
+      }
+    }
     lines.push(`📱 تحليل المشاعر على X: ${grokXDisplay}`);
     lines.push('');
   }
@@ -191,6 +381,9 @@ function formatRegularBriefing({
     if (psychologicalSupport.psychologicalAdvice) {
       lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
     }
+    
+    lines.push('');
+    
     if (psychologicalSupport.mentalNote) {
       lines.push(`💊 ملاحظة Dr. Grok العقلية:`);
       lines.push(`"${psychologicalSupport.mentalNote}"`);
@@ -199,14 +392,12 @@ function formatRegularBriefing({
     // Fallback: توفير رسالة قيمة حتى عندما لا تكون البيانات متاحة
     lines.push('💚 الحالة النفسية: 😐 NEUTRAL (المخاطرة: 💡 منخفضة)');
     lines.push('');
+    lines.push('   💡 ظروف السوق مستقرة نسبياً. حافظ على الانضباط');
+    lines.push('');
     lines.push('💊 ملاحظة Dr. Grok العقلية:');
     lines.push('"الصبر ليس ضعفاً—إنه قوة استراتيجية. أفضل المتداولين يعرفون متى لا يتداولون."');
   }
   
-  lines.push('');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('📺 【الختام】ترقبوا الحلقة القادمة');
-  lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
   // ===== 基本市場データ（補足情報として後半に配置） =====

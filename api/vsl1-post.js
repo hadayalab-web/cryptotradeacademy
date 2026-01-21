@@ -345,10 +345,12 @@ async function postVSL1() {
       console.error('❌ Error loading VSL1 thumbnail:', err.message);
     }
 
-    // VSL1投稿: 無料版チャンネル（MINIMAL）に画像付きで配信
-    // Gemini CMO提案: VSL2と同じパターン（サムネイル画像 + メッセージ + インラインボタン）でリンクをクリックしやすく
+    // VSL1投稿: X/Twitterのみに配信（無料版オプトイン誘導用）
+    // 注意: VSL1は無料版オプトイン誘導用のため、無料版チャンネル（MINIMAL）には配信しない
+    // 無料版チャンネルに配信すると、既に無料版に登録しているユーザーに不要なメッセージが届いてしまう
+    // VSL1はX/Twitterのみに配信し、無料版に登録していない人（Grokが見つけてきたリスト）に対してオプトインを促す
     if (telegramConfig.botTokenSet) {
-      const enableTelegramMinimal = parseBoolean(process.env.VSL1_TELEGRAM_MINIMAL_ENABLED, true);
+      const enableTelegramMinimal = parseBoolean(process.env.VSL1_TELEGRAM_MINIMAL_ENABLED, false);
       
       if (enableTelegramMinimal) {
         for (const lang of targetLangs) {
@@ -515,8 +517,56 @@ const handler = async (req, res) => {
   
   try {
     const result = await postVSL1();
+    
+    // 緊急修正: VSL1投稿完了時にCEOレポートを送信
+    if (result.success) {
+      try {
+        const { sendVSLWorkflowReport } = require('../services/email/ceo-report');
+        const xResults = result.results?.x || {};
+        const xByLang = xResults.byLang || [];
+        const languages = xByLang.map(l => l.lang).filter(Boolean).join(', ') || 'N/A';
+        const successCount = xResults.sent || 0;
+        const totalCount = xResults.total || 0;
+        const successRate = totalCount > 0 ? Math.round((successCount / totalCount) * 100) : 0;
+        const failedPosts = xByLang.filter(l => !l.success && l.error);
+        
+        await sendVSLWorkflowReport({
+          status: successCount > 0 ? 'SUCCESS' : 'WARNING',
+          summary: {
+            'VSL1 Posted': 'X/Twitter',
+            'Languages': languages,
+            'Success Rate': `${successRate}%`,
+            'Sent': `${successCount}/${totalCount}`,
+          },
+          issues: failedPosts.map(l => `Failed to post to X (${l.lang}): ${l.error}`),
+        }).catch(error => {
+          console.error('[VSL1] Failed to send CEO report:', error.message);
+        });
+      } catch (error) {
+        console.error('[VSL1] CEO report error:', error.message);
+        console.error('[VSL1] Error stack:', error.stack);
+      }
+    }
+    
     return res.status(200).json(result);
   } catch (error) {
+    // エラー時もCEOレポートを送信
+    try {
+      const { sendVSLWorkflowReport } = require('../services/email/ceo-report');
+      await sendVSLWorkflowReport({
+        status: 'ERROR',
+        summary: {
+          'VSL1 Posted': 'Failed',
+          'Error': error.message,
+        },
+        issues: [error.message],
+      }).catch(reportError => {
+        console.error('[VSL1] Failed to send error report:', reportError.message);
+      });
+    } catch (reportError) {
+      console.error('[VSL1] Error report error:', reportError.message);
+    }
+    
     return res.status(500).json({ error: error.message });
   }
 };

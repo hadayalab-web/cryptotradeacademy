@@ -1,7 +1,7 @@
 // services/whop/promo-monitor.js
 // プロモコードの残り枠監視とリマインド送信
 
-const { getRemainingStock } = require('./client');
+const { getRemainingStock, updatePromoCode } = require('./client');
 const { loadFreeUsers } = require('../free-users/manager');
 
 // KVストレージ（送信履歴管理用）
@@ -16,6 +16,11 @@ try {
 // プロモコードID（環境変数から取得、またはデフォルト値）
 const PROMO_CODE_ID = process.env.WHOP_PROMO_CODE_ID || process.env.PROMO_CODE_ID;
 const PROMO_CODE = process.env.WHOP_PROMO_CODE || 'DEFEND50';
+
+// 自動補充設定（環境変数から取得）
+const AUTO_RESTOCK_ENABLED = process.env.WHOP_AUTO_RESTOCK_ENABLED === 'true';
+const AUTO_RESTOCK_THRESHOLD = parseInt(process.env.WHOP_AUTO_RESTOCK_THRESHOLD || '20', 10); // デフォルト: 20枚以下で自動補充
+const AUTO_RESTOCK_TARGET = parseInt(process.env.WHOP_AUTO_RESTOCK_TARGET || '200', 10); // デフォルト: 200枚に補充
 
 // しきい値設定（残り枠数がこの値を下回ったときにリマインドを送信）
 const STOCK_THRESHOLDS = [
@@ -205,6 +210,68 @@ async function monitorPromoCodeStock() {
 
     console.log(`[PromoMonitor] Remaining stock: ${remainingStock}`);
 
+    // 自動補充の実行（在庫が少ない場合）
+    let autoRestockResult = null;
+    if (remainingStock !== null && remainingStock <= AUTO_RESTOCK_THRESHOLD) {
+      autoRestockResult = await autoRestockPromoCode(remainingStock);
+      
+      // 自動補充が成功した場合、在庫数を更新
+      if (autoRestockResult && autoRestockResult.success) {
+        remainingStock = autoRestockResult.toStock;
+        console.log(`[PromoMonitor] Stock updated after auto restock: ${remainingStock}`);
+      }
+    }
+
+    // 在庫切れ時のCEO通知（緊急対応）
+    if (remainingStock === 0) {
+      console.error('[PromoMonitor] ⚠️ CRITICAL: Promo code stock is ZERO! CEO notification needed.');
+      try {
+        const { sendVSLWorkflowReport } = require('../email/ceo-report');
+        await sendVSLWorkflowReport({
+          status: 'CRITICAL',
+          summary: {
+            'Promo Code': PROMO_CODE,
+            'Remaining Stock': '0 (SOLD OUT)',
+            'Action Required': 'Increase stock immediately',
+          },
+          issues: [
+            `⚠️ CRITICAL: Promo code "${PROMO_CODE}" is SOLD OUT (0 remaining).`,
+            'Action: Increase stock in Whop Dashboard immediately to prevent revenue loss.',
+            'Recommended stock: 100-200 units based on 48h forecast (100-225 conversions expected).',
+          ],
+        }).catch(error => {
+          console.error('[PromoMonitor] Failed to send CEO notification:', error.message);
+        });
+      } catch (error) {
+        console.error('[PromoMonitor] CEO notification error:', error.message);
+      }
+    }
+
+    // 在庫が少ない場合のCEO警告（10枚以下）
+    if (remainingStock > 0 && remainingStock <= 10) {
+      console.warn(`[PromoMonitor] ⚠️ WARNING: Promo code stock is low (${remainingStock} remaining). CEO notification needed.`);
+      try {
+        const { sendVSLWorkflowReport } = require('../email/ceo-report');
+        await sendVSLWorkflowReport({
+          status: 'WARNING',
+          summary: {
+            'Promo Code': PROMO_CODE,
+            'Remaining Stock': `${remainingStock} (LOW STOCK)`,
+            'Action Required': 'Consider increasing stock',
+          },
+          issues: [
+            `⚠️ WARNING: Promo code "${PROMO_CODE}" stock is low (${remainingStock} remaining).`,
+            'Action: Consider increasing stock in Whop Dashboard to prevent stockout.',
+            'Recommended stock: 100-200 units based on 48h forecast.',
+          ],
+        }).catch(error => {
+          console.error('[PromoMonitor] Failed to send CEO warning:', error.message);
+        });
+      } catch (error) {
+        console.error('[PromoMonitor] CEO warning error:', error.message);
+      }
+    }
+
     // しきい値をチェック
     const threshold = STOCK_THRESHOLDS.find(t => remainingStock <= t.threshold);
     if (!threshold) {
@@ -289,7 +356,8 @@ async function monitorPromoCodeStock() {
       await markThresholdSent(threshold.threshold);
     }
 
-    return {
+    // 在庫切れまたは在庫が少ない場合の結果に警告フラグを追加
+    const result = {
       success: true,
       remainingStock,
       sent,
@@ -297,6 +365,22 @@ async function monitorPromoCodeStock() {
       total: freeUsers.length,
       threshold: threshold.threshold,
     };
+
+    // 自動補充の結果を追加
+    if (autoRestockResult) {
+      result.autoRestock = autoRestockResult;
+    }
+
+    // 在庫切れまたは在庫が少ない場合の警告フラグ
+    if (remainingStock === 0) {
+      result.stockout = true;
+      result.warning = 'CRITICAL: Stock is ZERO!';
+    } else if (remainingStock <= 10) {
+      result.lowStock = true;
+      result.warning = `WARNING: Stock is low (${remainingStock} remaining)`;
+    }
+
+    return result;
   } catch (error) {
     console.error('[PromoMonitor] Monitoring failed:', error.message);
     throw error;
