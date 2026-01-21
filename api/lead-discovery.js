@@ -303,7 +303,6 @@ async function processLeadQueue(req, res) {
   }
 }
 
-module.exports = {
-  handleLeadDiscovery,
-  processLeadQueue,
-};
+// Vercel Serverless Functions用のデフォルトエクスポート
+module.exports = handleLeadDiscovery;
+module.exports.processLeadQueue = processLeadQueue;

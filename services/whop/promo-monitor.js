@@ -180,6 +180,160 @@ async function markThresholdSent(threshold) {
 }
 
 /**
+ * 自動補充の実行履歴をチェック（重複実行防止）
+ * @param {number} currentStock - 現在の在庫数
+ * @returns {Promise<boolean>} 既に自動補充済みの場合はtrue
+ */
+async function hasAutoRestocked(currentStock) {
+  if (!kvStorage || !PROMO_CODE_ID) {
+    return false;
+  }
+
+  try {
+    const key = `promo_auto_restock_${PROMO_CODE_ID}_${currentStock}`;
+    const restocked = await kvStorage.get(key);
+    return Boolean(restocked);
+  } catch (error) {
+    console.warn('[PromoMonitor] Failed to check auto restock history:', error.message);
+    return false;
+  }
+}
+
+/**
+ * 自動補充の実行履歴を記録（重複実行防止）
+ * @param {number} currentStock - 自動補充時の在庫数
+ * @param {number} newStock - 自動補充後の在庫数
+ */
+async function markAutoRestocked(currentStock, newStock) {
+  if (!kvStorage || !PROMO_CODE_ID) {
+    return;
+  }
+
+  try {
+    const key = `promo_auto_restock_${PROMO_CODE_ID}_${currentStock}`;
+    await kvStorage.set(key, {
+      restockedAt: new Date().toISOString(),
+      fromStock: currentStock,
+      toStock: newStock,
+    });
+    console.log(`[PromoMonitor] Marked auto restock: ${currentStock} → ${newStock}`);
+  } catch (error) {
+    console.warn('[PromoMonitor] Failed to mark auto restock:', error.message);
+  }
+}
+
+/**
+ * プロモコードの在庫を自動補充
+ * @param {number} currentStock - 現在の在庫数
+ * @returns {Promise<Object|null>} 補充結果 {success, fromStock, toStock, error} または null（補充不要）
+ */
+async function autoRestockPromoCode(currentStock) {
+  // 自動補充が無効の場合はスキップ
+  if (!AUTO_RESTOCK_ENABLED) {
+    return null;
+  }
+
+  // しきい値を超えている場合は補充不要
+  if (currentStock > AUTO_RESTOCK_THRESHOLD) {
+    return null;
+  }
+
+  // 既に自動補充済みの場合はスキップ（重複実行防止）
+  const alreadyRestocked = await hasAutoRestocked(currentStock);
+  if (alreadyRestocked) {
+    console.log(`[PromoMonitor] Auto restock already executed for stock ${currentStock}, skipping`);
+    return null;
+  }
+
+  try {
+    console.log(`[PromoMonitor] 🤖 Auto restocking: ${currentStock} → ${AUTO_RESTOCK_TARGET}`);
+    
+    // Whop APIから現在のプロモコード情報を取得（usesを取得するため）
+    const { getPromoCode } = require('./client');
+    const promoCode = await getPromoCode(PROMO_CODE_ID);
+    const currentUses = promoCode.uses || 0;
+    
+    // stockは「総在庫数」なので、目標残り在庫数 + 使用済み数に設定
+    // 例: 残り在庫50枚にしたい場合、usesが10なら、stockは60に設定
+    const targetTotalStock = AUTO_RESTOCK_TARGET + currentUses;
+    
+    console.log(`[PromoMonitor] Current uses: ${currentUses}, Target remaining: ${AUTO_RESTOCK_TARGET}, Setting total stock to: ${targetTotalStock}`);
+    
+    // Whop APIで在庫を更新（総在庫数を設定）
+    const result = await updatePromoCode(PROMO_CODE_ID, {
+      stock: targetTotalStock,
+      unlimited_stock: false,
+    });
+
+    // 自動補充の実行履歴を記録（残り在庫数を記録）
+    await markAutoRestocked(currentStock, AUTO_RESTOCK_TARGET);
+
+    console.log(`[PromoMonitor] ✅ Auto restock successful: ${currentStock} → ${AUTO_RESTOCK_TARGET} (total stock: ${targetTotalStock}, uses: ${currentUses})`);
+
+    // CEOレポートに自動補充の結果を送信
+    try {
+      const { sendVSLWorkflowReport } = require('../email/ceo-report');
+      await sendVSLWorkflowReport({
+        status: 'SUCCESS',
+        summary: {
+          'Promo Code': PROMO_CODE,
+          'Auto Restock': 'EXECUTED',
+          'From Stock': `${currentStock}`,
+          'To Stock': `${AUTO_RESTOCK_TARGET}`,
+        },
+        issues: [
+          `✅ Auto restock executed: Promo code "${PROMO_CODE}" stock increased from ${currentStock} to ${AUTO_RESTOCK_TARGET}.`,
+          `Threshold: ${AUTO_RESTOCK_THRESHOLD}, Target: ${AUTO_RESTOCK_TARGET}`,
+        ],
+      }).catch(error => {
+        console.error('[PromoMonitor] Failed to send auto restock report:', error.message);
+      });
+    } catch (error) {
+      console.error('[PromoMonitor] Auto restock report error:', error.message);
+    }
+
+    return {
+      success: true,
+      fromStock: currentStock,
+      toStock: AUTO_RESTOCK_TARGET,
+    };
+  } catch (error) {
+    console.error(`[PromoMonitor] ❌ Auto restock failed:`, error.message);
+    
+    // エラー時もCEOレポートを送信
+    try {
+      const { sendVSLWorkflowReport } = require('../email/ceo-report');
+      await sendVSLWorkflowReport({
+        status: 'ERROR',
+        summary: {
+          'Promo Code': PROMO_CODE,
+          'Auto Restock': 'FAILED',
+          'Current Stock': `${currentStock}`,
+          'Error': error.message,
+        },
+        issues: [
+          `❌ Auto restock failed: Promo code "${PROMO_CODE}" stock update failed.`,
+          `Current stock: ${currentStock}, Target: ${AUTO_RESTOCK_TARGET}`,
+          `Error: ${error.message}`,
+          'Action: Please manually increase stock in Whop Dashboard.',
+        ],
+      }).catch(reportError => {
+        console.error('[PromoMonitor] Failed to send auto restock error report:', reportError.message);
+      });
+    } catch (reportError) {
+      console.error('[PromoMonitor] Auto restock error report error:', reportError.message);
+    }
+
+    return {
+      success: false,
+      fromStock: currentStock,
+      toStock: currentStock,
+      error: error.message,
+    };
+  }
+}
+
+/**
  * プロモコードの残り枠を監視し、必要に応じてリマインドを送信
  * @returns {Promise<Object>} 監視結果 {remainingStock, sent, threshold}
  */
