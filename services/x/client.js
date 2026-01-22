@@ -26,12 +26,25 @@ const oauth = OAuth({
 });
 
 /**
- * X APIリクエストを実行（OAuth 1.0a User Context認証）
+ * レート制限エラーかどうかを判定
+ * @param {Error} error - エラーオブジェクト
+ * @returns {boolean} レート制限エラーの場合true
+ */
+function isRateLimitError(error) {
+  if (!error) return false;
+  const statusMatch = error.message?.match(/X API Error: (\d+)/);
+  const status = statusMatch ? parseInt(statusMatch[1]) : null;
+  return status === 429 || error.message?.includes('rate limit') || error.message?.includes('Rate limit');
+}
+
+/**
+ * X APIリクエストを実行（OAuth 1.0a User Context認証、リトライ対応）
  * @param {string} endpoint - APIエンドポイント
  * @param {Object} options - リクエストオプション
+ * @param {number} maxRetries - 最大リトライ回数（デフォルト: 3）
  * @returns {Promise<Object>} APIレスポンス
  */
-async function xApiRequest(endpoint, options = {}) {
+async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
   if (!X_API_CONSUMER_KEY || !X_API_CONSUMER_KEY_SECRET || !X_API_ACCESS_TOKEN || !X_API_ACCESS_TOKEN_SECRET) {
     throw new Error('X_API_CONSUMER_KEY, X_API_CONSUMER_KEY_SECRET, X_API_ACCESS_TOKEN, and X_API_ACCESS_TOKEN_SECRET are required for OAuth 1.0a User Context authentication.');
   }
@@ -58,28 +71,57 @@ async function xApiRequest(endpoint, options = {}) {
     ...options.headers,
   };
 
-  try {
-    const response = await fetch(url, {
-      method,
-      headers,
-      body: options.body ? JSON.stringify(options.body) : undefined,
-    });
+  // リトライロジック（指数バックオフ）
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method,
+        headers,
+        body: options.body ? JSON.stringify(options.body) : undefined,
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { detail: errorText };
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { detail: errorText };
+        }
+        
+        const error = new Error(`X API Error: ${response.status} - ${JSON.stringify(errorData)}`);
+        
+        // レート制限エラー（429）の場合、リトライ
+        if (response.status === 429 && attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 1000; // 指数バックオフ: 1s, 2s, 4s
+          console.warn(`[X API] Rate limit hit, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        throw error;
       }
-      throw new Error(`X API Error: ${response.status} - ${JSON.stringify(errorData)}`);
-    }
 
-    return await response.json();
-  } catch (error) {
-    console.error('[X API] Request failed:', error.message);
-    throw error;
+      return await response.json();
+    } catch (error) {
+      // レート制限エラーの場合、リトライ
+      if (isRateLimitError(error) && attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // 指数バックオフ: 1s, 2s, 4s
+        console.warn(`[X API] Rate limit error, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // 最後の試行またはレート制限以外のエラーの場合
+      if (attempt === maxRetries) {
+        console.error('[X API] Request failed after retries:', error.message);
+        throw error;
+      }
+      
+      // その他のエラーは即座にスロー
+      console.error('[X API] Request failed:', error.message);
+      throw error;
+    }
   }
 }
 
@@ -137,12 +179,14 @@ async function uploadMedia(mediaBuffer) {
 }
 
 /**
- * Xにツイートを投稿
+ * Xにツイートを投稿（リトライ対応）
  * @param {string} text - ツイート本文（最大280文字）
  * @param {string[]} mediaIds - 添付するメディアIDの配列 (オプション)
+ * @param {Object} pollOptions - ポールオプション (オプション) {options: [{text, position}], duration_minutes: number}
+ * @param {number} maxRetries - 最大リトライ回数（デフォルト: 3）
  * @returns {Promise<Object>} 投稿結果 {id, text}
  */
-async function postTweet(text, mediaIds = []) {
+async function postTweet(text, mediaIds = [], pollOptions = null, maxRetries = 3) {
   if (!text || text.trim().length === 0) {
     throw new Error('Tweet text is required');
   }
@@ -163,11 +207,22 @@ async function postTweet(text, mediaIds = []) {
     };
   }
 
+  // ポールオプションを追加（Grok推奨: エンゲージメント強化）
+  if (pollOptions && pollOptions.options && Array.isArray(pollOptions.options)) {
+    body.poll = {
+      options: pollOptions.options.map(opt => ({
+        label: opt.text,
+        position: opt.position || 0,
+      })),
+      duration_minutes: pollOptions.duration_minutes || 1440, // デフォルト24時間
+    };
+  }
+
   try {
     const response = await xApiRequest('/tweets', {
       method: 'POST',
       body,
-    });
+    }, maxRetries);
 
     console.log(`[X API] Tweet posted successfully: ${response.data?.id}`);
     return {
@@ -318,6 +373,56 @@ async function replyToTweet(text, inReplyToTweetId, mediaIds = []) {
 }
 
 /**
+ * ツイートに引用リポストを投稿（リトライ対応）
+ * @param {string} text - 引用リポスト本文
+ * @param {string} quoteTweetId - 引用するツイートID
+ * @param {string[]} mediaIds - 添付するメディアIDの配列 (オプション)
+ * @param {number} maxRetries - 最大リトライ回数（デフォルト: 3）
+ * @returns {Promise<Object>} 投稿結果 {id, text}
+ */
+async function postQuoteTweet(text, quoteTweetId, mediaIds = [], maxRetries = 3) {
+  if (!text || text.trim().length === 0) {
+    throw new Error('Quote tweet text is required');
+  }
+  if (!quoteTweetId) {
+    throw new Error('quoteTweetId is required');
+  }
+
+  // X API v2の文字数制限は280文字
+  if (text.length > 280) {
+    console.warn(`[X API] Quote tweet text exceeds 280 characters (${text.length}), truncating...`);
+    text = text.substring(0, 277) + '...';
+  }
+
+  const body = {
+    text: text.trim(),
+    quote_tweet_id: quoteTweetId,
+  };
+
+  if (mediaIds && mediaIds.length > 0) {
+    body.media = {
+      media_ids: mediaIds
+    };
+  }
+
+  try {
+    const response = await xApiRequest('/tweets', {
+      method: 'POST',
+      body,
+    }, maxRetries);
+
+    console.log(`[X API] Quote tweet posted successfully: ${response.data?.id}`);
+    return {
+      id: response.data?.id,
+      text: response.data?.text,
+    };
+  } catch (error) {
+    console.error('[X API] Failed to post quote tweet:', error.message);
+    throw error;
+  }
+}
+
+/**
  * トレンドを取得（X API v1.1を使用）
  * @param {number} woeid - Where On Earth ID（1 = 全世界、23424856 = 日本など）
  * @returns {Promise<Array>} トレンド情報の配列
@@ -374,9 +479,11 @@ module.exports = {
   xApiRequest,
   postTweet,
   replyToTweet,
+  postQuoteTweet,
   uploadMedia,
   getUserByUsername,
   getMe,
   searchTweets,
   getTrends,
+  isRateLimitError,
 };

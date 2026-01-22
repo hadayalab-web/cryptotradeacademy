@@ -157,12 +157,14 @@ async function sendVSL2LastCall() {
       try {
         const userLang = getUserLang(user);
         const userWhopUrl = getWhopProductUrl(userLang);
+        const userSource = user.source || 'telegram';
         const message = generateVSL2LastCallMessage(
           userLang,
           user.userName || 'there',
           VSL2_YOUTUBE_LINK,
           userWhopUrl,
-          PROMO_CODE
+          PROMO_CODE,
+          userSource
         );
         
         // Gemini CMO提案: インラインボタンを追加

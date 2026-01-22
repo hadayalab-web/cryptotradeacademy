@@ -18,22 +18,45 @@ function normalizeLang(value) {
 /**
  * /start コマンドのパラメータを解析
  * Grok CSO+CFO推奨: 正規表現強化で抽出精度99%以上
+ * ソース追跡対応: minimal_en_x, minimal_en_x_quote などのパターンを解析
  * @param {string} param - /startコマンドのパラメータ
- * @returns {Object} { lang: string|null, referralCode: string|null }
+ * @returns {Object} { lang: string|null, referralCode: string|null, source: string|null }
  */
 function parseStartParam(param) {
-  if (!param) return { lang: null, referralCode: null };
+  if (!param) return { lang: null, referralCode: null, source: null };
   
   // 正規化: 空白削除、小文字化
   const normalized = param.trim().toLowerCase();
 
   // 1. "minimal" のみの場合
   if (normalized === 'minimal') {
-    return { lang: null, referralCode: null };
+    return { lang: null, referralCode: null, source: 'telegram' };
   }
 
-  // 2. "minimal_ja", "minimal-en", "minimal_pt-br" などのパターン
-  // 強化された正規表現: minimal[_-](ja|en|es|pt-br|ptbr|ar|ko|jp|kr) を正確にマッチ
+  // 2. "minimal_en_x", "minimal_ja_x_quote" などのパターン（ソース追跡付き）
+  // パターン: minimal_[lang]_[source] または minimal_[lang]_x_quote
+  const minimalWithSourceMatch = normalized.match(/^minimal[_-](ja|en|es|pt[-_]?br|ar|ko|jp|kr)(?:_(x(?:_quote)?))?$/);
+  if (minimalWithSourceMatch) {
+    let langCode = minimalWithSourceMatch[1];
+    const sourcePart = minimalWithSourceMatch[2] || null;
+    
+    // 別名の正規化
+    if (langCode === 'jp') langCode = 'ja';
+    if (langCode === 'kr') langCode = 'ko';
+    if (langCode === 'ptbr' || langCode === 'pt_br') langCode = 'pt-br';
+    
+    // ソースの正規化
+    let source = 'telegram'; // デフォルト
+    if (sourcePart === 'x') {
+      source = 'x_direct';
+    } else if (sourcePart === 'x_quote') {
+      source = 'x_quote';
+    }
+    
+    return { lang: normalizeLang(langCode), referralCode: null, source };
+  }
+
+  // 3. "minimal_ja", "minimal-en", "minimal_pt-br" などのパターン（ソースなし）
   const minimalMatch = normalized.match(/^minimal[_-](ja|en|es|pt[-_]?br|ar|ko|jp|kr)$/);
   if (minimalMatch) {
     let langCode = minimalMatch[1];
@@ -41,17 +64,17 @@ function parseStartParam(param) {
     if (langCode === 'jp') langCode = 'ja';
     if (langCode === 'kr') langCode = 'ko';
     if (langCode === 'ptbr' || langCode === 'pt_br') langCode = 'pt-br';
-    return { lang: normalizeLang(langCode), referralCode: null };
+    return { lang: normalizeLang(langCode), referralCode: null, source: 'telegram' };
   }
 
-  // 3. 言語コードのみの場合（ja, en, es, pt-br, ar, ko）
+  // 4. 言語コードのみの場合（ja, en, es, pt-br, ar, ko）
   const lang = normalizeLang(normalized);
   if (lang) {
-    return { lang, referralCode: null };
+    return { lang, referralCode: null, source: 'telegram' };
   }
 
-  // 4. リファラルコードとして扱う
-  return { lang: null, referralCode: param };
+  // 5. リファラルコードとして扱う
+  return { lang: null, referralCode: param, source: 'telegram' };
 }
 
 /**
@@ -181,13 +204,13 @@ async function handleStartCommand(chatId, username, firstName, message) {
     // リファラルコードをチェック（例: /start minimal または /start ref_abc123）
     const parts = message.split(' ');
     const param = parts.length > 1 ? parts[1] : null;
-    const { lang: paramLang, referralCode } = parseStartParam(param);
+    const { lang: paramLang, referralCode, source } = parseStartParam(param);
     const defaultLang = normalizeLang(process.env.LANG || 'en') || 'en';
     const userLang = paramLang || defaultLang;
 
-    // 無料版ユーザーとして登録（ユーザー名も保存）
+    // 無料版ユーザーとして登録（ユーザー名とソースも保存）
     const userName = firstName || username || null;
-    const isNewUser = await addFreeUser(chatId, userName, userLang);
+    const isNewUser = await addFreeUser(chatId, userName, userLang, source || 'telegram');
 
     const welcomeMessage = `🌤️ Welcome to Trap Defense BTC - Free Version!
 

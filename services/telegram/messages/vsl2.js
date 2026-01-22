@@ -211,15 +211,22 @@ function addSubtitleParamsToYouTubeUrl(videoUrl, lang) {
  * @param {string} vsl2Link - VSL2動画リンク
  * @param {string} whopUrl - Whop商品ページURL
  * @param {string} promoCode - プロモーションコード
+ * @param {string} source - ソース（'telegram', 'x_direct', 'x_quote'）
  */
-function generateVSL2Message(lang, userName, vsl2Link, whopUrl, promoCode) {
+function generateVSL2Message(lang, userName, vsl2Link, whopUrl, promoCode, source = 'telegram') {
   const normalizedLang = lang && typeof lang === 'string' 
     ? lang.toLowerCase().replace('_', '-') 
     : 'en';
   
   // YouTubeリンクに字幕パラメータを追加
   const vsl2LinkWithSubtitles = addSubtitleParamsToYouTubeUrl(vsl2Link, normalizedLang);
-    
+  
+  // X経由ユーザー用のメッセージを使用
+  if (source === 'x_direct' || source === 'x_quote') {
+    const messageFn = VSL2_MESSAGES_X[normalizedLang] || VSL2_MESSAGES_X.en;
+    return messageFn(userName, vsl2LinkWithSubtitles, whopUrl, promoCode);
+  }
+  
   const messageFn = VSL2_MESSAGES[normalizedLang] || VSL2_MESSAGES.en;
   
   return messageFn(userName, vsl2LinkWithSubtitles, whopUrl, promoCode);

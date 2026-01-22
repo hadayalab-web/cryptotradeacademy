@@ -187,14 +187,128 @@ function addSubtitleParamsToYouTubeUrl(videoUrl, lang) {
 }
 
 /**
+ * X経由ユーザー用のVSL1リマインドメッセージ（パーソナライズ版）
+ */
+const VSL1_REMINDER_MESSAGES_X = {
+  en: (userName, deepLink, vsl1Link, hoursLeft) => `⏰ **${userName}, you found us on X!**
+
+You saw our Trap Score analysis. Now watch the video that explains WHY traps happen.
+
+🔥 **You came from X because:**
+• You saw our breaking trap analysis
+• You clicked because you need protection
+• This video shows you HOW to avoid traps
+
+⚠️ **Don't lose your capital. Watch this 1-minute video NOW:**
+${vsl1Link}
+💡 Subtitles available in 6 languages (EN, JA, ES, PT-BR, AR, KO)
+
+🚀 **Get the FREE trap avoidance logic:**
+👉 ${deepLink}
+
+#Bitcoin #CryptoTrading #TrapDefence`,
+  
+  ja: (userName, deepLink, vsl1Link, hoursLeft) => `⏰ **${userName}さん、Xから来てくれてありがとう！**
+
+トラップスコア分析を見てくれたんですね。なぜトラップが発生するのか、その理由を動画で説明します。
+
+🔥 **Xから来た理由:**
+• トラップ分析を見た
+• 保護が必要だと感じた
+• この動画で回避方法がわかる
+
+⚠️ **資金を失う前に、この1分間の動画を今すぐ見てください:**
+${vsl1Link}
+💡 字幕6言語対応
+
+🚀 **無料トラップ回避ロジックを入手:**
+👉 ${deepLink}
+
+#Bitcoin #BTC #仮想通貨 #トレード #TrapDefence`,
+  
+  es: (userName, deepLink, vsl1Link, hoursLeft) => `⏰ **${userName}, ¡nos encontraste en X!**
+
+Viste nuestro análisis de Trap Score. Ahora mira el video que explica POR QUÉ ocurren las trampas.
+
+🔥 **Viniste de X porque:**
+• Viste nuestro análisis de trampas
+• Hiciste clic porque necesitas protección
+• Este video te muestra CÓMO evitar trampas
+
+⚠️ **No pierdas tu capital. Mira este video de 1 minuto AHORA:**
+${vsl1Link}
+💡 Subtítulos en 6 idiomas
+
+🚀 **Obtén la lógica anti-trampas GRATIS:**
+👉 ${deepLink}
+
+#Bitcoin #Cripto #Trading #TrapDefence`,
+  
+  'pt-br': (userName, deepLink, vsl1Link, hoursLeft) => `⏰ **${userName}, você nos encontrou no X!**
+
+Você viu nossa análise de Trap Score. Agora assista ao vídeo que explica POR QUE as armadilhas acontecem.
+
+🔥 **Você veio do X porque:**
+• Viu nossa análise de armadilhas
+• Clicou porque precisa de proteção
+• Este vídeo mostra COMO evitar armadilhas
+
+⚠️ **Não perca seu capital. Assista a este vídeo de 1 minuto AGORA:**
+${vsl1Link}
+💡 Legendas em 6 idiomas
+
+🚀 **Obtenha a lógica anti-armadilhas GRÁTIS:**
+👉 ${deepLink}
+
+#Bitcoin #Cripto #Trading #TrapDefence`,
+  
+  ar: (userName, deepLink, vsl1Link, hoursLeft) => `⏰ **${userName}، وجدتنا على X!**
+
+رأيت تحليل Trap Score الخاص بنا. الآن شاهد الفيديو الذي يشرح لماذا تحدث الفخاخ.
+
+🔥 **جئت من X لأن:**
+• رأيت تحليل الفخاخ
+• نقرت لأنك تحتاج الحماية
+• هذا الفيديو يوضح كيفية تجنب الفخاخ
+
+⚠️ **لا تخسر رأس مالك. شاهد هذا الفيديو لمدة دقيقة واحدة الآن:**
+${vsl1Link}
+💡 ترجمات بـ 6 لغات
+
+🚀 **احصل على منطق تجنب الفخاخ مجاناً:**
+👉 ${deepLink}
+
+#Bitcoin #Crypto #تداول #TrapDefence`,
+  
+  ko: (userName, deepLink, vsl1Link, hoursLeft) => `⏰ **${userName}님, X에서 찾아주셨네요!**
+
+Trap Score 분석을 보셨군요. 이제 함정이 왜 발생하는지 설명하는 영상을 보세요.
+
+🔥 **X에서 온 이유:**
+• 함정 분석을 봤음
+• 보호가 필요하다고 느꼈음
+• 이 영상에서 회피 방법을 알 수 있음
+
+⚠️ **자금을 잃기 전에 이 1분짜리 영상을 지금 시청하세요:**
+${vsl1Link}
+💡 자막 6개 언어 지원
+
+🚀 **무료 함정 회피 로직 받기:**
+👉 ${deepLink}
+
+#Bitcoin #비트코인 #코인 #트레이딩 #TrapDefence`,
+};
+
+/**
  * 言語に応じたVSL1リマインドメッセージを生成
  * @param {string} lang - 言語コード (en, ja, es, pt-br, ar, ko)
  * @param {string} userName - ユーザー名（デフォルト: 'there'）
  * @param {string} deepLink - Telegram Botへのディープリンク
  * @param {string} vsl1Link - VSL1動画（YouTube）へのリンク
  * @param {number} hoursLeft - 残り時間（1-12時間のランダム）
+ * @param {string} source - ソース（'telegram', 'x_direct', 'x_quote'）
  */
-function generateVSL1ReminderMessage(lang, userName = 'there', deepLink, vsl1Link, hoursLeft = null) {
+function generateVSL1ReminderMessage(lang, userName = 'there', deepLink, vsl1Link, hoursLeft = null, source = 'telegram') {
   // 言語コードの正規化 (例: pt_br -> pt-br, PT-BR -> pt-br)
   const normalizedLang = lang && typeof lang === 'string' 
     ? lang.toLowerCase().replace('_', '-') 
@@ -206,7 +320,13 @@ function generateVSL1ReminderMessage(lang, userName = 'there', deepLink, vsl1Lin
   // YouTubeリンクに字幕パラメータを追加
   const vsl1LinkWithSubtitles = addSubtitleParamsToYouTubeUrl(vsl1Link, normalizedLang);
   
-  // 対応するメッセージ関数を取得（デフォルトは英語）
+  // X経由ユーザー用のメッセージを使用
+  if (source === 'x_direct' || source === 'x_quote') {
+    const messageFn = VSL1_REMINDER_MESSAGES_X[normalizedLang] || VSL1_REMINDER_MESSAGES_X.en;
+    return messageFn(userName, deepLink, vsl1LinkWithSubtitles, finalHoursLeft);
+  }
+  
+  // 通常のメッセージ関数を取得（デフォルトは英語）
   const messageFn = VSL1_REMINDER_MESSAGES[normalizedLang] || VSL1_REMINDER_MESSAGES.en;
   
   return messageFn(userName, deepLink, vsl1LinkWithSubtitles, finalHoursLeft);

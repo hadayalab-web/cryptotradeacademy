@@ -1652,6 +1652,27 @@ module.exports = async function handler(req, res) {
           // エラーが発生しても他の言語の配信を続行
         }
       }
+      
+      // 無料版レポート配信完了後、X投稿を実行（非同期、エラーは無視）
+      if (ENABLE_MINIMAL_VERSION && shouldSend && (isRegularSlot || force)) {
+        try {
+          const { postFreeReportToX } = require('./x-post-free-report');
+          const reportData = {
+            trapScore: minimalTrapScore,
+            priceUsd,
+            change24h,
+          };
+          
+          // 非同期で実行（エラーは無視）
+          postFreeReportToX(reportData).catch(error => {
+            console.error('[X Post Free Report] Failed:', error.message);
+          });
+          
+          console.log('[X Post Free Report] Triggered after free report delivery');
+        } catch (error) {
+          console.error('[X Post Free Report] Failed to trigger:', error.message);
+        }
+      }
     }
 
     // 7-B. EMERGENCY (Trap) - 15分ごとの緊急配信

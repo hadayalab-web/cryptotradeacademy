@@ -56,7 +56,21 @@ function formatRegularBriefing({
   const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
   const sentimentLine = `🧠 시장 심리: ${sentimentLabel || '알 수 없음'}`;
 
-  const scoreLine = `📈 시장 점수: ${Math.round(score ?? 0)}/100`;
+  // Market Scoreの解釈補助を追加
+  const marketScore = Math.round(score ?? 0);
+  let scoreInterpretation = '';
+  if (marketScore >= 50) {
+    scoreInterpretation = ' (상승세)';
+  } else if (marketScore >= 20) {
+    scoreInterpretation = ' (중립/안정)';
+  } else if (marketScore >= -20) {
+    scoreInterpretation = ' (중립/안정)';
+  } else if (marketScore >= -50) {
+    scoreInterpretation = ' (하락세)';
+  } else {
+    scoreInterpretation = ' (매우 하락세)';
+  }
+  const scoreLine = `📈 시장 점수: ${marketScore}/100${scoreInterpretation}`;
   const trapLine = trap?.isTrap
     ? `🧨 트랩 감지기: ${trap.label || '잠재적 트랩'} (${trap.confidence} 신뢰도)`
     : '✅ 트랩 감지기: 치명적인 트랩은 감지되지 않았습니다.';
@@ -290,7 +304,13 @@ ${sentimentLabel.toLowerCase()} 센티먼트는 ${sentimentLabel === 'Neutral' ?
   
   // 【改善1: Evidenceセクションの独立】証拠（Evidence）セクションを独立させて明確に表示
   // Trap RiskスコアまたはTrap Detectionスコアから証拠を生成（KO版はデータ重視）
-  const trapScoreForEvidence = trapRisk?.trapRiskScore ?? trapDetection?.trapScore ?? null;
+  // 優先順位: trapDetection.trapScore > trapRisk.trapRiskScore（値が0の場合は次のソースをチェック）
+  let trapScoreForEvidence = null;
+  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
+    trapScoreForEvidence = trapDetection.trapScore;
+  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
+    trapScoreForEvidence = trapRisk.trapRiskScore;
+  }
   const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
   
   if (trapScoreForEvidence !== null || trapDetection || trapAlert) {

@@ -3,6 +3,15 @@
 const OpenAI = require('openai');
 const { getMarketProfile } = require('../../api/config/marketProfiles');
 
+// Vercel KV（キャッシュ用）
+let kv = null;
+try {
+  const kvModule = require('@vercel/kv');
+  kv = kvModule.kv;
+} catch (error) {
+  console.warn('[Grok] @vercel/kv not available:', error.message);
+}
+
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
 
@@ -382,10 +391,180 @@ async function analyzeXSentimentLive(prompt, lang = 'en') {
   }
 }
 
+/**
+ * Grokがインフルエンサーを発掘（引用リポスト用）
+ * @param {string} lang - 言語コード
+ * @param {Object} options - オプション
+ * @param {number} options.maxResults - 最大結果数（デフォルト: 10）
+ * @returns {Promise<Array>} インフルエンサー情報の配列
+ */
+async function discoverInfluencersForQuoteRepost(lang = 'en', options = {}) {
+  if (!XAI_API_KEY) {
+    return [];
+  }
+
+  const { maxResults = 10 } = options;
+  const targetLang = (lang || 'en').toLowerCase();
+  const modelToUse = GROK_MODEL_X_LIVE;
+  
+  // キャッシュキーを生成（5分単位でキャッシュ）
+  const now = new Date();
+  const cacheMinute = Math.floor(now.getMinutes() / 5) * 5; // 5分単位
+  const cacheKey = `grok:influencers:${targetLang}:${now.toISOString().split('T')[0]}:${now.getHours()}:${cacheMinute}`;
+  const cacheTTL = 600; // 10分（秒）
+  
+  // キャッシュから取得を試みる
+  if (kv) {
+    try {
+      const cached = await kv.get(cacheKey);
+      if (cached && Array.isArray(cached) && cached.length > 0) {
+        console.log(`[Grok] Using cached influencers for ${targetLang} (${cached.length} results)`);
+        return cached.slice(0, maxResults);
+      }
+    } catch (error) {
+      console.warn('[Grok] Failed to get cached influencers:', error.message);
+    }
+  }
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: modelToUse,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are "Dr. Grok", an expert at finding hot influencers on X (Twitter) for crypto/BTC content. ' +
+            'Find influencers with high engagement rates, recent viral posts, and active audiences. ' +
+            'Return ONLY JSON. No markdown. No code fences. ' +
+            'Schema: {"influencers":[{"username":string,"tweetId":string,"tweetText":string,"engagementRate":number,"followerCount":number,"recentImpressions":number}]} ' +
+            'influencers: Array of influencer accounts with their recent hot tweets. ' +
+            'engagementRate: Estimated engagement rate (0-1, e.g., 0.05 = 5%). ' +
+            'followerCount: Estimated follower count (use ranges: 10000-50000, 50000-100000, 100000-500000, 500000+). ' +
+            'recentImpressions: Estimated recent impressions for their tweets (use ranges: 10000-50000, 50000-100000, 100000+). ' +
+            'CRITICAL: Include tweetId for EVERY influencer tweet. Without tweetId, we cannot quote repost.',
+        },
+        {
+          role: 'user',
+          content:
+            `Task: Find ${maxResults} hot influencers on X posting about BTC/crypto in ${targetLang} language.\n` +
+            `Focus on accounts with:\n` +
+            `- High engagement rates (5%+)\n` +
+            `- Recent viral posts (high impressions)\n` +
+            `- Active audiences\n` +
+            `- Crypto/BTC related content\n\n` +
+            `Return ${maxResults} influencers with their recent hot tweets.\n` +
+            `CRITICAL REQUIREMENTS:\n` +
+            `1. Include tweetId for EVERY tweet (numeric tweet ID, required for quote reposting)\n` +
+            `2. Prioritize tweets WITH tweet IDs\n` +
+            `3. Focus on accounts with high engagement rates\n` +
+            `4. Include actual tweet text in tweetText field\n` +
+            `5. Use username without @ symbol\n` +
+            `Example: {"username":"cryptotrader","tweetId":"1234567890123456789","tweetText":"BTC analysis...","engagementRate":0.08,"followerCount":50000,"recentImpressions":50000}`,
+        },
+      ],
+      max_tokens: 4000,
+      temperature: 0.3,
+    });
+
+    const text = completion?.choices?.[0]?.message?.content?.trim();
+    if (!text) return [];
+
+    const obj = safeJsonParse(text);
+    if (obj && obj.influencers && Array.isArray(obj.influencers)) {
+      const influencers = obj.influencers.slice(0, maxResults);
+      
+      // キャッシュに保存
+      if (kv && influencers.length > 0) {
+        try {
+          await kv.set(cacheKey, influencers, { ex: cacheTTL });
+          console.log(`[Grok] Cached influencers for ${targetLang} (TTL: ${cacheTTL}s)`);
+        } catch (error) {
+          console.warn('[Grok] Failed to cache influencers:', error.message);
+        }
+      }
+      
+      return influencers;
+    }
+
+    return [];
+  } catch (error) {
+    logCompactError('discoverInfluencersForQuoteRepost', error);
+    return [];
+  }
+}
+
+/**
+ * Grokが引用リポスト用のテキストを生成
+ * @param {string} lang - 言語コード
+ * @param {Object} influencerTweet - インフルエンサーのツイート情報
+ * @param {Object} reportData - レポートデータ（Trap Score、価格など）
+ * @param {string} deepLink - Telegram Deep Link
+ * @returns {Promise<string>} 引用リポスト用のテキスト
+ */
+async function generateQuoteRepostText(lang = 'en', influencerTweet, reportData = null, deepLink) {
+  if (!XAI_API_KEY) {
+    // フォールバック: テンプレートを使用
+    return `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}\n\n#BTC #TrapDefence`;
+  }
+
+  const targetLang = (lang || 'en').toLowerCase();
+  const modelToUse = GROK_MODEL_X_LIVE;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: modelToUse,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are "Dr. Grok", an expert at creating engaging quote reposts on X (Twitter) that maximize impressions. ' +
+            'Create compelling, attention-grabbing quote repost text that drives clicks to Telegram. ' +
+            'Be concise, engaging, and use psychological triggers (urgency, FOMO, curiosity). ' +
+            'Maximum 200 characters. Include the Telegram Deep Link. ' +
+            'Use relevant hashtags. Make it irresistible to click.',
+        },
+        {
+          role: 'user',
+          content:
+            `Task: Generate a compelling quote repost text in ${targetLang} language.\n\n` +
+            `Original tweet: "${influencerTweet.tweetText?.substring(0, 200) || 'N/A'}"\n` +
+            `Trap Score: ${reportData?.trapScore || 'N/A'}/100\n` +
+            `BTC Price: $${reportData?.priceUsd?.toLocaleString('en-US', { maximumFractionDigits: 0 }) || 'N/A'}\n` +
+            `Telegram Deep Link: ${deepLink}\n\n` +
+            `Requirements:\n` +
+            `- Maximum 200 characters\n` +
+            `- Engaging and attention-grabbing\n` +
+            `- Include Telegram Deep Link\n` +
+            `- Use psychological triggers (urgency, FOMO, curiosity)\n` +
+            `- Use relevant hashtags\n` +
+            `- Make it irresistible to click\n\n` +
+            `Generate the quote repost text:`,
+        },
+      ],
+      max_tokens: 300,
+      temperature: 0.7,
+    });
+
+    const text = completion?.choices?.[0]?.message?.content?.trim();
+    if (text && text.length <= 280) {
+      return text;
+    }
+
+    // フォールバック: テンプレートを使用
+    return `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}\n\n#BTC #TrapDefence`;
+  } catch (error) {
+    logCompactError('generateQuoteRepostText', error);
+    // フォールバック: テンプレートを使用
+    return `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}\n\n#BTC #TrapDefence`;
+  }
+}
+
 module.exports = {
   analyzeMarket,
   analyzeXSentimentLive,
   discoverLeadsOnX, // リード発見専用（Grok X AI API）
+  discoverInfluencersForQuoteRepost, // インフルエンサー発掘（引用リポスト用）
+  generateQuoteRepostText, // 引用リポスト用テキスト生成
   isRateLimitError,
   // Phase 2: 用途別モデルをエクスポート（他のファイルで使用可能）
   GROK_MODEL_MARKET,

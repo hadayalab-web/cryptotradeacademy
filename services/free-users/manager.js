@@ -140,9 +140,10 @@ async function saveFreeUsers(users) {
  * @param {string} chatId - TelegramチャットID
  * @param {string} userName - ユーザー名（オプション）
  * @param {string} lang - 言語コード（オプション）
+ * @param {string} source - ソース（'telegram', 'x_direct', 'x_quote'など、オプション）
  * @returns {Promise<boolean>} 追加に成功したかどうか（新規ユーザーの場合true）
  */
-async function addFreeUser(chatId, userName = null, lang = null) {
+async function addFreeUser(chatId, userName = null, lang = null, source = null) {
   if (!chatId) {
     console.warn('[FreeUsers] Invalid chatId:', chatId);
     return false;
@@ -171,11 +172,13 @@ async function addFreeUser(chatId, userName = null, lang = null) {
       joinedAt: new Date().toISOString(),
       vsl2Sent: false,
       vsl2LastCallSent: false,
+      vsl1ReminderSent: false,
       userName: userName || null,
       lang: normalizedLang,
+      source: source || 'telegram', // ソース追跡
     });
     await saveFreeUsers(users);
-    console.log(`[FreeUsers] Added free user: ${normalizedChatId} (lang: ${normalizedLang || 'unknown'}, joinedAt: ${new Date().toISOString()})`);
+    console.log(`[FreeUsers] Added free user: ${normalizedChatId} (lang: ${normalizedLang || 'unknown'}, source: ${source || 'telegram'}, joinedAt: ${new Date().toISOString()})`);
     return true;
   } else {
     // 既存ユーザーの場合、joinedAtは更新しない（初回参加日時を保持）
@@ -193,6 +196,12 @@ async function addFreeUser(chatId, userName = null, lang = null) {
         existingUser.userName = userName;
         updated = true;
       }
+      // ソース情報の補完（既存ユーザーにソースが無い場合）
+      if (source && !existingUser.source) {
+        existingUser.source = source;
+        updated = true;
+        console.log(`[FreeUsers] Updated source for existing user: ${normalizedChatId} -> ${source}`);
+      }
       // chatIdの正規化（既存データの整合性確保）
       if (existingUser.chatId !== normalizedChatId) {
         existingUser.chatId = normalizedChatId;
@@ -205,8 +214,10 @@ async function addFreeUser(chatId, userName = null, lang = null) {
         joinedAt: new Date().toISOString(),
         vsl2Sent: false,
         vsl2LastCallSent: false,
+        vsl1ReminderSent: false,
         userName: userName || null,
         lang: normalizedLang,
+        source: source || existingUser.source || 'telegram', // ソース追跡
       };
       updated = true;
     }

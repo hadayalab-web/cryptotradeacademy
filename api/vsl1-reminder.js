@@ -71,11 +71,14 @@ async function sendVSL1Reminder() {
         const userLang = normalizeLang(user.lang) || 'en';
         const userName = user.userName || (userLang === 'ja' ? 'さん' : userLang === 'ko' ? '님' : 'there');
         
+        // ソース情報を取得（X経由ユーザーのパーソナライズ用）
+        const userSource = user.source || 'telegram';
+        
         // Deep Linkを生成
         const deepLink = getTelegramDeepLink(userLang);
         
-        // 多言語対応のリマインドメッセージを生成
-        const message = generateVSL1ReminderMessage(userLang, userName, deepLink, VSL1_YOUTUBE_LINK);
+        // 多言語対応のリマインドメッセージを生成（ソース情報を渡す）
+        const message = generateVSL1ReminderMessage(userLang, userName, deepLink, VSL1_YOUTUBE_LINK, null, userSource);
         
         // インラインボタンを生成（VSL1と同じ）
         const inlineKeyboard = generateVSL1InlineKeyboard(userLang);

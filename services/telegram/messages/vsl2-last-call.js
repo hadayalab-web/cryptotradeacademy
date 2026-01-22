@@ -175,20 +175,152 @@ function addSubtitleParamsToYouTubeUrl(videoUrl, lang) {
 }
 
 /**
+ * X経由ユーザー用のVSL2 Last Callメッセージ（パーソナライズ版）
+ */
+const VSL2_LAST_CALL_MESSAGES_X = {
+  en: (userName, vsl2Link, whopUrl, promoCode) => `⏰ **Last Call, ${userName}! You came from X.**
+
+You saw our Trap Score and joined. Don't miss the upgrade.
+
+This is your final chance to get the complete defense system.
+
+✅ Complete on-chain analysis  
+✅ Real-time trap alerts  
+✅ Dr. Grok support
+
+🎬 **Watch why pros always win:**
+${vsl2Link}
+💡 Subtitles in 6 languages
+
+💰 **50% OFF Coupon:**
+Code: \`${promoCode}\`
+
+🚀 **Claim your upgrade:**
+${whopUrl}?promo=${promoCode}`,
+  
+  ja: (userName, vsl2Link, whopUrl, promoCode) => `⏰ **${userName}さん、最終案内です。Xから来てくれてありがとう。**
+
+トラップスコアを見て参加してくれたんですね。アップグレードをお見逃しなく。
+
+完全な防衛体制を手に入れる最後のチャンスです。
+
+✅ 完全オンチェーン分析  
+✅ リアルタイムトラップ検知  
+✅ Dr. Grokサポート
+
+🎬 **勝てる人の理由を見る:**
+${vsl2Link}
+💡 字幕6言語対応
+
+💰 **50%OFFクーポン:**
+コード: \`${promoCode}\`
+
+🚀 **申込はこちら:**
+${whopUrl}?promo=${promoCode}`,
+  
+  es: (userName, vsl2Link, whopUrl, promoCode) => `⏰ **¡Último aviso, ${userName}! Viniste de X.**
+
+Viste nuestro Trap Score y te uniste. No te pierdas el upgrade.
+
+Esta es tu última oportunidad de obtener el sistema de defensa completo.
+
+✅ Análisis on-chain completo  
+✅ Alertas de trampas en tiempo real  
+✅ Soporte Dr. Grok
+
+🎬 **Mira por qué los pros siempre ganan:**
+${vsl2Link}
+💡 Subtítulos en 6 idiomas
+
+💰 **Cupón 50% OFF:**
+Código: \`${promoCode}\`
+
+🚀 **Activa tu upgrade:**
+${whopUrl}?promo=${promoCode}`,
+  
+  'pt-br': (userName, vsl2Link, whopUrl, promoCode) => `⏰ **Último aviso, ${userName}! Você veio do X.**
+
+Você viu nosso Trap Score e se juntou. Não perca o upgrade.
+
+Esta é sua última chance de obter o sistema de defesa completo.
+
+✅ Análise on-chain completa  
+✅ Alertas de armadilhas em tempo real  
+✅ Suporte Dr. Grok
+
+🎬 **Veja por que os profissionais sempre vencem:**
+${vsl2Link}
+💡 Legendas em 6 idiomas
+
+💰 **Cupom 50% OFF:**
+Código: \`${promoCode}\`
+
+🚀 **Garanta seu upgrade:**
+${whopUrl}?promo=${promoCode}`,
+  
+  ar: (userName, vsl2Link, whopUrl, promoCode) => `⏰ **آخر تذكير لك يا ${userName}! جئت من X.**
+
+رأيت Trap Score الخاص بنا وانضممت. لا تفوت الترقية.
+
+هذه فرصتك الأخيرة للحصول على نظام الدفاع الكامل.
+
+✅ تحليل On-Chain كامل  
+✅ تنبيهات فورية للفخاخ  
+✅ دعم Dr. Grok
+
+🎬 **شاهد لماذا يربح المحترفون دائماً:**
+${vsl2Link}
+💡 ترجمات بـ 6 لغات
+
+💰 **كوبون خصم 50%:**
+الرمز: \`${promoCode}\`
+
+🚀 **احصل على الترقية:**
+${whopUrl}?promo=${promoCode}`,
+  
+  ko: (userName, vsl2Link, whopUrl, promoCode) => `⏰ **${userName}님, 마지막 안내입니다. X에서 오셨네요.**
+
+Trap Score를 보고 가입하셨군요. 업그레이드를 놓치지 마세요.
+
+완전한 방어 시스템을 얻을 수 있는 마지막 기회입니다.
+
+✅ 완전한 온체인 분석  
+✅ 실시간 트랩 알림  
+✅ Dr. Grok 지원
+
+🎬 **상위 1%가 항상 이기는 이유 확인:**
+${vsl2Link}
+💡 자막 6개 언어 지원
+
+💰 **50% 할인 쿠폰:**
+코드: \`${promoCode}\`
+
+🚀 **업그레이드 신청:**
+${whopUrl}?promo=${promoCode}`,
+};
+
+/**
  * 言語に応じたVSL2 Last Callメッセージを生成
  * @param {string} lang - 言語コード
  * @param {string} userName - ユーザー名
  * @param {string} vsl2Link - VSL2動画リンク
  * @param {string} whopUrl - Whop商品ページURL
  * @param {string} promoCode - プロモーションコード
+ * @param {string} source - ソース（'telegram', 'x_direct', 'x_quote'）
  */
-function generateVSL2LastCallMessage(lang, userName, vsl2Link, whopUrl, promoCode) {
+function generateVSL2LastCallMessage(lang, userName, vsl2Link, whopUrl, promoCode, source = 'telegram') {
   const normalizedLang = lang && typeof lang === 'string'
     ? lang.toLowerCase().replace('_', '-')
     : 'en';
 
   // YouTubeリンクに字幕パラメータを追加
   const vsl2LinkWithSubtitles = addSubtitleParamsToYouTubeUrl(vsl2Link, normalizedLang);
+
+  // X経由ユーザー用のメッセージを使用
+  if (source === 'x_direct' || source === 'x_quote') {
+    const messageFn = VSL2_LAST_CALL_MESSAGES_X[normalizedLang] || VSL2_LAST_CALL_MESSAGES_X.en;
+    return messageFn(userName, vsl2LinkWithSubtitles, whopUrl, promoCode);
+  }
 
   const messageFn = VSL2_LAST_CALL_MESSAGES[normalizedLang] || VSL2_LAST_CALL_MESSAGES.en;
   return messageFn(userName, vsl2LinkWithSubtitles, whopUrl, promoCode);

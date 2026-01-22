@@ -2,7 +2,7 @@
   "crons": [
     { "path": "/api/cron", "schedule": "*/15 * * * *" },
     { "path": "/api/weekly-report", "schedule": "0 0 * * 0" },
-    { "path": "/api/vsl1-post", "schedule": "0 9,21 * * *" },
+    { "path": "/api/vsl1-post", "schedule": "0 14,20 * * *" },
     { "path": "/api/vsl2-free-users", "schedule": "0 * * * *" },
     { "path": "/api/vsl1-reminder", "schedule": "0 */12 * * *" },
     { "path": "/api/vsl2-last-call", "schedule": "0 * * * *" },
@@ -13,6 +13,8 @@
     { "path": "/api/lead-discovery/cvr-dashboard", "schedule": "0 0 * * 0" },
     { "path": "/api/lead-discovery/sync-purchases", "schedule": "0 */6 * * *" },
     { "path": "/api/lead-discovery-daily-report", "schedule": "0 9 * * *" },
-    { "path": "/api/lead-discovery-weekly-report", "schedule": "0 9 * * 1" }
+    { "path": "/api/lead-discovery-weekly-report", "schedule": "0 9 * * 1" },
+    { "path": "/api/x-post-free-report", "schedule": "5 6,18 * * *" },
+    { "path": "/api/x-quote-repost", "schedule": "0 12-22 * * *" }
   ]
 }

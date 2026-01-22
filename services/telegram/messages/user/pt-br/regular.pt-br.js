@@ -50,7 +50,21 @@ function formatRegularBriefing({
   const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
   const sentimentLine = `🧠 Sentimento de mercado: *${sentimentLabel || 'Desconhecido'}*`;
 
-  const scoreLine = `📈 Score de mercado: ${Math.round(score ?? 0)}/100`;
+  // Market Scoreの解釈補助を追加
+  const marketScore = Math.round(score ?? 0);
+  let scoreInterpretation = '';
+  if (marketScore >= 50) {
+    scoreInterpretation = ' (Altista)';
+  } else if (marketScore >= 20) {
+    scoreInterpretation = ' (Neutro/Estável)';
+  } else if (marketScore >= -20) {
+    scoreInterpretation = ' (Neutro/Estável)';
+  } else if (marketScore >= -50) {
+    scoreInterpretation = ' (Baixista)';
+  } else {
+    scoreInterpretation = ' (Muito Baixista)';
+  }
+  const scoreLine = `📈 Score de mercado: ${marketScore}/100${scoreInterpretation}`;
   const trapLine = trap?.isTrap
     ? `🧨 Detector de armadilhas: ${trap.label || 'Armadilha potencial'} (${trap.confidence} confiança)`
     : '✅ Detector de armadilhas: Nenhuma armadilha crítica detectada';
@@ -270,7 +284,13 @@ O sentimento ${sentimentLabel.toLowerCase()} reflete ${sentimentLabel === 'Neutr
   }
   
   // データに基づく理由セクション（常に表示して価値を提供）
-  const trapScoreForEvidence = trapRisk?.trapRiskScore ?? trapDetection?.trapScore ?? null;
+  // 優先順位: trapDetection.trapScore > trapRisk.trapRiskScore（値が0の場合は次のソースをチェック）
+  let trapScoreForEvidence = null;
+  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
+    trapScoreForEvidence = trapDetection.trapScore;
+  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
+    trapScoreForEvidence = trapRisk.trapRiskScore;
+  }
   const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
   
   if (trapScoreForEvidence !== null || trapDetection || trapAlert) {

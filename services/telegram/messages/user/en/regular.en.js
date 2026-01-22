@@ -318,8 +318,18 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
     // 【改善1: 証拠セクションの独立】Evidenceセクションを独立させて明確に表示
     const evidenceText = showContent.evidence || null;
     // Trap ScoreやTrap Risk Scoreから証拠を生成（showContentにevidenceがない場合のフォールバック）
+    // 優先順位: trapDetection.trapScore > trapScoreパラメータ > trapRisk.trapRiskScore
     const trapDataForEvidence = trapDetection || marketBug;
-    const trapScoreForEvidence = trapDataForEvidence?.trapScore || trapRisk?.trapRiskScore || trapScore || null;
+    let trapScoreForEvidence = null;
+    if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
+      trapScoreForEvidence = trapDetection.trapScore;
+    } else if (trapScore != null && trapScore > 0) {
+      trapScoreForEvidence = trapScore;
+    } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
+      trapScoreForEvidence = trapRisk.trapRiskScore;
+    } else if (trapDataForEvidence?.trapScore != null && trapDataForEvidence.trapScore > 0) {
+      trapScoreForEvidence = trapDataForEvidence.trapScore;
+    }
     const trapTypeForEvidence = trapDataForEvidence?.trapType || trapDataForEvidence?.bugType || null;
     
     // 重複チェック: テキストの類似度をチェック（完全一致だけでなく、部分的な重複も検出）
@@ -408,7 +418,15 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
   } else {
     // showContentがない場合でも証拠セクションと戦略的インサイトセクションを表示
     // Trap RiskスコアまたはTrap Detectionスコアから証拠を生成
-    const trapScoreForEvidence = trapRisk?.trapRiskScore ?? trapDetection?.trapScore ?? trapScore ?? null;
+    // 優先順位: trapDetection.trapScore > trapScoreパラメータ > trapRisk.trapRiskScore
+    let trapScoreForEvidence = null;
+    if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
+      trapScoreForEvidence = trapDetection.trapScore;
+    } else if (trapScore != null && trapScore > 0) {
+      trapScoreForEvidence = trapScore;
+    } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
+      trapScoreForEvidence = trapRisk.trapRiskScore;
+    }
     const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
     
     // データに基づく理由セクション（常に表示して価値を提供）
@@ -569,9 +587,19 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
   lines.push(''); // 空白行を追加して視覚的な区切りを作る
 
   // Phase 2: trapScore表示（EN市場専用）- 視覚的に強調（絵文字と空白行で強調）
-  if (trapScore != null) {
-    const trapScoreRounded = Math.round(trapScore);
-    const trapScoreEmoji = trapScore >= 60 ? '🚨 HIGH RISK' : trapScore >= 40 ? '⚠️ MODERATE' : '✅ LOW';
+  // 優先順位: trapDetection.trapScore > trapScoreパラメータ > trapRisk.trapRiskScore
+  let displayTrapScore = null;
+  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
+    displayTrapScore = trapDetection.trapScore;
+  } else if (trapScore != null && trapScore > 0) {
+    displayTrapScore = trapScore;
+  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
+    displayTrapScore = trapRisk.trapRiskScore;
+  }
+  
+  if (displayTrapScore != null) {
+    const trapScoreRounded = Math.round(displayTrapScore);
+    const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 HIGH RISK' : displayTrapScore >= 40 ? '⚠️ MODERATE' : '✅ LOW';
     // 太字は使わず、絵文字と空白行で視覚的に強調
     const trapScoreLine = `🎯 Trap Score: ${trapScoreRounded}/100 ${trapScoreEmoji}`;
     lines.push(trapScoreLine);

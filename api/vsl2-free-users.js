@@ -149,7 +149,8 @@ async function sendVSL2ToFreeUsers() {
       try {
         const userLang = getUserLang(user);
         const userWhopUrl = getWhopProductUrl(userLang);
-        const message = generateVSL2Message(userLang, user.userName || 'there', VSL2_YOUTUBE_LINK, userWhopUrl, PROMO_CODE);
+        const userSource = user.source || 'telegram';
+        const message = generateVSL2Message(userLang, user.userName || 'there', VSL2_YOUTUBE_LINK, userWhopUrl, PROMO_CODE, userSource);
         
         // Gemini CMO提案: インラインボタンを追加
         const inlineKeyboard = generateVSL2InlineKeyboard(userLang);
