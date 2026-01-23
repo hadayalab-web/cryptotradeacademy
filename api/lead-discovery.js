@@ -230,11 +230,21 @@ async function handleLeadDiscovery(req, res) {
                 if (lead.isPerfectMatch && lead.tweetId) {
                   const sent = await replyVSL1ToLead(lead);
                   // VSL1送信時にrecordVSL1Sentを実行
-                  if (sent && leadId) {
-                    await recordVSL1Sent(leadId);
+                  if (sent === true) {
+                    // 正常に送信された場合
+                    if (leadId) {
+                      await recordVSL1Sent(leadId);
+                    }
+                    await completeLead(jobId);
+                    stats.x.sent++;
+                  } else if (sent && sent.skipped) {
+                    // スキップされた場合（403エラーなど）- エラーとして扱わない
+                    await completeLead(jobId);
+                    // エラーカウントに含めない
+                  } else {
+                    // 送信失敗の場合
+                    stats.x.errors++;
                   }
-                  await completeLead(jobId);
-                  stats.x.sent++;
                 }
               } catch (error) {
                 console.error("[Lead Discovery] Failed to process trend lead:", error.message);
@@ -323,7 +333,8 @@ async function processLeadQueue(req, res) {
           sent = await replyVSL1ToLead(lead);
         }
 
-        if (sent) {
+        if (sent === true) {
+          // 正常に送信された場合
           // リードが既に記録されているか確認（leadIdが存在するか）
           let leadId = lead.leadId;
           // 未記録の場合は記録を実行
@@ -339,6 +350,10 @@ async function processLeadQueue(req, res) {
           }
           await completeLead(job.jobId);
           processed.push({ jobId: job.jobId, success: true });
+        } else if (sent && sent.skipped) {
+          // スキップされた場合（403エラーなど）- エラーとして扱わない
+          await completeLead(job.jobId);
+          processed.push({ jobId: job.jobId, success: true, note: `Skipped: ${sent.reason || 'unknown'}` });
         } else {
           // 送信失敗（重複送信など）の場合は完了として扱う
           await completeLead(job.jobId);
