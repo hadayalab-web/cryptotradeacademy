@@ -3,43 +3,19 @@
 // 実行頻度: 1時間ごと（過去24時間以内の引用リポストを追跡）
 
 const { trackMultipleQuoteRepostMetrics } = require('../services/x/metricsTracker');
-const { getInfluencerList } = require('../services/lead-discovery/influencerList');
+// 注意: influencerList機能は削除されました（エンドユーザー追跡機能の削除のため）
+// const { getInfluencerList } = require('../services/lead-discovery/influencerList');
 
 /**
  * 過去24時間以内の引用リポストを取得
+ * 注意: influencerList機能が削除されたため、現在は空の配列を返します
  * @returns {Promise<Array>} 引用リポストの配列
  */
 async function getRecentQuoteReposts() {
-  try {
-    const influencers = await getInfluencerList({ limit: 1000 });
-    const quoteReposts = [];
-    const now = Date.now();
-    const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
-
-    for (const influencer of influencers) {
-      if (!influencer.quoteReposts || !Array.isArray(influencer.quoteReposts)) {
-        continue;
-      }
-
-      for (const quoteRepost of influencer.quoteReposts) {
-        const postedAt = new Date(quoteRepost.postedAt).getTime();
-        
-        // 過去24時間以内の引用リポストのみ
-        if (postedAt >= twentyFourHoursAgo) {
-          quoteReposts.push({
-            quoteTweetId: quoteRepost.quoteTweetId,
-            influencerId: influencer.id,
-            postedAt: quoteRepost.postedAt,
-          });
-        }
-      }
-    }
-
-    return quoteReposts;
-  } catch (error) {
-    console.error('[Quote Repost Metrics] Failed to get recent quote reposts:', error.message);
-    return [];
-  }
+  // 注意: influencerList機能は削除されました（エンドユーザー追跡機能の削除のため）
+  // 将来的に、KVストレージから直接引用リポスト履歴を取得する実装に変更可能
+  console.warn('[Quote Repost Metrics] influencerList機能が削除されたため、引用リポスト履歴の取得をスキップします');
+  return [];
 }
 
 /**

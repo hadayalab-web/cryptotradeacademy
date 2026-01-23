@@ -8,14 +8,11 @@
     { "path": "/api/vsl2-last-call", "schedule": "0 * * * *" },
     { "path": "/api/promo-stock-monitor", "schedule": "*/15 * * * *" },
     { "path": "/api/monthly-engagement-report", "schedule": "0 0 1 * *" },
-    { "path": "/api/lead-discovery", "schedule": "0 */2 * * *" },
-    { "path": "/api/lead-discovery/process", "schedule": "*/5 * * * *" },
-    { "path": "/api/lead-discovery/cvr-dashboard", "schedule": "0 0 * * 0" },
-    { "path": "/api/lead-discovery/sync-purchases", "schedule": "0 */6 * * *" },
-    { "path": "/api/lead-discovery-daily-report", "schedule": "0 9 * * *" },
-    { "path": "/api/lead-discovery-weekly-report", "schedule": "0 9 * * 1" },
     { "path": "/api/x-post-free-report", "schedule": "5 6,18 * * *" },
     { "path": "/api/x-quote-repost", "schedule": "0 12-22 * * *" },
-    { "path": "/api/x-quote-repost-metrics", "schedule": "0 * * * *" }
+    { "path": "/api/x-quote-repost-metrics", "schedule": "0 * * * *" },
+    { "path": "/api/x-engagement-metrics", "schedule": "0 0 * * *" },
+    { "path": "/api/x-influencer-report", "schedule": "0 9 * * 1" },
+    { "path": "/api/x-algorithm-analysis", "schedule": "0 10 * * 1" }
   ]
 }

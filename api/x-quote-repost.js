@@ -12,7 +12,6 @@ const {
   getOptimizedHashtags,
 } = require('../services/x/optimization');
 const { QUOTE_REPOST_TEMPLATES } = require('./x-post-free-report');
-const { addInfluencerToList, recordQuoteRepost, generateInfluencerId } = require('../services/lead-discovery/influencerList');
 const { getTweetMetrics } = require('../services/x/metrics');
 const {
   getInfluencerCountForLang,
@@ -45,13 +44,46 @@ function parseBoolean(value, defaultValue = false) {
   return defaultValue;
 }
 
-function getTelegramDeepLinkWithSource(lang, source = 'x_quote') {
+function getTelegramDeepLinkWithSource(lang, source = 'x_quote', options = {}) {
   let botUsername = process.env.TELEGRAM_BOT_USERNAME || 'TrapDefenceBot';
   botUsername = botUsername.replace(/^@/, '');
   const normalizedLang = normalizeLang(lang) || 'en';
   
   const startParam = `minimal_${normalizedLang}_${source}`;
-  return `https://t.me/${botUsername}?start=${startParam}`;
+  let deepLink = `https://t.me/${botUsername}?start=${startParam}`;
+  
+  // Grok推奨: UTMパラメータ強化（ソース追跡強化）
+  const utmParams = [];
+  if (options.utm_source) {
+    utmParams.push(`utm_source=${encodeURIComponent(options.utm_source)}`);
+  } else {
+    utmParams.push(`utm_source=x_quote_${normalizedLang}`);
+  }
+  
+  if (options.utm_medium) {
+    utmParams.push(`utm_medium=${encodeURIComponent(options.utm_medium)}`);
+  } else {
+    utmParams.push(`utm_medium=social`);
+  }
+  
+  if (options.utm_campaign) {
+    utmParams.push(`utm_campaign=${encodeURIComponent(options.utm_campaign)}`);
+  } else {
+    const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    utmParams.push(`utm_campaign=quote_repost_${normalizedLang}_${dateStr}`);
+  }
+  
+  if (options.utm_content) {
+    utmParams.push(`utm_content=${encodeURIComponent(options.utm_content)}`);
+  } else if (options.influencerUsername) {
+    utmParams.push(`utm_content=influencer_${options.influencerUsername}`);
+  }
+  
+  if (utmParams.length > 0) {
+    deepLink += `&${utmParams.join('&')}`;
+  }
+  
+  return deepLink;
 }
 
 // 言語別引用リポストテンプレート（Xアルゴリズム最適化版: 140文字以内）
@@ -61,44 +93,50 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
     const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
     const netflowStr = exchangeNetflow ? `Inflow +${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
-    const question = trapScore <= 25 ? 'You waiting or trading?' : 'Protecting capital or chasing?';
+    // Grok推奨: 質問CTA必須（アルゴリズム評価UP）
+    const question = trapScore <= 25 ? '🚀 How do you trade? Reply!' : '💥 Protecting capital or chasing? Reply!';
     
-    return `🚨 Trap Score ${trapScore}/100: VERY LOW RISK! BTC ${priceStr} ${changeStr} ${netflowStr}. Patience wins! ${question} #BTC #TrapDefence ${deepLink}`;
+    return `Agree! TrapDefence detected this 🚀 ${question} ${deepLink} #Bitcoin #BTCAnalysis #TrapDefence`;
   },
   ja: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
     const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
-    const question = trapScore <= 25 ? '待機中？それとも取引中？' : '資本保護？それとも追いかけ中？';
+    // Grok推奨: 質問CTA必須
+    const question = trapScore <= 25 ? '🚀 どうトレードする？リプライ！' : '💥 資本保護？それとも追いかけ中？リプライ！';
     
-    return `🚨 Trap Score ${trapScore}/100: 極低リスク！BTC ${priceStr} ${changeStr}。忍耐が勝利！${question} #BTC #TrapDefence ${deepLink}`;
+    return `同意！TrapDefenceで検知済み 🚀 ${question} ${deepLink} #ビットコイン #ビットコイン分析 #TrapDefence`;
   },
   es: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
     const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
-    const question = trapScore <= 25 ? '¿Esperando o operando?' : '¿Protegiendo capital o persiguiendo?';
+    // Grok推奨: 質問CTA必須
+    const question = trapScore <= 25 ? '🚀 ¿Cómo operas? ¡Responde!' : '💥 ¿Protegiendo capital o persiguiendo? ¡Responde!';
     
-    return `🚨 Trap Score ${trapScore}/100: ¡RIESGO MUY BAJO! BTC ${priceStr} ${changeStr}. ¡La paciencia gana! ${question} #BTC #TrapDefence ${deepLink}`;
+    return `¡De acuerdo! TrapDefence detectó esto 🚀 ${question} ${deepLink} #Bitcoin #AnálisisBTC #TrapDefence`;
   },
   'pt-br': (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
     const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
-    const question = trapScore <= 25 ? 'Esperando ou operando?' : 'Protegendo capital ou perseguindo?';
+    // Grok推奨: 質問CTA必須
+    const question = trapScore <= 25 ? '🚀 Como você opera? Responda!' : '💥 Protegendo capital ou perseguindo? Responda!';
     
-    return `🚨 Trap Score ${trapScore}/100: RISCO MUITO BAIXO! BTC ${priceStr} ${changeStr}. Paciência vence! ${question} #BTC #TrapDefence ${deepLink}`;
+    return `Concordo! TrapDefence detectou isso 🚀 ${question} ${deepLink} #Bitcoin #AnáliseBTC #TrapDefence`;
   },
   ar: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
     const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
-    const question = trapScore <= 25 ? 'هل تنتظر أم تتداول؟' : 'هل تحمي رأس المال أم تطارد؟';
+    // Grok推奨: 質問CTA必須
+    const question = trapScore <= 25 ? '🚀 كيف تتداول؟ أجب!' : '💥 هل تحمي رأس المال أم تطارد؟ أجب!';
     
-    return `🚨 Trap Score ${trapScore}/100: مخاطر منخفضة جداً! BTC ${priceStr} ${changeStr}. الصبر يفوز! ${question} #BTC #TrapDefence ${deepLink}`;
+    return `موافق! TrapDefence اكتشف هذا 🚀 ${question} ${deepLink} #Bitcoin #تحليل_بيتكوين #TrapDefence`;
   },
   ko: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
     const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
-    const question = trapScore <= 25 ? '대기 중인가요? 거래 중인가요?' : '자본 보호 중인가요? 추격 중인가요?';
+    // Grok推奨: 質問CTA必須
+    const question = trapScore <= 25 ? '🚀 어떻게 거래하나요? 답글!' : '💥 자본 보호 중인가요? 추격 중인가요? 답글!';
     
-    return `🚨 Trap Score ${trapScore}/100: 매우 낮은 리스크! BTC ${priceStr} ${changeStr}. 인내가 승리! ${question} #BTC #TrapDefence ${deepLink}`;
+    return `동의! TrapDefence가 이것을 감지했습니다 🚀 ${question} ${deepLink} #비트코인 #비트코인분석 #TrapDefence`;
   },
 };
 
@@ -107,14 +145,27 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
  */
 async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData = null) {
   try {
-    const deepLink = getTelegramDeepLinkWithSource(lang, 'x_quote');
+    // Grok推奨: UTMパラメータ強化（インフルエンサー追跡）
+    const deepLink = getTelegramDeepLinkWithSource(lang, 'x_quote', {
+      influencerUsername: influencerTweet.username,
+      utm_content: `influencer_${influencerTweet.username}`,
+    });
     const quoteText = await generateQuoteRepostText(lang, influencerTweet, reportData, deepLink);
     return quoteText;
   } catch (error) {
     console.error(`[Quote Repost] Failed to generate text with Grok for ${lang}:`, error.message);
     // フォールバック: テンプレートを使用
     const template = QUOTE_REPOST_TEMPLATES[lang] || QUOTE_REPOST_TEMPLATES.en;
-    return template(getTelegramDeepLinkWithSource(lang, 'x_quote'));
+    return template(
+      reportData?.trapScore || 25,
+      reportData?.priceUsd || null,
+      reportData?.change24h || null,
+      getTelegramDeepLinkWithSource(lang, 'x_quote', {
+        influencerUsername: influencerTweet.username,
+      }),
+      reportData?.exchangeNetflow || null,
+      reportData?.whaleRatio || null
+    );
   }
 }
 
@@ -174,9 +225,9 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       return [];
     }
     
-    // 1日の投稿上限チェック（25投稿/日）
-    if (!checkDailyPostLimit(dailyPostCount, 25)) {
-      console.log(`⏰ Daily post limit reached (${dailyPostCount}/25), skipping ${lang}`);
+    // 1日の投稿上限チェック（35投稿/日 - Grok推奨）
+    if (!checkDailyPostLimit(dailyPostCount, 35)) {
+      console.log(`⏰ Daily post limit reached (${dailyPostCount}/35), skipping ${lang}`);
       return [];
     }
     
@@ -220,20 +271,22 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     
     // インフルエンサーをリストに追加（リスト管理）
     for (const influencer of influencers) {
-      try {
-        await addInfluencerToList({
-          ...influencer,
-          lang,
-        });
-      } catch (error) {
-        console.warn(`[Quote Repost] Failed to add influencer to list:`, error.message);
-      }
+      // 注意: influencerList機能は削除されました（エンドユーザー追跡機能の削除のため）
+      // try {
+      //   await addInfluencerToList({
+      //     ...influencer,
+      //     lang,
+      //   });
+      // } catch (error) {
+      //   console.warn(`[Quote Repost] Failed to add influencer to list:`, error.message);
+      // }
     }
     
     const results = [];
     
-    // 1人のインフルエンサーのみ（最適化: 12投稿/日）
-    for (const influencer of influencers.slice(0, 1)) {
+    // Grok推奨: ENは4本/日、その他は2本/日（言語別インフルエンサー数に基づく）
+    const maxInfluencers = targetCount; // EN: 4, その他: 2
+    for (const influencer of influencers.slice(0, maxInfluencers)) {
       try {
         // tweetIdが必須
         if (!influencer.tweetId) {
@@ -270,13 +323,26 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           // フォールバック: Xアルゴリズム最適化版テンプレートを使用
           const template = QUOTE_REPOST_TEMPLATES?.[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES.en;
           const { trapScore = 25, priceUsd = null, change24h = null, exchangeNetflow = null, whaleRatio = null } = reportData || {};
-          quoteText = template(trapScore, priceUsd, change24h, getTelegramDeepLinkWithSource(lang, 'x_quote'), exchangeNetflow, whaleRatio);
+          quoteText = template(
+            trapScore,
+            priceUsd,
+            change24h,
+            getTelegramDeepLinkWithSource(lang, 'x_quote', {
+              influencerUsername: influencer.username,
+              utm_content: `influencer_${influencer.username}`,
+            }),
+            exchangeNetflow,
+            whaleRatio
+          );
         }
         
-        // ハッシュタグを最適化（テンプレート内に既に含まれているが、必要に応じて調整）
-        const optimizedHashtags = getOptimizedHashtags(lang);
-        if (quoteText.includes('#BTC') && !quoteText.includes(optimizedHashtags[0])) {
-          quoteText = quoteText.replace(/#BTC.*#TrapDefence/g, optimizedHashtags.join(' '));
+        // Grok推奨: ハッシュタグを動的取得（トレンド1+ニッチ2）
+        const { getTrendyHashtags } = require('../services/x/optimization');
+        const optimizedHashtags = await getTrendyHashtags(lang, 'BTC').catch(() => getOptimizedHashtags(lang));
+        if (quoteText.includes('#BTC') || quoteText.includes('#Bitcoin')) {
+          // 動的ハッシュタグで置換
+          const hashtagStr = Array.isArray(optimizedHashtags) ? optimizedHashtags.join(' ') : optimizedHashtags;
+          quoteText = quoteText.replace(/#(?:BTC|Bitcoin).*#TrapDefence/g, hashtagStr);
         }
         
         // 140文字以内に制限（引用リポスト用）
@@ -292,9 +358,47 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         // 投稿数をインクリメント
         await incrementDailyPostCount(dateString, 1);
         
+        // 注意: influencerList機能は削除されました（エンドユーザー追跡機能の削除のため）
         // 引用リポストをリストに記録（メトリクスは後でCron Jobで追跡）
-        const influencerId = generateInfluencerId(influencer);
-        await recordQuoteRepost(influencerId, result.id);
+        // const influencerId = generateInfluencerId(influencer);
+        // await recordQuoteRepost(influencerId, result.id);
+        
+        // Grok推奨: EN実測ダッシュボード用メトリクス記録
+        try {
+          const { recordEngagementMetrics } = require('./x-engagement-metrics');
+          const quoteMetrics = await getTweetMetrics(result.id, true); // 自分のツイートなのでnon_public_metrics取得可能
+          if (quoteMetrics) {
+            const engagementMetrics = {
+              impressions: quoteMetrics.nonPublicMetrics?.impression_count || quoteMetrics.organicMetrics?.impression_count || 0,
+              engagements: (quoteMetrics.publicMetrics?.like_count || 0) +
+                          (quoteMetrics.publicMetrics?.retweet_count || 0) +
+                          (quoteMetrics.publicMetrics?.reply_count || 0) +
+                          (quoteMetrics.publicMetrics?.quote_count || 0),
+              clicks: quoteMetrics.nonPublicMetrics?.url_link_clicks || quoteMetrics.organicMetrics?.url_link_clicks || 0,
+              replies: quoteMetrics.publicMetrics?.reply_count || 0,
+              retweets: quoteMetrics.publicMetrics?.retweet_count || 0,
+              likes: quoteMetrics.publicMetrics?.like_count || 0,
+              quoteTweets: quoteMetrics.publicMetrics?.quote_count || 0,
+            };
+            
+            await recordEngagementMetrics(result.id, {
+              ...engagementMetrics,
+              lang,
+              source: 'quote_repost',
+              influencerUsername: influencer.username,
+            });
+            
+            // 最適化案: インフルエンサー別メトリクスを記録（インフルエンサー分析）
+            try {
+              const { recordInfluencerMetrics } = require('../services/x/influencerAnalyzer');
+              await recordInfluencerMetrics(influencer.username, result.id, engagementMetrics);
+            } catch (error) {
+              console.warn('[Quote Repost] Failed to record influencer metrics:', error.message);
+            }
+          }
+        } catch (error) {
+          console.warn(`[Quote Repost] Failed to record engagement metrics:`, error.message);
+        }
         
         // インフルエンサーのツイートのpublic_metricsを取得（正確なエンゲージメント数）
         let influencerMetrics = null;

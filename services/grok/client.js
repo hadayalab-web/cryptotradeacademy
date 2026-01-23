@@ -260,70 +260,6 @@ async function analyzeMarket(marketDataJson, xSentimentJson, lang = 'en', market
   }
 }
 
-/**
- * GrokでXからリードを発見（リード発見専用）
- * @param {string} prompt - リード発見クエリ
- * @param {string} lang - 言語コード
- * @returns {Promise<Object>} リード情報を含むJSON
- */
-async function discoverLeadsOnX(prompt, lang = 'en') {
-  if (!XAI_API_KEY) {
-    return { sources: [], summary: 'Grok offline' };
-  }
-
-  const targetLang = (lang || 'en').toLowerCase();
-  const modelToUse = GROK_MODEL_X_LIVE;
-
-  try {
-    const completion = await openai.chat.completions.create({
-      model: modelToUse,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are "Dr. Grok", scanning X (Twitter) to find BTC traders who need help. ' +
-            'Find as many traders as possible who have lost money, been hacked, or are experiencing FOMO/fear. ' +
-            'Return ONLY JSON. No markdown. No code fences. ' +
-            'Schema: {"sources":[{"handle":string,"note":string,"tweetId":string}],"summary":string} ' +
-            'sources: Array of X handles (@username), tweet content (note), and tweet IDs. ' +
-            'Return AT LEAST 50-100 sources if possible. More is better. ' +
-            'tweetId: The numeric tweet ID (REQUIRED for replying - MUST be included). ' +
-            'If tweet ID is not available, use null, but prioritize tweets WITH tweet IDs. ' +
-            'Focus on finding traders who mention: lost BTC, stolen wallet, hack attack, lost everything, afraid to trade, lost money trading, liquidation, margin call, trapped, FOMO, fear, panic, scam, fraud, rug pull. ' +
-            'CRITICAL: Include tweetId for EVERY source. Without tweetId, we cannot reply to the tweet.',
-        },
-        {
-          role: 'user',
-          content:
-            `Task: Find HIGH-QUALITY BTC traders on X who need protection/help.\n` +
-            `Language: ${targetLang}\n` +
-            `Query: ${prompt}\n` +
-            `Focus on PERFECT MATCH leads: traders who have lost BTC, been hacked, or are in distress. ` +
-            `Return 50-100 HIGH-QUALITY X handles (@username), tweet content, and tweet IDs. ` +
-            `CRITICAL REQUIREMENTS:\n` +
-            `1. Include tweetId for EVERY source (numeric tweet ID, required for replying)\n` +
-            `2. Prioritize tweets WITH tweet IDs over those without\n` +
-            `3. Return as many sources as possible (aim for 50-100)\n` +
-            `4. Only return leads that are clearly experiencing losses, hacks, or FOMO/fear\n` +
-            `5. Include the actual tweet text in the "note" field\n` +
-            `6. Use the format: @username (without @ symbol in handle field)\n` +
-            `Example: {"handle":"username","note":"I lost all my BTC in a hack attack","tweetId":"1234567890123456789"}`,
-        },
-      ],
-      max_tokens: 8000, // 最大限のリードを取得するため増加（50-100 sources対応）
-      temperature: 0.3, // より一貫性のある結果のため温度を下げる
-    });
-
-    const text = completion?.choices?.[0]?.message?.content?.trim();
-    if (!text) return { sources: [], summary: 'No results' };
-
-    const obj = safeJsonParse(text);
-    return obj || { sources: [], summary: text };
-  } catch (error) {
-    logCompactError('discoverLeadsOnX', error);
-    return { sources: [], summary: 'Error: ' + error.message };
-  }
-}
 
 // ---- X sentiment Live Search ---------------------------------------
 // 目的：X上の雰囲気を「構造化JSON」で返す（後方互換：文字列でもOK）
@@ -517,6 +453,8 @@ async function generateQuoteRepostText(lang = 'en', influencerTweet, reportData 
             'Create compelling, attention-grabbing quote repost text that drives clicks to Telegram. ' +
             'Be concise, engaging, and use psychological triggers (urgency, FOMO, curiosity). ' +
             'Maximum 200 characters. Include the Telegram Deep Link. ' +
+            'CRITICAL: MUST include a question CTA (e.g., "How do you trade?", "What do you think?", "Can you win with this?") to maximize engagement. ' +
+            'Use 2-3 emojis (🚀💥⚡) for emotional impact. ' +
             'Use relevant hashtags. Make it irresistible to click.',
         },
         {
@@ -531,8 +469,12 @@ async function generateQuoteRepostText(lang = 'en', influencerTweet, reportData 
             `- Maximum 200 characters\n` +
             `- Engaging and attention-grabbing\n` +
             `- Include Telegram Deep Link\n` +
+            `- MUST include a question CTA (e.g., "How do you trade?", "What do you think?", "Can you win with this?") - REQUIRED for algorithm optimization\n` +
+            `- Use 2-3 emojis (🚀💥⚡) for emotional impact\n` +
             `- Use psychological triggers (urgency, FOMO, curiosity)\n` +
             `- Use relevant hashtags\n` +
+            `- Format: Agreement + Unique Value + Question CTA + Deep Link\n` +
+            `- Example: "Agree! TrapDefence detected this signal 🚀 How do you trade? t.me/..."\n` +
             `- Make it irresistible to click\n\n` +
             `Generate the quote repost text:`,
         },
@@ -555,12 +497,85 @@ async function generateQuoteRepostText(lang = 'en', influencerTweet, reportData 
   }
 }
 
+/**
+ * Grokがトレンドハッシュタグを発見（Xアルゴリズム最適化用）
+ * @param {string} lang - 言語コード
+ * @param {string} topic - トピック（例: 'BTC'）
+ * @returns {Promise<Array>} トレンドハッシュタグ配列（ボリューム中10k-100k投稿で競合低）
+ */
+async function discoverTrendingHashtags(lang = 'en', topic = 'BTC') {
+  if (!XAI_API_KEY) {
+    return ['#Bitcoin']; // フォールバック
+  }
+
+  const targetLang = (lang || 'en').toLowerCase();
+  const modelToUse = GROK_MODEL_X_LIVE;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: modelToUse,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are "Dr. Grok", an expert at finding trending hashtags on X (Twitter) for crypto/BTC content. ' +
+            'Find hashtags with medium volume (10k-100k posts) and low competition to maximize algorithm visibility. ' +
+            'Return ONLY JSON. No markdown. No code fences. ' +
+            'Schema: {"hashtags":[{"tag":string,"volume":string,"competition":"low|medium|high"}]} ' +
+            'hashtags: Array of trending hashtags related to the topic. ' +
+            'volume: Estimated post volume (e.g., "10k-50k", "50k-100k"). ' +
+            'competition: Competition level (prefer "low" or "medium"). ' +
+            'Return 1-3 hashtags maximum.',
+        },
+        {
+          role: 'user',
+          content:
+            `Task: Find trending hashtags on X for ${topic} content in ${targetLang} language.\n` +
+            `Requirements:\n` +
+            `- Medium volume (10k-100k posts) - not too popular, not too niche\n` +
+            `- Low to medium competition\n` +
+            `- Related to ${topic} and crypto trading\n` +
+            `- Return 1-3 hashtags maximum\n` +
+            `- Format: #HashtagName (with # symbol)\n\n` +
+            `Find trending hashtags:`,
+        },
+      ],
+      max_tokens: 200,
+      temperature: 0.3,
+    });
+
+    const text = completion?.choices?.[0]?.message?.content?.trim();
+    if (!text) return ['#Bitcoin'];
+
+    const obj = safeJsonParse(text);
+    if (obj && obj.hashtags && Array.isArray(obj.hashtags)) {
+      // 競合低・中を優先し、ボリューム中（10k-100k）のものを選択
+      const filtered = obj.hashtags
+        .filter(h => h.competition === 'low' || h.competition === 'medium')
+        .filter(h => {
+          const vol = h.volume || '';
+          return vol.includes('10k') || vol.includes('50k') || vol.includes('100k');
+        })
+        .slice(0, 3);
+      
+      if (filtered.length > 0) {
+        return filtered.map(h => h.tag.startsWith('#') ? h.tag : `#${h.tag}`);
+      }
+    }
+
+    return ['#Bitcoin']; // フォールバック
+  } catch (error) {
+    logCompactError('discoverTrendingHashtags', error);
+    return ['#Bitcoin']; // フォールバック
+  }
+}
+
 module.exports = {
   analyzeMarket,
   analyzeXSentimentLive,
-  discoverLeadsOnX, // リード発見専用（Grok X AI API）
   discoverInfluencersForQuoteRepost, // インフルエンサー発掘（引用リポスト用）
   generateQuoteRepostText, // 引用リポスト用テキスト生成
+  discoverTrendingHashtags, // トレンドハッシュタグ発見（Xアルゴリズム最適化用）
   isRateLimitError,
   // Phase 2: 用途別モデルをエクスポート（他のファイルで使用可能）
   GROK_MODEL_MARKET,

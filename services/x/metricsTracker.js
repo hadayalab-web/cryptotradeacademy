@@ -2,7 +2,6 @@
 // 引用リポストのメトリクスを定期的に追跡する機能
 
 const { getTweetMetrics } = require('./metrics');
-const { recordQuoteRepost } = require('../lead-discovery/influencerList');
 
 /**
  * 引用リポストのメトリクスを取得して更新
@@ -62,9 +61,10 @@ async function trackQuoteRepostMetrics(quoteTweetId, influencerId = null) {
     }
 
     // インフルエンサーIDが指定されている場合、引用リポスト履歴を更新
-    if (influencerId) {
-      await recordQuoteRepost(influencerId, quoteTweetId, trackedMetrics);
-    }
+    // 注意: influencerList機能は削除されました（エンドユーザー追跡機能の削除のため）
+    // if (influencerId) {
+    //   await recordQuoteRepost(influencerId, quoteTweetId, trackedMetrics);
+    // }
 
     console.log(`[Metrics Tracker] Tracked metrics for quote tweet ${quoteTweetId}:`, {
       impressions: trackedMetrics.impressions,

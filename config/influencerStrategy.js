@@ -6,22 +6,22 @@
  * 初速で10万～20万インプレッション規模を出すための戦略
  */
 const INFLUENCER_COUNT_BY_LANG = {
-  // 英語: 最大規模の市場、高エンゲージメントインフルエンサーを優先
-  en: parseInt(process.env.INFLUENCER_COUNT_EN || '3', 10),
+  // 英語: Grok推奨 - 4本/日（10万～20万インプレッション規模達成）
+  en: parseInt(process.env.INFLUENCER_COUNT_EN || '4', 10),
   
-  // スペイン語: ラテン市場、中規模インフルエンサー
+  // スペイン語: Grok推奨 - 2本/日（5万～10万インプレッション規模）
   es: parseInt(process.env.INFLUENCER_COUNT_ES || '2', 10),
   
-  // ポルトガル語: ブラジル市場、中規模インフルエンサー
+  // ポルトガル語: Grok推奨 - 2本/日（5万～10万インプレッション規模）
   'pt-br': parseInt(process.env.INFLUENCER_COUNT_PT_BR || '2', 10),
   
-  // アラビア語: 中東市場、中規模インフルエンサー
+  // アラビア語: Grok推奨 - 2本/日（5万～10万インプレッション規模）
   ar: parseInt(process.env.INFLUENCER_COUNT_AR || '2', 10),
   
-  // 韓国語: 韓国市場、高エンゲージメントインフルエンサー
+  // 韓国語: Grok推奨 - 2本/日（5万～10万インプレッション規模）
   ko: parseInt(process.env.INFLUENCER_COUNT_KO || '2', 10),
   
-  // 日本語: 日本市場、中規模インフルエンサー
+  // 日本語: Grok推奨 - 2本/日（5万～10万インプレッション規模）
   ja: parseInt(process.env.INFLUENCER_COUNT_JA || '2', 10),
 };
 

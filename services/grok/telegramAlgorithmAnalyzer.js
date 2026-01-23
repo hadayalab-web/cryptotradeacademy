@@ -2,7 +2,8 @@
 // GrokがTelegramアルゴリズムを解析・最適化するための関数
 
 const OpenAI = require('openai');
-const { getLatestReport } = require('../lead-discovery/reportStorage');
+// 注意: reportStorage機能は削除されました（エンドユーザー追跡機能の削除のため）
+// const { getLatestReport } = require('../lead-discovery/reportStorage');
 
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';

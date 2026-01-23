@@ -2,7 +2,8 @@
 // Grokがレポートを分析するための関数
 
 const OpenAI = require('openai');
-const { getReportForGrok, getLatestReport, getReportHistory } = require('../lead-discovery/reportStorage');
+// 注意: reportStorage機能は削除されました（エンドユーザー追跡機能の削除のため）
+// const { getReportForGrok, getLatestReport, getReportHistory } = require('../lead-discovery/reportStorage');
 
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
@@ -27,7 +28,9 @@ async function analyzeReportWithGrok(reportType = 'execution', options = {}) {
 
   try {
     // 最新レポートを取得
-    const latestReport = await getLatestReport(reportType);
+    // 注意: reportStorage機能は削除されました（エンドユーザー追跡機能の削除のため）
+    // const latestReport = await getLatestReport(reportType);
+    const latestReport = null;
     if (!latestReport) {
       throw new Error(`No ${reportType} report available`);
     }
@@ -37,7 +40,9 @@ async function analyzeReportWithGrok(reportType = 'execution', options = {}) {
 
     // 履歴を含める場合
     if (includeHistory) {
-      const history = await getReportHistory(reportType, historyLimit);
+      // 注意: reportStorage機能は削除されました（エンドユーザー追跡機能の削除のため）
+      // const history = await getReportHistory(reportType, historyLimit);
+      const history = [];
       if (history.length > 0) {
         reportText += `\n\n## REPORT HISTORY (Last ${history.length} reports)\n\n`;
         for (let i = 0; i < history.length; i++) {
