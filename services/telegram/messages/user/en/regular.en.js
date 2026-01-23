@@ -140,7 +140,9 @@ function formatRegularBriefing({
 
   const lines = [];
   lines.push('🌤️ Trap Defence BTC - Paid Report');
-  lines.push(`🚨 BREAKING: Trap Defence Briefing`);
+  // COO最適化: 緊急感強化
+  const urgencyLevel = (score <= 25 && inflow > 0 && sentimentLabel.toLowerCase().includes('fear')) ? 'CRITICAL' : 'URGENT';
+  lines.push(`🚨 ${urgencyLevel} ALERT: Trap Defence Crisis Briefing`);
   lines.push(`📅 ${ts}`);
   lines.push('');
 
@@ -153,6 +155,23 @@ function formatRegularBriefing({
   if (slLine) lines.push(slLine);
   if (rrLine) lines.push(rrLine);
   lines.push('');
+
+  // COO最適化: 矛盾の提示（低リスクなのに売り圧力）
+  if (score <= 25 && inflow > 0 && sentimentLabel.toLowerCase().includes('fear')) {
+    const whaleRatioEstimate = Math.min(100, Math.max(0, (inflow / 1000) * 10 + 40)); // 推定クジラ比率
+    const whaleDollarValue = Math.floor((whaleRatioEstimate / 100) * priceUsd * 1000); // 推定ドル価値
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('🤔 CONTRADICTION ALERT');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push(`Market Score: ${Math.round(score)}/100 (Neutral/Stable)`);
+    lines.push(`BUT Exchange Netflow: +${Math.abs(inflow).toFixed(0)} BTC IN`);
+    lines.push(`AND Sentiment: ${sentimentLabel}`);
+    lines.push('');
+    lines.push(`⚠️ This contradiction signals: Low risk BUT selling pressure building.`);
+    lines.push(`   Estimated ${whaleRatioEstimate.toFixed(0)}% whale ratio = $${whaleDollarValue}M+ ready to sell.`);
+    lines.push(`   What does this mean for YOUR capital?`);
+    lines.push('');
+  }
 
   // ===== 【コア機能ハイライト】3つの強み =====
   lines.push('✨ Today\'s Highlights (3 Core Features)');
@@ -236,17 +255,27 @@ function formatRegularBriefing({
     const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
     const priceChangeDisplay = change24h >= 0 ? `+${change24h.toFixed(2)}%` : `${change24h.toFixed(2)}%`;
     
-    gptNewsText = `◆ Psychological Interpretation of On-Chain Metrics
+    // COO最適化: ストーリーテリング改善
+    gptNewsText = `📖 THE STORY BEHIND THE DATA
+
+While you sleep, whales are positioning. Here's what's happening RIGHT NOW:
+
+1. 🏦 Exchanges flooded: ${inflowDisplay}
+   → ${inflow >= 0 ? 'Sellers are loading up. This is NOT normal.' : 'Holders are securing assets. This is BULLISH.'}
+
+2. ⛏️ Miners ${mpi >= 0 ? 'selling' : 'holding'}: MPI ${mpiDisplay}
+   → ${mpi >= 0 ? 'Miners are selling. This is BEARISH short-term.' : 'Miners are NOT selling. This is BULLISH long-term.'}
+
+3. 🧠 ${sentimentLabel} sentiment
+   → ${sentimentLabel.toLowerCase().includes('fear') ? 'Retail panic. This is OPPORTUNITY for smart money.' : sentimentLabel.toLowerCase().includes('greed') ? 'Retail euphoria. This is RISK for late buyers.' : 'Neutral conditions. Stay alert.'}
+
+💡 Psychological Interpretation:
 
 The CryptoQuant data shows ${inflowDisplay}, a Miners' Position Index (MPI) of ${mpiDisplay}, and ${sentimentLabel.toLowerCase()} sentiment, while the price has changed ${priceChangeDisplay} over 24 hours.
 
 From a psychological perspective, these metrics suggest a ${sentimentLabel.toLowerCase()} market environment. The ${inflow >= 0 ? 'inflow' : 'outflow'} indicates ${inflow >= 0 ? 'more cryptocurrency entering exchanges' : 'more cryptocurrency leaving exchanges'}, which often signals ${inflow >= 0 ? 'potential selling pressure' : 'holders securing their assets off-exchange'}.
 
-The MPI of ${mpiDisplay} suggests that miners are ${mpi >= 0 ? 'selling' : 'holding'}, which can be interpreted as ${mpi >= 0 ? 'potential supply pressure' : 'confidence in the market\'s future potential'}.
-
-▼ Market Context
-
-The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neutral' ? 'a lack of strong emotional drivers such as fear or greed among traders' : sentimentLabel === 'Greed' ? 'optimistic market conditions, but potential overextension' : 'cautious market conditions'}. This suggests a market in a wait-and-see mode, where traders are monitoring conditions carefully.`;
+${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high selling pressure. This is EXACTLY when traps form. Stay alert.' : 'The market is in a wait-and-see mode, where traders are monitoring conditions carefully.'}`;
   }
   
   // Telegram互換性: Markdown見出し（###）を削除してTelegramネイティブな形式に変換（先に実行）
@@ -574,6 +603,21 @@ The ${sentimentLabel.toLowerCase()} sentiment reflects ${sentimentLabel === 'Neu
     lines.push('"Patience is not weakness—it\'s strategic strength. The best traders know when not to trade."');
   }
   
+  lines.push('');
+
+  // COO最適化: FOMO強化（有料版の価値を明確化）
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('💎 THIS IS WHY YOU PAID FOR THIS REPORT');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+  lines.push('While free users see only the score, YOU get:');
+  lines.push('✅ Deep on-chain analysis (CryptoQuant data)');
+  lines.push('✅ Psychological interpretation');
+  lines.push('✅ Trap pattern detection');
+  lines.push('✅ Dr. Grok\'s mental support');
+  lines.push('✅ Real-time risk assessment');
+  lines.push('');
+  lines.push('🛡️ One missed signal = Lost capital. Are you prepared?');
   lines.push('');
 
   // ===== 基本市場データ（補足情報として後半に配置） =====

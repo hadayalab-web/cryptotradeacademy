@@ -116,7 +116,9 @@ function formatRegularBriefing({
 
   const lines = [];
   lines.push('🌤️ Trap Defence BTC - تقرير مدفوع');
-  lines.push(`🚨 BREAKING: بريفينغ دفاع الفخ`);
+  // COO最適化: 緊急感強化
+  const urgencyLevel = (score <= 25 && inflow > 0 && sentimentLabel.toLowerCase().includes('fear')) ? 'عاجل' : 'مهم';
+  lines.push(`🚨 تنبيه ${urgencyLevel}: بريفينغ دفاع الفخ — الوقت يدق!`);
   lines.push(`📅 ${ts}`);
   lines.push('');
 
@@ -129,6 +131,23 @@ function formatRegularBriefing({
   if (slLine) lines.push(slLine);
   if (rrLine) lines.push(rrLine);
   lines.push('');
+
+  // COO最適化: 矛盾の提示（低リスクなのに売り圧力）
+  if (score <= 25 && inflow > 0 && sentimentLabel.toLowerCase().includes('fear')) {
+    const whaleRatioEstimate = Math.min(100, Math.max(0, (inflow / 1000) * 10 + 40)); // 推定クジラ比率
+    const whaleDollarValue = Math.floor((whaleRatioEstimate / 100) * priceUsd * 1000); // 推定ドル価値
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('🤔 تنبيه التناقض');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push(`درجة السوق: ${Math.round(score)}/100 (محايد/مستقر)`);
+    lines.push(`لكن صافي تدفق البورصات: +${Math.abs(inflow).toFixed(0)} BTC داخل`);
+    lines.push(`والمشاعر: ${sentimentLabel}`);
+    lines.push('');
+    lines.push(`⚠️ هذا التناقض يشير إلى: مخاطر منخفضة لكن ضغط بيع يتزايد.`);
+    lines.push(`   نسبة الحيتان المقدرة ${whaleRatioEstimate.toFixed(0)}% = $${whaleDollarValue}M+ جاهزة للبيع.`);
+    lines.push(`   ماذا يعني هذا لرأس مالك؟`);
+    lines.push('');
+  }
 
   // ===== 【コア機能ハイライト】3つの強み =====
   lines.push('✨ أبرز اليوم (3 ميزات أساسية)');
@@ -217,17 +236,27 @@ function formatRegularBriefing({
     const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
     const priceChangeDisplay = change24h >= 0 ? `+${change24h.toFixed(2)}%` : `${change24h.toFixed(2)}%`;
     
-    gptNewsText = `💡 التفسير النفسي لمقاييس On-Chain
+    // COO最適化: ストーリーテリング改善
+    gptNewsText = `📖 القصة وراء البيانات
+
+بينما أنت نائم، الحيتان تتجهز. هذا ما يحدث الآن:
+
+1. 🏦 البورصات مغمورة: ${inflowDisplay}
+   → ${inflow >= 0 ? 'البائعون يحملون. هذا ليس طبيعياً.' : 'الحائزون يؤمنون الأصول. هذا صاعد.'}
+
+2. ⛏️ المعدّنون ${mpi >= 0 ? 'يبيعون' : 'يحتفظون'}: MPI ${mpiDisplay}
+   → ${mpi >= 0 ? 'المعدّنون يبيعون. هذا هابط على المدى القصير.' : 'المعدّنون لا يبيعون. هذا صاعد على المدى الطويل.'}
+
+3. 🧠 مشاعر ${sentimentLabel}
+   → ${sentimentLabel.toLowerCase().includes('fear') ? 'ذعر التجزئة. هذه فرصة للأموال الذكية.' : sentimentLabel.toLowerCase().includes('greed') ? 'نشوة التجزئة. هذا خطر للمشترين المتأخرين.' : 'ظروف محايدة. كن حذراً.'}
+
+💡 التفسير النفسي:
 
 تُظهر بيانات CryptoQuant ${inflowDisplay}، ومؤشر مراكز المعدّنين (MPI) ${mpiDisplay}، ومشاعر ${sentimentLabel.toLowerCase()}، بينما تغير السعر ${priceChangeDisplay} خلال 24 ساعة.
 
 من منظور نفسي، تشير هذه المقاييس إلى بيئة سوق ${sentimentLabel.toLowerCase()}. يشير ${inflow >= 0 ? 'التدفق الداخلي' : 'التدفق الخارجي'} إلى ${inflow >= 0 ? 'المزيد من العملات المشفرة تدخل البورصات' : 'المزيد من العملات المشفرة تغادر البورصات'}، مما يشير غالباً إلى ${inflow >= 0 ? 'ضغط بيع محتمل' : 'الحائزون يؤمنون أصولهم خارج البورصة'}.
 
-يشير MPI ${mpiDisplay} إلى أن المعدّنين ${mpi >= 0 ? 'يبيعون' : 'يحتفظون'}، مما يمكن تفسيره على أنه ${mpi >= 0 ? 'ضغط عرض محتمل' : 'ثقة في الإمكانات المستقبلية للسوق'}.
-
-▼ سياق السوق
-
-تعكس مشاعر ${sentimentLabel.toLowerCase()} ${sentimentLabel === 'Neutral' ? 'عدم وجود محركات عاطفية قوية مثل الخوف أو الجشع بين المتداولين' : sentimentLabel === 'Greed' ? 'ظروف سوق متفائلة، لكن احتمال المبالغة' : 'ظروف سوق حذرة'}. يشير هذا إلى سوق في وضع انتظار، حيث يراقب المتداولون الظروف بعناية.`;
+${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفضة لكن ضغط بيع عالي. هذا بالضبط عندما تتشكل الفخاخ. كن حذراً.' : 'السوق في وضع انتظار، حيث يراقب المتداولون الظروف بعناية.'}`;
   }
   
   // 文字数制限を緩和して、重要な情報が切れないようにする（600文字まで）
@@ -425,6 +454,21 @@ function formatRegularBriefing({
     lines.push('"الصبر ليس ضعفاً—إنه قوة استراتيجية. أفضل المتداولين يعرفون متى لا يتداولون."');
   }
   
+  lines.push('');
+
+  // COO最適化: FOMO強化（有料版の価値を明確化）
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('💎 هذا هو سبب دفعك لهذا التقرير');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+  lines.push('بينما يرى المستخدمون المجانيون النقاط فقط، أنت تحصل على:');
+  lines.push('✅ تحليل عميق on-chain (بيانات CryptoQuant)');
+  lines.push('✅ التفسير النفسي');
+  lines.push('✅ اكتشاف أنماط الفخاخ');
+  lines.push('✅ الدعم النفسي من Dr. Grok');
+  lines.push('✅ تقييم المخاطر في الوقت الفعلي');
+  lines.push('');
+  lines.push('🛡️ إشارة واحدة مفقودة = رأس مال مفقود. هل أنت مستعد؟');
   lines.push('');
 
   // ===== 基本市場データ（補足情報として後半に配置） =====

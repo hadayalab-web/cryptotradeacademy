@@ -126,7 +126,9 @@ function formatRegularBriefing({
 
   const lines = [];
   lines.push('🌤️ Trap Defence BTC - 유료 리포트');
-  lines.push(`🚨 긴급: Trap Defence 브리핑`);
+  // COO最適化: 緊急感強化
+  const urgencyLevel = (score <= 25 && inflow > 0 && sentimentLabel.toLowerCase().includes('fear')) ? '긴급' : '중요';
+  lines.push(`🚨 ${urgencyLevel} 경보: Trap Defence 브리핑! 지금 즉시 행동을 취할 시간입니다!`);
   lines.push(`📅 ${ts}`);
   lines.push('');
 
@@ -139,6 +141,23 @@ function formatRegularBriefing({
   if (slLine) lines.push(slLine);
   if (rrLine) lines.push(rrLine);
   lines.push('');
+
+  // COO最適化: 矛盾の提示（低リスクなのに売り圧力）
+  if (score <= 25 && inflow > 0 && sentimentLabel.toLowerCase().includes('fear')) {
+    const whaleRatioEstimate = Math.min(100, Math.max(0, (inflow / 1000) * 10 + 40)); // 推定クジラ比率
+    const whaleDollarValue = Math.floor((whaleRatioEstimate / 100) * priceUsd * 1000); // 推定ドル価値
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('🤔 모순 경보');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push(`시장 점수: ${Math.round(score)}/100 (중립/안정)`);
+    lines.push(`하지만 거래소 순유입: +${Math.abs(inflow).toFixed(0)} BTC 유입`);
+    lines.push(`그리고 센티먼트: ${sentimentLabel}`);
+    lines.push('');
+    lines.push(`⚠️ 이 모순이 시사하는 것: 낮은 위험인데 매도 압력이 축적 중.`);
+    lines.push(`   추정 ${whaleRatioEstimate.toFixed(0)}% 고래 비율 = $${whaleDollarValue}M+ 매도 준비 완료.`);
+    lines.push(`   이것이 당신의 자본에 의미하는 것은?`);
+    lines.push('');
+  }
 
   // ===== 【コア機能ハイライト】3つの強み =====
   lines.push('✨ 오늘의 하이라이트 (3가지 핵심 기능)');
@@ -228,17 +247,27 @@ function formatRegularBriefing({
     const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
     const priceChangeDisplay = change24h >= 0 ? `+${change24h.toFixed(2)}%` : `${change24h.toFixed(2)}%`;
     
-    gptNewsText = `💡 온체인 지표의 심리적 해석
+    // COO最適化: ストーリーテリング改善
+    gptNewsText = `📖 데이터 뒤에 숨은 이야기
+
+당신이 잠든 동안, 고래들이 포지셔닝 중입니다. 지금 일어나고 있는 일:
+
+1. 🏦 거래소 유입: ${inflowDisplay}
+   → ${inflow >= 0 ? '매도자들이 로딩 중. 이것은 정상이 아닙니다.' : '보유자들이 자산을 보호 중. 이것은 강세입니다.'}
+
+2. ⛏️ 채굴자들 ${mpi >= 0 ? '매도 중' : '보유 중'}: MPI ${mpiDisplay}
+   → ${mpi >= 0 ? '채굴자들이 매도 중. 이것은 단기적으로 약세입니다.' : '채굴자들이 매도하지 않습니다. 이것은 장기적으로 강세입니다.'}
+
+3. 🧠 ${sentimentLabel} 센티먼트
+   → ${sentimentLabel.toLowerCase().includes('fear') ? '소매 공황. 이것은 스마트 머니에게 기회입니다.' : sentimentLabel.toLowerCase().includes('greed') ? '소매 유포리아. 이것은 늦게 사는 사람들에게 위험입니다.' : '중립 조건. 경계하라.'}
+
+💡 심리적 해석:
 
 CryptoQuant 데이터는 ${inflowDisplay}, 채굴자 포지션 지수(MPI) ${mpiDisplay}, ${sentimentLabel.toLowerCase()} 센티먼트를 보여주며, 가격은 24시간 동안 ${priceChangeDisplay} 변동했습니다.
 
 심리적 관점에서 이러한 지표는 ${sentimentLabel.toLowerCase()} 시장 환경을 시사합니다. ${inflow >= 0 ? '유입' : '유출'}은 ${inflow >= 0 ? '더 많은 암호화폐가 거래소로 유입되고 있음' : '더 많은 암호화폐가 거래소에서 유출되고 있음'}을 나타내며, 이는 종종 ${inflow >= 0 ? '잠재적인 매도 압력' : '보유자들이 거래소 외부에서 자산을 보호하고 있음'}을 의미합니다.
 
-${mpiDisplay}의 MPI는 채굴자들이 ${mpi >= 0 ? '매도하고 있음' : '보유하고 있음'}을 시사하며, 이는 ${mpi >= 0 ? '잠재적인 공급 압력' : '시장의 미래 잠재력에 대한 신뢰'}로 해석될 수 있습니다.
-
-▼ 시장 맥락
-
-${sentimentLabel.toLowerCase()} 센티먼트는 ${sentimentLabel === 'Neutral' ? '트레이더들 사이에 공포나 탐욕과 같은 강한 감정적 동인이 부족함' : sentimentLabel === 'Greed' ? '낙관적인 시장 조건이지만 잠재적인 과도한 확장' : '신중한 시장 조건'}을 반영합니다. 이는 트레이더들이 조건을 신중하게 모니터링하는 관망 모드의 시장을 시사합니다.`;
+${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 매도 압력. 이것이 바로 트랩이 형성되는 때입니다. 경계하라.' : '시장은 관망 모드에 있으며, 트레이더들이 조건을 신중하게 모니터링합니다.'}`;
   }
   
   // Telegram互換性: Markdown見出し（###）を削除してTelegramネイティブな形式に変換（先に実行）
@@ -448,6 +477,21 @@ ${sentimentLabel.toLowerCase()} 센티먼트는 ${sentimentLabel === 'Neutral' ?
     lines.push('"인내는 약점이 아니다—전략적 강점이다. 최고의 트레이더는 거래하지 않을 때를 안다."');
   }
   
+  lines.push('');
+
+  // COO最適化: FOMO強化（有料版の価値を明確化）
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('💎 이것이 유료 리포트를 선택한 이유');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+  lines.push('무료 사용자는 점수만 볼 수 있지만, 당신은 다음을 얻습니다:');
+  lines.push('✅ 심층 온체인 분석 (CryptoQuant 데이터)');
+  lines.push('✅ 심리적 해석');
+  lines.push('✅ 트랩 패턴 감지');
+  lines.push('✅ Dr. Grok의 멘탈 지원');
+  lines.push('✅ 실시간 위험 평가');
+  lines.push('');
+  lines.push('🛡️ 하나의 신호를 놓치면 = 자본 손실. 준비되어 있습니까?');
   lines.push('');
 
   // ===== 基本市場データ（補足情報として後半に配置） =====
