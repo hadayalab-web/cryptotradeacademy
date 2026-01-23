@@ -470,10 +470,45 @@ async function postFreeReportAsThread(targetLangs, reportData) {
       const urgencyText = trapScore >= 50 ? `${randomEmoji} HIGH RISK ALERT!` : `${randomEmoji} LOW RISK - Patience wins!`;
       mainTweet = `${urgencyText}\n\n${mainTweet}`;
       
-      // Grok推奨: 動画生成（50%動画スレッド）+ リアルタイム最適化
+      // Grok推奨: Carousel Media Stacking（動画+画像カルーセル、最大4枚）
+      // 50%以上の投稿に適用（リアルタイム最適化で動的調整）
       let mediaIds = [];
       let videoGenerated = false;
-      if (useVideo) {
+      let carouselGenerated = false;
+      
+      // リアルタイム最適化でカルーセル比率を決定
+      let useCarousel = false;
+      try {
+        const { getRealTimeOptimization } = require('../services/x/realTimeOptimizer');
+        const optimization = await getRealTimeOptimization('en');
+        useCarousel = optimization?.videoRatio >= 0.5 || Math.random() < 0.5; // 50%の確率または最適化結果に基づく
+      } catch (error) {
+        console.warn('[X Post Free Report] Failed to get optimization, using default carousel ratio:', error.message);
+        useCarousel = Math.random() < 0.5; // デフォルト50%の確率
+      }
+      
+      if (useCarousel) {
+        try {
+          console.log('[X Post Free Report] 🎠 Generating carousel media (video + images)...');
+          const { generateAndUploadCarousel } = require('../services/x/carouselGenerator');
+          const carouselMediaIds = await generateAndUploadCarousel(reportData, 'en', {
+            maxItems: 4,
+            includeVideo: useVideo,
+          });
+          
+          if (carouselMediaIds.length > 0) {
+            mediaIds = carouselMediaIds;
+            carouselGenerated = true;
+            videoGenerated = carouselMediaIds.length > 0; // 最初のメディアが動画の可能性
+            console.log(`[X Post Free Report] ✅ Carousel media attached: ${carouselMediaIds.length} items`);
+          }
+        } catch (error) {
+          console.warn('[X Post Free Report] Failed to generate carousel, falling back to single video:', error.message);
+        }
+      }
+      
+      // フォールバック: カルーセル生成失敗時は単一動画を試行
+      if (!carouselGenerated && useVideo) {
         try {
           const { generateBTCChartVideo, uploadVideoForTweet } = require('../services/x/videoGenerator');
           const videoBuffer = await generateBTCChartVideo(reportData, 'en');
@@ -516,6 +551,22 @@ async function postFreeReportAsThread(targetLangs, reportData) {
       
       await incrementDailyPostCount(dateString, 1); // 投稿数をインクリメント
       await markFreeReportPostedToday(dateString); // 今日の投稿をマーク
+      
+      // Grok推奨: Velocity Boost（初期エンゲージメント爆速化）
+      // 投稿直後5分以内に子アカウントから高品質リプライを自動投入
+      try {
+        const { boostVelocity } = require('../services/x/velocityBooster');
+        const velocityContext = {
+          contentType: useVideo ? 'video' : usePoll ? 'poll' : 'thread',
+          trapScore,
+          priceUsd,
+          change24h,
+        };
+        await boostVelocity(mainTweetId, 'en', velocityContext);
+        console.log(`[X Post Free Report] ✅ Velocity Boost scheduled for ${mainTweetId}`);
+      } catch (error) {
+        console.warn('[X Post Free Report] Failed to schedule velocity boost:', error.message);
+      }
       
       // 最適化案: A/Bテスト結果を記録
       try {

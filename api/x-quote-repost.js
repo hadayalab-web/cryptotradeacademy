@@ -364,11 +364,12 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         // await recordQuoteRepost(influencerId, result.id);
         
         // Grok推奨: EN実測ダッシュボード用メトリクス記録
+        let engagementMetrics = null;
         try {
           const { recordEngagementMetrics } = require('./x-engagement-metrics');
           const quoteMetrics = await getTweetMetrics(result.id, true); // 自分のツイートなのでnon_public_metrics取得可能
           if (quoteMetrics) {
-            const engagementMetrics = {
+            engagementMetrics = {
               impressions: quoteMetrics.nonPublicMetrics?.impression_count || quoteMetrics.organicMetrics?.impression_count || 0,
               engagements: (quoteMetrics.publicMetrics?.like_count || 0) +
                           (quoteMetrics.publicMetrics?.retweet_count || 0) +
@@ -418,6 +419,10 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           console.warn(`[Quote Repost] Failed to get influencer metrics:`, error.message);
         }
         
+        // エンゲージメント数を計算（自分の引用リポスト用）
+        const quoteEngagement = engagementMetrics?.engagements || 0;
+        const quoteImpressions = engagementMetrics?.impressions || 0;
+        
         // 注意: 自分の投稿した引用リポスト（result.id）のメトリクスは、
         // Cron Job（api/x-quote-repost-metrics.js）で定期的に追跡される
         // インプレッション数とエンゲージメント数は正確に取得可能
@@ -428,9 +433,10 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           tweetId: influencer.tweetId,
           quoteTweetId: result.id,
           success: true,
-          engagement,
+          engagement: quoteEngagement,
+          impressions: quoteImpressions,
           // Grokの推定値（正確ではない - インフルエンサーのツイート用）
-          estimatedImpressions: engagement,
+          estimatedImpressions: influencer.recentImpressions || 0,
           // 正確なエンゲージメント数（インフルエンサーのツイート - X APIから取得）
           influencerMetrics: influencerMetrics,
           // 自分の引用リポストのメトリクスはCron Jobで追跡（正確なインプレッション数 + エンゲージメント数）
