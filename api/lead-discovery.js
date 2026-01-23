@@ -313,10 +313,18 @@ async function processLeadQueue(req, res) {
   try {
     const maxProcess = parseInt(req.query.max || "10", 10);
     const processed = [];
+    
+    console.log(`[Lead Discovery Process] Starting queue processing (max: ${maxProcess})`);
 
     for (let i = 0; i < maxProcess; i++) {
       const job = await dequeueLead();
-      if (!job) break;
+      if (!job) {
+        console.log(`[Lead Discovery Process] No more jobs in queue (processed: ${i})`);
+        break;
+      }
+
+      console.log(`[Lead Discovery Process] Processing job ${i + 1}/${maxProcess}: ${job.jobId}`);
+      console.log(`[Lead Discovery Process] Lead: @${job.lead?.username || 'unknown'}, tweetId: ${job.lead?.tweetId || 'MISSING'}, isPerfectMatch: ${job.lead?.isPerfectMatch || false}`);
 
       try {
         const { lead } = job;
@@ -326,11 +334,14 @@ async function processLeadQueue(req, res) {
         // 新しいワークフロー: X API経由のリプライ送信のみを使用
         // 旧仕様のTelegram DM経由の直接送信（sendVSL1ToLead）は削除されました
         if (lead.tweetId) {
+          console.log(`[Lead Discovery Process] Attempting to send reply to tweet ${lead.tweetId}...`);
           sent = await replyVSL1ToLead(lead);
+          console.log(`[Lead Discovery Process] Reply result: ${sent === true ? 'SUCCESS' : sent?.skipped ? 'SKIPPED' : 'FAILED'}`);
         } else {
-          console.warn(`[Lead Discovery] ⚠️ Lead has no tweetId, cannot send reply: @${lead.username || lead.userId || "unknown"}`);
-          // Telegramリードの場合は、キューから削除してスキップ
-          await completeLead(jobId);
+          console.warn(`[Lead Discovery Process] ⚠️ Lead has no tweetId, cannot send reply: @${lead.username || lead.userId || "unknown"}`);
+          // tweetIdがないリードは、キューから削除してスキップ
+          await completeLead(job.jobId);
+          processed.push({ jobId: job.jobId, success: false, note: "No tweetId" });
           continue;
         }
 
