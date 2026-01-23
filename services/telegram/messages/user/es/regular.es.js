@@ -200,6 +200,15 @@ function formatRegularBriefing({
     );
     if (isError) {
       gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
+    } else {
+      // ES市場用: スペイン語以外の言語が混入している場合を検出
+      // スペイン語特有の文字（ñ, á, é, í, ó, ú, ü）またはスペイン語の一般的な単語が含まれているかチェック
+      const hasSpanishChars = /[ñáéíóúüÑÁÉÍÓÚÜ]/.test(gptNewsText);
+      const hasSpanishWords = /\b(el|la|los|las|de|del|en|es|está|son|con|por|para|que|un|una|más|muy|también|como|pero|si|no|sí|muy|bien|más|menos|muy|tan|tanto|todos|todas|este|esta|estos|estas|ese|esa|esos|esas|aquel|aquella|aquellos|aquellas)\b/i.test(gptNewsText);
+      if (!hasSpanishChars && !hasSpanishWords && gptNewsText.length > 50) {
+        // スペイン語が含まれていない場合はnullに設定してスペイン語フォールバックを使用
+        gptNewsText = null;
+      }
     }
   }
   

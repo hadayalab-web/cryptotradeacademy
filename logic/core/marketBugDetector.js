@@ -17,7 +17,6 @@ const { TrendReversalDetector } = require('./trendReversalDetector');
  * @param {number} params.priceChange24h - 24時間価格変化率 (%)
  * @param {Object} params.highResCQ - 高解像度CryptoQuantデータ
  * @param {Object} params.highResX - 高解像度Xセンチメントデータ
- * @param {Object} params.binanceData - Binance補完データ（オプション）
  * @returns {Object} 市場バグ検出結果
  */
 function detectMarketBug(params = {}) {
@@ -29,7 +28,6 @@ function detectMarketBug(params = {}) {
     priceChange24h = 0,
     highResCQ = null,
     highResX = null,
-    binanceData = null,
   } = params;
 
   // ===== 1. 高解像度ダイバージェンス検出 =====
@@ -39,7 +37,6 @@ function detectMarketBug(params = {}) {
     whaleBias,
     retailFomo,
     priceChange24h,
-    binanceData,
     highResCQ,
     highResX,
   });
@@ -181,7 +178,6 @@ function evaluateMarketBugSignal(params = {}) {
       whaleBias: params.whaleBias,
       retailFomo: params.retailFomo,
       priceChange24h: params.priceChange24h,
-      binanceData: params.binanceData,
       highResCQ: params.highResCQ,
       highResX: params.highResX,
     });

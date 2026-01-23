@@ -21,7 +21,6 @@ const { applyQualityGate } = require('./signalQualityGate');
  * @param {number} params.priceChange24h - 24時間価格変化率 (%)
  * @param {Object} params.highResCQ - 高解像度CryptoQuantデータ
  * @param {Object} params.highResX - 高解像度Xセンチメントデータ
- * @param {Object} params.binanceData - Binance補完データ（オプション）
  * @returns {Object} トラップ検出結果
  */
 function detectTrapDetection(params = {}) {
@@ -33,7 +32,6 @@ function detectTrapDetection(params = {}) {
     priceChange24h = 0,
     highResCQ = null,
     highResX = null,
-    binanceData = null,
   } = params;
 
   // ===== 1. 高解像度ダイバージェンス検出 =====
@@ -43,7 +41,6 @@ function detectTrapDetection(params = {}) {
     whaleBias,
     retailFomo,
     priceChange24h,
-    binanceData,
     highResCQ,
     highResX,
   });
@@ -210,7 +207,6 @@ function generateTrapAlert(params = {}) {
       whaleBias: params.whaleBias,
       retailFomo: params.retailFomo,
       priceChange24h: params.priceChange24h,
-      binanceData: params.binanceData,
       highResCQ: params.highResCQ,
       highResX: params.highResX,
     });

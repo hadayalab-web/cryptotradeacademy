@@ -11,9 +11,6 @@
  * @param {number} params.whaleBias - Xセンチメント: クジラバイアス (-1 ~ +1)
  * @param {number} params.retailFomo - Xセンチメント: リテールFOMO (0 ~ 100)
  * @param {number} params.priceChange24h - 24時間価格変化率 (%)
- * @param {Object} params.binanceData - Binance補完データ（オプション）
- * @param {number} params.binanceData.currentFundingRate - 現在のFunding Rate
- * @param {number} params.binanceData.currentLongShortRatio - 現在のLong/Short Ratio
  * @returns {Object} ダイバージェンス検出結果
  */
 function detectDivergence(params = {}) {
@@ -23,7 +20,6 @@ function detectDivergence(params = {}) {
     whaleBias = 0,
     retailFomo = 50,
     priceChange24h = 0,
-    binanceData = null,
   } = params;
 
   // ===== 1. オンチェーンスコア計算 =====
@@ -56,22 +52,6 @@ function detectDivergence(params = {}) {
   // 価格とXセンチメントのズレ
   const priceSocialDivergence = priceChange24h > 0 && socialScore < -10; // 価格上昇 + Xセンチメント弱気
 
-  // ===== 4. Binanceデータによる補正 =====
-  let binanceDivergence = 0;
-  if (binanceData) {
-    const fundingRate = binanceData.currentFundingRate || 0;
-    const longShortRatio = binanceData.currentLongShortRatio || 1.0;
-    
-    // Funding Rateが極端に高い（強気過多）→弱気シグナル
-    if (fundingRate > 0.01 && priceChange24h > 5) {
-      binanceDivergence -= 10; // 弱気シグナル強化
-    }
-    
-    // Long/Short Ratioが極端に高い（ロング過多）→弱気シグナル
-    if (longShortRatio > 1.5 && priceChange24h > 5) {
-      binanceDivergence -= 10; // 弱気シグナル強化
-    }
-  }
 
   // ===== 5. 80%勝率を達成するための厳格な条件 =====
   // SELL/SHORTシグナル生成条件（より厳格）
@@ -277,9 +257,6 @@ function detectDivergence(params = {}) {
     isStrongDivergence,
     multipleDivergences,
     
-    // Binance補正
-    binanceDivergence,
-    
     // 高勝率条件（AVOID_SHORT/AVOID_LONG）
     isHighWinRateSellCondition,
     isHighWinRateBuyCondition,
@@ -298,10 +275,6 @@ function detectDivergence(params = {}) {
       minerMPI,
       whaleBias,
       retailFomo,
-      binanceData: binanceData ? {
-        fundingRate: binanceData.currentFundingRate,
-        longShortRatio: binanceData.currentLongShortRatio,
-      } : null,
     },
   };
 }
@@ -345,7 +318,6 @@ function detectDivergenceHighResolution(params = {}) {
     whaleBias = 0,
     retailFomo = 50,
     priceChange24h = 0,
-    binanceData = null,
     highResCQ = null,
     highResX = null,
   } = params;
@@ -357,7 +329,6 @@ function detectDivergenceHighResolution(params = {}) {
     whaleBias,
     retailFomo,
     priceChange24h,
-    binanceData,
   });
   
   // 高解像度データがあれば、追加の分析を実行

@@ -320,6 +320,37 @@ async function incrementDailyPostCount(dateString, count = 1) {
 }
 
 /**
+ * 今日の無料版レポート投稿が既に実行されたかチェック（KVストレージ）
+ * @param {string} dateString - 日付文字列（YYYY-MM-DD）
+ * @returns {Promise<boolean>} 既に実行済みの場合true
+ */
+async function hasPostedFreeReportToday(dateString) {
+  if (!kv) return false;
+  try {
+    const key = `x:free-report:${dateString}`;
+    const posted = await kv.get(key);
+    return posted === true || posted === 'true';
+  } catch (error) {
+    console.warn('[X Post] Failed to check free report post status:', error.message);
+    return false;
+  }
+}
+
+/**
+ * 今日の無料版レポート投稿をマーク（KVストレージ）
+ * @param {string} dateString - 日付文字列（YYYY-MM-DD）
+ */
+async function markFreeReportPostedToday(dateString) {
+  if (!kv) return;
+  try {
+    const key = `x:free-report:${dateString}`;
+    await kv.set(key, true, { ex: 86400 * 2 }); // 2日間保持
+  } catch (error) {
+    console.warn('[X Post] Failed to mark free report post status:', error.message);
+  }
+}
+
+/**
  * 無料版レポートX投稿をスレッド化で実行（最適化版）
  * Grok推奨: 1メイン + 2-3リプライに短縮、50%にポール追加
  */
@@ -327,13 +358,20 @@ async function postFreeReportAsThread(targetLangs, reportData) {
   const { trapScore, priceUsd, change24h, exchangeNetflow = null, whaleRatio = null } = reportData;
   const xStatus = getXConfigStatus();
   
+  console.log('[X Post Free Report] postFreeReportAsThread called with:', {
+    trapScore,
+    priceUsd,
+    change24h,
+    targetLangs: targetLangs.length,
+  });
+  
   if (!xStatus.postingEnabled || !xStatus.configured) {
-    console.log('ℹ️ X posting disabled or not configured');
-    return { success: false, skipped: true };
+    console.error('[X Post Free Report] ❌ X posting disabled or not configured');
+    return { success: false, skipped: true, reason: 'not_configured' };
   }
   
   if (xStatus.dryRun) {
-    console.log('🧪 X dry-run enabled, skipping post');
+    console.log('[X Post Free Report] 🧪 X dry-run enabled, skipping post');
     return { success: true, dryRun: true };
   }
   
@@ -342,10 +380,20 @@ async function postFreeReportAsThread(targetLangs, reportData) {
   const currentHour = new Date().getUTCHours();
   const dateString = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
   
+  console.log('[X Post Free Report] Checking duplicate prevention...');
+  // 今日既に投稿済みかチェック（二重実行防止）
+  const alreadyPosted = await hasPostedFreeReportToday(dateString);
+  if (alreadyPosted) {
+    console.log(`[X Post Free Report] ⏰ Free report already posted today (${dateString}), skipping to avoid duplicate`);
+    return { success: false, skipped: true, reason: 'already_posted_today', dateString };
+  }
+  console.log('[X Post Free Report] ✅ No duplicate found, proceeding...');
+  
   // 1日の投稿上限チェック（25投稿/日）
   const dailyPostCount = await getDailyPostCount(dateString);
+  console.log(`[X Post Free Report] Daily post count: ${dailyPostCount}/25`);
   if (dailyPostCount >= 25) {
-    console.log(`⏰ Daily post limit reached (${dailyPostCount}/25), skipping free report post`);
+    console.log(`[X Post Free Report] ⏰ Daily post limit reached (${dailyPostCount}/25), skipping free report post`);
     return { success: false, skipped: true, reason: 'daily_limit_reached', dailyPostCount };
   }
   
@@ -356,37 +404,44 @@ async function postFreeReportAsThread(targetLangs, reportData) {
   
     // メイン投稿（英語）- Xアルゴリズム最適化版
     try {
+      console.log('[X Post Free Report] Preparing main tweet...');
       let mainTweet = TWEET_TEMPLATES.en(trapScore, priceUsd, change24h, getTelegramDeepLinkWithSource('en', 'x_direct'), exchangeNetflow, whaleRatio);
     
-    // ハッシュタグを最適化（2-3個のニッチ）
-    const optimizedHashtags = getOptimizedHashtags('en');
-    mainTweet = mainTweet.replace(/#BTC #CryptoTrading #TrapDefence/g, optimizedHashtags.join(' '));
-    
-    // エンゲージメントCTAを追加（50%の確率）
-    if (Math.random() < 0.5) {
-      const cta = generateEngagementCTA('en');
-      mainTweet = `${mainTweet}\n\n${cta}`;
+      // ハッシュタグを最適化（2-3個のニッチ）
+      const optimizedHashtags = getOptimizedHashtags('en');
+      mainTweet = mainTweet.replace(/#BTC #CryptoTrading #TrapDefence/g, optimizedHashtags.join(' '));
+      
+      // エンゲージメントCTAを追加（50%の確率）
+      if (Math.random() < 0.5) {
+        const cta = generateEngagementCTA('en');
+        mainTweet = `${mainTweet}\n\n${cta}`;
+      }
+      
+      // ポールオプションを準備（50%の確率）
+      let pollOptions = null;
+      if (usePoll) {
+        pollOptions = {
+          options: generatePollOptions('en', trapScore),
+          duration_minutes: 1440, // 24時間
+        };
+      }
+      
+      console.log('[X Post Free Report] Posting main tweet to X API...');
+      console.log('[X Post Free Report] Tweet preview:', mainTweet.substring(0, 100) + '...');
+      const mainResult = await postTweet(mainTweet.substring(0, 280), [], pollOptions);
+      mainTweetId = mainResult.id;
+      console.log(`[X Post Free Report] ✅ Main tweet posted successfully: ${mainTweetId}`);
+      
+      await incrementDailyPostCount(dateString, 1); // 投稿数をインクリメント
+      await markFreeReportPostedToday(dateString); // 今日の投稿をマーク
+      results.push({ lang: 'en', success: true, tweetId: mainTweetId, isMain: true, hasPoll: !!pollOptions });
+      console.log(`[X Post Free Report] ✅ Main tweet posted: ${mainTweetId}${pollOptions ? ' (with poll)' : ''}`);
+    } catch (error) {
+      console.error(`[X Post Free Report] ❌ Failed to post main tweet:`, error.message);
+      console.error(`[X Post Free Report] Error stack:`, error.stack);
+      results.push({ lang: 'en', success: false, error: error.message });
+      return { success: false, results, error: error.message };
     }
-    
-    // ポールオプションを準備（50%の確率）
-    let pollOptions = null;
-    if (usePoll) {
-      pollOptions = {
-        options: generatePollOptions('en', trapScore),
-        duration_minutes: 1440, // 24時間
-      };
-    }
-    
-    const mainResult = await postTweet(mainTweet.substring(0, 280), [], pollOptions);
-    mainTweetId = mainResult.id;
-    await incrementDailyPostCount(dateString, 1); // 投稿数をインクリメント
-    results.push({ lang: 'en', success: true, tweetId: mainTweetId, isMain: true, hasPoll: !!pollOptions });
-    console.log(`✅ Main tweet posted: ${mainTweetId}${pollOptions ? ' (with poll)' : ''}`);
-  } catch (error) {
-    console.error(`❌ Failed to post main tweet:`, error.message);
-    results.push({ lang: 'en', success: false, error: error.message });
-    return { success: false, results };
-  }
   
   // スレッド戦略を取得（最適化版: 1メイン + 2-3リプライ）
   const threadStrategy = getThreadStrategy('en');
@@ -439,6 +494,70 @@ async function postFreeReportTimeDispersed(targetLangs, reportData) {
 }
 
 /**
+ * 最新の市場データを取得（CryptoQuant APIから）
+ */
+async function fetchLatestMarketData() {
+  try {
+    // CryptoQuant APIから最新データを取得
+    const { getExchangeInflow, getMinerPositionIndex } = require('../services/cryptoquant/endpoints/btc');
+    const { getCQDeepMetrics } = require('../services/cryptoquant/deepMetrics');
+    
+    // 価格データを取得
+    const priceRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');
+    const priceData = await priceRes.json();
+    const priceUsd = priceData?.bitcoin?.usd || 0;
+    const change24h = priceData?.bitcoin?.usd_24h_change || 0;
+    
+    // CryptoQuantデータを取得
+    const [inflowData, mpiData] = await Promise.all([
+      getExchangeInflow().catch(() => null),
+      getMinerPositionIndex().catch(() => null),
+    ]);
+    
+    const exchangeNetflow = inflowData?.value || null;
+    const mpi = mpiData?.value || null;
+    
+    // 深掘りデータを取得（Trap Score用）
+    let trapScore = 25; // デフォルト
+    let whaleRatio = null;
+    
+    try {
+      const deepData = await getCQDeepMetrics('EN', {
+        upbitPrice: priceUsd,
+        usdKrwRate: 1300,
+      });
+      
+      if (deepData?.trapScore != null) {
+        trapScore = deepData.trapScore;
+      }
+      if (deepData?.whaleFlows?.whaleRatio != null) {
+        whaleRatio = deepData.whaleFlows.whaleRatio;
+      }
+    } catch (error) {
+      console.warn('[X Post] Failed to fetch deep metrics, using defaults:', error.message);
+    }
+    
+    return {
+      trapScore,
+      priceUsd,
+      change24h,
+      exchangeNetflow,
+      whaleRatio,
+    };
+  } catch (error) {
+    console.error('[X Post] Failed to fetch latest market data:', error.message);
+    // フォールバック: デフォルト値を使用
+    return {
+      trapScore: 25,
+      priceUsd: 89859,
+      change24h: -0.02,
+      exchangeNetflow: null,
+      whaleRatio: null,
+    };
+  }
+}
+
+/**
  * 無料版レポートX投稿を実行
  */
 async function postFreeReportToX(reportData = null) {
@@ -455,23 +574,25 @@ async function postFreeReportToX(reportData = null) {
       return { success: false, error: 'X API credentials missing', missing: xStatus.missing };
     }
     
-    // デフォルトのレポートデータ（実際の実装では、cron.jsから渡される）
-    const defaultReportData = {
-      trapScore: reportData?.trapScore || 25,
-      priceUsd: reportData?.priceUsd || 89859,
-      change24h: reportData?.change24h || -0.02,
-      exchangeNetflow: reportData?.exchangeNetflow || null,
-      whaleRatio: reportData?.whaleRatio || null,
-    };
+    // レポートデータが提供されていない場合、最新の市場データを取得
+    let finalReportData = reportData;
+    if (!finalReportData || !finalReportData.trapScore || !finalReportData.priceUsd) {
+      console.log('[X Post] Fetching latest market data...');
+      const latestData = await fetchLatestMarketData();
+      finalReportData = {
+        ...latestData,
+        ...reportData, // 提供されたデータで上書き
+      };
+    }
     
     const targetLangs = SUPPORTED_LANGS;
     const useThread = parseBoolean(process.env.X_FREE_REPORT_USE_THREAD, true);
     
     let result;
     if (useThread) {
-      result = await postFreeReportAsThread(targetLangs, defaultReportData);
+      result = await postFreeReportAsThread(targetLangs, finalReportData);
     } else {
-      result = await postFreeReportTimeDispersed(targetLangs, defaultReportData);
+      result = await postFreeReportTimeDispersed(targetLangs, finalReportData);
     }
     
     return result;
@@ -486,22 +607,73 @@ const handler = async (req, res) => {
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET;
   
+  console.log('[X Post Free Report] ========================================');
+  console.log('[X Post Free Report] Cron job triggered at', new Date().toISOString());
+  console.log('[X Post Free Report] ========================================');
+  
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    console.error('[X Post Free Report] ❌ Unauthorized: Invalid CRON_SECRET');
     return res.status(401).json({ error: 'Unauthorized' });
   }
   
   try {
+    // KVストレージ接続確認
+    if (!kv) {
+      console.warn('[X Post Free Report] ⚠️ KV storage not available - duplicate prevention may not work');
+    } else {
+      console.log('[X Post Free Report] ✅ KV storage available');
+    }
+    
     // リクエストボディからレポートデータを取得（cron.jsから呼び出される場合）
     const reportData = req.body?.reportData || null;
+    console.log('[X Post Free Report] Report data provided:', !!reportData);
+    
+    // X API設定状況を確認
+    const xStatus = getXConfigStatus();
+    console.log('[X Post Free Report] X API Status:', {
+      configured: xStatus.configured,
+      postingEnabled: xStatus.postingEnabled,
+      dryRun: xStatus.dryRun,
+      missing: xStatus.missing,
+    });
+    
+    if (!xStatus.postingEnabled) {
+      console.log('[X Post Free Report] ❌ X posting disabled by X_POSTING_ENABLED');
+      return res.status(200).json({ success: false, skipped: true, error: 'X posting disabled' });
+    }
+    
+    if (!xStatus.configured) {
+      console.error(`[X Post Free Report] ❌ X API not configured, missing: ${xStatus.missing.join(', ')}`);
+      return res.status(200).json({ 
+        success: false, 
+        error: 'X API credentials missing', 
+        missing: xStatus.missing 
+      });
+    }
+    
+    if (xStatus.dryRun) {
+      console.log('[X Post Free Report] 🧪 DRY RUN MODE - No actual posts will be made');
+    }
+    
+    console.log('[X Post Free Report] Starting postFreeReportToX...');
     const result = await postFreeReportToX(reportData);
+    
+    console.log('[X Post Free Report] ========================================');
+    console.log('[X Post Free Report] Result:', JSON.stringify(result, null, 2));
+    console.log('[X Post Free Report] ========================================');
     
     return res.status(200).json(result);
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    console.error('[X Post Free Report] ========================================');
+    console.error('[X Post Free Report] ❌ Handler error:', error.message);
+    console.error('[X Post Free Report] Stack:', error.stack);
+    console.error('[X Post Free Report] ========================================');
+    return res.status(500).json({ error: error.message, stack: error.stack });
   }
 };
 
 module.exports = handler;
 module.exports.postFreeReportToX = postFreeReportToX;
+module.exports.fetchLatestMarketData = fetchLatestMarketData;
 module.exports.QUOTE_REPOST_TEMPLATES = QUOTE_REPOST_TEMPLATES;
 module.exports.TWEET_TEMPLATES = TWEET_TEMPLATES;

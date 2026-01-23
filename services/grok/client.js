@@ -146,19 +146,11 @@ function formatCryptoQuantContext(cqDeep = {}, market = 'EN') {
       const totalLiq = cqDeep.liquidations.totalLiquidations;
       contextParts.push(`24h Liquidations: $${(totalLiq / 1_000_000).toFixed(1)}M (high liquidations = potential volatility)`);
     }
-    if (cqDeep.binance) {
-      if (cqDeep.binance.currentFundingRate !== undefined) {
-        contextParts.push(`Funding Rate: ${(cqDeep.binance.currentFundingRate * 100).toFixed(4)}%`);
-      }
-      if (cqDeep.binance.currentLongShortRatio !== undefined) {
-        contextParts.push(`Long/Short Ratio: ${cqDeep.binance.currentLongShortRatio.toFixed(2)}`);
-      }
-    }
   }
 
   // KO市場: Kimchi Premium
   if (market === 'KO' && cqDeep.kimchiPremium !== undefined) {
-    contextParts.push(`Kimchi Premium: ${(cqDeep.kimchiPremium * 100).toFixed(2)}% (Upbit premium over Binance, >5% = high risk)`);
+    contextParts.push(`Kimchi Premium: ${(cqDeep.kimchiPremium * 100).toFixed(2)}% (Upbit premium, >5% = high risk)`);
   }
 
   // JA市場: NUPL, SOPR, riskReward

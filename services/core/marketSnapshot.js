@@ -139,7 +139,6 @@ class MarketSnapshotService {
       case 'KO':
         snapshot.local_optional.kimchi_premium = localData.kimchiPremium;
         snapshot.local_optional.upbit_price = localData.upbitPrice;
-        snapshot.local_optional.binance_price = localData.binancePrice;
         break;
       case 'EN':
         snapshot.local_optional.trap_score = localData.trapScore;

@@ -108,7 +108,6 @@ const { getHighResolutionCQData } = require('../services/cryptoquant/highResolut
 const { initializeCapabilities } = require('../services/cryptoquant/capabilities');
 // 価格取得サービス（KO市場用）
 const { fetchBTCKRWPrice } = require('../services/upbit/client');
-const { fetch24hTicker, getComplementaryData } = require('../services/binance/client');
 const { fetchUSDKRWRate } = require('../services/exchange/rate');
 
 const { buildMarketContext, decideSignal, decideSignalAdvanced } = require('../logic/core/marketCore');
@@ -464,20 +463,6 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // Binance補完データを取得（ダイバージェンス検出用）
-    let binanceData = null;
-    try {
-      binanceData = await getComplementaryData('BTCUSDT');
-      logger.info('Binance complementary data fetched', {
-        fundingRate: binanceData.currentFundingRate,
-        longShortRatio: binanceData.currentLongShortRatio,
-      });
-    } catch (error) {
-      logger.warn('Failed to fetch Binance complementary data', {
-        error: error.message,
-      });
-    }
-
     let ctx = buildMarketContext({
       asset: 'BTC',
       priceUsd,
@@ -487,14 +472,6 @@ module.exports = async function handler(req, res) {
       xSentiment,
       market: getMarketCode(LANG), // Phase 2: 市場情報追加
     });
-    
-    // Binanceデータをctxに追加（ダイバージェンス検出用）
-    if (binanceData) {
-      ctx.binanceData = {
-        currentFundingRate: binanceData.currentFundingRate,
-        currentLongShortRatio: binanceData.currentLongShortRatio,
-      };
-    }
 
     // Phase 2: decideSignalAdvanced使用（市場別補正）
     let coreDecision = decideSignalAdvanced ? decideSignalAdvanced(ctx) : decideSignal(ctx);
@@ -620,7 +597,6 @@ module.exports = async function handler(req, res) {
       }
 
       // Re-evaluate with xSentiment
-      // Phase 2+: Binanceデータをctxに含める（後でcqDeepから取得）
       // 高解像度データも含める
       ctx = buildMarketContext({
         asset: 'BTC',
@@ -632,7 +608,6 @@ module.exports = async function handler(req, res) {
         market: getMarketCode(LANG), // Phase 2: 市場情報追加
         highResCQ: highResCQData, // 高解像度CryptoQuantデータ
         highResX: highResXData, // 高解像度Xセンチメントデータ
-        // binanceDataは後でcqDeepから設定
       });
 
       coreDecision = decideSignal(ctx);
@@ -685,7 +660,6 @@ module.exports = async function handler(req, res) {
       market: 'EN', // ベースはENで統一
       highResCQ: highResCQData, // 高解像度データ（イベント駆動パスで取得済みの場合）
       highResX: highResXData, // 高解像度データ（イベント駆動パスで取得済みの場合）
-      binanceData: binanceData || null,
     });
     const baseCoreDecision = decideSignal(baseCtx);
 
@@ -757,19 +731,16 @@ module.exports = async function handler(req, res) {
           let priceOptions = {};
           if (market.toLowerCase() === 'ko') {
             try {
-              const [upbitPriceData, binancePriceData, usdKrwRate] = await Promise.all([
+              const [upbitPriceData, usdKrwRate] = await Promise.all([
                 fetchBTCKRWPrice(),
-                fetch24hTicker('BTCUSDT'),
                 fetchUSDKRWRate(),
               ]);
               priceOptions = {
                 upbitPrice: upbitPriceData?.tradePrice ?? priceUsd, // Upbit BTC/KRW価格（フォールバック: USD価格）
-                binancePrice: binancePriceData?.lastPrice ?? priceUsd, // Binance BTC/USDT価格（フォールバック: USD価格）
                 usdKrwRate: usdKrwRate ?? 1300, // USD/KRW為替レート（フォールバック: 1300）
               };
               console.log('[Phase 2] Price data fetched:', {
                 upbitPrice: priceOptions.upbitPrice,
-                binancePrice: priceOptions.binancePrice,
                 usdKrwRate: priceOptions.usdKrwRate,
               });
             } catch (priceError) {
@@ -777,7 +748,6 @@ module.exports = async function handler(req, res) {
               // フォールバック: 既存のハードコード値
               priceOptions = {
                 upbitPrice: priceUsd,
-                binancePrice: priceUsd,
                 usdKrwRate: 1300,
               };
             }
@@ -785,7 +755,6 @@ module.exports = async function handler(req, res) {
             // 非KO市場の場合は、既存の動作を維持（priceOptionsは空のまま）
             priceOptions = {
               upbitPrice: priceUsd,
-              binancePrice: priceUsd,
               usdKrwRate: 1300,
             };
           }
@@ -813,22 +782,6 @@ module.exports = async function handler(req, res) {
           if (deepData.status === 'fulfilled') {
             cqDeep = { ...cqDeep, ...deepData.value };
             
-            // Phase 4: liquidationsが取得できなかった場合、Binanceから取得を試みる
-            const { getLiquidationsWithFallback } = require('../services/binance/liquidations');
-            if (!cqDeep.liquidations || (cqDeep.liquidations.totalLiquidations || 0) === 0) {
-              try {
-                const binanceLiquidations = await getLiquidationsWithFallback(cqDeep.liquidations);
-                if (binanceLiquidations && binanceLiquidations.totalLiquidations > 0) {
-                  cqDeep.liquidations = binanceLiquidations;
-                  console.log('[Phase 4] Liquidations fetched from Binance fallback:', {
-                    total: binanceLiquidations.totalLiquidations,
-                    source: binanceLiquidations.source,
-                  });
-                }
-              } catch (error) {
-                console.warn('[Phase 4] Error fetching liquidations from Binance fallback:', error.message);
-              }
-            }
           } else {
             console.warn('[Phase 2] Error fetching deep metrics:', deepData.reason?.message);
           }
@@ -998,7 +951,6 @@ module.exports = async function handler(req, res) {
           priceChange24h: change24h,
           highResCQ: highResCQData,
           highResX: highResXData,
-          binanceData: binanceData || null,
         });
         
         if (trapDetection.trapDetected) {
@@ -1018,7 +970,6 @@ module.exports = async function handler(req, res) {
             priceChange24h: change24h,
             highResCQ: highResCQData,
             highResX: highResXData,
-            binanceData: binanceData || null,
           });
           
           // Phase 4: trapDetectionのtrapScoreを cqDeep に反映（EMERGENCY判定で使用）
@@ -1183,7 +1134,6 @@ module.exports = async function handler(req, res) {
           const firstLangMarket = getMarketCode(targetLangsForRegular[0]);
           const deepData = await getCQDeepMetrics(firstLangMarket, {
             upbitPrice: priceUsd,
-            binancePrice: priceUsd,
             usdKrwRate: 1300,
           });
           cqDeep = { ...cqDeep, ...deepData };
@@ -1240,7 +1190,6 @@ module.exports = async function handler(req, res) {
             marketSnapshotService.addLocalOptional(snapshot.snapshot_id, 'KO', {
               kimchiPremium: cqDeep.kimchiPremium,
               upbitPrice: cqDeep.upbitPrice ?? priceUsd,
-              binancePrice: cqDeep.binancePrice ?? priceUsd,
             });
           }
           if (targetLang === 'en') {
@@ -1320,7 +1269,6 @@ module.exports = async function handler(req, res) {
             liquidations: cqDeep?.liquidations,
             kimchiPremium: cqDeep?.kimchiPremium,
             upbitPrice: cqDeep?.upbitPrice ?? snapshot.price_usd_display,
-            binancePrice: cqDeep?.binancePrice ?? snapshot.price_usd_display,
             riskReward: cqDeep?.riskReward,
             nupl: cqDeep?.longTerm?.nupl,
             sopr30d: cqDeep?.longTerm?.sopr30d,
@@ -1413,7 +1361,6 @@ module.exports = async function handler(req, res) {
               liquidations: cqDeep?.liquidations,
               kimchiPremium: cqDeep?.kimchiPremium,
               upbitPrice: cqDeep?.upbitPrice ?? snapshot.price_usd_display,
-              binancePrice: cqDeep?.binancePrice ?? snapshot.price_usd_display,
               riskReward: cqDeep?.riskReward,
               nupl: cqDeep?.longTerm?.nupl,
               sopr30d: cqDeep?.longTerm?.sopr30d,
@@ -1654,13 +1601,18 @@ module.exports = async function handler(req, res) {
       }
       
       // 無料版レポート配信完了後、X投稿を実行（非同期、エラーは無視）
-      if (ENABLE_MINIMAL_VERSION && shouldSend && (isRegularSlot || force)) {
+      // 注意: 独立したCronジョブ（api/x-post-free-report）も実行されるため、
+      // 二重実行を防ぐため、ここでは実行しない（独立したCronジョブに任せる）
+      // ただし、force=trueの場合は即座に実行する
+      if (ENABLE_MINIMAL_VERSION && shouldSend && force) {
         try {
           const { postFreeReportToX } = require('./x-post-free-report');
           const reportData = {
             trapScore: minimalTrapScore,
             priceUsd,
             change24h,
+            exchangeNetflow: inflow,
+            whaleRatio: whaleRatioValue,
           };
           
           // 非同期で実行（エラーは無視）
@@ -1668,10 +1620,13 @@ module.exports = async function handler(req, res) {
             console.error('[X Post Free Report] Failed:', error.message);
           });
           
-          console.log('[X Post Free Report] Triggered after free report delivery');
+          console.log('[X Post Free Report] Triggered after free report delivery (force mode)');
         } catch (error) {
           console.error('[X Post Free Report] Failed to trigger:', error.message);
         }
+      } else if (ENABLE_MINIMAL_VERSION && shouldSend && (isRegularSlot || force)) {
+        // 通常の定期実行時は、独立したCronジョブに任せる（二重実行防止）
+        console.log('[X Post Free Report] Skipping (will be handled by independent cron job)');
       }
     }
 
@@ -1845,7 +1800,6 @@ module.exports = async function handler(req, res) {
         liquidations: cqDeep?.liquidations,
         kimchiPremium: cqDeep?.kimchiPremium,
         upbitPrice: cqDeep?.upbitPrice ?? priceUsd,
-        binancePrice: cqDeep?.binancePrice ?? priceUsd,
         riskReward: cqDeep?.riskReward,
         nupl: cqDeep?.longTerm?.nupl,
         sopr30d: cqDeep?.longTerm?.sopr30d,
@@ -1929,7 +1883,6 @@ module.exports = async function handler(req, res) {
         liquidations: cqDeep?.liquidations,
         kimchiPremium: cqDeep?.kimchiPremium,
         upbitPrice: cqDeep?.upbitPrice ?? priceUsd,
-        binancePrice: cqDeep?.binancePrice ?? priceUsd,
         riskReward: cqDeep?.riskReward,
         nupl: cqDeep?.longTerm?.nupl,
         sopr30d: cqDeep?.longTerm?.sopr30d,
@@ -2008,7 +1961,6 @@ module.exports = async function handler(req, res) {
         liquidations: cqDeep?.liquidations,
         kimchiPremium: cqDeep?.kimchiPremium,
         upbitPrice: cqDeep?.upbitPrice ?? priceUsd,
-        binancePrice: cqDeep?.binancePrice ?? priceUsd,
         riskReward: cqDeep?.riskReward,
         nupl: cqDeep?.longTerm?.nupl,
         sopr30d: cqDeep?.longTerm?.sopr30d,

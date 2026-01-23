@@ -24,7 +24,6 @@ const { getExchangeInflow, getMinerPositionIndex } = require(
 );
 const { getCQDeepMetrics } = require('../services/cryptoquant/deepMetrics');
 const { fetchBTCKRWPrice } = require('../services/upbit/client');
-const { fetch24hTicker } = require('../services/binance/client');
 const { fetchUSDKRWRate } = require('../services/exchange/rate');
 
 const { buildMarketContext, decideSignalAdvanced } = require('../logic/core/marketCore');
@@ -225,7 +224,6 @@ module.exports = async function handler(req, res) {
       const deepData = await pRetry(
         () => getCQDeepMetrics(market, {
           upbitPrice: priceUsd,
-          binancePrice: priceUsd,
           usdKrwRate: 1300,
         }),
         { retries: 2, factor: 2, minTimeout: 500 }

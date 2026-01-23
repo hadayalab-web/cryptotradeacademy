@@ -233,6 +233,13 @@ function formatRegularBriefing({
     );
     if (isError) {
       gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
+    } else {
+      // JA市場用: 英文が混入している場合を検出（日本語文字が含まれていない場合は英文と判断）
+      const hasJapaneseChars = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(gptNewsText);
+      if (!hasJapaneseChars && gptNewsText.length > 50) {
+        // 英文が混入している場合はnullに設定して日本語フォールバックを使用
+        gptNewsText = null;
+      }
     }
   }
   

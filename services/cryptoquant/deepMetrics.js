@@ -4,8 +4,6 @@
 
 const { fetchCryptoQuant } = require('./client');
 const { getExchangeInflow, getMinerPositionIndex } = require('./endpoints/btc');
-// Phase 2+: Binanceデータ補完
-const { getComplementaryData } = require('../binance/client');
 
 // Valid market codes
 const VALID_MARKETS = ['EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR'];
@@ -217,15 +215,15 @@ async function getBinanceInflow() {
 /**
  * Kimchi Premium計算（KO市場用）
  * @param {number} upbitPrice - Upbit BTC価格（KRW）
- * @param {number} binancePrice - Binance BTC価格（USD）
+ * @param {number} usdPrice - BTC USD価格
  * @param {number} usdKrwRate - USD/KRW為替レート
  * @returns {number} Kimchi Premium（decimal, e.g., 0.05 for 5%）
  */
-function calculateKimchiPremium(upbitPrice, binancePrice, usdKrwRate) {
-  if (!upbitPrice || !binancePrice || !usdKrwRate) return 0;
+function calculateKimchiPremium(upbitPrice, usdPrice, usdKrwRate) {
+  if (!upbitPrice || !usdPrice || !usdKrwRate) return 0;
 
-  const binancePriceKrw = binancePrice * usdKrwRate;
-  const premium = (upbitPrice - binancePriceKrw) / binancePriceKrw;
+  const usdPriceKrw = usdPrice * usdKrwRate;
+  const premium = (upbitPrice - usdPriceKrw) / usdPriceKrw;
 
   return premium;
 }
@@ -349,12 +347,9 @@ async function getSOPR30d() {
  * @param {number} liquidations.longLiquidations - Long position liquidations in USD
  * @param {number} liquidations.shortLiquidations - Short position liquidations in USD
  * @param {number} liquidations.totalLiquidations - Total liquidations (long + short) in USD
- * @param {Object} [binanceData] - Binance complementary data (optional)
- * @param {number} [binanceData.currentFundingRate] - Current funding rate
- * @param {number} [binanceData.currentLongShortRatio] - Current long/short ratio
  * @returns {number} trapScore (0-100)
  */
-function calculateTrapScore(whaleRatio, liquidations, binanceData = null) {
+function calculateTrapScore(whaleRatio, liquidations) {
   let score = 0;
 
   // High Whale Ratio indicates strong selling pressure
@@ -377,21 +372,6 @@ function calculateTrapScore(whaleRatio, liquidations, binanceData = null) {
   const shortLiq = liquidations?.shortLiquidations ?? 0;
   if (longLiq > shortLiq * 2) {
     score += SCORE_LONG_TRAP;
-  }
-
-  // Phase 2+: Binance data corrections
-  if (binanceData) {
-    // High Funding Rate (>0.01%) suggests excessive bullishness
-    const fundingRate = binanceData.currentFundingRate || 0;
-    if (fundingRate > 0.01) {
-      score += SCORE_FUNDING_RATE_HIGH;
-    }
-
-    // High Long/Short Ratio (>1.5) indicates trap risk
-    const lsRatio = binanceData.currentLongShortRatio || 1.0;
-    if (lsRatio > 1.5) {
-      score += SCORE_LONG_SHORT_IMBALANCE;
-    }
   }
 
   return Math.min(100, score);
@@ -469,32 +449,11 @@ async function getCQDeepMetrics(market, options = {}) {
           getLiquidations({ skipCache: options.skipCache }),
         ]);
 
-        // Phase 2+: Binanceデータを取得（trapScore計算に使用）
-        let binanceDataForTrap = null; // 明示的にnullを初期化
-        try {
-          const binanceComplementary = await getComplementaryData('BTCUSDT');
-          binanceDataForTrap = binanceComplementary || null; // 明示的にnullを設定
-        } catch (error) {
-          // Binance API 451エラー（地域制限）などのエラーをログに記録
-          if (error.message && error.message.includes('451')) {
-            // Loggerが利用可能な場合はdebugレベルで、そうでない場合はwarningを抑制
-            try {
-              const { Logger } = require('../utils/logger');
-              Logger.debug('deepMetrics', 'Binance API not available (regional restriction)', { error: error.message });
-            } catch {
-              // Loggerが利用不可の場合はログ出力なし（451は地域制限で期待される動作）
-            }
-          } else {
-            console.warn('[deepMetrics] Error fetching Binance data for trapScore:', error.message);
-          }
-          binanceDataForTrap = null; // エラー時も明示的にnullを設定
-        }
-
-        // binanceDataForTrapがnullの場合でも安全に処理
+        // trapScore計算（Binanceデータなし）
         const trapScore = calculateTrapScore(
           whaleData.whaleRatio || 0,
           liquidations,
-          binanceDataForTrap // nullでも安全（calculateTrapScoreでnullチェック済み）
+          null // Binanceデータは使用しない
         );
 
         return {
@@ -502,8 +461,6 @@ async function getCQDeepMetrics(market, options = {}) {
           whaleFlows: whaleData, // PR #14: whaleData を whaleFlows として返す（既存コードとの互換性のため）
           liquidations,
           trapScore,
-          longShortRatio: binanceDataForTrap?.currentLongShortRatio || 1.0,
-          binance: binanceDataForTrap,
         };
       }
 
@@ -516,12 +473,12 @@ async function getCQDeepMetrics(market, options = {}) {
 
         // 価格情報が必要（optionsから取得、または別途取得）
         const upbitPrice = options.upbitPrice ?? 0;
-        const binancePrice = options.binancePrice ?? 0;
+        const usdPrice = options.usdPrice ?? 0; // USD価格を使用
         const usdKrwRate = options.usdKrwRate ?? 1300; // デフォルト為替レート
 
         const kimchiPremium = calculateKimchiPremium(
           upbitPrice,
-          binancePrice,
+          usdPrice,
           usdKrwRate
         );
 
@@ -533,7 +490,6 @@ async function getCQDeepMetrics(market, options = {}) {
           binanceInflow,
           kimchiPremium,
           upbitPrice,
-          binancePrice,
           isTrap,
         };
       }

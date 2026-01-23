@@ -26,7 +26,6 @@ function formatRegularBriefing({
   stats,
   kimchiPremium, // Phase 2: KO市場専用
   upbitPrice, // Phase 2: KO市場専用
-  binancePrice, // Phase 2: KO市場専用
   // Phase1-Product: 新機能データ
   noTradeAlert, // NO TRADEアラート結果
   trapRisk, // Trap Riskスコア結果
@@ -212,6 +211,13 @@ function formatRegularBriefing({
     );
     if (isError) {
       gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
+    } else {
+      // KO市場用: 韓国語以外の言語が混入している場合を検出（ハングルが含まれていない場合は英文と判断）
+      const hasKoreanChars = /[\uAC00-\uD7AF]/.test(gptNewsText);
+      if (!hasKoreanChars && gptNewsText.length > 50) {
+        // 韓国語が含まれていない場合はnullに設定して韓国語フォールバックを使用
+        gptNewsText = null;
+      }
     }
   }
   
@@ -459,7 +465,6 @@ ${sentimentLabel.toLowerCase()} 센티먼트는 ${sentimentLabel === 'Neutral' ?
     const premiumLine = `🥟 김치 프리미엄: ${premiumPct.toFixed(2)}% ${premiumPct > 5 ? '🚨 함정' : premiumPct > 3 ? '⚠️ 주의' : '✅ 정상'}`;
     lines.push(premiumLine);
     if (upbitPrice) lines.push(`• 업비트: ₩${upbitPrice.toLocaleString('ko-KR')}`);
-    if (binancePrice) lines.push(`• 바이낸스: $${binancePrice.toLocaleString('en-US')}`);
   }
 
   // Phase1-Product: Trap Riskスコア表示

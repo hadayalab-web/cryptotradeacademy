@@ -200,6 +200,13 @@ function formatRegularBriefing({
     );
     if (isError) {
       gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
+    } else {
+      // AR市場用: アラビア語以外の言語が混入している場合を検出（アラビア文字が含まれていない場合は英文と判断）
+      const hasArabicChars = /[\u0600-\u06FF]/.test(gptNewsText);
+      if (!hasArabicChars && gptNewsText.length > 50) {
+        // アラビア語が含まれていない場合はnullに設定してアラビア語フォールバックを使用
+        gptNewsText = null;
+      }
     }
   }
   

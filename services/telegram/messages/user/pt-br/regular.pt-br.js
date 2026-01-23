@@ -200,6 +200,15 @@ function formatRegularBriefing({
     );
     if (isError) {
       gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
+    } else {
+      // PT-BR市場用: ポルトガル語以外の言語が混入している場合を検出
+      // ポルトガル語特有の文字（ã, õ, ç, á, é, í, ó, ú）またはポルトガル語の一般的な単語が含まれているかチェック
+      const hasPortugueseChars = /[ãõçáéíóúâêôàèìòùÃÕÇÁÉÍÓÚÂÊÔÀÈÌÒÙ]/.test(gptNewsText);
+      const hasPortugueseWords = /\b(o|a|os|as|de|do|da|dos|das|em|no|na|nos|nas|é|está|são|com|por|para|que|um|uma|mais|muito|também|como|mas|se|não|sim|muito|bem|mais|menos|muito|tão|tanto|todos|todas|este|esta|estes|estas|esse|essa|esses|essas|aquele|aquela|aqueles|aquelas)\b/i.test(gptNewsText);
+      if (!hasPortugueseChars && !hasPortugueseWords && gptNewsText.length > 50) {
+        // ポルトガル語が含まれていない場合はnullに設定してポルトガル語フォールバックを使用
+        gptNewsText = null;
+      }
     }
   }
   
