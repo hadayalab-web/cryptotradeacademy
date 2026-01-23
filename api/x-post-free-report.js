@@ -147,7 +147,7 @@ const QUOTE_REPOST_TEMPLATES = {
   },
 };
 
-// 言語別ツイートテンプレート（Xアルゴリズム最適化版: 280文字以内、エンゲージメント最大化）
+// 言語別ツイートテンプレート（Xアルゴリズム最適化版: Grok最適化済み、エンゲージメント最大化）
 const TWEET_TEMPLATES = {
   en: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const scoreText = trapScore <= 25 ? 'VERY LOW RISK ✅' : 
@@ -156,53 +156,127 @@ const TWEET_TEMPLATES = {
                      'VERY HIGH RISK 🔴';
     
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
-    const changeStr = change24h != null ? `(${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%)` : '';
-    const netflowStr = exchangeNetflow ? `| Netflow: +${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
-    const whaleStr = whaleRatio ? `| Whale: ${(whaleRatio * 100).toFixed(0)}%` : '';
+    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%/24h` : '';
+    const netflowStr = exchangeNetflow ? `+${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
+    const whaleStr = whaleRatio ? `${whaleRatio}%` : '';
+    const whaleDollarStr = whaleRatio && priceUsd ? `$${Math.floor((whaleRatio / 100) * priceUsd * 1000)}M+ ready` : '';
     
-    // エンゲージメント最大化: 質問を含める
-    const question = trapScore <= 25 ? 'You protecting capital? Or chasing? Reply below!' : 'Your biggest trap fear? Share below!';
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toISOString().split('T')[1].split('.')[0] + ' UTC';
     
-    return `🌤️ Trap Defence BTC Free Report 🚨 ${scoreText}!
+    // Grok最適化: 矛盾の提示（低リスクなのに売り圧力）
+    const contradictionText = (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) 
+      ? `\n🤔 Market stable NOW, but ${netflowStr} inflow & ${whaleStr} Whale Ratio scream SELLING PRESSURE. Calm before storm?`
+      : `\n💡 Market stable NOW, but traps lurk. Stay alert!`;
+    
+    // Grok最適化: 質問CTA（アルゴリズム評価UP）
+    const question = trapScore <= 25 
+      ? (exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50 
+        ? "What's YOUR move if whales dump? Reply below! 👇"
+        : "What's your biggest fear in this market? Reply below! 👇")
+      : "Protecting capital or chasing? Reply below! 👇";
+    
+    return `⚠️ URGENT ALERT: Trap Score ${trapScore}/100 – SAFE? Or Whale Trap Brewing?
 
-🎯 Trap Score: ${trapScore}/100 - BTC ${priceStr} ${changeStr}
-📊 ${netflowStr} ${whaleStr}
+🌤️ Trap Defence BTC - Free Report
+🚨 EMERGENCY BRIEFING
+📅 ${dateStr} ${timeStr}
 
-💡 Stable now, but traps lurk. Dr. Grok: "Patience is strength."
+━━━━━━━━━━━━━━━━━━━━
+🎯 Today's Trap Score
+━━━━━━━━━━━━━━━━━━━━
+${trapScore}/100
+✅ ${scoreText}: ${trapScore <= 25 ? 'Few traps spotted. But story changes FAST.' : 'Traps detected. Stay alert!'}
 
-${question}
+💰 BTC: ${priceStr} ${changeStr}${contradictionText}
 
-✅ Free: Score only | Full: Real-time alerts + AI insights
-🚀 Upgrade: ${deepLink} #BTC #TrapDefence #CryptoTrading
+━━━━━━━━━━━━━━━━━━━━
+📊 Why Watch Closely
+━━━━━━━━━━━━━━━━━━━━
+${exchangeNetflow ? `• Exchanges flooded: ${netflowStr} IN – Sellers loading up\n` : ''}${whaleRatio ? `• Whales control ${whaleStr}: Dump risk ${whaleRatio > 50 ? 'moderate-high' : 'low-moderate'}\n` : ''}
+💡 Pro Strategy:
+✅ ${trapScore}/100 = Prep time! Pros wait for edge.
+🛡️ One surprise sell = 10-20% wipeout. Defend now!
 
-(Education only. Not advice)`;
+💊 Dr. Grok: "${trapScore <= 25 ? 'Low risk? Complacency kills. Prep or perish.' : 'High risk? Defense wins. Protect capital first.'}"
+
+✅ Mindset: "Defense wins wars. Protect capital first."
+
+━━━━━━━━━━━━━━━━━━━━
+🚀 FULL REPORT UNLOCK
+
+Free: Just score.
+Full: On-chain deep dive, AI alerts (AVOID LONG/SHORT), Exit Maps, Sentiment scan, Dr. Grok therapy.
+
+🛡️ Miss one signal? Lose 10%+. Upgrade for bulletproof defense.
+
+${question} #BTC
+
+Educational only. Not advice.`;
   },
   ja: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const scoreText = trapScore <= 25 ? '極低リスク ✅' : 
+    const scoreText = trapScore <= 25 ? '非常に低いリスク ✅' : 
                      trapScore <= 50 ? '低リスク ⚠️' : 
                      trapScore <= 75 ? '高リスク 🚨' : 
                      '極高リスク 🔴';
     
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
-    const changeStr = change24h != null ? `(${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%)` : '';
-    const netflowStr = exchangeNetflow ? `| ネットフロー: +${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
-    const whaleStr = whaleRatio ? `| クジラ: ${(whaleRatio * 100).toFixed(0)}%` : '';
+    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%/24h` : '';
+    const netflowStr = exchangeNetflow ? `+${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
+    const whaleStr = whaleRatio ? `${whaleRatio}%` : '';
     
-    const question = trapScore <= 25 ? '資本保護中？それとも追いかけ中？下にリプライ！' : '最大のトラップ恐怖は？下に共有！';
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toISOString().split('T')[1].split('.')[0] + ' UTC';
     
-    return `🌤️ Trap Defence BTC 無料レポート 🚨 ${scoreText}！
+    const contradictionText = (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) 
+      ? `\n🤔 市場安定中、だが${netflowStr}流入 & ${whaleStr}クジラ比率が売り圧力叫ぶ。嵐前の静けさ？`
+      : `\n💡 市場安定中、だがトラップは潜む。警戒せよ！`;
+    
+    const question = trapScore <= 25 
+      ? (exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50 
+        ? "クジラダンプ時のお前の策は？下にリプ！ 👇"
+        : "この市場で最も大きな恐怖は何ですか？下にリプライ！ 👇")
+      : "資本保護？それとも追いかけ中？下にリプライ！ 👇";
+    
+    return `⚠️ 緊急警報: Trap Score ${trapScore}/100 – 安全？それともクジラの罠が迫る？
 
-🎯 Trap Score: ${trapScore}/100 - BTC ${priceStr} ${changeStr}
-📊 ${netflowStr} ${whaleStr}
+🌤️ Trap Defence BTC - 無料レポート
+🚨 緊急ブリーフィング
+📅 ${dateStr} ${timeStr}
 
-💡 今は安定、でもトラップは潜む。Dr. Grok: 「忍耐は強さ」
+━━━━━━━━━━━━━━━━━━━━
+🎯 本日のTrap Score
+━━━━━━━━━━━━━━━━━━━━
+${trapScore}/100
+✅ ${scoreText}: ${trapScore <= 25 ? '罠少なく。だが急変！' : '罠検知。警戒せよ！'}
 
-${question}
+💰 BTC: ${priceStr} ${changeStr}${contradictionText}
 
-✅ 無料: スコアのみ | 完全: リアルタイムアラート + AI分析
-🚀 アップグレード: ${deepLink} #BTC #TrapDefence #仮想通貨
+━━━━━━━━━━━━━━━━━━━━
+📊 データ裏付け
+━━━━━━━━━━━━━━━━━━━━
+${exchangeNetflow ? `• 取引所流入: ${netflowStr} – 売り手蓄積\n` : ''}${whaleRatio ? `• クジラ${whaleStr}: ダンプリスク${whaleRatio > 50 ? '中～高' : '低～中'}\n` : ''}
+💡 プロ戦略:
+✅ ${trapScore}/100 = 準備タイム！プロは優位待つ。
+🛡️ 突然売りで-10-20%。今守れ！
 
-(教育目的のみ。アドバイスではありません)`;
+💊 Dr. Grok: 「${trapScore <= 25 ? '低リスク？油断が死。備えよか滅びよ。' : '高リスク？守りが至高の攻め。資本保護第一。'}」
+
+✅ マインド: 「守りが至高の攻め。資本保護第一。」
+
+━━━━━━━━━━━━━━━━━━━━
+🚀 フルレポート解禁
+
+無料: スコアのみ。
+フル: オン-chain全分析、AIアラート(LONG/SHORT回避)、出口マップ、センチメント、Dr. Grokメンタル支援。
+
+🛡️ 1信号ミスで-10%+。アップグレードで鉄壁防御。
+
+${question} #BTC
+
+教育目的のみ。投資助言非也。`;
   },
   es: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const scoreText = trapScore <= 25 ? 'RIESGO MUY BAJO ✅' : 
@@ -211,25 +285,61 @@ ${question}
                      'RIESGO MUY ALTO 🔴';
     
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
-    const changeStr = change24h != null ? `(${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%)` : '';
-    const netflowStr = exchangeNetflow ? `| Flujo: +${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
-    const whaleStr = whaleRatio ? `| Ballenas: ${(whaleRatio * 100).toFixed(0)}%` : '';
+    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%/24h` : '';
+    const netflowStr = exchangeNetflow ? `+${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
+    const whaleStr = whaleRatio ? `${whaleRatio}%` : '';
     
-    const question = trapScore <= 25 ? '¿Protegiendo capital? ¿O persiguiendo? ¡Responde abajo!' : '¿Tu mayor miedo de trampa? ¡Comparte abajo!';
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toISOString().split('T')[1].split('.')[0] + ' UTC';
     
-    return `🌤️ Trap Defence BTC Informe Gratuito 🚨 ¡${scoreText}!
+    const contradictionText = (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) 
+      ? `\n🤔 Mercado estable AHORA, pero ${netflowStr} inflow & ${whaleStr} Whale Ratio gritan PRESIÓN VENDEDORA. ¿Calma antes tormenta?`
+      : `\n💡 Mercado estable AHORA, pero trampas acechan. ¡Mantente alerta!`;
+    
+    const question = trapScore <= 25 
+      ? (exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50 
+        ? "¿Cuál es TU jugada si ballenas venden? ¡Responde abajo! 👇"
+        : "¿Cuál es tu mayor miedo en este mercado? ¡Responde abajo! 👇")
+      : "¿Protegiendo capital o persiguiendo? ¡Responde abajo! 👇";
+    
+    return `⚠️ ALERTA URGENTE: Trap Score ${trapScore}/100 – ¿SEGURO? ¿O trampa de ballenas en marcha?
 
-🎯 Trap Score: ${trapScore}/100 - BTC ${priceStr} ${changeStr}
-📊 ${netflowStr} ${whaleStr}
+🌤️ Trap Defence BTC - Reporte Gratis
+🚨 BRIEFING DE EMERGENCIA
+📅 ${dateStr} ${timeStr}
 
-💡 Estable ahora, pero trampas acechan. Dr. Grok: "La paciencia es fuerza."
+━━━━━━━━━━━━━━━━━━━━
+🎯 Trap Score de Hoy
+━━━━━━━━━━━━━━━━━━━━
+${trapScore}/100
+✅ ${scoreText}: ${trapScore <= 25 ? 'Pocos traps. Pero cambia RÁPIDO.' : 'Traps detectados. ¡Mantente alerta!'}
 
-${question}
+💰 BTC: ${priceStr} ${changeStr}${contradictionText}
 
-✅ Gratis: Solo puntuación | Completo: Alertas + análisis IA
-🚀 Actualiza: ${deepLink} #BTC #TrapDefence #Cripto
+━━━━━━━━━━━━━━━━━━━━
+📊 Razones Datos
+━━━━━━━━━━━━━━━━━━━━
+${exchangeNetflow ? `• Exchanges inundados: ${netflowStr} EN – Vendedores cargando\n` : ''}${whaleRatio ? `• Ballenas ${whaleStr}: Riesgo dump ${whaleRatio > 50 ? 'medio-alto' : 'bajo-medio'}\n` : ''}
+💡 Estrategia Pro:
+✅ ${trapScore}/100 = ¡Tiempo prep! Pros esperan ventaja.
+🛡️ Una venta sorpresa = -10-20%. ¡Defiende ya!
 
-(Solo educación. No es consejo)`;
+💊 Dr. Grok: "${trapScore <= 25 ? 'Bajo riesgo? Complacencia mata. Prepárate o perece.' : 'Alto riesgo? Defensa gana. Protege capital primero.'}"
+
+✅ Mentalidad: "Defensa gana guerras. Protege capital primero."
+
+━━━━━━━━━━━━━━━━━━━━
+🚀 DESBLOQUEA REPORTE COMPLETO
+
+Gratis: Solo score.
+Full: Análisis on-chain, alertas AI (EVITA LONG/SHORT), Mapas salida, Escaneo sentimiento, Terapia Dr. Grok.
+
+🛡️ ¿Perdiste señal? -10%+. Upgrade para defensa a prueba balas.
+
+${question} #BTC
+
+Solo educativo. No consejo financiero.`;
   },
   'pt-br': (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const scoreText = trapScore <= 25 ? 'RISCO MUITO BAIXO ✅' : 
@@ -238,25 +348,61 @@ ${question}
                      'RISCO MUITO ALTO 🔴';
     
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
-    const changeStr = change24h != null ? `(${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%)` : '';
-    const netflowStr = exchangeNetflow ? `| Fluxo: +${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
-    const whaleStr = whaleRatio ? `| Baleias: ${(whaleRatio * 100).toFixed(0)}%` : '';
+    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%/24h` : '';
+    const netflowStr = exchangeNetflow ? `+${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
+    const whaleStr = whaleRatio ? `${whaleRatio}%` : '';
     
-    const question = trapScore <= 25 ? 'Protegendo capital? Ou perseguindo? Responda abaixo!' : 'Seu maior medo de armadilha? Compartilhe abaixo!';
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toISOString().split('T')[1].split('.')[0] + ' UTC';
     
-    return `🌤️ Trap Defence BTC Relatório Gratuito 🚨 ${scoreText}!
+    const contradictionText = (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) 
+      ? `\n🤔 Mercado estável AGORA, mas ${netflowStr} inflow & ${whaleStr} Whale Ratio gritam PRESSÃO DE VENDA. Calma antes da tempestade?`
+      : `\n💡 Mercado estável AGORA, mas armadilhas espreitam. Fique alerta!`;
+    
+    const question = trapScore <= 25 
+      ? (exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50 
+        ? "Qual é o SEU plano se baleias dumparem? Responda abaixo! 👇"
+        : "Qual é o seu maior medo neste mercado? Responda abaixo! 👇")
+      : "Protegendo capital ou perseguindo? Responda abaixo! 👇";
+    
+    return `⚠️ ALERTA URGENTE: Trap Score ${trapScore}/100 – SEGURO? Ou armadilha de baleias se formando?
 
-🎯 Trap Score: ${trapScore}/100 - BTC ${priceStr} ${changeStr}
-📊 ${netflowStr} ${whaleStr}
+🌤️ Trap Defence BTC - Relatório Grátis
+🚨 BRIEFING DE EMERGÊNCIA
+📅 ${dateStr} ${timeStr}
 
-💡 Estável agora, mas armadilhas espreitam. Dr. Grok: "Paciência é força."
+━━━━━━━━━━━━━━━━━━━━
+🎯 Trap Score de Hoje
+━━━━━━━━━━━━━━━━━━━━
+${trapScore}/100
+✅ ${scoreText}: ${trapScore <= 25 ? 'Poucos traps. Mas muda RÁPIDO.' : 'Traps detectados. Fique alerta!'}
 
-${question}
+💰 BTC: ${priceStr} ${changeStr}${contradictionText}
 
-✅ Grátis: Apenas pontuação | Completo: Alertas + insights IA
-🚀 Atualize: ${deepLink} #BTC #TrapDefence #Cripto
+━━━━━━━━━━━━━━━━━━━━
+📊 Por Que Ficar Atento
+━━━━━━━━━━━━━━━━━━━━
+${exchangeNetflow ? `• Exchanges lotados: ${netflowStr} ENTRADA – Vendedores carregando\n` : ''}${whaleRatio ? `• Baleias ${whaleStr}: Risco de dump ${whaleRatio > 50 ? 'médio-alto' : 'baixo-médio'}\n` : ''}
+💡 Estratégia Pro:
+✅ ${trapScore}/100 = Hora de prep! Pros esperam pela vantagem.
+🛡️ Uma venda surpresa = -10-20%. Defenda agora!
 
-(Apenas educação. Não é conselho)`;
+💊 Dr. Grok: "${trapScore <= 25 ? 'Baixo risco? Complacência mata. Prepare-se ou pereça.' : 'Alto risco? Defesa vence. Proteja capital primeiro.'}"
+
+✅ Mentalidade: "Defesa vence guerras. Proteja capital primeiro."
+
+━━━━━━━━━━━━━━━━━━━━
+🚀 DESTRAVE RELATÓRIO COMPLETO
+
+Grátis: Só score.
+Full: Análise on-chain, alertas AI (EVITE LONG/SHORT), Mapas de saída, Análise sentimento, Terapia Dr. Grok.
+
+🛡️ Perdeu sinal? -10%+. Upgrade para defesa à prova de balas.
+
+${question} #BTC
+
+Educacional apenas. Não é conselho financeiro.`;
   },
   ar: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const scoreText = trapScore <= 25 ? 'مخاطر منخفضة جداً ✅' : 
@@ -265,52 +411,124 @@ ${question}
                      'مخاطر عالية جداً 🔴';
     
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
-    const changeStr = change24h != null ? `(${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%)` : '';
-    const netflowStr = exchangeNetflow ? `| التدفق: +${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
-    const whaleStr = whaleRatio ? `| الحيتان: ${(whaleRatio * 100).toFixed(0)}%` : '';
+    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%/24h` : '';
+    const netflowStr = exchangeNetflow ? `+${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
+    const whaleStr = whaleRatio ? `${whaleRatio}%` : '';
     
-    const question = trapScore <= 25 ? 'هل تحمي رأس المال؟ أم تطارد؟ أجب أدناه!' : 'أكبر خوفك من الفخاخ؟ شارك أدناه!';
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toISOString().split('T')[1].split('.')[0] + ' UTC';
     
-    return `🌤️ Trap Defence BTC تقرير مجاني 🚨 ${scoreText}!
+    const contradictionText = (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) 
+      ? `\n🤔 السوق مستقر الآن، لكن تدفق ${netflowStr} & نسبة الحيتان ${whaleStr} تصرخان ضغط بيع. هدوء قبل العاصفة؟`
+      : `\n💡 السوق مستقر الآن، لكن الفخاخ تكمن. كن حذراً!`;
+    
+    const question = trapScore <= 25 
+      ? (exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50 
+        ? "ما خطتك إذا باعت الحيتان؟ رد أسفل! 👇"
+        : "ما هو أكبر خوفك في هذا السوق؟ رد أسفل! 👇")
+      : "هل تحمي رأس المال أم تطارد؟ رد أسفل! 👇";
+    
+    return `⚠️ تنبيه عاجل: Trap Score ${trapScore}/100 – آمن؟ أم فخ حيتان يتكون؟
 
-🎯 Trap Score: ${trapScore}/100 - BTC ${priceStr} ${changeStr}
-📊 ${netflowStr} ${whaleStr}
+🌤️ Trap Defence BTC - تقرير مجاني
+🚨 نشرة طوارئ
+📅 ${dateStr} ${timeStr}
 
-💡 مستقر الآن، لكن الفخاخ تكمن. Dr. Grok: "الصبر قوة."
+━━━━━━━━━━━━━━━━━━━━
+🎯 Trap Score اليوم
+━━━━━━━━━━━━━━━━━━━━
+${trapScore}/100
+✅ ${scoreText}: ${trapScore <= 25 ? 'قليل من الفخاخ. لكنها تتغير سريعاً.' : 'فخاخ مكتشفة. كن حذراً!'}
 
-${question}
+💰 BTC: ${priceStr} ${changeStr}${contradictionText}
 
-✅ مجاني: النقاط فقط | كامل: تنبيهات + تحليل ذكي
-🚀 ترقية: ${deepLink} #BTC #TrapDefence #Crypto
+━━━━━━━━━━━━━━━━━━━━
+📊 أسباب مدعومة ببيانات
+━━━━━━━━━━━━━━━━━━━━
+${exchangeNetflow ? `• المنصات مغمورة: ${netflowStr} داخل – البائعون يحملون\n` : ''}${whaleRatio ? `• الحيتان ${whaleStr}: خطر إغراق ${whaleRatio > 50 ? 'متوسط-عالي' : 'منخفض-متوسط'}\n` : ''}
+💡 استراتيجية محترفين:
+✅ ${trapScore}/100 = وقت التحضير! المحترفون ينتظرون الميزة.
+🛡️ بيع مفاجئ واحد = -10-20%. ادافع الآن!
 
-(للتثقيف فقط. ليس نصيحة)`;
+💊 د. غروك: "${trapScore <= 25 ? 'مخاطر منخفضة؟ الغفلة تقتل. حضّر أو هلك.' : 'مخاطر عالية؟ الدفاع أعلى أشكال الهجوم. احمِ رأس المال أولاً.'}"
+
+✅ عقلية: "الدفاع أعلى أشكال الهجوم. احمِ رأس المال أولاً."
+
+━━━━━━━━━━━━━━━━━━━━
+🚀 فك قفل التقرير الكامل
+
+مجاني: النتيجة فقط.
+كامل: تحليل on-chain، تنبيهات AI (تجنب LONG/SHORT)، خرائط خروج، تحليل المشاعر، دعم د. غروك النفسي.
+
+🛡️ تفويت إشارة واحدة؟ -10%+. ترقية لدفاع مضاد للرصاص.
+
+${question} #BTC
+
+تعليمي فقط. ليس نصيحة مالية.`;
   },
   ko: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const scoreText = trapScore <= 25 ? '매우 낮은 리스크 ✅' : 
-                     trapScore <= 50 ? '낮은 리스크 ⚠️' : 
-                     trapScore <= 75 ? '높은 리스크 🚨' : 
-                     '매우 높은 리스크 🔴';
+    const scoreText = trapScore <= 25 ? '매우 낮은 위험 ✅' : 
+                     trapScore <= 50 ? '낮은 위험 ⚠️' : 
+                     trapScore <= 75 ? '높은 위험 🚨' : 
+                     '매우 높은 위험 🔴';
     
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
-    const changeStr = change24h != null ? `(${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%)` : '';
-    const netflowStr = exchangeNetflow ? `| 순유입: +${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
-    const whaleStr = whaleRatio ? `| 고래: ${(whaleRatio * 100).toFixed(0)}%` : '';
+    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%/24h` : '';
+    const netflowStr = exchangeNetflow ? `+${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
+    const whaleStr = whaleRatio ? `${whaleRatio}%` : '';
     
-    const question = trapScore <= 25 ? '자본 보호 중인가요? 추격 중인가요? 아래에 답글!' : '가장 큰 함정 공포는? 아래에 공유!';
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toISOString().split('T')[1].split('.')[0] + ' UTC';
     
-    return `🌤️ Trap Defence BTC 무료 리포트 🚨 ${scoreText}!
+    const contradictionText = (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) 
+      ? `\n🤔 시장 안정적 지금, 하지만 ${netflowStr} 유입 & ${whaleStr} 고래 비율이 매도 압력 외침. 폭풍 전 고요?`
+      : `\n💡 시장 안정적 지금, 하지만 함정 도사림. 경계하라!`;
+    
+    const question = trapScore <= 25 
+      ? (exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50 
+        ? "고래 덤프 시 네 계획은? 아래 답변! 👇"
+        : "이 시장에서 가장 큰 두려움은 무엇인가요? 아래 답변! 👇")
+      : "자본 보호 중인가요? 추격 중인가요? 아래 답변! 👇";
+    
+    return `⚠️ 긴급 경보: Trap Score ${trapScore}/100 – 안전? 아니면 고래 함정 형성 중?
 
-🎯 Trap Score: ${trapScore}/100 - BTC ${priceStr} ${changeStr}
-📊 ${netflowStr} ${whaleStr}
+🌤️ Trap Defence BTC - 무료 보고서
+🚨 비상 브리핑
+📅 ${dateStr} ${timeStr}
 
-💡 지금은 안정적이지만 함정이 도사리고 있습니다. Dr. Grok: "인내는 힘"
+━━━━━━━━━━━━━━━━━━━━
+🎯 오늘의 Trap Score
+━━━━━━━━━━━━━━━━━━━━
+${trapScore}/100
+✅ ${scoreText}: ${trapScore <= 25 ? '함정 적음. 하지만 빠르게 변함.' : '함정 감지. 경계하라!'}
 
-${question}
+💰 BTC: ${priceStr} ${changeStr}${contradictionText}
 
-✅ 무료: 점수만 | 완전: 실시간 알림 + AI 분석
-🚀 업그레이드: ${deepLink} #BTC #TrapDefence #비트코인
+━━━━━━━━━━━━━━━━━━━━
+📊 데이터 기반 이유
+━━━━━━━━━━━━━━━━━━━━
+${exchangeNetflow ? `• 거래소 유입: ${netflowStr} – 매도자 로딩\n` : ''}${whaleRatio ? `• 고래 ${whaleStr}: 덤프 위험 ${whaleRatio > 50 ? '중간-높음' : '낮음-중간'}\n` : ''}
+💡 프로 전략:
+✅ ${trapScore}/100 = 준비 시간! 프로들은 이점 기다림.
+🛡️ 깜짝 매도 = -10-20%. 지금 방어!
 
-(교육 목적만. 조언 아님)`;
+💊 Dr. Grok: "${trapScore <= 25 ? '낮은 위험? 안일함이 죽음. 준비하거나 망함.' : '높은 위험? 방어가 최고 공격. 자본 보호부터.'}"
+
+✅ 마인드셋: "방어가 최고 공격. 자본 보호부터."
+
+━━━━━━━━━━━━━━━━━━━━
+🚀 전체 보고서 해제
+
+무료: 스코어만.
+풀: 온체인 분석, AI 알림 (LONG/SHORT 피함), 출구 맵, 감정 분석, Dr. Grok 심리 지원.
+
+🛡️ 신호 하나 놓침? -10%+. 업그레이드해 방어막.
+
+${question} #BTC
+
+교육 목적. 투자 조언 아님.`;
   },
 };
 
