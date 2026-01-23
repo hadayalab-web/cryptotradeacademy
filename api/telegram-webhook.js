@@ -2,8 +2,8 @@
 // Telegram Bot Webhookエンドポイント（無料版登録用コマンド処理 + グループメッセージ監視）
 
 const { handleBotCommand } = require('../services/telegram/bot-commands');
-const { monitorGroupMessage, sendVSL1ToLead } = require('../services/lead-discovery/telegramGroupMonitor');
-const { enqueueLead, completeLead } = require('../services/lead-discovery/priorityQueue');
+const { monitorGroupMessage } = require('../services/lead-discovery/telegramGroupMonitor');
+const { enqueueLead } = require('../services/lead-discovery/priorityQueue');
 
 /**
  * 監視対象グループIDを取得（環境変数から）
@@ -64,15 +64,13 @@ async function handleGroupMessage(update) {
   }
   
   // リードをキューに追加
+  // 新しいワークフローでは、X API経由のリプライ送信（replyVSL1ToLead）を使用します
+  // Telegram DM経由の直接送信（sendVSL1ToLead）は削除されました
   try {
     const jobId = await enqueueLead(lead);
     
-    // ドンピシャリードの場合は即座に送信
-    if (lead.isPerfectMatch) {
-      await sendVSL1ToLead(lead);
-      await completeLead(jobId);
-      return { success: true, action: 'perfect_match_sent', lead };
-    }
+    // ドンピシャリードの場合も、キューに追加してlead-discovery.jsで処理されます
+    // （X API経由のリプライ送信のため）
     
     return { success: true, action: 'lead_enqueued', lead, jobId };
   } catch (error) {

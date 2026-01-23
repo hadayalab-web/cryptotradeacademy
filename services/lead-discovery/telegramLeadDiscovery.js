@@ -2,7 +2,7 @@
 // Grok（X AI API）によるTelegramリード発見スクリプト
 
 const { detectKeywords, isPerfectMatch, calculateLeadScore } = require('./keywordMonitor');
-const { sendVSL1ToLead } = require('./telegramGroupMonitor');
+// 旧仕様: sendVSL1ToLeadは削除されました（新しいワークフローではX API経由のリプライ送信を使用）
 const { discoverLeadsOnX } = require('../grok/client');
 
 /**

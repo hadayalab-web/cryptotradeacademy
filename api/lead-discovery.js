@@ -2,8 +2,7 @@
 // リード発見自動化APIエンドポイント
 
 const {
-  monitorGroupMessage,
-  sendVSL1ToLead
+  monitorGroupMessage
 } = require("../services/lead-discovery/telegramGroupMonitor");
 const {
   discoverLeadFromTweet,
@@ -324,13 +323,15 @@ async function processLeadQueue(req, res) {
 
         let sent = false;
 
-        // Telegramリードの場合はDM送信
-        if (lead.userId && lead.chatId) {
-          sent = await sendVSL1ToLead(lead);
-        }
-        // Xリードの場合はリプライ送信
-        else if (lead.tweetId) {
+        // 新しいワークフロー: X API経由のリプライ送信のみを使用
+        // 旧仕様のTelegram DM経由の直接送信（sendVSL1ToLead）は削除されました
+        if (lead.tweetId) {
           sent = await replyVSL1ToLead(lead);
+        } else {
+          console.warn(`[Lead Discovery] ⚠️ Lead has no tweetId, cannot send reply: @${lead.username || lead.userId || "unknown"}`);
+          // Telegramリードの場合は、キューから削除してスキップ
+          await completeLead(jobId);
+          continue;
         }
 
         if (sent === true) {

@@ -311,10 +311,19 @@ async function getCVRStats(startDate, endDate) {
   if (!kvClient) {
     return {
       totalLeads: 0,
-      vsl1Sent: 0,
+      repliesSent: 0, // 新しいワークフロー: リプライ送信数（旧: vsl1Sent）
       conversions: 0,
       cvr: 0,
       revenue: 0,
+      perfectMatchLeads: 0,
+      perfectMatchConversions: 0,
+      // ソース別トラッキング
+      bySource: {
+        x_direct: { leads: 0, replies: 0, conversions: 0, revenue: 0 },
+        x_quote: { leads: 0, replies: 0, conversions: 0, revenue: 0 },
+        telegram: { leads: 0, replies: 0, conversions: 0, revenue: 0 },
+        other: { leads: 0, replies: 0, conversions: 0, revenue: 0 },
+      },
       error: 'KV client not initialized',
     };
   }
@@ -322,11 +331,18 @@ async function getCVRStats(startDate, endDate) {
   try {
     const stats = {
       totalLeads: 0,
-      vsl1Sent: 0,
+      repliesSent: 0, // 新しいワークフロー: リプライ送信数（旧: vsl1Sent）
       conversions: 0,
       revenue: 0,
       perfectMatchLeads: 0,
       perfectMatchConversions: 0,
+      // ソース別トラッキング
+      bySource: {
+        x_direct: { leads: 0, replies: 0, conversions: 0, revenue: 0 },
+        x_quote: { leads: 0, replies: 0, conversions: 0, revenue: 0 },
+        telegram: { leads: 0, replies: 0, conversions: 0, revenue: 0 },
+        other: { leads: 0, replies: 0, conversions: 0, revenue: 0 },
+      },
     };
 
     // 日付範囲のリードを取得
@@ -354,13 +370,23 @@ async function getCVRStats(startDate, endDate) {
       // Vercel KVは自動的にJSONをパースする場合があるため、文字列かオブジェクトかをチェック
       const leadData = typeof leadDataRaw === 'string' ? JSON.parse(leadDataRaw) : leadDataRaw;
       
+      // ソース別トラッキング
+      const source = leadData.source || 'other';
+      const sourceKey = ['x_direct', 'x_quote', 'telegram'].includes(source) ? source : 'other';
+      const sourceStats = stats.bySource[sourceKey];
+      
+      sourceStats.leads++;
+      
       if (leadData.vsl1Sent) {
-        stats.vsl1Sent++;
+        stats.repliesSent++; // 新しいワークフロー: リプライ送信数
+        sourceStats.replies++;
       }
       
       if (leadData.converted) {
         stats.conversions++;
         stats.revenue += leadData.revenue || 0;
+        sourceStats.conversions++;
+        sourceStats.revenue += leadData.revenue || 0;
       }
 
       if (leadData.isPerfectMatch) {
@@ -371,21 +397,33 @@ async function getCVRStats(startDate, endDate) {
       }
     }
 
-    // CVR計算
-    stats.cvr = stats.vsl1Sent > 0 ? (stats.conversions / stats.vsl1Sent) * 100 : 0;
+    // CVR計算（新しいワークフロー: リプライ送信数ベース）
+    stats.cvr = stats.repliesSent > 0 ? (stats.conversions / stats.repliesSent) * 100 : 0;
     stats.perfectMatchCVR = stats.perfectMatchLeads > 0 
       ? (stats.perfectMatchConversions / stats.perfectMatchLeads) * 100 
       : 0;
+    
+    // ソース別CVR計算
+    for (const sourceKey in stats.bySource) {
+      const sourceStats = stats.bySource[sourceKey];
+      sourceStats.cvr = sourceStats.replies > 0 ? (sourceStats.conversions / sourceStats.replies) * 100 : 0;
+    }
 
     return stats;
   } catch (error) {
     console.error('[Conversion Tracker] Failed to get CVR stats:', error.message);
     return {
       totalLeads: 0,
-      vsl1Sent: 0,
+      repliesSent: 0,
       conversions: 0,
       cvr: 0,
       revenue: 0,
+      bySource: {
+        x_direct: { leads: 0, replies: 0, conversions: 0, revenue: 0, cvr: 0 },
+        x_quote: { leads: 0, replies: 0, conversions: 0, revenue: 0, cvr: 0 },
+        telegram: { leads: 0, replies: 0, conversions: 0, revenue: 0, cvr: 0 },
+        other: { leads: 0, replies: 0, conversions: 0, revenue: 0, cvr: 0 },
+      },
       error: error.message,
     };
   }
@@ -407,13 +445,13 @@ async function getCVRStatsByLanguage(startDate, endDate) {
 
   try {
     const byLanguage = {
-      en: { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
-      es: { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
-      'pt-br': { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
-      ar: { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
-      ja: { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
-      ko: { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
-      other: { totalLeads: 0, vsl1Sent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      en: { totalLeads: 0, repliesSent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      es: { totalLeads: 0, repliesSent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      'pt-br': { totalLeads: 0, repliesSent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      ar: { totalLeads: 0, repliesSent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      ja: { totalLeads: 0, repliesSent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      ko: { totalLeads: 0, repliesSent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
+      other: { totalLeads: 0, repliesSent: 0, conversions: 0, revenue: 0, perfectMatchLeads: 0, perfectMatchConversions: 0 },
     };
 
     // 日付範囲のリードを取得
@@ -446,7 +484,7 @@ async function getCVRStatsByLanguage(startDate, endDate) {
       langStats.totalLeads++;
       
       if (leadData.vsl1Sent) {
-        langStats.vsl1Sent++;
+        langStats.repliesSent++; // 新しいワークフロー: リプライ送信数
       }
       
       if (leadData.converted) {
@@ -462,10 +500,10 @@ async function getCVRStatsByLanguage(startDate, endDate) {
       }
     }
 
-    // CVR計算
+    // CVR計算（新しいワークフロー: リプライ送信数ベース）
     for (const langKey in byLanguage) {
       const langStats = byLanguage[langKey];
-      langStats.cvr = langStats.vsl1Sent > 0 ? (langStats.conversions / langStats.vsl1Sent) * 100 : 0;
+      langStats.cvr = langStats.repliesSent > 0 ? (langStats.conversions / langStats.repliesSent) * 100 : 0;
       langStats.perfectMatchCVR = langStats.perfectMatchLeads > 0 
         ? (langStats.perfectMatchConversions / langStats.perfectMatchLeads) * 100 
         : 0;

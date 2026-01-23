@@ -190,11 +190,11 @@ async function generateLeadDiscoveryReport(stats, options = {}) {
 </p>
 <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
   <tr style="background-color: #f5f5f5;">
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>VSL1送信数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リプライ送信数</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.x.sent || 0}件</td>
   </tr>
   <tr>
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>VSL1送信数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リプライ送信数</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.x.sent || 0}件</td>
   </tr>
   <tr style="background-color: #f5f5f5;">
@@ -221,7 +221,7 @@ ${generateRevenueComparisonHTML({ revenue: cvrStats.revenue || 0, conversions: c
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.totalLeads || 0}件</td>
   </tr>
   <tr>
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>VSL1送信数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リプライ送信数</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.vsl1Sent || 0}件</td>
   </tr>
   <tr style="background-color: #f5f5f5;">
@@ -322,7 +322,7 @@ ${whopStats.syncResult ? `
       metadata: {
         'Discovered': `${stats.x.discovered || 0}件`,
         'Estimated': `${ESTIMATES.leadsPerRun}件/回`,
-        'VSL1 Sent': `${stats.x.sent || 0}件`,
+        'Replies Sent': `${stats.x.sent || 0}件`,
         'CVR': cvrStats && !cvrStats.error ? `${(cvrStats.cvr || 0).toFixed(2)}%` : 'N/A',
         'Target CVR': `${ESTIMATES.targetCVR}%`,
         'Revenue': cvrStats && !cvrStats.error ? `$${(cvrStats.revenue || 0).toLocaleString()}` : 'N/A',
@@ -419,8 +419,8 @@ ${generateRevenueComparisonHTML({ revenue: cvrStats.revenue || 0, conversions: c
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.totalLeads || 0}件</td>
   </tr>
   <tr>
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>VSL1送信数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.vsl1Sent || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リプライ送信数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.repliesSent || 0}件</td>
   </tr>
   <tr style="background-color: #f5f5f5;">
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>成約数</strong></td>
@@ -447,6 +447,60 @@ ${generateRevenueComparisonHTML({ revenue: cvrStats.revenue || 0, conversions: c
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #4CAF50;">${(cvrStats.perfectMatchCVR || 0).toFixed(2)}%</td>
   </tr>
 </table>
+
+${cvrStats.bySource ? `
+<h3 style="color: #555; margin-top: 30px;">📊 ソース別トラッキング</h3>
+<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+  <tr style="background-color: #f5f5f5;">
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>ソース</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>リード数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>リプライ送信</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>成約数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>CVR</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>売上</strong></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>X直接投稿</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.x_direct?.leads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.x_direct?.replies || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.x_direct?.conversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.bySource.x_direct?.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.bySource.x_direct?.cvr || 0).toFixed(2)}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #2196F3;">$${(cvrStats.bySource.x_direct?.revenue || 0).toLocaleString()}</td>
+  </tr>
+  <tr style="background-color: #f5f5f5;">
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>X引用リポスト</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.x_quote?.leads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.x_quote?.replies || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.x_quote?.conversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.bySource.x_quote?.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.bySource.x_quote?.cvr || 0).toFixed(2)}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #2196F3;">$${(cvrStats.bySource.x_quote?.revenue || 0).toLocaleString()}</td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Telegram</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.telegram?.leads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.telegram?.replies || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.telegram?.conversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.bySource.telegram?.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.bySource.telegram?.cvr || 0).toFixed(2)}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #2196F3;">$${(cvrStats.bySource.telegram?.revenue || 0).toLocaleString()}</td>
+  </tr>
+  <tr style="background-color: #f5f5f5;">
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>その他</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.other?.leads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.other?.replies || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.other?.conversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.bySource.other?.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.bySource.other?.cvr || 0).toFixed(2)}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #2196F3;">$${(cvrStats.bySource.other?.revenue || 0).toLocaleString()}</td>
+  </tr>
+</table>
+` : ''}
 
 ${langStats && !langStats.error ? generateLanguageStatsHTML(langStats) : ''}
 
@@ -516,7 +570,8 @@ ${whopStats.syncResult ? `
   <li>リード発見数の目標達成状況を確認</li>
   <li>CVRが目標を超えているか確認</li>
   <li>必要に応じてリード発見設定を調整</li>
-  <li>VSL1メッセージの最適化を検討</li>
+  <li>リプライメッセージの最適化を検討</li>
+  <li>ソース別CVRを分析し、最適なチャネル戦略を検討</li>
 </ul>
   `.trim();
   
@@ -677,7 +732,7 @@ function generateLanguageStatsHTML(langStats) {
   <tr>
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>${langLabel}</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.totalLeads}件</td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.vsl1Sent}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.repliesSent}件</td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.conversions}件</td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${stats.cvr >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
       ${(stats.cvr || 0).toFixed(2)}%
@@ -697,7 +752,7 @@ function generateLanguageStatsHTML(langStats) {
   <tr style="background-color: #f5f5f5;">
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>言語</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>リード数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>VSL1送信</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>リプライ送信</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>成約数</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>CVR</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>売上</strong></td>
@@ -879,8 +934,8 @@ ${cvrStats && !cvrStats.error ? `
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.totalLeads || 0}件</td>
   </tr>
   <tr>
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>VSL1送信数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.vsl1Sent || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リプライ送信数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.repliesSent || 0}件</td>
   </tr>
   <tr style="background-color: #f5f5f5;">
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>成約数</strong></td>
