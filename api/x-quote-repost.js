@@ -14,6 +14,11 @@ const {
 const { QUOTE_REPOST_TEMPLATES } = require('./x-post-free-report');
 const { addInfluencerToList, recordQuoteRepost, generateInfluencerId } = require('../services/lead-discovery/influencerList');
 const { getTweetMetrics } = require('../services/x/metrics');
+const {
+  getInfluencerCountForLang,
+  getImpressionTargetForLang,
+  selectInfluencersForImpressionTarget,
+} = require('../config/influencerStrategy');
 
 // Vercel KV（投稿履歴追跡用）
 let kv = null;
@@ -175,12 +180,19 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       return [];
     }
     
-    // Grokがインフルエンサーを発掘（1人に削減: 12投稿/日 = 6言語 × 1人 × 2投稿）
+    // 言語別のインフルエンサー数を取得（10万～20万インプレッション規模を目指す）
+    const targetCount = getInfluencerCountForLang(lang);
+    const impressionTarget = getImpressionTargetForLang(lang);
+    
     console.log(`[Quote Repost] Discovering influencers for ${lang}...`);
+    console.log(`[Quote Repost] Target: ${targetCount} influencers, ${impressionTarget.min.toLocaleString()}-${impressionTarget.max.toLocaleString()} impressions`);
+    
     let influencers = [];
     try {
-      influencers = await discoverInfluencersForQuoteRepost(lang, { maxResults: 1 });
-      console.log(`[Quote Repost] Grok API returned ${influencers?.length || 0} influencers for ${lang}`);
+      // より多くの候補を取得してからフィルタリング（目標インプレッション規模を達成するため）
+      const candidateCount = Math.max(targetCount * 3, 5); // 候補は目標数の3倍、最低5人
+      influencers = await discoverInfluencersForQuoteRepost(lang, { maxResults: candidateCount });
+      console.log(`[Quote Repost] Grok API returned ${influencers?.length || 0} candidate influencers for ${lang}`);
     } catch (error) {
       console.error(`[Quote Repost] ❌ Failed to discover influencers for ${lang}:`, error.message);
       console.error(`[Quote Repost] Error stack:`, error.stack);
@@ -192,10 +204,19 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       return [];
     }
     
-    console.log(`[Quote Repost] ✅ Found ${influencers.length} influencers for ${lang}`);
-    influencers.forEach((inf, idx) => {
-      console.log(`[Quote Repost]   [${idx + 1}] @${inf.username} - tweetId: ${inf.tweetId || 'MISSING'}, engagement: ${inf.recentImpressions || 'N/A'}`);
+    // インプレッション規模を考慮してインフルエンサーを選択
+    const selectedInfluencers = selectInfluencersForImpressionTarget(influencers, lang);
+    
+    console.log(`[Quote Repost] ✅ Selected ${selectedInfluencers.length} influencers for ${lang} (target: ${targetCount})`);
+    const totalImpressions = selectedInfluencers.reduce((sum, inf) => sum + (inf.recentImpressions || 0), 0);
+    console.log(`[Quote Repost] 📊 Total estimated impressions: ${totalImpressions.toLocaleString()} (target: ${impressionTarget.min.toLocaleString()}-${impressionTarget.max.toLocaleString()})`);
+    
+    selectedInfluencers.forEach((inf, idx) => {
+      console.log(`[Quote Repost]   [${idx + 1}] @${inf.username} - tweetId: ${inf.tweetId || 'MISSING'}, impressions: ${(inf.recentImpressions || 0).toLocaleString()}, engagement: ${((inf.engagementRate || 0) * 100).toFixed(2)}%`);
     });
+    
+    // 選択されたインフルエンサーを使用
+    influencers = selectedInfluencers;
     
     // インフルエンサーをリストに追加（リスト管理）
     for (const influencer of influencers) {
@@ -230,12 +251,16 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           continue;
         }
         
-        // エンゲージメントチェック（1,000以上推奨）
-        const engagement = influencer.recentImpressions || 0;
-        if (engagement < 1000) {
-          console.log(`⏰ Skipping quote repost for @${influencer.username} (low engagement: ${engagement})`);
+        // インプレッション規模チェック（言語別の目標を考慮）
+        const impressions = influencer.recentImpressions || 0;
+        const minImpressions = impressionTarget.min * 0.5; // 目標の50%以上
+        
+        if (impressions < minImpressions) {
+          console.log(`⏰ Skipping quote repost for @${influencer.username} (low impressions: ${impressions.toLocaleString()}, min: ${minImpressions.toLocaleString()})`);
           continue;
         }
+        
+        console.log(`[Quote Repost] ✅ @${influencer.username} meets impression target: ${impressions.toLocaleString()} (target: ${impressionTarget.min.toLocaleString()}-${impressionTarget.max.toLocaleString()})`);
         
         // Grokが引用リポスト用のテキストを生成（Xアルゴリズム最適化版）
         let quoteText;

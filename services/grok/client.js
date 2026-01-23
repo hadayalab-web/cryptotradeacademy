@@ -441,17 +441,21 @@ async function discoverInfluencersForQuoteRepost(lang = 'en', options = {}) {
             `Task: Find ${maxResults} hot influencers on X posting about BTC/crypto in ${targetLang} language.\n` +
             `Focus on accounts with:\n` +
             `- High engagement rates (5%+)\n` +
-            `- Recent viral posts (high impressions)\n` +
+            `- Recent viral posts with HIGH impressions (100K-200K+ for EN, 50K-100K+ for others)\n` +
             `- Active audiences\n` +
             `- Crypto/BTC related content\n\n` +
+            `IMPRESSION TARGET: Prioritize influencers with recentImpressions in the range:\n` +
+            `- English (EN): 100,000-200,000 impressions\n` +
+            `- Other languages: 50,000-100,000+ impressions\n\n` +
             `Return ${maxResults} influencers with their recent hot tweets.\n` +
             `CRITICAL REQUIREMENTS:\n` +
             `1. Include tweetId for EVERY tweet (numeric tweet ID, required for quote reposting)\n` +
-            `2. Prioritize tweets WITH tweet IDs\n` +
-            `3. Focus on accounts with high engagement rates\n` +
+            `2. Prioritize tweets WITH tweet IDs AND high impressions (100K+ for EN, 50K+ for others)\n` +
+            `3. Focus on accounts with high engagement rates (5%+)\n` +
             `4. Include actual tweet text in tweetText field\n` +
             `5. Use username without @ symbol\n` +
-            `Example: {"username":"cryptotrader","tweetId":"1234567890123456789","tweetText":"BTC analysis...","engagementRate":0.08,"followerCount":50000,"recentImpressions":50000}`,
+            `6. recentImpressions should reflect actual viral tweet performance (not follower count)\n` +
+            `Example: {"username":"cryptotrader","tweetId":"1234567890123456789","tweetText":"BTC analysis...","engagementRate":0.08,"followerCount":50000,"recentImpressions":150000}`,
         },
       ],
       max_tokens: 4000,
