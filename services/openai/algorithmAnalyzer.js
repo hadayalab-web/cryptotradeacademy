@@ -121,7 +121,7 @@ ${JSON.stringify(influencerSummary, null, 2)}
         'Authorization': `Bearer ${client.apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o', // GPT-4oを使用（アルゴリズム解析に最適）
+        model: 'gpt-5.2', // GPT-5.2を使用（Grok推奨: 推論能力・長文脈理解・エージェント機能で優位、CEO推奨と一致）
         messages: [
           {
             role: 'system',
@@ -132,7 +132,7 @@ ${JSON.stringify(influencerSummary, null, 2)}
             content: prompt,
           },
         ],
-        temperature: 0.3, // 分析タスクなので低めの温度
+        temperature: 0.2, // 分析タスクなので低めの温度（Grok推奨: 0.2-0.3で精度安定）
         response_format: { type: 'json_object' }, // JSON形式で返す
       }),
     });

@@ -88,7 +88,7 @@ ${focusArea === 'clicks' ? 'クリック率の向上に焦点を当ててくだ�
         'Authorization': `Bearer ${client.apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-5.2', // GPT-5.2を使用（Grok推奨: 推論能力・長文脈理解・エージェント機能で優位、CEO推奨と一致）
         messages: [
           {
             role: 'system',
@@ -99,7 +99,7 @@ ${focusArea === 'clicks' ? 'クリック率の向上に焦点を当ててくだ�
             content: prompt,
           },
         ],
-        temperature: 0.5,
+        temperature: 0.3, // 戦略提案タスクなので中程度の温度（Grok推奨に基づき調整）
         response_format: { type: 'json_object' },
       }),
     });
