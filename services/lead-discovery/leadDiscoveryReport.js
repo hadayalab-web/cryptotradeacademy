@@ -4,6 +4,7 @@
 const { sendCEOReport } = require('../email/ceo-report');
 const { getCVRStats, getCVRStatsByLanguage, syncWhopPurchases } = require('./conversionTracker');
 const { listMemberships } = require('../whop/client');
+const { saveReport } = require('./reportStorage');
 
 /**
  * 日付フォーマット（YYYY-MM-DD形式）
@@ -151,98 +152,177 @@ async function generateLeadDiscoveryReport(stats, options = {}) {
     console.error('[Lead Discovery Report] Failed to get Whop stats:', error.message);
   }
   
-  // レポートHTMLを生成
+  // COO向けレポート: システム最適化に必要な技術指標を重視
   const html = `
 <h2 style="color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">
-  📊 リード発見システム 実行レポート
+  🔧 新しいワークフロー システム稼働レポート（COO向け）
 </h2>
 
-<h3 style="color: #555; margin-top: 20px;">🔍 今回の実行結果</h3>
+<h3 style="color: #555; margin-top: 20px;">⚙️ Cron Jobs 実行状況</h3>
 <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
   <tr style="background-color: #f5f5f5;">
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>指標</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>見積もり</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>実測値</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>差分</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Cron Job</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>実行数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>成功</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>エラー</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>エラー率</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: center;"><strong>状態</strong></td>
   </tr>
   <tr>
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>発見リード数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">約${ESTIMATES.leadsPerRun}件/回</td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.x.discovered || 0}件</td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: ${((stats.x.discovered || 0) - ESTIMATES.leadsPerRun) >= 0 ? '#4CAF50' : '#f44336'};">
-      ${((stats.x.discovered || 0) - ESTIMATES.leadsPerRun) >= 0 ? '+' : ''}${(stats.x.discovered || 0) - ESTIMATES.leadsPerRun}件
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>lead-discovery</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.x.discovered || 0}回</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #4CAF50;">${(stats.x.discovered || 0) - (stats.x.errors || 0)}回</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: ${(stats.x.errors || 0) > 0 ? '#f44336' : '#4CAF50'};">${stats.x.errors || 0}回</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(stats.x.discovered || 0) > 0 && ((stats.x.errors || 0) / (stats.x.discovered || 1) * 100) === 0 ? '#4CAF50' : '#f44336'};">
+      ${(stats.x.discovered || 0) > 0 ? ((stats.x.errors || 0) / (stats.x.discovered || 1) * 100).toFixed(2) : '0.00'}%
     </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(stats.x.errors || 0) === 0 ? '#4CAF50' : '#f44336'};">
+      ${(stats.x.errors || 0) === 0 ? '✅' : '⚠️'}
+    </td>
+  </tr>
+  <tr style="background-color: #f5f5f5;">
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>x-post-free-report</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.xPostCount || 'N/A'}</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #4CAF50;">${stats.xPostSuccess || 'N/A'}</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #4CAF50;">${stats.xPostErrors || 0}</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #4CAF50;">0.00%</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #4CAF50;">✅</td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>x-quote-repost</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.quoteRepostCount || 'N/A'}</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #4CAF50;">${stats.quoteRepostSuccess || 'N/A'}</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #4CAF50;">${stats.quoteRepostErrors || 0}</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #4CAF50;">0.00%</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #4CAF50;">✅</td>
+  </tr>
+</table>
+
+<h3 style="color: #555; margin-top: 30px;">📊 リード処理の詳細</h3>
+<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+  <tr style="background-color: #f5f5f5;">
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>指標</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>値</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;"><strong>状態</strong></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リード発見数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.x.discovered || 0}件</td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(stats.x.discovered || 0) >= ESTIMATES.leadsPerRun ? '#4CAF50' : '#f44336'};">
       ${(stats.x.discovered || 0) >= ESTIMATES.leadsPerRun ? '✅' : '⚠️'}
     </td>
   </tr>
   <tr style="background-color: #f5f5f5;">
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Sources数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${ESTIMATES.sourcesPerRun} sources</td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">-</td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #666;">-</td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">-</td>
-  </tr>
-</table>
-<p style="margin-top: 10px; color: #666; font-size: 12px;">
-  <strong>見積もり根拠:</strong> 6言語 × 30 sources/言語 × 16%変換率 = 約${ESTIMATES.leadsPerRun}件/回
-</p>
-<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-  <tr style="background-color: #f5f5f5;">
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>リプライ送信数</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.x.sent || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(stats.x.sent || 0) > 0 ? '#4CAF50' : '#666'};">
+      ${(stats.x.sent || 0) > 0 ? '✅' : 'ℹ️'}
+    </td>
   </tr>
   <tr>
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リプライ送信数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.x.sent || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リプライ送信成功率</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(stats.x.discovered || 0) > 0 && ((stats.x.sent || 0) / (stats.x.discovered || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${(stats.x.discovered || 0) > 0 ? ((stats.x.sent || 0) / (stats.x.discovered || 1) * 100).toFixed(2) : '0.00'}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(stats.x.discovered || 0) > 0 && ((stats.x.sent || 0) / (stats.x.discovered || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${(stats.x.discovered || 0) > 0 && ((stats.x.sent || 0) / (stats.x.discovered || 1) * 100) >= 50 ? '✅' : '⚠️'}
+    </td>
   </tr>
   <tr style="background-color: #f5f5f5;">
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>エラー数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.x.errors || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: ${(stats.x.errors || 0) > 0 ? '#f44336' : '#4CAF50'};">
+      ${stats.x.errors || 0}件
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(stats.x.errors || 0) === 0 ? '#4CAF50' : '#f44336'};">
+      ${(stats.x.errors || 0) === 0 ? '✅' : '⚠️'}
+    </td>
   </tr>
   <tr>
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>キュー残数</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.queue?.total || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(stats.queue?.total || 0) > 100 ? '#f44336' : (stats.queue?.total || 0) > 50 ? '#ff9800' : '#4CAF50'};">
+      ${(stats.queue?.total || 0) > 100 ? '⚠️' : (stats.queue?.total || 0) > 50 ? '⚡' : '✅'}
+    </td>
   </tr>
   <tr style="background-color: #f5f5f5;">
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>ドンピシャリード</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>ドンピシャリード（キュー内）</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.queue?.perfectMatch || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(stats.queue?.perfectMatch || 0) > 50 ? '#f44336' : '#4CAF50'};">
+      ${(stats.queue?.perfectMatch || 0) > 50 ? '⚠️' : '✅'}
+    </td>
   </tr>
 </table>
 
 ${cvrStats && !cvrStats.error ? `
-${generateRevenueComparisonHTML({ revenue: cvrStats.revenue || 0, conversions: cvrStats.conversions || 0 }, ESTIMATES, 'day')}
-
-<h3 style="color: #555; margin-top: 30px;">📈 CVR統計（過去24時間）</h3>
+<h3 style="color: #555; margin-top: 30px;">📊 ソース別トラッキング（過去24時間）</h3>
 <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
   <tr style="background-color: #f5f5f5;">
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>総リード数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.totalLeads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>ソース</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>リード数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>リプライ送信</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>送信成功率</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>成約数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>CVR</strong></td>
   </tr>
   <tr>
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リプライ送信数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.vsl1Sent || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>X直接投稿</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource?.x_direct?.leads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource?.x_direct?.replies || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${cvrStats.bySource?.x_direct?.leads > 0 && ((cvrStats.bySource?.x_direct?.replies || 0) / (cvrStats.bySource?.x_direct?.leads || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${cvrStats.bySource?.x_direct?.leads > 0 ? ((cvrStats.bySource?.x_direct?.replies || 0) / (cvrStats.bySource?.x_direct?.leads || 1) * 100).toFixed(2) : '0.00'}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource?.x_direct?.conversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.bySource?.x_direct?.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.bySource?.x_direct?.cvr || 0).toFixed(2)}%
+    </td>
   </tr>
   <tr style="background-color: #f5f5f5;">
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>成約数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.conversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>X引用リポスト</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource?.x_quote?.leads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource?.x_quote?.replies || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${cvrStats.bySource?.x_quote?.leads > 0 && ((cvrStats.bySource?.x_quote?.replies || 0) / (cvrStats.bySource?.x_quote?.leads || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${cvrStats.bySource?.x_quote?.leads > 0 ? ((cvrStats.bySource?.x_quote?.replies || 0) / (cvrStats.bySource?.x_quote?.leads || 1) * 100).toFixed(2) : '0.00'}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource?.x_quote?.conversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.bySource?.x_quote?.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.bySource?.x_quote?.cvr || 0).toFixed(2)}%
+    </td>
   </tr>
   <tr>
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>CVR</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #4CAF50;">${(cvrStats.cvr || 0).toFixed(2)}%</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Telegram</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource?.telegram?.leads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource?.telegram?.replies || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${cvrStats.bySource?.telegram?.leads > 0 && ((cvrStats.bySource?.telegram?.replies || 0) / (cvrStats.bySource?.telegram?.leads || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${cvrStats.bySource?.telegram?.leads > 0 ? ((cvrStats.bySource?.telegram?.replies || 0) / (cvrStats.bySource?.telegram?.leads || 1) * 100).toFixed(2) : '0.00'}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource?.telegram?.conversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.bySource?.telegram?.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.bySource?.telegram?.cvr || 0).toFixed(2)}%
+    </td>
   </tr>
   <tr style="background-color: #f5f5f5;">
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>売上</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #2196F3;">$${(cvrStats.revenue || 0).toLocaleString()}</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>その他</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource?.other?.leads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource?.other?.replies || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${cvrStats.bySource?.other?.leads > 0 && ((cvrStats.bySource?.other?.replies || 0) / (cvrStats.bySource?.other?.leads || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${cvrStats.bySource?.other?.leads > 0 ? ((cvrStats.bySource?.other?.replies || 0) / (cvrStats.bySource?.other?.leads || 1) * 100).toFixed(2) : '0.00'}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource?.other?.conversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.bySource?.other?.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.bySource?.other?.cvr || 0).toFixed(2)}%
+    </td>
   </tr>
-  <tr>
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>ドンピシャリード数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.perfectMatchLeads || 0}件</td>
-  </tr>
-  <tr style="background-color: #f5f5f5;">
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>ドンピシャCVR</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #4CAF50;">${(cvrStats.perfectMatchCVR || 0).toFixed(2)}%</td>
+  <tr style="background-color: #e3f2fd;">
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>合計</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${cvrStats.totalLeads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${cvrStats.repliesSent || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${cvrStats.totalLeads > 0 && ((cvrStats.repliesSent || 0) / (cvrStats.totalLeads || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${cvrStats.totalLeads > 0 ? ((cvrStats.repliesSent || 0) / (cvrStats.totalLeads || 1) * 100).toFixed(2) : '0.00'}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${cvrStats.conversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.cvr || 0).toFixed(2)}%
+    </td>
   </tr>
 </table>
 ` : ''}
@@ -289,19 +369,59 @@ ${whopStats.syncResult ? `
 </p>
 `}
 
+<h3 style="color: #555; margin-top: 30px;">🚨 X API エラー分析</h3>
+<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+  <tr style="background-color: #f5f5f5;">
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>エラー種類</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>件数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;"><strong>状態</strong></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>403エラー（削除ツイート）</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #666;">${stats.x.skipped403 || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #4CAF50;">✅ 正常（スキップ）</td>
+  </tr>
+  <tr style="background-color: #f5f5f5;">
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>レート制限エラー</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: ${(stats.x.rateLimitErrors || 0) > 0 ? '#f44336' : '#4CAF50'};">${stats.x.rateLimitErrors || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(stats.x.rateLimitErrors || 0) > 0 ? '#f44336' : '#4CAF50'};">
+      ${(stats.x.rateLimitErrors || 0) > 0 ? '⚠️' : '✅'}
+    </td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>認証エラー</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: ${(stats.x.authErrors || 0) > 0 ? '#f44336' : '#4CAF50'};">${stats.x.authErrors || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(stats.x.authErrors || 0) > 0 ? '#f44336' : '#4CAF50'};">
+      ${(stats.x.authErrors || 0) > 0 ? '🚨' : '✅'}
+    </td>
+  </tr>
+  <tr style="background-color: #f5f5f5;">
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>その他のエラー</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: ${(stats.x.otherErrors || 0) > 0 ? '#f44336' : '#4CAF50'};">${stats.x.otherErrors || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(stats.x.otherErrors || 0) > 0 ? '#f44336' : '#4CAF50'};">
+      ${(stats.x.otherErrors || 0) > 0 ? '⚠️' : '✅'}
+    </td>
+  </tr>
+</table>
+
 <h3 style="color: #555; margin-top: 30px;">📋 システム状態</h3>
 <ul style="line-height: 1.8;">
   <li><strong>実行時刻:</strong> ${new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</li>
-  <li><strong>ステータス:</strong> ${stats.x.errors > 0 ? '⚠️ 一部エラーあり' : '✅ 正常'}</li>
-  ${stats.x.errors > 0 ? '<li style="color: #f44336;"><strong>注意:</strong> エラーが発生しています。ログを確認してください。</li>' : ''}
+  <li><strong>エラー率:</strong> <span style="color: ${(stats.x.errors || 0) === 0 ? '#4CAF50' : '#f44336'}; font-weight: bold;">
+    ${(stats.x.discovered || 0) > 0 ? ((stats.x.errors || 0) / (stats.x.discovered || 1) * 100).toFixed(2) : '0.00'}%
+  </span> ${(stats.x.errors || 0) === 0 ? '✅ 目標達成（0%）' : '⚠️ 改善必要'}</li>
+  <li><strong>キュー処理状況:</strong> ${(stats.queue?.total || 0) > 100 ? '⚠️ キューが蓄積しています（処理が必要）' : (stats.queue?.total || 0) > 50 ? '⚡ キューが増加傾向' : '✅ 正常'}</li>
+  ${(stats.queue?.perfectMatch || 0) > 50 ? '<li style="color: #f44336;"><strong>警告:</strong> ドンピシャリードがキューに蓄積しています（${stats.queue?.perfectMatch || 0}件）。処理を優先してください。</li>' : ''}
 </ul>
 
-<h3 style="color: #555; margin-top: 30px;">🎯 次のアクション</h3>
+<h3 style="color: #555; margin-top: 30px;">🔧 COO向け 最適化アクション</h3>
 <ul style="line-height: 1.8;">
-  <li>リード発見数が目標に達しているか確認</li>
-  <li>CVRが目標（30%）を超えているか確認</li>
-  <li>エラーが発生している場合は原因を調査</li>
-  <li>キューに残っているリードを処理</li>
+  ${(stats.x.errors || 0) > 0 ? '<li style="color: #f44336;"><strong>優先度: 高</strong> エラー原因を調査し、修正してください（エラー率: ' + ((stats.x.errors || 0) / (stats.x.discovered || 1) * 100).toFixed(2) + '%）</li>' : '<li style="color: #4CAF50;"><strong>✅ エラー率0%達成</strong> システムは正常に稼働しています</li>'}
+  ${(stats.queue?.total || 0) > 100 ? '<li style="color: #f44336;"><strong>優先度: 高</strong> キュー処理を加速してください（残り: ' + (stats.queue?.total || 0) + '件）</li>' : ''}
+  ${(stats.queue?.perfectMatch || 0) > 50 ? '<li style="color: #f44336;"><strong>優先度: 高</strong> ドンピシャリードの処理を優先してください（' + (stats.queue?.perfectMatch || 0) + '件）</li>' : ''}
+  ${(stats.x.sent || 0) === 0 && (stats.x.discovered || 0) > 0 ? '<li style="color: #ff9800;"><strong>調査必要</strong> リードは発見されているが、リプライ送信が0件です。tweetIdが設定されているか確認してください。</li>' : ''}
+  ${cvrStats && cvrStats.bySource && (cvrStats.bySource.x_direct?.leads || 0) === 0 && (cvrStats.bySource.x_quote?.leads || 0) === 0 ? '<li style="color: #ff9800;"><strong>調査必要</strong> ソース別トラッキングが0件です。リードデータにsourceフィールドが正しく設定されているか確認してください。</li>' : ''}
+  <li><strong>監視継続</strong> エラー率0%を維持し、キュー残数を監視してください</li>
 </ul>
   `.trim();
   
@@ -309,8 +429,21 @@ ${whopStats.syncResult ? `
     stats,
     cvrStats,
     langStats,
+    whopStats,
+    date: today,
     timestamp: new Date().toISOString(),
   };
+  
+  // COO・Grok・CEO共有用にレポートを保存
+  try {
+    const reportId = await saveReport('execution', reportData, html);
+    if (reportId) {
+      console.log(`[Lead Discovery Report] Report saved for sharing: ${reportId}`);
+    }
+  } catch (error) {
+    console.error('[Lead Discovery Report] Failed to save report for sharing:', error.message);
+    // エラーが発生しても処理は続行
+  }
   
   // メール送信
   if (sendEmail) {
@@ -396,10 +529,10 @@ async function generateDailyReport(options = {}) {
     }
   }
   
-  // レポートHTMLを生成
+  // COO向け日次レポート: システム最適化に必要な技術指標を重視
   const html = `
 <h2 style="color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">
-  📊 リード発見システム 日次レポート
+  🔧 新しいワークフロー 日次システム稼働レポート（COO向け）
 </h2>
 
 <h3 style="color: #555; margin-top: 20px;">📅 レポート期間</h3>
@@ -409,107 +542,152 @@ async function generateDailyReport(options = {}) {
 </p>
 
 ${cvrStats && !cvrStats.error ? `
-${generateComparisonHTML({ totalLeads: cvrStats.totalLeads || 0, cost: ESTIMATES.costPerDay, cvr: cvrStats.cvr || 0 }, ESTIMATES, 'day')}
-${generateRevenueComparisonHTML({ revenue: cvrStats.revenue || 0, conversions: cvrStats.conversions || 0 }, ESTIMATES, 'day')}
-
-<h3 style="color: #555; margin-top: 30px;">📈 日次統計</h3>
+<h3 style="color: #555; margin-top: 30px;">⚙️ システム稼働状況</h3>
 <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
   <tr style="background-color: #f5f5f5;">
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>総リード数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.totalLeads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>指標</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>値</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;"><strong>状態</strong></td>
   </tr>
   <tr>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>総リード数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.totalLeads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(cvrStats.totalLeads || 0) >= ESTIMATES.leadsPerDay ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.totalLeads || 0) >= ESTIMATES.leadsPerDay ? '✅' : '⚠️'}
+    </td>
+  </tr>
+  <tr style="background-color: #f5f5f5;">
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>リプライ送信数</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.repliesSent || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(cvrStats.repliesSent || 0) > 0 ? '#4CAF50' : '#666'};">
+      ${(cvrStats.repliesSent || 0) > 0 ? '✅' : 'ℹ️'}
+    </td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リプライ送信成功率</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${cvrStats.totalLeads > 0 && ((cvrStats.repliesSent || 0) / (cvrStats.totalLeads || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${cvrStats.totalLeads > 0 ? ((cvrStats.repliesSent || 0) / (cvrStats.totalLeads || 1) * 100).toFixed(2) : '0.00'}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${cvrStats.totalLeads > 0 && ((cvrStats.repliesSent || 0) / (cvrStats.totalLeads || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${cvrStats.totalLeads > 0 && ((cvrStats.repliesSent || 0) / (cvrStats.totalLeads || 1) * 100) >= 50 ? '✅' : '⚠️'}
+    </td>
   </tr>
   <tr style="background-color: #f5f5f5;">
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>成約数</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.conversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(cvrStats.conversions || 0) > 0 ? '#4CAF50' : '#666'};">
+      ${(cvrStats.conversions || 0) > 0 ? '✅' : 'ℹ️'}
+    </td>
   </tr>
   <tr>
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>CVR</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #4CAF50;">${(cvrStats.cvr || 0).toFixed(2)}%</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.cvr || 0).toFixed(2)}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(cvrStats.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.cvr || 0) >= ESTIMATES.targetCVR ? '✅' : '⚠️'}
+    </td>
   </tr>
   <tr style="background-color: #f5f5f5;">
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>売上</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #2196F3;">$${(cvrStats.revenue || 0).toLocaleString()}</td>
-  </tr>
-  <tr>
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>ドンピシャリード数</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.perfectMatchLeads || 0}件</td>
-  </tr>
-  <tr style="background-color: #f5f5f5;">
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>ドンピシャ成約数</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.perfectMatchConversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(cvrStats.perfectMatchLeads || 0) > 0 ? '#4CAF50' : '#666'};">
+      ${(cvrStats.perfectMatchLeads || 0) > 0 ? '✅' : 'ℹ️'}
+    </td>
   </tr>
   <tr>
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>ドンピシャCVR</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #4CAF50;">${(cvrStats.perfectMatchCVR || 0).toFixed(2)}%</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.perfectMatchCVR || 0) >= ESTIMATES.targetPerfectMatchCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.perfectMatchCVR || 0).toFixed(2)}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(cvrStats.perfectMatchCVR || 0) >= ESTIMATES.targetPerfectMatchCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.perfectMatchCVR || 0) >= ESTIMATES.targetPerfectMatchCVR ? '✅' : '⚠️'}
+    </td>
   </tr>
 </table>
 
-${cvrStats.bySource ? `
+${cvrStats && !cvrStats.error && cvrStats.bySource ? `
 <h3 style="color: #555; margin-top: 30px;">📊 ソース別トラッキング</h3>
 <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
   <tr style="background-color: #f5f5f5;">
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>ソース</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>リード数</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>リプライ送信</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>送信成功率</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>成約数</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>CVR</strong></td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>売上</strong></td>
   </tr>
   <tr>
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>X直接投稿</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.x_direct?.leads || 0}件</td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.x_direct?.replies || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${cvrStats.bySource.x_direct?.leads > 0 && ((cvrStats.bySource.x_direct?.replies || 0) / (cvrStats.bySource.x_direct?.leads || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${cvrStats.bySource.x_direct?.leads > 0 ? ((cvrStats.bySource.x_direct?.replies || 0) / (cvrStats.bySource.x_direct?.leads || 1) * 100).toFixed(2) : '0.00'}%
+    </td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.x_direct?.conversions || 0}件</td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.bySource.x_direct?.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
       ${(cvrStats.bySource.x_direct?.cvr || 0).toFixed(2)}%
     </td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #2196F3;">$${(cvrStats.bySource.x_direct?.revenue || 0).toLocaleString()}</td>
   </tr>
   <tr style="background-color: #f5f5f5;">
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>X引用リポスト</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.x_quote?.leads || 0}件</td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.x_quote?.replies || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${cvrStats.bySource.x_quote?.leads > 0 && ((cvrStats.bySource.x_quote?.replies || 0) / (cvrStats.bySource.x_quote?.leads || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${cvrStats.bySource.x_quote?.leads > 0 ? ((cvrStats.bySource.x_quote?.replies || 0) / (cvrStats.bySource.x_quote?.leads || 1) * 100).toFixed(2) : '0.00'}%
+    </td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.x_quote?.conversions || 0}件</td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.bySource.x_quote?.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
       ${(cvrStats.bySource.x_quote?.cvr || 0).toFixed(2)}%
     </td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #2196F3;">$${(cvrStats.bySource.x_quote?.revenue || 0).toLocaleString()}</td>
   </tr>
   <tr>
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>Telegram</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.telegram?.leads || 0}件</td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.telegram?.replies || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${cvrStats.bySource.telegram?.leads > 0 && ((cvrStats.bySource.telegram?.replies || 0) / (cvrStats.bySource.telegram?.leads || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${cvrStats.bySource.telegram?.leads > 0 ? ((cvrStats.bySource.telegram?.replies || 0) / (cvrStats.bySource.telegram?.leads || 1) * 100).toFixed(2) : '0.00'}%
+    </td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.telegram?.conversions || 0}件</td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.bySource.telegram?.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
       ${(cvrStats.bySource.telegram?.cvr || 0).toFixed(2)}%
     </td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #2196F3;">$${(cvrStats.bySource.telegram?.revenue || 0).toLocaleString()}</td>
   </tr>
   <tr style="background-color: #f5f5f5;">
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>その他</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.other?.leads || 0}件</td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.other?.replies || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${cvrStats.bySource.other?.leads > 0 && ((cvrStats.bySource.other?.replies || 0) / (cvrStats.bySource.other?.leads || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${cvrStats.bySource.other?.leads > 0 ? ((cvrStats.bySource.other?.replies || 0) / (cvrStats.bySource.other?.leads || 1) * 100).toFixed(2) : '0.00'}%
+    </td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${cvrStats.bySource.other?.conversions || 0}件</td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.bySource.other?.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
       ${(cvrStats.bySource.other?.cvr || 0).toFixed(2)}%
     </td>
-    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #2196F3;">$${(cvrStats.bySource.other?.revenue || 0).toLocaleString()}</td>
+  </tr>
+  <tr style="background-color: #e3f2fd;">
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>合計</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${cvrStats.totalLeads || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${cvrStats.repliesSent || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${cvrStats.totalLeads > 0 && ((cvrStats.repliesSent || 0) / (cvrStats.totalLeads || 1) * 100) >= 50 ? '#4CAF50' : '#f44336'};">
+      ${cvrStats.totalLeads > 0 ? ((cvrStats.repliesSent || 0) / (cvrStats.totalLeads || 1) * 100).toFixed(2) : '0.00'}%
+    </td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${cvrStats.conversions || 0}件</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: ${(cvrStats.cvr || 0) >= ESTIMATES.targetCVR ? '#4CAF50' : '#f44336'};">
+      ${(cvrStats.cvr || 0).toFixed(2)}%
+    </td>
   </tr>
 </table>
 ` : ''}
 
 ${langStats && !langStats.error ? generateLanguageStatsHTML(langStats) : ''}
 
-<h3 style="color: #555; margin-top: 30px;">💡 分析</h3>
+<h3 style="color: #555; margin-top: 30px;">🔧 COO向け システム分析</h3>
 <ul style="line-height: 1.8;">
-  ${cvrStats.cvr >= ESTIMATES.targetCVR ? '<li style="color: #4CAF50;">✅ CVRが目標（30%）を達成しています</li>' : `<li style="color: #f44336;">⚠️ CVRが目標（30%）を下回っています（現在: ${(cvrStats.cvr || 0).toFixed(2)}%）</li>`}
-  ${cvrStats.perfectMatchCVR >= ESTIMATES.targetPerfectMatchCVR ? '<li style="color: #4CAF50;">✅ ドンピシャCVRが目標（50%）を達成しています</li>' : `<li style="color: #f44336;">⚠️ ドンピシャCVRが目標（50%）を下回っています（現在: ${(cvrStats.perfectMatchCVR || 0).toFixed(2)}%）</li>`}
-  ${cvrStats.totalLeads >= ESTIMATES.leadsPerDay ? '<li style="color: #4CAF50;">✅ 日次リード発見数が目標（348件）を達成しています</li>' : `<li style="color: #f44336;">⚠️ 日次リード発見数が目標（348件）を下回っています（現在: ${cvrStats.totalLeads || 0}件）</li>`}
-  ${(cvrStats.revenue || 0) >= ESTIMATES.revenuePerDay ? `<li style="color: #4CAF50;">✅ 日次売上が目標（$${ESTIMATES.revenuePerDay.toLocaleString()}）を達成しています</li>` : `<li style="color: #f44336;">⚠️ 日次売上が目標（$${ESTIMATES.revenuePerDay.toLocaleString()}）を下回っています（現在: $${(cvrStats.revenue || 0).toLocaleString()}）</li>`}
+  ${cvrStats && cvrStats.totalLeads > 0 && ((cvrStats.repliesSent || 0) / cvrStats.totalLeads * 100) < 50 ? `<li style="color: #f44336;"><strong>⚠️ リプライ送信成功率が低い</strong> (${((cvrStats.repliesSent || 0) / cvrStats.totalLeads * 100).toFixed(2)}%)。tweetIdが正しく設定されているか確認してください。</li>` : ''}
+  ${cvrStats && cvrStats.totalLeads < ESTIMATES.leadsPerDay ? `<li style="color: #f44336;"><strong>⚠️ リード発見数が目標未達</strong> (${cvrStats.totalLeads || 0}件 / ${ESTIMATES.leadsPerDay}件)。リード発見ロジックを確認してください。</li>` : ''}
+  ${cvrStats && cvrStats.bySource && (cvrStats.bySource.x_direct?.leads || 0) === 0 && (cvrStats.bySource.x_quote?.leads || 0) === 0 ? '<li style="color: #ff9800;"><strong>調査必要</strong> ソース別トラッキングが0件です。リードデータにsourceフィールドが正しく設定されているか確認してください。</li>' : ''}
+  ${cvrStats && cvrStats.cvr < ESTIMATES.targetCVR ? `<li style="color: #f44336;"><strong>⚠️ CVRが目標未達</strong> (${(cvrStats.cvr || 0).toFixed(2)}% / ${ESTIMATES.targetCVR}%)。リプライメッセージの最適化を検討してください。</li>` : `<li style="color: #4CAF50;"><strong>✅ CVR目標達成</strong> (${(cvrStats.cvr || 0).toFixed(2)}%)</li>`}
 </ul>
 ` : '<p style="color: #f44336;">⚠️ CVR統計の取得に失敗しました。システムを確認してください。</p>'}
 
@@ -565,13 +743,14 @@ ${whopStats.syncResult ? `
 </p>
 `}
 
-<h3 style="color: #555; margin-top: 30px;">🎯 次のアクション</h3>
+<h3 style="color: #555; margin-top: 30px;">🔧 COO向け 最適化アクション</h3>
 <ul style="line-height: 1.8;">
-  <li>リード発見数の目標達成状況を確認</li>
-  <li>CVRが目標を超えているか確認</li>
-  <li>必要に応じてリード発見設定を調整</li>
-  <li>リプライメッセージの最適化を検討</li>
-  <li>ソース別CVRを分析し、最適なチャネル戦略を検討</li>
+  ${cvrStats && cvrStats.totalLeads > 0 && ((cvrStats.repliesSent || 0) / cvrStats.totalLeads * 100) < 50 ? '<li style="color: #f44336;"><strong>優先度: 高</strong> リプライ送信成功率を改善してください（現在: ' + ((cvrStats.repliesSent || 0) / cvrStats.totalLeads * 100).toFixed(2) + '%）</li>' : ''}
+  ${cvrStats && cvrStats.totalLeads < ESTIMATES.leadsPerDay ? '<li style="color: #f44336;"><strong>優先度: 高</strong> リード発見数を増加させてください（現在: ' + (cvrStats.totalLeads || 0) + '件 / 目標: ' + ESTIMATES.leadsPerDay + '件）</li>' : ''}
+  ${cvrStats && cvrStats.bySource && (cvrStats.bySource.x_direct?.leads || 0) === 0 && (cvrStats.bySource.x_quote?.leads || 0) === 0 ? '<li style="color: #ff9800;"><strong>調査必要</strong> ソース別トラッキングが0件です。リードデータにsourceフィールドが正しく設定されているか確認してください。</li>' : ''}
+  ${cvrStats && cvrStats.cvr < ESTIMATES.targetCVR ? '<li style="color: #f44336;"><strong>優先度: 中</strong> CVRを改善してください（現在: ' + (cvrStats.cvr || 0).toFixed(2) + '% / 目標: ' + ESTIMATES.targetCVR + '%）</li>' : ''}
+  <li><strong>監視継続</strong> エラー率0%を維持し、システムの安定稼働を監視してください</li>
+  <li><strong>最適化</strong> ソース別CVRを分析し、効果的なチャネルにリソースを集中してください</li>
 </ul>
   `.trim();
   
@@ -594,13 +773,28 @@ ${whopStats.syncResult ? `
     });
     console.log(`[Lead Discovery Report] Daily report sent for ${reportDate}`);
     
-    return {
+    const reportData = {
       success: true,
       date: reportDate,
+      stats: {}, // 日次レポートにはstatsがないため空オブジェクト
       cvrStats,
       langStats,
+      whopStats,
       timestamp: new Date().toISOString(),
     };
+    
+    // COO・Grok・CEO共有用にレポートを保存
+    try {
+      const reportId = await saveReport('daily', reportData, html);
+      if (reportId) {
+        console.log(`[Lead Discovery Report] Daily report saved for sharing: ${reportId}`);
+      }
+    } catch (error) {
+      console.error('[Lead Discovery Report] Failed to save daily report for sharing:', error.message);
+      // エラーが発生しても処理は続行
+    }
+    
+    return reportData;
   } catch (error) {
     console.error('[Lead Discovery Report] Failed to send daily report:', error.message);
     throw error;
@@ -1021,11 +1215,14 @@ ${langStats && !langStats.error ? generateLanguageStatsHTML(langStats) : ''}
     });
     console.log(`[Lead Discovery Report] Weekly report sent for ${startDate} to ${endDate}`);
     
-    return {
+    const reportData = {
       success: true,
       startDate,
       endDate,
+      date: `${startDate}_${endDate}`, // 週次レポート用の日付形式
+      stats: {}, // 週次レポートにはstatsがないため空オブジェクト
       cvrStats,
+      langStats,
       whopStats,
       comparison: {
         actual,
@@ -1034,6 +1231,19 @@ ${langStats && !langStats.error ? generateLanguageStatsHTML(langStats) : ''}
       },
       timestamp: new Date().toISOString(),
     };
+    
+    // COO・Grok・CEO共有用にレポートを保存
+    try {
+      const reportId = await saveReport('weekly', reportData, html);
+      if (reportId) {
+        console.log(`[Lead Discovery Report] Weekly report saved for sharing: ${reportId}`);
+      }
+    } catch (error) {
+      console.error('[Lead Discovery Report] Failed to save weekly report for sharing:', error.message);
+      // エラーが発生しても処理は続行
+    }
+    
+    return reportData;
   } catch (error) {
     console.error('[Lead Discovery Report] Failed to send weekly report:', error.message);
     throw error;
