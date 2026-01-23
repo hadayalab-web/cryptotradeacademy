@@ -5,7 +5,7 @@ const { performAlgorithmAnalysis, generateAlgorithmReport } = require('../servic
 const { generateWeeklyStrategyReport, formatStrategyReport } = require('../services/openai/strategyRecommender');
 
 /**
- * Vercel Cron Job Handler（週次アルゴリズム分析レポート生成）
+ * Vercel Cron Job Handler（日次アルゴリズム分析レポート生成）
  */
 module.exports = async function handler(req, res) {
   // Vercel CronはGETまたはPOSTで呼ばれる可能性があるため、両方許可
