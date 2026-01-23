@@ -5,6 +5,8 @@ const { sendCEOReport } = require('../email/ceo-report');
 const { getCVRStats, getCVRStatsByLanguage, syncWhopPurchases } = require('./conversionTracker');
 const { listMemberships } = require('../whop/client');
 const { saveReport } = require('./reportStorage');
+const { getFreeUserCount } = require('../free-users/manager');
+const { getInfluencerListStats } = require('./influencerList');
 
 /**
  * 日付フォーマット（YYYY-MM-DD形式）
@@ -152,6 +154,23 @@ async function generateLeadDiscoveryReport(stats, options = {}) {
     console.error('[Lead Discovery Report] Failed to get Whop stats:', error.message);
   }
   
+  // リード統計を取得（無料版ユーザー = リード）
+  let leadStats = null;
+  try {
+    const totalLeads = await getFreeUserCount();
+    leadStats = { totalLeads };
+  } catch (error) {
+    console.error('[Lead Discovery Report] Failed to get lead stats:', error.message);
+  }
+  
+  // リスト統計を取得（引用リポストするインフルエンサー = リスト）
+  let listStats = null;
+  try {
+    listStats = await getInfluencerListStats();
+  } catch (error) {
+    console.error('[Lead Discovery Report] Failed to get list stats:', error.message);
+  }
+  
   // COO向けレポート: システム最適化に必要な技術指標を重視
   const html = `
 <h2 style="color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">
@@ -198,7 +217,7 @@ async function generateLeadDiscoveryReport(stats, options = {}) {
   </tr>
 </table>
 
-<h3 style="color: #555; margin-top: 30px;">📊 リード処理の詳細</h3>
+<h3 style="color: #555; margin-top: 30px;">📊 リードとリストの統計</h3>
 <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
   <tr style="background-color: #f5f5f5;">
     <td style="padding: 8px; border: 1px solid #ddd;"><strong>指標</strong></td>
@@ -206,7 +225,37 @@ async function generateLeadDiscoveryReport(stats, options = {}) {
     <td style="padding: 8px; border: 1px solid #ddd; text-align: center;"><strong>状態</strong></td>
   </tr>
   <tr>
-    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リード発見数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リード数（無料版ユーザー）</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${leadStats?.totalLeads || 0}人</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(leadStats?.totalLeads || 0) > 0 ? '#4CAF50' : '#666'};">
+      ${(leadStats?.totalLeads || 0) > 0 ? '✅' : 'ℹ️'}
+    </td>
+  </tr>
+  <tr style="background-color: #f5f5f5;">
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>リスト数（引用リポストインフルエンサー）</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${listStats?.total || 0}人</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(listStats?.total || 0) > 0 ? '#4CAF50' : '#666'};">
+      ${(listStats?.total || 0) > 0 ? '✅' : 'ℹ️'}
+    </td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>引用リポスト総数</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${listStats?.totalQuoteReposts || 0}回</td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(listStats?.totalQuoteReposts || 0) > 0 ? '#4CAF50' : '#666'};">
+      ${(listStats?.totalQuoteReposts || 0) > 0 ? '✅' : 'ℹ️'}
+    </td>
+  </tr>
+</table>
+
+<h3 style="color: #555; margin-top: 30px;">📊 Xリード発見処理の詳細</h3>
+<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+  <tr style="background-color: #f5f5f5;">
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>指標</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>値</strong></td>
+    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;"><strong>状態</strong></td>
+  </tr>
+  <tr>
+    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Xリード発見数</strong></td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${stats.x.discovered || 0}件</td>
     <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${(stats.x.discovered || 0) >= ESTIMATES.leadsPerRun ? '#4CAF50' : '#f44336'};">
       ${(stats.x.discovered || 0) >= ESTIMATES.leadsPerRun ? '✅' : '⚠️'}
@@ -430,6 +479,8 @@ ${whopStats.syncResult ? `
     cvrStats,
     langStats,
     whopStats,
+    leadStats,
+    listStats,
     date: today,
     timestamp: new Date().toISOString(),
   };

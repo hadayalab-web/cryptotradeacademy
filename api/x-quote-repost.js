@@ -12,6 +12,8 @@ const {
   getOptimizedHashtags,
 } = require('../services/x/optimization');
 const { QUOTE_REPOST_TEMPLATES } = require('./x-post-free-report');
+const { addInfluencerToList, recordQuoteRepost, generateInfluencerId } = require('../services/lead-discovery/influencerList');
+const { getTweetMetrics } = require('../services/x/metrics');
 
 // Vercel KV（投稿履歴追跡用）
 let kv = null;
@@ -195,6 +197,18 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       console.log(`[Quote Repost]   [${idx + 1}] @${inf.username} - tweetId: ${inf.tweetId || 'MISSING'}, engagement: ${inf.recentImpressions || 'N/A'}`);
     });
     
+    // インフルエンサーをリストに追加（リスト管理）
+    for (const influencer of influencers) {
+      try {
+        await addInfluencerToList({
+          ...influencer,
+          lang,
+        });
+      } catch (error) {
+        console.warn(`[Quote Repost] Failed to add influencer to list:`, error.message);
+      }
+    }
+    
     const results = [];
     
     // 1人のインフルエンサーのみ（最適化: 12投稿/日）
@@ -253,6 +267,32 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         // 投稿数をインクリメント
         await incrementDailyPostCount(dateString, 1);
         
+        // 引用リポストをリストに記録（メトリクスは後でCron Jobで追跡）
+        const influencerId = generateInfluencerId(influencer);
+        await recordQuoteRepost(influencerId, result.id);
+        
+        // インフルエンサーのツイートのpublic_metricsを取得（正確なエンゲージメント数）
+        let influencerMetrics = null;
+        try {
+          const metrics = await getTweetMetrics(influencer.tweetId, false); // 他人のツイートなのでnon_public_metricsは取得不可
+          if (metrics) {
+            influencerMetrics = {
+              likes: metrics.publicMetrics.like_count || 0,
+              retweets: metrics.publicMetrics.retweet_count || 0,
+              replies: metrics.publicMetrics.reply_count || 0,
+              quotes: metrics.publicMetrics.quote_count || 0,
+              // 注意: インプレッション数は取得不可能（プライバシー保護）
+              // Grokの推定値（recentImpressions）を使用
+            };
+          }
+        } catch (error) {
+          console.warn(`[Quote Repost] Failed to get influencer metrics:`, error.message);
+        }
+        
+        // 注意: 自分の投稿した引用リポスト（result.id）のメトリクスは、
+        // Cron Job（api/x-quote-repost-metrics.js）で定期的に追跡される
+        // インプレッション数とエンゲージメント数は正確に取得可能
+        
         results.push({
           lang,
           influencer: influencer.username,
@@ -260,8 +300,14 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           quoteTweetId: result.id,
           success: true,
           engagement,
+          // Grokの推定値（正確ではない - インフルエンサーのツイート用）
+          estimatedImpressions: engagement,
+          // 正確なエンゲージメント数（インフルエンサーのツイート - X APIから取得）
+          influencerMetrics: influencerMetrics,
+          // 自分の引用リポストのメトリクスはCron Jobで追跡（正確なインプレッション数 + エンゲージメント数）
         });
-        console.log(`[Quote Repost] ✅ Quote repost posted for ${lang} (@${influencer.username}): ${result.id} (engagement: ${engagement})`);
+        console.log(`[Quote Repost] ✅ Quote repost posted for ${lang} (@${influencer.username}): ${result.id}`);
+        console.log(`[Quote Repost] 📊 Metrics tracking: Quote repost ${result.id} will be tracked by Cron Job (accurate impressions + engagement)`);
         
         // レート制限対策（1時間あたり3-4投稿まで）
         await new Promise(resolve => setTimeout(resolve, 900000)); // 15分待機（1時間4投稿まで）

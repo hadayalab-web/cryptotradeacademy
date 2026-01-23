@@ -97,12 +97,20 @@ async function saveReport(reportType, reportData, htmlReport = null) {
     // Whop統計
     whopStats: reportData.whopStats || null,
     
+    // リード統計（無料版ユーザー = リード）
+    leadStats: reportData.leadStats || null,
+    
+    // リスト統計（引用リポストするインフルエンサー = リスト）
+    listStats: reportData.listStats || null,
+    
     // 生データ（詳細分析用）
     rawData: {
       stats: reportData.stats,
       cvrStats: reportData.cvrStats,
       langStats: reportData.langStats,
       whopStats: reportData.whopStats,
+      leadStats: reportData.leadStats,
+      listStats: reportData.listStats,
     },
     
     // HTMLレポート（CEO向け表示用）
