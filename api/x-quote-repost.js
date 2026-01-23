@@ -394,16 +394,57 @@ const handler = async (req, res) => {
     // レポートデータが提供されていない場合、最新の市場データを取得
     if (!reportData || !reportData.trapScore || !reportData.priceUsd) {
       console.log('[Quote Repost] Fetching latest market data...');
-      const xPostFreeReport = require('./x-post-free-report');
-      const fetchLatestMarketData = xPostFreeReport.fetchLatestMarketData || xPostFreeReport.default?.fetchLatestMarketData;
-      if (!fetchLatestMarketData || typeof fetchLatestMarketData !== 'function') {
-        console.error('[Quote Repost] ❌ fetchLatestMarketData is not available');
-        return res.status(500).json({ 
-          error: 'Failed to fetch market data',
-          details: 'fetchLatestMarketData function not found'
-        });
+      try {
+        // モジュールを動的にrequire（循環依存を避けるため）
+        const xPostFreeReportModule = require('./x-post-free-report');
+        // 複数のエクスポート方法に対応
+        let fetchLatestMarketData = null;
+        if (typeof xPostFreeReportModule === 'function') {
+          // デフォルトエクスポートが関数の場合
+          fetchLatestMarketData = xPostFreeReportModule.fetchLatestMarketData;
+        } else if (xPostFreeReportModule.fetchLatestMarketData) {
+          // 名前付きエクスポート
+          fetchLatestMarketData = xPostFreeReportModule.fetchLatestMarketData;
+        } else if (xPostFreeReportModule.default?.fetchLatestMarketData) {
+          // デフォルトオブジェクトのプロパティ
+          fetchLatestMarketData = xPostFreeReportModule.default.fetchLatestMarketData;
+        }
+        
+        if (!fetchLatestMarketData || typeof fetchLatestMarketData !== 'function') {
+          console.error('[Quote Repost] ❌ fetchLatestMarketData is not available');
+          console.error('[Quote Repost] Module exports:', Object.keys(xPostFreeReportModule || {}));
+          // フォールバック: 直接市場データを取得する関数を呼び出す
+          const { getMarketSnapshot } = require('../services/core/marketSnapshot');
+          const snapshot = await getMarketSnapshot();
+          reportData = {
+            trapScore: snapshot.trapScore || 0,
+            priceUsd: snapshot.priceUsd || 0,
+            change24h: snapshot.change24h || 0,
+          };
+          console.log('[Quote Repost] Using fallback market data from getMarketSnapshot');
+        } else {
+          reportData = await fetchLatestMarketData();
+        }
+      } catch (fetchError) {
+        console.error('[Quote Repost] ❌ Error fetching market data:', fetchError.message);
+        // フォールバック: 直接市場データを取得
+        try {
+          const { getMarketSnapshot } = require('../services/core/marketSnapshot');
+          const snapshot = await getMarketSnapshot();
+          reportData = {
+            trapScore: snapshot.trapScore || 0,
+            priceUsd: snapshot.priceUsd || 0,
+            change24h: snapshot.change24h || 0,
+          };
+          console.log('[Quote Repost] Using fallback market data from getMarketSnapshot');
+        } catch (fallbackError) {
+          console.error('[Quote Repost] ❌ Fallback also failed:', fallbackError.message);
+          return res.status(500).json({ 
+            error: 'Failed to fetch market data',
+            details: fetchError.message
+          });
+        }
       }
-      reportData = await fetchLatestMarketData();
       console.log('[Quote Repost] Market data fetched:', {
         trapScore: reportData.trapScore,
         priceUsd: reportData.priceUsd,

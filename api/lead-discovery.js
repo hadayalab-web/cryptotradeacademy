@@ -152,7 +152,8 @@ async function handleLeadDiscovery(req, res) {
                 const sent = await replyVSL1ToLead(lead);
 
                 // VSL1送信時にrecordVSL1Sentを実行
-                if (sent) {
+                if (sent === true) {
+                  // 正常に送信された場合
                   if (leadId) {
                     await recordVSL1Sent(leadId);
                     console.log(
@@ -166,7 +167,15 @@ async function handleLeadDiscovery(req, res) {
                   await completeLead(jobId);
                   sentCount++;
                   stats.x.sent++;
+                } else if (sent && sent.skipped) {
+                  // スキップされた場合（403エラーなど）- エラーとして扱わない
+                  console.log(
+                    `[Lead Discovery] ⏭️ VSL1 skipped for lead: @${lead.username} (reason: ${sent.reason || 'unknown'})`
+                  );
+                  await completeLead(jobId);
+                  // エラーカウントに含めない
                 } else {
+                  // 送信失敗の場合
                   console.error(
                     `[Lead Discovery] ❌ Failed to send VSL1 to perfect match lead: @${lead.username} (tweetId: ${lead.tweetId})`
                   );

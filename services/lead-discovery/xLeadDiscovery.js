@@ -204,10 +204,11 @@ async function replyVSL1ToLead(lead) {
       console.log(`[X Lead Discovery] Reply sent successfully to tweet ${lead.tweetId}`);
     } catch (replyError) {
       // 403エラー（削除されたツイートや見えないツイート）の場合はスキップ
-      if (replyError.message && replyError.message.includes('403')) {
+      if (replyError.message && (replyError.message.includes('403') || replyError.message.includes('Forbidden'))) {
         console.warn(`[X Lead Discovery] ⚠️ Tweet ${lead.tweetId} is deleted or not visible (403), skipping reply`);
         console.warn(`[X Lead Discovery] Skipped lead: @${lead.username} (tweetId: ${lead.tweetId})`);
-        return false; // エラーとして扱わず、スキップとして返す
+        // スキップを表す特別なオブジェクトを返す（エラーとして扱わない）
+        return { skipped: true, reason: 'tweet_deleted_or_not_visible' };
       }
       
       console.error(`[X Lead Discovery] Failed to send reply to tweet ${lead.tweetId}:`, replyError.message);
