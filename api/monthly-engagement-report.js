@@ -18,6 +18,16 @@ module.exports = async (req, res) => {
   
   try {
     const report = await generateMonthlyEngagementReport();
+    
+    // Markdownレポートも生成してレスポンスに含める
+    const { generateMarkdownReport } = require('../scripts/generate-monthly-engagement-report');
+    let markdownReport = null;
+    try {
+      markdownReport = generateMarkdownReport(report);
+    } catch (mdError) {
+      console.warn('⚠️ Markdown generation failed:', mdError.message);
+    }
+    
     return res.status(200).json({
       success: true,
       report: {
@@ -25,7 +35,9 @@ module.exports = async (req, res) => {
         summary: report.summary,
         vsl2: report.vsl2,
         timing: report.timing,
+        languages: report.languages,
       },
+      markdown: markdownReport,
       generatedAt: report.generatedAt,
     });
   } catch (error) {

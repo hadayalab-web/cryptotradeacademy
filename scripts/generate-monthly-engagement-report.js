@@ -155,22 +155,33 @@ async function generateMonthlyEngagementReport() {
     // レポートをMarkdown形式で生成
     const markdownReport = generateMarkdownReport(report);
     
-    // レポートを保存
-    const reportsDir = path.join(__dirname, '../docs/reports');
-    if (!fs.existsSync(reportsDir)) {
-      fs.mkdirSync(reportsDir, { recursive: true });
+    // Vercel環境ではファイルシステムに書き込めないため、レポートはJSONレスポンスとして返す
+    // ローカル環境でのみファイルに保存を試みる
+    try {
+      const reportsDir = path.join(__dirname, '../docs/reports');
+      if (fs.existsSync(__dirname) && !__dirname.includes('/var/task')) {
+        // ローカル環境の場合のみファイルに保存
+        if (!fs.existsSync(reportsDir)) {
+          fs.mkdirSync(reportsDir, { recursive: true });
+        }
+        
+        const reportFileName = `engagement-report-${lastMonthYear}-${String(lastMonth).padStart(2, '0')}.md`;
+        const reportPath = path.join(reportsDir, reportFileName);
+        
+        fs.writeFileSync(reportPath, markdownReport, 'utf-8');
+        console.log(`✅ レポートを保存しました: ${reportPath}`);
+        
+        // JSON形式でも保存
+        const jsonReportPath = path.join(reportsDir, `engagement-report-${lastMonthYear}-${String(lastMonth).padStart(2, '0')}.json`);
+        fs.writeFileSync(jsonReportPath, JSON.stringify(report, null, 2), 'utf-8');
+        console.log(`✅ JSONレポートを保存しました: ${jsonReportPath}`);
+      } else {
+        console.log('ℹ️ Vercel環境のため、レポートはJSONレスポンスとして返されます');
+      }
+    } catch (fileError) {
+      // ファイル書き込みエラーは無視（Vercel環境では正常）
+      console.warn('⚠️ ファイル保存をスキップ（Vercel環境）:', fileError.message);
     }
-    
-    const reportFileName = `engagement-report-${lastMonthYear}-${String(lastMonth).padStart(2, '0')}.md`;
-    const reportPath = path.join(reportsDir, reportFileName);
-    
-    fs.writeFileSync(reportPath, markdownReport, 'utf-8');
-    console.log(`✅ レポートを保存しました: ${reportPath}`);
-    
-    // JSON形式でも保存
-    const jsonReportPath = path.join(reportsDir, `engagement-report-${lastMonthYear}-${String(lastMonth).padStart(2, '0')}.json`);
-    fs.writeFileSync(jsonReportPath, JSON.stringify(report, null, 2), 'utf-8');
-    console.log(`✅ JSONレポートを保存しました: ${jsonReportPath}`);
     
     // コンソールにサマリーを表示
     console.log('\n' + '='.repeat(80));
@@ -329,4 +340,7 @@ if (require.main === module) {
     });
 }
 
-module.exports = { generateMonthlyEngagementReport };
+module.exports = { 
+  generateMonthlyEngagementReport,
+  generateMarkdownReport,
+};

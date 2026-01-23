@@ -104,7 +104,19 @@ function calculateProjectedRevenue(stats) {
   };
 }
 
-module.exports = {
-  getCVRDashboard,
-  syncPurchases,
+// Vercel要件: デフォルトエクスポートは関数またはサーバーである必要がある
+// GETリクエスト: CVRダッシュボード取得
+// POSTリクエスト: Whop購入同期
+module.exports = async (req, res) => {
+  if (req.method === 'GET') {
+    return await getCVRDashboard(req, res);
+  } else if (req.method === 'POST') {
+    return await syncPurchases(req, res);
+  } else {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 };
+
+// 名前付きエクスポートも維持（後方互換性のため）
+module.exports.getCVRDashboard = getCVRDashboard;
+module.exports.syncPurchases = syncPurchases;
