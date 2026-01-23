@@ -394,7 +394,15 @@ const handler = async (req, res) => {
     // レポートデータが提供されていない場合、最新の市場データを取得
     if (!reportData || !reportData.trapScore || !reportData.priceUsd) {
       console.log('[Quote Repost] Fetching latest market data...');
-      const { fetchLatestMarketData } = require('./x-post-free-report');
+      const xPostFreeReport = require('./x-post-free-report');
+      const fetchLatestMarketData = xPostFreeReport.fetchLatestMarketData || xPostFreeReport.default?.fetchLatestMarketData;
+      if (!fetchLatestMarketData || typeof fetchLatestMarketData !== 'function') {
+        console.error('[Quote Repost] ❌ fetchLatestMarketData is not available');
+        return res.status(500).json({ 
+          error: 'Failed to fetch market data',
+          details: 'fetchLatestMarketData function not found'
+        });
+      }
       reportData = await fetchLatestMarketData();
       console.log('[Quote Repost] Market data fetched:', {
         trapScore: reportData.trapScore,
