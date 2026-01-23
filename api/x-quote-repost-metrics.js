@@ -46,8 +46,8 @@ async function getRecentQuoteReposts() {
  * Vercel Cron Job Handler
  */
 module.exports = async function handler(req, res) {
-  // POSTのみ許可（Vercel Cron）
-  if (req.method !== 'POST') {
+  // Vercel CronはGETまたはPOSTで呼ばれる可能性があるため、両方許可
+  if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
