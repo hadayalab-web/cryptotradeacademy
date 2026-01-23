@@ -371,7 +371,11 @@ async function getCVRStats(startDate, endDate) {
       const leadData = typeof leadDataRaw === 'string' ? JSON.parse(leadDataRaw) : leadDataRaw;
       
       // ソース別トラッキング
-      const source = leadData.source || 'other';
+      // 修正: 'grok'を'x_direct'として扱う（Grokで発見されたリードはX直接投稿として分類）
+      let source = leadData.source || 'other';
+      if (source === 'grok' || source === 'grok_trends') {
+        source = 'x_direct';
+      }
       const sourceKey = ['x_direct', 'x_quote', 'telegram'].includes(source) ? source : 'other';
       const sourceStats = stats.bySource[sourceKey];
       

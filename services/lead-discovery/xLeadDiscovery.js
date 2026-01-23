@@ -72,7 +72,7 @@ async function searchLeadsOnX(query, lang = 'en', maxResults = 100) {
           isPerfectMatch: isPerfect,
           engagementRate: 0.1,
           timestamp: new Date().toISOString(),
-          source: 'grok',
+          source: 'x_direct', // 修正: 'grok'から'x_direct'に変更（ソース別トラッキングのため）
         });
       }
       
@@ -284,7 +284,7 @@ async function discoverLeadsFromTrends(lang = 'en', woeid = 1) {
               isPerfectMatch: isPerfect,
               engagementRate: 0.1,
               timestamp: new Date().toISOString(),
-              source: 'grok_trends',
+              source: 'x_direct', // 修正: 'grok_trends'から'x_direct'に変更（ソース別トラッキングのため）
             });
           }
         }

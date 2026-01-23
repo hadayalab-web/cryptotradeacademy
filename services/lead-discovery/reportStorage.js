@@ -63,9 +63,10 @@ async function saveReport(reportType, reportData, htmlReport = null) {
       },
       leadProcessing: {
         discovered: reportData.stats?.x?.discovered || 0,
-        repliesSent: reportData.stats?.x?.sent || 0,
-        replySuccessRate: reportData.stats?.x?.discovered > 0
-          ? ((reportData.stats?.x?.sent || 0) / reportData.stats.x.discovered * 100).toFixed(2) + '%'
+        // 修正: cvrStats.repliesSentを使用（実際のリプライ送信数）
+        repliesSent: reportData.cvrStats?.repliesSent || reportData.stats?.x?.sent || 0,
+        replySuccessRate: (reportData.cvrStats?.totalLeads || reportData.stats?.x?.discovered || 0) > 0
+          ? ((reportData.cvrStats?.repliesSent || reportData.stats?.x?.sent || 0) / (reportData.cvrStats?.totalLeads || reportData.stats?.x?.discovered || 1) * 100).toFixed(2) + '%'
           : '0.00%',
         errors: reportData.stats?.x?.errors || 0,
         queueTotal: reportData.stats?.queue?.total || 0,

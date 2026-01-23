@@ -506,7 +506,8 @@ ${whopStats.syncResult ? `
       metadata: {
         'Discovered': `${stats.x.discovered || 0}件`,
         'Estimated': `${ESTIMATES.leadsPerRun}件/回`,
-        'Replies Sent': `${stats.x.sent || 0}件`,
+        // 修正: cvrStats.repliesSentを使用（実際のリプライ送信数）
+        'Replies Sent': `${cvrStats?.repliesSent || stats.x.sent || 0}件`,
         'CVR': cvrStats && !cvrStats.error ? `${(cvrStats.cvr || 0).toFixed(2)}%` : 'N/A',
         'Target CVR': `${ESTIMATES.targetCVR}%`,
         'Revenue': cvrStats && !cvrStats.error ? `$${(cvrStats.revenue || 0).toLocaleString()}` : 'N/A',
