@@ -266,7 +266,7 @@ async function getTrendyHashtags(lang, topic = 'BTC') {
   let trendingHashtag = '#Bitcoin'; // デフォルト値
   
   try {
-    const { discoverTrendingHashtags } = require('../services/grok/client');
+    const { discoverTrendingHashtags } = require('../grok/client');
     const trending = await discoverTrendingHashtags(normalizedLang, topic);
     if (trending && trending.length > 0) {
       // ボリューム中（10k-100k投稿）で競合低のものを優先

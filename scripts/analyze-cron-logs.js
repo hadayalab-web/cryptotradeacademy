@@ -1,116 +1,131 @@
 // scripts/analyze-cron-logs.js
-// Cron Jobs実行ログを分析
+// Cron Jobsログ分析スクリプト
 
 const fs = require('fs');
 const path = require('path');
 
-const logFile = process.argv[2] || path.join(__dirname, '../../Downloads/logs_result (5).json');
+const logFile = process.argv[2] || path.join(__dirname, '../../Downloads/logs_result (10).json');
 
-if (!fs.existsSync(logFile)) {
-  console.error(`❌ Log file not found: ${logFile}`);
+console.log('📊 Cron Jobsログ分析を開始します...\n');
+console.log(`📁 ログファイル: ${logFile}\n`);
+
+try {
+  const rawData = fs.readFileSync(logFile, 'utf8');
+  const logs = JSON.parse(rawData);
+  
+  console.log(`✅ ログエントリ数: ${logs.length}件\n`);
+  
+  // 1. エンドポイント別実行回数
+  const endpoints = {};
+  logs.forEach(log => {
+    const path = log.requestPath || 'unknown';
+    if (!endpoints[path]) {
+      endpoints[path] = {
+        count: 0,
+        statusCodes: {},
+        errors: [],
+        messages: []
+      };
+    }
+    endpoints[path].count++;
+    
+    // ステータスコード集計
+    const status = log.responseStatusCode || 'unknown';
+    endpoints[path].statusCodes[status] = (endpoints[path].statusCodes[status] || 0) + 1;
+    
+    // エラーメッセージ収集
+    if (log.message) {
+      const msg = log.message.toLowerCase();
+      if (msg.includes('error') || msg.includes('failed') || msg.includes('❌')) {
+        endpoints[path].errors.push({
+          time: log.TimeUTC,
+          message: log.message,
+          statusCode: log.responseStatusCode
+        });
+      }
+    }
+  });
+  
+  console.log('=== 📋 エンドポイント別実行状況 ===\n');
+  Object.entries(endpoints)
+    .sort((a, b) => b[1].count - a[1].count)
+    .forEach(([path, data]) => {
+      console.log(`🔹 ${path}`);
+      console.log(`   実行回数: ${data.count}回`);
+      console.log(`   ステータスコード: ${JSON.stringify(data.statusCodes)}`);
+      if (data.errors.length > 0) {
+        console.log(`   ⚠️  エラー: ${data.errors.length}件`);
+        data.errors.slice(0, 3).forEach(err => {
+          console.log(`      - [${err.time}] ${err.message.substring(0, 100)}`);
+        });
+      }
+      console.log('');
+    });
+  
+  // 2. プロモコード関連のログを抽出
+  console.log('\n=== 🎫 プロモコード自動補充関連ログ ===\n');
+  const promoLogs = logs.filter(log => {
+    const msg = (log.message || '').toLowerCase();
+    return msg.includes('promo') || 
+           msg.includes('restock') || 
+           msg.includes('whop') ||
+           log.requestPath?.includes('promo');
+  });
+  
+  if (promoLogs.length === 0) {
+    console.log('⚠️  プロモコード関連のログが見つかりませんでした。');
+  } else {
+    promoLogs.forEach(log => {
+      console.log(`[${log.TimeUTC}] ${log.requestPath || 'unknown'}`);
+      console.log(`  Message: ${log.message || 'N/A'}`);
+      console.log(`  Status: ${log.responseStatusCode || 'N/A'}`);
+      console.log('');
+    });
+  }
+  
+  // 3. エラーサマリー
+  console.log('\n=== ❌ エラーサマリー ===\n');
+  const allErrors = logs.filter(log => {
+    const msg = (log.message || '').toLowerCase();
+    return msg.includes('error') || 
+           msg.includes('failed') || 
+           msg.includes('❌') ||
+           (log.responseStatusCode && log.responseStatusCode >= 400);
+  });
+  
+  if (allErrors.length === 0) {
+    console.log('✅ エラーは見つかりませんでした！');
+  } else {
+    console.log(`⚠️  エラー件数: ${allErrors.length}件\n`);
+    allErrors.slice(0, 10).forEach(err => {
+      console.log(`[${err.TimeUTC}] ${err.requestPath || 'unknown'}`);
+      console.log(`  Status: ${err.responseStatusCode || 'N/A'}`);
+      console.log(`  Message: ${err.message || 'N/A'}`);
+      console.log('');
+    });
+    if (allErrors.length > 10) {
+      console.log(`... 他 ${allErrors.length - 10}件のエラー`);
+    }
+  }
+  
+  // 4. ステータスコード分布
+  console.log('\n=== 📊 ステータスコード分布 ===\n');
+  const statusCodes = {};
+  logs.forEach(log => {
+    const status = log.responseStatusCode || 'unknown';
+    statusCodes[status] = (statusCodes[status] || 0) + 1;
+  });
+  Object.entries(statusCodes)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([status, count]) => {
+      const emoji = status >= 400 ? '❌' : status >= 300 ? '⚠️' : '✅';
+      console.log(`${emoji} ${status}: ${count}回`);
+    });
+  
+  console.log('\n✅ 分析完了！\n');
+  
+} catch (error) {
+  console.error('❌ エラー:', error.message);
+  console.error(error.stack);
   process.exit(1);
 }
-
-const data = JSON.parse(fs.readFileSync(logFile, 'utf8'));
-
-const analysis = {
-  summary: {
-    totalLogs: data.length,
-    timeRange: {
-      start: data[0]?.TimeUTC || 'N/A',
-      end: data[data.length - 1]?.TimeUTC || 'N/A',
-    },
-  },
-  endpoints: {},
-  errors: [],
-  keyMetrics: {
-    xPostFreeReport: { executions: 0, successes: 0, errors: 0 },
-    xQuoteRepost: { executions: 0, successes: 0, errors: 0 },
-    xAlgorithmAnalysis: { executions: 0, successes: 0, errors: 0 },
-    xInfluencerReport: { executions: 0, successes: 0, errors: 0 },
-    xEngagementMetrics: { executions: 0, successes: 0, errors: 0 },
-  },
-};
-
-data.forEach(log => {
-  const msg = log.message || '';
-  const requestPath = log.requestPath || '';
-  const pathMatch = requestPath.match(/api\/([^\/\?]+)/);
-  const endpoint = pathMatch ? pathMatch[1] : 'unknown';
-  
-  if (!analysis.endpoints[endpoint]) {
-    analysis.endpoints[endpoint] = {
-      total: 0,
-      errors: 0,
-      successes: 0,
-      statusCodes: {},
-      messages: [],
-    };
-  }
-  
-  analysis.endpoints[endpoint].total++;
-  
-  // ステータスコードを記録
-  const status = log.responseStatusCode || 'N/A';
-  analysis.endpoints[endpoint].statusCodes[status] = 
-    (analysis.endpoints[endpoint].statusCodes[status] || 0) + 1;
-  
-  // エラーチェック
-  const isError = 
-    msg.includes('Error') || 
-    msg.includes('Failed') || 
-    msg.includes('❌') ||
-    (status >= 400 && status !== 'N/A');
-  
-  // 成功チェック
-  const isSuccess = 
-    msg.includes('completed') || 
-    msg.includes('success') || 
-    msg.includes('✅') ||
-    (status >= 200 && status < 300);
-  
-  if (isError) {
-    analysis.endpoints[endpoint].errors++;
-    analysis.errors.push({
-      endpoint,
-      timestamp: log.TimeUTC,
-      message: msg.substring(0, 300),
-      statusCode: status,
-      requestId: log.requestId,
-    });
-  } else if (isSuccess) {
-    analysis.endpoints[endpoint].successes++;
-  }
-  
-  // 主要メトリクスの更新
-  if (endpoint === 'x-post-free-report') {
-    analysis.keyMetrics.xPostFreeReport.executions++;
-    if (isError) analysis.keyMetrics.xPostFreeReport.errors++;
-    if (isSuccess) analysis.keyMetrics.xPostFreeReport.successes++;
-  } else if (endpoint === 'x-quote-repost') {
-    analysis.keyMetrics.xQuoteRepost.executions++;
-    if (isError) analysis.keyMetrics.xQuoteRepost.errors++;
-    if (isSuccess) analysis.keyMetrics.xQuoteRepost.successes++;
-  } else if (endpoint === 'x-algorithm-analysis') {
-    analysis.keyMetrics.xAlgorithmAnalysis.executions++;
-    if (isError) analysis.keyMetrics.xAlgorithmAnalysis.errors++;
-    if (isSuccess) analysis.keyMetrics.xAlgorithmAnalysis.successes++;
-  } else if (endpoint === 'x-influencer-report') {
-    analysis.keyMetrics.xInfluencerReport.executions++;
-    if (isError) analysis.keyMetrics.xInfluencerReport.errors++;
-    if (isSuccess) analysis.keyMetrics.xInfluencerReport.successes++;
-  } else if (endpoint === 'x-engagement-metrics') {
-    analysis.keyMetrics.xEngagementMetrics.executions++;
-    if (isError) analysis.keyMetrics.xEngagementMetrics.errors++;
-    if (isSuccess) analysis.keyMetrics.xEngagementMetrics.successes++;
-  }
-});
-
-// エラー率を計算
-Object.keys(analysis.endpoints).forEach(endpoint => {
-  const ep = analysis.endpoints[endpoint];
-  ep.errorRate = ep.total > 0 ? ((ep.errors / ep.total) * 100).toFixed(2) + '%' : '0%';
-  ep.successRate = ep.total > 0 ? ((ep.successes / ep.total) * 100).toFixed(2) + '%' : '0%';
-});
-
-console.log(JSON.stringify(analysis, null, 2));

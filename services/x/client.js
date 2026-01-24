@@ -247,12 +247,21 @@ async function postTweet(text, mediaIds = [], pollOptions = null, maxRetries = 3
   }
 
   // ポールオプションを追加（Grok推奨: エンゲージメント強化）
+  // X API v2では、ポールオプションは文字列配列として送る必要がある
   if (pollOptions && pollOptions.options && Array.isArray(pollOptions.options)) {
+    // オプションがオブジェクト形式の場合は文字列に変換、既に文字列の場合はそのまま使用
+    const pollOptionStrings = pollOptions.options.map(opt => {
+      if (typeof opt === 'string') {
+        return opt;
+      } else if (opt && typeof opt === 'object' && opt.text) {
+        return opt.text;
+      } else {
+        return String(opt);
+      }
+    });
+    
     body.poll = {
-      options: pollOptions.options.map(opt => ({
-        label: opt.text,
-        position: opt.position || 0,
-      })),
+      options: pollOptionStrings,
       duration_minutes: pollOptions.duration_minutes || 1440, // デフォルト24時間
     };
   }

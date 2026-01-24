@@ -2,7 +2,7 @@
 // リアルタイム最適化機能（メトリクスに基づく動的調整）
 // Grok推奨: GPT Analysis → RealTimeOptimizer Pipeline統合
 
-const { getDailyEngagementMetrics } = require('../api/x-engagement-metrics');
+const { getDailyEngagementMetrics } = require('../../api/x-engagement-metrics');
 const { getABTestResults, getOptimalVariant } = require('./abTesting');
 
 // Vercel KV（GPT分析結果キャッシュ用）
