@@ -141,10 +141,6 @@ const { getSocialProofText } = require('../services/telegram/reaction-counter');
 // Resend Email送信サービス
 const { sendBatchEmails } = require('../services/email/resendClient');
 const { postProofToX } = require('../services/x/proof-post');
-// Gemini画像生成サービス（オプション）- 無効化: CEO指示により削除
-// const { generateMarketImage } = require('../services/gemini/imageGenerator');
-// Gemini動画生成サービス（定期配信用）- 無効化: CEO指示により削除
-// const { generateMarketVideo } = require('../services/gemini/videoGenerator');
 // Gemini番組プロデューサー（ストーリーブランド戦略2.0）- 簡素化版
 const { produceShow } = require('../services/gemini/showProducer');
 // コンテンツ保存サービス（定時配信用）
@@ -155,8 +151,6 @@ const { calculateMissedOpportunities, formatMissedOpportunities } = require('../
 
 // Phase 1: イベント駆動配信システム（Strategic SSOT v4.0）
 const ENABLE_EVENT_DRIVEN = process.env.ENABLE_EVENT_DRIVEN === 'true';
-// Gemini画像生成の有効化（オプション）
-const ENABLE_GEMINI_IMAGES = process.env.ENABLE_GEMINI_IMAGES === 'true';
 // Telegram送信の有効化（デフォルト: true = Telegram配信を主要チャネルとして使用）
 // COO推奨: Telegram配信に戻す（コスト最適化、運用負荷最小化、即時性の確保）
 const ENABLE_TELEGRAM = process.env.ENABLE_TELEGRAM !== 'false'; // デフォルトでtrue（明示的にfalseにしない限り有効）
@@ -1142,35 +1136,6 @@ module.exports = async function handler(req, res) {
         }
       }
       
-      // Phase 4: 保存されたコンテンツを読み込む（定時5分前に生成されたもの）
-      // 一度だけ取得して、各言語で使用（最初の言語の市場コードを使用）
-      let savedImageUrl = null;
-      let savedVideoUrl = null;
-      try {
-        const firstLangMarket = getMarketCode(targetLangsForRegular[0]);
-        const savedContent = await getContent(firstLangMarket);
-        
-        if (savedContent) {
-          console.log('[Content] Retrieved saved content from storage');
-          savedImageUrl = savedContent.imageUrl;
-          savedVideoUrl = savedContent.videoUrl;
-        } else {
-          console.log('[Content] No saved content found, using real-time generation');
-        }
-      } catch (error) {
-        console.warn('[Content] Error retrieving saved content:', error.message);
-      }
-      
-      // ===== 定期配信: Geminiコンテンツ生成（Veo動画 + Nano Banana画像） =====
-      // USP2: トラップ防御結果を画像生成に反映
-      // 注: 画像・動画生成は不要（CEO指示により簡素化）のため、nullで初期化
-      let imageUrl = savedImageUrl || null;
-      let videoUrl = savedVideoUrl || null;
-      
-      // 削除: 画像・動画生成は不要（CEO指示により簡素化）
-      // 画像生成（NanoBanana Pro）は無効化
-      // 動画生成（Veo 3.1）は無効化
-      
       // 各言語ごとに配信
       for (const targetLang of targetLangsForRegular) {
         try {
@@ -1292,8 +1257,6 @@ module.exports = async function handler(req, res) {
             trapAlert: trapAlert || null,
             // USP3: Dr. Grokの心理的サポート
             psychologicalSupport: psychologicalSupport || null,
-            // USP2: Geminiコンテンツ生成（後で更新される可能性があるため、一旦false/null）
-            hasGeminiContent: false,
             showContent: null, // 後でproduceShowの結果で更新される
           });
 
@@ -1333,12 +1296,9 @@ module.exports = async function handler(req, res) {
             showContent = null; // エラー時もnullを明示的に設定
           }
 
-          // USP2: Geminiコンテンツが生成されたかどうかを確認し、メッセージを再生成
-          // 注: imageUrlとvideoUrlはループの外で定義されている
-          const hasGeminiContent = !!(imageUrl || videoUrl);
-          // showContent（テキストベース）がある場合、またはhasGeminiContent（画像・動画）がある場合にメッセージを再生成
+          // showContent（テキストベース）がある場合にメッセージを再生成
           // 注意: showContentがnullでも、メッセージを再生成してshowContent: nullを明示的に渡す
-          if (showContent || hasGeminiContent || true) { // 常に再生成してshowContentを反映
+          if (showContent || true) { // 常に再生成してshowContentを反映
             // メッセージを再生成（USP2の表示を更新）
             const regularTextUpdated = langFormatRegularBriefing({
               snapshot,
@@ -1379,7 +1339,6 @@ module.exports = async function handler(req, res) {
               marketBug: marketBugDetection || null, // 後方互換性
               trapAlert: trapAlert || null,
               psychologicalSupport: psychologicalSupport || null,
-              hasGeminiContent: hasGeminiContent, // 画像・動画がある場合のみtrue
               showContent: showContent || null, // テキストベースのGeminiコンテンツ
             });
             regularText = regularTextUpdated;
@@ -1391,16 +1350,6 @@ module.exports = async function handler(req, res) {
 
           // Telegram送信（オプション、環境変数で有効化）
           if (ENABLE_TELEGRAM) {
-            const finalVideoUrl = videoUrl || savedVideoUrl;
-            if (finalVideoUrl) {
-              console.log(`[Telegram] Sending video (${targetLang})...`);
-              await sendVideo(finalVideoUrl, regularText.substring(0, 1024));
-            }
-            
-            if (imageUrl) {
-              await sendPhoto(imageUrl, regularText.substring(0, 1024), null, null, { reply_markup: SOCIAL_PROOF_BUTTON });
-            }
-            
             // 市場コードとシリーズを取得して適切なチャンネルに送信
             const marketCode = getMarketCode(targetLang); // 'EN', 'AR', 'KO', etc.
             const series = 'BTC'; // 現在はBTCのみ、将来的に'OTHER'なども対応可能
@@ -1600,6 +1549,33 @@ module.exports = async function handler(req, res) {
         }
       }
       
+      // Grok推奨: 無料版（Minimal Version）配信完了後、X投稿を実行（非同期、エラーは無視）
+      // Grok戦略: UTC 8:00にMV投稿、UTC 14:00に引用リポスト（6時間後）
+      if (ENABLE_MINIMAL_VERSION && shouldSend) {
+        try {
+          const { postMinimalVersionToX } = require('./x-post-minimal-version');
+          const reportData = {
+            trapScore: minimalTrapScore,
+            priceUsd,
+            change24h,
+            trapData: {
+              trapAlert: trapAlert || null,
+              exchangeNetflow: inflow,
+              whaleRatio: whaleRatioValue,
+            },
+            marketData: minimalMarketData,
+            sentimentData,
+          };
+          
+          // Grok推奨: 非同期で実行（エラーは無視、タイミングは独立したCronジョブで制御）
+          postMinimalVersionToX(targetLangsForMinimal, reportData).catch(error => {
+            console.warn('[MINIMAL] Failed to post minimal version to X:', error.message);
+          });
+        } catch (error) {
+          console.warn('[MINIMAL] Failed to import x-post-minimal-version:', error.message);
+        }
+      }
+      
       // 無料版レポート配信完了後、X投稿を実行（非同期、エラーは無視）
       // 注意: 独立したCronジョブ（api/x-post-free-report）も実行されるため、
       // 二重実行を防ぐため、ここでは実行しない（独立したCronジョブに任せる）
@@ -1674,11 +1650,8 @@ module.exports = async function handler(req, res) {
           trapAlert: trapAlert || null,
           divergenceSignal: null,
           psychologicalSupport: null,
-          hasGeminiContent: false,
           gptReporterAnalysis: null,
           grokXAnalysis: null,
-          geminiImageUrl: null,
-          geminiVideoUrl: null,
           cqDeep: cqDeep,
           showContent: null, // 緊急配信ではshowContentは使用しない
         });
@@ -1810,8 +1783,6 @@ module.exports = async function handler(req, res) {
         divergenceSignal: null,
         // USP3: Dr. Grokの心理的サポート
         psychologicalSupport: psychologicalSupportSTANDBY || null,
-        // USP2: Geminiコンテンツ生成（STANDBY_BREAKでは生成しない）
-        hasGeminiContent: false,
       });
 
       // Phase 2: メッセージ送信とログ記録
@@ -1893,8 +1864,6 @@ module.exports = async function handler(req, res) {
         divergenceSignal: null,
         // USP3: Dr. Grokの心理的サポート
         psychologicalSupport: psychologicalSupportWATCH || null,
-        // USP2: Geminiコンテンツ生成（WATCHでは生成しない）
-        hasGeminiContent: false,
       });
 
       // Phase 2: メッセージ送信とログ記録
@@ -1971,8 +1940,6 @@ module.exports = async function handler(req, res) {
         divergenceSignal: null,
         // USP3: Dr. Grokの心理的サポート
         psychologicalSupport: psychologicalSupportWATCHLegacy || null,
-        // USP2: Geminiコンテンツ生成（Legacy WATCHでは生成しない）
-        hasGeminiContent: false,
       });
 
       // Phase 2: メッセージ送信とログ記録
