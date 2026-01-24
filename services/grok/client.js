@@ -431,18 +431,64 @@ async function discoverInfluencersForQuoteRepost(lang = 'en', options = {}) {
  * @param {Object} influencerTweet - インフルエンサーのツイート情報
  * @param {Object} reportData - レポートデータ（Trap Score、価格など）
  * @param {string} deepLink - Telegram Deep Link
+ * @param {string} minimalVersionPostUrl - 無料版（Minimal Version）ポストのURL（オプション）
+ * @param {Object} minimalContent - 無料版メッセージのキーポイント（オプション）
  * @returns {Promise<string>} 引用リポスト用のテキスト
  */
-async function generateQuoteRepostText(lang = 'en', influencerTweet, reportData = null, deepLink) {
+async function generateQuoteRepostText(lang = 'en', influencerTweet, reportData = null, deepLink, minimalVersionPostUrl = null, minimalContent = null) {
   if (!XAI_API_KEY) {
     // フォールバック: テンプレートを使用
-    return `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}\n\n#BTC #TrapDefence`;
+    const baseText = `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}`;
+    if (minimalVersionPostUrl) {
+      return `${baseText}\n\n📊 Full analysis: ${minimalVersionPostUrl}\n\n#BTC #TrapDefence`;
+    }
+    return `${baseText}\n\n#BTC #TrapDefence`;
   }
 
   const targetLang = (lang || 'en').toLowerCase();
   const modelToUse = GROK_MODEL_X_LIVE;
 
   try {
+    // 無料版（Minimal Version）ポストへのリンクをプロンプトに追加
+    const minimalVersionContext = minimalVersionPostUrl 
+      ? `\n\nIMPORTANT: There is a detailed Minimal Version post available at: ${minimalVersionPostUrl}\n` +
+        `You can reference this post to drive traffic to the full analysis. Use phrases like "See full analysis" or "Check detailed report" with the link.`
+      : '';
+    
+    // 無料版メッセージのキーポイントをコンテキストに追加（Xアルゴリズム最適化用）
+    let minimalContentContext = '';
+    if (minimalContent) {
+      const contentParts = [];
+      
+      if (minimalContent.hook) {
+        contentParts.push(`Hook Message: "${minimalContent.hook}"`);
+      }
+      
+      if (minimalContent.trapScore !== null) {
+        contentParts.push(`Trap Score: ${minimalContent.trapScore}/100`);
+      }
+      
+      if (minimalContent.dataPoints && minimalContent.dataPoints.length > 0) {
+        contentParts.push(`Key Data Points:\n${minimalContent.dataPoints.map(dp => `- ${dp}`).join('\n')}`);
+      }
+      
+      if (minimalContent.drGrokInsight) {
+        contentParts.push(`Dr. Grok's Insight: "${minimalContent.drGrokInsight}"`);
+      }
+      
+      if (minimalContent.mentalNote) {
+        contentParts.push(`Mental Note: "${minimalContent.mentalNote}"`);
+      }
+      
+      if (minimalContent.whatToAvoid && minimalContent.whatToAvoid.length > 0) {
+        contentParts.push(`What to Avoid:\n${minimalContent.whatToAvoid.map(item => `- ${item}`).join('\n')}`);
+      }
+      
+      if (contentParts.length > 0) {
+        minimalContentContext = `\n\n🎯 HIGH-QUALITY MINIMAL VERSION CONTENT (Use these powerful elements to maximize engagement):\n${contentParts.join('\n\n')}\n\nCRITICAL: Incorporate these high-quality elements naturally into your quote repost. Use the hook message, Dr. Grok's insight, or mental note to create compelling, algorithm-optimized content that drives clicks.`;
+      }
+    }
+    
     const completion = await openai.chat.completions.create({
       model: modelToUse,
       messages: [
@@ -454,6 +500,9 @@ async function generateQuoteRepostText(lang = 'en', influencerTweet, reportData 
             'Be concise, engaging, and use psychological triggers (urgency, FOMO, curiosity). ' +
             'Maximum 200 characters. Include the Telegram Deep Link. ' +
             'CRITICAL: MUST include a question CTA (e.g., "How do you trade?", "What do you think?", "Can you win with this?") to maximize engagement. ' +
+            'CRITICAL: MUST include the Telegram Deep Link to drive opt-ins to the free Minimal Version. ' +
+            'If high-quality Minimal Version content is provided (hook message, Dr. Grok insight, mental note, data points), incorporate these powerful elements naturally to maximize algorithm engagement. ' +
+            'If a Minimal Version post URL is provided, include a reference to it (e.g., "See full analysis" or "Check detailed report") to drive cross-pollination. ' +
             'Use 2-3 emojis (🚀💥⚡) for emotional impact. ' +
             'Use relevant hashtags. Make it irresistible to click.',
         },
@@ -464,17 +513,19 @@ async function generateQuoteRepostText(lang = 'en', influencerTweet, reportData 
             `Original tweet: "${influencerTweet.tweetText?.substring(0, 200) || 'N/A'}"\n` +
             `Trap Score: ${reportData?.trapScore || 'N/A'}/100\n` +
             `BTC Price: $${reportData?.priceUsd?.toLocaleString('en-US', { maximumFractionDigits: 0 }) || 'N/A'}\n` +
-            `Telegram Deep Link: ${deepLink}\n\n` +
+            `Telegram Deep Link: ${deepLink}${minimalVersionContext}${minimalContentContext}\n\n` +
             `Requirements:\n` +
             `- Maximum 200 characters\n` +
             `- Engaging and attention-grabbing\n` +
-            `- Include Telegram Deep Link\n` +
+            `- MUST include Telegram Deep Link - REQUIRED for opt-in funnel (users must be able to click to join free Minimal Version)\n` +
             `- MUST include a question CTA (e.g., "How do you trade?", "What do you think?", "Can you win with this?") - REQUIRED for algorithm optimization\n` +
+            `- If Minimal Version post URL is provided, include a reference to it (e.g., "See full analysis: [URL]" or "Check detailed report: [URL]") - OPTIONAL but recommended for cross-pollination\n` +
             `- Use 2-3 emojis (🚀💥⚡) for emotional impact\n` +
             `- Use psychological triggers (urgency, FOMO, curiosity)\n` +
             `- Use relevant hashtags\n` +
-            `- Format: Agreement + Unique Value + Question CTA + Deep Link\n` +
-            `- Example: "Agree! TrapDefence detected this signal 🚀 How do you trade? t.me/..."\n` +
+            `- Format: Agreement + Unique Value (use Minimal Version content if provided) + Question CTA + Deep Link + (Optional: Minimal Version post reference)\n` +
+            `- Example (with Minimal Version content): "Agree! ${minimalContent?.drGrokInsight ? `"${minimalContent.drGrokInsight.substring(0, 50)}..."` : 'TrapDefence detected this signal'} 🚀 How do you trade? Free: t.me/... See full analysis: [Minimal URL]"\n` +
+            `- Example (without Minimal Version content): "Agree! TrapDefence detected this signal 🚀 How do you trade? Free: t.me/... See full analysis: [Minimal URL]"\n` +
             `- Make it irresistible to click\n\n` +
             `Generate the quote repost text:`,
         },
@@ -489,11 +540,23 @@ async function generateQuoteRepostText(lang = 'en', influencerTweet, reportData 
     }
 
     // フォールバック: テンプレートを使用
-    return `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}\n\n#BTC #TrapDefence`;
+    const baseText = `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}`;
+    if (minimalVersionPostUrl) {
+      return `${baseText}\n\n📊 Full analysis: ${minimalVersionPostUrl}\n\n#BTC #TrapDefence`;
+    }
+    return `${baseText}\n\n#BTC #TrapDefence`;
   } catch (error) {
     logCompactError('generateQuoteRepostText', error);
     // フォールバック: テンプレートを使用
-    return `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}\n\n#BTC #TrapDefence`;
+    const baseText = `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}`;
+    let resultText = baseText;
+    
+    // Minimal Version URLを追加（クロスポリネーション）
+    if (minimalVersionPostUrl && resultText.length + minimalVersionPostUrl.length + 30 <= 280) {
+      resultText += `\n\n📊 Full analysis: ${minimalVersionPostUrl}`;
+    }
+    
+    return `${resultText}\n\n#BTC #TrapDefence`;
   }
 }
 

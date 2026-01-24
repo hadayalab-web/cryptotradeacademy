@@ -13,6 +13,7 @@ const {
 } = require('../services/x/optimization');
 const { QUOTE_REPOST_TEMPLATES } = require('./x-post-free-report');
 const { getTweetMetrics } = require('../services/x/metrics');
+
 const {
   getInfluencerCountForLang,
   getImpressionTargetForLang,
@@ -190,6 +191,134 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
 };
 
 /**
+ * 無料版（Minimal Version）ポストのURLを取得（Vercel KV）
+ */
+async function getMinimalVersionPostUrl(lang, dateString) {
+  if (!kv) return null;
+  try {
+    const key = `x:minimal-version:url:${lang}:${dateString}`;
+    const url = await kv.get(key);
+    return url || null;
+  } catch (error) {
+    console.warn('[Quote Repost] Failed to get minimal version post URL:', error.message);
+    return null;
+  }
+}
+
+/**
+ * 無料版メッセージのキーポイントを抽出（引用リポスト生成用）
+ */
+async function getMinimalVersionContent(lang, reportData = null) {
+  try {
+    // 無料版メッセージ生成関数を読み込む
+    const loadUserTemplates = (lang) => {
+      try {
+        const normalizedLang = lang.toLowerCase().replace('-', '');
+        const templatePath = `../services/telegram/messages/user/${normalizedLang}/minimal-high-quality.${normalizedLang}`;
+        return require(templatePath);
+      } catch (error) {
+        return require('../services/telegram/messages/user/en/minimal-high-quality.en');
+      }
+    };
+    
+    const langTemplates = loadUserTemplates(lang);
+    const formatMinimalBriefing = langTemplates.formatMinimalHighQualityBriefing || langTemplates.formatMinimalBriefing;
+    
+    if (!formatMinimalBriefing) {
+      return null;
+    }
+    
+    // reportDataから必要なデータを構築
+    const trapData = reportData?.trapData || {
+      trapAlert: null,
+      exchangeNetflow: reportData?.exchangeNetflow || null,
+      whaleRatio: reportData?.whaleRatio || null,
+    };
+    
+    const marketData = reportData?.marketData || {
+      mpi: reportData?.mpi || null,
+      priceUsd: reportData?.priceUsd || null,
+      change24h: reportData?.change24h || null,
+    };
+    
+    const sentimentData = reportData?.sentimentData || {
+      sentiment: reportData?.sentiment || null,
+      risk: reportData?.risk || null,
+    };
+    
+    // 無料版メッセージを生成
+    const minimalText = formatMinimalBriefing({
+      now: new Date(),
+      trapScore: reportData?.trapScore || null,
+      priceUsd: reportData?.priceUsd || null,
+      change24h: reportData?.change24h || null,
+      trapData: trapData,
+      marketData: marketData,
+      sentimentData: sentimentData,
+      lang: lang,
+    });
+    
+    if (!minimalText) return null;
+    
+    // キーポイントを抽出
+    const keyPoints = {
+      hook: null,
+      trapScore: null,
+      dataPoints: [],
+      drGrokInsight: null,
+      mentalNote: null,
+      whatToAvoid: [],
+    };
+    
+    // フックメッセージを抽出（BREAKING: TRAP DEFENCE BRIEFING）
+    const hookMatch = minimalText.match(/🚨\s*BREAKING[^\n]*/i) || minimalText.match(/🚨[^\n]*/);
+    if (hookMatch) {
+      keyPoints.hook = hookMatch[0].trim();
+    }
+    
+    // Trap Scoreを抽出
+    const trapScoreMatch = minimalText.match(/Trap Score[:\s]*(\d+)\/100/i);
+    if (trapScoreMatch) {
+      keyPoints.trapScore = parseInt(trapScoreMatch[1]);
+    }
+    
+    // データポイントを抽出（Exchange Netflow, Whale Ratioなど）
+    const dataMatch = minimalText.match(/Exchange Netflow[^\n]*/i);
+    if (dataMatch) {
+      keyPoints.dataPoints.push(dataMatch[0].trim());
+    }
+    const whaleMatch = minimalText.match(/Whale Ratio[^\n]*/i);
+    if (whaleMatch) {
+      keyPoints.dataPoints.push(whaleMatch[0].trim());
+    }
+    
+    // Dr. Grok's Quick Insightを抽出
+    const insightMatch = minimalText.match(/Dr\. Grok['"]?s Quick Insight[^\n]*\n([^\n]+(?:\n[^\n]+)*?)(?=\n━━|$)/is);
+    if (insightMatch) {
+      keyPoints.drGrokInsight = insightMatch[1].trim().replace(/^["']|["']$/g, '');
+    }
+    
+    // Mental Noteを抽出
+    const mentalNoteMatch = minimalText.match(/Mental Note[^\n]*\n([^\n]+(?:\n[^\n]+)*?)(?=\n━━|$)/is);
+    if (mentalNoteMatch) {
+      keyPoints.mentalNote = mentalNoteMatch[1].trim().replace(/^["']|["']$/g, '');
+    }
+    
+    // What to Avoidを抽出
+    const whatToAvoidMatch = minimalText.match(/What to Avoid[^\n]*\n((?:•[^\n]+\n?)+)/i);
+    if (whatToAvoidMatch) {
+      const items = whatToAvoidMatch[1].split('\n').filter(line => line.trim().startsWith('•'));
+      keyPoints.whatToAvoid = items.map(item => item.replace(/^•\s*/, '').trim());
+    }
+    
+    return keyPoints;
+  } catch (error) {
+    console.warn(`[Quote Repost] Failed to get minimal version content for ${lang}:`, error.message);
+    return null;
+  }
+}
+
+/**
  * Grokが引用リポスト用のテキストを生成（Grok APIを使用）
  */
 async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData = null) {
@@ -199,13 +328,25 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
       influencerUsername: influencerTweet.username,
       utm_content: `influencer_${influencerTweet.username}`,
     });
-    const quoteText = await generateQuoteRepostText(lang, influencerTweet, reportData, deepLink);
+    
+    // 無料版（Minimal Version）ポストのURLを取得
+    const dateString = new Date().toISOString().split('T')[0];
+    const minimalVersionPostUrl = await getMinimalVersionPostUrl(lang, dateString);
+    
+    // 無料版メッセージのキーポイントを取得（引用リポスト生成用）
+    const minimalContent = await getMinimalVersionContent(lang, reportData);
+    
+    const quoteText = await generateQuoteRepostText(lang, influencerTweet, reportData, deepLink, minimalVersionPostUrl, minimalContent);
     return quoteText;
   } catch (error) {
     console.error(`[Quote Repost] Failed to generate text with Grok for ${lang}:`, error.message);
     // フォールバック: テンプレートを使用（FALLBACK_QUOTE_REPOST_TEMPLATESを使用）
+    // 重要: Minimal Version URLも取得してフォールバックテンプレートに渡す
+    const dateString = new Date().toISOString().split('T')[0];
+    const minimalVersionPostUrl = await getMinimalVersionPostUrl(lang, dateString).catch(() => null);
+    
     const template = QUOTE_REPOST_TEMPLATES?.[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES.en;
-    return template(
+    const baseText = template(
       reportData?.trapScore || 25,
       reportData?.priceUsd || null,
       reportData?.change24h || null,
@@ -215,6 +356,22 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
       reportData?.exchangeNetflow || null,
       reportData?.whaleRatio || null
     );
+    
+    // Minimal Version URLが存在する場合は追加（クロスポリネーション）
+    if (minimalVersionPostUrl && baseText.length + minimalVersionPostUrl.length + 30 <= 280) {
+      const minimalLinkTexts = {
+        en: ` See full analysis: ${minimalVersionPostUrl}`,
+        ja: ` 詳細分析: ${minimalVersionPostUrl}`,
+        es: ` Ver análisis completo: ${minimalVersionPostUrl}`,
+        'pt-br': ` Ver análise completa: ${minimalVersionPostUrl}`,
+        ar: ` راجع التحليل الكامل: ${minimalVersionPostUrl}`,
+        ko: ` 전체 분석 보기: ${minimalVersionPostUrl}`,
+      };
+      const minimalLinkText = minimalLinkTexts[lang] || minimalLinkTexts.en;
+      return baseText + minimalLinkText;
+    }
+    
+    return baseText;
   }
 }
 
@@ -370,9 +527,13 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           quoteText = await generateQuoteRepostTextWithGrok(lang, influencer, reportData);
         } catch (error) {
           // フォールバック: Xアルゴリズム最適化版テンプレートを使用
+          // 重要: Minimal Version URLも取得してフォールバックテンプレートに渡す
+          const dateString = new Date().toISOString().split('T')[0];
+          const minimalVersionPostUrl = await getMinimalVersionPostUrl(lang, dateString).catch(() => null);
+          
           const template = QUOTE_REPOST_TEMPLATES?.[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES.en;
           const { trapScore = 25, priceUsd = null, change24h = null, exchangeNetflow = null, whaleRatio = null } = reportData || {};
-          quoteText = template(
+          const baseText = template(
             trapScore,
             priceUsd,
             change24h,
@@ -383,6 +544,22 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             exchangeNetflow,
             whaleRatio
           );
+          
+          // Minimal Version URLが存在する場合は追加（クロスポリネーション）
+          if (minimalVersionPostUrl && baseText.length + minimalVersionPostUrl.length + 30 <= 280) {
+            const minimalLinkTexts = {
+              en: ` See full analysis: ${minimalVersionPostUrl}`,
+              ja: ` 詳細分析: ${minimalVersionPostUrl}`,
+              es: ` Ver análisis completo: ${minimalVersionPostUrl}`,
+              'pt-br': ` Ver análise completa: ${minimalVersionPostUrl}`,
+              ar: ` راجع التحليل الكامل: ${minimalVersionPostUrl}`,
+              ko: ` 전체 분석 보기: ${minimalVersionPostUrl}`,
+            };
+            const minimalLinkText = minimalLinkTexts[lang] || minimalLinkTexts.en;
+            quoteText = baseText + minimalLinkText;
+          } else {
+            quoteText = baseText;
+          }
         }
         
         // Grok推奨: ハッシュタグを動的取得（トレンド1+ニッチ2）
