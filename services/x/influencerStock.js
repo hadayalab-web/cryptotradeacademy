@@ -167,14 +167,33 @@ async function updateInfluencerStock(lang, options = {}) {
 /**
  * すべての言語のストックを更新
  * @param {Array<string>} langs - 言語コード配列（省略時は全言語）
+ * @param {Object} options - オプション
+ * @param {number} options.timeoutMs - タイムアウト時間（ミリ秒、デフォルト: 無制限）
  * @returns {Promise<Object>} 言語別の更新結果
  */
-async function updateAllInfluencerStocks(langs = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko']) {
+async function updateAllInfluencerStocks(langs = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'], options = {}) {
   const results = {};
+  const startTime = Date.now();
+  const timeoutMs = options.timeoutMs || Infinity;
   
   console.log(`[InfluencerStock] 🔄 Updating influencer stocks for all languages: ${langs.join(', ')}`);
+  if (timeoutMs !== Infinity) {
+    console.log(`[InfluencerStock] ⚠️ Timeout set to ${timeoutMs}ms`);
+  }
   
   for (const lang of langs) {
+    // タイムアウトチェック
+    const elapsed = Date.now() - startTime;
+    if (elapsed > timeoutMs) {
+      console.warn(`[InfluencerStock] ⚠️ Timeout approaching (${elapsed}ms), stopping updates`);
+      results[lang] = {
+        success: false,
+        error: 'Timeout: Stopped before processing this language',
+        count: 0,
+      };
+      break;
+    }
+    
     try {
       const influencers = await updateInfluencerStock(lang);
       results[lang] = {
@@ -183,9 +202,13 @@ async function updateAllInfluencerStocks(langs = ['en', 'es', 'pt-br', 'ar', 'ja
         influencers: influencers.slice(0, 5), // 最初の5人だけ返す（ログ用）
       };
       
-      // レート制限対策（言語間で5秒待機）
+      // レート制限対策（言語間で3秒待機、タイムアウト対策で短縮）
       if (lang !== langs[langs.length - 1]) {
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        const remainingTime = timeoutMs - (Date.now() - startTime);
+        const waitTime = Math.min(3000, remainingTime - 1000); // 最低1秒のバッファを残す
+        if (waitTime > 0) {
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
       }
     } catch (error) {
       console.error(`[InfluencerStock] ❌ Failed to update stock for ${lang}:`, error.message);
@@ -197,7 +220,8 @@ async function updateAllInfluencerStocks(langs = ['en', 'es', 'pt-br', 'ar', 'ja
     }
   }
   
-  console.log(`[InfluencerStock] ✅✅✅ Completed updating all influencer stocks`);
+  const totalElapsed = Date.now() - startTime;
+  console.log(`[InfluencerStock] ✅✅✅ Completed updating all influencer stocks (${totalElapsed}ms)`);
   return results;
 }
 

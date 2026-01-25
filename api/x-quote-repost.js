@@ -809,6 +809,10 @@ const handler = async (req, res) => {
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET;
   
+  // タイムアウト対策: 開始時刻を記録
+  const startTime = Date.now();
+  const TIMEOUT_MS = 50000; // 50秒（60秒制限の前に終了）
+  
   console.log('[Quote Repost] ========================================');
   console.log('[Quote Repost] Cron job triggered at', new Date().toISOString());
   console.log('[Quote Repost] ========================================');
@@ -817,6 +821,14 @@ const handler = async (req, res) => {
     console.error('[Quote Repost] ❌ Unauthorized: Invalid CRON_SECRET');
     return res.status(401).json({ error: 'Unauthorized' });
   }
+  
+  // タイムアウトチェック関数
+  const checkTimeout = () => {
+    const elapsed = Date.now() - startTime;
+    if (elapsed > TIMEOUT_MS) {
+      throw new Error(`Timeout: Execution time exceeded ${TIMEOUT_MS}ms`);
+    }
+  };
   
   try {
     // KVストレージ接続確認
@@ -1021,8 +1033,14 @@ const handler = async (req, res) => {
     let updatedHourlyPostCount = currentHourlyPostCount;
     
     for (const targetLang of targetLangs) {
+      // タイムアウトチェック
+      checkTimeout();
+      
       // 各言語でcount回の引用リポストを実行
       for (let i = 0; i < count; i++) {
+        // タイムアウトチェック
+        checkTimeout();
+        
         // 1時間あたりの投稿数制限をチェック
         if (!checkHourlyPostLimit(updatedHourlyPostCount, maxPostsPerHour)) {
           console.log(`[Quote Repost] ⏰ Hourly post limit reached during processing (${updatedHourlyPostCount}/${maxPostsPerHour}), stopping`);
@@ -1038,20 +1056,45 @@ const handler = async (req, res) => {
         console.log(`[Quote Repost] Updated hourly post count: ${updatedHourlyPostCount}/${maxPostsPerHour}`);
         
         // レート制限対策（同一言語内で5-10分間隔）
+        // タイムアウト対策: 待機時間を短縮（タイムアウトが近い場合はスキップ）
         if (i < count - 1) {
-          const delayMs = 5 * 60 * 1000; // 5分待機
-          console.log(`[Quote Repost] Waiting ${delayMs / 1000} seconds before next post for ${targetLang}...`);
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+          const elapsed = Date.now() - startTime;
+          const remainingTime = TIMEOUT_MS - elapsed;
+          if (remainingTime > 60000) { // 残り時間が1分以上ある場合のみ待機
+            const delayMs = Math.min(5 * 60 * 1000, remainingTime - 10000); // 最低10秒のバッファを残す
+            if (delayMs > 0) {
+              console.log(`[Quote Repost] Waiting ${delayMs / 1000} seconds before next post for ${targetLang}...`);
+              await new Promise(resolve => setTimeout(resolve, delayMs));
+            } else {
+              console.log(`[Quote Repost] ⚠️ Timeout approaching, skipping delay`);
+            }
+          } else {
+            console.log(`[Quote Repost] ⚠️ Timeout approaching (${remainingTime}ms remaining), skipping delay`);
+          }
         }
       }
       
       // 言語間の待機時間（1-2分）
+      // タイムアウト対策: 待機時間を短縮
       if (targetLang !== targetLangs[targetLangs.length - 1]) {
-        const delayMs = 1 * 60 * 1000; // 1分待機
-        console.log(`[Quote Repost] Waiting ${delayMs / 1000} seconds before next language...`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        const elapsed = Date.now() - startTime;
+        const remainingTime = TIMEOUT_MS - elapsed;
+        if (remainingTime > 30000) { // 残り時間が30秒以上ある場合のみ待機
+          const delayMs = Math.min(1 * 60 * 1000, remainingTime - 10000); // 最低10秒のバッファを残す
+          if (delayMs > 0) {
+            console.log(`[Quote Repost] Waiting ${delayMs / 1000} seconds before next language...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+          } else {
+            console.log(`[Quote Repost] ⚠️ Timeout approaching, skipping delay`);
+          }
+        } else {
+          console.log(`[Quote Repost] ⚠️ Timeout approaching (${remainingTime}ms remaining), skipping delay`);
+        }
       }
     }
+    
+    const totalElapsed = Date.now() - startTime;
+    console.log(`[Quote Repost] ✅ Completed in ${totalElapsed}ms`);
     
     const langResults = allResults;
     
