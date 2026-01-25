@@ -453,14 +453,24 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     
     let influencers = [];
     try {
-      // より多くの候補を取得してからフィルタリング（目標インプレッション規模を達成するため）
-      const candidateCount = Math.max(targetCount * 3, 5); // 候補は目標数の3倍、最低5人
-      influencers = await discoverInfluencersForQuoteRepost(lang, { maxResults: candidateCount });
-      console.log(`[Quote Repost] Grok API returned ${influencers?.length || 0} candidate influencers for ${lang}`);
+      // ストックからインフルエンサーを取得（フォールバック付き）
+      const { getInfluencersWithFallback } = require('../services/x/influencerStock');
+      influencers = await getInfluencersWithFallback(lang, false); // ストック優先、空の場合は新規取得
+      console.log(`[Quote Repost] Retrieved ${influencers?.length || 0} influencers for ${lang} (from stock or newly discovered)`);
     } catch (error) {
-      console.error(`[Quote Repost] ❌ Failed to discover influencers for ${lang}:`, error.message);
+      console.error(`[Quote Repost] ❌ Failed to get influencers for ${lang}:`, error.message);
       console.error(`[Quote Repost] Error stack:`, error.stack);
-      return [];
+      
+      // フォールバック: 直接Grok APIから取得を試みる
+      try {
+        console.log(`[Quote Repost] Attempting fallback: direct Grok API call...`);
+        const candidateCount = Math.max(targetCount * 3, 5);
+        influencers = await discoverInfluencersForQuoteRepost(lang, { maxResults: candidateCount });
+        console.log(`[Quote Repost] Fallback: Grok API returned ${influencers?.length || 0} candidate influencers for ${lang}`);
+      } catch (fallbackError) {
+        console.error(`[Quote Repost] ❌ Fallback also failed:`, fallbackError.message);
+        return [];
+      }
     }
     
     if (!influencers || influencers.length === 0) {
