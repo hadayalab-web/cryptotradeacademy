@@ -369,8 +369,7 @@ ${mentalNote}`;
   // VSL2とWhopリンクは別途配信されるため、定期配信のMinimal Briefingには含めない
   // GPT評価に基づく改善: より具体的な利点提示に変更
   
-  // Trap Scoreに基づいてCTAのメッセージを動的に変更
-  const trapScoreRounded = trapScore !== null ? Math.round(trapScore) : null;
+  // Trap Scoreに基づいてCTAのメッセージを動的に変更（234行目で既に宣言済みのtrapScoreRoundedを再利用）
   let ctaHeadline = '';
   let ctaUrgency = '';
   

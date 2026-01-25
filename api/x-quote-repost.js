@@ -1022,6 +1022,7 @@ const handler = async (req, res) => {
     }
     
     // 1日の投稿数を取得（Vercel KV）- 変数名を明確に（重複回避）
+    const dateString = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const currentDailyPostCount = await getDailyPostCount(dateString);
     
     const { langs: targetLangs, type, count } = getLanguagesForCurrentHour(currentHour);

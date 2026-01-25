@@ -13,8 +13,8 @@ module.exports = async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // POSTのみ許可
-  if (req.method !== 'POST') {
+  // GET/POST両方許可（Vercel Cron JobsはGETリクエストを送信するため）
+  if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
