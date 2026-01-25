@@ -270,27 +270,8 @@ async function autoRestockPromoCode(currentStock) {
 
     console.log(`[PromoMonitor] ✅ Auto restock successful: ${currentStock} → ${AUTO_RESTOCK_TARGET} (total stock: ${targetTotalStock}, uses: ${currentUses})`);
 
-    // CEOレポートに自動補充の結果を送信
-    try {
-      const { sendVSLWorkflowReport } = require('../email/ceo-report');
-      await sendVSLWorkflowReport({
-        status: 'SUCCESS',
-        summary: {
-          'Promo Code': PROMO_CODE,
-          'Auto Restock': 'EXECUTED',
-          'From Stock': `${currentStock}`,
-          'To Stock': `${AUTO_RESTOCK_TARGET}`,
-        },
-        issues: [
-          `✅ Auto restock executed: Promo code "${PROMO_CODE}" stock increased from ${currentStock} to ${AUTO_RESTOCK_TARGET}.`,
-          `Threshold: ${AUTO_RESTOCK_THRESHOLD}, Target: ${AUTO_RESTOCK_TARGET}`,
-        ],
-      }).catch(error => {
-        console.error('[PromoMonitor] Failed to send auto restock report:', error.message);
-      });
-    } catch (error) {
-      console.error('[PromoMonitor] Auto restock report error:', error.message);
-    }
+    // 正常動作時はメール送信しない（エラー時のみ送信）
+    // 無駄なメール送信を削除: 正常動作時の報告メールは不要
 
     return {
       success: true,

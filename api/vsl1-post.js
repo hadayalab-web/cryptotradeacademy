@@ -518,35 +518,8 @@ const handler = async (req, res) => {
   try {
     const result = await postVSL1();
     
-    // 緊急修正: VSL1投稿完了時にCEOレポートを送信
-    if (result.success) {
-      try {
-        const { sendVSLWorkflowReport } = require('../services/email/ceo-report');
-        const xResults = result.results?.x || {};
-        const xByLang = xResults.byLang || [];
-        const languages = xByLang.map(l => l.lang).filter(Boolean).join(', ') || 'N/A';
-        const successCount = xResults.sent || 0;
-        const totalCount = xResults.total || 0;
-        const successRate = totalCount > 0 ? Math.round((successCount / totalCount) * 100) : 0;
-        const failedPosts = xByLang.filter(l => !l.success && l.error);
-        
-        await sendVSLWorkflowReport({
-          status: successCount > 0 ? 'SUCCESS' : 'WARNING',
-          summary: {
-            'VSL1 Posted': 'X/Twitter',
-            'Languages': languages,
-            'Success Rate': `${successRate}%`,
-            'Sent': `${successCount}/${totalCount}`,
-          },
-          issues: failedPosts.map(l => `Failed to post to X (${l.lang}): ${l.error}`),
-        }).catch(error => {
-          console.error('[VSL1] Failed to send CEO report:', error.message);
-        });
-      } catch (error) {
-        console.error('[VSL1] CEO report error:', error.message);
-        console.error('[VSL1] Error stack:', error.stack);
-      }
-    }
+    // 正常動作時はメール送信しない（エラー時のみ送信）
+    // 無駄なメール送信を削除: 正常動作時の報告メールは不要
     
     return res.status(200).json(result);
   } catch (error) {

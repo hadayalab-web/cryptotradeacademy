@@ -244,45 +244,8 @@ module.exports = async (req, res) => {
   try {
     const result = await sendVSL2ToFreeUsers();
     
-    // 緊急修正: VSL2配信完了時にCEOレポートを送信（重要なメトリクスのみ）
-    if (result.sent > 0 || result.failed > 0) {
-      try {
-        const { sendCEOReport } = require('../services/email/ceo-report');
-        await sendCEOReport({
-          subject: `VSL2配信完了 - ${result.sent}件送信成功`,
-          html: `
-<h2 style="color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">
-  ✅ VSL2配信完了レポート
-</h2>
-
-<h3 style="color: #555; margin-top: 20px;">📊 配信結果</h3>
-<ul style="line-height: 1.8;">
-  <li><strong>送信成功:</strong> ${result.sent}件</li>
-  <li><strong>送信失敗:</strong> ${result.failed}件</li>
-  <li><strong>成功率:</strong> ${result.successRate}%</li>
-  <li><strong>実行時刻:</strong> ${result.timestamp}</li>
-</ul>
-
-${result.failed > 0 ? `
-<h3 style="color: #f44336; margin-top: 20px;">⚠️ 注意</h3>
-<p style="color: #666;">
-  ${result.failed}件の送信に失敗しました。ログを確認してください。
-</p>
-` : ''}
-          `.trim(),
-          category: 'VSL_WORKFLOW',
-          metadata: {
-            'Sent': `${result.sent}件`,
-            'Failed': `${result.failed}件`,
-            'Success Rate': `${result.successRate}%`,
-          },
-        }).catch(error => {
-          console.error('[VSL2] Failed to send CEO report:', error.message);
-        });
-      } catch (error) {
-        console.error('[VSL2] CEO report error:', error.message);
-      }
-    }
+    // 正常動作時はメール送信しない（エラー時のみ送信）
+    // 無駄なメール送信を削除: 正常動作時の報告メールは不要
     
     return res.status(200).json(result);
   } catch (error) {
