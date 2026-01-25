@@ -508,18 +508,21 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         }
         
         // インフルエンサーの投稿時刻を取得（tweetTextから推測、またはAPIから取得）
-        // 実際の実装では、influencerオブジェクトにcreated_atが含まれる想定
-        const influencerTweetTime = influencer.createdAt || new Date().toISOString();
+        // 注意: Grok APIから返されるinfluencerオブジェクトにはcreatedAtが含まれていない可能性がある
+        // その場合、shouldPostQuoteRepost関数内で適切に処理される（ピーク時間であれば投稿を許可）
+        const influencerTweetTime = influencer.createdAt || new Date(Date.now() - 15 * 60 * 1000).toISOString(); // デフォルト: 15分前（10-20分の範囲内）
         
-        // 最適なタイミングかチェック（投稿後15-60分以内）
+        // 最適なタイミングかチェック（投稿後10-20分以内、またはcreatedAtが存在しない場合はピーク時間のみチェック）
         if (!shouldPostQuoteRepost(influencerTweetTime)) {
-          console.log(`⏰ Skipping quote repost for @${influencer.username} (not optimal timing: ${influencerTweetTime})`);
+          console.log(`⏰ Skipping quote repost for @${influencer.username} (not optimal timing: ${influencerTweetTime}, current hour: ${new Date().getUTCHours()})`);
           continue;
         }
         
         // インプレッション規模チェック（言語別の目標を考慮）
+        // 注意: selectInfluencersForImpressionTargetで既にフィルタリングされているため、
+        // ここでのチェックは緩和（目標の30%以上、または最低10,000インプレッション）
         const impressions = influencer.recentImpressions || 0;
-        const minImpressions = impressionTarget.min * 0.5; // 目標の50%以上
+        const minImpressions = Math.max(impressionTarget.min * 0.3, 10000); // 目標の30%以上、または最低10,000
         
         if (impressions < minImpressions) {
           console.log(`⏰ Skipping quote repost for @${influencer.username} (low impressions: ${impressions.toLocaleString()}, min: ${minImpressions.toLocaleString()})`);
@@ -608,12 +611,30 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         }
         
         // 引用リポストを投稿
-        console.log(`[Quote Repost] Posting quote repost for @${influencer.username} (tweetId: ${influencer.tweetId})...`);
+        console.log(`[Quote Repost] 🚀 ACTUALLY POSTING quote repost for @${influencer.username} (tweetId: ${influencer.tweetId})...`);
         console.log(`[Quote Repost] Quote text preview: ${quoteText.substring(0, 100)}...`);
-        const result = await postQuoteTweet(quoteText.substring(0, 280), influencer.tweetId);
         
-        // 投稿数をインクリメント
-        await incrementDailyPostCount(dateString, 1);
+        let result;
+        try {
+          result = await postQuoteTweet(quoteText.substring(0, 280), influencer.tweetId);
+          
+          // 実際に投稿されたことを明確にログに記録
+          console.log(`[Quote Repost] ✅✅✅ SUCCESSFULLY POSTED quote repost for ${lang} (@${influencer.username}):`);
+          console.log(`[Quote Repost]    - Quote Tweet ID: ${result.id}`);
+          console.log(`[Quote Repost]    - Original Tweet ID: ${influencer.tweetId}`);
+          console.log(`[Quote Repost]    - Language: ${lang}`);
+          console.log(`[Quote Repost]    - UTC Hour: ${new Date().getUTCHours()}`);
+          console.log(`[Quote Repost]    - Timestamp: ${new Date().toISOString()}`);
+          
+          // 投稿数をインクリメント
+          await incrementDailyPostCount(dateString, 1);
+        } catch (postError) {
+          // 投稿エラーを明確にログに記録
+          console.error(`[Quote Repost] ❌❌❌ FAILED TO POST quote repost for ${lang} (@${influencer.username}):`);
+          console.error(`[Quote Repost]    - Error: ${postError.message}`);
+          console.error(`[Quote Repost]    - Stack: ${postError.stack?.substring(0, 500)}`);
+          throw postError; // エラーを再スローして、下のcatchブロックで処理
+        }
         
         // 注意: influencerList機能は削除されました（エンドユーザー追跡機能の削除のため）
         // 引用リポストをリストに記録（メトリクスは後でCron Jobで追跡）
@@ -690,6 +711,7 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           tweetId: influencer.tweetId,
           quoteTweetId: result.id,
           success: true,
+          actuallyPosted: true, // 実際に投稿されたことを明示
           engagement: quoteEngagement,
           impressions: quoteImpressions,
           // Grokの推定値（正確ではない - インフルエンサーのツイート用）
@@ -698,18 +720,21 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           influencerMetrics: influencerMetrics,
           // 自分の引用リポストのメトリクスはCron Jobで追跡（正確なインプレッション数 + エンゲージメント数）
         });
-        console.log(`[Quote Repost] ✅ Quote repost posted for ${lang} (@${influencer.username}): ${result.id}`);
+        console.log(`[Quote Repost] ✅✅✅ CONFIRMED: Quote repost ACTUALLY POSTED for ${lang} (@${influencer.username}): ${result.id}`);
         console.log(`[Quote Repost] 📊 Metrics tracking: Quote repost ${result.id} will be tracked by Cron Job (accurate impressions + engagement)`);
         
         // レート制限対策（1時間あたり3-4投稿まで）
         await new Promise(resolve => setTimeout(resolve, 900000)); // 15分待機（1時間4投稿まで）
       } catch (error) {
-        console.error(`❌ Failed to post quote repost for ${lang} (@${influencer.username}):`, error.message);
+        console.error(`[Quote Repost] ❌❌❌ FAILED TO POST quote repost for ${lang} (@${influencer.username}):`);
+        console.error(`[Quote Repost]    - Error: ${error.message}`);
+        console.error(`[Quote Repost]    - Stack: ${error.stack?.substring(0, 500)}`);
         results.push({
           lang,
           influencer: influencer.username,
           tweetId: influencer.tweetId,
           success: false,
+          actuallyPosted: false, // 実際に投稿されなかったことを明示
           error: error.message,
         });
       }
@@ -814,8 +839,20 @@ const handler = async (req, res) => {
       });
     }
     
+    // Grok推奨: UTC時刻に基づいて処理する言語を決定（dry-runチェックの前に取得）
+    const { getLanguagesForCurrentHour } = require('../services/x/optimization');
+    const currentHour = new Date().getUTCHours();
+    const { langs: targetLangsForDryRun } = getLanguagesForCurrentHour(currentHour);
+    
     if (xStatus.dryRun) {
       console.log('[Quote Repost] 🧪 DRY RUN MODE - No actual posts will be made');
+      return res.status(200).json({ 
+        success: true, 
+        dryRun: true,
+        message: 'Dry run mode enabled - no posts will be made',
+        currentHour,
+        targetLangs: targetLangsForDryRun || [],
+      });
     }
     
     // Grok API設定確認
@@ -923,15 +960,9 @@ const handler = async (req, res) => {
       });
     }
     
-    // Grok推奨: UTC時刻に基づいて処理する言語を決定（1日6言語すべてを時間帯別で回す）
-    const currentHour = new Date().getUTCHours();
-    const dateString = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    
     // 1日の投稿数を取得（Vercel KV）- 変数名を明確に（重複回避）
     const currentDailyPostCount = await getDailyPostCount(dateString);
     
-    // Grok推奨: peakMapから現在時刻に処理すべき言語を取得
-    const { getLanguagesForCurrentHour } = require('../services/x/optimization');
     const { langs: targetLangs, type, count } = getLanguagesForCurrentHour(currentHour);
     
     // 引用リポストのピーク時間でない場合はスキップ

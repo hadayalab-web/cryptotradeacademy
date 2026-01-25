@@ -186,22 +186,35 @@ function getContentFormat(sequence = 0) {
  * 引用リポストの最適なタイミングを計算
  * Grok推奨: インフルエンサーの投稿後10-20分以内（新鮮度MAX、競合低）
  * 注意: UTC 0:00と1:00も引用リポストのピーク時間として定義されているため、isPeakTimeWindowチェックを削除
+ * 
+ * 修正: createdAtが存在しない場合、または現在時刻に近すぎる場合は、タイミングチェックをスキップ
+ * （実際の投稿時刻が取得できない場合でも、ピーク時間であれば投稿を許可）
  */
 function shouldPostQuoteRepost(influencerTweetTimestamp, currentTime = null) {
   const now = currentTime || new Date();
   const tweetTime = new Date(influencerTweetTimestamp);
   const minutesDiff = (now - tweetTime) / (1000 * 60);
   
-  // Grok推奨: 10-20分以内（アルゴリズムの「新鮮度」ボーナス最大）
-  if (minutesDiff < 10 || minutesDiff > 20) {
-    return false;
-  }
-  
   // 引用リポストのピーク時間（UTC 0,1,20,21）かどうかをチェック
   // getPeakMapForHour()で定義された時刻を信頼し、isPeakTimeWindowチェックは削除
   const hour = now.getUTCHours();
   const quoteRepostPeakHours = [0, 1, 20, 21]; // vercel.jsonの設定に基づく
   if (!quoteRepostPeakHours.includes(hour)) {
+    return false;
+  }
+  
+  // createdAtが存在しない場合、または現在時刻に近すぎる場合（5分以内）は、
+  // 実際の投稿時刻が取得できていない可能性が高いため、タイミングチェックをスキップ
+  // ピーク時間であれば投稿を許可（インプレッション最大化のため）
+  if (minutesDiff < 5) {
+    // 現在時刻に近すぎる = createdAtが実際の投稿時刻ではない可能性が高い
+    // ピーク時間であれば投稿を許可
+    return true;
+  }
+  
+  // 実際の投稿時刻が取得できている場合、Grok推奨の10-20分以内をチェック
+  // Grok推奨: 10-20分以内（アルゴリズムの「新鮮度」ボーナス最大）
+  if (minutesDiff < 10 || minutesDiff > 20) {
     return false;
   }
   
