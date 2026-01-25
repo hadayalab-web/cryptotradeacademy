@@ -374,28 +374,37 @@ async function discoverInfluencersForQuoteRepost(lang = 'en', options = {}) {
         {
           role: 'user',
           content:
-            `Task: Find ${maxResults} hot influencers on X posting about BTC/crypto in ${targetLang} language.\n` +
-            `Focus on accounts with:\n` +
-            `- High engagement rates (5%+)\n` +
-            `- Recent viral posts with HIGH impressions (100K-200K+ for EN, 50K-100K+ for others)\n` +
-            `- Active audiences\n` +
-            `- Crypto/BTC related content\n\n` +
-            `IMPRESSION TARGET: Prioritize influencers with recentImpressions in the range:\n` +
-            `- English (EN): 100,000-200,000 impressions\n` +
-            `- Other languages: 50,000-100,000+ impressions\n\n` +
+            `Task: Find ${maxResults} HIGH-ENGAGEMENT influencers on X posting about BTC/crypto in ${targetLang} language.\n` +
+            `PRIORITY: Focus on accounts with EXCEPTIONAL engagement rates and viral potential.\n\n` +
+            `CRITICAL CRITERIA (in order of importance):\n` +
+            `1. ENGAGEMENT RATE: Prioritize accounts with 7%+ engagement rate (higher is better)\n` +
+            `2. RECENT VIRAL POSTS: Look for tweets with HIGH impressions:\n` +
+            `   - English (EN): 100,000-300,000+ impressions\n` +
+            `   - Other languages: 50,000-200,000+ impressions\n` +
+            `3. ACTIVE AUDIENCES: Accounts with high interaction rates (likes, retweets, replies)\n` +
+            `4. CRYPTO/BTC FOCUS: Accounts that consistently post about crypto/BTC\n` +
+            `5. OPTIMAL FOLLOWER COUNT: 10,000-500,000 followers (sweet spot for engagement)\n\n` +
+            `ENGAGEMENT RATE TARGETS:\n` +
+            `- Excellent: 8%+ engagement rate\n` +
+            `- Very Good: 6-8% engagement rate\n` +
+            `- Good: 5-6% engagement rate\n` +
+            `- Minimum: 4%+ engagement rate\n\n` +
             `Return ${maxResults} influencers with their recent hot tweets.\n` +
             `CRITICAL REQUIREMENTS:\n` +
             `1. Include tweetId for EVERY tweet (numeric tweet ID, required for quote reposting)\n` +
-            `2. Prioritize tweets WITH tweet IDs AND high impressions (100K+ for EN, 50K+ for others)\n` +
-            `3. Focus on accounts with high engagement rates (5%+)\n` +
+            `2. Prioritize tweets WITH tweet IDs AND high engagement rates (7%+ preferred)\n` +
+            `3. Focus on accounts with EXCEPTIONAL engagement rates (7%+ is ideal, 5%+ minimum)\n` +
             `4. Include actual tweet text in tweetText field\n` +
             `5. Use username without @ symbol\n` +
             `6. recentImpressions should reflect actual viral tweet performance (not follower count)\n` +
-            `Example: {"username":"cryptotrader","tweetId":"1234567890123456789","tweetText":"BTC analysis...","engagementRate":0.08,"followerCount":50000,"recentImpressions":150000}`,
+            `7. engagementRate should be accurate (likes + retweets + replies) / impressions\n` +
+            `8. Prioritize accounts that consistently get high engagement on crypto/BTC content\n\n` +
+            `Example (EXCELLENT): {"username":"cryptotrader","tweetId":"1234567890123456789","tweetText":"BTC analysis...","engagementRate":0.09,"followerCount":50000,"recentImpressions":180000}\n` +
+            `Example (VERY GOOD): {"username":"btc_analyst","tweetId":"9876543210987654321","tweetText":"Market update...","engagementRate":0.07,"followerCount":120000,"recentImpressions":150000}`,
         },
       ],
-      max_tokens: 4000,
-      temperature: 0.3,
+      max_tokens: 6000, // より多くのインフルエンサーを返すため増加
+      temperature: 0.2, // より一貫性のある結果のため低く設定
     });
 
     const text = completion?.choices?.[0]?.message?.content?.trim();

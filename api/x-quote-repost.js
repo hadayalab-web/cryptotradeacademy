@@ -478,7 +478,9 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       return [];
     }
     
-    // インプレッション規模を考慮してインフルエンサーを選択
+    // ストックから取得したインフルエンサーから、投稿用に最適なものを選択
+    // ストックには好反応率重視で多くのインフルエンサーが保存されているため、
+    // そこからインプレッション規模を考慮して選択
     const selectedInfluencers = selectInfluencersForImpressionTarget(influencers, lang);
     
     console.log(`[Quote Repost] ✅ Selected ${selectedInfluencers.length} influencers for ${lang} (target: ${targetCount})`);

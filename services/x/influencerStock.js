@@ -10,7 +10,12 @@ try {
 }
 
 const { discoverInfluencersForQuoteRepost } = require('../grok/client');
-const { selectInfluencersForImpressionTarget, getInfluencerCountForLang } = require('../../config/influencerStrategy');
+const { 
+  selectInfluencersForImpressionTarget, 
+  selectInfluencersForHighEngagement,
+  getInfluencerCountForLang,
+  getStockCountForLang 
+} = require('../../config/influencerStrategy');
 
 // KVキーのプレフィックス
 const STOCK_KEY_PREFIX = 'x:influencer_stock:';
@@ -124,13 +129,17 @@ async function getStockUpdateTime(lang) {
 async function updateInfluencerStock(lang, options = {}) {
   const targetLang = (lang || 'en').toLowerCase();
   const targetCount = getInfluencerCountForLang(targetLang);
+  const stockCount = getStockCountForLang(targetLang);
   
   console.log(`[InfluencerStock] 🔄 Updating influencer stock for ${targetLang}...`);
-  console.log(`[InfluencerStock] Target: ${targetCount} influencers`);
+  console.log(`[InfluencerStock] Target: ${stockCount} influencers for stock (posting: ${targetCount})`);
   
   try {
-    // Grok APIからインフルエンサーを発見（候補数を多めに取得）
-    const candidateCount = Math.max(targetCount * 5, 10); // 候補は目標数の5倍、最低10人
+    // Grok APIからインフルエンサーを発見（候補数を大幅に増加 - 好反応率重視）
+    // ストック数の3倍以上を取得して、より良い選択肢を確保
+    const candidateCount = Math.max(stockCount * 3, 30); // ストック数の3倍、最低30人
+    console.log(`[InfluencerStock] Requesting ${candidateCount} candidate influencers from Grok API...`);
+    
     const discoveredInfluencers = await discoverInfluencersForQuoteRepost(targetLang, { 
       maxResults: candidateCount 
     });
@@ -142,10 +151,29 @@ async function updateInfluencerStock(lang, options = {}) {
     
     console.log(`[InfluencerStock] Grok API returned ${discoveredInfluencers.length} candidate influencers for ${targetLang}`);
     
-    // インプレッション規模を考慮してインフルエンサーを選択
-    const selectedInfluencers = selectInfluencersForImpressionTarget(discoveredInfluencers, targetLang);
+    // エンゲージメント率でフィルタリング（最低4%以上）
+    const highEngagementInfluencers = discoveredInfluencers.filter(inf => {
+      const engagementRate = inf.engagementRate || 0;
+      return engagementRate >= 0.04; // 4%以上
+    });
     
-    console.log(`[InfluencerStock] ✅ Selected ${selectedInfluencers.length} influencers for ${targetLang} (target: ${targetCount})`);
+    console.log(`[InfluencerStock] Filtered to ${highEngagementInfluencers.length} influencers with 4%+ engagement rate`);
+    
+    // 好反応率重視の選択戦略を使用（エンゲージメント率とインプレッション数のバランス）
+    const selectedInfluencers = selectInfluencersForHighEngagement(
+      highEngagementInfluencers.length > 0 ? highEngagementInfluencers : discoveredInfluencers,
+      targetLang
+    );
+    
+    console.log(`[InfluencerStock] ✅ Selected ${selectedInfluencers.length} influencers for ${targetLang} stock (target: ${stockCount})`);
+    
+    // 選択されたインフルエンサーの統計を表示
+    if (selectedInfluencers.length > 0) {
+      const avgEngagement = selectedInfluencers.reduce((sum, inf) => sum + (inf.engagementRate || 0), 0) / selectedInfluencers.length;
+      const avgImpressions = selectedInfluencers.reduce((sum, inf) => sum + (inf.recentImpressions || 0), 0) / selectedInfluencers.length;
+      console.log(`[InfluencerStock] 📊 Average engagement rate: ${(avgEngagement * 100).toFixed(2)}%`);
+      console.log(`[InfluencerStock] 📊 Average impressions: ${avgImpressions.toLocaleString()}`);
+    }
     
     // ストックに保存
     const saved = await saveInfluencersToStock(targetLang, selectedInfluencers);
