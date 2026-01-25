@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 実装検証を自動実行
+echo "🔍 実装検証を実行中..."
+node scripts/validate_implementation.js
+
+if [ $? -ne 0 ]; then
+  echo "❌ 実装検証に失敗しました。コミットを中止します。"
+  exit 1
+fi
+
+echo "✅ 実装検証をパスしました。"

@@ -48,6 +48,9 @@
         "vercel:csv": "node scripts/vercel-logs-to-csv.js",
         "vercel:issue": "node scripts/create-vercel-error-issue.js",
         "vercel:all": "npm run vercel:logs && npm run vercel:analyze && npm run vercel:csv && npm run vercel:issue",
+        "validate:implementation": "node scripts/validate_implementation.js",
+        "test:critical": "node scripts/test_critical_functions.js",
+        "precommit": "npm run validate:implementation && npm run test:critical",
         "deploy": "vercel --prod"
     },
     "dependencies": {
