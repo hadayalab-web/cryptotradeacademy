@@ -933,17 +933,21 @@ async function postFreeReportAsThread(targetLangs, reportData) {
       try {
         const selfQuestions = generateVelocitySelfQuestions(lang, trapScore);
         // 最初の5分以内に自己質問をリプライとして投稿（エンゲージメント速度最大化）
+        const currentMainTweetId = langMainTweetId; // setTimeout内で使用するためにコピー
         setTimeout(async () => {
           try {
+            if (!currentMainTweetId) {
+              throw new Error(`langMainTweetId is null or undefined for ${lang}`);
+            }
             const velocityReply = `${selfQuestions[2]}\n\n${generateEngagementCTA(lang)}`;
             // 🔴 CRITICAL FIX: 引数の順序を修正（textが先、inReplyToTweetIdが後）
-            await replyToTweet(velocityReply.substring(0, 280), langMainTweetId);
-            console.log(`[X Post Free Report] ✅ Velocity self-question posted for ${lang}: ${langMainTweetId}`);
+            await replyToTweet(velocityReply.substring(0, 280), currentMainTweetId);
+            console.log(`[X Post Free Report] ✅ Velocity self-question posted for ${lang}: ${currentMainTweetId}`);
           } catch (error) {
             console.error(`[X Post Free Report] ❌ CRITICAL: Failed to post velocity self-question for ${lang}:`, {
               error: error.message,
               stack: error.stack,
-              tweetId: langMainTweetId,
+              tweetId: currentMainTweetId,
               lang,
               timestamp: new Date().toISOString(),
             });
@@ -996,6 +1000,10 @@ async function postFreeReportAsThread(targetLangs, reportData) {
         const optimizedThreadText = threadText.replace(/#BTC.*#TrapDefence/g, Array.isArray(langHashtags) ? langHashtags.join(' ') : langHashtags);
         
         // スレッドはリプライとして投稿（各言語のメイン投稿にリプライ）
+        if (!langMainTweetId) {
+          console.error(`[X Post Free Report] ❌ CRITICAL: langMainTweetId is null for ${lang}, skipping thread reply`);
+          break;
+        }
         const threadResult = await replyToTweet(optimizedThreadText.substring(0, 280), langMainTweetId);
         await incrementDailyPostCount(dateString, 1); // 投稿数をインクリメント
         await incrementHourlyPostCount(hourKey); // 1時間あたりの投稿数をインクリメント

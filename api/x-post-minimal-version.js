@@ -366,6 +366,10 @@ async function postMinimalVersionToX(targetLangs, reportData) {
       
       // リプライ（残りのチャンク）
       let lastReplyId = mainTweetId;
+      if (!lastReplyId) {
+        console.error(`[X Post Minimal] ❌ CRITICAL: mainTweetId is null for ${normalizedLang}, skipping thread replies`);
+        continue;
+      }
       for (let i = 1; i < threadChunks.length; i++) {
         const replyText = threadChunks[i];
         console.log(`[X Post Minimal] Posting reply ${i + 1}/${threadChunks.length - 1} for ${normalizedLang}...`);
@@ -375,6 +379,10 @@ async function postMinimalVersionToX(targetLangs, reportData) {
           await new Promise(resolve => setTimeout(resolve, 1000)); // 1秒待機
         }
         
+        if (!lastReplyId) {
+          console.error(`[X Post Minimal] ❌ CRITICAL: lastReplyId is null for ${normalizedLang} at reply ${i}, stopping thread`);
+          break;
+        }
         const replyResult = await replyToTweet(replyText, lastReplyId);
         lastReplyId = replyResult.id;
         console.log(`[X Post Minimal] ✅ Reply ${i} posted: ${replyResult.id}`);

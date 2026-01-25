@@ -437,10 +437,16 @@ async function replyToTweet(text, inReplyToTweetId, mediaIds = []) {
     text = text.substring(0, 277) + '...';
   }
 
+  // X API v2では、in_reply_to_tweet_idは文字列である必要がある
+  const tweetIdString = String(inReplyToTweetId).trim();
+  if (!tweetIdString || tweetIdString === 'null' || tweetIdString === 'undefined') {
+    throw new Error(`Invalid inReplyToTweetId: ${inReplyToTweetId}`);
+  }
+
   const body = {
     text: text.trim(),
     reply: {
-      in_reply_to_tweet_id: inReplyToTweetId,
+      in_reply_to_tweet_id: tweetIdString,
     },
   };
 
