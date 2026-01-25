@@ -144,5 +144,5 @@ def analyze_cron_test_results(json_file_path):
     return results
 
 if __name__ == '__main__':
-    json_file = r'c:\Users\chiba\Downloads\logs_result (4).json'
+    json_file = r'c:\Users\chiba\Downloads\logs_result (5).json'
     analyze_cron_test_results(json_file)
