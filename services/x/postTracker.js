@@ -34,7 +34,28 @@ async function savePostId(tweetId, postType, lang, metadata = {}) {
     const key = `x:posts:${dateString}`;
     
     // 既存の投稿リストを取得
-    const existing = await kv.get(key) || [];
+    let existing = await kv.get(key);
+    
+    // 数値の場合は空配列に変換して保存し直す（投稿カウントと競合している可能性がある）
+    // 投稿カウントは`x:posts_count:${dateString}`に移動したため、ここに数値がある場合は古いデータ
+    if (typeof existing === 'number') {
+      console.warn(`[X Post Tracker] Key ${key} contains a number (${existing}) instead of array. This is likely old post count data. Clearing and converting to array.`);
+      existing = [];
+      // すぐに空配列を保存して、数値を上書き
+      await kv.set(key, existing, { ex: 86400 * 30 });
+    }
+    
+    // 配列でない場合は空配列に変換
+    if (!Array.isArray(existing)) {
+      existing = [];
+    }
+    
+    // 重複チェック（同じtweetIdが既に存在する場合はスキップ）
+    const existingTweetId = existing.find(p => p.tweetId === tweetId);
+    if (existingTweetId) {
+      console.log(`[X Post Tracker] Post ID ${tweetId} already exists, skipping duplicate save`);
+      return;
+    }
     
     // 新しい投稿を追加
     const postData = {
@@ -50,9 +71,10 @@ async function savePostId(tweetId, postType, lang, metadata = {}) {
     // KVに保存（30日間保持）
     await kv.set(key, existing, { ex: 86400 * 30 });
     
-    console.log(`[X Post Tracker] ✅ Post ID saved: ${tweetId} (${postType}, ${lang})`);
+    console.log(`[X Post Tracker] ✅ Post ID saved: ${tweetId} (${postType}, ${lang}) - Total posts for ${dateString}: ${existing.length}`);
   } catch (error) {
-    console.warn('[X Post Tracker] Failed to save post ID:', error.message);
+    console.error('[X Post Tracker] ❌ Failed to save post ID:', error.message);
+    console.error('[X Post Tracker] Error stack:', error.stack);
   }
 }
 
@@ -68,8 +90,21 @@ async function getPostsForDate(dateString) {
   
   try {
     const key = `x:posts:${dateString}`;
-    const posts = await kv.get(key) || [];
-    return posts;
+    const data = await kv.get(key);
+    
+    // 数値の場合は空配列を返す（投稿カウントと競合している可能性がある）
+    if (typeof data === 'number') {
+      console.warn(`[X Post Tracker] Key ${key} contains a number (${data}) instead of array. This may be a post count. Returning empty array.`);
+      return [];
+    }
+    
+    // 配列の場合はそのまま返す
+    if (Array.isArray(data)) {
+      return data;
+    }
+    
+    // その他の場合は空配列を返す
+    return [];
   } catch (error) {
     console.warn('[X Post Tracker] Failed to get posts for date:', error.message);
     return [];

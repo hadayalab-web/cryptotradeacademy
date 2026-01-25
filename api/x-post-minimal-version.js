@@ -148,7 +148,8 @@ function splitTextForThread(text, maxLength = 280) {
 async function getDailyPostCount(dateString) {
   if (!kv) return 0;
   try {
-    const count = await kv.get(`x:posts:${dateString}`) || 0;
+    // 別キーを使用して投稿履歴と競合しないようにする
+    const count = await kv.get(`x:posts_count:${dateString}`) || 0;
     return typeof count === 'number' ? count : parseInt(count) || 0;
   } catch (error) {
     console.warn('[X Post Minimal] Failed to get daily post count:', error.message);
@@ -162,7 +163,8 @@ async function getDailyPostCount(dateString) {
 async function incrementDailyPostCount(dateString, count = 1) {
   if (!kv) return 0;
   try {
-    const key = `x:posts:${dateString}`;
+    // 別キーを使用して投稿履歴と競合しないようにする
+    const key = `x:posts_count:${dateString}`;
     const current = await getDailyPostCount(dateString);
     const newCount = current + count;
     await kv.set(key, newCount, { ex: 86400 * 2 }); // 2日間保持
