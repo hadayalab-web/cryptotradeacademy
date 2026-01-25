@@ -49,8 +49,22 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
     throw new Error('X_API_CONSUMER_KEY, X_API_CONSUMER_KEY_SECRET, X_API_ACCESS_TOKEN, and X_API_ACCESS_TOKEN_SECRET are required for OAuth 1.0a User Context authentication.');
   }
 
-  const url = `${X_API_BASE_URL}${endpoint}`;
+  // GETリクエストの場合、paramsオブジェクトをクエリ文字列に変換
+  let url = `${X_API_BASE_URL}${endpoint}`;
   const method = options.method || 'GET';
+  
+  if (method === 'GET' && options.params) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(options.params)) {
+      if (value !== undefined && value !== null) {
+        params.append(key, String(value));
+      }
+    }
+    const queryString = params.toString();
+    if (queryString) {
+      url += (endpoint.includes('?') ? '&' : '?') + queryString;
+    }
+  }
   
   // OAuth 1.0a認証ヘッダーを生成
   const token = {
@@ -87,6 +101,28 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
           errorData = JSON.parse(errorText);
         } catch {
           errorData = { detail: errorText };
+        }
+        
+        // エラー400の詳細ログ（クレジット不足の可能性を確認）
+        if (response.status === 400) {
+          console.error(`[X API] Error 400 - Bad Request:`, {
+            endpoint,
+            method,
+            errorData,
+            url,
+            possibleCauses: [
+              'Invalid request parameters',
+              'X API credit shortage',
+              'Invalid query format',
+              'Missing required fields',
+            ],
+          });
+          
+          // クレジット不足の可能性をチェック
+          const errorMessage = JSON.stringify(errorData).toLowerCase();
+          if (errorMessage.includes('credit') || errorMessage.includes('quota') || errorMessage.includes('insufficient')) {
+            console.error(`[X API] ⚠️ Possible credit shortage detected! Please check X API developer console for credit balance.`);
+          }
         }
         
         const error = new Error(`X API Error: ${response.status} - ${JSON.stringify(errorData)}`);
@@ -534,6 +570,23 @@ async function getTrends(woeid = 1) {
   }
 }
 
+/**
+ * X APIクレジット使用状況の確認（開発者コンソールへの案内）
+ * 注意: X APIには直接クレジット残高を取得するAPIエンドポイントがないため、
+ * 開発者コンソール（https://developer.twitter.com/en/portal/dashboard）で確認が必要です
+ * @returns {Promise<Object>} クレジット確認の案内情報
+ */
+async function checkXApiCredits() {
+  const consoleUrl = 'https://developer.twitter.com/en/portal/dashboard';
+  console.warn(`[X API] ⚠️ クレジット使用状況を確認するには、開発者コンソールにアクセスしてください: ${consoleUrl}`);
+  console.warn(`[X API] エラー400が発生している場合、クレジット不足の可能性があります。`);
+  return {
+    message: 'X APIクレジット使用状況は開発者コンソールで確認してください',
+    consoleUrl,
+    note: 'エラー400が発生している場合、クレジット不足またはリクエストパラメータの不正が原因の可能性があります',
+  };
+}
+
 module.exports = {
   xApiRequest,
   postTweet,
@@ -546,4 +599,5 @@ module.exports = {
   searchTweets,
   getTrends,
   isRateLimitError,
+  checkXApiCredits,
 };

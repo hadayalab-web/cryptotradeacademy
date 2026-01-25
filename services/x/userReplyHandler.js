@@ -22,15 +22,17 @@ try {
  */
 async function getTweetReplies(tweetId, maxResults = 10) {
   try {
-    const response = await xApiRequest(`/tweets/search/recent`, {
+    // URLSearchParamsを使用してクエリ文字列を構築（searchTweets関数と同じ方式）
+    const params = new URLSearchParams({
+      query: `conversation_id:${tweetId}`,
+      max_results: Math.min(Math.max(10, maxResults), 100).toString(),
+      'tweet.fields': 'author_id,created_at,public_metrics,text,in_reply_to_user_id',
+      'user.fields': 'username,name',
+      expansions: 'author_id',
+    });
+    
+    const response = await xApiRequest(`/tweets/search/recent?${params.toString()}`, {
       method: 'GET',
-      params: {
-        query: `conversation_id:${tweetId}`,
-        max_results: maxResults,
-        'tweet.fields': 'author_id,created_at,public_metrics,text,in_reply_to_user_id',
-        'user.fields': 'username,name',
-        expansions: 'author_id',
-      },
     });
 
     if (!response.data || !Array.isArray(response.data)) {
