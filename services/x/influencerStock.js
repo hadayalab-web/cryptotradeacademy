@@ -136,9 +136,9 @@ async function updateInfluencerStock(lang, options = {}) {
   
   try {
     // Grok APIからインフルエンサーを発見（候補数を大幅に増加 - 好反応率重視）
-    // ストック数の3倍以上を取得して、より良い選択肢を確保
-    const candidateCount = Math.max(stockCount * 3, 30); // ストック数の3倍、最低30人
-    console.log(`[InfluencerStock] Requesting ${candidateCount} candidate influencers from Grok API...`);
+    // ストック数の5倍以上を取得して、より良い選択肢を確保（最大限の探索）
+    const candidateCount = Math.max(stockCount * 5, 50); // ストック数の5倍、最低50人（最大限の探索）
+    console.log(`[InfluencerStock] Requesting ${candidateCount} candidate influencers from Grok API (maximum exploration)...`);
     
     const discoveredInfluencers = await discoverInfluencersForQuoteRepost(targetLang, { 
       maxResults: candidateCount 

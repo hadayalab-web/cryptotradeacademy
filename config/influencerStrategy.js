@@ -208,17 +208,56 @@ function selectInfluencersForHighEngagement(influencers, lang) {
   const stockCount = getStockCountForLang(lang);
   const target = getImpressionTargetForLang(lang);
   
+  // インプレッション数を数値に変換（文字列の場合は数値を抽出）
+  const parseImpressions = (impressions) => {
+    if (typeof impressions === 'number') {
+      return impressions;
+    }
+    if (typeof impressions === 'string') {
+      // "300000+" や "100000-200000" のような形式を処理
+      const match = impressions.match(/(\d+)/);
+      if (match) {
+        return parseInt(match[1], 10);
+      }
+      // 範囲の場合は平均値を計算
+      const rangeMatch = impressions.match(/(\d+)-(\d+)/);
+      if (rangeMatch) {
+        return (parseInt(rangeMatch[1], 10) + parseInt(rangeMatch[2], 10)) / 2;
+      }
+    }
+    return 0;
+  };
+  
+  // フォロワー数を数値に変換
+  const parseFollowerCount = (followerCount) => {
+    if (typeof followerCount === 'number') {
+      return followerCount;
+    }
+    if (typeof followerCount === 'string') {
+      // "100000-500000" のような形式を処理
+      const rangeMatch = followerCount.match(/(\d+)-(\d+)/);
+      if (rangeMatch) {
+        return (parseInt(rangeMatch[1], 10) + parseInt(rangeMatch[2], 10)) / 2;
+      }
+      const match = followerCount.match(/(\d+)/);
+      if (match) {
+        return parseInt(match[1], 10);
+      }
+    }
+    return 50000; // デフォルト値
+  };
+  
   // スコア計算関数（エンゲージメント率とインプレッション数のバランス）
   const calculateScore = (inf) => {
     const engagementRate = inf.engagementRate || 0;
-    const impressions = inf.recentImpressions || 0;
-    const followerCount = inf.followerCount || 10000;
+    const impressions = parseImpressions(inf.recentImpressions);
+    const followerCount = parseFollowerCount(inf.followerCount);
     
     // エンゲージメント率スコア（0-100点）
     const engagementScore = Math.min(100, engagementRate * 2000); // 5% = 100点
     
     // インプレッションスコア（0-100点）
-    const impressionScore = Math.min(100, (impressions / target.max) * 100);
+    const impressionScore = impressions > 0 ? Math.min(100, (impressions / target.max) * 100) : 0;
     
     // フォロワー数スコア（適度な規模を重視、0-50点）
     // 10万-50万フォロワーが最適（大きすぎるとエンゲージメント率が下がる）
