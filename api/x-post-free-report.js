@@ -12,9 +12,59 @@ const {
   getContentFormat,
   generateEngagementCTA,
   isPeakHourForLang,
+  getLanguageEmojiStyle,
+  optimizeHookText,
+  generateVelocitySelfQuestions,
 } = require('../services/x/optimization');
+const { getWhopProductUrl } = require('../services/telegram/whop-links');
 const fs = require('fs');
 const path = require('path');
+
+/**
+ * Data URLをBufferに変換（Grok推奨: 動画・画像アップロード用）
+ * @param {string} dataUrl - Data URL (data:image/png;base64,... または data:video/mp4;base64,...)
+ * @returns {Promise<Buffer|null>} Bufferまたはnull
+ */
+async function convertDataUrlToBuffer(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== 'string') {
+    return null;
+  }
+  
+  // HTTP URLの場合はfetchで取得
+  if (dataUrl.startsWith('http://') || dataUrl.startsWith('https://')) {
+    try {
+      const response = await fetch(dataUrl);
+      if (!response.ok) {
+        console.warn(`[X Post] Failed to fetch media from URL: ${response.status}`);
+        return null;
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } catch (error) {
+      console.warn(`[X Post] Error fetching media from URL:`, error.message);
+      return null;
+    }
+  }
+  
+  // Data URLの場合はBase64をデコード
+  if (dataUrl.startsWith('data:')) {
+    const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches) {
+      console.warn(`[X Post] Invalid Data URL format`);
+      return null;
+    }
+    
+    const base64Data = matches[2];
+    try {
+      return Buffer.from(base64Data, 'base64');
+    } catch (error) {
+      console.warn(`[X Post] Failed to decode base64 data:`, error.message);
+      return null;
+    }
+  }
+  
+  return null;
+}
 
 // Vercel KV（投稿履歴追跡用）
 let kv = null;
@@ -240,7 +290,14 @@ ${exchangeNetflow ? `• Exchanges flooded: ${netflowStr} IN – Sellers loading
 ━━━━━━━━━━━━━━━━━━━━
 🚀 FULL REPORT UNLOCK
 
-Free: Just score.
+━━━━━━━━━━━━━━━━━━━━
+🔥 UPGRADE NOW: PRO ACCESS (50% OFF DEFEND50)
+━━━━━━━━━━━━━━━━━━━━
+💎 Unlock Full Access + Alerts: ${getWhopProductUrl('en')}?promo=DEFEND50
+🚨 Limited Time: DEFEND50 code expires soon!
+
+(Or free daily score: ${deepLink})
+
 Full: On-chain deep dive, AI alerts (AVOID LONG/SHORT), Exit Maps, Sentiment scan, Dr. Grok therapy.
 
 🛡️ Miss one signal? Lose 10%+. Upgrade for bulletproof defense.
@@ -303,7 +360,14 @@ ${exchangeNetflow ? `• 取引所流入: ${netflowStr} – 売り手蓄積\n` :
 ━━━━━━━━━━━━━━━━━━━━
 🚀 フルレポート解禁
 
-無料: スコアのみ。
+━━━━━━━━━━━━━━━━━━━━
+🔥 今すぐアップグレード: PRO版アクセス（50%OFF DEFEND50）
+━━━━━━━━━━━━━━━━━━━━
+💎 フルアクセス+アラート解除: ${getWhopProductUrl('ja')}?promo=DEFEND50
+🚨 期間限定: DEFEND50コードはまもなく期限切れ！
+
+（または無料日次スコア: ${deepLink}）
+
 フル: オン-chain全分析、AIアラート(LONG/SHORT回避)、出口マップ、センチメント、Dr. Grokメンタル支援。
 
 🛡️ 1信号ミスで-10%+。アップグレードで鉄壁防御。
@@ -429,7 +493,14 @@ ${exchangeNetflow ? `• Exchanges lotados: ${netflowStr} ENTRADA – Vendedores
 ━━━━━━━━━━━━━━━━━━━━
 🚀 DESTRAVE RELATÓRIO COMPLETO
 
-Grátis: Só score.
+━━━━━━━━━━━━━━━━━━━━
+🔥 UPGRADE AGORA: ACESSO PRO (50% OFF DEFEND50)
+━━━━━━━━━━━━━━━━━━━━
+💎 Desbloqueie Acesso Completo + Alertas: ${getWhopProductUrl('pt-br')}?promo=DEFEND50
+🚨 Tempo Limitado: Código DEFEND50 expira em breve!
+
+(Ou score diário grátis: ${deepLink})
+
 Full: Análise on-chain, alertas AI (EVITE LONG/SHORT), Mapas de saída, Análise sentimento, Terapia Dr. Grok.
 
 🛡️ Perdeu sinal? -10%+. Upgrade para defesa à prova de balas.
@@ -492,7 +563,14 @@ ${exchangeNetflow ? `• المنصات مغمورة: ${netflowStr} داخل –
 ━━━━━━━━━━━━━━━━━━━━
 🚀 فك قفل التقرير الكامل
 
-مجاني: النتيجة فقط.
+━━━━━━━━━━━━━━━━━━━━
+🔥 ترقية الآن: الوصول PRO (50% خصم DEFEND50)
+━━━━━━━━━━━━━━━━━━━━
+💎 فك قفل الوصول الكامل + التنبيهات: ${getWhopProductUrl('ar')}?promo=DEFEND50
+🚨 وقت محدود: كود DEFEND50 ينتهي قريباً!
+
+(أو النتيجة اليومية المجانية: ${deepLink})
+
 كامل: تحليل on-chain، تنبيهات AI (تجنب LONG/SHORT)، خرائط خروج، تحليل المشاعر، دعم د. غروك النفسي.
 
 🛡️ تفويت إشارة واحدة؟ -10%+. ترقية لدفاع مضاد للرصاص.
@@ -555,7 +633,14 @@ ${exchangeNetflow ? `• 거래소 유입: ${netflowStr} – 매도자 로딩\n`
 ━━━━━━━━━━━━━━━━━━━━
 🚀 전체 보고서 해제
 
-무료: 스코어만.
+━━━━━━━━━━━━━━━━━━━━
+🔥 지금 업그레이드: PRO 액세스 (50% 할인 DEFEND50)
+━━━━━━━━━━━━━━━━━━━━
+💎 전체 액세스+알림 잠금 해제: ${getWhopProductUrl('ko')}?promo=DEFEND50
+🚨 제한 시간: DEFEND50 코드 곧 만료!
+
+(또는 무료 일일 스코어: ${deepLink})
+
 풀: 온체인 분석, AI 알림 (LONG/SHORT 피함), 출구 맵, 감정 분석, Dr. Grok 심리 지원.
 
 🛡️ 신호 하나 놓침? -10%+. 업그레이드해 방어막.
@@ -745,15 +830,33 @@ async function postFreeReportAsThread(targetLangs, reportData) {
       const tweetTemplate = TWEET_TEMPLATES[lang] || TWEET_TEMPLATES.en;
       let langMainTweet = tweetTemplate(trapScore, priceUsd, change24h, getTelegramDeepLinkWithSource(lang, 'x_direct'), exchangeNetflow, whaleRatio);
       
-      // Grok推奨: ハッシュタグを動的取得
+      // Grok推奨: ハッシュタグを動的取得（最大2個）
       const { getTrendyHashtags } = require('../services/x/optimization');
       const optimizedHashtags = await getTrendyHashtags(lang, 'BTC').catch(() => getOptimizedHashtags(lang));
       const langHashtags = LANG_HASHTAGS[lang] || LANG_HASHTAGS.en;
-      langMainTweet = langMainTweet.replace(new RegExp(langHashtags.replace(/#/g, '\\#').replace(/\s+/g, '.*'), 'g'), Array.isArray(optimizedHashtags) ? optimizedHashtags.join(' ') : optimizedHashtags);
+      // Grok推奨: 2ハッシュタグ最大
+      const hashtagsArray = Array.isArray(optimizedHashtags) ? optimizedHashtags.slice(0, 2) : [optimizedHashtags].slice(0, 2);
+      langMainTweet = langMainTweet.replace(new RegExp(langHashtags.replace(/#/g, '\\#').replace(/\s+/g, '.*'), 'g'), hashtagsArray.join(' '));
       
-      // Grok推奨: エンゲージメントCTAを追加
+      // Grok推奨: フック戦略（最初の280文字を最適化）
+      langMainTweet = optimizeHookText(langMainTweet, lang, trapScore);
+      
+      // Grok推奨: エンゲージメントCTAを追加（2質問/投稿）
       const cta = generateEngagementCTA(lang);
-      langMainTweet = `${langMainTweet}\n\n${cta}`;
+      const selfQuestions = generateVelocitySelfQuestions(lang, trapScore);
+      // 最初の2つの質問を追加
+      langMainTweet = `${langMainTweet}\n\n${cta}\n${selfQuestions[0]}\n${selfQuestions[1]}`;
+      
+      // Grok推奨: 言語別絵文字スタイル（3-5絵文字）
+      const emojis = getLanguageEmojiStyle(lang);
+      if (emojis.length > 0 && !langMainTweet.includes(emojis[0])) {
+        // 絵文字が不足している場合は追加（最大5個）
+        const currentEmojiCount = (langMainTweet.match(/[\u{1F300}-\u{1F9FF}]/gu) || []).length;
+        if (currentEmojiCount < 3) {
+          const emojisToAdd = emojis.slice(0, Math.min(5 - currentEmojiCount, emojis.length));
+          langMainTweet = `${emojisToAdd.join('')} ${langMainTweet}`;
+        }
+      }
       
       // Phase 1: ソーシャルプルーフを追加（インプレッション最大化）
       try {
@@ -775,15 +878,59 @@ async function postFreeReportAsThread(targetLangs, reportData) {
         // エラー時はソーシャルプルーフなしで続行
       }
       
-      // Grok推奨: フォーマット比率制御（40%画像、30%ポール、20%動画、10%テキスト）
-      const usePoll = contentFormat === 'thread_with_poll' || contentFormat === 'thread_with_image';
+      // Grok推奨: フォーマット比率制御（動画優先、ポール強化、画像維持）
+      const usePoll = contentFormat === 'thread_with_poll' || contentFormat === 'thread_with_image' || contentFormat === 'thread_with_video';
       const pollOptions = usePoll ? {
         options: generatePollOptions(lang, trapScore),
         duration_minutes: 1440,
       } : null;
       
-      // メイン投稿を実行
-      const langMainResult = await postTweet(langMainTweet.substring(0, 280), null, pollOptions);
+      // Grok推奨: 動画・画像のアップロード（KVから取得）
+      let mediaIds = [];
+      try {
+        const { getContent } = require('../services/core/contentStorage');
+        const marketCode = lang.toUpperCase() === 'PT-BR' ? 'PT-BR' : lang.toUpperCase();
+        const content = await getContent(marketCode);
+        
+        if (content) {
+          // 動画優先（10xエンゲージメント）
+          if (contentFormat === 'thread_with_video' && content.videoUrl) {
+            try {
+              const videoBuffer = await convertDataUrlToBuffer(content.videoUrl);
+              if (videoBuffer) {
+                const videoMediaId = await uploadMedia(videoBuffer, { mediaType: 'video' });
+                if (videoMediaId) {
+                  mediaIds.push(videoMediaId);
+                  console.log(`[X Post Free Report] ✅ Video uploaded for ${lang}: ${videoMediaId}`);
+                }
+              }
+            } catch (error) {
+              console.warn(`[X Post Free Report] Failed to upload video for ${lang}:`, error.message);
+            }
+          }
+          
+          // 画像（2xエンゲージメント）
+          if ((contentFormat === 'thread_with_image' || (contentFormat === 'thread_with_video' && mediaIds.length === 0)) && content.imageUrl) {
+            try {
+              const imageBuffer = await convertDataUrlToBuffer(content.imageUrl);
+              if (imageBuffer) {
+                const imageMediaId = await uploadMedia(imageBuffer, { mediaType: 'image' });
+                if (imageMediaId) {
+                  mediaIds.push(imageMediaId);
+                  console.log(`[X Post Free Report] ✅ Image uploaded for ${lang}: ${imageMediaId}`);
+                }
+              }
+            } catch (error) {
+              console.warn(`[X Post Free Report] Failed to upload image for ${lang}:`, error.message);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`[X Post Free Report] Failed to get content from KV for ${lang}:`, error.message);
+      }
+      
+      // メイン投稿を実行（メディアIDを添付）
+      const langMainResult = await postTweet(langMainTweet.substring(0, 280), mediaIds.length > 0 ? mediaIds : null, pollOptions);
       langMainTweetId = langMainResult.id;
       await incrementDailyPostCount(dateString, 1);
       await incrementHourlyPostCount(hourKey); // 1時間あたりの投稿数をインクリメント
@@ -793,6 +940,23 @@ async function postFreeReportAsThread(targetLangs, reportData) {
       // メイン投稿IDを設定（最初の言語の場合）
       if (!mainTweetId) {
         mainTweetId = langMainTweetId;
+      }
+      
+      // Grok推奨: ベロシティ戦術（投稿直後のポール追加と自己質問）
+      try {
+        const selfQuestions = generateVelocitySelfQuestions(lang, trapScore);
+        // 最初の5分以内に自己質問をリプライとして投稿（エンゲージメント速度最大化）
+        setTimeout(async () => {
+          try {
+            const velocityReply = `${selfQuestions[2]}\n\n${generateEngagementCTA(lang)}`;
+            await replyToTweet(langMainTweetId, velocityReply.substring(0, 280));
+            console.log(`[X Post Free Report] ✅ Velocity self-question posted for ${lang}: ${langMainTweetId}`);
+          } catch (error) {
+            console.warn(`[X Post Free Report] Failed to post velocity self-question for ${lang}:`, error.message);
+          }
+        }, 30000); // 30秒後に投稿（5分以内）
+      } catch (error) {
+        console.warn(`[X Post Free Report] Failed to schedule velocity self-question for ${lang}:`, error.message);
       }
       
       // Grok推奨: ユーザーリプライへの自動返信（最初の10リプライ）

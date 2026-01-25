@@ -162,21 +162,23 @@ function getOptimizedHashtags(lang, trendingHashtag = null) {
 
 /**
  * コンテンツ形式を決定
- * Grok推奨: 40%画像、30%ポール、20%動画、10%テキスト
+ * Grok推奨: 動画（10x）、ポール（4x）、画像（2x）を優先
+ * 更新: 70%動画/ポール/画像、30%テキスト（エンゲージメント最大化）
  */
 function getContentFormat(sequence = 0) {
-  // Grok推奨比率: 40%画像、30%ポール、20%動画、10%テキスト
+  // Grok推奨比率（更新版）: 動画優先、ポール強化、画像維持、テキスト最小化
+  // エンゲージメント最大化: 動画10x、ポール4x、画像2x
   const formats = [
-    'thread_with_image',  // 40% (0-3) - BTCチャート画像
-    'thread_with_image',  // 40%
-    'thread_with_image',  // 40%
-    'thread_with_image',  // 40%
-    'thread_with_poll',   // 30% (4-6) - Trap Scoreビジュアル+ポール
+    'thread_with_video',  // 30% (0-2) - BTCチャート動画（15秒）- 10x boost
+    'thread_with_video',  // 30%
+    'thread_with_video',  // 30%
+    'thread_with_poll',   // 30% (3-5) - Trap Scoreビジュアル+ポール - 4x boost
     'thread_with_poll',   // 30%
     'thread_with_poll',   // 30%
-    'thread_with_video',  // 20% (7-8) - BTCチャート動画（15秒）
-    'thread_with_video',  // 20%
-    'text_only',          // 10% (9) - テキストのみ
+    'thread_with_image',  // 20% (6-7) - BTCチャート画像 - 2x boost
+    'thread_with_image',  // 20%
+    'thread_with_video',  // 10% (8) - 動画追加
+    'text_only',          // 10% (9) - テキストのみ（最小化）
   ];
   
   return formats[sequence % 10];
@@ -304,6 +306,7 @@ async function incrementHourlyPostCount(hourKey) {
 /**
  * エンゲージメント強化用のCTAを生成
  * Grok推奨: 質問+リンク+絵文字でクリック+リプライ複合を高評価
+ * 更新: 2質問/投稿、3-5絵文字、2ハッシュタグ最大
  */
 function generateEngagementCTA(lang) {
   const normalizedLang = (lang || 'en').toLowerCase();
@@ -349,6 +352,102 @@ function generateEngagementCTA(lang) {
   
   const ctas = ctaTemplates[normalizedLang] || ctaTemplates['en'];
   return ctas[Math.floor(Math.random() * ctas.length)];
+}
+
+/**
+ * 言語別絵文字スタイルを取得（Grok推奨: マルチ言語最適化）
+ * @param {string} lang - 言語コード
+ * @returns {Array<string>} 推奨絵文字配列（3-5個）
+ */
+function getLanguageEmojiStyle(lang) {
+  const normalizedLang = (lang || 'en').toLowerCase();
+  
+  const emojiStyles = {
+    'en': ['🚨', '🔥', '👇'], // Polls
+    'es': ['¡', '🚨', '!'], // Questions
+    'pt-br': ['🔥', '😱'], // Videos
+    'ar': ['🔥', '🛑'], // Images (RTL)
+    'ja': ['😱', '🔥'], // Threads
+    'ko': ['🚨', '💥'], // Polls
+  };
+  
+  return emojiStyles[normalizedLang] || emojiStyles['en'];
+}
+
+/**
+ * フック戦略: 最初の280文字を最適化（Grok推奨: 70%読了率）
+ * @param {string} text - 元のテキスト
+ * @param {string} lang - 言語コード
+ * @param {number} trapScore - Trap Score
+ * @returns {string} 最適化されたフックテキスト
+ */
+function optimizeHookText(text, lang, trapScore) {
+  const normalizedLang = (lang || 'en').toLowerCase();
+  const emojis = getLanguageEmojiStyle(normalizedLang);
+  
+  // Grok推奨: フック構造 [🚨 Influencer] TRAPPED! Score: 92/100 😱
+  const hookTemplates = {
+    'en': `${emojis[0] || '🚨'} TRAPPED! Score: ${trapScore}/100 ${emojis[1] || '😱'}\n\n`,
+    'ja': `${emojis[0] || '😱'} トラップ検出！スコア: ${trapScore}/100 ${emojis[1] || '🔥'}\n\n`,
+    'es': `${emojis[0] || '¡'}¡TRAMPA DETECTADA! Puntuación: ${trapScore}/100 ${emojis[1] || '🚨'}!\n\n`,
+    'pt-br': `${emojis[0] || '🔥'} ARMADILHA DETECTADA! Pontuação: ${trapScore}/100 ${emojis[1] || '😱'}\n\n`,
+    'ar': `${emojis[0] || '🔥'} تم اكتشاف فخ! النتيجة: ${trapScore}/100 ${emojis[1] || '🛑'}\n\n`,
+    'ko': `${emojis[0] || '🚨'} 함정 감지! 점수: ${trapScore}/100 ${emojis[1] || '💥'}\n\n`,
+  };
+  
+  const hook = hookTemplates[normalizedLang] || hookTemplates['en'];
+  
+  // フックを先頭に追加（280文字制限内）
+  const maxHookLength = 50;
+  const remainingLength = 280 - hook.length - 10; // 10文字のバッファ
+  const optimizedText = hook + text.substring(0, Math.min(text.length, remainingLength));
+  
+  return optimizedText.substring(0, 280);
+}
+
+/**
+ * ベロシティ戦術: 投稿直後の自己質問を生成（Grok推奨）
+ * @param {string} lang - 言語コード
+ * @param {number} trapScore - Trap Score
+ * @returns {Array<string>} 3つの質問配列
+ */
+function generateVelocitySelfQuestions(lang, trapScore) {
+  const normalizedLang = (lang || 'en').toLowerCase();
+  
+  const questionTemplates = {
+    'en': [
+      `Why ${trapScore}? 👇`,
+      `Thoughts? Reply your score!`,
+      `Score your trap? 🗳️`,
+    ],
+    'ja': [
+      `なぜ${trapScore}？ 👇`,
+      `どう思う？スコアをリプライ！`,
+      `あなたのトラップスコアは？ 🗳️`,
+    ],
+    'es': [
+      `¿Por qué ${trapScore}? 👇`,
+      `¿Pensamientos? ¡Responde tu puntuación!`,
+      `¿Puntuación de tu trampa? 🗳️`,
+    ],
+    'pt-br': [
+      `Por que ${trapScore}? 👇`,
+      `Pensamentos? Responda sua pontuação!`,
+      `Pontuação da sua armadilha? 🗳️`,
+    ],
+    'ar': [
+      `لماذا ${trapScore}؟ 👇`,
+      `أفكار؟ أجب بنتيجتك!`,
+      `نتيجة فخك؟ 🗳️`,
+    ],
+    'ko': [
+      `왜 ${trapScore}? 👇`,
+      `생각? 점수를 답글!`,
+      `당신의 함정 점수는? 🗳️`,
+    ],
+  };
+  
+  return questionTemplates[normalizedLang] || questionTemplates['en'];
 }
 
 /**
@@ -398,22 +497,35 @@ async function getTrendyHashtags(lang, topic = 'BTC') {
  * @returns {Object} { langs: Array<string>, type: 'quote'|'free_report'|'minimal', count: number }
  */
 function getPeakMapForHour(hour) {
-  // vercel.jsonの設定に基づく:
-  // x-quote-repost: UTC 0,1,20,21
-  // x-post-free-report: UTC 12,13,14,15,18
-  // x-post-minimal-version-cron: UTC 8
+  // Grok推奨: クラスター化とピーク時間最適化（2026-01-25更新）
+  // エンゲージメント速度最大化のため、3-4投稿/30分のクラスター化
+  // x-quote-repost: UTC 0,1,13,14,20,21,22（クラスター化）
+  // x-post-free-report: UTC 12,13,14,15,18（クラスター化）
+  // x-post-minimal-version-cron: UTC 8,20（2回/日）
+  
+  // UTC 13:00と14:00、20:00は複数のタイプが重複するため、特別処理
+  if (hour === 13) {
+    // UTC 13:00: KO free_report + KO/JA quote（クラスター化）
+    return { langs: ['ko', 'ja'], type: 'quote', count: 2, alsoFreeReport: ['ko'] };
+  }
+  if (hour === 14) {
+    // UTC 14:00: EN/PT-BR free_report + JA quote（クラスター化）
+    return { langs: ['en', 'pt-br', 'ja'], type: 'free_report', count: 1, alsoQuote: ['ja'] };
+  }
+  if (hour === 20) {
+    // UTC 20:00: EN/PT-BR quote + EN minimal（クラスター化）
+    return { langs: ['en', 'pt-br'], type: 'quote', count: 4, alsoMinimal: ['en'] };
+  }
   
   const peakMap = {
-    0: { langs: ['ar'], type: 'quote', count: 2 },      // AR: UTC 0:00
-    1: { langs: ['ko'], type: 'quote', count: 2 },      // KO: UTC 1:00
-    8: { langs: ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'], type: 'minimal', count: 1 }, // Minimal Version: UTC 8:00
-    12: { langs: ['en'], type: 'free_report', count: 1 }, // EN: UTC 12:00
-    13: { langs: ['ko'], type: 'free_report', count: 1 }, // KO: UTC 13:00
-    14: { langs: ['en', 'pt-br'], type: 'free_report', count: 1 }, // EN/PT-BR: UTC 14:00
-    15: { langs: ['es'], type: 'free_report', count: 1 }, // ES: UTC 15:00
-    18: { langs: ['ar'], type: 'free_report', count: 1 }, // AR: UTC 18:00
-    20: { langs: ['en', 'pt-br'], type: 'quote', count: 4 }, // EN/PT-BR: UTC 20:00
-    21: { langs: ['es'], type: 'quote', count: 2 },      // ES: UTC 21:00
+    0: { langs: ['ar'], type: 'quote', count: 2 },      // AR: UTC 0:00 (ME peak)
+    1: { langs: ['ko'], type: 'quote', count: 2 },      // KO: UTC 1:00 (KR eve)
+    8: { langs: ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'], type: 'minimal', count: 1 }, // Minimal Version: UTC 8:00 (Global)
+    12: { langs: ['en'], type: 'free_report', count: 1 }, // EN: UTC 12:00 (US morn)
+    15: { langs: ['es'], type: 'free_report', count: 1 }, // ES: UTC 15:00 (LATAM)
+    18: { langs: ['ar'], type: 'free_report', count: 1 }, // AR: UTC 18:00 (ME)
+    21: { langs: ['es'], type: 'quote', count: 2 },      // ES: UTC 21:00 (LATAM)
+    22: { langs: ['pt-br', 'es'], type: 'quote', count: 2 }, // PT-BR/ES: UTC 22:00 (LATAM) - クラスター化
   };
   
   return peakMap[hour] || { langs: [], type: null, count: 0 };
@@ -445,4 +557,7 @@ module.exports = {
   checkDailyPostLimit,
   generateEngagementCTA,
   getTrendyHashtags,
+  getLanguageEmojiStyle,
+  optimizeHookText,
+  generateVelocitySelfQuestions,
 };

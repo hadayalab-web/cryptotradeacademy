@@ -18,8 +18,8 @@ const DEFAULT_WHOP_URLS = {
   'ja': 'https://whop.com/aio-media-llc/trap-defence-btc-ja/',
 };
 
-function getWhopProductUrl() {
-  const lang = normalizeLang(process.env.LANG || 'en');
+function getWhopProductUrl(lang = null) {
+  const targetLang = normalizeLang(lang || process.env.LANG || 'en');
   const urls = {
     'en': process.env.WHOP_PRODUCT_URL_EN || process.env.WHOP_PRODUCT_LINK_EN || DEFAULT_WHOP_URLS['en'],
     'es': process.env.WHOP_PRODUCT_URL_ES || DEFAULT_WHOP_URLS['es'],
@@ -29,7 +29,7 @@ function getWhopProductUrl() {
     'ja': process.env.WHOP_PRODUCT_URL_JA || DEFAULT_WHOP_URLS['ja'],
   };
 
-  return urls[lang] || urls['en'];
+  return urls[targetLang] || urls['en'];
 }
 
 function getWhopUpgradeLink() {

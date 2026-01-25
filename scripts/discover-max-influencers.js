@@ -16,7 +16,7 @@ async function discoverMaxInfluencers(lang) {
   
   // 最大限の候補数を取得（複数回リクエスト）
   const maxCandidatesPerRequest = 50; // Grok APIの1回あたりの最大候補数
-  const totalRequests = 3; // 3回リクエストして最大150人を取得
+  const totalRequests = 5; // 5回リクエストして最大250人を取得（最大限の探索）
   const allInfluencers = [];
   
   for (let i = 0; i < totalRequests; i++) {
@@ -31,15 +31,16 @@ async function discoverMaxInfluencers(lang) {
         const existingUsernames = new Set(allInfluencers.map(inf => inf.username));
         const newInfluencers = influencers.filter(inf => !existingUsernames.has(inf.username));
         allInfluencers.push(...newInfluencers);
-        console.log(`[Discovery] Found ${influencers.length} influencers (${newInfluencers.length} new)`);
+        console.log(`[Discovery] Found ${influencers.length} influencers (${newInfluencers.length} new, total: ${allInfluencers.length})`);
       }
       
-      // レート制限対策（リクエスト間に5秒待機）
+      // レート制限対策（リクエスト間に3秒待機 - タイムアウト対策で短縮）
       if (i < totalRequests - 1) {
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
     } catch (error) {
       console.error(`[Discovery] Request ${i + 1} failed:`, error.message);
+      // エラーが発生しても続行
     }
   }
   
@@ -105,10 +106,10 @@ async function main() {
         influencers: influencers.slice(0, 5), // 最初の5人だけ表示
       };
       
-      // 言語間で10秒待機（レート制限対策）
+      // 言語間で5秒待機（レート制限対策、タイムアウト対策で短縮）
       if (lang !== langs[langs.length - 1]) {
-        console.log('\n⏳ Waiting 10 seconds before next language...\n');
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        console.log('\n⏳ Waiting 5 seconds before next language...\n');
+        await new Promise(resolve => setTimeout(resolve, 5000));
       }
     } catch (error) {
       console.error(`\n❌ Failed for ${lang}:`, error.message);

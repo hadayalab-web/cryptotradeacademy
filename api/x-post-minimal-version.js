@@ -6,6 +6,7 @@ const { postTweet, replyToTweet } = require('../services/x/client');
 const { getXConfigStatus } = require('../services/x/config');
 const { getTweetMetrics } = require('../services/x/metrics');
 const { getOptimizedHashtags } = require('../services/x/optimization');
+const { getWhopProductUrl } = require('../services/telegram/whop-links');
 
 // 無料版（Minimal Version）メッセージ生成関数をインポート
 const { formatMinimalHighQualityBriefing } = require('../services/telegram/messages/user/en/minimal-high-quality.en');
@@ -309,8 +310,23 @@ async function postMinimalVersionToX(targetLangs, reportData) {
       const engagementCTA = engagementCTAs[normalizedLang] || engagementCTAs.en;
       
       // Grok推奨: スレッド構造を最適化（Trap Score、Key Data、Strategic Insight、CTA）
-      // メッセージを構造化してスレッド化
-      const structuredMessage = `${minimalMessage}\n\n🚀 Get Full Report: ${deepLink}\n\n${engagementCTA}`;
+      // Whop直リン導線を最優先に（Grok推奨: Whop first, free as afterthought）
+      const whopLink = getWhopProductUrl(normalizedLang);
+      const whopLinkWithPromo = `${whopLink}?promo=DEFEND50`;
+      
+      // Whop CTAを最優先に配置（緊急性とソーシャルプルーフを強調）
+      const whopCTAs = {
+        en: `🔥 UPGRADE NOW: PRO Access (50% OFF DEFEND50)\n💎 Unlock Full Access + Alerts: ${whopLinkWithPromo}\n🚨 Limited Time: DEFEND50 code expires soon!\n\n(Or free daily score: ${deepLink})`,
+        ja: `🔥 今すぐアップグレード: PRO版アクセス（50%OFF DEFEND50）\n💎 フルアクセス+アラート解除: ${whopLinkWithPromo}\n🚨 期間限定: DEFEND50コードはまもなく期限切れ！\n\n（または無料日次スコア: ${deepLink}）`,
+        es: `🔥 ACTUALIZA AHORA: Acceso PRO (50% OFF DEFEND50)\n💎 Desbloquea Acceso Completo + Alertas: ${whopLinkWithPromo}\n🚨 Tiempo Limitado: ¡Código DEFEND50 expira pronto!\n\n(O score diario gratis: ${deepLink})`,
+        'pt-br': `🔥 UPGRADE AGORA: Acesso PRO (50% OFF DEFEND50)\n💎 Desbloqueie Acesso Completo + Alertas: ${whopLinkWithPromo}\n🚨 Tempo Limitado: Código DEFEND50 expira em breve!\n\n(Ou score diário grátis: ${deepLink})`,
+        ar: `🔥 ترقية الآن: الوصول PRO (50% خصم DEFEND50)\n💎 فك قفل الوصول الكامل + التنبيهات: ${whopLinkWithPromo}\n🚨 وقت محدود: كود DEFEND50 ينتهي قريباً!\n\n(أو النتيجة اليومية المجانية: ${deepLink})`,
+        ko: `🔥 지금 업그레이드: PRO 액세스 (50% 할인 DEFEND50)\n💎 전체 액세스+알림 잠금 해제: ${whopLinkWithPromo}\n🚨 제한 시간: DEFEND50 코드 곧 만료!\n\n(또는 무료 일일 스코어: ${deepLink})`,
+      };
+      
+      const whopCTA = whopCTAs[normalizedLang] || whopCTAs.en;
+      
+      const structuredMessage = `${minimalMessage}\n\n${whopCTA}\n\n${engagementCTA}`;
       
       // ハッシュタグを追加
       const hashtags = await getOptimizedHashtags(normalizedLang).catch(() => {

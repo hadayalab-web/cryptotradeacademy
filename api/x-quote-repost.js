@@ -13,6 +13,7 @@ const {
 } = require('../services/x/optimization');
 const { QUOTE_REPOST_TEMPLATES } = require('./x-post-free-report');
 const { getTweetMetrics } = require('../services/x/metrics');
+const { getWhopProductUrl } = require('../services/telegram/whop-links');
 
 const {
   getInfluencerCountForLang,
@@ -98,15 +99,21 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
     
     // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
-      // 矛盾を強調: 低リスクなのに売り圧力が存在
+      // 矛盾を強調: 低リスクなのに売り圧力が存在 + Whop直リン導線を最優先に
       const question = '🚨 CONTRADICTION: Low risk BUT whales positioning. What\'s your move? Reply!';
-      return `Agree! Trap Score 0/100 BUT ${whaleStr} to sell. ${question} ${deepLink} #BTC #TrapDefence`;
+      const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('en')}?promo=DEFEND50`;
+      const freeLink = `(Free: ${deepLink})`;
+      return `Agree! Trap Score 0/100 BUT ${whaleStr} to sell. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
     }
     
     // Grok推奨: 質問CTA必須（アルゴリズム評価UP）
     const question = trapScore <= 25 ? '🚀 What\'s your biggest fear in this market? Reply!' : '💥 Protecting capital or chasing? Reply!';
     
-    return `Agree! TrapDefence detected this 🚀 ${question} ${deepLink} #Bitcoin #BTCAnalysis #TrapDefence`;
+    // Whop直リン導線を最優先に（Grok推奨: Whop first, free as afterthought）
+    const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('en')}?promo=DEFEND50`;
+    const freeLink = `(Free: ${deepLink})`;
+    
+    return `Agree! TrapDefence detected this 🚀 ${whopLink} ${freeLink} ${question} #Bitcoin #BTCAnalysis #TrapDefence`;
   },
   ja: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -116,13 +123,19 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
     // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
       const question = '🚨 矛盾: 低リスクなのにクジラがポジショニング中。どうする？リプライ！';
-      return `同意！Trap Score 0/100 なのに ${whaleStr} 売却準備中。${question} ${deepLink} #BTC #TrapDefence`;
+      const whopLink = `🔥 PRO 50%OFF (DEFEND50): ${getWhopProductUrl('ja')}?promo=DEFEND50`;
+      const freeLink = `(無料: ${deepLink})`;
+      return `同意！Trap Score 0/100 なのに ${whaleStr} 売却準備中。${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
     }
     
     // Grok推奨: 質問CTA必須
     const question = trapScore <= 25 ? '🚀 この市場で最も大きな恐怖は何ですか？リプライ！' : '💥 資本保護？それとも追いかけ中？リプライ！';
     
-    return `同意！TrapDefenceで検知済み 🚀 ${question} ${deepLink} #ビットコイン #ビットコイン分析 #TrapDefence`;
+    // Whop直リン導線を最優先に
+    const whopLink = `🔥 PRO 50%OFF (DEFEND50): ${getWhopProductUrl('ja')}?promo=DEFEND50`;
+    const freeLink = `(無料: ${deepLink})`;
+    
+    return `同意！TrapDefenceで検知済み 🚀 ${whopLink} ${freeLink} ${question} #ビットコイン #ビットコイン分析 #TrapDefence`;
   },
   es: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -132,13 +145,19 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
     // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
       const question = '🚨 CONTRADICCIÓN: Bajo riesgo PERO ballenas posicionándose. ¿Cuál es tu movimiento? ¡Responde!';
-      return `¡De acuerdo! Trap Score 0/100 PERO ${whaleStr} para vender. ${question} ${deepLink} #BTC #TrapDefence`;
+      const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('es')}?promo=DEFEND50`;
+      const freeLink = `(Gratis: ${deepLink})`;
+      return `¡De acuerdo! Trap Score 0/100 PERO ${whaleStr} para vender. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
     }
     
     // Grok推奨: 質問CTA必須
     const question = trapScore <= 25 ? '🚀 ¿Cuál es tu mayor miedo en este mercado? ¡Responde!' : '💥 ¿Protegiendo capital o persiguiendo? ¡Responde!';
     
-    return `¡De acuerdo! TrapDefence detectó esto 🚀 ${question} ${deepLink} #Bitcoin #AnálisisBTC #TrapDefence`;
+    // Whop直リン導線を最優先に
+    const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('es')}?promo=DEFEND50`;
+    const freeLink = `(Gratis: ${deepLink})`;
+    
+    return `¡De acuerdo! TrapDefence detectó esto 🚀 ${whopLink} ${freeLink} ${question} #Bitcoin #AnálisisBTC #TrapDefence`;
   },
   'pt-br': (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -148,13 +167,19 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
     // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
       const question = '🚨 CONTRADIÇÃO: Baixo risco MAS baleias se posicionando. Qual é sua jogada? Responda!';
-      return `Concordo! Trap Score 0/100 MAS ${whaleStr} para vender. ${question} ${deepLink} #BTC #TrapDefence`;
+      const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('pt-br')}?promo=DEFEND50`;
+      const freeLink = `(Grátis: ${deepLink})`;
+      return `Concordo! Trap Score 0/100 MAS ${whaleStr} para vender. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
     }
     
     // Grok推奨: 質問CTA必須
     const question = trapScore <= 25 ? '🚀 Qual é o seu maior medo neste mercado? Responda!' : '💥 Protegendo capital ou perseguindo? Responda!';
     
-    return `Concordo! TrapDefence detectou isso 🚀 ${question} ${deepLink} #Bitcoin #AnáliseBTC #TrapDefence`;
+    // Whop直リン導線を最優先に
+    const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('pt-br')}?promo=DEFEND50`;
+    const freeLink = `(Grátis: ${deepLink})`;
+    
+    return `Concordo! TrapDefence detectou isso 🚀 ${whopLink} ${freeLink} ${question} #Bitcoin #AnáliseBTC #TrapDefence`;
   },
   ar: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -164,13 +189,19 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
     // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
       const question = '🚨 تناقض: مخاطر منخفضة لكن الحيتان تتجهز. ما خطوتك؟ أجب!';
-      return `موافق! Trap Score 0/100 لكن ${whaleStr} للبيع. ${question} ${deepLink} #BTC #TrapDefence`;
+      const whopLink = `🔥 PRO 50% خصم (DEFEND50): ${getWhopProductUrl('ar')}?promo=DEFEND50`;
+      const freeLink = `(مجاني: ${deepLink})`;
+      return `موافق! Trap Score 0/100 لكن ${whaleStr} للبيع. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
     }
     
     // Grok推奨: 質問CTA必須
     const question = trapScore <= 25 ? '🚀 ما هو أكبر خوفك في هذا السوق؟ أجب!' : '💥 هل تحمي رأس المال أم تطارد؟ أجب!';
     
-    return `موافق! TrapDefence اكتشف هذا 🚀 ${question} ${deepLink} #Bitcoin #تحليل_بيتكوين #TrapDefence`;
+    // Whop直リン導線を最優先に
+    const whopLink = `🔥 PRO 50% خصم (DEFEND50): ${getWhopProductUrl('ar')}?promo=DEFEND50`;
+    const freeLink = `(مجاني: ${deepLink})`;
+    
+    return `موافق! TrapDefence اكتشف هذا 🚀 ${whopLink} ${freeLink} ${question} #Bitcoin #تحليل_بيتكوين #TrapDefence`;
   },
   ko: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -180,13 +211,19 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
     // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
       const question = '🚨 모순: 낮은 리스크인데 고래가 포지셔닝 중. 어떻게 하시겠습니까? 답글!';
-      return `동의! Trap Score 0/100 인데 ${whaleStr} 매도 준비 중. ${question} ${deepLink} #BTC #TrapDefence`;
+      const whopLink = `🔥 PRO 50% 할인 (DEFEND50): ${getWhopProductUrl('ko')}?promo=DEFEND50`;
+      const freeLink = `(무료: ${deepLink})`;
+      return `동의! Trap Score 0/100 인데 ${whaleStr} 매도 준비 중. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
     }
     
     // Grok推奨: 質問CTA必須
     const question = trapScore <= 25 ? '🚀 이 시장에서 가장 큰 두려움은 무엇인가요? 답글!' : '💥 자본 보호 중인가요? 추격 중인가요? 답글!';
     
-    return `동의! TrapDefence가 이것을 감지했습니다 🚀 ${question} ${deepLink} #비트코인 #비트코인분석 #TrapDefence`;
+    // Whop直リン導線を最優先に
+    const whopLink = `🔥 PRO 50% 할인 (DEFEND50): ${getWhopProductUrl('ko')}?promo=DEFEND50`;
+    const freeLink = `(무료: ${deepLink})`;
+    
+    return `동의! TrapDefence가 이것을 감지했습니다 🚀 ${whopLink} ${freeLink} ${question} #비트코인 #비트코인분석 #TrapDefence`;
   },
 };
 
