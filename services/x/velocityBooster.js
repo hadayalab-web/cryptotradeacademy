@@ -131,7 +131,8 @@ async function postVelocityReply(tweetId, lang, context = {}) {
     
     // 子アカウントからリプライ（現在はメインアカウントから）
     // 将来的に子アカウント管理機能を追加
-    const result = await replyToTweet(tweetId, replyText);
+    // 🔴 CRITICAL FIX: 引数の順序を修正（textが先、inReplyToTweetIdが後）
+    const result = await replyToTweet(replyText, tweetId);
     
     console.log(`[Velocity Booster] ✅ Velocity reply posted: ${result.id}`);
     

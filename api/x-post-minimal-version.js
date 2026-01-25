@@ -254,8 +254,9 @@ async function postMinimalVersionToX(targetLangs, reportData) {
         continue;
       }
       
-      // 1日の投稿上限チェック（25投稿/日 - Grok推奨: スパム判定回避）
-      const maxDailyPosts = 25; // Grok推奨: 20-25回/日（スパム判定回避）
+      // 🔴 CRITICAL FIX: 1日の投稿上限を35に統一（Free Reportと同じ上限を使用）
+      // 注意: 投稿タイプごとに異なる上限を設定する場合は、カウンターも分離する必要がある
+      const maxDailyPosts = 35; // Free Reportと同じ上限に統一（インプレッション最大化）
       const dailyPostCount = await getDailyPostCount(dateString);
       if (dailyPostCount >= maxDailyPosts) {
         console.log(`[X Post Minimal] ⏰ Daily post limit reached (${dailyPostCount}/${maxDailyPosts}), skipping minimal version post for ${normalizedLang}`);

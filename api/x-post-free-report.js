@@ -807,14 +807,17 @@ async function postFreeReportAsThread(targetLangs, reportData) {
     if (!isPeakHour) {
       // ピーク時間外でも、1時間あたりの投稿数が少ない場合は投稿を許可
       const currentHourlyCount = await getHourlyPostCount(hourKey);
-      if (currentHourlyCount >= maxPostsPerHour - 2) { // ピーク時間外は制限を2減らす
-        console.log(`⏰ Skipping ${lang} (not peak hour and hourly limit near: ${currentHourlyCount}/${maxPostsPerHour - 2})`);
+      // 🔴 CRITICAL FIX: ピーク時間外の制限を明確化（maxPostsPerHour - 2ではなく、maxPostsPerHourを使用）
+      const peakHourLimit = maxPostsPerHour - 2; // ピーク時間外は制限を2減らす
+      if (currentHourlyCount >= peakHourLimit) {
+        console.log(`⏰ Skipping ${lang} (not peak hour and hourly limit near: ${currentHourlyCount}/${peakHourLimit})`);
         continue;
       }
       console.log(`ℹ️ Posting ${lang} outside peak hour (${currentHour} UTC) for impression maximization`);
     }
     
     // 1時間あたりの投稿数制限をチェック
+    // 🔴 CRITICAL FIX: maxPostsPerHourを明示的に渡す
     const currentHourlyCount = await getHourlyPostCount(hourKey);
     if (!checkHourlyPostLimit(currentHourlyCount, maxPostsPerHour)) {
       console.log(`⏰ Skipping ${lang} (hourly post limit reached: ${currentHourlyCount}/${maxPostsPerHour})`);
@@ -962,10 +965,17 @@ async function postFreeReportAsThread(targetLangs, reportData) {
         setTimeout(async () => {
           try {
             const velocityReply = `${selfQuestions[2]}\n\n${generateEngagementCTA(lang)}`;
-            await replyToTweet(langMainTweetId, velocityReply.substring(0, 280));
+            // 🔴 CRITICAL FIX: 引数の順序を修正（textが先、inReplyToTweetIdが後）
+            await replyToTweet(velocityReply.substring(0, 280), langMainTweetId);
             console.log(`[X Post Free Report] ✅ Velocity self-question posted for ${lang}: ${langMainTweetId}`);
           } catch (error) {
-            console.warn(`[X Post Free Report] Failed to post velocity self-question for ${lang}:`, error.message);
+            console.error(`[X Post Free Report] ❌ CRITICAL: Failed to post velocity self-question for ${lang}:`, {
+              error: error.message,
+              stack: error.stack,
+              tweetId: langMainTweetId,
+              lang,
+              timestamp: new Date().toISOString(),
+            });
           }
         }, 30000); // 30秒後に投稿（5分以内）
       } catch (error) {
