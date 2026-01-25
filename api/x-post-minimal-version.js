@@ -329,7 +329,11 @@ async function postMinimalVersionToX(targetLangs, reportData) {
       const structuredMessage = `${minimalMessage}\n\n${whopCTA}\n\n${engagementCTA}`;
       
       // ハッシュタグを追加
-      const hashtags = await getOptimizedHashtags(normalizedLang).catch(() => {
+      let hashtags;
+      try {
+        hashtags = getOptimizedHashtags(normalizedLang);
+      } catch (error) {
+        console.warn(`[X Post Minimal] Failed to get optimized hashtags for ${normalizedLang}, using defaults:`, error.message);
         const defaultHashtags = {
           en: '#BTC #TrapDefence',
           ja: '#BTC #仮想通貨 #TrapDefence',
@@ -338,8 +342,8 @@ async function postMinimalVersionToX(targetLangs, reportData) {
           ar: '#BTC #بيتكوين #TrapDefence',
           ko: '#BTC #비트코인 #TrapDefence',
         };
-        return defaultHashtags[normalizedLang] || defaultHashtags.en;
-      });
+        hashtags = defaultHashtags[normalizedLang] || defaultHashtags.en;
+      }
       
       // Grok推奨: 最初のツイートを強力なフック + Deep Link + ハッシュタグ
       // 重要: 最初のツイートにDeep Linkを含めてオプトインを最大化
