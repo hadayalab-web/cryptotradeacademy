@@ -17,10 +17,10 @@
     { "path": "/api/x-update-influencer-stock?lang=ar", "schedule": "0 14 * * *" },
     { "path": "/api/x-update-influencer-stock?lang=ja", "schedule": "0 18 * * *" },
     { "path": "/api/x-update-influencer-stock?lang=ko", "schedule": "0 22 * * *" },
-    { "path": "/api/x-quote-repost-metrics", "schedule": "0 * * * *" },
+    { "path": "/api/x-quote-repost-metrics", "schedule": "0 1 * * *" },
     { "path": "/api/x-engagement-metrics", "schedule": "0 0 * * *" },
     { "path": "/api/x-influencer-report", "schedule": "0 9 * * 1" },
-    { "path": "/api/x-algorithm-analysis", "schedule": "0 10 * * *" }
+    { "path": "/api/x-algorithm-analysis", "schedule": "0 10 * * 1" }
   ],
   "functions": {
     "api/x-update-influencer-stock.js": {
