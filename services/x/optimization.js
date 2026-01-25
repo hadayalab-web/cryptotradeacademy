@@ -224,6 +224,69 @@ function shouldPostQuoteRepost(influencerTweetTimestamp, currentTime = null) {
 }
 
 /**
+ * 1日の投稿数を取得（Vercel KV）
+ * 統一実装: すべてのAPIファイルで使用
+ * @param {string} dateString - 日付文字列（YYYY-MM-DD）
+ * @returns {Promise<number>} 1日の投稿数
+ */
+async function getDailyPostCount(dateString) {
+  let kv = null;
+  try {
+    const kvModule = require('@vercel/kv');
+    kv = kvModule.kv;
+  } catch (error) {
+    console.warn('[Optimization] @vercel/kv not available for daily post count');
+    return 0;
+  }
+  
+  if (!kv) {
+    return 0;
+  }
+  
+  try {
+    // 統一キーを使用: x:posts_count:${dateString}
+    const count = await kv.get(`x:posts_count:${dateString}`) || 0;
+    return typeof count === 'number' ? count : parseInt(count) || 0;
+  } catch (error) {
+    console.warn('[Optimization] Failed to get daily post count:', error.message);
+    return 0;
+  }
+}
+
+/**
+ * 1日の投稿数をインクリメント（Vercel KV）
+ * 統一実装: すべてのAPIファイルで使用
+ * @param {string} dateString - 日付文字列（YYYY-MM-DD）
+ * @param {number} count - インクリメント数（デフォルト: 1）
+ * @returns {Promise<number>} 更新後の投稿数
+ */
+async function incrementDailyPostCount(dateString, count = 1) {
+  let kv = null;
+  try {
+    const kvModule = require('@vercel/kv');
+    kv = kvModule.kv;
+  } catch (error) {
+    console.warn('[Optimization] @vercel/kv not available for daily post count');
+    return 0;
+  }
+  
+  if (!kv) {
+    return 0;
+  }
+  
+  try {
+    const key = `x:posts_count:${dateString}`;
+    const current = await getDailyPostCount(dateString);
+    const newCount = current + count;
+    await kv.set(key, newCount, { ex: 86400 * 2 }); // 2日間保持
+    return newCount;
+  } catch (error) {
+    console.warn('[Optimization] Failed to increment daily post count:', error.message);
+    return 0;
+  }
+}
+
+/**
  * 1日の投稿上限をチェック
  * インプレッション最大化: 総投稿数を35-45/日に増加（スパム判定回避しつつ最大化）
  */
@@ -555,6 +618,8 @@ module.exports = {
   getContentFormat,
   shouldPostQuoteRepost,
   checkDailyPostLimit,
+  getDailyPostCount,
+  incrementDailyPostCount,
   generateEngagementCTA,
   getTrendyHashtags,
   getLanguageEmojiStyle,

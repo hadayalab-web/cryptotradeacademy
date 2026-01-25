@@ -5,7 +5,7 @@
 const { postTweet, replyToTweet } = require('../services/x/client');
 const { getXConfigStatus } = require('../services/x/config');
 const { getTweetMetrics } = require('../services/x/metrics');
-const { getOptimizedHashtags } = require('../services/x/optimization');
+const { getOptimizedHashtags, getDailyPostCount, incrementDailyPostCount } = require('../services/x/optimization');
 const { getWhopProductUrl } = require('../services/telegram/whop-links');
 
 // 無料版（Minimal Version）メッセージ生成関数をインポート
@@ -145,35 +145,7 @@ function splitTextForThread(text, maxLength = 280) {
 /**
  * 1日の投稿数を取得（Vercel KV）
  */
-async function getDailyPostCount(dateString) {
-  if (!kv) return 0;
-  try {
-    // 別キーを使用して投稿履歴と競合しないようにする
-    const count = await kv.get(`x:posts_count:${dateString}`) || 0;
-    return typeof count === 'number' ? count : parseInt(count) || 0;
-  } catch (error) {
-    console.warn('[X Post Minimal] Failed to get daily post count:', error.message);
-    return 0;
-  }
-}
-
-/**
- * 1日の投稿数をインクリメント（Vercel KV）
- */
-async function incrementDailyPostCount(dateString, count = 1) {
-  if (!kv) return 0;
-  try {
-    // 別キーを使用して投稿履歴と競合しないようにする
-    const key = `x:posts_count:${dateString}`;
-    const current = await getDailyPostCount(dateString);
-    const newCount = current + count;
-    await kv.set(key, newCount, { ex: 86400 * 2 }); // 2日間保持
-    return newCount;
-  } catch (error) {
-    console.warn('[X Post Minimal] Failed to increment daily post count:', error.message);
-    return 0;
-  }
-}
+// getDailyPostCount と incrementDailyPostCount は services/x/optimization.js から統一実装を使用
 
 /**
  * 今日の無料版（Minimal Version）X投稿が既に実行されたかチェック

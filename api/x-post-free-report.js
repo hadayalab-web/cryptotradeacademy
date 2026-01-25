@@ -15,6 +15,8 @@ const {
   getLanguageEmojiStyle,
   optimizeHookText,
   generateVelocitySelfQuestions,
+  getDailyPostCount,
+  incrementDailyPostCount,
 } = require('../services/x/optimization');
 const { getWhopProductUrl } = require('../services/telegram/whop-links');
 const fs = require('fs');
@@ -656,38 +658,7 @@ ${question} #BTC
  * @param {string} dateString - 日付文字列（YYYY-MM-DD）
  * @returns {Promise<number>} 投稿数
  */
-async function getDailyPostCount(dateString) {
-  if (!kv) return 0;
-  try {
-    // 別キーを使用して投稿履歴と競合しないようにする
-    const count = await kv.get(`x:posts_count:${dateString}`) || 0;
-    return typeof count === 'number' ? count : parseInt(count) || 0;
-  } catch (error) {
-    console.warn('[X Post] Failed to get daily post count:', error.message);
-    return 0;
-  }
-}
-
-/**
- * 1日の投稿数をインクリメント（Vercel KV）
- * @param {string} dateString - 日付文字列（YYYY-MM-DD）
- * @param {number} count - インクリメント数（デフォルト: 1）
- * @returns {Promise<number>} 更新後の投稿数
- */
-async function incrementDailyPostCount(dateString, count = 1) {
-  if (!kv) return 0;
-  try {
-    // 別キーを使用して投稿履歴と競合しないようにする
-    const key = `x:posts_count:${dateString}`;
-    const current = await getDailyPostCount(dateString);
-    const newCount = current + count;
-    await kv.set(key, newCount, { ex: 86400 * 2 }); // 2日間保持
-    return newCount;
-  } catch (error) {
-    console.warn('[X Post] Failed to increment daily post count:', error.message);
-    return 0;
-  }
-}
+// getDailyPostCount と incrementDailyPostCount は services/x/optimization.js から統一実装を使用
 
 /**
  * 今日の無料版レポート投稿が既に実行されたかチェック（KVストレージ）
