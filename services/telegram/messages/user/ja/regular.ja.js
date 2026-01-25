@@ -43,6 +43,8 @@ function formatRegularBriefing({
   // ニュース番組構造用パラメータ
   gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
+  // Phase 2: 市場別深掘りデータ
+  whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -402,20 +404,37 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
     // 戦略的インサイトセクションを追加
     if (trapScoreForEvidence !== null) {
       const trapScoreRounded = Math.round(trapScoreForEvidence);
+      const marketScore = Math.round(score ?? 0);
+      const isBullish = marketScore >= 50;
+      const isLowTrapRisk = trapScoreRounded < 30;
+      
       lines.push('');
       lines.push(`💡 戦略的インサイト`);
       if (trapScoreRounded >= 70) {
         lines.push(`  🚨 トラップスコア ${trapScoreRounded}/100: 強いシグナルが潜在的な市場トラップを示しています`);
         lines.push(`  📊 データは複数のダイバージェンスとオンチェーン異常を示しています`);
-        lines.push(`  🛡️ 戦略的な準備は弱さではない—勝利の準備だ。70%の時間、勝利のために準備しよう`);
+        lines.push(`  🛡️ 戦略的な準備は弱さではない—勝利の準備だ。極度の注意を払おう`);
       } else if (trapScoreRounded >= 50) {
         lines.push(`  ⚡ トラップスコア ${trapScoreRounded}/100: 中程度のトラップ指標を検知しました`);
         lines.push(`  📊 一部のダイバージェンスが注意を促しています`);
-        lines.push(`  🛡️ 防御を最優先に。より明確な市場シグナルを待とう`);
+        lines.push(`  🛡️ 注意を払おう。行動を起こす前に市場状況を注意深く監視しよう`);
       } else {
-        lines.push(`  ✅ トラップスコア ${trapScoreRounded}/100: 現在は低トラップリスクですが、市場は常に変化します`);
-        lines.push(`  🛡️ 低リスク時こそ、戦略的な準備が重要です。明確な優位性が現れるまで防御を続けましょう`);
-        lines.push(`  💎 プロトレーダーは「待つ時間」を最優先します。あなたも同じ戦略を取りましょう`);
+        // 低リスク時：市場状況に応じたメッセージ
+        if (isLowTrapRisk && isBullish) {
+          // 低リスクかつ強気：より積極的なメッセージ
+          lines.push(`  ✅ トラップスコア ${trapScoreRounded}/100: 低トラップリスクが検出されました`);
+          lines.push(`  📈 市場状況は良好に見えます（スコア: ${marketScore}/100）。明確なエントリー機会を監視しよう`);
+          lines.push(`  💡 低リスク + 強気の勢い = 良好な条件。質の高いセットアップに注意を払おう`);
+        } else if (isLowTrapRisk) {
+          // 低リスクだが中立/弱気：標準的な防御メッセージ
+          lines.push(`  ✅ トラップスコア ${trapScoreRounded}/100: 現在は低トラップリスク`);
+          lines.push(`  🛡️ 市場状況は安定しています。規律を保ち、質の高い機会を待とう`);
+          lines.push(`  💡 忍耐は報われる。質の高いセットアップには低リスクと明確な市場方向の両方が必要`);
+        } else {
+          // フォールバック（scoreが取得できない場合）
+          lines.push(`  ✅ トラップスコア ${trapScoreRounded}/100: 現在は低トラップリスクですが、市場は常に変化します`);
+          lines.push(`  🛡️ 規律を保とう。状況を監視し、明確なシグナルを待とう`);
+        }
       }
     }
     lines.push('');
@@ -488,7 +507,33 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
   }
   
   lines.push('');
-
+  
+  // COO最適化: FOMO強化（有料版の価値を明確化）
+  // GPT評価に基づく改善: 3つのカテゴリに分類して価値を明確化
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('💎 これがこのレポートに支払った理由です');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+  lines.push('無料ユーザーはスコアのみを確認できますが、あなたは以下を取得できます：');
+  lines.push('');
+  lines.push('🎯 リアルタイムアクションシグナル：');
+  lines.push('✅ AVOID-LONG / AVOID-SHORT / STANDBYアラート（即座に通知）');
+  lines.push('✅ エグジットマップガイダンス（正確な退出タイミングを知る）');
+  lines.push('✅ NO TRADEアラート（損失が発生する前に回避）');
+  lines.push('');
+  lines.push('📊 深いインテリジェンス分析：');
+  lines.push('✅ 完全なオンチェーン分析（CryptoQuantデータ、すべての指標）');
+  lines.push('✅ AI駆動のトラップパターン検出（24時間監視）');
+  lines.push('✅ リアルタイムXセンチメント分析（市場の感情を先読み）');
+  lines.push('');
+  lines.push('💊 完全な心理的サポート：');
+  lines.push('✅ Dr. Grokのメンタルコーチング（FOMO、恐怖、貪欲を克服）');
+  lines.push('✅ パーソナライズされたメンタルトレーニングガイダンス');
+  lines.push('✅ 心理状態の診断とブロック解消');
+  lines.push('');
+  lines.push('🛡️ 1つの見逃したシグナル = 失われた資本。これがこのレポートに支払った理由です。');
+  lines.push('');
+  
   // ===== 基本市場データ（補足情報として後半に配置） =====
   lines.push(priceLine);
   lines.push(flowLine);
@@ -497,6 +542,23 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
   lines.push('');
 
   lines.push(scoreLine);
+  
+  // Whale Ratio情報（EN市場専用だが、他の言語でも表示可能）
+  // PR #14: whaleFlows の構造が { whaleRatio, isHighPressure, interpretation } に変更
+  // 重要: whaleFlowsが存在し、whaleRatioがnullでない場合に表示
+  if (whaleFlows && whaleFlows.whaleRatio != null) {
+    // whaleRatioは0-1の範囲の数値として返される（deepMetrics.js参照）
+    // パーセンテージに変換（0.56 -> 56%）
+    const whaleRatioValue = typeof whaleFlows.whaleRatio === 'number' 
+      ? whaleFlows.whaleRatio * 100 
+      : parseFloat(whaleFlows.whaleRatio) * 100 || 0;
+    const isHighPressure = whaleFlows.isHighPressure === true || whaleRatioValue >= 80;
+    const whaleLine = `🐋 クジラ比率: ${whaleRatioValue.toFixed(1)}% ${isHighPressure ? '(高圧力)' : '(正常)'}`;
+    lines.push(whaleLine);
+  } else if (whaleFlows) {
+    // デバッグ用: whaleFlowsは存在するがwhaleRatioがnullの場合
+    console.warn('[Regular JA] whaleFlows exists but whaleRatio is null:', whaleFlows);
+  }
 
   // Phase 2: Risk/Reward表示（JA市場専用）
   if (riskReward != null) {

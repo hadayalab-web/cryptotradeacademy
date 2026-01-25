@@ -245,6 +245,15 @@ function formatRegularBriefing({
     );
     if (isError) {
       gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
+    } else {
+      // EN版で日本語が混在している場合、フィルタリング（日本語文字を検出）
+      // 日本語文字の正規表現: ひらがな、カタカナ、漢字
+      // 重要: このチェックはエラーチェックの後に実行（エラーでない場合のみ）
+      const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
+      if (japanesePattern.test(gptNewsText)) {
+        console.warn('[Regular EN] Japanese characters detected in GPT analysis, using fallback');
+        gptNewsText = null; // 日本語が含まれている場合はnullに設定してフォールバック
+      }
     }
   }
   
@@ -419,20 +428,37 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
       // 戦略的インサイトセクションを追加
       if (trapScoreForEvidence !== null) {
         const trapScoreRounded = Math.round(trapScoreForEvidence);
+        const marketScore = Math.round(score ?? 0);
+        const isBullish = marketScore >= 50;
+        const isLowTrapRisk = trapScoreRounded < 30;
+        
         lines.push('');
         lines.push(`💡 Strategic Insights`);
         if (trapScoreRounded >= 70) {
           lines.push(`  🚨 Trap Score ${trapScoreRounded}/100: Strong signals indicate potential market traps`);
           lines.push(`  📊 The data shows multiple divergences and on-chain anomalies`);
-          lines.push(`  🛡️ Strategic preparation is not weakness—it's victory preparation. 70% of the time, prepare for victory`);
+          lines.push(`  🛡️ Strategic preparation is not weakness—it's victory preparation. Exercise extreme caution`);
         } else if (trapScoreRounded >= 50) {
           lines.push(`  ⚡ Trap Score ${trapScoreRounded}/100: Moderate trap indicators detected`);
           lines.push(`  📊 Some divergences suggest caution`);
-          lines.push(`  🛡️ Defense first. Prepare for victory—wait for clearer market signals`);
+          lines.push(`  🛡️ Exercise caution. Monitor market conditions closely before taking action`);
         } else {
-          lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk, but markets always change`);
-          lines.push(`  🛡️ Low-risk times are when strategic preparation matters most. Continue defense until clear advantage emerges`);
-          lines.push(`  💎 Professional traders prioritize "waiting time" above all. Take the same strategy`);
+          // 低リスク時：市場状況に応じたメッセージ
+          if (isLowTrapRisk && isBullish) {
+            // 低リスクかつ強気：より積極的なメッセージ
+            lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Low trap risk detected`);
+            lines.push(`  📈 Market conditions appear favorable (Score: ${marketScore}/100). Monitor for clear entry opportunities`);
+            lines.push(`  💡 Low risk + bullish momentum = favorable conditions. Stay alert for quality setups`);
+          } else if (isLowTrapRisk) {
+            // 低リスクだが中立/弱気：標準的な防御メッセージ
+            lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk`);
+            lines.push(`  🛡️ Market conditions are stable. Maintain discipline and wait for high-quality opportunities`);
+            lines.push(`  💡 Patience pays. Quality setups require both low risk and clear market direction`);
+          } else {
+            // フォールバック（scoreが取得できない場合）
+            lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk, but markets always change`);
+            lines.push(`  🛡️ Maintain discipline. Monitor conditions and wait for clear signals`);
+          }
         }
       }
       lines.push('');
@@ -495,20 +521,37 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
       // 戦略的インサイトセクションを追加
       if (trapScoreForEvidence !== null) {
         const trapScoreRounded = Math.round(trapScoreForEvidence);
+        const marketScore = Math.round(score ?? 0);
+        const isBullish = marketScore >= 50;
+        const isLowTrapRisk = trapScoreRounded < 30;
+        
         lines.push('');
         lines.push(`💡 Strategic Insights`);
         if (trapScoreRounded >= 70) {
           lines.push(`  🚨 Trap Score ${trapScoreRounded}/100: Strong signals indicate potential market traps`);
           lines.push(`  📊 The data shows multiple divergences and on-chain anomalies`);
-          lines.push(`  🛡️ Strategic preparation is not weakness—it's victory preparation. 70% of the time, prepare for victory`);
+          lines.push(`  🛡️ Strategic preparation is not weakness—it's victory preparation. Exercise extreme caution`);
         } else if (trapScoreRounded >= 50) {
           lines.push(`  ⚡ Trap Score ${trapScoreRounded}/100: Moderate trap indicators detected`);
           lines.push(`  📊 Some divergences suggest caution`);
-          lines.push(`  🛡️ Defense first. Prepare for victory—wait for clearer market signals`);
+          lines.push(`  🛡️ Exercise caution. Monitor market conditions closely before taking action`);
         } else {
-          lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk, but markets always change`);
-          lines.push(`  🛡️ Low-risk times are when strategic preparation matters most. Continue defense until clear advantage emerges`);
-          lines.push(`  💎 Professional traders prioritize "waiting time" above all. Take the same strategy`);
+          // 低リスク時：市場状況に応じたメッセージ
+          if (isLowTrapRisk && isBullish) {
+            // 低リスクかつ強気：より積極的なメッセージ
+            lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Low trap risk detected`);
+            lines.push(`  📈 Market conditions appear favorable (Score: ${marketScore}/100). Monitor for clear entry opportunities`);
+            lines.push(`  💡 Low risk + bullish momentum = favorable conditions. Stay alert for quality setups`);
+          } else if (isLowTrapRisk) {
+            // 低リスクだが中立/弱気：標準的な防御メッセージ
+            lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk`);
+            lines.push(`  🛡️ Market conditions are stable. Maintain discipline and wait for high-quality opportunities`);
+            lines.push(`  💡 Patience pays. Quality setups require both low risk and clear market direction`);
+          } else {
+            // フォールバック（scoreが取得できない場合）
+            lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk, but markets always change`);
+            lines.push(`  🛡️ Maintain discipline. Monitor conditions and wait for clear signals`);
+          }
         }
       }
       lines.push('');
@@ -606,18 +649,29 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
   lines.push('');
 
   // COO最適化: FOMO強化（有料版の価値を明確化）
+  // GPT評価に基づく改善: より具体的な利点と価値を強調
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('💎 THIS IS WHY YOU PAID FOR THIS REPORT');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
   lines.push('While free users see only the score, YOU get:');
-  lines.push('✅ Deep on-chain analysis (CryptoQuant data)');
-  lines.push('✅ Psychological interpretation');
-  lines.push('✅ Trap pattern detection');
-  lines.push('✅ Dr. Grok\'s mental support');
-  lines.push('✅ Real-time risk assessment');
   lines.push('');
-  lines.push('🛡️ One missed signal = Lost capital. Are you prepared?');
+  lines.push('🎯 Real-Time Action Signals:');
+  lines.push('✅ AVOID-LONG / AVOID-SHORT / STANDBY alerts (instant notifications)');
+  lines.push('✅ Exit Map guidance (know exactly when to exit)');
+  lines.push('✅ NO TRADE alerts (avoid losses before they happen)');
+  lines.push('');
+  lines.push('📊 Deep Intelligence Analysis:');
+  lines.push('✅ Complete on-chain analysis (CryptoQuant data, all indicators)');
+  lines.push('✅ AI-powered trap pattern detection (24/7 monitoring)');
+  lines.push('✅ Real-time X sentiment analysis (predict market emotions)');
+  lines.push('');
+  lines.push('💊 Full Psychological Support:');
+  lines.push('✅ Dr. Grok\'s mental coaching (overcome FOMO, FEAR, GREED)');
+  lines.push('✅ Personalized mental training guidance');
+  lines.push('✅ Psychological state diagnosis & block resolution');
+  lines.push('');
+  lines.push('🛡️ One missed signal = Lost capital. This is why you paid for this report.');
   lines.push('');
 
   // ===== 基本市場データ（補足情報として後半に配置） =====
@@ -633,42 +687,53 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
   // Phase 2: trapScore表示（EN市場専用）- 視覚的に強調（絵文字と空白行で強調）
   // 優先順位: trapDetection.trapScore > trapScoreパラメータ > trapRisk.trapRiskScore
   let displayTrapScore = null;
-  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
+  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore >= 0) {
     displayTrapScore = trapDetection.trapScore;
-  } else if (trapScore != null && trapScore > 0) {
+  } else if (trapScore != null && trapScore >= 0) {
     displayTrapScore = trapScore;
-  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
+  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore >= 0) {
     displayTrapScore = trapRisk.trapRiskScore;
   }
   
-  if (displayTrapScore != null) {
+  // Trap Scoreを表示（0以上の場合）
+  if (displayTrapScore != null && displayTrapScore >= 0) {
     const trapScoreRounded = Math.round(displayTrapScore);
     const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 HIGH RISK' : displayTrapScore >= 40 ? '⚠️ MODERATE' : '✅ LOW';
     // 太字は使わず、絵文字と空白行で視覚的に強調
     const trapScoreLine = `🎯 Trap Score: ${trapScoreRounded}/100 ${trapScoreEmoji}`;
     lines.push(trapScoreLine);
     lines.push(''); // Trap Scoreの後に空白行を追加して視覚的に強調
+  }
 
-    // Whale Ratio情報（EN市場専用）
-    // PR #14: whaleFlows の構造が { whaleRatio, isHighPressure, interpretation } に変更
-    if (whaleFlows && whaleFlows.whaleRatio != null) {
-      const whaleLine = `🐋 Whale Ratio: ${(whaleFlows.whaleRatio * 100).toFixed(1)}% ${whaleFlows.isHighPressure ? '(High Pressure)' : '(Normal)'}`;
-      lines.push(whaleLine);
-    }
+  // Whale Ratio情報（EN市場専用）- Trap Scoreがnullでも表示
+  // PR #14: whaleFlows の構造が { whaleRatio, isHighPressure, interpretation } に変更
+  // 重要: whaleFlowsが存在し、whaleRatioがnullでない場合に表示
+  if (whaleFlows && whaleFlows.whaleRatio != null) {
+    // whaleRatioは0-1の範囲の数値として返される（deepMetrics.js参照）
+    // パーセンテージに変換（0.56 -> 56%）
+    const whaleRatioValue = typeof whaleFlows.whaleRatio === 'number' 
+      ? whaleFlows.whaleRatio * 100 
+      : parseFloat(whaleFlows.whaleRatio) * 100 || 0;
+    const isHighPressure = whaleFlows.isHighPressure === true || whaleRatioValue >= 80;
+    const whaleLine = `🐋 Whale Ratio: ${whaleRatioValue.toFixed(1)}% ${isHighPressure ? '(High Pressure)' : '(Normal)'}`;
+    lines.push(whaleLine);
+  } else if (whaleFlows) {
+    // デバッグ用: whaleFlowsは存在するがwhaleRatioがnullの場合
+    console.warn('[Regular EN] whaleFlows exists but whaleRatio is null:', whaleFlows);
+  }
 
-    // Liquidations情報（EN市場専用）
-    // PR #14: liquidations の構造が { longLiquidations, shortLiquidations, totalLiquidations } に変更
-    const totalLiquidations = typeof liquidations === 'number' 
-      ? liquidations 
-      : (liquidations?.totalLiquidations ?? 0);
-    if (totalLiquidations > 0) {
-      if (typeof liquidations === 'object' && liquidations.longLiquidations != null && liquidations.shortLiquidations != null) {
-        const liqLine = `💥 24h Liquidations: ${formatUsd(totalLiquidations)} (Long: ${formatUsd(liquidations.longLiquidations)}, Short: ${formatUsd(liquidations.shortLiquidations)})`;
-        lines.push(liqLine);
-      } else {
-        const liqLine = `💥 24h Liquidations: ${formatUsd(totalLiquidations)}`;
-        lines.push(liqLine);
-      }
+  // Liquidations情報（EN市場専用）- Trap Scoreがnullでも表示
+  // PR #14: liquidations の構造が { longLiquidations, shortLiquidations, totalLiquidations } に変更
+  const totalLiquidations = typeof liquidations === 'number' 
+    ? liquidations 
+    : (liquidations?.totalLiquidations ?? 0);
+  if (totalLiquidations > 0) {
+    if (typeof liquidations === 'object' && liquidations.longLiquidations != null && liquidations.shortLiquidations != null) {
+      const liqLine = `💥 24h Liquidations: ${formatUsd(totalLiquidations)} (Long: ${formatUsd(liquidations.longLiquidations)}, Short: ${formatUsd(liquidations.shortLiquidations)})`;
+      lines.push(liqLine);
+    } else {
+      const liqLine = `💥 24h Liquidations: ${formatUsd(totalLiquidations)}`;
+      lines.push(liqLine);
     }
   }
 

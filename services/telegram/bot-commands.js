@@ -33,9 +33,9 @@ function parseStartParam(param) {
     return { lang: null, referralCode: null, source: 'telegram' };
   }
 
-  // 2. "minimal_en_x", "minimal_ja_x_quote" などのパターン（ソース追跡付き）
-  // パターン: minimal_[lang]_[source] または minimal_[lang]_x_quote
-  const minimalWithSourceMatch = normalized.match(/^minimal[_-](ja|en|es|pt[-_]?br|ar|ko|jp|kr)(?:_(x(?:_quote)?))?$/);
+  // 2. "minimal_en_x", "minimal_ja_x_quote", "minimal_en_x_minimal" などのパターン（ソース追跡付き）
+  // パターン: minimal_[lang]_[source] または minimal_[lang]_x_quote または minimal_[lang]_x_minimal
+  const minimalWithSourceMatch = normalized.match(/^minimal[_-](ja|en|es|pt[-_]?br|ar|ko|jp|kr)(?:_(x(?:_(?:quote|minimal))?))?$/);
   if (minimalWithSourceMatch) {
     let langCode = minimalWithSourceMatch[1];
     const sourcePart = minimalWithSourceMatch[2] || null;
@@ -51,6 +51,8 @@ function parseStartParam(param) {
       source = 'x_direct';
     } else if (sourcePart === 'x_quote') {
       source = 'x_quote';
+    } else if (sourcePart === 'x_minimal') {
+      source = 'x_minimal';
     }
     
     return { lang: normalizeLang(langCode), referralCode: null, source };
@@ -126,17 +128,31 @@ async function handleCallbackQuery(query) {
     if (data === 'action_saved') {
       const userId = from.id.toString();
       
-      // カウントアップ
-      const counts = incrementSavedCount(userId);
-      
-      // ユーザーにフィードバック（ポップアップ通知）
-      // answerCallbackQuery を使用（showAlert: trueで通知を表示）
-      const notificationText = `🔥 Defense Confirmed! (Today: ${counts.today} protected)`;
-      await answerCallbackQuery(id, notificationText, true);
-      
-      console.log(`[BotCommands] Callback query processed: action_saved for user ${userId}, counts:`, counts);
-      
-      return { success: true, action: 'saved', counts };
+      try {
+        // カウントアップ（非同期、重複防止機能付き）
+        const counts = await incrementSavedCount(userId);
+        
+        // ユーザーにフィードバック（ポップアップ通知）
+        // answerCallbackQuery を使用（showAlert: trueで通知を表示）
+        let notificationText;
+        if (counts.isNewUser) {
+          // 新規ユーザーの場合：カウントを表示
+          notificationText = `🔥 Defense Confirmed! (Today: ${counts.today} protected)`;
+        } else {
+          // 既にクリック済みの場合：別のメッセージを表示
+          notificationText = `🔥 You've already confirmed today! (Today: ${counts.today} protected)`;
+        }
+        await answerCallbackQuery(id, notificationText, true);
+        
+        console.log(`[BotCommands] Callback query processed: action_saved for user ${userId}, counts:`, counts);
+        
+        return { success: true, action: 'saved', counts };
+      } catch (error) {
+        console.error(`[BotCommands] Error processing action_saved for user ${userId}:`, error.message);
+        // エラー時も通知を表示（カウントは失敗してもユーザー体験を損なわない）
+        await answerCallbackQuery(id, '🔥 Defense Confirmed!', false);
+        return { success: false, error: error.message };
+      }
     }
     
     // 未知のアクション

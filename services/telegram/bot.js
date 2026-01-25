@@ -53,7 +53,7 @@ function resolveMinimalChatId(langCode) {
 }
 
 if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-  console.warn("⚠️ TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set in .env.local");
+  console.warn("⚠️ TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set in environment variables");
 }
 
 /**

@@ -40,6 +40,8 @@ function formatRegularBriefing({
   // ニュース番組構造用パラメータ
   gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
+  // Phase 2: 市場別深掘りデータ
+  whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -220,9 +222,18 @@ function formatRegularBriefing({
     if (isError) {
       gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
     } else {
-      // AR市場用: アラビア語以外の言語が混入している場合を検出（アラビア文字が含まれていない場合は英文と判断）
+      // AR市場用: アラビア語以外の言語が混入している場合を検出
+      // エラーでない場合のみ言語チェックを実行
+      // アラビア文字が含まれていない場合は英文と判断
       const hasArabicChars = /[\u0600-\u06FF]/.test(gptNewsText);
-      if (!hasArabicChars && gptNewsText.length > 50) {
+      // 日本語・英語・その他の言語が混入している場合を検出
+      const hasJapaneseChars = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(gptNewsText);
+      const hasEnglishOnly = !hasArabicChars && !hasJapaneseChars && gptNewsText.length > 50;
+      if (hasJapaneseChars || (hasEnglishOnly && !hasArabicChars)) {
+        // 日本語または英語のみが含まれている場合はnullに設定してアラビア語フォールバックを使用
+        console.warn('[Regular AR] Non-Arabic language detected in GPT analysis, using fallback');
+        gptNewsText = null;
+      } else if (!hasArabicChars && gptNewsText.length > 50) {
         // アラビア語が含まれていない場合はnullに設定してアラビア語フォールバックを使用
         gptNewsText = null;
       }
@@ -362,20 +373,37 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
     // 戦略的インサイトセクションを追加
     if (trapScoreForEvidence !== null) {
       const trapScoreRounded = Math.round(trapScoreForEvidence);
+      const marketScore = Math.round(score ?? 0);
+      const isBullish = marketScore >= 50;
+      const isLowTrapRisk = trapScoreRounded < 30;
+      
       lines.push('');
       lines.push(`💡 رؤى استراتيجية`);
       if (trapScoreRounded >= 70) {
         lines.push(`  🚨 درجة الفخ ${trapScoreRounded}/100: إشارات قوية تشير إلى فخاخ سوق محتملة`);
         lines.push(`  📊 تُظهر البيانات انحرافات متعددة وانحرافات on-chain`);
-        lines.push(`  🛡️ الاستعداد الاستراتيجي ليس ضعفاً—إنه استعداد للنصر. 70% من الوقت، استعد للنصر`);
+        lines.push(`  🛡️ الاستعداد الاستراتيجي ليس ضعفاً—إنه استعداد للنصر. مارس الحذر الشديد`);
       } else if (trapScoreRounded >= 50) {
         lines.push(`  ⚡ درجة الفخ ${trapScoreRounded}/100: تم اكتشاف مؤشرات فخ معتدلة`);
         lines.push(`  📊 بعض الانحرافات تشير إلى الحذر`);
-        lines.push(`  🛡️ الدفاع أولاً. استعد للنصر—انتظر إشارات سوق أوضح`);
+        lines.push(`  🛡️ مارس الحذر. راقب ظروف السوق عن كثب قبل اتخاذ إجراء`);
       } else {
-        lines.push(`  ✅ درجة الفخ ${trapScoreRounded}/100: مخاطر فخ منخفضة حالياً، لكن الأسواق تتغير دائماً`);
-        lines.push(`  🛡️ أوقات المخاطر المنخفضة هي عندما يهم الاستعداد الاستراتيجي أكثر. استمر في الدفاع حتى تظهر أفضلية واضحة`);
-        lines.push(`  💎 المتداولون المحترفون يعطون الأولوية لـ"وقت الانتظار" فوق كل شيء. اتخذ نفس الاستراتيجية`);
+        // مخاطر منخفضة: رسالة حسب ظروف السوق
+        if (isLowTrapRisk && isBullish) {
+          // مخاطر منخفضة وصاعدة: رسالة أكثر نشاطاً
+          lines.push(`  ✅ درجة الفخ ${trapScoreRounded}/100: تم اكتشاف مخاطر فخ منخفضة`);
+          lines.push(`  📈 ظروف السوق تبدو مواتية (النقاط: ${marketScore}/100). راقب فرص الدخول الواضحة`);
+          lines.push(`  💡 مخاطر منخفضة + زخم صاعد = ظروف مواتية. ابق متيقظاً لإعدادات الجودة`);
+        } else if (isLowTrapRisk) {
+          // مخاطر منخفضة لكن محايدة/هابطة: رسالة دفاع قياسية
+          lines.push(`  ✅ درجة الفخ ${trapScoreRounded}/100: مخاطر فخ منخفضة حالياً`);
+          lines.push(`  🛡️ ظروف السوق مستقرة. حافظ على الانضباط وانتظر فرص عالية الجودة`);
+          lines.push(`  💡 الصبر يؤتي ثماره. إعدادات الجودة تتطلب مخاطر منخفضة واتجاه سوق واضح`);
+        } else {
+          // Fallback (إذا لم يتم الحصول على النقاط)
+          lines.push(`  ✅ درجة الفخ ${trapScoreRounded}/100: مخاطر فخ منخفضة حالياً، لكن الأسواق تتغير دائماً`);
+          lines.push(`  🛡️ حافظ على الانضباط. راقب الظروف وانتظر إشارات واضحة`);
+        }
       }
     }
     lines.push('');
@@ -457,18 +485,29 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
   lines.push('');
 
   // COO最適化: FOMO強化（有料版の価値を明確化）
+  // تحسين بناءً على تقييم GPT: توضيح القيمة في 3 فئات
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('💎 هذا هو سبب دفعك لهذا التقرير');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
   lines.push('بينما يرى المستخدمون المجانيون النقاط فقط، أنت تحصل على:');
-  lines.push('✅ تحليل عميق on-chain (بيانات CryptoQuant)');
-  lines.push('✅ التفسير النفسي');
-  lines.push('✅ اكتشاف أنماط الفخاخ');
-  lines.push('✅ الدعم النفسي من Dr. Grok');
-  lines.push('✅ تقييم المخاطر في الوقت الفعلي');
   lines.push('');
-  lines.push('🛡️ إشارة واحدة مفقودة = رأس مال مفقود. هل أنت مستعد؟');
+  lines.push('🎯 إشارات العمل في الوقت الفعلي:');
+  lines.push('✅ تنبيهات AVOID-LONG / AVOID-SHORT / STANDBY (إشعارات فورية)');
+  lines.push('✅ دليل خريطة الخروج (معرفة متى تخرج بالضبط)');
+  lines.push('✅ تنبيهات NO TRADE (تجنب الخسائر قبل حدوثها)');
+  lines.push('');
+  lines.push('📊 تحليل الاستخبارات العميق:');
+  lines.push('✅ تحليل on-chain كامل (بيانات CryptoQuant، جميع المؤشرات)');
+  lines.push('✅ اكتشاف أنماط الفخاخ المدعوم بالذكاء الاصطناعي (مراقبة على مدار الساعة)');
+  lines.push('✅ تحليل مشاعر X في الوقت الفعلي (توقع مشاعر السوق)');
+  lines.push('');
+  lines.push('💊 الدعم النفسي الكامل:');
+  lines.push('✅ التدريب النفسي من Dr. Grok (التغلب على FOMO، الخوف، الجشع)');
+  lines.push('✅ دليل التدريب العقلي المخصص');
+  lines.push('✅ تشخيص الحالة النفسية وحل العوائق');
+  lines.push('');
+  lines.push('🛡️ إشارة واحدة مفقودة = رأس مال مفقود. هذا هو سبب دفعك لهذا التقرير.');
   lines.push('');
 
   // ===== 基本市場データ（補足情報として後半に配置） =====
@@ -479,6 +518,23 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
   lines.push('');
 
   lines.push(scoreLine);
+  
+  // Whale Ratio情報（EN市場専用だが、他の言語でも表示可能）
+  // PR #14: whaleFlows の構造が { whaleRatio, isHighPressure, interpretation } に変更
+  // 重要: whaleFlowsが存在し、whaleRatioがnullでない場合に表示
+  if (whaleFlows && whaleFlows.whaleRatio != null) {
+    // whaleRatioは0-1の範囲の数値として返される（deepMetrics.js参照）
+    // パーセンテージに変換（0.56 -> 56%）
+    const whaleRatioValue = typeof whaleFlows.whaleRatio === 'number' 
+      ? whaleFlows.whaleRatio * 100 
+      : parseFloat(whaleFlows.whaleRatio) * 100 || 0;
+    const isHighPressure = whaleFlows.isHighPressure === true || whaleRatioValue >= 80;
+    const whaleLine = `🐋 نسبة الحيتان: ${whaleRatioValue.toFixed(1)}% ${isHighPressure ? '(ضغط عالي)' : '(عادي)'}`;
+    lines.push(whaleLine);
+  } else if (whaleFlows) {
+    // デバッグ用: whaleFlowsは存在するがwhaleRatioがnullの場合
+    console.warn('[Regular AR] whaleFlows exists but whaleRatio is null:', whaleFlows);
+  }
   
   // Phase1-Product: Trap Riskスコア表示
   if (trapRisk && trapRisk.trapRiskScore != null) {

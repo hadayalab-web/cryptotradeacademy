@@ -42,6 +42,8 @@ function formatRegularBriefing({
   // ニュース番組構造用パラメータ
   gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
+  // Phase 2: 市場別深掘りデータ
+  whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -231,9 +233,18 @@ function formatRegularBriefing({
     if (isError) {
       gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
     } else {
-      // KO市場用: 韓国語以外の言語が混入している場合を検出（ハングルが含まれていない場合は英文と判断）
+      // KO市場用: 韓国語以外の言語が混入している場合を検出
+      // エラーでない場合のみ言語チェックを実行
+      // ハングルが含まれていない場合は英文と判断
       const hasKoreanChars = /[\uAC00-\uD7AF]/.test(gptNewsText);
-      if (!hasKoreanChars && gptNewsText.length > 50) {
+      // 日本語・英語・その他の言語が混入している場合を検出
+      const hasJapaneseChars = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(gptNewsText);
+      const hasEnglishOnly = !hasKoreanChars && !hasJapaneseChars && gptNewsText.length > 50;
+      if (hasJapaneseChars || (hasEnglishOnly && !hasKoreanChars)) {
+        // 日本語または英語のみが含まれている場合はnullに設定して韓国語フォールバックを使用
+        console.warn('[Regular KO] Non-Korean language detected in GPT analysis, using fallback');
+        gptNewsText = null;
+      } else if (!hasKoreanChars && gptNewsText.length > 50) {
         // 韓国語が含まれていない場合はnullに設定して韓国語フォールバックを使用
         gptNewsText = null;
       }
@@ -396,20 +407,37 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
     // 戦略的インサイトセクションを追加
     if (trapScoreForEvidence !== null) {
       const trapScoreRounded = Math.round(trapScoreForEvidence);
+      const marketScore = Math.round(score ?? 0);
+      const isBullish = marketScore >= 50;
+      const isLowTrapRisk = trapScoreRounded < 30;
+      
       lines.push('');
       lines.push(`💡 전략적 인사이트`);
       if (trapScoreRounded >= 70) {
         lines.push(`  🚨 트랩 점수 ${trapScoreRounded}/100: 강한 신호가 잠재적인 시장 트랩을 나타냅니다.`);
         lines.push(`  📊 데이터는 다중 다이버전스와 온체인 이상을 보여줍니다.`);
-        lines.push(`  🛡️ 전략적 준비는 약점이 아닙니다—승리 준비입니다. 70%의 시간은 승리 준비를 하세요.`);
+        lines.push(`  🛡️ 전략적 준비는 약점이 아닙니다—승리 준비입니다. 극도의 주의를 기울이세요.`);
       } else if (trapScoreRounded >= 50) {
         lines.push(`  ⚡ 트랩 점수 ${trapScoreRounded}/100: 중간 정도의 트랩 지표가 감지되었습니다.`);
         lines.push(`  📊 일부 다이버전스가 주의를 촉구합니다.`);
-        lines.push(`  🛡️ 방어를 최우선으로. 승리 준비를—더 명확한 시장 신호를 기다리세요.`);
+        lines.push(`  🛡️ 주의를 기울이세요. 행동하기 전에 시장 상황을 면밀히 모니터링하세요.`);
       } else {
-        lines.push(`  ✅ 트랩 점수 ${trapScoreRounded}/100: 현재 낮은 트랩 위험이지만 시장은 항상 변합니다.`);
-        lines.push(`  🛡️ 낮은 위험 시기가 전략적 준비가 가장 중요한 때입니다. 명확한 우위가 나타날 때까지 방어를 계속하세요.`);
-        lines.push(`  💎 전문 트레이더는 무엇보다 "대기 시간"을 우선시합니다. 같은 전략을 취하세요.`);
+        // 낮은 리스크: 시장 상황에 따른 메시지
+        if (isLowTrapRisk && isBullish) {
+          // 낮은 리스크 및 강세: 더 적극적인 메시지
+          lines.push(`  ✅ 트랩 점수 ${trapScoreRounded}/100: 낮은 트랩 리스크가 감지되었습니다.`);
+          lines.push(`  📈 시장 상황이 유리해 보입니다 (점수: ${marketScore}/100). 명확한 진입 기회를 모니터링하세요.`);
+          lines.push(`  💡 낮은 리스크 + 강세 모멘텀 = 유리한 조건. 품질 있는 설정에 주의를 기울이세요.`);
+        } else if (isLowTrapRisk) {
+          // 낮은 리스크이지만 중립/약세: 표준 방어 메시지
+          lines.push(`  ✅ 트랩 점수 ${trapScoreRounded}/100: 현재 낮은 트랩 위험`);
+          lines.push(`  🛡️ 시장 상황이 안정적입니다. 규율을 유지하고 고품질 기회를 기다리세요.`);
+          lines.push(`  💡 인내는 보상받습니다. 품질 있는 설정은 낮은 리스크와 명확한 시장 방향 모두가 필요합니다.`);
+        } else {
+          // Fallback (점수를 얻을 수 없는 경우)
+          lines.push(`  ✅ 트랩 점수 ${trapScoreRounded}/100: 현재 낮은 트랩 위험이지만 시장은 항상 변합니다.`);
+          lines.push(`  🛡️ 규율을 유지하세요. 상황을 모니터링하고 명확한 신호를 기다리세요.`);
+        }
       }
     }
     lines.push('');
@@ -480,18 +508,29 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
   lines.push('');
 
   // COO最適化: FOMO強化（有料版の価値を明確化）
+  // GPT 평가 기반 개선: 3개 카테고리로 가치 명확화
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('💎 이것이 유료 리포트를 선택한 이유');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
   lines.push('무료 사용자는 점수만 볼 수 있지만, 당신은 다음을 얻습니다:');
-  lines.push('✅ 심층 온체인 분석 (CryptoQuant 데이터)');
-  lines.push('✅ 심리적 해석');
-  lines.push('✅ 트랩 패턴 감지');
-  lines.push('✅ Dr. Grok의 멘탈 지원');
-  lines.push('✅ 실시간 위험 평가');
   lines.push('');
-  lines.push('🛡️ 하나의 신호를 놓치면 = 자본 손실. 준비되어 있습니까?');
+  lines.push('🎯 실시간 액션 신호:');
+  lines.push('✅ AVOID-LONG / AVOID-SHORT / STANDBY 알림（즉시 알림）');
+  lines.push('✅ 출구 지도 가이드（정확히 언제 나갈지 알기）');
+  lines.push('✅ NO TRADE 알림（손실이 발생하기 전에 피하기）');
+  lines.push('');
+  lines.push('📊 심층 인텔리전스 분석:');
+  lines.push('✅ 완전한 온체인 분석（CryptoQuant 데이터, 모든 지표）');
+  lines.push('✅ AI 기반 트랩 패턴 감지（24시간 모니터링）');
+  lines.push('✅ 실시간 X 센티먼트 분석（시장 감정 예측）');
+  lines.push('');
+  lines.push('💊 완전한 심리적 지원:');
+  lines.push('✅ Dr. Grok의 멘탈 코칭（FOMO, 두려움, 탐욕 극복）');
+  lines.push('✅ 맞춤형 멘탈 트레이닝 가이드');
+  lines.push('✅ 심리 상태 진단 및 블록 해결');
+  lines.push('');
+  lines.push('🛡️ 하나의 신호를 놓치면 = 자본 손실. 이것이 유료 리포트를 선택한 이유입니다.');
   lines.push('');
 
   // ===== 基本市場データ（補足情報として後半に配置） =====
@@ -502,6 +541,23 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
   lines.push('');
 
   lines.push(scoreLine);
+  
+  // Whale Ratio情報（EN市場専用だが、他の言語でも表示可能）
+  // PR #14: whaleFlows の構造が { whaleRatio, isHighPressure, interpretation } に変更
+  // 重要: whaleFlowsが存在し、whaleRatioがnullでない場合に表示
+  if (whaleFlows && whaleFlows.whaleRatio != null) {
+    // whaleRatioは0-1の範囲の数値として返される（deepMetrics.js参照）
+    // パーセンテージに変換（0.56 -> 56%）
+    const whaleRatioValue = typeof whaleFlows.whaleRatio === 'number' 
+      ? whaleFlows.whaleRatio * 100 
+      : parseFloat(whaleFlows.whaleRatio) * 100 || 0;
+    const isHighPressure = whaleFlows.isHighPressure === true || whaleRatioValue >= 80;
+    const whaleLine = `🐋 고래 비율: ${whaleRatioValue.toFixed(1)}% ${isHighPressure ? '(높은 압력)' : '(정상)'}`;
+    lines.push(whaleLine);
+  } else if (whaleFlows) {
+    // デバッグ用: whaleFlowsは存在するがwhaleRatioがnullの場合
+    console.warn('[Regular KO] whaleFlows exists but whaleRatio is null:', whaleFlows);
+  }
 
   // Phase 2: Kimchi Premium表示（KO市場専用）
   if (kimchiPremium != null) {

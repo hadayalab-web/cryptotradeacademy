@@ -40,6 +40,8 @@ function formatRegularBriefing({
   // ニュース番組構造用パラメータ
   gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
+  // Phase 2: 市場別深掘りデータ
+  whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -221,10 +223,18 @@ function formatRegularBriefing({
       gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
     } else {
       // ES市場用: スペイン語以外の言語が混入している場合を検出
+      // エラーでない場合のみ言語チェックを実行
       // スペイン語特有の文字（ñ, á, é, í, ó, ú, ü）またはスペイン語の一般的な単語が含まれているかチェック
       const hasSpanishChars = /[ñáéíóúüÑÁÉÍÓÚÜ]/.test(gptNewsText);
       const hasSpanishWords = /\b(el|la|los|las|de|del|en|es|está|son|con|por|para|que|un|una|más|muy|también|como|pero|si|no|sí|muy|bien|más|menos|muy|tan|tanto|todos|todas|este|esta|estos|estas|ese|esa|esos|esas|aquel|aquella|aquellos|aquellas)\b/i.test(gptNewsText);
-      if (!hasSpanishChars && !hasSpanishWords && gptNewsText.length > 50) {
+      // 日本語・英語・その他の言語が混入している場合を検出
+      const hasJapaneseChars = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(gptNewsText);
+      const hasEnglishOnly = !hasSpanishChars && !hasSpanishWords && !hasJapaneseChars && gptNewsText.length > 50;
+      if (hasJapaneseChars || (hasEnglishOnly && !hasSpanishChars && !hasSpanishWords)) {
+        // 日本語または英語のみが含まれている場合はnullに設定してスペイン語フォールバックを使用
+        console.warn('[Regular ES] Non-Spanish language detected in GPT analysis, using fallback');
+        gptNewsText = null;
+      } else if (!hasSpanishChars && !hasSpanishWords && gptNewsText.length > 50) {
         // スペイン語が含まれていない場合はnullに設定してスペイン語フォールバックを使用
         gptNewsText = null;
       }
@@ -364,20 +374,37 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICCIÓN: Puntuación de bajo riesgo
     // 戦略的インサイトセクションを追加
     if (trapScoreForEvidence !== null) {
       const trapScoreRounded = Math.round(trapScoreForEvidence);
+      const marketScore = Math.round(score ?? 0);
+      const isBullish = marketScore >= 50;
+      const isLowTrapRisk = trapScoreRounded < 30;
+      
       lines.push('');
       lines.push(`💡 Insights Estratégicos`);
       if (trapScoreRounded >= 70) {
         lines.push(`  🚨 Puntuación de Trampa ${trapScoreRounded}/100: Señales fuertes indican trampas potenciales del mercado`);
         lines.push(`  📊 Los datos muestran múltiples divergencias y anomalías on-chain`);
-        lines.push(`  🛡️ La preparación estratégica no es debilidad—es preparación para la victoria. 70% del tiempo, prepárate para la victoria`);
+        lines.push(`  🛡️ La preparación estratégica no es debilidad—es preparación para la victoria. Ejercita extrema precaución`);
       } else if (trapScoreRounded >= 50) {
         lines.push(`  ⚡ Puntuación de Trampa ${trapScoreRounded}/100: Indicadores de trampa moderados detectados`);
         lines.push(`  📊 Algunas divergencias sugieren precaución`);
-        lines.push(`  🛡️ Defensa primero. Prepárate para la victoria—espera señales de mercado más claras`);
+        lines.push(`  🛡️ Ejercita precaución. Monitorea las condiciones del mercado de cerca antes de actuar`);
       } else {
-        lines.push(`  ✅ Puntuación de Trampa ${trapScoreRounded}/100: Actualmente bajo riesgo de trampa, pero los mercados siempre cambian`);
-        lines.push(`  🛡️ Los tiempos de bajo riesgo son cuando más importa la preparación estratégica. Continúa la defensa hasta que surja una ventaja clara`);
-        lines.push(`  💎 Los traders profesionales priorizan el "tiempo de espera" sobre todo. Toma la misma estrategia`);
+        // Bajo riesgo: Mensaje según condiciones del mercado
+        if (isLowTrapRisk && isBullish) {
+          // Bajo riesgo y alcista: Mensaje más proactivo
+          lines.push(`  ✅ Puntuación de Trampa ${trapScoreRounded}/100: Riesgo de trampa bajo detectado`);
+          lines.push(`  📈 Las condiciones del mercado parecen favorables (Puntuación: ${marketScore}/100). Monitorea oportunidades de entrada claras`);
+          lines.push(`  💡 Bajo riesgo + impulso alcista = condiciones favorables. Mantente alerta para configuraciones de calidad`);
+        } else if (isLowTrapRisk) {
+          // Bajo riesgo pero neutral/bajista: Mensaje de defensa estándar
+          lines.push(`  ✅ Puntuación de Trampa ${trapScoreRounded}/100: Riesgo de trampa bajo actualmente`);
+          lines.push(`  🛡️ Las condiciones del mercado son estables. Mantén la disciplina y espera oportunidades de alta calidad`);
+          lines.push(`  💡 La paciencia paga. Las configuraciones de calidad requieren tanto bajo riesgo como dirección clara del mercado`);
+        } else {
+          // Fallback (si no se puede obtener el score)
+          lines.push(`  ✅ Puntuación de Trampa ${trapScoreRounded}/100: Riesgo de trampa bajo actualmente, pero los mercados siempre cambian`);
+          lines.push(`  🛡️ Mantén la disciplina. Monitorea las condiciones y espera señales claras`);
+        }
       }
     }
     lines.push('');
@@ -459,18 +486,29 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICCIÓN: Puntuación de bajo riesgo
   lines.push('');
 
   // COO最適化: FOMO強化（有料版の価値を明確化）
+  // Mejora basada en evaluación GPT: Clarificación de valor en 3 categorías
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('💎 ESTO ES POR LO QUE PAGASTE POR ESTE INFORME');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
   lines.push('Mientras los usuarios gratuitos solo ven la puntuación, TÚ obtienes:');
-  lines.push('✅ Análisis profundo on-chain (datos CryptoQuant)');
-  lines.push('✅ Interpretación psicológica');
-  lines.push('✅ Detección de patrones de trampa');
-  lines.push('✅ Apoyo mental de Dr. Grok');
-  lines.push('✅ Evaluación de riesgo en tiempo real');
   lines.push('');
-  lines.push('🛡️ Una señal perdida = Capital perdido. ¿Estás preparado?');
+  lines.push('🎯 Señales de Acción en Tiempo Real:');
+  lines.push('✅ Alertas AVOID-LONG / AVOID-SHORT / STANDBY (notificaciones instantáneas)');
+  lines.push('✅ Guía del Mapa de Salida (saber exactamente cuándo salir)');
+  lines.push('✅ Alertas NO TRADE (evitar pérdidas antes de que ocurran)');
+  lines.push('');
+  lines.push('📊 Análisis Profundo de Inteligencia:');
+  lines.push('✅ Análisis completo on-chain (datos CryptoQuant, todos los indicadores)');
+  lines.push('✅ Detección de patrones de trampa impulsada por IA (monitoreo 24/7)');
+  lines.push('✅ Análisis de sentimiento X en tiempo real (predice emociones del mercado)');
+  lines.push('');
+  lines.push('💊 Apoyo Psicológico Completo:');
+  lines.push('✅ Coaching mental de Dr. Grok (superar FOMO, MIEDO, CODICIA)');
+  lines.push('✅ Guía de entrenamiento mental personalizada');
+  lines.push('✅ Diagnóstico del estado psicológico y resolución de bloqueos');
+  lines.push('');
+  lines.push('🛡️ Una señal perdida = Capital perdido. Esto es por lo que pagaste por este informe.');
   lines.push('');
 
   // ===== 基本市場データ（補足情報として後半に配置） =====
@@ -481,6 +519,23 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICCIÓN: Puntuación de bajo riesgo
   lines.push('');
 
   lines.push(scoreLine);
+  
+  // Whale Ratio情報（EN市場専用だが、他の言語でも表示可能）
+  // PR #14: whaleFlows の構造が { whaleRatio, isHighPressure, interpretation } に変更
+  // 重要: whaleFlowsが存在し、whaleRatioがnullでない場合に表示
+  if (whaleFlows && whaleFlows.whaleRatio != null) {
+    // whaleRatioは0-1の範囲の数値として返される（deepMetrics.js参照）
+    // パーセンテージに変換（0.56 -> 56%）
+    const whaleRatioValue = typeof whaleFlows.whaleRatio === 'number' 
+      ? whaleFlows.whaleRatio * 100 
+      : parseFloat(whaleFlows.whaleRatio) * 100 || 0;
+    const isHighPressure = whaleFlows.isHighPressure === true || whaleRatioValue >= 80;
+    const whaleLine = `🐋 Ratio de Ballenas: ${whaleRatioValue.toFixed(1)}% ${isHighPressure ? '(Alta Presión)' : '(Normal)'}`;
+    lines.push(whaleLine);
+  } else if (whaleFlows) {
+    // デバッグ用: whaleFlowsは存在するがwhaleRatioがnullの場合
+    console.warn('[Regular ES] whaleFlows exists but whaleRatio is null:', whaleFlows);
+  }
   
   // Phase1-Product: Trap Riskスコア表示
   if (trapRisk && trapRisk.trapRiskScore != null) {

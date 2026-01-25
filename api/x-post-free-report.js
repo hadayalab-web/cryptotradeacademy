@@ -98,6 +98,40 @@ const LANG_HASHTAGS = {
   ko: '#BTC #비트코인 #코인 #트레이딩 #TrapDefence',
 };
 
+/**
+ * スレッドリプライを生成（Grok推奨: 深掘りコンテンツ）
+ * @param {string} lang - 言語コード
+ * @param {number} index - リプライインデックス（0始まり）
+ * @param {number} total - 総リプライ数
+ * @param {number} trapScore - Trap Score
+ * @param {number} priceUsd - BTC価格
+ * @param {number} change24h - 24時間変動率
+ * @param {number} exchangeNetflow - 取引所流入
+ * @param {number} whaleRatio - クジラ比率
+ * @returns {string} スレッドリプライテキスト
+ */
+function generateThreadReply(lang, index, total, trapScore, priceUsd, change24h, exchangeNetflow, whaleRatio) {
+  const normalizedLang = normalizeLang(lang) || 'en';
+  const deepLink = getTelegramDeepLinkWithSource(normalizedLang, 'x_direct');
+  
+  // Grok推奨: スレッド内容を深掘り（データポイント、インサイト、CTA）
+  const threadTemplates = {
+    en: [
+      `📊 Data Deep Dive:\n• Exchange Netflow: ${exchangeNetflow ? `+${exchangeNetflow} BTC` : 'Monitoring'}\n• Whale Ratio: ${whaleRatio ? `${whaleRatio}%` : 'Analyzing'}\n• Risk Level: ${trapScore <= 25 ? 'Low' : trapScore <= 50 ? 'Moderate' : 'High'}\n\n${deepLink}`,
+      `💡 Key Insight:\n${trapScore <= 25 ? 'Market looks safe BUT whales positioning. Watch for sudden dumps.' : 'Strong trap signals detected. Defense mode ON.'}\n\n🛡️ Full members get real-time alerts BEFORE traps hit.\n\n${deepLink}`,
+      `🚀 What's Your Move?\n• Reply with your price target\n• Share your biggest fear\n• Get free Trap Score daily\n\n${deepLink}\n\n#BTC #TrapDefence`,
+    ],
+    ja: [
+      `📊 データ深掘り:\n• 取引所流入: ${exchangeNetflow ? `+${exchangeNetflow} BTC` : '監視中'}\n• クジラ比率: ${whaleRatio ? `${whaleRatio}%` : '分析中'}\n• リスクレベル: ${trapScore <= 25 ? '低' : trapScore <= 50 ? '中' : '高'}\n\n${deepLink}`,
+      `💡 重要インサイト:\n${trapScore <= 25 ? '市場は安全に見えるがクジラがポジショニング中。突然のダンプに注意。' : '強いトラップシグナル検出。防御モードON。'}\n\n🛡️ フルメンバーはトラップ発生前にリアルタイムアラートを受信。\n\n${deepLink}`,
+      `🚀 あなたの動きは？\n• 価格目標をリプライ\n• 最大の恐怖を共有\n• 無料Trap Scoreを毎日取得\n\n${deepLink}\n\n#BTC #TrapDefence`,
+    ],
+  };
+  
+  const templates = threadTemplates[normalizedLang] || threadTemplates.en;
+  return templates[index % templates.length];
+}
+
 // Xアルゴリズム最適化: 引用リポスト用短縮版（140文字以内）
 const QUOTE_REPOST_TEMPLATES = {
   en: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
@@ -607,11 +641,16 @@ async function postFreeReportAsThread(targetLangs, reportData) {
   const { trapScore, priceUsd, change24h, exchangeNetflow = null, whaleRatio = null } = reportData;
   const xStatus = getXConfigStatus();
   
+  // Grok推奨: 1日6言語すべてを時間帯別で回す（targetLangsは複数言語の可能性あり）
+  // UTC 14:00にはENとPT-BRの2言語を同時に処理
+  const mainLang = targetLangs[0] || 'en';
+  
   console.log('[X Post Free Report] postFreeReportAsThread called with:', {
     trapScore,
     priceUsd,
     change24h,
     targetLangs: targetLangs.length,
+    mainLang,
   });
   
   if (!xStatus.postingEnabled || !xStatus.configured) {
@@ -638,11 +677,12 @@ async function postFreeReportAsThread(targetLangs, reportData) {
   }
   console.log('[X Post Free Report] ✅ No duplicate found, proceeding...');
   
-  // 1日の投稿上限チェック（35投稿/日 - Grok推奨）
+  // 1日の投稿上限チェック（35投稿/日に増加 - インプレッション最大化のため）
   const dailyPostCount = await getDailyPostCount(dateString);
-  console.log(`[X Post Free Report] Daily post count: ${dailyPostCount}/35`);
-  if (dailyPostCount >= 35) {
-    console.log(`[X Post Free Report] ⏰ Daily post limit reached (${dailyPostCount}/35), skipping free report post`);
+  const maxDailyPosts = 35; // インプレッション最大化: 25→35に増加（スパム判定回避しつつ最大化）
+  console.log(`[X Post Free Report] Daily post count: ${dailyPostCount}/${maxDailyPosts}`);
+  if (dailyPostCount >= maxDailyPosts) {
+    console.log(`[X Post Free Report] ⏰ Daily post limit reached (${dailyPostCount}/${maxDailyPosts}), skipping free report post`);
     return { success: false, skipped: true, reason: 'daily_limit_reached', dailyPostCount };
   }
   
@@ -653,239 +693,170 @@ async function postFreeReportAsThread(targetLangs, reportData) {
   let contentFormat;
   try {
     const { getOptimizedContentFormat } = require('../services/x/realTimeOptimizer');
-    contentFormat = await getOptimizedContentFormat('en', sequence);
+    contentFormat = await getOptimizedContentFormat(mainLang, sequence);
   } catch (error) {
     console.warn('[X Post Free Report] Failed to get optimized content format, using default:', error.message);
     contentFormat = getContentFormat(sequence);
   }
   
-  const usePoll = true; // Grok推奨: 100%ポール追加
-  const useVideo = contentFormat === 'thread_with_video'; // Grok推奨: 50%動画（リアルタイム最適化対応）
-  
-    // メイン投稿（英語）- Xアルゴリズム最適化版
-    try {
-      console.log('[X Post Free Report] Preparing main tweet...');
-      let mainTweet = TWEET_TEMPLATES.en(trapScore, priceUsd, change24h, getTelegramDeepLinkWithSource('en', 'x_direct'), exchangeNetflow, whaleRatio);
-    
-      // Grok推奨: ハッシュタグを動的取得（トレンド1+ニッチ2）
-      const { getTrendyHashtags } = require('../services/x/optimization');
-      const optimizedHashtags = await getTrendyHashtags('en', 'BTC').catch(() => getOptimizedHashtags('en'));
-      mainTweet = mainTweet.replace(/#BTC #CryptoTrading #TrapDefence/g, Array.isArray(optimizedHashtags) ? optimizedHashtags.join(' ') : optimizedHashtags);
-      
-      // Grok推奨: エンゲージメントCTAを100%追加（質問+リンク+絵文字）
-      const cta = generateEngagementCTA('en');
-      mainTweet = `${mainTweet}\n\n${cta}`;
-      
-      // Grok推奨: ポールオプションを100%追加（EN誘導）
-      const pollOptions = {
-        options: generatePollOptions('en', trapScore),
-        duration_minutes: 1440, // 24時間
-      };
-      
-      // Grok推奨: 絵文字2-3+緊急語を追加（🚀警戒！）
-      const urgencyEmojis = ['🚀', '💥', '⚡'];
-      const randomEmoji = urgencyEmojis[Math.floor(Math.random() * urgencyEmojis.length)];
-      const urgencyText = trapScore >= 50 ? `${randomEmoji} HIGH RISK ALERT!` : `${randomEmoji} LOW RISK - Patience wins!`;
-      mainTweet = `${urgencyText}\n\n${mainTweet}`;
-      
-      // Grok推奨: Carousel Media Stacking（動画+画像カルーセル、最大4枚）
-      // 50%以上の投稿に適用（リアルタイム最適化で動的調整）
-      let mediaIds = [];
-      let videoGenerated = false;
-      let carouselGenerated = false;
-      
-      // リアルタイム最適化でカルーセル比率を決定
-      let useCarousel = false;
-      try {
-        const { getRealTimeOptimization } = require('../services/x/realTimeOptimizer');
-        const optimization = await getRealTimeOptimization('en');
-        useCarousel = optimization?.videoRatio >= 0.5 || Math.random() < 0.5; // 50%の確率または最適化結果に基づく
-      } catch (error) {
-        console.warn('[X Post Free Report] Failed to get optimization, using default carousel ratio:', error.message);
-        useCarousel = Math.random() < 0.5; // デフォルト50%の確率
-      }
-      
-      if (useCarousel) {
-        try {
-          console.log('[X Post Free Report] 🎠 Generating carousel media (video + images)...');
-          const { generateAndUploadCarousel } = require('../services/x/carouselGenerator');
-          const carouselMediaIds = await generateAndUploadCarousel(reportData, 'en', {
-            maxItems: 4,
-            includeVideo: useVideo,
-          });
-          
-          if (carouselMediaIds.length > 0) {
-            mediaIds = carouselMediaIds;
-            carouselGenerated = true;
-            videoGenerated = carouselMediaIds.length > 0; // 最初のメディアが動画の可能性
-            console.log(`[X Post Free Report] ✅ Carousel media attached: ${carouselMediaIds.length} items`);
-          }
-        } catch (error) {
-          console.warn('[X Post Free Report] Failed to generate carousel, falling back to single video:', error.message);
-        }
-      }
-      
-      // フォールバック: カルーセル生成失敗時は単一動画を試行
-      if (!carouselGenerated && useVideo) {
-        try {
-          const { generateBTCChartVideo, uploadVideoForTweet } = require('../services/x/videoGenerator');
-          const videoBuffer = await generateBTCChartVideo(reportData, 'en');
-          if (videoBuffer) {
-            const videoMediaId = await uploadVideoForTweet(videoBuffer);
-            if (videoMediaId) {
-              mediaIds.push(videoMediaId);
-              videoGenerated = true;
-              console.log(`[X Post Free Report] ✅ Video attached: ${videoMediaId}`);
-            }
-          }
-        } catch (error) {
-          console.warn('[X Post Free Report] Failed to generate/upload video, continuing without video:', error.message);
-          // フォールバック: 動画生成失敗時はポールを追加（エンゲージメント維持）
-          if (!pollOptions) {
-            pollOptions = generatePollOptions('en', trapScore);
-            console.log('[X Post Free Report] Fallback: Added poll due to video generation failure');
-          }
-        }
-      }
-      
-      // 最適化案: リアルタイム最適化（メトリクスに基づく動的調整）
-      try {
-        const { getOptimizedCTA } = require('../services/x/realTimeOptimizer');
-        const optimizedCTA = await getOptimizedCTA('en');
-        if (optimizedCTA && optimizedCTA !== mainTweet) {
-          // CTAを最適化（既存のCTAを置き換え）
-          mainTweet = mainTweet.replace(/🚀.*👇/g, optimizedCTA);
-          console.log('[X Post Free Report] ✅ CTA optimized based on real-time metrics');
-        }
-      } catch (error) {
-        console.warn('[X Post Free Report] Failed to optimize CTA:', error.message);
-      }
-      
-      console.log('[X Post Free Report] Posting main tweet to X API...');
-      console.log('[X Post Free Report] Tweet preview:', mainTweet.substring(0, 100) + '...');
-      const mainResult = await postTweet(mainTweet.substring(0, 280), mediaIds, pollOptions);
-      mainTweetId = mainResult.id;
-      console.log(`[X Post Free Report] ✅ Main tweet posted successfully: ${mainTweetId}`);
-      
-      await incrementDailyPostCount(dateString, 1); // 投稿数をインクリメント
-      await markFreeReportPostedToday(dateString); // 今日の投稿をマーク
-      
-      // Grok推奨: Velocity Boost（初期エンゲージメント爆速化）
-      // 投稿直後5分以内に子アカウントから高品質リプライを自動投入
-      try {
-        const { boostVelocity } = require('../services/x/velocityBooster');
-        const velocityContext = {
-          contentType: useVideo ? 'video' : usePoll ? 'poll' : 'thread',
-          trapScore,
-          priceUsd,
-          change24h,
-        };
-        await boostVelocity(mainTweetId, 'en', velocityContext);
-        console.log(`[X Post Free Report] ✅ Velocity Boost scheduled for ${mainTweetId}`);
-      } catch (error) {
-        console.warn('[X Post Free Report] Failed to schedule velocity boost:', error.message);
-      }
-      
-      // 最適化案: A/Bテスト結果を記録
-      try {
-        const { recordABTestResult } = require('../services/x/abTesting');
-        const tweetMetrics = await getTweetMetrics(mainTweetId, true).catch(() => null);
-        if (tweetMetrics) {
-          await recordABTestResult('content_format', contentFormat, {
-            impressions: tweetMetrics.nonPublicMetrics?.impression_count || tweetMetrics.organicMetrics?.impression_count || 0,
-            engagements: (tweetMetrics.publicMetrics?.like_count || 0) +
-                        (tweetMetrics.publicMetrics?.retweet_count || 0) +
-                        (tweetMetrics.publicMetrics?.reply_count || 0) +
-                        (tweetMetrics.publicMetrics?.quote_count || 0),
-            clicks: tweetMetrics.nonPublicMetrics?.url_link_clicks || tweetMetrics.organicMetrics?.url_link_clicks || 0,
-          });
-        }
-      } catch (error) {
-        console.warn('[X Post Free Report] Failed to record A/B test result:', error.message);
-      }
-      
-      results.push({ lang: 'en', success: true, tweetId: mainTweetId, isMain: true, hasPoll: !!pollOptions, hasVideo: videoGenerated });
-      console.log(`[X Post Free Report] ✅ Main tweet posted: ${mainTweetId}${pollOptions ? ' (with poll)' : ''}${videoGenerated ? ' (with video)' : ''}`);
-      
-      // Grok推奨: EN実測ダッシュボード用メトリクス記録
-      try {
-        const { recordEngagementMetrics } = require('./x-engagement-metrics');
-        const { getTweetMetrics } = require('../services/x/metrics');
-        const tweetMetrics = await getTweetMetrics(mainTweetId, true); // 自分のツイートなのでnon_public_metrics取得可能
-        if (tweetMetrics) {
-          await recordEngagementMetrics(mainTweetId, {
-            impressions: tweetMetrics.nonPublicMetrics?.impression_count || tweetMetrics.publicMetrics?.impression_count || 0,
-            engagements: (tweetMetrics.publicMetrics?.like_count || 0) +
-                        (tweetMetrics.publicMetrics?.retweet_count || 0) +
-                        (tweetMetrics.publicMetrics?.reply_count || 0) +
-                        (tweetMetrics.publicMetrics?.quote_count || 0),
-            clicks: tweetMetrics.nonPublicMetrics?.url_link_clicks || 0,
-            replies: tweetMetrics.publicMetrics?.reply_count || 0,
-            retweets: tweetMetrics.publicMetrics?.retweet_count || 0,
-            likes: tweetMetrics.publicMetrics?.like_count || 0,
-            quoteTweets: tweetMetrics.publicMetrics?.quote_count || 0,
-            lang: 'en',
-            source: 'free_report',
-            hasPoll: !!pollOptions,
-          });
-        }
-      } catch (error) {
-        console.warn('[X Post Free Report] Failed to record engagement metrics:', error.message);
-      }
-      
-      // Grok推奨: エンゲージメントループ実行（子アカウント3で自リプループ）
-      try {
-        const { executeEngagementLoop } = require('../services/x/engagementLoop');
-        executeEngagementLoop(mainTweetId, 'en', reportData).catch(error => {
-          console.warn('[X Post Free Report] Failed to execute engagement loop:', error.message);
-        });
-        console.log(`[X Post Free Report] 🚀 Engagement loop scheduled for tweet ${mainTweetId}`);
-      } catch (error) {
-        console.warn('[X Post Free Report] Failed to schedule engagement loop:', error.message);
-      }
-    } catch (error) {
-      console.error(`[X Post Free Report] ❌ Failed to post main tweet:`, error.message);
-      console.error(`[X Post Free Report] Error stack:`, error.stack);
-      results.push({ lang: 'en', success: false, error: error.message });
-      return { success: false, results, error: error.message };
-    }
-  
-  // Grok推奨: スレッド戦略（1メイン + 3リプライ）
-  const threadStrategy = getThreadStrategy('en');
+  // Grok推奨: 1日6言語すべてを時間帯別で回す（各言語で個別に投稿）
+  // UTC 14:00にはENとPT-BRの2言語を同時に処理（各1回）
+  // スレッド戦略: 各言語で1メイン + 3リプライ（深掘り）
   const replyCount = 3; // Grok推奨: 3リプライで滞在時間延長
+  const langsToPost = targetLangs; // 複数言語を処理（例: UTC 14:00で['en', 'pt-br']）
   
-  // スレッド投稿（残り言語から最適な数を選択）
-  const remainingLangs = targetLangs.filter(lang => lang !== 'en');
-  const langsToPost = remainingLangs.slice(0, replyCount); // Grok推奨: 3言語
+  // インプレッション最大化: 1時間あたりの投稿数制限を緩和（5-6/時間に増加）
+  const hourKey = `${dateString}T${String(currentHour).padStart(2, '0')}`;
+  const { checkHourlyPostLimit, getHourlyPostCount, incrementHourlyPostCount, getThreadStrategy } = require('../services/x/optimization');
+  const currentHourlyPostCount = await getHourlyPostCount(hourKey);
+  const maxPostsPerHour = 6; // インプレッション最大化: 4→6に増加（スパム判定回避しつつ最大化）
+  console.log(`[X Post Free Report] Hourly post count: ${currentHourlyPostCount}/${maxPostsPerHour}`);
   
-  for (let i = 0; i < langsToPost.length; i++) {
-    const lang = langsToPost[i];
+  // インプレッション最大化: 複数言語を個別に処理（ピーク時間チェックを緩和）
+  for (const lang of langsToPost) {
+    // ピーク時間チェックを緩和（ピーク時間外でも投稿可能にする）
+    // ただし、ピーク時間の場合は優先的に投稿
+    const isPeakHour = isPeakHourForLang(lang, currentHour);
+    if (!isPeakHour) {
+      // ピーク時間外でも、1時間あたりの投稿数が少ない場合は投稿を許可
+      const currentHourlyCount = await getHourlyPostCount(hourKey);
+      if (currentHourlyCount >= maxPostsPerHour - 2) { // ピーク時間外は制限を2減らす
+        console.log(`⏰ Skipping ${lang} (not peak hour and hourly limit near: ${currentHourlyCount}/${maxPostsPerHour - 2})`);
+        continue;
+      }
+      console.log(`ℹ️ Posting ${lang} outside peak hour (${currentHour} UTC) for impression maximization`);
+    }
     
-    // ピーク時間チェック（オプション: ピーク時間外はスキップ可能）
-    if (!isPeakHourForLang(lang, currentHour)) {
-      console.log(`⏰ Skipping ${lang} (not peak hour: ${currentHour} UTC)`);
+    // 1時間あたりの投稿数制限をチェック
+    const currentHourlyCount = await getHourlyPostCount(hourKey);
+    if (!checkHourlyPostLimit(currentHourlyCount, maxPostsPerHour)) {
+      console.log(`⏰ Skipping ${lang} (hourly post limit reached: ${currentHourlyCount}/${maxPostsPerHour})`);
       continue;
     }
     
+    // Grok推奨: AR/JAは単一投稿をテスト（短いフォームを好む）
+    const threadStrategy = getThreadStrategy(lang);
+    const actualReplyCount = threadStrategy.preferSinglePost ? 0 : replyCount;
+    
+    // メイン投稿（各言語で個別に投稿）
+    let langMainTweetId = null;
     try {
-      const threadText = `${i + 2}/${replyCount + 1} [${lang.toUpperCase()}] ${TWEET_TEMPLATES[lang](trapScore, priceUsd, change24h, getTelegramDeepLinkWithSource(lang, 'x_direct'), exchangeNetflow, whaleRatio)}`;
+      console.log(`[X Post Free Report] Preparing main tweet for ${lang}...`);
+      const tweetTemplate = TWEET_TEMPLATES[lang] || TWEET_TEMPLATES.en;
+      let langMainTweet = tweetTemplate(trapScore, priceUsd, change24h, getTelegramDeepLinkWithSource(lang, 'x_direct'), exchangeNetflow, whaleRatio);
       
-      // Grok推奨: ハッシュタグを動的取得（トレンド1+ニッチ2）
+      // Grok推奨: ハッシュタグを動的取得
       const { getTrendyHashtags } = require('../services/x/optimization');
-      const langHashtags = await getTrendyHashtags(lang, 'BTC').catch(() => getOptimizedHashtags(lang));
-      const optimizedThreadText = threadText.replace(/#BTC.*#TrapDefence/g, Array.isArray(langHashtags) ? langHashtags.join(' ') : langHashtags);
+      const optimizedHashtags = await getTrendyHashtags(lang, 'BTC').catch(() => getOptimizedHashtags(lang));
+      const langHashtags = LANG_HASHTAGS[lang] || LANG_HASHTAGS.en;
+      langMainTweet = langMainTweet.replace(new RegExp(langHashtags.replace(/#/g, '\\#').replace(/\s+/g, '.*'), 'g'), Array.isArray(optimizedHashtags) ? optimizedHashtags.join(' ') : optimizedHashtags);
       
-      // スレッドはリプライとして投稿
-      const threadResult = await replyToTweet(optimizedThreadText.substring(0, 280), mainTweetId);
-      await incrementDailyPostCount(dateString, 1); // 投稿数をインクリメント
-      results.push({ lang, success: true, tweetId: threadResult.id, isThread: true });
-      console.log(`✅ Thread ${i + 2}/${replyCount + 1} posted for ${lang}: ${threadResult.id}`);
+      // Grok推奨: エンゲージメントCTAを追加
+      const cta = generateEngagementCTA(lang);
+      langMainTweet = `${langMainTweet}\n\n${cta}`;
+      
+      // Phase 1: ソーシャルプルーフを追加（インプレッション最大化）
+      try {
+        const { getSocialProofText } = require('../services/telegram/reaction-counter');
+        const socialProofText = await getSocialProofText(lang);
+        // 280文字制限を考慮して追加（末尾に追加）
+        const tweetWithSocialProof = `${langMainTweet}\n\n${socialProofText}`;
+        if (tweetWithSocialProof.length <= 280) {
+          langMainTweet = tweetWithSocialProof;
+          console.log(`[X Post Free Report] ✅ Added social proof: ${socialProofText}`);
+        } else {
+          // 文字数制限を超える場合は、CTAを短縮してソーシャルプルーフを優先
+          const shortenedTweet = langMainTweet.substring(0, 280 - socialProofText.length - 2);
+          langMainTweet = `${shortenedTweet}\n\n${socialProofText}`;
+          console.log(`[X Post Free Report] ✅ Added social proof (shortened): ${socialProofText}`);
+        }
+      } catch (error) {
+        console.warn(`[X Post Free Report] Failed to add social proof for ${lang}:`, error.message);
+        // エラー時はソーシャルプルーフなしで続行
+      }
+      
+      // Grok推奨: フォーマット比率制御（40%画像、30%ポール、20%動画、10%テキスト）
+      const usePoll = contentFormat === 'thread_with_poll' || contentFormat === 'thread_with_image';
+      const pollOptions = usePoll ? {
+        options: generatePollOptions(lang, trapScore),
+        duration_minutes: 1440,
+      } : null;
+      
+      // メイン投稿を実行
+      const langMainResult = await postTweet(langMainTweet.substring(0, 280), null, pollOptions);
+      langMainTweetId = langMainResult.id;
+      await incrementDailyPostCount(dateString, 1);
+      await incrementHourlyPostCount(hourKey); // 1時間あたりの投稿数をインクリメント
+      results.push({ lang, success: true, tweetId: langMainTweetId, isMain: true });
+      console.log(`✅ Main tweet posted for ${lang}: ${langMainTweetId}`);
+      
+      // メイン投稿IDを設定（最初の言語の場合）
+      if (!mainTweetId) {
+        mainTweetId = langMainTweetId;
+      }
+      
+      // Grok推奨: ユーザーリプライへの自動返信（最初の10リプライ）
+      try {
+        const { handleUserReplies } = require('../services/x/userReplyHandler');
+        handleUserReplies(langMainTweetId, lang, reportData, 10).catch(error => {
+          console.warn(`[X Post Free Report] Failed to handle user replies for ${lang}:`, error.message);
+        });
+        console.log(`[X Post Free Report] 🚀 User reply handler scheduled for tweet ${langMainTweetId} (${lang})`);
+      } catch (error) {
+        console.warn(`[X Post Free Report] Failed to schedule user reply handler for ${lang}:`, error.message);
+      }
       
       // レート制限対策（2秒待機）
       await new Promise(resolve => setTimeout(resolve, 2000));
     } catch (error) {
-      console.error(`❌ Failed to post thread for ${lang}:`, error.message);
+      console.error(`❌ Failed to post main tweet for ${lang}:`, error.message);
       results.push({ lang, success: false, error: error.message });
+      continue;
+    }
+    
+    // スレッドリプライを生成（各言語で深掘り、AR/JAは単一投稿のためスキップ）
+    if (threadStrategy.preferSinglePost) {
+      console.log(`[X Post Free Report] Skipping thread replies for ${lang} (single post mode)`);
+      continue;
+    }
+    
+    for (let i = 0; i < actualReplyCount; i++) {
+      // 1時間あたりの投稿数制限をチェック
+      const currentHourlyCount = await getHourlyPostCount(hourKey);
+      if (!checkHourlyPostLimit(currentHourlyCount, maxPostsPerHour)) {
+        console.log(`⏰ Hourly post limit reached during thread replies (${currentHourlyCount}/${maxPostsPerHour}), stopping`);
+        break;
+      }
+      try {
+        // Grok推奨: スレッド内容を深掘り（データポイント、インサイト、CTA）
+        const threadContent = generateThreadReply(lang, i, replyCount, trapScore, priceUsd, change24h, exchangeNetflow, whaleRatio);
+        const threadText = `${i + 2}/${replyCount + 1} ${threadContent}`;
+        
+        // Grok推奨: ハッシュタグを動的取得（トレンド1+ニッチ2）
+        const { getTrendyHashtags } = require('../services/x/optimization');
+        const langHashtags = await getTrendyHashtags(lang, 'BTC').catch(() => getOptimizedHashtags(lang));
+        const optimizedThreadText = threadText.replace(/#BTC.*#TrapDefence/g, Array.isArray(langHashtags) ? langHashtags.join(' ') : langHashtags);
+        
+        // スレッドはリプライとして投稿（各言語のメイン投稿にリプライ）
+        const threadResult = await replyToTweet(optimizedThreadText.substring(0, 280), langMainTweetId);
+        await incrementDailyPostCount(dateString, 1); // 投稿数をインクリメント
+        await incrementHourlyPostCount(hourKey); // 1時間あたりの投稿数をインクリメント
+        results.push({ lang, success: true, tweetId: threadResult.id, isThread: true, threadIndex: i + 2 });
+        console.log(`✅ Thread ${i + 2}/${actualReplyCount + 1} posted for ${lang}: ${threadResult.id}`);
+        
+        // レート制限対策（2秒待機）
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (error) {
+        console.error(`❌ Failed to post thread ${i + 2} for ${lang}:`, error.message);
+        results.push({ lang, success: false, threadIndex: i + 2, error: error.message });
+      }
+    }
+    
+    // 言語間の待機時間（1-2分）
+    if (lang !== langsToPost[langsToPost.length - 1]) {
+      const delayMs = 1 * 60 * 1000; // 1分待機
+      console.log(`[X Post Free Report] Waiting ${delayMs / 1000} seconds before next language...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
     }
   }
   
@@ -967,8 +938,10 @@ async function fetchLatestMarketData() {
 
 /**
  * 無料版レポートX投稿を実行
+ * @param {Object} reportData - レポートデータ
+ * @param {Array<string>} targetLangsOverride - 処理する言語リスト（オプション）
  */
-async function postFreeReportToX(reportData = null) {
+async function postFreeReportToX(reportData = null, targetLangsOverride = null) {
   try {
     const xStatus = getXConfigStatus();
     
@@ -993,7 +966,8 @@ async function postFreeReportToX(reportData = null) {
       };
     }
     
-    const targetLangs = SUPPORTED_LANGS;
+    // Grok推奨: 1日6言語すべてを時間帯別で回す（targetLangsOverrideが指定されている場合）
+    const targetLangs = targetLangsOverride || SUPPORTED_LANGS;
     const useThread = parseBoolean(process.env.X_FREE_REPORT_USE_THREAD, true);
     
     let result;
@@ -1063,8 +1037,32 @@ const handler = async (req, res) => {
       console.log('[X Post Free Report] 🧪 DRY RUN MODE - No actual posts will be made');
     }
     
+    // Grok推奨: UTC時刻に基づいて処理する言語を決定（1日6言語すべてを時間帯別で回す）
+    const currentHour = new Date().getUTCHours();
+    const dateString = new Date().toISOString().split('T')[0];
+    
+    // Grok推奨: peakMapから現在時刻に処理すべき言語を取得
+    const { getLanguagesForCurrentHour } = require('../services/x/optimization');
+    const { langs: targetLangs, type, count } = getLanguagesForCurrentHour(currentHour);
+    
+    // 無料版レポートのピーク時間でない場合はスキップ
+    if (!targetLangs || targetLangs.length === 0 || type !== 'free_report') {
+      console.log(`[X Post Free Report] ⏰ Skipping free report post (not free report peak time: ${currentHour} UTC, type: ${type || 'none'})`);
+      return res.status(200).json({
+        success: true,
+        skipped: true,
+        reason: 'not_free_report_peak_time',
+        currentHour,
+        type,
+        results: [],
+      });
+    }
+    
+    console.log(`[X Post Free Report] Processing ${targetLangs.join(', ')} at peak time (${currentHour}:00 UTC, type: ${type}, count: ${count})`);
     console.log('[X Post Free Report] Starting postFreeReportToX...');
-    const result = await postFreeReportToX(reportData);
+    
+    // Grok推奨: 1日6言語すべてを時間帯別で回す（各言語1回）
+    const result = await postFreeReportToX(reportData, targetLangs);
     
     console.log('[X Post Free Report] ========================================');
     console.log('[X Post Free Report] Result:', JSON.stringify(result, null, 2));

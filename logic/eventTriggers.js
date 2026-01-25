@@ -40,16 +40,13 @@ async function evaluateTrigger(market, currentState, lastState, cqDeep = {}) {
     const currentScore = currentState.score ?? 0;
     const currentSignal = currentState.signal || 'TRAP_STANDBY'; // Phase 1: BUG_STANDBY → TRAP_STANDBY
     const trapScore = currentState.trapScore ?? cqDeep.trapScore ?? 0;
-    // Phase 4: liquidations取得（CryptoQuant優先、失敗時はBinance）
-    // PR #14: liquidations の構造が { longLiquidations, shortLiquidations, totalLiquidations } に変更
-    const liquidationsData = cqDeep.liquidations ?? 0;
-    let liquidations = typeof liquidationsData === 'number'
-      ? liquidationsData
-      : (liquidationsData?.totalLiquidations ?? 0);
-    
-    // Phase 4: CryptoQuantからの取得が失敗した場合（0または未定義）、Binanceから取得を試みる
-    // 注: この関数は同期的に実行されるため、Binance取得は事前にapi/cron.jsで実行済みであることを前提とする
-    // ここでは cqDeep.liquidations に既にBinanceからのデータが含まれている可能性がある
+  // 注意: liquidationsは常に0を返す（CryptoQuant APIで提供されていないため）
+  // 以前はCryptoQuantから取得を試みていたが、404エラーのため2026-01-25に削除
+  // EMERGENCY判定の`liquidations > $500M`条件は常にfalseになる（実質的に無効化）
+  const liquidationsData = cqDeep.liquidations ?? 0;
+  let liquidations = typeof liquidationsData === 'number'
+    ? liquidationsData
+    : (liquidationsData?.totalLiquidations ?? 0);
     const kimchiPremium = cqDeep.kimchiPremium ?? 0;
     const mpi = cqDeep.mpi ?? cqDeep.minerMPI ?? 0;
 
@@ -71,7 +68,9 @@ async function evaluateTrigger(market, currentState, lastState, cqDeep = {}) {
   if (trapScore >= (emergencyConfig.trapScore || 60)) {
     emergencyReason = `trapScore ${trapScore} >= ${emergencyConfig.trapScore || 60}`;
   } else if (liquidations > (emergencyConfig.liquidations || 500000000)) {
-    // SSOT準拠: liquidations>$500M（Binance等の代替ソースも検討）
+    // 注意: liquidationsは常に0のため、この条件は実質的に無効化されている
+    // （CryptoQuant APIで提供されていないため、2026-01-25に削除）
+    // SSOT準拠: liquidations>$500M（以前はBinance等の代替ソースも検討していたが、現在は無効化）
     emergencyReason = `liquidations $${(liquidations / 1000000).toFixed(1)}M > $${((emergencyConfig.liquidations || 500000000) / 1000000).toFixed(0)}M`;
   } else if (market === 'KO' && kimchiPremium > (emergencyConfig.kimchiPremium || 0.08)) {
     // SSOT準拠: kimchiPremium>8% (KO市場のみ)

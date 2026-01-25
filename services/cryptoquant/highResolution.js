@@ -220,57 +220,9 @@ async function getHighResolutionCQData(options = {}) {
         }
       })() : Promise.resolve(null),
       includeLiquidations ? (async () => {
-        try {
-          // Phase 3: 機能フラグで制御（404エンドポイントを呼ばない）
-          const { isEndpointAvailable } = require('./capabilities');
-          const longAvailable = await isEndpointAvailable('LIQUIDATIONS_LONG');
-          const shortAvailable = await isEndpointAvailable('LIQUIDATIONS_SHORT');
-          
-          if (!longAvailable && !shortAvailable) {
-            return null;
-          }
-          
-          // liquidationsはlong/shortを並列取得（利用可能なもののみ）
-          const promises = [];
-          if (longAvailable) {
-            promises.push(
-              fetchCryptoQuant('/derivatives/liquidations-long/btc', {
-                window: 'day',
-                limit: limit,
-              }, { skipCache: options.skipCache }).catch(() => null)
-            );
-          } else {
-            promises.push(Promise.resolve(null));
-          }
-          
-          if (shortAvailable) {
-            promises.push(
-              fetchCryptoQuant('/derivatives/liquidations-short/btc', {
-                window: 'day',
-                limit: limit,
-              }, { skipCache: options.skipCache }).catch(() => null)
-            );
-          } else {
-            promises.push(Promise.resolve(null));
-          }
-          
-          const [longData, shortData] = await Promise.all(promises);
-          
-          const longPoints = longData?.result?.data || [];
-          const shortPoints = shortData?.result?.data || [];
-          const longValues = longPoints.map(p => p.value ?? p.liquidations_long ?? 0);
-          const shortValues = shortPoints.map(p => p.value ?? p.liquidations_short ?? 0);
-          const totalValues = longValues.map((lv, i) => lv + (shortValues[i] || 0));
-          
-          return {
-            long: { current: longValues[0] || 0, values: longValues, trend: calculateTrend(longValues) },
-            short: { current: shortValues[0] || 0, values: shortValues, trend: calculateTrend(shortValues) },
-            total: { current: totalValues[0] || 0, values: totalValues, trend: calculateTrend(totalValues) },
-          };
-        } catch (error) {
-          console.warn('[highResolution] Error fetching liquidations:', error.message);
-          return null;
-        }
+        // CryptoQuant APIでは Liquidations エンドポイントが提供されていないため（404エラー）、
+        // 常にnullを返す（高解像度データでは使用しない）
+        return null;
       })() : Promise.resolve(null),
     ]);
     

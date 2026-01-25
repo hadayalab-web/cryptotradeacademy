@@ -8,15 +8,19 @@
 function getLanguagePeakHours(lang) {
   const normalizedLang = (lang || 'en').toLowerCase();
   
-  // 言語別ピーク時間（UTC）- Grok推奨: アルゴリズム最適化版
-  // EN: UTC 13-18（US/EU朝ピーク）、ES: UTC 15-20、PT-BR: UTC 20-02、AR: UTC 18-23、JA: UTC 12-15/00-03、KO: UTC 11-14/23-02
+  // 言語別ピーク時間（UTC）- Grok推奨: アルゴリズム最適化版（2026-01-22更新）
+  // EN/PT-BR: UTC 14:00/20:00 (US/EU/Brazil active)
+  // ES: UTC 15:00/21:00 (LATAM)
+  // AR: UTC 18:00/00:00 (MENA)
+  // JA: UTC 12:00/00:00 (Tokyo)
+  // KO: UTC 13:00/01:00 (Seoul)
   const peakHours = {
-    'en': { morning: 13, evening: 18, ranges: [{start: 13, end: 18}, {start: 20, end: 22}] },      // US/EU active hours (Grok推奨)
-    'pt-br': { morning: 20, evening: 2, ranges: [{start: 20, end: 2}] },  // Brazil active hours (Grok推奨)
-    'es': { morning: 15, evening: 20, ranges: [{start: 15, end: 20}] },     // LATAM active hours (Grok推奨)
-    'ar': { morning: 18, evening: 23, ranges: [{start: 18, end: 23}] },      // MENA active hours (Grok推奨)
-    'ja': { morning: 12, evening: 15, ranges: [{start: 12, end: 15}, {start: 0, end: 3}] },      // Tokyo active hours (Grok推奨)
-    'ko': { morning: 11, evening: 14, ranges: [{start: 11, end: 14}, {start: 23, end: 2}] },      // Seoul active hours (Grok推奨)
+    'en': { morning: 14, evening: 20, ranges: [{start: 14, end: 14}, {start: 20, end: 20}] },      // US/EU active hours (Grok推奨: UTC 14:00/20:00)
+    'pt-br': { morning: 14, evening: 20, ranges: [{start: 14, end: 14}, {start: 20, end: 20}] },  // Brazil active hours (Grok推奨: UTC 14:00/20:00)
+    'es': { morning: 15, evening: 21, ranges: [{start: 15, end: 15}, {start: 21, end: 21}] },     // LATAM active hours (Grok推奨: UTC 15:00/21:00)
+    'ar': { morning: 18, evening: 0, ranges: [{start: 18, end: 18}, {start: 0, end: 0}] },      // MENA active hours (Grok推奨: UTC 18:00/00:00)
+    'ja': { morning: 12, evening: 0, ranges: [{start: 12, end: 12}, {start: 0, end: 0}] },      // Tokyo active hours (Grok推奨: UTC 12:00/00:00)
+    'ko': { morning: 13, evening: 1, ranges: [{start: 13, end: 13}, {start: 1, end: 1}] },      // Seoul active hours (Grok推奨: UTC 13:00/01:00)
   };
   
   return peakHours[normalizedLang] || peakHours['en'];
@@ -30,42 +34,59 @@ function isPeakHourForLang(lang, currentHour = null) {
   const hour = currentHour !== null ? currentHour : new Date().getUTCHours();
   const peaks = getLanguagePeakHours(lang);
   
-  // Grok推奨: 範囲ベースのチェック（rangesが定義されている場合）
+  // Grok推奨: 正確なピーク時間をチェック（rangesが定義されている場合）
   if (peaks.ranges && Array.isArray(peaks.ranges)) {
     return peaks.ranges.some(range => {
+      // Grok推奨: 正確な時間に一致するかチェック（例: UTC 14:00, 20:00）
+      if (range.start === range.end) {
+        // 単一の時間（例: 14:00）
+        return hour === range.start;
+      }
+      // 日をまたぐ場合（例: 20-02）
       if (range.end < range.start) {
-        // 日をまたぐ場合（例: 20-02）
         return hour >= range.start || hour <= range.end;
       }
+      // 範囲の場合（通常は使用しないが、後方互換性のため）
       return hour >= range.start && hour <= range.end;
     });
   }
   
-  // 後方互換性: 従来のロジック
+  // 後方互換性: 従来のロジック（morning/eveningが定義されている場合）
   return (
-    (hour >= peaks.morning - 1 && hour <= peaks.morning + 1) ||
-    (hour >= peaks.evening - 1 && hour <= peaks.evening + 1) ||
-    (peaks.evening === 0 && (hour >= 23 || hour <= 1)) // UTC 0時の場合
+    hour === peaks.morning ||
+    hour === peaks.evening ||
+    (peaks.evening === 0 && hour === 0) // UTC 0時の場合
   );
 }
 
 /**
- * ピーク時間帯（UTC 12-22）かどうかを判定
- * Grok推奨: 引用リポストはピーク時間のみに集中
+ * ピーク時間帯（UTC 10-23に拡大 - インプレッション最大化）
+ * インプレッション最大化のため、ピーク時間帯を拡大
  */
 function isPeakTimeWindow(currentHour = null) {
   const hour = currentHour !== null ? currentHour : new Date().getUTCHours();
-  return hour >= 12 && hour <= 22;
+  return hour >= 10 && hour <= 23; // 12-22 → 10-23に拡大
 }
 
 /**
  * スレッド戦略を決定
  * Grok推奨: 1メイン + 3リプライに拡張（滞在時間延長でアルゴリズム評価UP）
+ * AR/JAは単一投稿をテスト（短いフォームを好む）
  */
 function getThreadStrategy(lang) {
   const normalizedLang = (lang || 'en').toLowerCase();
   
-  // Grok推奨: 全言語で1メイン + 3リプライ（アルゴリズムの「深読み」を促進）
+  // Grok推奨: AR/JAは単一投稿をテスト（短いフォームを好む）
+  if (normalizedLang === 'ar' || normalizedLang === 'ja') {
+    return {
+      type: 'single_post',
+      mainCount: 1,
+      replyCount: 0, // AR/JAは単一投稿
+      preferSinglePost: true,
+    };
+  }
+  
+  // Grok推奨: その他言語で1メイン + 3リプライ（アルゴリズムの「深読み」を促進）
   return {
     type: 'optimized_thread',
     mainCount: 1,
@@ -141,21 +162,21 @@ function getOptimizedHashtags(lang, trendingHashtag = null) {
 
 /**
  * コンテンツ形式を決定
- * Grok推奨: 50%動画スレッド、30%画像+ポール、15%スレッド、5%テキスト
+ * Grok推奨: 40%画像、30%ポール、20%動画、10%テキスト
  */
 function getContentFormat(sequence = 0) {
-  // Grok推奨比率: 50%動画、30%ポール、15%スレッド、5%テキスト
+  // Grok推奨比率: 40%画像、30%ポール、20%動画、10%テキスト
   const formats = [
-    'thread_with_video',  // 50% (0-4) - BTCチャート動くGIF/短動画
-    'thread_with_video',  // 50%
-    'thread_with_video',  // 50%
-    'thread_with_video',  // 50%
-    'thread_with_video',  // 50%
-    'thread_with_poll',   // 30% (5-7) - Trap Scoreビジュアル+ポール
+    'thread_with_image',  // 40% (0-3) - BTCチャート画像
+    'thread_with_image',  // 40%
+    'thread_with_image',  // 40%
+    'thread_with_image',  // 40%
+    'thread_with_poll',   // 30% (4-6) - Trap Scoreビジュアル+ポール
     'thread_with_poll',   // 30%
     'thread_with_poll',   // 30%
-    'thread_with_image',  // 15% (8) - スレッド（1メイン+3リプライ）
-    'text_only',          // 5% (9)
+    'thread_with_video',  // 20% (7-8) - BTCチャート動画（15秒）
+    'thread_with_video',  // 20%
+    'text_only',          // 10% (9) - テキストのみ
   ];
   
   return formats[sequence % 10];
@@ -164,6 +185,7 @@ function getContentFormat(sequence = 0) {
 /**
  * 引用リポストの最適なタイミングを計算
  * Grok推奨: インフルエンサーの投稿後10-20分以内（新鮮度MAX、競合低）
+ * 注意: UTC 0:00と1:00も引用リポストのピーク時間として定義されているため、isPeakTimeWindowチェックを削除
  */
 function shouldPostQuoteRepost(influencerTweetTimestamp, currentTime = null) {
   const now = currentTime || new Date();
@@ -175,9 +197,11 @@ function shouldPostQuoteRepost(influencerTweetTimestamp, currentTime = null) {
     return false;
   }
   
-  // ピーク時間帯（UTC 12-22）かどうか
+  // 引用リポストのピーク時間（UTC 0,1,20,21）かどうかをチェック
+  // getPeakMapForHour()で定義された時刻を信頼し、isPeakTimeWindowチェックは削除
   const hour = now.getUTCHours();
-  if (!isPeakTimeWindow(hour)) {
+  const quoteRepostPeakHours = [0, 1, 20, 21]; // vercel.jsonの設定に基づく
+  if (!quoteRepostPeakHours.includes(hour)) {
     return false;
   }
   
@@ -186,10 +210,82 @@ function shouldPostQuoteRepost(influencerTweetTimestamp, currentTime = null) {
 
 /**
  * 1日の投稿上限をチェック
- * Grok推奨: 総投稿数を35/日に増加（アカウント分散で安全に）
+ * インプレッション最大化: 総投稿数を35-45/日に増加（スパム判定回避しつつ最大化）
  */
-function checkDailyPostLimit(currentPostCount, maxPosts = 35) {
+function checkDailyPostLimit(currentPostCount, maxPosts = 45) {
   return currentPostCount < maxPosts;
+}
+
+/**
+ * 1時間あたりの投稿数制限をチェック
+ * Grok推奨: ピーク時間帯にクラスター化（3-4/時間最大）
+ * @param {number} currentHour - UTC時刻（0-23）
+ * @param {number} currentHourlyPostCount - 現在の1時間あたりの投稿数
+ * @param {number} maxPostsPerHour - 1時間あたりの最大投稿数（デフォルト: 4）
+ * @returns {boolean} 投稿可能な場合 true
+ */
+function checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour = 4) {
+  // Grok推奨: ピーク時間帯にクラスター化（3-4/時間最大）
+  return currentHourlyPostCount < maxPostsPerHour;
+}
+
+/**
+ * 1時間あたりの投稿数を取得（Vercel KV）
+ * @param {string} hourKey - 時間キー（例: "2026-01-24T14"）
+ * @returns {Promise<number>} 1時間あたりの投稿数
+ */
+async function getHourlyPostCount(hourKey) {
+  let kv = null;
+  try {
+    const kvModule = require('@vercel/kv');
+    kv = kvModule.kv;
+  } catch (error) {
+    console.warn('[Optimization] @vercel/kv not available for hourly post count');
+    return 0;
+  }
+  
+  if (!kv) {
+    return 0;
+  }
+  
+  try {
+    const count = await kv.get(`x:hourly:${hourKey}`) || 0;
+    return Number(count);
+  } catch (error) {
+    console.warn('[Optimization] Failed to get hourly post count:', error.message);
+    return 0;
+  }
+}
+
+/**
+ * 1時間あたりの投稿数をインクリメント（Vercel KV）
+ * @param {string} hourKey - 時間キー（例: "2026-01-24T14"）
+ * @returns {Promise<number>} 更新後の投稿数
+ */
+async function incrementHourlyPostCount(hourKey) {
+  let kv = null;
+  try {
+    const kvModule = require('@vercel/kv');
+    kv = kvModule.kv;
+  } catch (error) {
+    console.warn('[Optimization] @vercel/kv not available for hourly post count');
+    return 0;
+  }
+  
+  if (!kv) {
+    return 0;
+  }
+  
+  try {
+    const key = `x:hourly:${hourKey}`;
+    const count = await kv.incr(key);
+    // TTL: 2時間後に自動削除（1時間のバッファ）
+    await kv.expire(key, 7200);
+    return count;
+  } catch (error) {
+    console.warn('[Optimization] Failed to increment hourly post count:', error.message);
+    return 0;
+  }
 }
 
 /**
@@ -282,11 +378,53 @@ async function getTrendyHashtags(lang, topic = 'BTC') {
   return [trendingHashtag, ...niche.slice(0, 2), '#TrapDefence'];
 }
 
+/**
+ * 時間帯別のピークマップを取得
+ * Grok推奨: 各時間帯に処理すべき言語と投稿タイプを定義
+ * @param {number} hour - UTC時刻（0-23）
+ * @returns {Object} { langs: Array<string>, type: 'quote'|'free_report'|'minimal', count: number }
+ */
+function getPeakMapForHour(hour) {
+  // vercel.jsonの設定に基づく:
+  // x-quote-repost: UTC 0,1,20,21
+  // x-post-free-report: UTC 12,13,14,15,18
+  // x-post-minimal-version-cron: UTC 8
+  
+  const peakMap = {
+    0: { langs: ['ar'], type: 'quote', count: 2 },      // AR: UTC 0:00
+    1: { langs: ['ko'], type: 'quote', count: 2 },      // KO: UTC 1:00
+    8: { langs: ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'], type: 'minimal', count: 1 }, // Minimal Version: UTC 8:00
+    12: { langs: ['en'], type: 'free_report', count: 1 }, // EN: UTC 12:00
+    13: { langs: ['ko'], type: 'free_report', count: 1 }, // KO: UTC 13:00
+    14: { langs: ['en', 'pt-br'], type: 'free_report', count: 1 }, // EN/PT-BR: UTC 14:00
+    15: { langs: ['es'], type: 'free_report', count: 1 }, // ES: UTC 15:00
+    18: { langs: ['ar'], type: 'free_report', count: 1 }, // AR: UTC 18:00
+    20: { langs: ['en', 'pt-br'], type: 'quote', count: 4 }, // EN/PT-BR: UTC 20:00
+    21: { langs: ['es'], type: 'quote', count: 2 },      // ES: UTC 21:00
+  };
+  
+  return peakMap[hour] || { langs: [], type: null, count: 0 };
+}
+
+/**
+ * 現在時刻に処理すべき言語を取得
+ * @param {number} hour - UTC時刻（0-23）
+ * @returns {Object} { langs: Array<string>, type: 'quote'|'free_report'|'minimal', count: number }
+ */
+function getLanguagesForCurrentHour(hour) {
+  return getPeakMapForHour(hour);
+}
+
 module.exports = {
   getLanguagePeakHours,
   isPeakHourForLang,
   isPeakTimeWindow,
+  getPeakMapForHour,
+  getLanguagesForCurrentHour,
   getThreadStrategy,
+  checkHourlyPostLimit,
+  getHourlyPostCount,
+  incrementHourlyPostCount,
   generatePollOptions,
   getOptimizedHashtags,
   getContentFormat,

@@ -9,23 +9,10 @@ const { kv } = require('@vercel/kv');
 const CAPABILITIES_CACHE_KEY = 'cryptoquant:capabilities';
 const CAPABILITIES_CACHE_TTL = 24 * 60 * 60; // 24時間
 
-// チェック対象エンドポイント（404が発生している可能性があるもの）
+// チェック対象エンドポイント（現在は空 - 404エンドポイントは削除済み）
+// 注意: Liquidations と NUPL は CryptoQuant API で提供されていないため削除
 const ENDPOINTS_TO_CHECK = {
-  LIQUIDATIONS_LONG: {
-    endpoint: '/derivatives/liquidations-long/btc',
-    params: { window: 'day', limit: 1 },
-    featureFlag: 'CRYPTOQUANT_FEATURE_LIQUIDATIONS',
-  },
-  LIQUIDATIONS_SHORT: {
-    endpoint: '/derivatives/liquidations-short/btc',
-    params: { window: 'day', limit: 1 },
-    featureFlag: 'CRYPTOQUANT_FEATURE_LIQUIDATIONS', // 同じフラグで制御
-  },
-  NUPL: {
-    endpoint: '/utxo-data/nupl/btc',
-    params: { window: 'day', limit: 1 },
-    featureFlag: 'CRYPTOQUANT_FEATURE_NUPL',
-  },
+  // 将来、新しい404エンドポイントが追加された場合はここに追加
 };
 
 // キャッシュされたcapabilities（メモリキャッシュ）
@@ -58,41 +45,9 @@ async function checkEndpointAvailability(endpoint, params = {}) {
  * @returns {Promise<Object>} capabilitiesオブジェクト
  */
 async function checkAllCapabilities() {
+  // 現在、チェック対象のエンドポイントはない（404エンドポイントは削除済み）
+  // 将来、新しいエンドポイントが追加された場合はここにチェックロジックを追加
   const capabilities = {};
-  
-  // 環境変数で機能フラグが明示的に設定されている場合はそれを使用
-  const liquidationsEnabled = process.env.CRYPTOQUANT_FEATURE_LIQUIDATIONS !== 'false';
-  const nuplEnabled = process.env.CRYPTOQUANT_FEATURE_NUPL !== 'false';
-  
-  // 環境変数で明示的に無効化されている場合はチェックをスキップ
-  if (!liquidationsEnabled) {
-    capabilities.LIQUIDATIONS_LONG = false;
-    capabilities.LIQUIDATIONS_SHORT = false;
-  } else {
-    // Liquidationsエンドポイントをチェック
-    const longAvailable = await checkEndpointAvailability(
-      ENDPOINTS_TO_CHECK.LIQUIDATIONS_LONG.endpoint,
-      ENDPOINTS_TO_CHECK.LIQUIDATIONS_LONG.params
-    );
-    const shortAvailable = await checkEndpointAvailability(
-      ENDPOINTS_TO_CHECK.LIQUIDATIONS_SHORT.endpoint,
-      ENDPOINTS_TO_CHECK.LIQUIDATIONS_SHORT.params
-    );
-    capabilities.LIQUIDATIONS_LONG = longAvailable;
-    capabilities.LIQUIDATIONS_SHORT = shortAvailable;
-  }
-  
-  if (!nuplEnabled) {
-    capabilities.NUPL = false;
-  } else {
-    // NUPLエンドポイントをチェック
-    const nuplAvailable = await checkEndpointAvailability(
-      ENDPOINTS_TO_CHECK.NUPL.endpoint,
-      ENDPOINTS_TO_CHECK.NUPL.params
-    );
-    capabilities.NUPL = nuplAvailable;
-  }
-  
   return capabilities;
 }
 

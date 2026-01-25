@@ -6,9 +6,18 @@ const path = require('path');
 
 const MESSAGES_LOG_FILE = path.join(__dirname, '../../data/messages_log.jsonl');
 
-// データディレクトリの存在確認
-if (!fs.existsSync(path.dirname(MESSAGES_LOG_FILE))) {
-  fs.mkdirSync(path.dirname(MESSAGES_LOG_FILE), { recursive: true });
+// データディレクトリの存在確認（Vercel環境ではスキップ）
+try {
+  if (!fs.existsSync(path.dirname(MESSAGES_LOG_FILE))) {
+    fs.mkdirSync(path.dirname(MESSAGES_LOG_FILE), { recursive: true });
+  }
+} catch (error) {
+  // Vercel環境での読み取り専用エラーは無視
+  if (error.code === 'EROFS' || error.message?.includes('read-only file system')) {
+    // エラーを無視（Vercel環境ではファイルシステムが読み取り専用）
+  } else {
+    console.warn('[MessageLogger] Failed to create data directory:', error.message);
+  }
 }
 
 /**
@@ -42,17 +51,28 @@ class MessageLogger {
       // 将来的に追加可能: clicked_at, started_at, subscribed_at, blocked_at
     };
 
-    try {
-      // JSONL形式で追記
-      fs.appendFileSync(
-        MESSAGES_LOG_FILE,
-        JSON.stringify(logEntry) + '\n',
-        'utf8'
-      );
-      console.log(`[MessageLogger] Logged: ${message_id} (${lang}, variant: ${variant})`);
-    } catch (error) {
-      console.error('[MessageLogger] Error logging message:', error);
-      // エラー時も処理を続行（ログのみ）
+    // Vercel環境ではファイルシステムが読み取り専用のため、ファイル書き込みをスキップ
+    // ローカル環境でのみファイルに書き込む
+    if (process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'production') {
+      try {
+        // JSONL形式で追記（ローカル環境のみ）
+        fs.appendFileSync(
+          MESSAGES_LOG_FILE,
+          JSON.stringify(logEntry) + '\n',
+          'utf8'
+        );
+        console.log(`[MessageLogger] Logged: ${message_id} (${lang}, variant: ${variant})`);
+      } catch (error) {
+        // ローカル環境でのエラーは警告のみ（ファイル書き込み失敗は致命的ではない）
+        if (error.code === 'EROFS' || error.message?.includes('read-only file system')) {
+          console.log(`[MessageLogger] Skipped file write (read-only filesystem): ${message_id}`);
+        } else {
+          console.warn(`[MessageLogger] Failed to write log file (non-critical): ${error.message}`);
+        }
+      }
+    } else {
+      // Vercel環境ではログのみ出力（ファイル書き込みはスキップ）
+      console.log(`[MessageLogger] Logged (Vercel): ${message_id} (${lang}, variant: ${variant})`);
     }
   }
 
@@ -138,9 +158,16 @@ class MessageLogger {
 
     const EVENTS_LOG_FILE = path.join(__dirname, '../../data/events_log.jsonl');
 
-    // データディレクトリの存在確認
-    if (!fs.existsSync(path.dirname(EVENTS_LOG_FILE))) {
-      fs.mkdirSync(path.dirname(EVENTS_LOG_FILE), { recursive: true });
+    // データディレクトリの存在確認（Vercel環境ではスキップ）
+    try {
+      if (!fs.existsSync(path.dirname(EVENTS_LOG_FILE))) {
+        fs.mkdirSync(path.dirname(EVENTS_LOG_FILE), { recursive: true });
+      }
+    } catch (error) {
+      // Vercel環境での読み取り専用エラーは無視
+      if (error.code === 'EROFS' || error.message?.includes('read-only file system')) {
+        // エラーを無視（Vercel環境ではファイルシステムが読み取り専用）
+      }
     }
 
     try {

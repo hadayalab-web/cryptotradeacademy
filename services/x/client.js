@@ -91,9 +91,20 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
         
         const error = new Error(`X API Error: ${response.status} - ${JSON.stringify(errorData)}`);
         
-        // レート制限エラー（429）の場合、リトライ
+        // レート制限エラー（429）の場合、リトライ（インプレッション最大化のため待機時間を最適化）
         if (response.status === 429 && attempt < maxRetries) {
-          const delay = Math.pow(2, attempt) * 1000; // 指数バックオフ: 1s, 2s, 4s
+          // レート制限ヘッダーを確認（X-RateLimit-Reset）
+          const resetHeader = response.headers.get('x-rate-limit-reset') || response.headers.get('X-RateLimit-Reset');
+          let delay;
+          if (resetHeader) {
+            // リセット時刻まで待機（最大5分）
+            const resetTime = parseInt(resetHeader, 10) * 1000;
+            const now = Date.now();
+            delay = Math.min(resetTime - now, 5 * 60 * 1000); // 最大5分
+            if (delay < 0) delay = Math.pow(2, attempt) * 1000; // フォールバック
+          } else {
+            delay = Math.pow(2, attempt) * 1000; // 指数バックオフ: 1s, 2s, 4s
+          }
           console.warn(`[X API] Rate limit hit, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;

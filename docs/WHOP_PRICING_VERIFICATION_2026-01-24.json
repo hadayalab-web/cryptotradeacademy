@@ -1,0 +1,140 @@
+[
+  {
+    "lang": "EN",
+    "productId": "prod_6RjqaJMGyEw1F",
+    "productName": "Trap Defence BTC - English",
+    "current": {
+      "monthly": "99.0",
+      "quarterly": "237.0",
+      "annual": "845.0",
+      "arpu": 234.14999999999998,
+      "finalARPU": 227.12549999999996
+    },
+    "recommended": {
+      "monthly": 99,
+      "quarterly": 237,
+      "annual": 845,
+      "arpu": 250
+    },
+    "match": {
+      "monthly": true,
+      "quarterly": true,
+      "annual": true
+    }
+  },
+  {
+    "lang": "ES",
+    "productId": "prod_Eg1V8et0WTg69",
+    "productName": "Trap Defense BTC - Spanish",
+    "current": {
+      "monthly": "89.0",
+      "quarterly": "214.0",
+      "annual": "758.0",
+      "arpu": 210.313,
+      "finalARPU": 204.00360999999998
+    },
+    "recommended": {
+      "monthly": 89,
+      "quarterly": 214,
+      "annual": 758,
+      "arpu": 180
+    },
+    "match": {
+      "monthly": true,
+      "quarterly": true,
+      "annual": true
+    }
+  },
+  {
+    "lang": "PT-BR",
+    "productId": "prod_Cpz4oQla16GUB",
+    "productName": "Trap Defense BTC - Portuguese",
+    "current": {
+      "monthly": "87.0",
+      "quarterly": "209.0",
+      "annual": "741.0",
+      "arpu": 205.56,
+      "finalARPU": 199.3932
+    },
+    "recommended": {
+      "monthly": 87,
+      "quarterly": 209,
+      "annual": 741,
+      "arpu": 170
+    },
+    "match": {
+      "monthly": true,
+      "quarterly": true,
+      "annual": true
+    }
+  },
+  {
+    "lang": "AR",
+    "productId": "prod_l4ipnvNhwFpdQ",
+    "productName": "Trap Defense BTC - Arabic",
+    "current": {
+      "monthly": "79.0",
+      "quarterly": "190.0",
+      "annual": "673.0",
+      "arpu": 186.7265,
+      "finalARPU": 181.12470499999998
+    },
+    "recommended": {
+      "monthly": 79,
+      "quarterly": 190,
+      "annual": 673,
+      "arpu": 150
+    },
+    "match": {
+      "monthly": true,
+      "quarterly": true,
+      "annual": true
+    }
+  },
+  {
+    "lang": "KO",
+    "productId": "prod_HouQTKTN1F7vD",
+    "productName": "Trap Defense BTC - Korean",
+    "current": {
+      "monthly": "95.0",
+      "quarterly": "228.0",
+      "annual": "809.0",
+      "arpu": 224.3935,
+      "finalARPU": 217.66169499999998
+    },
+    "recommended": {
+      "monthly": 95,
+      "quarterly": 228,
+      "annual": 809,
+      "arpu": 160
+    },
+    "match": {
+      "monthly": true,
+      "quarterly": true,
+      "annual": true
+    }
+  },
+  {
+    "lang": "JA",
+    "productId": "prod_756mUZhSfLAkL",
+    "productName": "Trap Defense BTC - Japanese",
+    "current": {
+      "monthly": "95.0",
+      "quarterly": "228.0",
+      "annual": "809.0",
+      "arpu": 224.3935,
+      "finalARPU": 217.66169499999998
+    },
+    "recommended": {
+      "monthly": 95,
+      "quarterly": 228,
+      "annual": 809,
+      "arpu": 155
+    },
+    "match": {
+      "monthly": true,
+      "quarterly": true,
+      "annual": true
+    }
+  }
+]

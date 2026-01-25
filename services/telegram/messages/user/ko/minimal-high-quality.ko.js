@@ -97,12 +97,14 @@ function generateEvidence(trapData = null, marketData = null) {
 
   // Market Data에서 근거 추출
   if (marketData) {
-    if (marketData.mpi !== undefined) {
+    if (marketData.mpi !== undefined && marketData.mpi !== null) {
       const mpi = marketData.mpi;
       if (mpi > 2.0) {
         evidenceItems.push(`광부 포지션 인덱스: ${mpi.toFixed(2)} — 광부가 매도 중（주의 필요）`);
       } else if (mpi < 0.5) {
         evidenceItems.push(`광부 포지션 인덱스: ${mpi.toFixed(2)} — 광부가 보유 중（긍정적 신호）`);
+      } else {
+        evidenceItems.push(`광부 포지션 인덱스: ${mpi.toFixed(2)} — 정상 범위`);
       }
     }
   }
@@ -281,22 +283,65 @@ ${priceLine}`;
       message += `\n• ${item}`;
     });
     
+    // Market Dataから追加情報を表示（MPI、Sentimentなど）
+    // 重要: evidenceセクションの後に追加情報として表示（常に表示）
+    if (marketData) {
+      if (marketData.mpi !== undefined && marketData.mpi !== null) {
+        const mpi = marketData.mpi;
+        if (mpi > 2.0) {
+          message += `\n• 광부 포지션 인덱스 (MPI): ${mpi.toFixed(2)} — 광부가 매도 중（주의 필요）`;
+        } else if (mpi < 0.5) {
+          message += `\n• 광부 포지션 인덱스 (MPI): ${mpi.toFixed(2)} — 광부가 보유 중（긍정적 신호）`;
+        } else {
+          message += `\n• 광부 포지션 인덱스 (MPI): ${mpi.toFixed(2)} — 정상 범위`;
+        }
+      }
+    }
+    
+    // Sentiment Dataから追加情報を表示
+    // 重要: sentimentDataが存在する場合、必ず表示
+    if (sentimentData && sentimentData.sentiment) {
+      const sentiment = sentimentData.sentiment;
+      const sentimentEmoji = sentiment.toLowerCase().includes('fear') ? '😨' :
+                             sentiment.toLowerCase().includes('greed') ? '😍' :
+                             sentiment.toLowerCase().includes('fomo') ? '😰' :
+                             sentiment.toLowerCase().includes('panic') ? '😱' : '😐';
+      message += `\n• 심리: ${sentimentEmoji} ${sentiment}`;
+    }
+    
     // 【개선 2: "70% 대기 전략"의 근거 기반 설명 통합】Evidence와 Mental Note 연동
     // 낮은 리스크에서도 가치를 제공하기 위해 설명 추가
     if (trapScore !== null) {
       const trapScoreRounded = Math.round(trapScore);
+      const marketScore = score ?? marketData?.score ?? null;
+      const marketScoreRounded = marketScore !== null ? Math.round(marketScore) : null;
+      const isBullish = marketScoreRounded !== null && marketScoreRounded >= 50;
+      const isLowTrapRisk = trapScoreRounded < 30;
+      
       message += `\n\n💡 전략적 인사이트`;
       if (trapScoreRounded >= 70) {
         message += `\n  🚨 Trap Score ${trapScoreRounded}/100: 강한 신호가 잠재적인 시장 트랩을 나타냅니다`;
-        message += `\n  🛡️ 전략적 준비는 약점이 아니다—승리를 위한 준비다. 70%의 시간, 승리를 위해 준비하자`;
+        message += `\n  🛡️ 전략적 준비는 약점이 아니다—승리를 위한 준비다. 극도의 주의를 기울이자`;
       } else if (trapScoreRounded >= 50) {
         message += `\n  ⚡ Trap Score ${trapScoreRounded}/100: 중간 정도의 트랩 지표가 감지되었습니다`;
-        message += `\n  🛡️ 방어 우선. 더 명확한 시장 신호를 기다리자`;
+        message += `\n  🛡️ 주의를 기울이자. 행동하기 전에 시장 상황을 면밀히 모니터링하자`;
       } else {
-        // 낮은 리스크에서도 가치 제공
-        message += `\n  ✅ Trap Score ${trapScoreRounded}/100: 현재 트랩 리스크가 낮지만, 시장은 항상 변합니다`;
-        message += `\n  🛡️ 낮은 리스크 시기가 바로 전략적 준비가 가장 중요한 때입니다. 명확한 우위가 나타날 때까지 방어를 계속하자`;
-        message += `\n  💎 프로 트레이더는 "대기 시간"을 최우선으로 한다. 같은 전략을 취하자`;
+        // 낮은 리스크: 시장 상황에 따른 메시지
+        if (isLowTrapRisk && isBullish) {
+          // 낮은 리스크 및 강세: 더 적극적인 메시지
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: 낮은 트랩 리스크가 감지되었습니다`;
+          message += `\n  📈 시장 상황이 유리해 보입니다 (점수: ${marketScoreRounded}/100). 명확한 진입 기회를 모니터링하자`;
+          message += `\n  💡 낮은 리스크 + 강세 모멘텀 = 유리한 조건. 품질 있는 설정에 주의를 기울이자`;
+        } else if (isLowTrapRisk) {
+          // 낮은 리스크이지만 중립/약세: 표준 방어 메시지
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: 현재 낮은 트랩 리스크`;
+          message += `\n  🛡️ 시장 상황이 안정적입니다. 규율을 유지하고 고품질 기회를 기다리자`;
+          message += `\n  💡 인내는 보상받는다. 품질 있는 설정은 낮은 리스크와 명확한 시장 방향 모두가 필요합니다`;
+        } else {
+          // Fallback (점수를 얻을 수 없는 경우)
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: 현재 낮은 트랩 리스크이지만, 시장은 항상 변합니다`;
+          message += `\n  🛡️ 규율을 유지하자. 상황을 모니터링하고 명확한 신호를 기다리자`;
+        }
       }
     }
   }
@@ -329,19 +374,44 @@ ${mentalNote}`;
 
   // CTA（업셀 최적화: 개발 자금 확보를 위한 긴박감 있는 CTA）
   // VSL2와 Whop 링크는 별도로 배포되므로 정기 배포의 Minimal Briefing에는 포함하지 않음
+  // GPT 평가 기반 개선: Trap Score 기반 동적 메시징
+  
+  // Trap Score에 따라 CTA 메시지를 동적으로 변경
+  const trapScoreRounded = trapScore !== null ? Math.round(trapScore) : null;
+  let ctaHeadline = '';
+  let ctaUrgency = '';
+  
+  if (trapScoreRounded !== null && trapScoreRounded >= 50) {
+    // 중간 위험 이상: 긴급성 강조
+    ctaHeadline = '🚨 지금 업그레이드: 자본을 잃기 전에 실시간 트랩 알림 받기';
+    ctaUrgency = '⚠️ 지금 트랩 신호가 감지되고 있습니다. 무료 사용자는 점수만 볼 수 있지만, 당신은 자본을 보호하기 위해 완전한 방어 시스템이 필요합니다.';
+  } else {
+    // 낮은 위험: 가치 제안 강조
+    ctaHeadline = '🚀 지금 업그레이드: 상세한 거래 신호 및 실시간 알림 받기';
+    ctaUrgency = '💡 지금은 낮은 위험이지만, 시장은 빠르게 변화합니다. 트랩이 형성될 때 즉시 알림을 받으려면 업그레이드하세요.';
+  }
   
   message += `\n\n━━━━━━━━━━━━━━━━━━━━
-🚀 완전한 인텔리전스 리포트 잠금 해제
+${ctaHeadline}
 
-당신은 일부를 보고 있습니다. 전체 회원은 다음을 얻습니다:
+${ctaUrgency}
 
-✨ 완전한 인텔리전스 리포트
+✨ 전체 회원이 얻는 것（당신이 놓치고 있는 것）:
+
+🎯 실시간 트랩 알림
+• AVOID-LONG / AVOID-SHORT / STANDBY 신호（즉시 알림）
+• 출구 지도 가이드（정확히 언제 나갈지 알기）
+• NO TRADE 알림（손실이 발생하기 전에 피하기）
+
+📊 완전한 인텔리전스 리포트
 • 완전한 온체인 분석（모든 지표를 실시간으로）
 • AI 기반 시장 인사이트 및 트랩 감지（24시간 모니터링）
-• 실시간 알림: AVOID-LONG / AVOID-SHORT / STANDBY（즉시 알림）
-• 출구 지도 및 멘탈 트레이닝 가이드（실용적인 전략）
-• 완전한 Dr. Grok의 심리적 지원（멘탈 블록 해결）
 • 실시간 X 센티먼트 분석（시장 감정 예측）
+
+💊 완전한 Dr. Grok의 심리적 지원
+• 멘탈 블록 해결（FOMO, 두려움, 탐욕 극복）
+• 맞춤형 멘탈 트레이닝 가이드
+• 심리 상태 진단
 
 💎 이 모든 것이 당신의 자본을 보호하기 위해 설계되었습니다
 

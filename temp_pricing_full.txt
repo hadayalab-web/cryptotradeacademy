@@ -1,0 +1,652 @@
+﻿================================================================================
+險隱槫挨Whop陬ｽ蜩√・繝励Λ繝ｳ萓｡譬ｼ蜿門ｾ励・ARPU險育ｮ・================================================================================
+
+================================================================================
+險隱・ EN
+陬ｽ蜩！D: prod_6RjqaJMGyEw1F
+================================================================================
+陬ｽ蜩∝錐: Trap Defence BTC - English
+陬ｽ蜩ゞRL: N/A
+
+繝励Λ繝ｳ謨ｰ: 3
+--------------------------------------------------------------------------------
+
+繝励Λ繝ｳ: N/A
+  ID: plan_SatV2J5R7gvHn
+  繧ｿ繧､繝・ renewal (monthly)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 99.0
+  隲区ｱよ悄髢・ 30譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 99.0
+  ARPU蟇・ｸ・ USD 21.19
+
+繝励Λ繝ｳ: N/A
+  ID: plan_L1xVv19322pC3
+  繧ｿ繧､繝・ renewal (quarterly)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 237.0
+  隲区ｱよ悄髢・ 90譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 237.0
+  ARPU蟇・ｸ・ USD 84.61
+
+繝励Λ繝ｳ: N/A
+  ID: plan_CKOj1QCfnlr1j
+  繧ｿ繧､繝・ renewal (annual)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 845.0
+  隲区ｱよ悄髢・ 365譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 845.0
+  ARPU蟇・ｸ・ USD 362.50
+
+--------------------------------------------------------------------------------
+投 ARPU險育ｮ暦ｼ医・繝ｩ繝ｳ蛻・淵閠・・・・--------------------------------------------------------------------------------
+繝励Λ繝ｳ蛻・淵:
+  譛磯｡・ 21.4%
+  3繝ｶ譛・ 35.7%
+  蟷ｴ髢・ 42.9%
+
+蜷郁ｨ・RPU・医・繝ｭ繝｢繧ｳ繝ｼ繝蛾←逕ｨ蜑搾ｼ・ $468.30
+ARPU・医・繝ｭ繝｢繧ｳ繝ｼ繝・0%蜑ｲ蠑暮←逕ｨ蠕鯉ｼ・ $234.15
+譛邨ょ茜逶晦RPU・・hop謇区焚譁・%蟾ｮ縺怜ｼ輔″蠕鯉ｼ・ $227.13
+
+================================================================================
+險隱・ ES
+陬ｽ蜩！D: prod_Eg1V8et0WTg69
+================================================================================
+陬ｽ蜩∝錐: Trap Defense BTC - Spanish
+陬ｽ蜩ゞRL: N/A
+
+繝励Λ繝ｳ謨ｰ: 3
+--------------------------------------------------------------------------------
+
+繝励Λ繝ｳ: N/A
+  ID: plan_NJWa1JUcDx5Fa
+  繧ｿ繧､繝・ renewal (monthly)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 89.0
+  隲区ｱよ悄髢・ 30譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 89.0
+  ARPU蟇・ｸ・ USD 19.05
+
+繝励Λ繝ｳ: N/A
+  ID: plan_kQhbzBdoir5xC
+  繧ｿ繧､繝・ renewal (quarterly)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 214.0
+  隲区ｱよ悄髢・ 90譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 214.0
+  ARPU蟇・ｸ・ USD 76.40
+
+繝励Λ繝ｳ: N/A
+  ID: plan_l2chYQncOcB1I
+  繧ｿ繧､繝・ renewal (annual)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 758.0
+  隲区ｱよ悄髢・ 365譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 758.0
+  ARPU蟇・ｸ・ USD 325.18
+
+--------------------------------------------------------------------------------
+投 ARPU險育ｮ暦ｼ医・繝ｩ繝ｳ蛻・淵閠・・・・--------------------------------------------------------------------------------
+繝励Λ繝ｳ蛻・淵:
+  譛磯｡・ 21.4%
+  3繝ｶ譛・ 35.7%
+  蟷ｴ髢・ 42.9%
+
+蜷郁ｨ・RPU・医・繝ｭ繝｢繧ｳ繝ｼ繝蛾←逕ｨ蜑搾ｼ・ $420.63
+ARPU・医・繝ｭ繝｢繧ｳ繝ｼ繝・0%蜑ｲ蠑暮←逕ｨ蠕鯉ｼ・ $210.31
+譛邨ょ茜逶晦RPU・・hop謇区焚譁・%蟾ｮ縺怜ｼ輔″蠕鯉ｼ・ $204.00
+
+================================================================================
+險隱・ PT-BR
+陬ｽ蜩！D: prod_Cpz4oQla16GUB
+================================================================================
+陬ｽ蜩∝錐: Trap Defense BTC - Portuguese
+陬ｽ蜩ゞRL: N/A
+
+繝励Λ繝ｳ謨ｰ: 3
+--------------------------------------------------------------------------------
+
+繝励Λ繝ｳ: N/A
+  ID: plan_o0zp6ijFsahMC
+  繧ｿ繧､繝・ renewal (monthly)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 87.0
+  隲区ｱよ悄髢・ 30譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 87.0
+  ARPU蟇・ｸ・ USD 18.62
+
+繝励Λ繝ｳ: N/A
+  ID: plan_0NuklMva0SQbz
+  繧ｿ繧､繝・ renewal (quarterly)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 201.0
+  隲区ｱよ悄髢・ 90譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 201.0
+  ARPU蟇・ｸ・ USD 71.76
+
+繝励Λ繝ｳ: N/A
+  ID: plan_zWA7dBw46iQic
+  繧ｿ繧､繝・ renewal (annual)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 741.0
+  隲区ｱよ悄髢・ 365譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 741.0
+  ARPU蟇・ｸ・ USD 317.89
+
+--------------------------------------------------------------------------------
+投 ARPU險育ｮ暦ｼ医・繝ｩ繝ｳ蛻・淵閠・・・・--------------------------------------------------------------------------------
+繝励Λ繝ｳ蛻・淵:
+  譛磯｡・ 21.4%
+  3繝ｶ譛・ 35.7%
+  蟷ｴ髢・ 42.9%
+
+蜷郁ｨ・RPU・医・繝ｭ繝｢繧ｳ繝ｼ繝蛾←逕ｨ蜑搾ｼ・ $408.26
+ARPU・医・繝ｭ繝｢繧ｳ繝ｼ繝・0%蜑ｲ蠑暮←逕ｨ蠕鯉ｼ・ $204.13
+譛邨ょ茜逶晦RPU・・hop謇区焚譁・%蟾ｮ縺怜ｼ輔″蠕鯉ｼ・ $198.01
+
+================================================================================
+險隱・ AR
+陬ｽ蜩！D: prod_l4ipnvNhwFpdQ
+================================================================================
+陬ｽ蜩∝錐: Trap Defense BTC - Arabic
+陬ｽ蜩ゞRL: N/A
+
+繝励Λ繝ｳ謨ｰ: 3
+--------------------------------------------------------------------------------
+
+繝励Λ繝ｳ: N/A
+  ID: plan_trhNqPmGEBV49
+  繧ｿ繧､繝・ renewal (monthly)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 79.0
+  隲区ｱよ悄髢・ 30譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 79.0
+  ARPU蟇・ｸ・ USD 16.91
+
+繝励Λ繝ｳ: N/A
+  ID: plan_BFAUO1jBunao6
+  繧ｿ繧､繝・ renewal (quarterly)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 190.0
+  隲区ｱよ悄髢・ 90譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 190.0
+  ARPU蟇・ｸ・ USD 67.83
+
+繝励Λ繝ｳ: N/A
+  ID: plan_TZLVX52Fy9iV2
+  繧ｿ繧､繝・ renewal (annual)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 673.0
+  隲区ｱよ悄髢・ 365譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 673.0
+  ARPU蟇・ｸ・ USD 288.72
+
+--------------------------------------------------------------------------------
+投 ARPU險育ｮ暦ｼ医・繝ｩ繝ｳ蛻・淵閠・・・・--------------------------------------------------------------------------------
+繝励Λ繝ｳ蛻・淵:
+  譛磯｡・ 21.4%
+  3繝ｶ譛・ 35.7%
+  蟷ｴ髢・ 42.9%
+
+蜷郁ｨ・RPU・医・繝ｭ繝｢繧ｳ繝ｼ繝蛾←逕ｨ蜑搾ｼ・ $373.45
+ARPU・医・繝ｭ繝｢繧ｳ繝ｼ繝・0%蜑ｲ蠑暮←逕ｨ蠕鯉ｼ・ $186.73
+譛邨ょ茜逶晦RPU・・hop謇区焚譁・%蟾ｮ縺怜ｼ輔″蠕鯉ｼ・ $181.12
+
+================================================================================
+險隱・ KO
+陬ｽ蜩！D: prod_HouQTKTN1F7vD
+================================================================================
+陬ｽ蜩∝錐: Trap Defense BTC - Korean
+陬ｽ蜩ゞRL: N/A
+
+繝励Λ繝ｳ謨ｰ: 3
+--------------------------------------------------------------------------------
+
+繝励Λ繝ｳ: N/A
+  ID: plan_LZf2Jium9Gk3h
+  繧ｿ繧､繝・ renewal (monthly)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 95.0
+  隲区ｱよ悄髢・ 30譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 95.0
+  ARPU蟇・ｸ・ USD 20.33
+
+繝励Λ繝ｳ: N/A
+  ID: plan_8pMQo0mlMuLj6
+  繧ｿ繧､繝・ renewal (quarterly)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 228.0
+  隲区ｱよ悄髢・ 90譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 228.0
+  ARPU蟇・ｸ・ USD 81.40
+
+繝励Λ繝ｳ: N/A
+  ID: plan_QlHefoBY983BV
+  繧ｿ繧､繝・ renewal (annual)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 809.0
+  隲区ｱよ悄髢・ 365譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 809.0
+  ARPU蟇・ｸ・ USD 347.06
+
+--------------------------------------------------------------------------------
+投 ARPU險育ｮ暦ｼ医・繝ｩ繝ｳ蛻・淵閠・・・・--------------------------------------------------------------------------------
+繝励Λ繝ｳ蛻・淵:
+  譛磯｡・ 21.4%
+  3繝ｶ譛・ 35.7%
+  蟷ｴ髢・ 42.9%
+
+蜷郁ｨ・RPU・医・繝ｭ繝｢繧ｳ繝ｼ繝蛾←逕ｨ蜑搾ｼ・ $448.79
+ARPU・医・繝ｭ繝｢繧ｳ繝ｼ繝・0%蜑ｲ蠑暮←逕ｨ蠕鯉ｼ・ $224.39
+譛邨ょ茜逶晦RPU・・hop謇区焚譁・%蟾ｮ縺怜ｼ輔″蠕鯉ｼ・ $217.66
+
+================================================================================
+險隱・ JA
+陬ｽ蜩！D: prod_756mUZhSfLAkL
+================================================================================
+陬ｽ蜩∝錐: Trap Defense BTC - Japanese
+陬ｽ蜩ゞRL: N/A
+
+繝励Λ繝ｳ謨ｰ: 3
+--------------------------------------------------------------------------------
+
+繝励Λ繝ｳ: N/A
+  ID: plan_0b6EOuqxk6TPb
+  繧ｿ繧､繝・ renewal (monthly)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 95.0
+  隲区ｱよ悄髢・ 30譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 95.0
+  ARPU蟇・ｸ・ USD 20.33
+
+繝励Λ繝ｳ: N/A
+  ID: plan_2vKR0Xd77d7Rp
+  繧ｿ繧､繝・ renewal (quarterly)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 228.0
+  隲区ｱよ悄髢・ 90譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 228.0
+  ARPU蟇・ｸ・ USD 81.40
+
+繝励Λ繝ｳ: N/A
+  ID: plan_moF8lZrc4nElw
+  繧ｿ繧､繝・ renewal (annual)
+  蛻晄悄萓｡譬ｼ: USD 0.0
+  譖ｴ譁ｰ萓｡譬ｼ: USD 809.0
+  隲区ｱよ悄髢・ 365譌･
+  譛牙柑譛滄剞: 0譌･
+  螳溷柑萓｡譬ｼ: USD 809.0
+  ARPU蟇・ｸ・ USD 347.06
+
+--------------------------------------------------------------------------------
+投 ARPU險育ｮ暦ｼ医・繝ｩ繝ｳ蛻・淵閠・・・・--------------------------------------------------------------------------------
+繝励Λ繝ｳ蛻・淵:
+  譛磯｡・ 21.4%
+  3繝ｶ譛・ 35.7%
+  蟷ｴ髢・ 42.9%
+
+蜷郁ｨ・RPU・医・繝ｭ繝｢繧ｳ繝ｼ繝蛾←逕ｨ蜑搾ｼ・ $448.79
+ARPU・医・繝ｭ繝｢繧ｳ繝ｼ繝・0%蜑ｲ蠑暮←逕ｨ蠕鯉ｼ・ $224.39
+譛邨ょ茜逶晦RPU・・hop謇区焚譁・%蟾ｮ縺怜ｼ輔″蠕鯉ｼ・ $217.66
+
+
+================================================================================
+投 險隱槫挨ARPU繧ｵ繝槭Μ繝ｼ
+================================================================================
+
+險隱・        | 繝励Ο繝｢繧ｳ繝ｼ繝蛾←逕ｨ蜑・| 繝励Ο繝｢繧ｳ繝ｼ繝蛾←逕ｨ蠕・| 譛邨ょ茜逶晦RPU
+--------------------------------------------------------------------------------
+EN         | $         468.30 | $           234.15 | $      227.13
+ES         | $         420.63 | $           210.31 | $      204.00
+PT-BR      | $         408.26 | $           204.13 | $      198.01
+AR         | $         373.45 | $           186.73 | $      181.12
+KO         | $         448.79 | $           224.39 | $      217.66
+JA         | $         448.79 | $           224.39 | $      217.66
+
+
+================================================================================
+JSON蜃ｺ蜉・================================================================================
+[
+  {
+    "lang": "EN",
+    "productId": "prod_6RjqaJMGyEw1F",
+    "productName": "Trap Defence BTC - English",
+    "plans": [
+      {
+        "id": "plan_SatV2J5R7gvHn",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "99.0",
+        "billingPeriod": 30,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "monthly",
+        "effectivePrice": "99.0",
+        "arpuContribution": 21.186
+      },
+      {
+        "id": "plan_L1xVv19322pC3",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "237.0",
+        "billingPeriod": 90,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "quarterly",
+        "effectivePrice": "237.0",
+        "arpuContribution": 84.609
+      },
+      {
+        "id": "plan_CKOj1QCfnlr1j",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "845.0",
+        "billingPeriod": 365,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "annual",
+        "effectivePrice": "845.0",
+        "arpuContribution": 362.505
+      }
+    ],
+    "arpu": {
+      "beforePromo": 468.29999999999995,
+      "afterPromo": 234.14999999999998,
+      "final": 227.12549999999996
+    }
+  },
+  {
+    "lang": "ES",
+    "productId": "prod_Eg1V8et0WTg69",
+    "productName": "Trap Defense BTC - Spanish",
+    "plans": [
+      {
+        "id": "plan_NJWa1JUcDx5Fa",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "89.0",
+        "billingPeriod": 30,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "monthly",
+        "effectivePrice": "89.0",
+        "arpuContribution": 19.046
+      },
+      {
+        "id": "plan_kQhbzBdoir5xC",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "214.0",
+        "billingPeriod": 90,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "quarterly",
+        "effectivePrice": "214.0",
+        "arpuContribution": 76.398
+      },
+      {
+        "id": "plan_l2chYQncOcB1I",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "758.0",
+        "billingPeriod": 365,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "annual",
+        "effectivePrice": "758.0",
+        "arpuContribution": 325.182
+      }
+    ],
+    "arpu": {
+      "beforePromo": 420.626,
+      "afterPromo": 210.313,
+      "final": 204.00360999999998
+    }
+  },
+  {
+    "lang": "PT-BR",
+    "productId": "prod_Cpz4oQla16GUB",
+    "productName": "Trap Defense BTC - Portuguese",
+    "plans": [
+      {
+        "id": "plan_o0zp6ijFsahMC",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "87.0",
+        "billingPeriod": 30,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "monthly",
+        "effectivePrice": "87.0",
+        "arpuContribution": 18.618
+      },
+      {
+        "id": "plan_0NuklMva0SQbz",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "201.0",
+        "billingPeriod": 90,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "quarterly",
+        "effectivePrice": "201.0",
+        "arpuContribution": 71.75699999999999
+      },
+      {
+        "id": "plan_zWA7dBw46iQic",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "741.0",
+        "billingPeriod": 365,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "annual",
+        "effectivePrice": "741.0",
+        "arpuContribution": 317.889
+      }
+    ],
+    "arpu": {
+      "beforePromo": 408.264,
+      "afterPromo": 204.132,
+      "final": 198.00804
+    }
+  },
+  {
+    "lang": "AR",
+    "productId": "prod_l4ipnvNhwFpdQ",
+    "productName": "Trap Defense BTC - Arabic",
+    "plans": [
+      {
+        "id": "plan_trhNqPmGEBV49",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "79.0",
+        "billingPeriod": 30,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "monthly",
+        "effectivePrice": "79.0",
+        "arpuContribution": 16.906
+      },
+      {
+        "id": "plan_BFAUO1jBunao6",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "190.0",
+        "billingPeriod": 90,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "quarterly",
+        "effectivePrice": "190.0",
+        "arpuContribution": 67.83
+      },
+      {
+        "id": "plan_TZLVX52Fy9iV2",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "673.0",
+        "billingPeriod": 365,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "annual",
+        "effectivePrice": "673.0",
+        "arpuContribution": 288.717
+      }
+    ],
+    "arpu": {
+      "beforePromo": 373.453,
+      "afterPromo": 186.7265,
+      "final": 181.12470499999998
+    }
+  },
+  {
+    "lang": "KO",
+    "productId": "prod_HouQTKTN1F7vD",
+    "productName": "Trap Defense BTC - Korean",
+    "plans": [
+      {
+        "id": "plan_LZf2Jium9Gk3h",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "95.0",
+        "billingPeriod": 30,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "monthly",
+        "effectivePrice": "95.0",
+        "arpuContribution": 20.33
+      },
+      {
+        "id": "plan_8pMQo0mlMuLj6",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "228.0",
+        "billingPeriod": 90,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "quarterly",
+        "effectivePrice": "228.0",
+        "arpuContribution": 81.396
+      },
+      {
+        "id": "plan_QlHefoBY983BV",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "809.0",
+        "billingPeriod": 365,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "annual",
+        "effectivePrice": "809.0",
+        "arpuContribution": 347.061
+      }
+    ],
+    "arpu": {
+      "beforePromo": 448.787,
+      "afterPromo": 224.3935,
+      "final": 217.66169499999998
+    }
+  },
+  {
+    "lang": "JA",
+    "productId": "prod_756mUZhSfLAkL",
+    "productName": "Trap Defense BTC - Japanese",
+    "plans": [
+      {
+        "id": "plan_0b6EOuqxk6TPb",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "95.0",
+        "billingPeriod": 30,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "monthly",
+        "effectivePrice": "95.0",
+        "arpuContribution": 20.33
+      },
+      {
+        "id": "plan_2vKR0Xd77d7Rp",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "228.0",
+        "billingPeriod": 90,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "quarterly",
+        "effectivePrice": "228.0",
+        "arpuContribution": 81.396
+      },
+      {
+        "id": "plan_moF8lZrc4nElw",
+        "name": "N/A",
+        "type": "renewal",
+        "initialPrice": "0.0",
+        "renewalPrice": "809.0",
+        "billingPeriod": 365,
+        "expirationDays": 0,
+        "currency": "USD",
+        "visibility": "visible",
+        "category": "annual",
+        "effectivePrice": "809.0",
+        "arpuContribution": 347.061
+      }
+    ],
+    "arpu": {
+      "beforePromo": 448.787,
+      "afterPromo": 224.3935,
+      "final": 217.66169499999998
+    }
+  }
+]

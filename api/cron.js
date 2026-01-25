@@ -157,11 +157,25 @@ const ENABLE_TELEGRAM = process.env.ENABLE_TELEGRAM !== 'false'; // デフォル
 const ENABLE_X_PROOF_POST = process.env.ENABLE_X_PROOF_POST === 'true';
 const X_PROOF_USE_CARTOON = process.env.X_PROOF_USE_CARTOON === 'true'; // 風刺画を追加するか
 const CTA_LINK_REGEX = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
-const SOCIAL_PROOF_BUTTON = {
-  inline_keyboard: [[
-    { text: '🔥 I\'m Safe (Trap Avoided)', callback_data: 'action_saved' },
-  ]],
-};
+// 言語別のソーシャルプルーフボタンテキスト
+function getSocialProofButton(lang = 'en') {
+  const buttonTexts = {
+    'en': '🔥 I\'m Safe (Trap Avoided)',
+    'es': '🔥 Estoy Seguro (Trampa Evitada)',
+    'pt-br': '🔥 Estou Seguro (Armadilha Evitada)',
+    'ar': '🔥 أنا آمن (تم تجنب الفخ)',
+    'ja': '🔥 安全です（トラップ回避済み）',
+    'ko': '🔥 안전합니다 (함정 회피됨)',
+  };
+  
+  const buttonText = buttonTexts[lang] || buttonTexts['en'];
+  
+  return {
+    inline_keyboard: [[
+      { text: buttonText, callback_data: 'action_saved' },
+    ]],
+  };
+}
 let stateManager, evaluateTrigger;
 
 if (ENABLE_EVENT_DRIVEN) {
@@ -697,6 +711,9 @@ module.exports = async function handler(req, res) {
     let shouldSend = true; // デフォルト: 既存動作維持
     let triggerType = isRegularSlot ? 'REGULAR' : (finalNeedsEmergency ? 'EMERGENCY' : 'WATCH');
     let triggerReason = 'Legacy mode';
+    
+    // divergenceSignalResultを関数スコープの最初で定義（すべてのブロックで使用可能にする）
+    let divergenceSignalResult = null;
 
     // Phase 2: 深掘りデータ初期化
     // 基本データで初期化し、後でイベント駆動パスまたはREGULARパスで拡張
@@ -883,10 +900,16 @@ module.exports = async function handler(req, res) {
         trap,
       };
 
+      // GPT分析は各言語ごとに呼び出す（言語ごとに異なる分析を生成）
+      // ただし、最初の言語で一度だけ呼び出し、他の言語では同じ結果を使用する（コスト削減）
+      // 注意: 多言語配信の場合、最初の言語でGPT分析を生成し、他の言語では同じ結果を使用
+      // ただし、各言語ごとに異なる分析が必要な場合は、各言語ごとに呼び出す
+      // 現在は最初の言語（通常は'en'）でGPT分析を生成
+      const firstTargetLang = getTargetLanguagesForRegular()[0] || 'en';
       try {
-        // GPTでCryptoQuantデータを詳細解析
-        console.log('[GPT] Generating detailed CryptoQuant analysis for regular broadcast...');
-        gptRegularAnalysis = await generateCryptoQuantAnalysis(cryptoQuantData, marketContext, LANG);
+        // GPTでCryptoQuantデータを詳細解析（最初の言語で生成）
+        console.log(`[GPT] Generating detailed CryptoQuant analysis for regular broadcast (lang: ${firstTargetLang})...`);
+        gptRegularAnalysis = await generateCryptoQuantAnalysis(cryptoQuantData, marketContext, firstTargetLang);
         
         // エラーメッセージが含まれていないか確認
         if (gptRegularAnalysis && typeof gptRegularAnalysis === 'string') {
@@ -898,6 +921,14 @@ module.exports = async function handler(req, res) {
             console.warn('[GPT] Error message detected in analysis, setting to null');
             gptRegularAnalysis = null;
           } else {
+            // 日本語が混在していないか確認（EN版の場合）
+            // 重要: キャッシュから古い日本語の結果が返ってくる可能性があるため、必ずチェック
+            if (firstTargetLang === 'en' && /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(gptRegularAnalysis)) {
+              console.warn('[GPT] Japanese characters detected in English analysis, forcing null to use fallback');
+              // 日本語が含まれている場合は即座にnullにしてフォールバック処理に任せる
+              // 再生成は行わない（キャッシュから同じ結果が返ってくる可能性があるため）
+              gptRegularAnalysis = null;
+            }
             console.log('[GPT] Regular analysis generated:', gptRegularAnalysis.substring(0, 200) + '...');
           }
         }
@@ -1000,6 +1031,18 @@ module.exports = async function handler(req, res) {
       
       // ===== USP3: Dr. Grokの心理的サポート =====
       // psychologicalSupportは関数スコープで既に定義済み
+      // divergenceSignalResultは関数スコープの最初で定義済み（700行目付近）
+      // 値がnullの場合は更新を試みる
+      if (!divergenceSignalResult) {
+        try {
+          // baseCoreDecisionまたはcoreDecisionからダイバージェンスシグナルを取得
+          divergenceSignalResult = baseCoreDecision?.divergenceSignal || coreDecision?.divergenceSignal || null;
+        } catch (error) {
+          console.warn('[Dr. Grok] Error getting divergence signal:', error.message);
+          divergenceSignalResult = null; // エラー時はnullを明示的に設定
+        }
+      }
+      
       try {
         console.log('[Dr. Grok] Diagnosing user sentiment and providing psychological support...');
         psychologicalSupport = await diagnoseUserSentimentCompat(
@@ -1010,7 +1053,7 @@ module.exports = async function handler(req, res) {
             trapDetection: trapDetection,
             marketBug: marketBugDetection, // 後方互換性
             trapAlert: trapAlert,
-            divergenceSignal: divergenceSignalResult,
+            divergenceSignal: divergenceSignalResult || null, // nullを明示的に設定
           },
           xSentiment,
           LANG
@@ -1024,10 +1067,27 @@ module.exports = async function handler(req, res) {
           });
         }
       } catch (error) {
-        console.warn('[Dr. Grok] Error providing psychological support:', error.message);
+        // エラーメッセージを詳細化（divergenceSignalResultが原因かどうかを確認）
+        const errorMsg = error.message || String(error);
+        if (errorMsg.includes('divergenceSignalResult')) {
+          console.warn('[Dr. Grok] Error providing psychological support (divergenceSignalResult issue):', errorMsg);
+          console.warn('[Dr. Grok] divergenceSignalResult value:', divergenceSignalResult);
+        } else {
+          console.warn('[Dr. Grok] Error providing psychological support:', errorMsg);
+        }
       }
       
     } else if (needsLongReport && !isRegularSlot) {
+      // 緊急配信時: divergenceSignalResultを取得（isRegularSlotブロック外でも使用可能にする）
+      if (typeof divergenceSignalResult === 'undefined') {
+        divergenceSignalResult = null;
+        try {
+          divergenceSignalResult = baseCoreDecision?.divergenceSignal || coreDecision?.divergenceSignal || null;
+        } catch (error) {
+          console.warn('[Dr. Grok] Error getting divergence signal (emergency):', error.message);
+          divergenceSignalResult = null;
+        }
+      }
       // 注: shouldCallGrok は未定義だったため削除（needsLongReport で十分）
       // 緊急配信時: 既存のGrok分析を維持（後方互換性）
       const marketSummaryPayload = {
@@ -1204,9 +1264,18 @@ module.exports = async function handler(req, res) {
       
       // 高解像度データとダイバージェンスシグナルを取得
       // baseCoreDecisionからダイバージェンスシグナルを取得（高解像度データが使用されている場合）
+      // 注意: divergenceSignalResultは関数スコープの最初で定義済み（700行目付近）
       let finalHighResCQ = highResCQData;
       let finalHighResX = highResXData;
-      let divergenceSignalResult = baseCoreDecision?.divergenceSignal || coreDecision?.divergenceSignal || null;
+      // divergenceSignalResultは既に定義済みのため、値がnullの場合は更新を試みる
+      if (!divergenceSignalResult) {
+        try {
+          divergenceSignalResult = baseCoreDecision?.divergenceSignal || coreDecision?.divergenceSignal || null;
+        } catch (error) {
+          console.warn('[Dr. Grok] Error getting divergence signal (regular slot):', error.message);
+          divergenceSignalResult = null;
+        }
+      }
       
           // 言語別のmissedOpportunitiesフォーマット
           const langMissedOpportunitiesFormatted = missedOpportunities ? formatMissedOpportunities(missedOpportunities, targetLang) : null;
@@ -1361,11 +1430,15 @@ module.exports = async function handler(req, res) {
             const channelIdEnvVar = `TELEGRAM_CHAT_ID_${series}_${marketCodeEnv}`;
             if (process.env[channelIdEnvVar]) {
               // 新しい方式: シリーズ+市場コードでチャンネル指定
-              regularSendResult = await sendMessageToChannel(regularText, series, marketCode, { reply_markup: SOCIAL_PROOF_BUTTON });
+              // 言語別のボタンテキストを使用
+              const socialProofButton = getSocialProofButton(targetLang);
+              regularSendResult = await sendMessageToChannel(regularText, series, marketCode, { reply_markup: socialProofButton });
               console.log(`[Telegram] REGULAR message sent to ${series}/${marketCode} (${targetLang})`);
             } else if (process.env.TELEGRAM_CHAT_ID) {
               // 後方互換性: 既存のTELEGRAM_CHAT_IDを使用
-              regularSendResult = await sendMessage(regularText, { reply_markup: SOCIAL_PROOF_BUTTON });
+              // 言語別のボタンテキストを使用
+              const socialProofButton = getSocialProofButton(targetLang);
+              regularSendResult = await sendMessage(regularText, { reply_markup: socialProofButton });
               console.log(`[Telegram] REGULAR message sent to default channel (${targetLang})`);
             } else {
               console.warn(`[Telegram] No channel ID configured for ${series}/${marketCode} (env: ${channelIdEnvVar}) or TELEGRAM_CHAT_ID`);
@@ -1388,7 +1461,7 @@ module.exports = async function handler(req, res) {
           if (ENABLE_X_PROOF_POST && targetLang === 'en') {
             try {
               const proofTrapScore = cqDeep?.trapScore ?? trapDetection?.trapScore ?? null;
-              const socialProofText = getSocialProofText();
+              const socialProofText = await getSocialProofText(); // 非同期関数に変更
               await postProofToX(regularText, {
                 trapScore: proofTrapScore,
                 trapDetection,
@@ -1490,6 +1563,7 @@ module.exports = async function handler(req, res) {
         mpi: mpi,
         priceUsd: priceUsd,
         change24h: change24h,
+        score: snapshot.market_score, // Market Scoreを追加（状況に応じたメッセージ生成のため）
       };
 
       // Sentiment Dataを準備（Grok X解析結果から）
@@ -1523,6 +1597,7 @@ module.exports = async function handler(req, res) {
             marketData: minimalMarketData,
             sentimentData,
             lang: targetLang,
+            score: snapshot.market_score, // Market Scoreを追加（状況に応じたメッセージ生成のため）
           });
 
           // 無料版チャンネルに送信
@@ -1534,7 +1609,9 @@ module.exports = async function handler(req, res) {
             const minimalChatId = resolveMinimalChatId(targetLang);
             
             if (minimalChatId) {
-              const minimalSendResult = await sendMessageToAsset(minimalText, 'MINIMAL', langCodeForEnv, { reply_markup: SOCIAL_PROOF_BUTTON });
+              // 言語別のボタンテキストを使用
+              const socialProofButton = getSocialProofButton(targetLang);
+              const minimalSendResult = await sendMessageToAsset(minimalText, 'MINIMAL', langCodeForEnv, { reply_markup: socialProofButton });
               console.log(`[Free Version] Sent successfully to ${targetLang} (${langCodeForEnv}):`, minimalSendResult?.message_id || 'N/A');
             } else {
               console.warn(`[Free Version] No chat ID found for ${targetLang}, skipping free version delivery`);
@@ -1551,28 +1628,37 @@ module.exports = async function handler(req, res) {
       
       // Grok推奨: 無料版（Minimal Version）配信完了後、X投稿を実行（非同期、エラーは無視）
       // Grok戦略: UTC 8:00にMV投稿、UTC 14:00に引用リポスト（6時間後）
-      if (ENABLE_MINIMAL_VERSION && shouldSend) {
+      // 注意: 独立したCronジョブ（api/x-post-minimal-version-cron）で実行されるため、ここでは実行しない
+      // ただし、force=trueの場合は即座に実行する
+      if (ENABLE_MINIMAL_VERSION && shouldSend && force) {
         try {
-          const { postMinimalVersionToX } = require('./x-post-minimal-version');
-          const reportData = {
-            trapScore: minimalTrapScore,
-            priceUsd,
-            change24h,
-            trapData: {
-              trapAlert: trapAlert || null,
-              exchangeNetflow: inflow,
-              whaleRatio: whaleRatioValue,
-            },
-            marketData: minimalMarketData,
-            sentimentData,
-          };
+          const xPostMinimalModule = require('./x-post-minimal-version');
+          const postMinimalVersionToX = xPostMinimalModule.postMinimalVersionToX || xPostMinimalModule;
           
-          // Grok推奨: 非同期で実行（エラーは無視、タイミングは独立したCronジョブで制御）
-          postMinimalVersionToX(targetLangsForMinimal, reportData).catch(error => {
-            console.warn('[MINIMAL] Failed to post minimal version to X:', error.message);
-          });
+          if (typeof postMinimalVersionToX === 'function') {
+            const reportData = {
+              trapScore: minimalTrapScore,
+              priceUsd,
+              change24h,
+              trapData: {
+                trapAlert: trapAlert || null,
+                exchangeNetflow: inflow,
+                whaleRatio: whaleRatioValue,
+              },
+              marketData: minimalMarketData,
+              sentimentData,
+            };
+            
+            // Grok推奨: 非同期で実行（エラーは無視、タイミングは独立したCronジョブで制御）
+            postMinimalVersionToX(targetLangsForMinimal, reportData).catch(error => {
+              console.warn('[MINIMAL] Failed to post minimal version to X:', error.message);
+            });
+          } else {
+            console.warn('[MINIMAL] postMinimalVersionToX function not found in x-post-minimal-version module');
+          }
         } catch (error) {
-          console.warn('[MINIMAL] Failed to import x-post-minimal-version:', error.message);
+          // モジュールが見つからない場合は警告のみ（独立したCronジョブで実行されるため）
+          console.warn('[MINIMAL] Failed to import x-post-minimal-version (will be handled by independent cron job):', error.message);
         }
       }
       

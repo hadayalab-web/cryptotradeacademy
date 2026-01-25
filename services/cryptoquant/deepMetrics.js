@@ -12,18 +12,10 @@ const VALID_MARKETS = ['EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR'];
 const WHALE_RATIO_HIGH_PRESSURE_THRESHOLD = 0.85;  // 85% indicates strong selling pressure
 const WHALE_RATIO_MEDIUM_PRESSURE_THRESHOLD = 0.75; // 75% indicates moderate pressure
 
-// Liquidation thresholds (in USD)
-const LIQUIDATION_HIGH_THRESHOLD = 500_000_000;  // $500M
-const LIQUIDATION_MEDIUM_THRESHOLD = 100_000_000; // $100M
-
-// Trap score weights
+// Trap score weights（Liquidations関連は削除 - CryptoQuant APIで提供されていない）
 const SCORE_WHALE_RATIO_HIGH = 40;
 const SCORE_WHALE_RATIO_MEDIUM = 20;
-const SCORE_LIQUIDATION_HIGH = 30;
-const SCORE_LIQUIDATION_MEDIUM = 15;
-const SCORE_LONG_TRAP = 15;
-const SCORE_FUNDING_RATE_HIGH = 10;
-const SCORE_LONG_SHORT_IMBALANCE = 15;
+// 注意: Liquidationsによるスコア加算は削除（404エンドポイントのため）
 
 /**
  * Whale Ratio取得（EN市場用）
@@ -94,74 +86,20 @@ async function getWhaleFlows(options = {}) {
  */
 /**
  * Liquidations取得
- * Step 2-4: EMERGENCY判定指標のキャッシュバイパス対応
- * @param {object} options - オプション
- * @param {boolean} options.skipCache - キャッシュをスキップするか（EMERGENCY判定時など）
+ * 
+ * 注意: CryptoQuant APIでは Liquidations エンドポイントが提供されていないため（404エラー）、
+ * 常に0を返します。trapScore計算ではLiquidationsによるスコア加算は行われません。
+ * 
+ * @param {object} options - オプション（互換性のため残すが使用しない）
+ * @returns {Promise<Object>} 常に0を返す
  */
 async function getLiquidations(options = {}) {
-  // Phase 3: 機能フラグで制御
-  const { isEndpointAvailable } = require('./capabilities');
-  
-  // エンドポイントが利用不可の場合は早期リターン
-  const longAvailable = await isEndpointAvailable('LIQUIDATIONS_LONG');
-  const shortAvailable = await isEndpointAvailable('LIQUIDATIONS_SHORT');
-  
-  if (!longAvailable && !shortAvailable) {
-    // 両方とも利用不可の場合は安全なデフォルトを返す
-    return {
-      longLiquidations: 0,
-      shortLiquidations: 0,
-      totalLiquidations: 0,
-    };
-  }
-  
-  try {
-    const promises = [];
-    if (longAvailable) {
-      promises.push(
-        fetchCryptoQuant('/derivatives/liquidations-long/btc', {
-          window: 'day',
-          limit: 1,
-        }, { skipCache: options.skipCache })
-      );
-    } else {
-      promises.push(Promise.resolve(null));
-    }
-    
-    if (shortAvailable) {
-      promises.push(
-        fetchCryptoQuant('/derivatives/liquidations-short/btc', {
-          window: 'day',
-          limit: 1,
-        }, { skipCache: options.skipCache })
-      );
-    } else {
-      promises.push(Promise.resolve(null));
-    }
-    
-    const [longData, shortData] = await Promise.all(promises);
-
-    const longPoint = longData?.result?.data?.[0];
-    const shortPoint = shortData?.result?.data?.[0];
-
-    const longLiquidations = Number(longPoint?.value ?? longPoint?.liquidations_long ?? 0);
-    const shortLiquidations = Number(shortPoint?.value ?? shortPoint?.liquidations_short ?? 0);
-    const totalLiquidations = longLiquidations + shortLiquidations;
-
-    return {
-      longLiquidations,
-      shortLiquidations,
-      totalLiquidations,
-    };
-  } catch (error) {
-    // 予期しないエラーの場合のみログ出力
-    console.warn('[deepMetrics] Error fetching liquidations:', error.message);
-    return {
-      longLiquidations: 0,
-      shortLiquidations: 0,
-      totalLiquidations: 0,
-    };
-  }
+  // CryptoQuant APIでは提供されていないため、常に0を返す
+  return {
+    longLiquidations: 0,
+    shortLiquidations: 0,
+    totalLiquidations: 0,
+  };
 }
 
 /**
@@ -231,46 +169,14 @@ function calculateKimchiPremium(upbitPrice, usdPrice, usdKrwRate) {
 /**
  * NUPL取得（JA市場用）
  *
- * Net Unrealized Profit/Loss (NUPL) is an on-chain metric showing the difference
- * between market cap and realized cap divided by market cap.
+ * 注意: CryptoQuant APIでは NUPL エンドポイントが提供されていないため（404エラー）、
+ * 常に0を返します。riskReward計算ではNUPLによる加算は行われません。
  *
- * Endpoint: /utxo-data/nupl/btc
- * Parameters: window=day, limit=1
- *
- * Value ranges: typically between -1.0 and 1.0
- * - Above 0.75: Euphoria (potential top)
- * - 0.5 to 0.75: Greed/Belief
- * - 0 to 0.5: Optimism/Anxiety
- * - Below 0: Fear/Capitulation (potential bottom)
- *
- * Phase 3: 機能フラグで制御（404エンドポイントを呼ばない）
- *
- * @returns {Promise<number>} Net Unrealized Profit/Loss
+ * @returns {Promise<number>} 常に0を返す
  */
 async function getNUPL() {
-  // Phase 3: 機能フラグで制御
-  const { isEndpointAvailable } = require('./capabilities');
-  
-  // エンドポイントが利用不可の場合は早期リターン
-  if (!(await isEndpointAvailable('NUPL'))) {
-    return 0;
-  }
-  
-  try {
-    const data = await fetchCryptoQuant('/utxo-data/nupl/btc', {
-      window: 'day',
-      limit: 1,
-    });
-
-    const point = data?.result?.data?.[0];
-    const nupl = Number(point?.value ?? point?.nupl ?? 0);
-
-    return nupl;
-  } catch (error) {
-    // 予期しないエラーの場合のみログ出力
-    console.warn('[deepMetrics] Error fetching NUPL:', error.message);
-    return 0;
-  }
+  // CryptoQuant APIでは提供されていないため、常に0を返す
+  return 0;
 }
 
 /**
@@ -359,20 +265,8 @@ function calculateTrapScore(whaleRatio, liquidations) {
     score += SCORE_WHALE_RATIO_MEDIUM;
   }
 
-  // High total liquidations indicate market volatility
-  const totalLiq = liquidations?.totalLiquidations ?? 0;
-  if (totalLiq > LIQUIDATION_HIGH_THRESHOLD) {
-    score += SCORE_LIQUIDATION_HIGH;
-  } else if (totalLiq > LIQUIDATION_MEDIUM_THRESHOLD) {
-    score += SCORE_LIQUIDATION_MEDIUM;
-  }
-
-  // Long liquidations significantly higher than short = long trap
-  const longLiq = liquidations?.longLiquidations ?? 0;
-  const shortLiq = liquidations?.shortLiquidations ?? 0;
-  if (longLiq > shortLiq * 2) {
-    score += SCORE_LONG_TRAP;
-  }
+  // 注意: Liquidationsによるスコア加算は削除（CryptoQuant APIで提供されていないため）
+  // liquidationsパラメータは互換性のため残すが、使用しない
 
   return Math.min(100, score);
 }
@@ -386,15 +280,10 @@ function calculateTrapScore(whaleRatio, liquidations) {
 function calculateRiskReward(nupl, sopr30d) {
   let rr = 1.0;
 
-  // 含み損多い = 底値候補
-  if (nupl < 0) {
-    rr += 0.5;
-  }
-  if (nupl < -0.2) {
-    rr += 0.5;
-  }
+  // 注意: NUPLによる加算は削除（CryptoQuant APIで提供されていないため）
+  // nuplパラメータは互換性のため残すが、使用しない
 
-  // 売り圧力弱い = 上昇余地
+  // 売り圧力弱い = 上昇余地（SOPRのみで計算）
   if (sopr30d < 1.0) {
     rr += 0.5;
   }

@@ -97,12 +97,14 @@ function generateEvidence(trapData = null, marketData = null) {
 
   // Extrair evidência de Market Data
   if (marketData) {
-    if (marketData.mpi !== undefined) {
+    if (marketData.mpi !== undefined && marketData.mpi !== null) {
       const mpi = marketData.mpi;
       if (mpi > 2.0) {
         evidenceItems.push(`Índice de Posição dos Mineradores: ${mpi.toFixed(2)} — Mineradores estão vendendo (requer cautela)`);
       } else if (mpi < 0.5) {
         evidenceItems.push(`Índice de Posição dos Mineradores: ${mpi.toFixed(2)} — Mineradores estão mantendo (sinal positivo)`);
+      } else {
+        evidenceItems.push(`Índice de Posição dos Mineradores: ${mpi.toFixed(2)} — Faixa normal`);
       }
     }
   }
@@ -281,22 +283,65 @@ ${priceLine}`;
       message += `\n• ${item}`;
     });
     
+    // Market Dataから追加情報を表示（MPI、Sentimentなど）
+    // 重要: evidenceセクションの後に追加情報として表示（常に表示）
+    if (marketData) {
+      if (marketData.mpi !== undefined && marketData.mpi !== null) {
+        const mpi = marketData.mpi;
+        if (mpi > 2.0) {
+          message += `\n• Índice de Posição dos Mineradores (MPI): ${mpi.toFixed(2)} — Mineradores estão vendendo (requer cautela)`;
+        } else if (mpi < 0.5) {
+          message += `\n• Índice de Posição dos Mineradores (MPI): ${mpi.toFixed(2)} — Mineradores estão mantendo (sinal positivo)`;
+        } else {
+          message += `\n• Índice de Posição dos Mineradores (MPI): ${mpi.toFixed(2)} — Faixa normal`;
+        }
+      }
+    }
+    
+    // Sentiment Dataから追加情報を表示
+    // 重要: sentimentDataが存在する場合、必ず表示
+    if (sentimentData && sentimentData.sentiment) {
+      const sentiment = sentimentData.sentiment;
+      const sentimentEmoji = sentiment.toLowerCase().includes('fear') ? '😨' :
+                             sentiment.toLowerCase().includes('greed') ? '😍' :
+                             sentiment.toLowerCase().includes('fomo') ? '😰' :
+                             sentiment.toLowerCase().includes('panic') ? '😱' : '😐';
+      message += `\n• Sentimento: ${sentimentEmoji} ${sentiment}`;
+    }
+    
     // 【Melhoria 2: Integração de explicação baseada em evidência de "estratégia de espera de 70%"】Vincular Evidence e Mental Note
     // Adicionar explicação mesmo em risco baixo (para fornecer valor)
     if (trapScore !== null) {
       const trapScoreRounded = Math.round(trapScore);
+      const marketScore = score ?? marketData?.score ?? null;
+      const marketScoreRounded = marketScore !== null ? Math.round(marketScore) : null;
+      const isBullish = marketScoreRounded !== null && marketScoreRounded >= 50;
+      const isLowTrapRisk = trapScoreRounded < 30;
+      
       message += `\n\n💡 Insights Estratégicos`;
       if (trapScoreRounded >= 70) {
         message += `\n  🚨 Trap Score ${trapScoreRounded}/100: Sinais fortes indicam possíveis armadilhas do mercado`;
-        message += `\n  🛡️ A preparação estratégica não é fraqueza—é preparação para a vitória. 70% do tempo, prepare-se para a vitória`;
+        message += `\n  🛡️ A preparação estratégica não é fraqueza—é preparação para a vitória. Exercite extrema cautela`;
       } else if (trapScoreRounded >= 50) {
         message += `\n  ⚡ Trap Score ${trapScoreRounded}/100: Indicadores moderados de armadilha detectados`;
-        message += `\n  🛡️ Defesa primeiro. Aguarde sinais de mercado mais claros`;
+        message += `\n  🛡️ Exercite cautela. Monitore as condições do mercado de perto antes de agir`;
       } else {
-        // Fornecer valor mesmo em risco baixo
-        message += `\n  ✅ Trap Score ${trapScoreRounded}/100: Risco de armadilha baixo atualmente, mas os mercados sempre mudam`;
-        message += `\n  🛡️ Os tempos de baixo risco são quando mais importa a preparação estratégica. Continue a defesa até que surja uma vantagem clara`;
-        message += `\n  💎 Os traders profissionais priorizam o "tempo de espera" acima de tudo. Adote a mesma estratégia`;
+        // Baixo risco: Mensagem de acordo com condições do mercado
+        if (isLowTrapRisk && isBullish) {
+          // Baixo risco e altista: Mensagem mais proativa
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: Risco de armadilha baixo detectado`;
+          message += `\n  📈 As condições do mercado parecem favoráveis (Pontuação: ${marketScoreRounded}/100). Monitore oportunidades de entrada claras`;
+          message += `\n  💡 Baixo risco + impulso altista = condições favoráveis. Fique alerta para configurações de qualidade`;
+        } else if (isLowTrapRisk) {
+          // Baixo risco mas neutro/baixista: Mensagem de defesa padrão
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: Risco de armadilha baixo atualmente`;
+          message += `\n  🛡️ As condições do mercado são estáveis. Mantenha a disciplina e aguarde oportunidades de alta qualidade`;
+          message += `\n  💡 A paciência compensa. Configurações de qualidade requerem tanto baixo risco quanto direção clara do mercado`;
+        } else {
+          // Fallback (se não conseguir obter o score)
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: Risco de armadilha baixo atualmente, mas os mercados sempre mudam`;
+          message += `\n  🛡️ Mantenha a disciplina. Monitore as condições e aguarde sinais claros`;
+        }
       }
     }
   }
@@ -329,19 +374,44 @@ ${mentalNote}`;
 
   // CTA (Otimização de upsell: CTA com urgência para garantir fundos de desenvolvimento)
   // VSL2 e link do Whop são distribuídos separadamente, portanto não são incluídos no Minimal Briefing regular
+  // Melhoria baseada em avaliação GPT: Mensageria dinâmica baseada em Trap Score
+  
+  // Alterar a mensagem CTA dinamicamente com base no Trap Score
+  const trapScoreRounded = trapScore !== null ? Math.round(trapScore) : null;
+  let ctaHeadline = '';
+  let ctaUrgency = '';
+  
+  if (trapScoreRounded !== null && trapScoreRounded >= 50) {
+    // Risco moderado ou alto: Enfatizar urgência
+    ctaHeadline = '🚨 Atualize Agora: Obtenha Alertas de Armadilhas em Tempo Real Antes de Perder Capital';
+    ctaUrgency = '⚠️ Neste momento, sinais de armadilha são detectados. Usuários gratuitos apenas veem a pontuação—VOCÊ precisa do sistema de defesa completo para proteger seu capital.';
+  } else {
+    // Risco baixo: Enfatizar proposta de valor
+    ctaHeadline = '🚀 Atualize Agora: Obtenha Sinais de Trading Detalhados e Alertas em Tempo Real';
+    ctaUrgency = '💡 Baixo risco agora, mas os mercados mudam rápido. Atualize para obter alertas instantâneos quando armadilhas se formarem.';
+  }
   
   message += `\n\n━━━━━━━━━━━━━━━━━━━━
-🚀 Desbloqueie o Relatório Completo de Inteligência
+${ctaHeadline}
 
-Você está vendo uma prévia. Membros completos obtêm:
+${ctaUrgency}
 
-✨ Relatório Completo de Inteligência
+✨ O que Membros Completos Obtêm (O que Você Está Perdendo):
+
+🎯 Alertas de Armadilhas em Tempo Real
+• Sinais AVOID-LONG / AVOID-SHORT / STANDBY (notificações instantâneas)
+• Guia do Mapa de Saída (saber exatamente quando sair)
+• Alertas NO TRADE (evitar perdas antes que ocorram)
+
+📊 Relatório Completo de Inteligência
 • Análise completa on-chain (todos os indicadores em tempo real)
 • Insights de mercado impulsionados por IA e detecção de armadilhas (monitoramento 24/7)
-• Alertas em tempo real: AVOID-LONG / AVOID-SHORT / STANDBY (notificações instantâneas)
-• Mapa de Saída e guia de Treinamento Mental (estratégias práticas)
-• Suporte psicológico completo de Dr. Grok (resolução de bloqueios mentais)
 • Análise de sentimento X em tempo real (prevê emoções do mercado)
+
+💊 Suporte Psicológico Completo de Dr. Grok
+• Resolução de bloqueios mentais (superar FOMO, MEDO, GANÂNCIA)
+• Guia de treinamento mental personalizado
+• Diagnóstico do estado psicológico
 
 💎 Tudo isso foi projetado para proteger seu capital
 

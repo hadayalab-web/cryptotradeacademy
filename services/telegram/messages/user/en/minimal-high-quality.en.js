@@ -97,12 +97,14 @@ function generateEvidence(trapData = null, marketData = null) {
 
   // Market Dataから根拠を抽出
   if (marketData) {
-    if (marketData.mpi !== undefined) {
+    if (marketData.mpi !== undefined && marketData.mpi !== null) {
       const mpi = marketData.mpi;
       if (mpi > 2.0) {
         evidenceItems.push(`Miner Position Index: ${mpi.toFixed(2)} — Miners are selling (caution needed)`);
       } else if (mpi < 0.5) {
         evidenceItems.push(`Miner Position Index: ${mpi.toFixed(2)} — Miners are holding (positive signal)`);
+      } else {
+        evidenceItems.push(`Miner Position Index: ${mpi.toFixed(2)} — Normal range`);
       }
     }
   }
@@ -122,11 +124,11 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
   const comments = [];
 
   if (!trapScore || trapScore < 30) {
-    // Trap Scoreが低い場合：低リスクでも価値を提供
+    // Trap Scoreが低い場合：低リスクでも価値を提供（重複表現を削減）
     const lowRiskMessages = [
-      '"Patience is strategic strength. Keep waiting for clear opportunities."',
-      '"Low risk now, but markets always change. Not preparing is the path to defeat."',
-      '"Defense is not weakness. 70% of the time, doing nothing is the strongest strategy."',
+      '"Patience is strategic strength. Monitor conditions and act when clarity emerges."',
+      '"Low risk now, but markets always change. Stay prepared and alert."',
+      '"Defense is not weakness. Quality opportunities require both low risk and clear direction."',
     ];
     comments.push(lowRiskMessages[Math.floor(Math.random() * lowRiskMessages.length)]);
   } else if (trapScore >= 70) {
@@ -154,12 +156,12 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
  */
 function generateMentalNote(trapScore = null, avoidProTraderMessage = false, drGrokComment = null) {
   const allMentalNotes = [
-    '"70% of the time, do nothing. Defense until clear advantage emerges."',
     '"Protecting capital is priority #1. Not losing is more important than winning."',
-    '"70% of the market is noise. React only to clear signals. That\'s the path to victory."',
-    '"Waiting is not weakness. It\'s the strongest strategy."',
+    '"Most market movements are noise. React only to clear, high-quality signals."',
+    '"Discipline is the foundation. Quality setups require both low risk and clear direction."',
     '"Defense is the highest form of attack. Protecting capital is where everything begins."',
-    '"90% of professional traders prioritize waiting time. Take the same strategy."',
+    '"Patience pays. The best opportunities come when risk is low and direction is clear."',
+    '"Stay alert, stay prepared. Markets reward those who wait for quality setups."',
   ];
   
   // 戦略的インサイトで「プロトレーダーは待つ時間を最優先」を使った場合は、メンタルノートでは別のメッセージを選ぶ
@@ -213,6 +215,7 @@ function formatMinimalHighQualityBriefing({
   marketData = null,
   sentimentData = null,
   lang = 'en',
+  score = null, // Market Score (optional, can also be in marketData.score)
 } = {}) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
   
@@ -273,22 +276,65 @@ ${priceLine}`;
       message += `\n• ${item}`;
     });
     
+    // Market Dataから追加情報を表示（MPI、Sentimentなど）
+    // 重要: evidenceセクションの後に追加情報として表示（常に表示）
+    if (marketData) {
+      if (marketData.mpi !== undefined && marketData.mpi !== null) {
+        const mpi = marketData.mpi;
+        if (mpi > 2.0) {
+          message += `\n• Miners' Position Index (MPI): ${mpi.toFixed(2)} — Miners are selling (caution needed)`;
+        } else if (mpi < 0.5) {
+          message += `\n• Miners' Position Index (MPI): ${mpi.toFixed(2)} — Miners are holding (positive signal)`;
+        } else {
+          message += `\n• Miners' Position Index (MPI): ${mpi.toFixed(2)} — Normal range`;
+        }
+      }
+    }
+    
+    // Sentiment Dataから追加情報を表示
+    // 重要: sentimentDataが存在する場合、必ず表示
+    if (sentimentData && sentimentData.sentiment) {
+      const sentiment = sentimentData.sentiment;
+      const sentimentEmoji = sentiment.toLowerCase().includes('fear') ? '😨' :
+                             sentiment.toLowerCase().includes('greed') ? '😍' :
+                             sentiment.toLowerCase().includes('fomo') ? '😰' :
+                             sentiment.toLowerCase().includes('panic') ? '😱' : '😐';
+      message += `\n• Sentiment: ${sentimentEmoji} ${sentiment}`;
+    }
+    
     // 【改善2: 「70%待機戦略」の証拠ベース説明の統合】EvidenceとMental Noteを連動
     // 低リスク時でも説明を追加（価値提供のため）
     if (trapScore !== null) {
       const trapScoreRounded = Math.round(trapScore);
+      const marketScore = score ?? marketData?.score ?? null;
+      const marketScoreRounded = marketScore !== null ? Math.round(marketScore) : null;
+      const isBullish = marketScoreRounded !== null && marketScoreRounded >= 50;
+      const isLowTrapRisk = trapScoreRounded < 30;
+      
       message += `\n\n💡 Strategic Insights`;
       if (trapScoreRounded >= 70) {
         message += `\n  🚨 Trap Score ${trapScoreRounded}/100: Strong signals indicate potential market traps`;
-        message += `\n  🛡️ Strategic preparation is not weakness—it's victory preparation. 70% of the time, prepare for victory`;
+        message += `\n  🛡️ Strategic preparation is not weakness—it's victory preparation. Exercise extreme caution`;
       } else if (trapScoreRounded >= 50) {
         message += `\n  ⚡ Trap Score ${trapScoreRounded}/100: Moderate trap indicators detected`;
-        message += `\n  🛡️ Defense first. Wait for clearer market signals`;
+        message += `\n  🛡️ Exercise caution. Monitor market conditions closely before taking action`;
       } else {
-        // 低リスク時でも価値を提供
-        message += `\n  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk, but markets always change`;
-        message += `\n  🛡️ Low-risk times are when strategic preparation matters most. Continue defense until clear advantage emerges`;
-        message += `\n  💎 Professional traders prioritize "waiting time" above all. Take the same strategy`;
+        // 低リスク時：市場状況に応じたメッセージ
+        if (isLowTrapRisk && isBullish) {
+          // 低リスクかつ強気：より積極的なメッセージ
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: Low trap risk detected`;
+          message += `\n  📈 Market conditions appear favorable (Score: ${marketScoreRounded}/100). Monitor for clear entry opportunities`;
+          message += `\n  💡 Low risk + bullish momentum = favorable conditions. Stay alert for quality setups`;
+        } else if (isLowTrapRisk) {
+          // 低リスクだが中立/弱気：標準的な防御メッセージ
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk`;
+          message += `\n  🛡️ Market conditions are stable. Maintain discipline and wait for high-quality opportunities`;
+          message += `\n  💡 Patience pays. Quality setups require both low risk and clear market direction`;
+        } else {
+          // フォールバック（scoreが取得できない場合）
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk, but markets always change`;
+          message += `\n  🛡️ Maintain discipline. Monitor conditions and wait for clear signals`;
+        }
       }
     }
   }
@@ -321,19 +367,44 @@ ${mentalNote}`;
 
   // CTA（アップセル最適化：開発資金確保のため緊迫感のあるCTA）
   // VSL2とWhopリンクは別途配信されるため、定期配信のMinimal Briefingには含めない
+  // GPT評価に基づく改善: より具体的な利点提示に変更
+  
+  // Trap Scoreに基づいてCTAのメッセージを動的に変更
+  const trapScoreRounded = trapScore !== null ? Math.round(trapScore) : null;
+  let ctaHeadline = '';
+  let ctaUrgency = '';
+  
+  if (trapScoreRounded !== null && trapScoreRounded >= 50) {
+    // 中リスク以上: 緊急性を強調
+    ctaHeadline = '🚨 Upgrade Now: Get Real-Time Trap Alerts Before You Lose Capital';
+    ctaUrgency = '⚠️ Right now, trap signals are detected. Free users only see the score—YOU need the full defense system to protect your capital.';
+  } else {
+    // 低リスク: 価値提案を強調
+    ctaHeadline = '🚀 Upgrade Now: Get Detailed Trade Signals & Real-Time Alerts';
+    ctaUrgency = '💡 Low risk now, but markets change fast. Upgrade to get instant alerts when traps form.';
+  }
   
   message += `\n\n━━━━━━━━━━━━━━━━━━━━
-🚀 Unlock Full Intelligence Report
+${ctaHeadline}
 
-You're seeing a glimpse. Full members get:
+${ctaUrgency}
 
-✨ Complete Intelligence Report
+✨ What Full Members Get (That You're Missing):
+
+🎯 Real-Time Trap Alerts
+• AVOID-LONG / AVOID-SHORT / STANDBY signals (instant notifications)
+• Exit Map guidance (know exactly when to exit)
+• NO TRADE alerts (avoid losses before they happen)
+
+📊 Complete Intelligence Report
 • Full on-chain analysis (all indicators in real-time)
 • AI-powered market insights & trap detection (24/7 monitoring)
-• Real-time alerts: AVOID-LONG / AVOID-SHORT / STANDBY (instant notifications)
-• Exit Map & Mental Training guidance (practical strategies)
-• Full Dr. Grok psychological support (mental block resolution)
 • Real-time X sentiment analysis (predict market emotions)
+
+💊 Full Dr. Grok Psychological Support
+• Mental block resolution (overcome FOMO, FEAR, GREED)
+• Personalized mental training guidance
+• Psychological state diagnosis
 
 💎 All of this is designed to protect your capital
 

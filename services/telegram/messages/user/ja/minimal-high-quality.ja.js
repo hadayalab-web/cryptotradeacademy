@@ -97,12 +97,14 @@ function generateEvidence(trapData = null, marketData = null) {
 
   // Market Dataから根拠を抽出
   if (marketData) {
-    if (marketData.mpi !== undefined) {
+    if (marketData.mpi !== undefined && marketData.mpi !== null) {
       const mpi = marketData.mpi;
       if (mpi > 2.0) {
         evidenceItems.push(`マイナーポジションインデックス: ${mpi.toFixed(2)} — マイナーが売却中（注意が必要）`);
       } else if (mpi < 0.5) {
         evidenceItems.push(`マイナーポジションインデックス: ${mpi.toFixed(2)} — マイナーが保持中（ポジティブシグナル）`);
+      } else {
+        evidenceItems.push(`マイナーポジションインデックス: ${mpi.toFixed(2)} — 正常範囲`);
       }
     }
   }
@@ -281,22 +283,65 @@ ${priceLine}`;
       message += `\n• ${item}`;
     });
     
+    // Market Dataから追加情報を表示（MPI、Sentimentなど）
+    // 重要: evidenceセクションの後に追加情報として表示（常に表示）
+    if (marketData) {
+      if (marketData.mpi !== undefined && marketData.mpi !== null) {
+        const mpi = marketData.mpi;
+        if (mpi > 2.0) {
+          message += `\n• マイナーポジションインデックス (MPI): ${mpi.toFixed(2)} — マイナーが売却中（注意が必要）`;
+        } else if (mpi < 0.5) {
+          message += `\n• マイナーポジションインデックス (MPI): ${mpi.toFixed(2)} — マイナーが保持中（ポジティブシグナル）`;
+        } else {
+          message += `\n• マイナーポジションインデックス (MPI): ${mpi.toFixed(2)} — 正常範囲`;
+        }
+      }
+    }
+    
+    // Sentiment Dataから追加情報を表示
+    // 重要: sentimentDataが存在する場合、必ず表示
+    if (sentimentData && sentimentData.sentiment) {
+      const sentiment = sentimentData.sentiment;
+      const sentimentEmoji = sentiment.toLowerCase().includes('fear') ? '😨' :
+                             sentiment.toLowerCase().includes('greed') ? '😍' :
+                             sentiment.toLowerCase().includes('fomo') ? '😰' :
+                             sentiment.toLowerCase().includes('panic') ? '😱' : '😐';
+      message += `\n• センチメント: ${sentimentEmoji} ${sentiment}`;
+    }
+    
     // 【改善2: 「70%待機戦略」の証拠ベース説明の統合】EvidenceとMental Noteを連動
     // 低リスク時でも説明を追加（価値提供のため）
     if (trapScore !== null) {
       const trapScoreRounded = Math.round(trapScore);
+      const marketScore = score ?? marketData?.score ?? null;
+      const marketScoreRounded = marketScore !== null ? Math.round(marketScore) : null;
+      const isBullish = marketScoreRounded !== null && marketScoreRounded >= 50;
+      const isLowTrapRisk = trapScoreRounded < 30;
+      
       message += `\n\n💡 戦略的インサイト`;
       if (trapScoreRounded >= 70) {
         message += `\n  🚨 Trap Score ${trapScoreRounded}/100: 強いシグナルが潜在的な市場トラップを示しています`;
-        message += `\n  🛡️ 戦略的な準備は弱さではない—それは勝利への準備だ。70%の時間、勝利のために準備しよう`;
+        message += `\n  🛡️ 戦略的な準備は弱さではない—それは勝利への準備だ。極度の注意を払おう`;
       } else if (trapScoreRounded >= 50) {
         message += `\n  ⚡ Trap Score ${trapScoreRounded}/100: 中程度のトラップ指標が検出されました`;
-        message += `\n  🛡️ 防御第一。より明確な市場シグナルを待とう`;
+        message += `\n  🛡️ 注意を払おう。行動を起こす前に市場状況を注意深く監視しよう`;
       } else {
-        // 低リスク時でも価値を提供
-        message += `\n  ✅ Trap Score ${trapScoreRounded}/100: 現在は低トラップリスクですが、市場は常に変化します`;
-        message += `\n  🛡️ 低リスク時こそ、戦略的な準備が重要です。明確な優位性が現れるまで防御を続けましょう`;
-        message += `\n  💎 プロトレーダーは「待つ時間」を最優先します。あなたも同じ戦略を取りましょう`;
+        // 低リスク時：市場状況に応じたメッセージ
+        if (isLowTrapRisk && isBullish) {
+          // 低リスクかつ強気：より積極的なメッセージ
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: 低トラップリスクが検出されました`;
+          message += `\n  📈 市場状況は良好に見えます（スコア: ${marketScoreRounded}/100）。明確なエントリー機会を監視しよう`;
+          message += `\n  💡 低リスク + 強気の勢い = 良好な条件。質の高いセットアップに注意を払おう`;
+        } else if (isLowTrapRisk) {
+          // 低リスクだが中立/弱気：標準的な防御メッセージ
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: 現在は低トラップリスク`;
+          message += `\n  🛡️ 市場状況は安定しています。規律を保ち、質の高い機会を待とう`;
+          message += `\n  💡 忍耐は報われる。質の高いセットアップには低リスクと明確な市場方向の両方が必要`;
+        } else {
+          // フォールバック（scoreが取得できない場合）
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: 現在は低トラップリスクですが、市場は常に変化します`;
+          message += `\n  🛡️ 規律を保とう。状況を監視し、明確なシグナルを待とう`;
+        }
       }
     }
   }
@@ -329,19 +374,44 @@ ${mentalNote}`;
 
   // CTA（アップセル最適化：開発資金確保のため緊迫感のあるCTA）
   // VSL2とWhopリンクは別途配信されるため、定期配信のMinimal Briefingには含めない
+  // GPT評価に基づく改善: Trap Scoreに基づく動的メッセージング
+  
+  // Trap Scoreに基づいてCTAのメッセージを動的に変更
+  const trapScoreRounded = trapScore !== null ? Math.round(trapScore) : null;
+  let ctaHeadline = '';
+  let ctaUrgency = '';
+  
+  if (trapScoreRounded !== null && trapScoreRounded >= 50) {
+    // 中リスク以上: 緊急性を強調
+    ctaHeadline = '🚨 今すぐアップグレード: 資本を失う前にリアルタイムトラップアラートを取得';
+    ctaUrgency = '⚠️ 現在、トラップシグナルが検出されています。無料ユーザーはスコアのみを確認できますが、あなたは資本を守るために完全な防御システムが必要です。';
+  } else {
+    // 低リスク: 価値提案を強調
+    ctaHeadline = '🚀 今すぐアップグレード: 詳細なトレードシグナルとリアルタイムアラートを取得';
+    ctaUrgency = '💡 現在は低リスクですが、市場は急速に変化します。トラップが形成されたときに即座にアラートを受け取るためにアップグレードしてください。';
+  }
   
   message += `\n\n━━━━━━━━━━━━━━━━━━━━
-🚀 完全なインテリジェンスレポートを解除
+${ctaHeadline}
 
-あなたは一部を見ています。フルメンバーは以下を取得します：
+${ctaUrgency}
 
-✨ 完全なインテリジェンスレポート
+✨ フルメンバーが取得できるもの（あなたが見逃しているもの）：
+
+🎯 リアルタイムトラップアラート
+• AVOID-LONG / AVOID-SHORT / STANDBYシグナル（即座に通知）
+• エグジットマップガイダンス（正確な退出タイミングを知る）
+• NO TRADEアラート（損失が発生する前に回避）
+
+📊 完全なインテリジェンスレポート
 • 完全なオンチェーン分析（すべての指標をリアルタイムで）
 • AI駆動の市場インサイトとトラップ検出（24時間監視）
-• リアルタイムアラート: AVOID-LONG / AVOID-SHORT / STANDBY（即座に通知）
-• エグジットマップとメンタルトレーニングガイダンス（実践的な戦略）
-• 完全なDr. Grokの心理的サポート（メンタルブロックの解消）
 • リアルタイムXセンチメント分析（市場の感情を先読み）
+
+💊 完全なDr. Grokの心理的サポート
+• メンタルブロックの解消（FOMO、恐怖、貪欲を克服）
+• パーソナライズされたメンタルトレーニングガイダンス
+• 心理状態の診断
 
 💎 これらすべてが、あなたの資本を守るために設計されています
 

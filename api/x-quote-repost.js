@@ -425,15 +425,22 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       dailyPostCount = await getDailyPostCount(dateString);
     }
     
-    // ピーク時間チェック（UTC 12-22のみ）
-    if (!isPeakTimeWindow(currentHour)) {
-      console.log(`⏰ Skipping quote reposts for ${lang} (not peak time: ${currentHour} UTC)`);
-      return [];
+    // 引用リポストのピーク時間（UTC 0,1,20,21）かどうかをチェック
+    // getPeakMapForHour()で定義された時刻を信頼し、isPeakTimeWindowチェックは削除
+    const quoteRepostPeakHours = [0, 1, 20, 21]; // vercel.jsonの設定に基づく
+    const isPeakTime = quoteRepostPeakHours.includes(currentHour);
+    if (!isPeakTime) {
+      // ピーク時間外でも、1日の投稿数が少ない場合は許可（インプレッション最大化）
+      if (dailyPostCount >= 30) { // 1日の投稿数が30以上の場合のみスキップ
+        console.log(`⏰ Skipping quote reposts for ${lang} (not quote repost peak time and daily limit high: ${currentHour} UTC, ${dailyPostCount}/45)`);
+        return [];
+      }
+      console.log(`ℹ️ Posting quote reposts for ${lang} outside quote repost peak time (${currentHour} UTC) for impression maximization`);
     }
     
-    // 1日の投稿上限チェック（35投稿/日 - Grok推奨）
-    if (!checkDailyPostLimit(dailyPostCount, 35)) {
-      console.log(`⏰ Daily post limit reached (${dailyPostCount}/35), skipping ${lang}`);
+    // インプレッション最大化: 1日の投稿上限を増加（35→45投稿/日）
+    if (!checkDailyPostLimit(dailyPostCount, 45)) {
+      console.log(`⏰ Daily post limit reached (${dailyPostCount}/45), skipping ${lang}`);
       return [];
     }
     
@@ -562,6 +569,30 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           }
         }
         
+        // Phase 1: ソーシャルプルーフを追加（インプレッション最大化）
+        try {
+          const { getSocialProofText } = require('../services/telegram/reaction-counter');
+          const socialProofText = await getSocialProofText(lang);
+          // 引用リポストは140文字以内に制限されているため、短縮版を使用
+          // 「👥 350 Saved」のような短縮版を生成
+          const shortSocialProof = socialProofText.replace(' Traders Saved Today', ' Saved');
+          const quoteWithSocialProof = `${quoteText} ${shortSocialProof}`;
+          
+          // 140文字以内に制限（引用リポスト用）
+          if (quoteWithSocialProof.length <= 140) {
+            quoteText = quoteWithSocialProof;
+            console.log(`[Quote Repost] ✅ Added social proof: ${shortSocialProof}`);
+          } else {
+            // 文字数制限を超える場合は、元のテキストを短縮してソーシャルプルーフを優先
+            const maxLength = 140 - shortSocialProof.length - 1;
+            quoteText = `${quoteText.substring(0, maxLength)} ${shortSocialProof}`;
+            console.log(`[Quote Repost] ✅ Added social proof (shortened): ${shortSocialProof}`);
+          }
+        } catch (error) {
+          console.warn(`[Quote Repost] Failed to add social proof for ${lang}:`, error.message);
+          // エラー時はソーシャルプルーフなしで続行
+        }
+        
         // Grok推奨: ハッシュタグを動的取得（トレンド1+ニッチ2）
         const { getTrendyHashtags } = require('../services/x/optimization');
         const optimizedHashtags = await getTrendyHashtags(lang, 'BTC').catch(() => getOptimizedHashtags(lang));
@@ -571,7 +602,7 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           quoteText = quoteText.replace(/#(?:BTC|Bitcoin).*#TrapDefence/g, hashtagStr);
         }
         
-        // 140文字以内に制限（引用リポスト用）
+        // 140文字以内に制限（引用リポスト用）- ソーシャルプルーフ追加後の最終チェック
         if (quoteText.length > 140) {
           quoteText = quoteText.substring(0, 137) + '...';
         }
@@ -892,48 +923,113 @@ const handler = async (req, res) => {
       });
     }
     
-    // 1時間ごとに1言語ずつ実行（6時間で全言語完了）
-    const targetLangs = SUPPORTED_LANGS;
+    // Grok推奨: UTC時刻に基づいて処理する言語を決定（1日6言語すべてを時間帯別で回す）
     const currentHour = new Date().getUTCHours();
-    const langIndex = currentHour % targetLangs.length;
-    const targetLang = targetLangs[langIndex];
     const dateString = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     
     // 1日の投稿数を取得（Vercel KV）- 変数名を明確に（重複回避）
     const currentDailyPostCount = await getDailyPostCount(dateString);
     
-    console.log(`[Quote Repost] Processing ${targetLang} (hour ${currentHour}, daily count: ${currentDailyPostCount})`);
+    // Grok推奨: peakMapから現在時刻に処理すべき言語を取得
+    const { getLanguagesForCurrentHour } = require('../services/x/optimization');
+    const { langs: targetLangs, type, count } = getLanguagesForCurrentHour(currentHour);
     
-    // ピーク時間チェック
-    if (!isPeakTimeWindow(currentHour)) {
-      console.log(`[Quote Repost] ⏰ Skipping quote reposts (not peak time: ${currentHour} UTC)`);
+    // 引用リポストのピーク時間でない場合はスキップ
+    // 注意: getPeakMapForHour()で定義された時刻（UTC 0,1,20,21）を信頼し、isPeakTimeWindowチェックは削除
+    // UTC 0:00と1:00はisPeakTimeWindowの範囲外（10-23）だが、引用リポストのピーク時間として定義されている
+    if (!targetLangs || targetLangs.length === 0 || type !== 'quote') {
+      console.log(`[Quote Repost] ⏰ Skipping quote reposts (not quote repost peak time: ${currentHour} UTC, type: ${type || 'none'})`);
       return res.status(200).json({
         success: true,
         skipped: true,
-        reason: 'not_peak_time',
-        lang: targetLang,
+        reason: 'not_quote_repost_peak_time',
+        currentHour,
+        type,
         results: [],
         dailyPostCount: currentDailyPostCount,
       });
     }
     
-    console.log(`[Quote Repost] Starting influencer discovery for ${targetLang}...`);
-    const langResults = await postQuoteRepostsForLang(targetLang, reportData, currentDailyPostCount);
+    console.log(`[Quote Repost] Processing ${targetLangs.join(', ')} at peak time (${currentHour}:00 UTC, type: ${type}, count: ${count} per lang)`);
+    const maxDailyPosts = 45; // インプレッション最大化: 25→45に増加（スパム判定回避しつつ最大化）
+    console.log(`[Quote Repost] Daily post count: ${currentDailyPostCount}/${maxDailyPosts}`);
+    
+    // Grok推奨: 1時間あたりの投稿数制限（3-4/時間最大）
+    const hourKey = `${dateString}T${String(currentHour).padStart(2, '0')}`;
+    const { checkHourlyPostLimit, getHourlyPostCount, incrementHourlyPostCount } = require('../services/x/optimization');
+    const currentHourlyPostCount = await getHourlyPostCount(hourKey);
+    const maxPostsPerHour = 4; // Grok推奨: 3-4/時間最大
+    console.log(`[Quote Repost] Hourly post count: ${currentHourlyPostCount}/${maxPostsPerHour}`);
+    
+    if (!checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour)) {
+      console.log(`[Quote Repost] ⏰ Hourly post limit reached (${currentHourlyPostCount}/${maxPostsPerHour}), skipping quote reposts`);
+      return res.status(200).json({
+        success: true,
+        skipped: true,
+        reason: 'hourly_limit_reached',
+        currentHourlyPostCount,
+        maxPostsPerHour,
+        results: [],
+        dailyPostCount: currentDailyPostCount,
+      });
+    }
+    
+    // Grok推奨: 1日6言語すべてを時間帯別で回す（各言語count回）
+    const allResults = [];
+    let updatedDailyPostCount = currentDailyPostCount;
+    let updatedHourlyPostCount = currentHourlyPostCount;
+    
+    for (const targetLang of targetLangs) {
+      // 各言語でcount回の引用リポストを実行
+      for (let i = 0; i < count; i++) {
+        // 1時間あたりの投稿数制限をチェック
+        if (!checkHourlyPostLimit(updatedHourlyPostCount, maxPostsPerHour)) {
+          console.log(`[Quote Repost] ⏰ Hourly post limit reached during processing (${updatedHourlyPostCount}/${maxPostsPerHour}), stopping`);
+          break;
+        }
+        console.log(`[Quote Repost] Starting influencer discovery for ${targetLang} (${i + 1}/${count})...`);
+        const langResults = await postQuoteRepostsForLang(targetLang, reportData, updatedDailyPostCount);
+        allResults.push(...langResults);
+        
+        // 投稿数を更新（日次と時間次）
+        updatedDailyPostCount = await getDailyPostCount(dateString);
+        updatedHourlyPostCount = await incrementHourlyPostCount(hourKey);
+        console.log(`[Quote Repost] Updated hourly post count: ${updatedHourlyPostCount}/${maxPostsPerHour}`);
+        
+        // レート制限対策（同一言語内で5-10分間隔）
+        if (i < count - 1) {
+          const delayMs = 5 * 60 * 1000; // 5分待機
+          console.log(`[Quote Repost] Waiting ${delayMs / 1000} seconds before next post for ${targetLang}...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
+      
+      // 言語間の待機時間（1-2分）
+      if (targetLang !== targetLangs[targetLangs.length - 1]) {
+        const delayMs = 1 * 60 * 1000; // 1分待機
+        console.log(`[Quote Repost] Waiting ${delayMs / 1000} seconds before next language...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+    
+    const langResults = allResults;
     
     // 更新後の投稿数を取得
-    const updatedDailyPostCount = await getDailyPostCount(dateString);
+    const finalDailyPostCount = await getDailyPostCount(dateString);
     
     const successCount = langResults.filter(r => r.success).length;
     console.log(`[Quote Repost] ========================================`);
-    console.log(`[Quote Repost] Completed for ${targetLang}: ${successCount}/${langResults.length} successful`);
+    console.log(`[Quote Repost] Completed for ${targetLangs.join(', ')}: ${successCount}/${langResults.length} successful`);
     console.log(`[Quote Repost] Results:`, JSON.stringify(langResults, null, 2));
     console.log(`[Quote Repost] ========================================`);
     
     return res.status(200).json({
       success: true,
-      lang: targetLang,
+      langs: targetLangs,
+      type,
+      count,
       results: langResults,
-      dailyPostCount: updatedDailyPostCount,
+      dailyPostCount: finalDailyPostCount,
     });
   } catch (error) {
     console.error('[Quote Repost] ========================================');

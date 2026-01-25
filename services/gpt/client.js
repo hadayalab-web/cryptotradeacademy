@@ -190,6 +190,15 @@ async function fetchWithTimeout(url, options, timeoutMs) {
   try {
     const res = await fetch(url, { ...options, signal: controller.signal });
     return res;
+  } catch (error) {
+    // タイムアウトエラーの場合、より詳細なエラーメッセージを提供
+    if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+      const timeoutError = new Error(`GPT API timeout after ${timeoutMs}ms: ${error.message}`);
+      timeoutError.name = 'AbortError';
+      timeoutError.isTimeout = true;
+      throw timeoutError;
+    }
+    throw error;
   } finally {
     clearTimeout(id);
   }
@@ -412,14 +421,19 @@ If data is missing or insufficient, set signal to "STANDBY" and urgency to "low"
       },
     });
   } catch (error) {
+    // タイムアウトエラーの場合は特別な処理
+    const isTimeout = error?.isTimeout || error?.name === 'AbortError' || error?.message?.includes('aborted');
+    
     logger.error('GPT API failed after retries', {
       error: error?.message,
       status: error?.status,
+      isTimeout,
       apiKeyMasked: maskSecret(OPENAI_API_KEY),
     });
     
     // メトリクス: エラーを記録
-    const errorType = isRateLimitError(error) ? 'rate_limit_error' 
+    const errorType = isTimeout ? 'timeout_error'
+      : isRateLimitError(error) ? 'rate_limit_error' 
       : (error?.status >= 500 && error?.status <= 599) ? 'server_error' 
       : 'error';
     await recordMetric({ type: errorType }).catch(() => {}); // エラーは無視
@@ -436,7 +450,9 @@ If data is missing or insufficient, set signal to "STANDBY" and urgency to "low"
     return {
       signal: 'NONE',
       confidence: 0,
-      reasoning: `GPT API error: ${error?.message || 'Unknown error'}`,
+      reasoning: isTimeout 
+        ? `GPT API timeout: Request took longer than ${GPT_TIMEOUT_MS}ms`
+        : `GPT API error: ${error?.message || 'Unknown error'}`,
       urgency: 'low',
       keyIndicators: [],
       riskLevel: 'medium',
@@ -556,7 +572,9 @@ IMPORTANT: Always connect on-chain data to trader psychology. Explain WHY waitin
 If the provided data is empty, null, or insufficient, explicitly state that in your analysis. Do not speculate or hallucinate.
 
 Language: ${targetLang}
-Format your response in ${targetLang === 'ja' ? 'Japanese' : targetLang === 'ko' ? 'Korean' : 'English'}.`;
+CRITICAL: You MUST respond ONLY in ${targetLang === 'ja' ? 'Japanese' : targetLang === 'ko' ? 'Korean' : 'English'}. 
+DO NOT mix languages. DO NOT use Japanese characters if targetLang is 'en'. 
+If you detect any Japanese characters in your response when targetLang is 'en', regenerate the response in English only.`;
 
   const userContent = `As a Mental Trainer, analyze the following CryptoQuant data and provide psychological guidance:
 
@@ -678,14 +696,19 @@ If data is missing or insufficient, state that clearly and provide general Trap 
       },
     });
   } catch (error) {
+    // タイムアウトエラーの場合は特別な処理
+    const isTimeout = error?.isTimeout || error?.name === 'AbortError' || error?.message?.includes('aborted');
+    
     logger.error('GPT API failed after retries', {
       error: error?.message,
       status: error?.status,
+      isTimeout,
       apiKeyMasked: maskSecret(OPENAI_API_KEY),
     });
     
     // メトリクス: エラーを記録
-    const errorType = isRateLimitError(error) ? 'rate_limit_error' 
+    const errorType = isTimeout ? 'timeout_error'
+      : isRateLimitError(error) ? 'rate_limit_error' 
       : (error?.status >= 500 && error?.status <= 599) ? 'server_error' 
       : 'error';
     await recordMetric({ type: errorType }).catch(() => {}); // エラーは無視
@@ -698,7 +721,9 @@ If data is missing or insufficient, state that clearly and provide general Trap 
       return lastSuccess;
     }
     
-    return 'GPT analysis unavailable due to API error.';
+    return isTimeout 
+      ? `GPT analysis unavailable due to timeout (${GPT_TIMEOUT_MS}ms exceeded).`
+      : 'GPT analysis unavailable due to API error.';
   }
 
   const text = result?.choices?.[0]?.message?.content?.trim();
@@ -867,14 +892,19 @@ If data is missing or insufficient, state that clearly.`;
       },
     });
   } catch (error) {
+    // タイムアウトエラーの場合は特別な処理
+    const isTimeout = error?.isTimeout || error?.name === 'AbortError' || error?.message?.includes('aborted');
+    
     logger.error('GPT API failed after retries', {
       error: error?.message,
       status: error?.status,
+      isTimeout,
       apiKeyMasked: maskSecret(OPENAI_API_KEY),
     });
     
     // メトリクス: エラーを記録
-    const errorType = isRateLimitError(error) ? 'rate_limit_error' 
+    const errorType = isTimeout ? 'timeout_error'
+      : isRateLimitError(error) ? 'rate_limit_error' 
       : (error?.status >= 500 && error?.status <= 599) ? 'server_error' 
       : 'error';
     await recordMetric({ type: errorType }).catch(() => {}); // エラーは無視
@@ -887,7 +917,9 @@ If data is missing or insufficient, state that clearly.`;
       return lastSuccess;
     }
     
-    return 'Impact report generation failed due to API error.';
+    return isTimeout 
+      ? `Impact report generation failed due to timeout (${GPT_TIMEOUT_MS}ms exceeded).`
+      : 'Impact report generation failed due to API error.';
   }
 
   const text = result?.choices?.[0]?.message?.content?.trim();
@@ -1025,19 +1057,26 @@ async function generateText(systemPrompt, userPrompt, options = {}) {
       },
     });
   } catch (error) {
+    // タイムアウトエラーの場合は特別な処理
+    const isTimeout = error?.isTimeout || error?.name === 'AbortError' || error?.message?.includes('aborted');
+    
     logger.error('GPT API failed after retries', {
       error: error?.message,
       status: error?.status,
+      isTimeout,
       apiKeyMasked: maskSecret(OPENAI_API_KEY),
     });
     
     // メトリクス: エラーを記録
-    const errorType = isRateLimitError(error) ? 'rate_limit_error' 
+    const errorType = isTimeout ? 'timeout_error'
+      : isRateLimitError(error) ? 'rate_limit_error' 
       : (error?.status >= 500 && error?.status <= 599) ? 'server_error' 
       : 'error';
     await recordMetric({ type: errorType }).catch(() => {});
     
-    return 'Text generation failed due to API error.';
+    return isTimeout 
+      ? `Text generation failed due to timeout (${GPT_TIMEOUT_MS}ms exceeded).`
+      : 'Text generation failed due to API error.';
   }
 
   const text = result?.choices?.[0]?.message?.content?.trim();

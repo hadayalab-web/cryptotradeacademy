@@ -97,12 +97,14 @@ function generateEvidence(trapData = null, marketData = null) {
 
   // استخراج الدليل من Market Data
   if (marketData) {
-    if (marketData.mpi !== undefined) {
+    if (marketData.mpi !== undefined && marketData.mpi !== null) {
       const mpi = marketData.mpi;
       if (mpi > 2.0) {
         evidenceItems.push(`مؤشر مراكز المعدّنين: ${mpi.toFixed(2)} — المعدّنون يبيعون (الحذر مطلوب)`);
       } else if (mpi < 0.5) {
         evidenceItems.push(`مؤشر مراكز المعدّنين: ${mpi.toFixed(2)} — المعدّنون يحتفظون (إشارة إيجابية)`);
+      } else {
+        evidenceItems.push(`مؤشر مراكز المعدّنين: ${mpi.toFixed(2)} — النطاق الطبيعي`);
       }
     }
   }
@@ -281,22 +283,65 @@ ${priceLine}`;
       message += `\n• ${item}`;
     });
     
+    // Market Dataから追加情報を表示（MPI、Sentimentなど）
+    // 重要: evidenceセクションの後に追加情報として表示（常に表示）
+    if (marketData) {
+      if (marketData.mpi !== undefined && marketData.mpi !== null) {
+        const mpi = marketData.mpi;
+        if (mpi > 2.0) {
+          message += `\n• مؤشر مراكز المعدّنين (MPI): ${mpi.toFixed(2)} — المعدّنون يبيعون (الحذر مطلوب)`;
+        } else if (mpi < 0.5) {
+          message += `\n• مؤشر مراكز المعدّنين (MPI): ${mpi.toFixed(2)} — المعدّنون يحتفظون (إشارة إيجابية)`;
+        } else {
+          message += `\n• مؤشر مراكز المعدّنين (MPI): ${mpi.toFixed(2)} — النطاق الطبيعي`;
+        }
+      }
+    }
+    
+    // Sentiment Dataから追加情報を表示
+    // 重要: sentimentDataが存在する場合、必ず表示
+    if (sentimentData && sentimentData.sentiment) {
+      const sentiment = sentimentData.sentiment;
+      const sentimentEmoji = sentiment.toLowerCase().includes('fear') ? '😨' :
+                             sentiment.toLowerCase().includes('greed') ? '😍' :
+                             sentiment.toLowerCase().includes('fomo') ? '😰' :
+                             sentiment.toLowerCase().includes('panic') ? '😱' : '😐';
+      message += `\n• المشاعر: ${sentimentEmoji} ${sentiment}`;
+    }
+    
     // 【تحسين 2: دمج شرح قائم على الأدلة لـ"استراتيجية الانتظار 70%"】ربط Evidence و Mental Note
     // إضافة شرح حتى في المخاطر المنخفضة (لتوفير القيمة)
     if (trapScore !== null) {
       const trapScoreRounded = Math.round(trapScore);
+      const marketScore = score ?? marketData?.score ?? null;
+      const marketScoreRounded = marketScore !== null ? Math.round(marketScore) : null;
+      const isBullish = marketScoreRounded !== null && marketScoreRounded >= 50;
+      const isLowTrapRisk = trapScoreRounded < 30;
+      
       message += `\n\n💡 رؤى استراتيجية`;
       if (trapScoreRounded >= 70) {
         message += `\n  🚨 Trap Score ${trapScoreRounded}/100: إشارات قوية تشير إلى فخاخ سوق محتملة`;
-        message += `\n  🛡️ الاستعداد الاستراتيجي ليس ضعفاً—إنه استعداد للنصر. 70% من الوقت، استعد للنصر`;
+        message += `\n  🛡️ الاستعداد الاستراتيجي ليس ضعفاً—إنه استعداد للنصر. مارس الحذر الشديد`;
       } else if (trapScoreRounded >= 50) {
         message += `\n  ⚡ Trap Score ${trapScoreRounded}/100: تم اكتشاف مؤشرات فخ متوسطة`;
-        message += `\n  🛡️ الدفاع أولاً. انتظر إشارات السوق الأكثر وضوحاً`;
+        message += `\n  🛡️ مارس الحذر. راقب ظروف السوق عن كثب قبل اتخاذ إجراء`;
       } else {
-        // توفير القيمة حتى في المخاطر المنخفضة
-        message += `\n  ✅ Trap Score ${trapScoreRounded}/100: مخاطر فخ منخفضة حالياً، لكن الأسواق تتغير دائماً`;
-        message += `\n  🛡️ أوقات المخاطر المنخفضة هي عندما يهم الاستعداد الاستراتيجي أكثر. استمر في الدفاع حتى تظهر ميزة واضحة`;
-        message += `\n  💎 المتداولون المحترفون يعطون الأولوية لـ"وقت الانتظار" فوق كل شيء. اتخذ نفس الاستراتيجية`;
+        // مخاطر منخفضة: رسالة حسب ظروف السوق
+        if (isLowTrapRisk && isBullish) {
+          // مخاطر منخفضة وصاعدة: رسالة أكثر نشاطاً
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: تم اكتشاف مخاطر فخ منخفضة`;
+          message += `\n  📈 ظروف السوق تبدو مواتية (النقاط: ${marketScoreRounded}/100). راقب فرص الدخول الواضحة`;
+          message += `\n  💡 مخاطر منخفضة + زخم صاعد = ظروف مواتية. ابق متيقظاً لإعدادات الجودة`;
+        } else if (isLowTrapRisk) {
+          // مخاطر منخفضة لكن محايدة/هابطة: رسالة دفاع قياسية
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: مخاطر فخ منخفضة حالياً`;
+          message += `\n  🛡️ ظروف السوق مستقرة. حافظ على الانضباط وانتظر فرص عالية الجودة`;
+          message += `\n  💡 الصبر يؤتي ثماره. إعدادات الجودة تتطلب مخاطر منخفضة واتجاه سوق واضح`;
+        } else {
+          // Fallback (إذا لم يتم الحصول على النقاط)
+          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: مخاطر فخ منخفضة حالياً، لكن الأسواق تتغير دائماً`;
+          message += `\n  🛡️ حافظ على الانضباط. راقب الظروف وانتظر إشارات واضحة`;
+        }
       }
     }
   }
@@ -329,19 +374,44 @@ ${mentalNote}`;
 
   // CTA (تحسين الـupsell: CTA مع إلحاح لضمان أموال التطوير)
   // VSL2 ورابط Whop يتم توزيعهما بشكل منفصل، لذلك لا يتم تضمينهما في Minimal Briefing العادي
+  // تحسين بناءً على تقييم GPT: رسائل ديناميكية بناءً على Trap Score
+  
+  // تغيير رسالة CTA ديناميكيًا بناءً على Trap Score
+  const trapScoreRounded = trapScore !== null ? Math.round(trapScore) : null;
+  let ctaHeadline = '';
+  let ctaUrgency = '';
+  
+  if (trapScoreRounded !== null && trapScoreRounded >= 50) {
+    // خطر متوسط أو عالي: التأكيد على الإلحاح
+    ctaHeadline = '🚨 قم بالترقية الآن: احصل على تنبيهات الفخاخ في الوقت الفعلي قبل فقدان رأس المال';
+    ctaUrgency = '⚠️ في هذه اللحظة، يتم اكتشاف إشارات الفخ. المستخدمون المجانيون يرون النتيجة فقط—أنت تحتاج إلى نظام الدفاع الكامل لحماية رأس مالك.';
+  } else {
+    // خطر منخفض: التأكيد على عرض القيمة
+    ctaHeadline = '🚀 قم بالترقية الآن: احصل على إشارات التداول التفصيلية والتنبيهات في الوقت الفعلي';
+    ctaUrgency = '💡 خطر منخفض الآن، لكن الأسواق تتغير بسرعة. قم بالترقية للحصول على تنبيهات فورية عند تشكل الفخاخ.';
+  }
   
   message += `\n\n━━━━━━━━━━━━━━━━━━━━
-🚀 قم بفتح تقرير الاستخبارات الكامل
+${ctaHeadline}
 
-أنت ترى لمحة. الأعضاء الكاملون يحصلون على:
+${ctaUrgency}
 
-✨ تقرير الاستخبارات الكامل
+✨ ما يحصل عليه الأعضاء الكاملون (ما تفقده):
+
+🎯 تنبيهات الفخاخ في الوقت الفعلي
+• إشارات AVOID-LONG / AVOID-SHORT / STANDBY (إشعارات فورية)
+• دليل خريطة الخروج (معرفة متى تخرج بالضبط)
+• تنبيهات NO TRADE (تجنب الخسائر قبل حدوثها)
+
+📊 تقرير الاستخبارات الكامل
 • تحليل on-chain كامل (جميع المؤشرات في الوقت الفعلي)
 • رؤى السوق المدعومة بالذكاء الاصطناعي وكشف الفخاخ (مراقبة على مدار الساعة)
-• تنبيهات في الوقت الفعلي: AVOID-LONG / AVOID-SHORT / STANDBY (إشعارات فورية)
-• خريطة الخروج وإرشادات التدريب العقلي (استراتيجيات عملية)
-• الدعم النفسي الكامل من Dr. Grok (حل العوائق العقلية)
 • تحليل مشاعر X في الوقت الفعلي (توقع مشاعر السوق)
+
+💊 الدعم النفسي الكامل من Dr. Grok
+• حل العوائق العقلية (التغلب على FOMO، الخوف، الجشع)
+• دليل التدريب العقلي المخصص
+• تشخيص الحالة النفسية
 
 💎 كل هذا مصمم لحماية رأس مالك
 
