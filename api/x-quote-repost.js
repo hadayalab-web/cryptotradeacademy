@@ -690,6 +690,17 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         // const influencerId = generateInfluencerId(influencer);
         // await recordQuoteRepost(influencerId, result.id);
         
+        // 投稿IDをKVに保存（メトリクス追跡用）
+        try {
+          const { savePostId } = require('../services/x/postTracker');
+          await savePostId(result.id, 'quote_repost', lang, {
+            influencerUsername: influencer.username,
+            influencerTweetId: influencer.tweetId,
+          });
+        } catch (error) {
+          console.warn('[Quote Repost] Failed to save post ID:', error.message);
+        }
+        
         // Grok推奨: EN実測ダッシュボード用メトリクス記録
         let engagementMetrics = null;
         try {

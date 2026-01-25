@@ -83,6 +83,70 @@ async function recordEngagementMetrics(tweetId, metrics) {
 }
 
 /**
+ * 前日の投稿IDを取得してメトリクスを更新
+ * @param {string} dateString - 日付文字列（YYYY-MM-DD）
+ * @returns {Promise<void>}
+ */
+async function updateMetricsForDate(dateString) {
+  if (!kv) {
+    console.warn('[X Engagement Metrics] KV not available, skipping metrics update');
+    return;
+  }
+  
+  try {
+    const { getPostsForDate } = require('../services/x/postTracker');
+    const { getTweetMetrics } = require('../services/x/metrics');
+    const posts = await getPostsForDate(dateString);
+    
+    if (posts.length === 0) {
+      console.log(`[X Engagement Metrics] No posts found for ${dateString}, skipping update`);
+      return;
+    }
+    
+    console.log(`[X Engagement Metrics] Updating metrics for ${posts.length} posts on ${dateString}...`);
+    
+    for (const post of posts) {
+      try {
+        // X APIから最新のメトリクスを取得
+        const metrics = await getTweetMetrics(post.tweetId, true); // 自分のツイートなのでnon_public_metrics取得可能
+        if (metrics) {
+          const engagementMetrics = {
+            impressions: metrics.nonPublicMetrics?.impression_count || metrics.organicMetrics?.impression_count || 0,
+            engagements: (metrics.publicMetrics?.like_count || 0) +
+                        (metrics.publicMetrics?.retweet_count || 0) +
+                        (metrics.publicMetrics?.reply_count || 0) +
+                        (metrics.publicMetrics?.quote_count || 0),
+            clicks: metrics.nonPublicMetrics?.url_link_clicks || metrics.organicMetrics?.url_link_clicks || 0,
+            replies: metrics.publicMetrics?.reply_count || 0,
+            retweets: metrics.publicMetrics?.retweet_count || 0,
+            likes: metrics.publicMetrics?.like_count || 0,
+            quoteTweets: metrics.publicMetrics?.quote_count || 0,
+          };
+          
+          // メトリクスを更新
+          await recordEngagementMetrics(post.tweetId, {
+            ...engagementMetrics,
+            lang: post.lang,
+            source: post.postType,
+            updatedAt: new Date().toISOString(),
+            ...post.metadata,
+          });
+          
+          // レート制限対策（1秒待機）
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } catch (error) {
+        console.warn(`[X Engagement Metrics] Failed to update metrics for tweet ${post.tweetId}:`, error.message);
+      }
+    }
+    
+    console.log(`[X Engagement Metrics] ✅ Metrics updated for ${posts.length} posts on ${dateString}`);
+  } catch (error) {
+    console.warn('[X Engagement Metrics] Failed to update metrics for date:', error.message);
+  }
+}
+
+/**
  * エンゲージメントダッシュボードを生成
  * @param {string} dateString - 日付文字列（YYYY-MM-DD）
  * @returns {Promise<Object>} ダッシュボードデータ
@@ -152,6 +216,10 @@ const handler = async (req, res) => {
     yesterday.setDate(yesterday.getDate() - 1);
     const dateString = yesterday.toISOString().split('T')[0];
     
+    // 前日の投稿IDを取得してメトリクスを更新
+    console.log(`[X Engagement Metrics] Updating metrics for ${dateString}...`);
+    await updateMetricsForDate(dateString);
+    
     console.log(`[X Engagement Metrics] Generating dashboard for ${dateString}...`);
     const dashboard = await generateEngagementDashboard(dateString);
     
@@ -188,3 +256,4 @@ module.exports = handler;
 module.exports.getDailyEngagementMetrics = getDailyEngagementMetrics;
 module.exports.recordEngagementMetrics = recordEngagementMetrics;
 module.exports.generateEngagementDashboard = generateEngagementDashboard;
+module.exports.updateMetricsForDate = updateMetricsForDate;

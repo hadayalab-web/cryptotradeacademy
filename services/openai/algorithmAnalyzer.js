@@ -167,9 +167,53 @@ ${JSON.stringify(influencerSummary, null, 2)}
  */
 async function performAlgorithmAnalysis(days = 7) {
   try {
-    // メトリクスデータを取得
-    const dateString = new Date().toISOString().split('T')[0];
-    const metricsData = await getDailyEngagementMetrics(dateString);
+    // 過去N日間のメトリクスデータを取得
+    const metricsDataByDate = {};
+    const now = new Date();
+    
+    for (let i = 0; i < days; i++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const dateString = date.toISOString().split('T')[0];
+      const metrics = await getDailyEngagementMetrics(dateString);
+      if (metrics) {
+        metricsDataByDate[dateString] = metrics;
+      }
+    }
+    
+    // メトリクスデータを集計
+    const aggregatedMetrics = {
+      totalTweets: 0,
+      totalImpressions: 0,
+      totalEngagements: 0,
+      totalClicks: 0,
+      totalReplies: 0,
+      totalRetweets: 0,
+      totalLikes: 0,
+      totalQuoteTweets: 0,
+      dates: Object.keys(metricsDataByDate),
+    };
+    
+    for (const dateString in metricsDataByDate) {
+      const metrics = metricsDataByDate[dateString];
+      aggregatedMetrics.totalTweets += metrics.tweets?.length || 0;
+      aggregatedMetrics.totalImpressions += metrics.totalImpressions || 0;
+      aggregatedMetrics.totalEngagements += metrics.totalEngagements || 0;
+      aggregatedMetrics.totalClicks += metrics.totalClicks || 0;
+      aggregatedMetrics.totalReplies += metrics.totalReplies || 0;
+      aggregatedMetrics.totalRetweets += metrics.totalRetweets || 0;
+      aggregatedMetrics.totalLikes += metrics.totalLikes || 0;
+      aggregatedMetrics.totalQuoteTweets += metrics.totalQuoteTweets || 0;
+    }
+    
+    // 平均エンゲージメント率を計算
+    aggregatedMetrics.avgEngagementRate = aggregatedMetrics.totalImpressions > 0
+      ? (aggregatedMetrics.totalEngagements / aggregatedMetrics.totalImpressions) * 100
+      : 0;
+    
+    aggregatedMetrics.avgClickRate = aggregatedMetrics.totalImpressions > 0
+      ? (aggregatedMetrics.totalClicks / aggregatedMetrics.totalImpressions) * 100
+      : 0;
     
     // A/Bテスト結果を取得
     const abTestData = {};
@@ -185,12 +229,13 @@ async function performAlgorithmAnalysis(days = 7) {
     const influencerData = await analyzeInfluencerPerformance(days);
     
     // GPTで分析
-    const analysis = await analyzeXAlgorithm(metricsData, abTestData, influencerData);
+    const analysis = await analyzeXAlgorithm(aggregatedMetrics, abTestData, influencerData);
     
     return {
       days,
       analyzedAt: new Date().toISOString(),
-      metricsData,
+      metricsData: aggregatedMetrics,
+      metricsDataByDate,
       abTestData,
       influencerData: influencerData.slice(0, 10), // トップ10のみ
       analysis,

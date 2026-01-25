@@ -379,6 +379,16 @@ async function postMinimalVersionToX(targetLangs, reportData) {
       console.log(`[X Post Minimal] ✅ Main tweet posted: ${mainTweetId}`);
       await incrementDailyPostCount(dateString, 1);
       
+      // 投稿IDをKVに保存（メトリクス追跡用）
+      try {
+        const { savePostId } = require('../services/x/postTracker');
+        await savePostId(mainTweetId, 'minimal_version', normalizedLang, {
+          threadLength: threadChunks.length,
+        });
+      } catch (error) {
+        console.warn('[X Post Minimal] Failed to save main post ID:', error.message);
+      }
+      
       // リプライ（残りのチャンク）
       let lastReplyId = mainTweetId;
       for (let i = 1; i < threadChunks.length; i++) {
@@ -394,6 +404,18 @@ async function postMinimalVersionToX(targetLangs, reportData) {
         lastReplyId = replyResult.id;
         console.log(`[X Post Minimal] ✅ Reply ${i} posted: ${replyResult.id}`);
         await incrementDailyPostCount(dateString, 1);
+        
+        // スレッドのリプライIDもKVに保存（メトリクス追跡用）
+        try {
+          const { savePostId } = require('../services/x/postTracker');
+          await savePostId(replyResult.id, 'minimal_version', normalizedLang, {
+            isThread: true,
+            threadIndex: i + 1,
+            mainTweetId,
+          });
+        } catch (error) {
+          console.warn('[X Post Minimal] Failed to save thread reply ID:', error.message);
+        }
       }
       
       // 投稿をマーク

@@ -937,6 +937,17 @@ async function postFreeReportAsThread(targetLangs, reportData) {
       results.push({ lang, success: true, tweetId: langMainTweetId, isMain: true });
       console.log(`✅ Main tweet posted for ${lang}: ${langMainTweetId}`);
       
+      // 投稿IDをKVに保存（メトリクス追跡用）
+      try {
+        const { savePostId } = require('../services/x/postTracker');
+        await savePostId(langMainTweetId, 'free_report', lang, {
+          contentFormat,
+          trapScore: reportData?.trapScore,
+        });
+      } catch (error) {
+        console.warn('[X Post Free Report] Failed to save post ID:', error.message);
+      }
+      
       // メイン投稿IDを設定（最初の言語の場合）
       if (!mainTweetId) {
         mainTweetId = langMainTweetId;
@@ -1007,6 +1018,19 @@ async function postFreeReportAsThread(targetLangs, reportData) {
         await incrementHourlyPostCount(hourKey); // 1時間あたりの投稿数をインクリメント
         results.push({ lang, success: true, tweetId: threadResult.id, isThread: true, threadIndex: i + 2 });
         console.log(`✅ Thread ${i + 2}/${actualReplyCount + 1} posted for ${lang}: ${threadResult.id}`);
+        
+        // スレッドの投稿IDもKVに保存（メトリクス追跡用）
+        try {
+          const { savePostId } = require('../services/x/postTracker');
+          await savePostId(threadResult.id, 'free_report', lang, {
+            contentFormat,
+            isThread: true,
+            threadIndex: i + 2,
+            mainTweetId: langMainTweetId,
+          });
+        } catch (error) {
+          console.warn('[X Post Free Report] Failed to save thread post ID:', error.message);
+        }
         
         // レート制限対策（2秒待機）
         await new Promise(resolve => setTimeout(resolve, 2000));
