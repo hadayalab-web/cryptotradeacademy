@@ -1,6 +1,6 @@
 // api/x-post-minimal-version.js
 // 無料版（Minimal Version）のX投稿（スレッド形式、6言語対応）
-// 無料版レポート配信後に自動実行
+// 改善: A/Bテスト機能追加（Whop優先 vs Telegram優先）、時間帯別最適化
 
 const { postTweet, replyToTweet } = require('../services/x/client');
 const { getXConfigStatus } = require('../services/x/config');
@@ -285,12 +285,19 @@ async function postMinimalVersionToX(targetLangs, reportData) {
       const engagementCTA = engagementCTAs[normalizedLang] || engagementCTAs.en;
       
       // Grok推奨: スレッド構造を最適化（Trap Score、Key Data、Strategic Insight、CTA）
-      // Whop直リン導線を最優先に（Grok推奨: Whop first, free as afterthought）
+      // A/Bテスト: 50%の確率でWhop優先 vs Telegram優先を切り替え
       const whopLink = getWhopProductUrl(normalizedLang);
       const whopLinkWithPromo = `${whopLink}?promo=DEFEND50`;
       
-      // Whop CTAを最優先に配置（緊急性とソーシャルプルーフを強調）
-      const whopCTAs = {
+      // 現在のUTC時間を取得（時間帯別最適化用）
+      const currentHour = new Date().getUTCHours();
+      const isPeakTime = [8, 12, 18, 20].includes(currentHour);
+      
+      // A/Bテスト: 50%の確率でCTAバリエーションを切り替え
+      const useWhopFirst = Math.random() < 0.5;
+      
+      // Whop優先CTA（直接コンバージョン重視）
+      const whopFirstCTAs = {
         en: `🔥 UPGRADE NOW: PRO Access (50% OFF DEFEND50)\n💎 Unlock Full Access + Alerts: ${whopLinkWithPromo}\n🚨 Limited Time: DEFEND50 code expires soon!\n\n(Or free daily score: ${deepLink})`,
         ja: `🔥 今すぐアップグレード: PRO版アクセス（50%OFF DEFEND50）\n💎 フルアクセス+アラート解除: ${whopLinkWithPromo}\n🚨 期間限定: DEFEND50コードはまもなく期限切れ！\n\n（または無料日次スコア: ${deepLink}）`,
         es: `🔥 ACTUALIZA AHORA: Acceso PRO (50% OFF DEFEND50)\n💎 Desbloquea Acceso Completo + Alertas: ${whopLinkWithPromo}\n🚨 Tiempo Limitado: ¡Código DEFEND50 expira pronto!\n\n(O score diario gratis: ${deepLink})`,
@@ -299,9 +306,32 @@ async function postMinimalVersionToX(targetLangs, reportData) {
         ko: `🔥 지금 업그레이드: PRO 액세스 (50% 할인 DEFEND50)\n💎 전체 액세스+알림 잠금 해제: ${whopLinkWithPromo}\n🚨 제한 시간: DEFEND50 코드 곧 만료!\n\n(또는 무료 일일 스코어: ${deepLink})`,
       };
       
-      const whopCTA = whopCTAs[normalizedLang] || whopCTAs.en;
+      // Telegram優先CTA（リスト収集重視）
+      const telegramFirstCTAs = {
+        en: `📱 Get FREE Daily Trap Score: ${deepLink}\n\n💎 Want PRO Access? 50% OFF with DEFEND50: ${whopLinkWithPromo}`,
+        ja: `📱 無料日次Trap Scoreを取得: ${deepLink}\n\n💎 PRO版アクセスが欲しい？DEFEND50で50%OFF: ${whopLinkWithPromo}`,
+        es: `📱 Obtén Trap Score Diario GRATIS: ${deepLink}\n\n💎 ¿Quieres Acceso PRO? 50% OFF con DEFEND50: ${whopLinkWithPromo}`,
+        'pt-br': `📱 Obtenha Trap Score Diário GRÁTIS: ${deepLink}\n\n💎 Quer Acesso PRO? 50% OFF com DEFEND50: ${whopLinkWithPromo}`,
+        ar: `📱 احصل على Trap Score اليومي المجاني: ${deepLink}\n\n💎 تريد الوصول PRO؟ خصم 50% مع DEFEND50: ${whopLinkWithPromo}`,
+        ko: `📱 무료 일일 Trap Score 받기: ${deepLink}\n\n💎 PRO 액세스 원하세요? DEFEND50으로 50% 할인: ${whopLinkWithPromo}`,
+      };
       
-      const structuredMessage = `${minimalMessage}\n\n${whopCTA}\n\n${engagementCTA}`;
+      // 時間帯別の最適化: ピーク時間はWhop優先、オフピーク時間はTelegram優先
+      let selectedCTA;
+      if (isPeakTime) {
+        // ピーク時間: Whop優先（直接コンバージョン重視）
+        selectedCTA = useWhopFirst ? whopFirstCTAs[normalizedLang] || whopFirstCTAs.en : telegramFirstCTAs[normalizedLang] || telegramFirstCTAs.en;
+      } else {
+        // オフピーク時間: Telegram優先（リスト収集重視）
+        selectedCTA = useWhopFirst ? telegramFirstCTAs[normalizedLang] || telegramFirstCTAs.en : whopFirstCTAs[normalizedLang] || whopFirstCTAs.en;
+      }
+      
+      // A/Bテストバリアントをログに記録
+      const abTestVariant = useWhopFirst ? 'whop_first' : 'telegram_first';
+      const timeOptimization = isPeakTime ? 'peak' : 'off_peak';
+      console.log(`[X Post Minimal] A/B Test: ${abTestVariant}, Time: ${timeOptimization} (UTC ${currentHour}:00) for ${normalizedLang}`);
+      
+      const structuredMessage = `${minimalMessage}\n\n${selectedCTA}\n\n${engagementCTA}`;
       
       // ハッシュタグを追加
       let hashtags;

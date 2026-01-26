@@ -1,6 +1,6 @@
 // api/x-post-minimal-version-cron.js
-// Grok推奨: 無料版（Minimal Version）のX投稿（UTC 8:00実行）
-// Grok戦略: UTC 8:00にMV投稿、UTC 14:00に引用リポスト（6時間後）
+// 無料版（Minimal Version）のX投稿（UTC 8:00, 12:00, 18:00, 20:00実行）
+// 改善: 投稿頻度を2回/日 → 4回/日に拡大、A/Bテスト機能追加、時間帯別最適化
 
 const { postMinimalVersionToX } = require('./x-post-minimal-version');
 
