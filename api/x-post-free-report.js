@@ -769,7 +769,8 @@ async function postFreeReportAsThread(targetLangs, reportData) {
   const hourKey = `${dateString}T${String(currentHour).padStart(2, '0')}`;
   const { checkHourlyPostLimit, getHourlyPostCount, incrementHourlyPostCount, getThreadStrategy } = require('../services/x/optimization');
   const currentHourlyPostCount = await getHourlyPostCount(hourKey);
-  const maxPostsPerHour = 6; // インプレッション最大化: 4→6に増加（スパム判定回避しつつ最大化）
+  // 🚀 数撃て作戦: 時間単位の制限を緩和（6 → 10投稿/時間）
+  const maxPostsPerHour = 10; // Basic Tier上限を考慮した安全な値（100投稿/日 ÷ 10時間 = 10投稿/時間）
   console.log(`[X Post Free Report] Hourly post count: ${currentHourlyPostCount}/${maxPostsPerHour}`);
   
   // インプレッション最大化: 複数言語を個別に処理（ピーク時間チェックを緩和）

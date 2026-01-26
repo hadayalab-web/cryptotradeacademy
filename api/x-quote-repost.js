@@ -509,22 +509,26 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       dailyPostCount = await getDailyPostCount(dateString);
     }
     
-    // 引用リポストのピーク時間（UTC 0,1,20,21）かどうかをチェック
-    // getPeakMapForHour()で定義された時刻を信頼し、isPeakTimeWindowチェックは削除
-    const quoteRepostPeakHours = [0, 1, 20, 21]; // vercel.jsonの設定に基づく
-    const isPeakTime = quoteRepostPeakHours.includes(currentHour);
-    if (!isPeakTime) {
+    // 🚀 数撃て作戦: 引用リポストのピーク時間を拡大（UTC 0-23の全時間帯で可能に）
+    // 元のピーク時間: UTC 0,1,20,21
+    // 拡大: UTC 0-23の全時間帯で投稿可能（ただし、優先度は元のピーク時間が高い）
+    const originalPeakHours = [0, 1, 20, 21]; // 元の優先ピーク時間
+    const isOriginalPeakTime = originalPeakHours.includes(currentHour);
+    
+    // 🚀 数撃て作戦: 全時間帯で投稿可能（ただし、日次制限内で）
+    // 元のピーク時間外でも、日次投稿数が少ない場合は積極的に投稿
+    if (!isOriginalPeakTime) {
       // ピーク時間外でも、1日の投稿数が少ない場合は許可（インプレッション最大化）
-      if (dailyPostCount >= 30) { // 1日の投稿数が30以上の場合のみスキップ
-        console.log(`⏰ Skipping quote reposts for ${lang} (not quote repost peak time and daily limit high: ${currentHour} UTC, ${dailyPostCount}/45)`);
+      if (dailyPostCount >= 50) { // 1日の投稿数が50以上の場合のみスキップ
+        console.log(`⏰ Skipping quote reposts for ${lang} (not original peak time and daily limit high: ${currentHour} UTC, ${dailyPostCount}/100)`);
         return [];
       }
-      console.log(`ℹ️ Posting quote reposts for ${lang} outside quote repost peak time (${currentHour} UTC) for impression maximization`);
+      console.log(`ℹ️ Posting quote reposts for ${lang} outside original peak time (${currentHour} UTC) for impression maximization`);
     }
     
-    // インプレッション最大化: 1日の投稿上限を増加（35→45投稿/日）
-    if (!checkDailyPostLimit(dailyPostCount, 45)) {
-      console.log(`⏰ Daily post limit reached (${dailyPostCount}/45), skipping ${lang}`);
+    // 🚀 数撃て作戦: Basic Tier上限まで最大化（100投稿/日）
+    if (!checkDailyPostLimit(dailyPostCount, 100)) {
+      console.log(`⏰ Daily post limit reached (${dailyPostCount}/100), skipping ${lang}`);
       return [];
     }
     
@@ -1297,14 +1301,15 @@ const handler = async (req, res) => {
     }
     
     console.log(`[Quote Repost] Processing ${targetLangs.join(', ')} at peak time (${currentHour}:00 UTC, type: ${type}, count: ${count} per lang)`);
-    const maxDailyPosts = 45; // インプレッション最大化: 25→45に増加（スパム判定回避しつつ最大化）
+    // 🚀 数撃て作戦: Basic Tier上限まで最大化（100投稿/日）
+    const maxDailyPosts = 100; // Basic Tier上限（100投稿/24時間）
     console.log(`[Quote Repost] Daily post count: ${currentDailyPostCount}/${maxDailyPosts}`);
     
-    // Grok推奨: 1時間あたりの投稿数制限（3-4/時間最大）
+    // 🚀 数撃て作戦: 1時間あたりの投稿数制限を緩和（4 → 10投稿/時間）
     const hourKey = `${dateString}T${String(currentHour).padStart(2, '0')}`;
     const { checkHourlyPostLimit, getHourlyPostCount, incrementHourlyPostCount } = require('../services/x/optimization');
     const currentHourlyPostCount = await getHourlyPostCount(hourKey);
-    const maxPostsPerHour = 4; // Grok推奨: 3-4/時間最大
+    const maxPostsPerHour = 10; // Basic Tier上限を考慮した安全な値（100投稿/日 ÷ 10時間 = 10投稿/時間）
     console.log(`[Quote Repost] Hourly post count: ${currentHourlyPostCount}/${maxPostsPerHour}`);
     
     if (!checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour)) {

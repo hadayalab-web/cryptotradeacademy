@@ -186,41 +186,47 @@ function getContentFormat(sequence = 0) {
 
 /**
  * 引用リポストの最適なタイミングを計算
+ * 🚀 数撃て作戦: 全時間帯で投稿可能（UTC 0-23）
  * Grok推奨: インフルエンサーの投稿後10-20分以内（新鮮度MAX、競合低）
  * 注意: UTC 0:00と1:00も引用リポストのピーク時間として定義されているため、isPeakTimeWindowチェックを削除
  * 
  * 修正: createdAtが存在しない場合、または現在時刻に近すぎる場合は、タイミングチェックをスキップ
- * （実際の投稿時刻が取得できない場合でも、ピーク時間であれば投稿を許可）
+ * （実際の投稿時刻が取得できない場合でも、全時間帯で投稿を許可）
  */
 function shouldPostQuoteRepost(influencerTweetTimestamp, currentTime = null) {
   const now = currentTime || new Date();
   const tweetTime = new Date(influencerTweetTimestamp);
   const minutesDiff = (now - tweetTime) / (1000 * 60);
   
-  // 引用リポストのピーク時間（UTC 0,1,20,21）かどうかをチェック
-  // getPeakMapForHour()で定義された時刻を信頼し、isPeakTimeWindowチェックは削除
-  const hour = now.getUTCHours();
-  const quoteRepostPeakHours = [0, 1, 20, 21]; // vercel.jsonの設定に基づく
-  if (!quoteRepostPeakHours.includes(hour)) {
-    return false;
-  }
+  // 🚀 数撃て作戦: 全時間帯で投稿可能（UTC 0-23）
+  // 元のピーク時間（UTC 0,1,20,21）は優先度が高いが、他の時間帯でも投稿可能
   
   // createdAtが存在しない場合、または現在時刻に近すぎる場合（5分以内）は、
   // 実際の投稿時刻が取得できていない可能性が高いため、タイミングチェックをスキップ
-  // ピーク時間であれば投稿を許可（インプレッション最大化のため）
+  // 全時間帯で投稿を許可（インプレッション最大化のため）
   if (minutesDiff < 5) {
     // 現在時刻に近すぎる = createdAtが実際の投稿時刻ではない可能性が高い
-    // ピーク時間であれば投稿を許可
+    // 全時間帯で投稿を許可（数撃て作戦）
     return true;
   }
   
   // 実際の投稿時刻が取得できている場合、Grok推奨の10-20分以内をチェック
   // Grok推奨: 10-20分以内（アルゴリズムの「新鮮度」ボーナス最大）
-  if (minutesDiff < 10 || minutesDiff > 20) {
-    return false;
+  // 🚀 数撃て作戦: 元のピーク時間外でも、10-20分以内であれば投稿を許可
+  if (minutesDiff >= 10 && minutesDiff <= 20) {
+    return true;
   }
   
-  return true;
+  // 10-20分の範囲外でも、元のピーク時間（UTC 0,1,20,21）であれば投稿を許可
+  const hour = now.getUTCHours();
+  const originalPeakHours = [0, 1, 20, 21]; // 元の優先ピーク時間
+  if (originalPeakHours.includes(hour)) {
+    return true;
+  }
+  
+  // それ以外の場合は、タイミングが最適でないためfalseを返す
+  // （ただし、呼び出し側で日次制限をチェックしているため、この関数はタイミングチェックのみ）
+  return false;
 }
 
 /**
@@ -288,22 +294,24 @@ async function incrementDailyPostCount(dateString, count = 1) {
 
 /**
  * 1日の投稿上限をチェック
- * インプレッション最大化: 総投稿数を35-45/日に増加（スパム判定回避しつつ最大化）
+ * 🚀 数撃て作戦: Basic Tier上限まで最大化（100投稿/日）
+ * Pro Tierの場合、さらに高い値（200-500投稿/日）を設定可能
  */
-function checkDailyPostLimit(currentPostCount, maxPosts = 45) {
+function checkDailyPostLimit(currentPostCount, maxPosts = 100) {
   return currentPostCount < maxPosts;
 }
 
 /**
  * 1時間あたりの投稿数制限をチェック
- * Grok推奨: ピーク時間帯にクラスター化（3-4/時間最大）
+ * 🚀 数撃て作戦: 時間単位の制限を緩和（デフォルト: 10投稿/時間）
+ * Basic Tier上限（100投稿/日）を考慮した安全な値
  * @param {number} currentHour - UTC時刻（0-23）
  * @param {number} currentHourlyPostCount - 現在の1時間あたりの投稿数
- * @param {number} maxPostsPerHour - 1時間あたりの最大投稿数（デフォルト: 4）
+ * @param {number} maxPostsPerHour - 1時間あたりの最大投稿数（デフォルト: 10）
  * @returns {boolean} 投稿可能な場合 true
  */
-function checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour = 4) {
-  // Grok推奨: ピーク時間帯にクラスター化（3-4/時間最大）
+function checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour = 10) {
+  // 🚀 数撃て作戦: Basic Tier上限を考慮（100投稿/日 ÷ 10時間 = 10投稿/時間）
   return currentHourlyPostCount < maxPostsPerHour;
 }
 
