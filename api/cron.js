@@ -2189,6 +2189,16 @@ module.exports = async function handler(req, res) {
     });
   } catch (error) {
     console.error('❌ Cron Job Failed:', error);
-    return res.status(500).json({ error: error.message });
+    console.error('❌ Error Stack:', error.stack);
+    console.error('❌ Error Details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      cause: error.cause
+    });
+    return res.status(500).json({ 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 }
