@@ -40,11 +40,11 @@ const EXPECTED_FUNCTION_SIGNATURES = {
 };
 
 // 定数の一貫性チェック
-// 🚀 数撃て作戦: 投稿制限を上限まで引き上げ
+// ⚖️ バランスアプローチ: Grokの警告を踏まえ、リスクを最小化
 const EXPECTED_CONSTANTS = {
   'api/x-post-free-report.js': {
     'maxDailyPosts': 35,
-    'maxPostsPerHour': 10, // 🚀 数撃て作戦: 6 → 10に引き上げ
+    'maxPostsPerHour': 5, // ⚖️ バランスアプローチ: 10 → 5に削減（Grokの警告を踏まえ）
   },
   'api/x-post-minimal-version.js': {
     'maxDailyPosts': 35, // Free Reportと同じに統一

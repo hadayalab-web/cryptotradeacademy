@@ -294,24 +294,24 @@ async function incrementDailyPostCount(dateString, count = 1) {
 
 /**
  * 1日の投稿上限をチェック
- * 🚀 数撃て作戦: Basic Tier上限まで最大化（100投稿/日）
- * Pro Tierの場合、さらに高い値（200-500投稿/日）を設定可能
+ * ⚖️ バランスアプローチ: Grokの警告を踏まえ、リスクを最小化（50投稿/日）
+ * 1日100投稿の1/2に削減し、エンゲージメント率を重視
  */
-function checkDailyPostLimit(currentPostCount, maxPosts = 100) {
+function checkDailyPostLimit(currentPostCount, maxPosts = 50) {
   return currentPostCount < maxPosts;
 }
 
 /**
  * 1時間あたりの投稿数制限をチェック
- * 🚀 数撃て作戦: 時間単位の制限を緩和（デフォルト: 10投稿/時間）
- * Basic Tier上限（100投稿/日）を考慮した安全な値
+ * ⚖️ バランスアプローチ: 時間単位の制限を調整（デフォルト: 5投稿/時間）
+ * 1日50投稿を考慮した安全な値（50投稿/日 ÷ 10時間 = 5投稿/時間）
  * @param {number} currentHour - UTC時刻（0-23）
  * @param {number} currentHourlyPostCount - 現在の1時間あたりの投稿数
- * @param {number} maxPostsPerHour - 1時間あたりの最大投稿数（デフォルト: 10）
+ * @param {number} maxPostsPerHour - 1時間あたりの最大投稿数（デフォルト: 5）
  * @returns {boolean} 投稿可能な場合 true
  */
-function checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour = 10) {
-  // 🚀 数撃て作戦: Basic Tier上限を考慮（100投稿/日 ÷ 10時間 = 10投稿/時間）
+function checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour = 5) {
+  // ⚖️ バランスアプローチ: 1日50投稿を考慮（50投稿/日 ÷ 10時間 = 5投稿/時間）
   return currentHourlyPostCount < maxPostsPerHour;
 }
 

@@ -519,16 +519,16 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     // 元のピーク時間外でも、日次投稿数が少ない場合は積極的に投稿
     if (!isOriginalPeakTime) {
       // ピーク時間外でも、1日の投稿数が少ない場合は許可（インプレッション最大化）
-      if (dailyPostCount >= 50) { // 1日の投稿数が50以上の場合のみスキップ
-        console.log(`⏰ Skipping quote reposts for ${lang} (not original peak time and daily limit high: ${currentHour} UTC, ${dailyPostCount}/100)`);
+      if (dailyPostCount >= 50) { // ⚖️ バランスアプローチ: 1日の投稿数が50以上の場合のみスキップ
+        console.log(`⏰ Skipping quote reposts for ${lang} (not original peak time and daily limit high: ${currentHour} UTC, ${dailyPostCount}/50)`);
         return [];
       }
       console.log(`ℹ️ Posting quote reposts for ${lang} outside original peak time (${currentHour} UTC) for impression maximization`);
     }
     
-    // 🚀 数撃て作戦: Basic Tier上限まで最大化（100投稿/日）
-    if (!checkDailyPostLimit(dailyPostCount, 100)) {
-      console.log(`⏰ Daily post limit reached (${dailyPostCount}/100), skipping ${lang}`);
+    // ⚖️ バランスアプローチ: Grokの警告を踏まえ、リスクを最小化（50投稿/日）
+    if (!checkDailyPostLimit(dailyPostCount, 50)) {
+      console.log(`⏰ Daily post limit reached (${dailyPostCount}/50), skipping ${lang}`);
       return [];
     }
     
@@ -1301,15 +1301,15 @@ const handler = async (req, res) => {
     }
     
     console.log(`[Quote Repost] Processing ${targetLangs.join(', ')} at peak time (${currentHour}:00 UTC, type: ${type}, count: ${count} per lang)`);
-    // 🚀 数撃て作戦: Basic Tier上限まで最大化（100投稿/日）
-    const maxDailyPosts = 100; // Basic Tier上限（100投稿/24時間）
+    // ⚖️ バランスアプローチ: Grokの警告を踏まえ、リスクを最小化（50投稿/日）
+    const maxDailyPosts = 50; // バランスアプローチ（50投稿/24時間）
     console.log(`[Quote Repost] Daily post count: ${currentDailyPostCount}/${maxDailyPosts}`);
     
-    // 🚀 数撃て作戦: 1時間あたりの投稿数制限を緩和（4 → 10投稿/時間）
+    // ⚖️ バランスアプローチ: 1時間あたりの投稿数制限を調整（5投稿/時間）
     const hourKey = `${dateString}T${String(currentHour).padStart(2, '0')}`;
     const { checkHourlyPostLimit, getHourlyPostCount, incrementHourlyPostCount } = require('../services/x/optimization');
     const currentHourlyPostCount = await getHourlyPostCount(hourKey);
-    const maxPostsPerHour = 10; // Basic Tier上限を考慮した安全な値（100投稿/日 ÷ 10時間 = 10投稿/時間）
+    const maxPostsPerHour = 5; // バランスアプローチを考慮した安全な値（50投稿/日 ÷ 10時間 = 5投稿/時間）
     console.log(`[Quote Repost] Hourly post count: ${currentHourlyPostCount}/${maxPostsPerHour}`);
     
     if (!checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour)) {
