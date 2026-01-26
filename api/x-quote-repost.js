@@ -16,6 +16,7 @@ const {
 const { QUOTE_REPOST_TEMPLATES } = require('./x-post-free-report');
 const { getTweetMetrics } = require('../services/x/metrics');
 const { getWhopProductUrl } = require('../services/telegram/whop-links');
+const { optimizeContentAndFunnel } = require('../services/x/contentOptimizer');
 
 const {
   getInfluencerCountForLang,
@@ -108,14 +109,20 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
       return `Agree! Trap Score 0/100 BUT ${whaleStr} to sell. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
     }
     
-    // Grok推奨: 質問CTA必須（アルゴリズム評価UP）
-    const question = trapScore <= 25 ? '🚀 What\'s your biggest fear in this market? Reply!' : '💥 Protecting capital or chasing? Reply!';
+    // Grok + Gemini統合: 質問CTA必須（アルゴリズム評価UP）
+    // オープンエンド質問でリプライ誘導、投稿の20-30%を占めず自然配置
+    const question = trapScore <= 25 
+      ? '🚀 What\'s your biggest fear in this market? Reply!' 
+      : '💥 Protecting capital or chasing? Reply!';
     
     // Whop直リン導線を最優先に（Grok推奨: Whop first, free as afterthought）
+    // 外部リンクは1投稿1個以内に抑え、ネイティブコンテンツ優先
     const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('en')}?promo=DEFEND50`;
     const freeLink = `(Free: ${deepLink})`;
     
-    return `Agree! TrapDefence detected this 🚀 ${whopLink} ${freeLink} ${question} #Bitcoin #BTCAnalysis #TrapDefence`;
+    // ハッシュタグ: トレンド1個+ニッチ2個（3個超はスパム判定リスク）
+    // 絵文字: 3-5個（冒頭/区切り/末尾に視覚強調）
+    return `Agree! TrapDefence detected this 🚀 ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
   },
   ja: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -130,14 +137,17 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
       return `同意！Trap Score 0/100 なのに ${whaleStr} 売却準備中。${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
     }
     
-    // Grok推奨: 質問CTA必須
-    const question = trapScore <= 25 ? '🚀 この市場で最も大きな恐怖は何ですか？リプライ！' : '💥 資本保護？それとも追いかけ中？リプライ！';
+    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
+    const question = trapScore <= 25 
+      ? '🚀 この市場で最も大きな恐怖は何ですか？リプライ！' 
+      : '💥 資本保護？それとも追いかけ中？リプライ！';
     
-    // Whop直リン導線を最優先に
+    // Whop直リン導線を最優先に（外部リンクは1投稿1個以内）
     const whopLink = `🔥 PRO 50%OFF (DEFEND50): ${getWhopProductUrl('ja')}?promo=DEFEND50`;
     const freeLink = `(無料: ${deepLink})`;
     
-    return `同意！TrapDefenceで検知済み 🚀 ${whopLink} ${freeLink} ${question} #ビットコイン #ビットコイン分析 #TrapDefence`;
+    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
+    return `同意！TrapDefenceで検知済み 🚀 ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
   },
   es: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -152,14 +162,17 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
       return `¡De acuerdo! Trap Score 0/100 PERO ${whaleStr} para vender. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
     }
     
-    // Grok推奨: 質問CTA必須
-    const question = trapScore <= 25 ? '🚀 ¿Cuál es tu mayor miedo en este mercado? ¡Responde!' : '💥 ¿Protegiendo capital o persiguiendo? ¡Responde!';
+    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
+    const question = trapScore <= 25 
+      ? '🚀 ¿Cuál es tu mayor miedo en este mercado? ¡Responde!' 
+      : '💥 ¿Protegiendo capital o persiguiendo? ¡Responde!';
     
-    // Whop直リン導線を最優先に
+    // Whop直リン導線を最優先に（外部リンクは1投稿1個以内）
     const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('es')}?promo=DEFEND50`;
     const freeLink = `(Gratis: ${deepLink})`;
     
-    return `¡De acuerdo! TrapDefence detectó esto 🚀 ${whopLink} ${freeLink} ${question} #Bitcoin #AnálisisBTC #TrapDefence`;
+    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
+    return `¡De acuerdo! TrapDefence detectó esto 🚀 ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
   },
   'pt-br': (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -174,14 +187,17 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
       return `Concordo! Trap Score 0/100 MAS ${whaleStr} para vender. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
     }
     
-    // Grok推奨: 質問CTA必須
-    const question = trapScore <= 25 ? '🚀 Qual é o seu maior medo neste mercado? Responda!' : '💥 Protegendo capital ou perseguindo? Responda!';
+    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
+    const question = trapScore <= 25 
+      ? '🚀 Qual é o seu maior medo neste mercado? Responda!' 
+      : '💥 Protegendo capital ou perseguindo? Responda!';
     
-    // Whop直リン導線を最優先に
+    // Whop直リン導線を最優先に（外部リンクは1投稿1個以内）
     const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('pt-br')}?promo=DEFEND50`;
     const freeLink = `(Grátis: ${deepLink})`;
     
-    return `Concordo! TrapDefence detectou isso 🚀 ${whopLink} ${freeLink} ${question} #Bitcoin #AnáliseBTC #TrapDefence`;
+    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
+    return `Concordo! TrapDefence detectou isso 🚀 ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
   },
   ar: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -196,14 +212,17 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
       return `موافق! Trap Score 0/100 لكن ${whaleStr} للبيع. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
     }
     
-    // Grok推奨: 質問CTA必須
-    const question = trapScore <= 25 ? '🚀 ما هو أكبر خوفك في هذا السوق؟ أجب!' : '💥 هل تحمي رأس المال أم تطارد؟ أجب!';
+    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
+    const question = trapScore <= 25 
+      ? '🚀 ما هو أكبر خوفك في هذا السوق؟ أجب!' 
+      : '💥 هل تحمي رأس المال أم تطارد؟ أجب!';
     
-    // Whop直リン導線を最優先に
+    // Whop直リン導線を最優先に（外部リンクは1投稿1個以内）
     const whopLink = `🔥 PRO 50% خصم (DEFEND50): ${getWhopProductUrl('ar')}?promo=DEFEND50`;
     const freeLink = `(مجاني: ${deepLink})`;
     
-    return `موافق! TrapDefence اكتشف هذا 🚀 ${whopLink} ${freeLink} ${question} #Bitcoin #تحليل_بيتكوين #TrapDefence`;
+    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
+    return `موافق! TrapDefence اكتشف هذا 🚀 ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
   },
   ko: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -218,14 +237,17 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
       return `동의! Trap Score 0/100 인데 ${whaleStr} 매도 준비 중. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
     }
     
-    // Grok推奨: 質問CTA必須
-    const question = trapScore <= 25 ? '🚀 이 시장에서 가장 큰 두려움은 무엇인가요? 답글!' : '💥 자본 보호 중인가요? 추격 중인가요? 답글!';
+    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
+    const question = trapScore <= 25 
+      ? '🚀 이 시장에서 가장 큰 두려움은 무엇인가요? 답글!' 
+      : '💥 자본 보호 중인가요? 추격 중인가요? 답글!';
     
-    // Whop直リン導線を最優先に
+    // Whop直リン導線を最優先に（外部リンクは1投稿1個以内）
     const whopLink = `🔥 PRO 50% 할인 (DEFEND50): ${getWhopProductUrl('ko')}?promo=DEFEND50`;
     const freeLink = `(무료: ${deepLink})`;
     
-    return `동의! TrapDefence가 이것을 감지했습니다 🚀 ${whopLink} ${freeLink} ${question} #비트코인 #비트코인분석 #TrapDefence`;
+    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
+    return `동의! TrapDefence가 이것을 감지했습니다 🚀 ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
   },
 };
 
@@ -359,6 +381,7 @@ async function getMinimalVersionContent(lang, reportData = null) {
 
 /**
  * Grokが引用リポスト用のテキストを生成（Grok APIを使用）
+ * CRITICAL: GrokのXアルゴリズムハッキング × Geminiの心理ハッキングで最適化
  */
 async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData = null) {
   try {
@@ -375,7 +398,58 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
     // 無料版メッセージのキーポイントを取得（引用リポスト生成用）
     const minimalContent = await getMinimalVersionContent(lang, reportData);
     
-    const quoteText = await generateQuoteRepostText(lang, influencerTweet, reportData, deepLink, minimalVersionPostUrl, minimalContent);
+    // CRITICAL: GrokのXアルゴリズムハッキング × Geminiの心理ハッキングで最適化
+    let optimizationStrategy = null;
+    try {
+      // 現在のメトリクスを取得（過去のエンゲージメントデータから）
+      // engagementRateは0〜1の範囲であることを確認
+      const rawEngagementRate = influencerTweet.engagementRate || 0;
+      const normalizedEngagementRate = rawEngagementRate > 1 ? rawEngagementRate / 100 : rawEngagementRate;
+      
+      const currentMetrics = {
+        impressions: influencerTweet.recentImpressions || 0,
+        engagements: Math.floor((influencerTweet.recentImpressions || 0) * normalizedEngagementRate),
+        engagementRate: normalizedEngagementRate,
+      };
+      
+      // 市場データとXセンチメントを準備
+      const marketData = {
+        trapScore: reportData?.trapScore || null,
+        priceUsd: reportData?.priceUsd || null,
+        change24h: reportData?.change24h || null,
+        exchangeNetflow: reportData?.exchangeNetflow || null,
+        whaleRatio: reportData?.whaleRatio || null,
+      };
+      
+      const xSentiment = {
+        retailFomo: reportData?.sentimentData?.retail?.fomo || 50,
+        whaleBias: reportData?.sentimentData?.whale?.bias || 0,
+      };
+      
+      // GrokとGeminiの分析を統合して最適化戦略を生成
+      optimizationStrategy = await optimizeContentAndFunnel({
+        currentMetrics,
+        marketData,
+        xSentiment,
+        lang,
+      });
+      
+      console.log(`[Quote Repost] ✅ Content optimization strategy generated for ${lang}`);
+    } catch (error) {
+      console.warn(`[Quote Repost] ⚠️ Failed to generate optimization strategy for ${lang}:`, error.message);
+      // 最適化失敗時も続行（フォールバック）
+    }
+    
+    // 最適化戦略をプロンプトに反映（generateQuoteRepostTextに渡す）
+    const quoteText = await generateQuoteRepostText(
+      lang, 
+      influencerTweet, 
+      reportData, 
+      deepLink, 
+      minimalVersionPostUrl, 
+      minimalContent,
+      optimizationStrategy // 最適化戦略を追加
+    );
     return quoteText;
   } catch (error) {
     console.error(`[Quote Repost] Failed to generate text with Grok for ${lang}:`, error.message);
@@ -628,17 +702,58 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         }
         
         // 140文字以内に制限（引用リポスト用）- ソーシャルプルーフ追加後の最終チェック
+        // 重要: 質問CTAとリンクを優先的に保持するため、末尾から削除
         if (quoteText.length > 140) {
-          quoteText = quoteText.substring(0, 137) + '...';
+          // 質問CTAとリンクを保持するため、中間部分を削除
+          // パターン: [フック] [リンク] [質問CTA] [ハッシュタグ]
+          // 質問CTAとリンクを保持し、フック部分を短縮
+          const questionMatch = quoteText.match(/(.*?)(\?[^?]*$)/);
+          const linkMatch = quoteText.match(/(https?:\/\/[^\s]+)/);
+          
+          if (questionMatch && linkMatch) {
+            // 質問CTAとリンクを保持
+            const questionPart = questionMatch[2]; // "? Reply!" など
+            const linkPart = linkMatch[1]; // URL
+            const hashtagPart = quoteText.match(/(#[^\s]+(?:\s+#[^\s]+)*)$/)?.[1] || '';
+            
+            // 残りの文字数を計算
+            const reservedLength = questionPart.length + linkPart.length + hashtagPart.length + 3; // +3はスペース
+            const availableLength = 140 - reservedLength;
+            
+            if (availableLength > 20) {
+              // フック部分を短縮
+              const hookPart = quoteText.substring(0, quoteText.indexOf(linkPart)).trim();
+              const shortenedHook = hookPart.length > availableLength 
+                ? hookPart.substring(0, availableLength - 3) + '...'
+                : hookPart;
+              
+              quoteText = `${shortenedHook} ${linkPart}${questionPart} ${hashtagPart}`.trim();
+            } else {
+              // 文字数が足りない場合は、リンクと質問CTAを優先
+              quoteText = `${linkPart}${questionPart} ${hashtagPart}`.trim();
+            }
+          } else {
+            // フォールバック: 末尾から削除（質問CTAを保持）
+            quoteText = quoteText.substring(0, 137) + '...';
+          }
+          
+          // 最終チェック: 140文字を超えている場合は強制的に切り詰め
+          if (quoteText.length > 140) {
+            quoteText = quoteText.substring(0, 137) + '...';
+          }
         }
         
         // 引用リポストを投稿
         console.log(`[Quote Repost] 🚀 ACTUALLY POSTING quote repost for @${influencer.username} (tweetId: ${influencer.tweetId})...`);
         console.log(`[Quote Repost] Quote text preview: ${quoteText.substring(0, 100)}...`);
+        console.log(`[Quote Repost] Quote text full length: ${quoteText.length} characters`);
+        console.log(`[Quote Repost] Quote text full content: ${quoteText}`);
         
         let result;
         try {
-          result = await postQuoteTweet(quoteText.substring(0, 280), influencer.tweetId);
+          // 重要: 引用リポストは140文字以内に制限されているため、280文字に切り詰めない
+          // 既に140文字以内に制限されているため、そのまま使用
+          result = await postQuoteTweet(quoteText, influencer.tweetId);
           
           // 実際に投稿されたことを明確にログに記録
           console.log(`[Quote Repost] ✅✅✅ SUCCESSFULLY POSTED quote repost for ${lang} (@${influencer.username}):`);
@@ -647,9 +762,6 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           console.log(`[Quote Repost]    - Language: ${lang}`);
           console.log(`[Quote Repost]    - UTC Hour: ${new Date().getUTCHours()}`);
           console.log(`[Quote Repost]    - Timestamp: ${new Date().toISOString()}`);
-          
-          // 投稿数をインクリメント
-          await incrementDailyPostCount(dateString, 1);
         } catch (postError) {
           // 投稿エラーを明確にログに記録
           console.error(`[Quote Repost] ❌❌❌ FAILED TO POST quote repost for ${lang} (@${influencer.username}):`);
@@ -664,52 +776,109 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         // await recordQuoteRepost(influencerId, result.id);
         
         // 投稿IDをKVに保存（メトリクス追跡用）
+        // CRITICAL FIX: savePostIdが失敗した場合は致命的エラーとして処理
+        const { savePostId } = require('../services/x/postTracker');
         try {
-          const { savePostId } = require('../services/x/postTracker');
           await savePostId(result.id, 'quote_repost', lang, {
             influencerUsername: influencer.username,
             influencerTweetId: influencer.tweetId,
           });
-        } catch (error) {
-          console.warn('[Quote Repost] Failed to save post ID:', error.message);
+          
+          // 保存に成功した場合のみ投稿数をインクリメント
+          await incrementDailyPostCount(dateString, 1);
+          console.log(`[Quote Repost] ✅ Post count incremented after successful save`);
+        } catch (saveError) {
+          // CRITICAL: 保存に失敗した場合は致命的エラー
+          console.error(`[Quote Repost] ❌ CRITICAL: Failed to save post ID:`, saveError.message);
+          throw new Error(`CRITICAL: Failed to save post ID to KV: ${result.id}. Original error: ${saveError.message}`);
         }
         
         // Grok推奨: EN実測ダッシュボード用メトリクス記録
+        // CRITICAL FIX: 投稿直後はインプレッション数が0の可能性があるため、メトリクス記録はCron Jobに任せる
+        // ただし、投稿成功の確認と初期メトリクス（0でも）は記録する
         let engagementMetrics = null;
         try {
           const { recordEngagementMetrics } = require('./x-engagement-metrics');
-          const quoteMetrics = await getTweetMetrics(result.id, true); // 自分のツイートなのでnon_public_metrics取得可能
-          if (quoteMetrics) {
-            engagementMetrics = {
-              impressions: quoteMetrics.nonPublicMetrics?.impression_count || quoteMetrics.organicMetrics?.impression_count || 0,
-              engagements: (quoteMetrics.publicMetrics?.like_count || 0) +
-                          (quoteMetrics.publicMetrics?.retweet_count || 0) +
-                          (quoteMetrics.publicMetrics?.reply_count || 0) +
-                          (quoteMetrics.publicMetrics?.quote_count || 0),
-              clicks: quoteMetrics.nonPublicMetrics?.url_link_clicks || quoteMetrics.organicMetrics?.url_link_clicks || 0,
-              replies: quoteMetrics.publicMetrics?.reply_count || 0,
-              retweets: quoteMetrics.publicMetrics?.retweet_count || 0,
-              likes: quoteMetrics.publicMetrics?.like_count || 0,
-              quoteTweets: quoteMetrics.publicMetrics?.quote_count || 0,
-            };
-            
-            await recordEngagementMetrics(result.id, {
-              ...engagementMetrics,
-              lang,
-              source: 'quote_repost',
-              influencerUsername: influencer.username,
-            });
-            
-            // 最適化案: インフルエンサー別メトリクスを記録（インフルエンサー分析）
-            try {
-              const { recordInfluencerMetrics } = require('../services/x/influencerAnalyzer');
-              await recordInfluencerMetrics(influencer.username, result.id, engagementMetrics);
-            } catch (error) {
-              console.warn('[Quote Repost] Failed to record influencer metrics:', error.message);
-            }
+          
+          // CRITICAL FIX: 投稿直後のメトリクス取得（インプレッション数は0の可能性がある）
+          // Grok推奨: 10-20分後に再取得するため、ここでは初期値（0）を記録
+          const quoteMetrics = await getTweetMetrics(result.id, true, { maxRetries: 2 }); // 自分のツイートなのでnon_public_metrics取得可能
+          
+          if (!quoteMetrics) {
+            throw new Error(`Failed to get metrics for tweet ${result.id}`);
+          }
+          
+          // CRITICAL FIX: インプレッション数の取得優先順位を明確化（GPT推奨）
+          // 優先順位: 1. non_public_metrics (最も正確) → 2. organic_metrics (過去30日以内のツイートのみ) → 3. 0 (フォールバック)
+          // 注意: non_public_metricsは自分のツイートのみ取得可能（OAuth 1.0a User Context認証が必要）
+          const impressions = quoteMetrics.nonPublicMetrics?.impression_count ?? 
+                              quoteMetrics.organicMetrics?.impression_count ?? 
+                              0;
+          const clicks = quoteMetrics.nonPublicMetrics?.url_link_clicks ?? 
+                        quoteMetrics.organicMetrics?.url_link_clicks ?? 
+                        0;
+          
+          engagementMetrics = {
+            impressions,
+            engagements: (quoteMetrics.publicMetrics?.like_count || 0) +
+                        (quoteMetrics.publicMetrics?.retweet_count || 0) +
+                        (quoteMetrics.publicMetrics?.reply_count || 0) +
+                        (quoteMetrics.publicMetrics?.quote_count || 0),
+            clicks,
+            replies: quoteMetrics.publicMetrics?.reply_count || 0,
+            retweets: quoteMetrics.publicMetrics?.retweet_count || 0,
+            likes: quoteMetrics.publicMetrics?.like_count || 0,
+            quoteTweets: quoteMetrics.publicMetrics?.quote_count || 0,
+          };
+          
+          // データソースのログ出力（デバッグ用）
+          if (quoteMetrics.nonPublicMetrics?.impression_count !== undefined) {
+            console.log(`[Quote Repost] Using non_public_metrics for tweet ${result.id} (impressions: ${impressions})`);
+          } else if (quoteMetrics.organicMetrics?.impression_count !== undefined) {
+            console.log(`[Quote Repost] Using organic_metrics for tweet ${result.id} (impressions: ${impressions})`);
+          } else {
+            console.warn(`[Quote Repost] ⚠️ No impression data available for tweet ${result.id} (using 0 as fallback - normal for immediate post)`);
+          }
+          
+          // CRITICAL FIX: 推定値と実測値を明確に区別
+          // 注意: 投稿直後はインプレッション数が0の可能性があるため、isInitialRecordフラグを設定
+          const recordSuccess = await recordEngagementMetrics(result.id, {
+            ...engagementMetrics,
+            lang,
+            source: 'quote_repost',
+            influencerUsername: influencer.username,
+            // データソースを明確に区別
+            dataSource: {
+              impressions: 'x_api_actual', // X APIから取得した実測値（投稿直後は0の可能性あり）
+              engagements: 'x_api_actual', // X APIから取得した実測値
+              estimatedImpressions: influencer.recentImpressions || 0, // Grokの推定値（インフルエンサーの過去のツイート用）
+              estimatedSource: 'grok_analysis', // 推定値のソース
+            },
+            isInitialRecord: true, // 投稿直後の初期記録であることを明示
+            recordedAt: new Date().toISOString(),
+          });
+          
+          if (!recordSuccess) {
+            throw new Error(`Failed to record engagement metrics for tweet ${result.id}`);
+          }
+          
+          // インプレッション数が0の場合の警告（投稿直後は正常）
+          if (engagementMetrics.impressions === 0) {
+            console.log(`[Quote Repost] ⚠️ Initial impressions is 0 for tweet ${result.id} (normal for immediate post, will be updated by Cron Job)`);
+          }
+          
+          // 最適化案: インフルエンサー別メトリクスを記録（インフルエンサー分析）
+          try {
+            const { recordInfluencerMetrics } = require('../services/x/influencerAnalyzer');
+            await recordInfluencerMetrics(influencer.username, result.id, engagementMetrics);
+          } catch (error) {
+            console.warn('[Quote Repost] Failed to record influencer metrics:', error.message);
           }
         } catch (error) {
-          console.warn(`[Quote Repost] Failed to record engagement metrics:`, error.message);
+          // CRITICAL: メトリクス記録の失敗は警告のみ（投稿は成功しているため）
+          // ただし、Cron Jobで再試行されるため、致命的エラーにはしない
+          console.warn(`[Quote Repost] ⚠️ Failed to record initial engagement metrics for tweet ${result.id}:`, error.message);
+          console.warn(`[Quote Repost] Metrics will be updated by Cron Job (api/x-engagement-metrics.js)`);
         }
         
         // インフルエンサーのツイートのpublic_metricsを取得（正確なエンゲージメント数）
