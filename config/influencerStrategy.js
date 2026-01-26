@@ -3,26 +3,37 @@
 
 /**
  * 言語別インフルエンサー数設定（投稿用）
- * 初速で10万～20万インプレッション規模を出すための戦略
+ * 🚀 数撃て作戦: 1日100投稿を達成するための時価配分
+ * - ピーク時間（UTC 0,1,20,21,22）: 多く投稿
+ * - オフピーク時間（UTC 13,14）: 少なく投稿
  */
 const INFLUENCER_COUNT_BY_LANG = {
-  // 英語: Grok推奨 - 4本/日（10万～20万インプレッション規模達成）
-  en: parseInt(process.env.INFLUENCER_COUNT_EN || '4', 10),
+  // 英語: ピーク時間10人、オフピーク時間4人（1日70回投稿達成）
+  en: parseInt(process.env.INFLUENCER_COUNT_EN || '10', 10), // ピーク時間用（オフピークは動的に調整）
   
-  // スペイン語: Grok推奨 - 2本/日（5万～10万インプレッション規模）
+  // その他言語: ピーク時間2人、オフピーク時間1人（各言語1日14回投稿）
   es: parseInt(process.env.INFLUENCER_COUNT_ES || '2', 10),
-  
-  // ポルトガル語: Grok推奨 - 2本/日（5万～10万インプレッション規模）
   'pt-br': parseInt(process.env.INFLUENCER_COUNT_PT_BR || '2', 10),
-  
-  // アラビア語: Grok推奨 - 2本/日（5万～10万インプレッション規模）
   ar: parseInt(process.env.INFLUENCER_COUNT_AR || '2', 10),
-  
-  // 韓国語: Grok推奨 - 2本/日（5万～10万インプレッション規模）
   ko: parseInt(process.env.INFLUENCER_COUNT_KO || '2', 10),
-  
-  // 日本語: Grok推奨 - 2本/日（5万～10万インプレッション規模）
   ja: parseInt(process.env.INFLUENCER_COUNT_JA || '2', 10),
+};
+
+/**
+ * 時価配分設定（ピーク時間とオフピーク時間の投稿数比率）
+ * 🚀 数撃て作戦: 1日100投稿を達成するための時価配分
+ */
+const HOURLY_DISTRIBUTION = {
+  // ピーク時間（UTC 0,1,20,21,22）: 多く投稿
+  peak: {
+    hours: [0, 1, 20, 21, 22],
+    multiplier: 1.0, // 通常の投稿数
+  },
+  // オフピーク時間（UTC 13,14）: 少なく投稿
+  offPeak: {
+    hours: [13, 14],
+    multiplier: 0.4, // 通常の40%（EN: 10 → 4、その他: 2 → 1）
+  },
 };
 
 /**
@@ -80,12 +91,31 @@ const IMPRESSION_TARGET_BY_LANG = {
 
 /**
  * 言語別のインフルエンサー数を取得（投稿用）
+ * 🚀 数撃て作戦: 時価配分を考慮して動的に調整
  * @param {string} lang - 言語コード
+ * @param {number} currentHour - 現在時刻（UTC、省略時は自動取得）
  * @returns {number} インフルエンサー数
  */
-function getInfluencerCountForLang(lang) {
+function getInfluencerCountForLang(lang, currentHour = null) {
   const normalizedLang = normalizeLang(lang);
-  return INFLUENCER_COUNT_BY_LANG[normalizedLang] || 1;
+  const baseCount = INFLUENCER_COUNT_BY_LANG[normalizedLang] || 1;
+  
+  // 時価配分を考慮
+  if (currentHour !== null) {
+    const hour = currentHour;
+    const isPeakHour = HOURLY_DISTRIBUTION.peak.hours.includes(hour);
+    const isOffPeakHour = HOURLY_DISTRIBUTION.offPeak.hours.includes(hour);
+    
+    if (isOffPeakHour) {
+      // オフピーク時間: 通常の40%
+      return Math.max(1, Math.floor(baseCount * HOURLY_DISTRIBUTION.offPeak.multiplier));
+    }
+    // ピーク時間: 通常の投稿数
+    return baseCount;
+  }
+  
+  // 時刻が指定されていない場合は基本値を返す
+  return baseCount;
 }
 
 /**
@@ -302,6 +332,7 @@ module.exports = {
   INFLUENCER_COUNT_BY_LANG,
   STOCK_COUNT_BY_LANG,
   IMPRESSION_TARGET_BY_LANG,
+  HOURLY_DISTRIBUTION,
   getInfluencerCountForLang,
   getStockCountForLang,
   getImpressionTargetForLang,

@@ -48,38 +48,104 @@ async function generateAIAnchorVideo(options = {}) {
       return null;
     }
 
-    // HeyGen API呼び出し（実装が必要）
-    // 現在はプレースホルダーとしてnullを返す
-    console.log('[HeyGen] Video generation requested (not yet implemented)', {
+    // HeyGen API v2呼び出し
+    const apiUrl = 'https://api.heygen.com/v2/video/generate';
+    
+    console.log('[HeyGen] Generating video...', {
       scriptLength: scriptText.length,
       avatarId: finalAvatarId,
       lang,
     });
 
-    // TODO: HeyGen API呼び出しを実装
-    // const response = await fetch(`${HEYGEN_API_URL}/video/generate`, {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${HEYGEN_API_KEY}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     script_text: scriptText,
-    //     avatar_id: finalAvatarId,
-    //     voice_id: voiceId,
-    //     aspect_ratio: '16:9',
-    //   }),
-    // });
-    // const data = await response.json();
-    // return data.video_url || null;
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': HEYGEN_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        script_text: scriptText.substring(0, 5000), // 最大5000文字
+        avatar_id: finalAvatarId,
+        voice_id: voiceId,
+        aspect_ratio: '16:9',
+        background: 'transparent',
+      }),
+    });
 
-    return null; // プレースホルダー
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HeyGen API Error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.video_id) {
+      // 動画生成は非同期なので、ステータスをポーリング
+      console.log(`[HeyGen] Video generation started: ${data.video_id}`);
+      const videoUrl = await pollHeyGenVideoStatus(data.video_id);
+      return videoUrl;
+    }
+
+    return null;
   } catch (error) {
     console.error('[HeyGen] Error generating AI anchor video:', error);
     return null;
   }
 }
 
+/**
+ * HeyGen動画生成のステータスをポーリング
+ * @param {string} videoId - 動画ID
+ * @param {number} maxAttempts - 最大試行回数
+ * @param {number} pollInterval - ポーリング間隔（秒）
+ * @returns {Promise<string|null>} 動画URLまたはnull
+ */
+async function pollHeyGenVideoStatus(videoId, maxAttempts = 60, pollInterval = 10) {
+  const statusUrl = `https://api.heygen.com/v1/video_status.get?video_id=${videoId}`;
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      if (attempt > 0) {
+        await new Promise(resolve => setTimeout(resolve, pollInterval * 1000));
+      }
+      
+      const response = await fetch(statusUrl, {
+        headers: {
+          'X-API-KEY': HEYGEN_API_KEY,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Status API Error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.status === 'completed' && data.video_url) {
+        console.log(`[HeyGen] Video generation completed: ${data.video_url}`);
+        return data.video_url;
+      }
+      
+      if (data.status === 'failed') {
+        throw new Error(`Video generation failed: ${data.error || 'Unknown error'}`);
+      }
+      
+      if (attempt % 10 === 0 || attempt < 3) {
+        console.log(`[HeyGen] Polling attempt ${attempt + 1}/${maxAttempts}... (status: ${data.status})`);
+      }
+    } catch (error) {
+      console.error(`[HeyGen] Polling error:`, error.message);
+      if (attempt === maxAttempts - 1) {
+        return null;
+      }
+    }
+  }
+  
+  console.warn(`[HeyGen] Video generation timeout after ${maxAttempts} attempts`);
+  return null;
+}
+
 module.exports = {
   generateAIAnchorVideo,
+  pollHeyGenVideoStatus,
 };

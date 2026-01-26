@@ -1,0 +1,216 @@
+{
+  "timestamp": "2026-01-25T12:12:51.058Z",
+  "geminiPrediction": {
+    "timestamp": "2026-01-25T12:12:20.515Z",
+    "currentData": {
+      "current": {
+        "timestamp": "2026-01-25T12:11:43.752Z",
+        "exchangeInflow": 0,
+        "minerPositionIndex": 0,
+        "price": 88391,
+        "change24h": -1.147493082459358,
+        "fearGreed": 25,
+        "fearGreedLabel": "Extreme Fear"
+      },
+      "deep": {
+        "whaleRatio": null,
+        "exchangeReserve": null,
+        "stablecoinSupply": null,
+        "fundingRate": null
+      },
+      "historical": {
+        "netflow": {},
+        "mpi": {},
+        "whaleRatio": {}
+      }
+    },
+    "prediction": {
+      "similarPatterns": [
+        {
+          "date": "2021-05-24",
+          "description": "大幅な価格調整後の底値圏での推移。価格は高値から急落し、Fear & Greed Indexは10-20台（Extreme Fear）で停滞。Exchange Inflowが一時的に沈静化した局面。",
+          "similarity": "高値圏からの調整局面かつ、極度の恐怖指数と低い売り圧力（Inflow低下）の組み合わせが類似。"
+        },
+        {
+          "date": "2024-01-23",
+          "description": "ETF承認後の「事実売り」による下落局面。市場センチメントが悪化する一方で、オンチェーン上のクジラやマイナーの売り（MPI）は限定的だった。",
+          "similarity": "センチメントと実際のオンチェーン売り圧（MPI低）の乖離が類似。売り手不在の中での価格下落。"
+        },
+        {
+          "date": "2023-08-17",
+          "description": "低ボラティリティ期間中のフラッシュクラッシュ直後。市場参加者が減少し、Inflowが極端に低下した。",
+          "similarity": "Exchange Inflow: 0に近い状態（流動性枯渇）とネガティブなセンチメントが一致。"
+        }
+      ],
+      "prediction24h": {
+        "priceDirection": "sideways",
+        "priceRange": {
+          "min": 87200,
+          "max": 89800
+        },
+        "exchangeInflowTrend": "横ばい（低水準維持）。週末（日曜）のため機関投資家の動きは鈍く、突発的な大量入金がない限り0近辺で推移する予想。",
+        "mpiTrend": "変化なし。現在の価格帯でのマイナーの降伏（Capitulation）や利確売りは見られず、蓄積フェーズまたは静観が続く。",
+        "riskFactors": [
+          "流動性低下（薄い板）を狙った投機的なショートによるフラッシュクラッシュ",
+          "主要データ（Whale Ratio等）欠損による隠れた大口売りの可能性"
+        ],
+        "opportunityFactors": [
+          "「極度の恐怖」と「売り圧枯渇」が重なる地点での逆張り（ショートカバーによる反発期待）",
+          "RSI等のオシレーター系指標での売られすぎシグナル点灯"
+        ],
+        "keyTimeWindows": [
+          {
+            "time": "JST 23:00 - 02:00",
+            "description": "米国市場（先物含む）の活発化時間帯。流動性が低い中でのボラティリティ拡大に注意。"
+          },
+          {
+            "time": "JST 09:00 (翌日)",
+            "description": "月曜日のアジア市場オープンおよびCME先物窓開け。週末のセンチメントを織り込む動きが発生しやすい。"
+          }
+        ]
+      },
+      "reasoning": "現在の市場は「Extreme Fear（指数25）」に支配されていますが、Exchange InflowとMPIが「0」であることは、パニック売りが既に終了しているか、あるいは現物を売ろうとする意志が市場に存在しないことを示唆しています。通常、価格下落時にInflowが増加しない場合、それは『需要不足による下落』であり、強い『売り圧力による崩壊』ではありません。したがって、今後24時間は積極的な売り崩しよりも、様子見のレンジ相場（横ばい）となり、ショートカバーが入れば$89,000台への軽い反発が見込まれます。ただし、データ欠損（N/A）が多く流動性が薄いため、突発的な動きには脆弱です。",
+      "recommendedActions": [
+        "積極的なトレードは控え、$87,200付近でのサポート確認後の打診買い（スキャルピング〜デイトレード）を検討。",
+        "レバレッジは低く抑えること。板が薄いため、小さな成行注文でも価格が大きく滑るリスクがある。",
+        "Inflowデータが急増した場合は即座に撤退（売り圧発生のサイン）。"
+      ]
+    }
+  },
+  "xSentiment": {
+    "whaleBias": 0,
+    "retailFomo": 0,
+    "newsImpact": 0,
+    "summary": "Live Search unavailable",
+    "sources": [],
+    "mentalBlocks": [],
+    "psychologicalPattern": "No live data available to analyze patterns.",
+    "coachingAdvice": "Traders, when data is scarce, master the art of patience—don't chase ghosts. Build discipline by reviewing your journal instead of forcing trades."
+  },
+  "postingPlan": {
+    "summary": "JST 21時から24時間の投稿計画",
+    "content": "# JST 21時から24時間の投稿計画（2026-01-25）\r\n**作成日時**: 2026-01-25  \r\n**作成者**: COO（Cursor/Composer 1）  \r\n**目的**: JST 21時から24時間後までの詳細な投稿スケジュール\r\n\r\n---\r\n\r\n## 📋 エグゼクティブサマリー\r\n\r\nこのドキュメントは、**JST 21:00から24時間後（翌日JST 21:00）まで**の投稿計画を完全に記録したものです。\r\n\r\n### 24時間の合計投稿数\r\n\r\n| 投稿タイプ | 投稿数 | 詳細 |\r\n|-----------|--------|------|\r\n| **Quote Reposts（引用リポスト）** | **10回** | UTC 0,1,20,21の4時間で実行 |\r\n| **Free Reports（無料版レポート）** | **5回** | UTC 12,13,14,15,18の5時間で実行 |\r\n| **Minimal Version（無料版）** | **1回** | UTC 8,20の2時間で実行（1日1回のみ） |\r\n| **合計** | **16回** | 全投稿タイプの合計 |\r\n\r\n---\r\n\r\n## 🕐 詳細投稿スケジュール（JST時刻順）\r\n\r\n### JST 21:00（UTC 12:00）- Free Report\r\n\r\n**投稿タイプ**: Free Reports（無料版レポート）  \r\n**対象言語**: JA（日本語）  \r\n**投稿数**: 1回\r\n\r\n**投稿内容**:\r\n- スレッド形式: 1メイン投稿 + 3リプライ（`getThreadStrategy()`により、JAは単一投稿に設定可能）\r\n- メイン投稿: `TWEET_TEMPLATES.ja`テンプレートを使用\r\n- リプライ: `generateThreadReply()`関数により生成（データ深掘り、インサイト、CTA）\r\n\r\n**期待インプレッション数**: 90,000/日（SSOTより）\r\n\r\n---\r\n\r\n### JST 22:00（UTC 13:00）- Free Report\r\n\r\n**投稿タイプ**: Free Reports（無料版レポート）  \r\n**対象言語**: KO（韓国語）  \r\n**投稿数**: 1回\r\n\r\n**投稿内容**:\r\n- スレッド形式: 1メイン投稿 + 3リプライ\r\n- メイン投稿: `TWEET_TEMPLATES.ko`テンプレートを使用\r\n- リプライ: `generateThreadReply()`関数により生成\r\n\r\n**期待インプレッション数**: 100,000/日（SSOTより）\r\n\r\n---\r\n\r\n### JST 23:00（UTC 14:00）- Free Report\r\n\r\n**投稿タイプ**: Free Reports（無料版レポート）  \r\n**対象言語**: EN（英語）、PT-BR（ポルトガル語）  \r\n**投稿数**: 2回（各言語1回）\r\n\r\n**投稿内容**:\r\n- スレッド形式: 1メイン投稿 + 3リプライ\r\n- メイン投稿: `TWEET_TEMPLATES.en`、`TWEET_TEMPLATES['pt-br']`テンプレートを使用\r\n- リプライ: `generateThreadReply()`関数により生成\r\n\r\n**期待インプレッション数**: \r\n- EN: 250,000/日\r\n- PT-BR: 110,000/日\r\n\r\n---\r\n\r\n### JST 00:00（翌日）（UTC 15:00）- Free Report\r\n\r\n**投稿タイプ**: Free Reports（無料版レポート）  \r\n**対象言語**: ES（スペイン語）  \r\n**投稿数**: 1回\r\n\r\n**投稿内容**:\r\n- スレッド形式: 1メイン投稿 + 3リプライ\r\n- メイン投稿: `TWEET_TEMPLATES.es`テンプレートを使用\r\n- リプライ: `generateThreadReply()`関数により生成\r\n\r\n**期待インプレッション数**: 120,000/日（SSOTより）\r\n\r\n---\r\n\r\n### JST 03:00（翌日）（UTC 18:00）- Free Report\r\n\r\n**投稿タイプ**: Free Reports（無料版レポート）  \r\n**対象言語**: AR（アラビア語）  \r\n**投稿数**: 1回\r\n\r\n**投稿内容**:\r\n- スレッド形式: 1メイン投稿 + 3リプライ（ARは単一投稿に設定可能）\r\n- メイン投稿: `TWEET_TEMPLATES."
+  },
+  "analysis": {
+    "marketTimingAnalysis": {
+      "optimalPostingTimes": [
+        {
+          "time": "JST 21:00",
+          "reason": "アジア市場クローズ直後でセンチメント安定。Free Report (JA)で土曜夕方の様子見ムードを捉え、初期エンゲージメントを確保。",
+          "marketCondition": "横ばい低ボラ。Inflow低位維持で穏やか。"
+        },
+        {
+          "time": "JST 23:00",
+          "reason": "US市場活発化直前。EN/PT-BR投稿でグローバル視聴者を引き込み、ボラ拡大前のポジショニング。",
+          "marketCondition": "JST 23:00-02:00のkey window。流動性低下リスクありも、sideways予想で反発機会監視。"
+        },
+        {
+          "time": "JST 03:00",
+          "reason": "US市場後半。AR投稿で中東タイムゾーン対応、低流動性時に深いインサイト提供。",
+          "marketCondition": "深夜低流動性。フラッシュクラッシュリスク高く、様子見推奨。"
+        },
+        {
+          "time": "JST 09:00 (翌日)",
+          "reason": "追加提案: アジアオープン時にMinimal Version投稿をシフト。週末センチメント織り込みの動きを捉える。",
+          "marketCondition": "CME窓開け。反発orサポート確認の可能性。"
+        }
+      ],
+      "riskTiming": [
+        {
+          "time": "JST 23:00 - 02:00",
+          "risk": "薄い板狙いのフラッシュクラッシュ or 投機ショート",
+          "mitigation": "投稿直前にInflow/MPIリアルタイム監視。異常時は投稿延期し、警戒メッセージに変更。"
+        },
+        {
+          "time": "JST 09:00 (翌日)",
+          "risk": "隠れたWhale売り発生（データ欠損リスク）",
+          "mitigation": "事前アラート設定。価格87200割れで緊急Quote Repost発行。"
+        }
+      ]
+    },
+    "contentAdjustment": {
+      "recommendedMessages": [
+        {
+          "postType": "Free Report",
+          "lang": "JA",
+          "time": "JST 21:00",
+          "message": "Extreme Fear(25)だがInflow=0で売り枯渇！$87kサポート固く、sidewaysレンジ継続中。逆張りチャンス監視🔍 #BTC",
+          "reason": "JA市場の慎重心理に合わせ、Fear安心+機会強調でエンゲージ向上。"
+        },
+        {
+          "postType": "Free Report",
+          "lang": "EN",
+          "time": "JST 23:00",
+          "message": "Similar to 2021/05/24: Post-crash Extreme Fear w/ zero Inflow. No real selling pressure—sideways to $89k bounce? Watch 23-02 JST. #CryptoAnalysis",
+          "reason": "グローバルENで類似パターン引用、US視聴者向けkey window言及。"
+        },
+        {
+          "postType": "Free Report",
+          "lang": "AR",
+          "time": "JST 03:00",
+          "message": "[AR訳] خوف شديد لكن تدفق الصرف=0. لا ضغط بيع حقيقي—توقعات جانبية مع ارتداد محتمل. راقب السيولة المنخفضة.",
+          "reason": "中東深夜にリスク警戒+機会で心理ブロック解消。"
+        }
+      ],
+      "sentimentAlignment": "Xデータ欠損(whaleBias=0, no FOMO)で中立。Extreme Fear(25)に合わせ投稿を「売り圧なしの安心レンジ強調」に統一。パニック回避し、データ駆動インサイトで信頼構築。心理パターン分析不可のため、Gemini類似歴史活用。"
+    },
+    "languageStrategy": {
+      "optimizations": [
+        {
+          "lang": "JA",
+          "currentPlan": "JST 21:00 Free Report",
+          "recommendedAdjustment": "スレッドにRSI売られすぎシグナル追加",
+          "reason": "日本市場のテクニカル重視特性。土曜夕方で長期保有者ターゲット。"
+        },
+        {
+          "lang": "EN",
+          "currentPlan": "JST 23:00 Free Report",
+          "recommendedAdjustment": "US key window(23-02)特化、Quote Repost併用",
+          "reason": "グローバル最大市場。ボラ拡大時に高いエンゲージ期待。"
+        },
+        {
+          "lang": "KO",
+          "currentPlan": "JST 22:00 Free Report",
+          "recommendedAdjustment": "ENにシフト or 09:00翌日へ移動",
+          "reason": "韓国市場のアジアオープン連動性高く、22:00は低需要。"
+        },
+        {
+          "lang": "PT-BR/ES/AR",
+          "currentPlan": "JST 23:00/00:00/03:00 Free Report",
+          "recommendedAdjustment": "ARを03:00維持、他をEN優先にQuote Repost追加",
+          "reason": "ラテン/中東は夜間活発。ENヘビーウェイトでグローバル最適化。"
+        }
+      ]
+    },
+    "impactOnExpectations": {
+      "impressions": {
+        "current": "90k-250k/日 (言語別)",
+        "adjusted": "80k-220k/日 (-10%)",
+        "reason": "Sideways低ボラで市場静観、Xデータ欠損でバズ低。Fear高でコアファン維持も新規流入減。"
+      },
+      "engagements": {
+        "current": "未指定 (標準10-20%)",
+        "adjusted": "8-15%",
+        "reason": "Fear心理でRT/Reply増も、データ欠損で議論低調。機会強調で回復見込み。"
+      },
+      "conversions": {
+        "current": "未指定 (標準2-5%)",
+        "adjusted": "3-6%",
+        "reason": "逆張り機会訴求で有料レポートCV向上。リスク警戒で質の高いリード獲得。"
+      }
+    },
+    "riskManagement": {
+      "riskMitigation": [
+        "リアルタイムInflow/MPI監視ツール導入。急増時は全投稿一時停止&警戒スレッド発行。",
+        "価格87200割れトリガーで緊急Quote Repost(10回中2回シフト)。",
+        "データ欠損対応: Gemini historical patternsをフォールバック活用。"
+      ],
+      "opportunityMaximization": [
+        "反発シグナル(RSI oversold点灯)検知で追加Free Report(EN/JA優先)。",
+        "Quote RepostsをUS window(23:00-)に集中、ショートカバー期待煽りでviral化。",
+        "翌日09:00 Minimal Versionを機会特化(「Capitulation終了」テーマ)。"
+      ]
+    },
+    "summary": "Sidewaysレンジ+Extreme Fear下で投稿計画は概ね適合も、US windowリスク高。内容を「売り枯渇安心+逆張り機会」へ調整、EN/JA優先最適化。期待値微減もCV向上見込み。推奨: 監視強化&柔軟シフトで機会最大化。"
+  }
+}

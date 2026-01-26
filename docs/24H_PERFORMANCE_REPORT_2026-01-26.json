@@ -1,0 +1,207 @@
+{
+  "performance": {
+    "period": {
+      "start": "2026-01-24T15:15:19.000Z",
+      "end": "2026-01-25T15:15:19.000Z",
+      "duration": "24 hours"
+    },
+    "summary": {
+      "totalPosts": 11,
+      "totalImpressions": 0,
+      "totalEngagements": 0,
+      "telegramOptIns": 17,
+      "whopTraffic": 0,
+      "whopConversions": {
+        "conservative": 0,
+        "moderate": 0,
+        "optimistic": 0
+      }
+    },
+    "byMarket": {
+      "unknown": {
+        "market": "UNKNOWN",
+        "posts": 3,
+        "impressions": 0,
+        "engagements": 0,
+        "telegramOptIns": 15,
+        "influencers": []
+      },
+      "ar": {
+        "market": "Arabic (AR)",
+        "posts": 2,
+        "impressions": 0,
+        "engagements": 0,
+        "telegramOptIns": 0,
+        "influencers": [
+          "cryptoarabia"
+        ]
+      },
+      "es": {
+        "market": "Spanish (ES)",
+        "posts": 3,
+        "impressions": 0,
+        "engagements": 0,
+        "telegramOptIns": 0,
+        "influencers": [
+          "btc_es"
+        ]
+      },
+      "en": {
+        "market": "English (EN)",
+        "posts": 3,
+        "impressions": 0,
+        "engagements": 0,
+        "telegramOptIns": 0,
+        "influencers": [
+          "BTC_Archive"
+        ]
+      }
+    },
+    "posts": [
+      {
+        "tweetId": "2015575666993811921",
+        "postType": "Quote Repost",
+        "lang": "unknown",
+        "influencer": "N/A",
+        "postedAt": "2026-01-25T15:01:01.000Z",
+        "path": "cryptotradeacademy-4tv0lxrus-hadayalab-projects-projects.vercel.app/api/x-quote-repost",
+        "message": "[X API] Quote tweet posted successfully: 2015575666993811921",
+        "impressions": 0,
+        "engagements": 0,
+        "engagementRate": "0%",
+        "market": "UNKNOWN"
+      },
+      {
+        "tweetId": "unknown_1769387128251_0.8182688651365089",
+        "postType": "Quote Repost",
+        "lang": "ar",
+        "influencer": "cryptoarabia",
+        "postedAt": "2026-01-25T15:01:01.000Z",
+        "path": "cryptotradeacademy-4tv0lxrus-hadayalab-projects-projects.vercel.app/api/x-quote-repost",
+        "message": "[Quote Repost] ✅✅✅ SUCCESSFULLY POSTED quote repost for ar (@cryptoarabia):",
+        "impressions": 0,
+        "engagements": 0,
+        "engagementRate": "0%",
+        "market": "Arabic (AR)"
+      },
+      {
+        "tweetId": "2015575666993811921",
+        "postType": "Quote Repost",
+        "lang": "ar",
+        "influencer": "cryptoarabia",
+        "postedAt": "2026-01-25T15:01:02.000Z",
+        "path": "cryptotradeacademy-4tv0lxrus-hadayalab-projects-projects.vercel.app/api/x-quote-repost",
+        "message": "[Quote Repost] ✅✅✅ CONFIRMED: Quote repost ACTUALLY POSTED for ar (@cryptoarabia): 2015575666993811921",
+        "impressions": 0,
+        "engagements": 0,
+        "engagementRate": "0%",
+        "market": "Arabic (AR)"
+      },
+      {
+        "tweetId": "2015530377733968053",
+        "postType": "Quote Repost",
+        "lang": "unknown",
+        "influencer": "N/A",
+        "postedAt": "2026-01-25T12:01:03.000Z",
+        "path": "cryptotradeacademy-4tv0lxrus-hadayalab-projects-projects.vercel.app/api/x-quote-repost",
+        "message": "[X API] Quote tweet posted successfully: 2015530377733968053",
+        "impressions": 0,
+        "engagements": 0,
+        "engagementRate": "0%",
+        "market": "UNKNOWN"
+      },
+      {
+        "tweetId": "unknown_1769387128255_0.49714863887211447",
+        "postType": "Quote Repost",
+        "lang": "es",
+        "influencer": "btc_es",
+        "postedAt": "2026-01-25T12:01:03.000Z",
+        "path": "cryptotradeacademy-4tv0lxrus-hadayalab-projects-projects.vercel.app/api/x-quote-repost",
+        "message": "[Quote Repost] ✅✅✅ SUCCESSFULLY POSTED quote repost for es (@btc_es):",
+        "impressions": 0,
+        "engagements": 0,
+        "engagementRate": "0%",
+        "market": "Spanish (ES)"
+      },
+      {
+        "tweetId": "2015530377733968053",
+        "postType": "Quote Repost",
+        "lang": "es",
+        "influencer": "btc_es",
+        "postedAt": "2026-01-25T12:01:05.000Z",
+        "path": "cryptotradeacademy-4tv0lxrus-hadayalab-projects-projects.vercel.app/api/x-quote-repost",
+        "message": "[Quote Repost] ✅✅✅ CONFIRMED: Quote repost ACTUALLY POSTED for es (@btc_es): 2015530377733968053",
+        "impressions": 0,
+        "engagements": 0,
+        "engagementRate": "0%",
+        "market": "Spanish (ES)"
+      },
+      {
+        "tweetId": "2015515268605219243",
+        "postType": "Quote Repost",
+        "lang": "unknown",
+        "influencer": "N/A",
+        "postedAt": "2026-01-25T11:01:01.000Z",
+        "path": "cryptotradeacademy-4tv0lxrus-hadayalab-projects-projects.vercel.app/api/x-quote-repost",
+        "message": "[X API] Quote tweet posted successfully: 2015515268605219243",
+        "impressions": 0,
+        "engagements": 0,
+        "engagementRate": "0%",
+        "market": "UNKNOWN"
+      },
+      {
+        "tweetId": "unknown_1769387128257_0.7097243198933989",
+        "postType": "Quote Repost",
+        "lang": "en",
+        "influencer": "BTC_Archive",
+        "postedAt": "2026-01-25T11:01:01.000Z",
+        "path": "cryptotradeacademy-4tv0lxrus-hadayalab-projects-projects.vercel.app/api/x-quote-repost",
+        "message": "[Quote Repost] ✅✅✅ SUCCESSFULLY POSTED quote repost for en (@BTC_Archive):",
+        "impressions": 0,
+        "engagements": 0,
+        "engagementRate": "0%",
+        "market": "English (EN)"
+      },
+      {
+        "tweetId": "2015515268605219243",
+        "postType": "Quote Repost",
+        "lang": "en",
+        "influencer": "BTC_Archive",
+        "postedAt": "2026-01-25T11:01:02.000Z",
+        "path": "cryptotradeacademy-4tv0lxrus-hadayalab-projects-projects.vercel.app/api/x-quote-repost",
+        "message": "[Quote Repost] ✅✅✅ CONFIRMED: Quote repost ACTUALLY POSTED for en (@BTC_Archive): 2015515268605219243",
+        "impressions": 0,
+        "engagements": 0,
+        "engagementRate": "0%",
+        "market": "English (EN)"
+      },
+      {
+        "tweetId": "unknown_1769387128257_0.20473110611141365",
+        "postType": "Minimal Version",
+        "lang": "en",
+        "influencer": "N/A",
+        "postedAt": "2026-01-25T11:00:17.000Z",
+        "path": "cryptotradeacademy-4tv0lxrus-hadayalab-projects-projects.vercel.app/api/x-post-minimal-version-cron",
+        "message": "[X Post Minimal] ⏰ Minimal version already posted today for en (2026-01-25), skipping",
+        "impressions": 0,
+        "engagements": 0,
+        "engagementRate": "0%",
+        "market": "English (EN)"
+      },
+      {
+        "tweetId": "unknown_1769387128257_0.06815714420326935",
+        "postType": "Minimal Version",
+        "lang": "es",
+        "influencer": "N/A",
+        "postedAt": "2026-01-25T11:00:17.000Z",
+        "path": "cryptotradeacademy-4tv0lxrus-hadayalab-projects-projects.vercel.app/api/x-post-minimal-version-cron",
+        "message": "[X Post Minimal] ⏰ Minimal version already posted today for es (2026-01-25), skipping",
+        "impressions": 0,
+        "engagements": 0,
+        "engagementRate": "0%",
+        "market": "Spanish (ES)"
+      }
+    ]
+  },
+  "generatedAt": "2026-01-26T00:25:28.544Z"
+}

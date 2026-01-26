@@ -95,7 +95,11 @@ Estilo: Estilo de transmissão de notícias profissional com um apresentador AI 
     console.log(`[Gemini VideoGenerator] Prompt length: ${prompt.length} chars`);
 
     // Veo 3.1 API呼び出し
-    const videoDataUrl = await callVeoAPI(prompt, apiKey);
+    const videoDataUrl = await callVeoAPI(prompt, apiKey, 'veo-3.1-generate-preview', {
+      aspectRatio: '16:9',
+      resolution: '720p',
+      durationSeconds: '8',
+    });
 
     if (videoDataUrl) {
       console.log(`[Gemini VideoGenerator] Video generated successfully`);
@@ -115,31 +119,28 @@ Estilo: Estilo de transmissão de notícias profissional com um apresentador AI 
  * @param {string} prompt - 動画生成用のプロンプト
  * @param {string} apiKey - Gemini APIキー
  * @param {string} model - 使用するモデル（'veo-3.1-generate-preview' または 'veo-3.1-fast-generate-preview'）
+ * @param {Object} config - オプション設定（aspectRatio, resolution, durationSecondsなど）
  * @returns {Promise<string|null>} 生成された動画のBase64 Data URLまたはnull（失敗時）
  */
-async function callVeoAPI(prompt, apiKey, model = 'veo-3.1-generate-preview') {
+async function callVeoAPI(prompt, apiKey, model = 'veo-3.1-generate-preview', config = {}) {
   try {
     if (!apiKey) {
       console.warn('[Gemini VideoGenerator] API key not provided');
       return null;
     }
 
-    // REST APIエンドポイント（クエリパラメータではなくヘッダーで認証）
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    // REST APIエンドポイント（Veo 3.1はpredictLongRunningエンドポイントを使用）
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning`;
 
     // リクエストボディ（公式ドキュメントに準拠）
     const requestBody = {
-      contents: [{
-        parts: [
-          { text: prompt }
-        ]
+      instances: [{
+        prompt: prompt
       }],
-      generationConfig: {
-        responseModalities: ['VIDEO'], // 大文字で指定
-        videoConfig: {
-          durationSeconds: 8, // 8秒の動画
-          resolution: '720p', // 720pまたは1080p
-        }
+      parameters: {
+        aspectRatio: config.aspectRatio || '16:9', // 16:9または9:16
+        resolution: config.resolution || '720p', // 720pまたは1080p（8秒のみ）
+        durationSeconds: parseInt(config.durationSeconds || '8', 10), // 数値型で4, 6, 8秒から選択
       }
     };
 
@@ -161,34 +162,17 @@ async function callVeoAPI(prompt, apiKey, model = 'veo-3.1-generate-preview') {
 
     const data = await response.json();
 
-    // レスポンスから動画データを取得
-    // Veo APIは非同期処理のため、job_idが返される可能性がある
-    if (data.jobId) {
+    // Veo APIは常に非同期処理で、operation nameが返される
+    if (data.name) {
       // 非同期処理の場合、ポーリングが必要
-      console.log(`[Gemini VideoGenerator] Video generation job created: ${data.jobId}`);
-      const videoUrl = await pollVideoGeneration(data.jobId, apiKey);
+      console.log(`[Gemini VideoGenerator] Video generation job created: ${data.name}`);
+      const videoUrl = await pollVideoGeneration(data.name, apiKey);
       return videoUrl;
     }
 
-    // 同期処理の場合、直接動画データが返される
-    if (data.candidates && data.candidates.length > 0) {
-      const candidate = data.candidates[0];
-      if (candidate.content && candidate.content.parts) {
-        for (const part of candidate.content.parts) {
-          if (part.inlineData && part.inlineData.mimeType && part.inlineData.data) {
-            const mimeType = part.inlineData.mimeType; // 例: 'video/mp4'
-            const base64Data = part.inlineData.data;
-            const dataUrl = `data:${mimeType};base64,${base64Data}`;
-            console.log(`[Gemini VideoGenerator] Video generated successfully (${mimeType}, ${base64Data.length} bytes)`);
-            return dataUrl;
-          }
-          // URL形式で返される場合
-          if (part.videoUrl) {
-            console.log(`[Gemini VideoGenerator] Video URL received: ${part.videoUrl}`);
-            return part.videoUrl;
-          }
-        }
-      }
+    // エラーの場合
+    if (data.error) {
+      throw new Error(`Veo API Error: ${JSON.stringify(data.error)}`);
     }
 
     console.warn('[Gemini VideoGenerator] No video data in API response');
@@ -201,24 +185,30 @@ async function callVeoAPI(prompt, apiKey, model = 'veo-3.1-generate-preview') {
 
 /**
  * 動画生成ジョブのポーリング（非同期処理の場合）
- * @param {string} jobId - ジョブID
+ * @param {string} operationName - オペレーション名（例: "operations/123456789"）
  * @param {string} apiKey - Gemini APIキー
  * @param {number} maxAttempts - 最大ポーリング試行回数（デフォルト: 60）
  * @param {number} pollInterval - ポーリング間隔（秒、デフォルト: 10）
- * @returns {Promise<string|null>} 生成された動画のURLまたはnull
+ * @returns {Promise<string|null>} 生成された動画のData URLまたはnull
  */
-async function pollVideoGeneration(jobId, apiKey, maxAttempts = 60, pollInterval = 10) {
-  const pollUrl = `https://generativelanguage.googleapis.com/v1beta/operations/${jobId}`;
+async function pollVideoGeneration(operationName, apiKey, maxAttempts = 60, pollInterval = 10) {
+  const pollUrl = `https://generativelanguage.googleapis.com/v1beta/${operationName}`;
+  
+  console.log(`[Gemini VideoGenerator] Starting polling for operation: ${operationName}`);
   
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      await new Promise(resolve => setTimeout(resolve, pollInterval * 1000));
+      // 最初のポーリングは即座に実行、その後は間隔を空ける
+      if (attempt > 0) {
+        await new Promise(resolve => setTimeout(resolve, pollInterval * 1000));
+      }
       
       const response = await fetch(pollUrl, {
         headers: {
-          'x-goog-api-key': apiKey, // ヘッダーで認証
+          'x-goog-api-key': apiKey,
         },
       });
+      
       if (!response.ok) {
         throw new Error(`Poll API Error: ${response.status} ${response.statusText}`);
       }
@@ -227,28 +217,31 @@ async function pollVideoGeneration(jobId, apiKey, maxAttempts = 60, pollInterval
       
       // ジョブが完了しているか確認
       if (data.done) {
-        if (data.response) {
-          // レスポンスから動画データを取得
-          const videoData = data.response;
-          if (videoData.videoUrl) {
-            console.log(`[Gemini VideoGenerator] Video generation completed: ${videoData.videoUrl}`);
-            return videoData.videoUrl;
-          }
-          if (videoData.inlineData) {
-            const mimeType = videoData.inlineData.mimeType;
-            const base64Data = videoData.inlineData.data;
-            const dataUrl = `data:${mimeType};base64,${base64Data}`;
-            console.log(`[Gemini VideoGenerator] Video generation completed (${mimeType})`);
-            return dataUrl;
+        if (data.response && data.response.generateVideoResponse) {
+          // レスポンスから動画URIを取得
+          const generatedSamples = data.response.generateVideoResponse.generatedSamples;
+          if (generatedSamples && generatedSamples.length > 0) {
+            const videoUri = generatedSamples[0].video?.uri;
+            if (videoUri) {
+              console.log(`[Gemini VideoGenerator] Video generation completed: ${videoUri}`);
+              // URIから動画をダウンロード
+              const videoDataUrl = await downloadVideoFromUri(videoUri, apiKey);
+              return videoDataUrl;
+            }
           }
         }
         // エラーが発生した場合
         if (data.error) {
           throw new Error(`Video generation failed: ${JSON.stringify(data.error)}`);
         }
+        console.warn('[Gemini VideoGenerator] Operation done but no video data found');
+        return null;
       }
       
-      console.log(`[Gemini VideoGenerator] Polling attempt ${attempt + 1}/${maxAttempts}...`);
+      // 進行状況を表示（10回ごと）
+      if (attempt % 10 === 0 || attempt < 3) {
+        console.log(`[Gemini VideoGenerator] Polling attempt ${attempt + 1}/${maxAttempts}... (operation not done yet)`);
+      }
     } catch (error) {
       console.error(`[Gemini VideoGenerator] Polling error:`, error.message);
       if (attempt === maxAttempts - 1) {
@@ -259,6 +252,34 @@ async function pollVideoGeneration(jobId, apiKey, maxAttempts = 60, pollInterval
   
   console.warn(`[Gemini VideoGenerator] Video generation timeout after ${maxAttempts} attempts`);
   return null;
+}
+
+/**
+ * URIから動画をダウンロードしてData URLに変換
+ */
+async function downloadVideoFromUri(videoUri, apiKey) {
+  try {
+    const response = await fetch(videoUri, {
+      headers: {
+        'x-goog-api-key': apiKey,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Video download error: ${response.status} ${response.statusText}`);
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Data = buffer.toString('base64');
+    const dataUrl = `data:video/mp4;base64,${base64Data}`;
+    
+    console.log(`[Gemini VideoGenerator] Video downloaded successfully (${buffer.length} bytes)`);
+    return dataUrl;
+  } catch (error) {
+    console.error(`[Gemini VideoGenerator] Video download error:`, error.message);
+    return null;
+  }
 }
 
 module.exports = {

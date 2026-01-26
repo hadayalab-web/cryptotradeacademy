@@ -294,25 +294,32 @@ async function incrementDailyPostCount(dateString, count = 1) {
 
 /**
  * 1日の投稿上限をチェック
- * ⚖️ バランスアプローチ: Grokの警告を踏まえ、リスクを最小化（50投稿/日）
- * 1日100投稿の1/2に削減し、エンゲージメント率を重視
+ * 🚀 数撃て作戦: X APIレート制限に基づく上限設定
+ * X APIレート制限: Per User 100/15min, Per App 10,000/24hrs
+ * 環境変数で変更可能: X_MAX_DAILY_POSTS（デフォルト: 100）
  */
-function checkDailyPostLimit(currentPostCount, maxPosts = 50) {
-  return currentPostCount < maxPosts;
+function checkDailyPostLimit(currentPostCount, maxPosts = null) {
+  // 環境変数から取得、なければデフォルト値を使用
+  const defaultMaxPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '100', 10);
+  const limit = maxPosts !== null ? maxPosts : defaultMaxPosts;
+  return currentPostCount < limit;
 }
 
 /**
  * 1時間あたりの投稿数制限をチェック
- * ⚖️ バランスアプローチ: 時間単位の制限を調整（デフォルト: 5投稿/時間）
- * 1日50投稿を考慮した安全な値（50投稿/日 ÷ 10時間 = 5投稿/時間）
- * @param {number} currentHour - UTC時刻（0-23）
+ * ⚖️ バランスアプローチ: X APIレート制限に基づく時間単位の制限
+ * X APIレート制限: Per User 100/15min（= 400/時間理論上、安全のため100/時間推奨）
+ * 環境変数で変更可能: X_MAX_HOURLY_POSTS（デフォルト: 100）
  * @param {number} currentHourlyPostCount - 現在の1時間あたりの投稿数
- * @param {number} maxPostsPerHour - 1時間あたりの最大投稿数（デフォルト: 5）
+ * @param {number} maxPostsPerHour - 1時間あたりの最大投稿数（デフォルト: 環境変数または100）
  * @returns {boolean} 投稿可能な場合 true
  */
-function checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour = 5) {
-  // ⚖️ バランスアプローチ: 1日50投稿を考慮（50投稿/日 ÷ 10時間 = 5投稿/時間）
-  return currentHourlyPostCount < maxPostsPerHour;
+function checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour = null) {
+  // 環境変数から取得、なければデフォルト値を使用
+  // X APIレート制限: 100/15min = 理論上400/時間、安全のため100/時間をデフォルトに
+  const defaultMaxPostsPerHour = parseInt(process.env.X_MAX_HOURLY_POSTS || '100', 10);
+  const limit = maxPostsPerHour !== null ? maxPostsPerHour : defaultMaxPostsPerHour;
+  return currentHourlyPostCount < limit;
 }
 
 /**

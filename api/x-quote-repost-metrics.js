@@ -6,6 +6,15 @@ const { trackMultipleQuoteRepostMetrics } = require('../services/x/metricsTracke
 // 注意: influencerList機能は削除されました（エンドユーザー追跡機能の削除のため）
 // const { getInfluencerList } = require('../services/lead-discovery/influencerList');
 
+// Vercel KV（メトリクス保存用）
+let kv = null;
+try {
+  const kvModule = require('@vercel/kv');
+  kv = kvModule.kv;
+} catch (error) {
+  console.warn('[Quote Repost Metrics] @vercel/kv not available:', error.message);
+}
+
 /**
  * 過去24時間以内の引用リポストを取得（KVストレージから）
  * @returns {Promise<Array>} 引用リポストの配列
@@ -87,12 +96,34 @@ module.exports = async function handler(req, res) {
     console.log(`[Quote Repost Metrics] Completed: ${successCount} successful, ${failureCount} failed`);
     console.log(`[Quote Repost Metrics] ========================================`);
 
+    // PDCAサイクル用: 結果をKVストレージに保存
+    const dateString = new Date().toISOString().split('T')[0];
+    const summary = {
+      date: dateString,
+      tracked: successCount,
+      failed: failureCount,
+      total: recentQuoteReposts.length,
+      results: results,
+      executedAt: new Date().toISOString(),
+    };
+
+    if (kv) {
+      try {
+        const key = `x:quote_repost_metrics:${dateString}`;
+        await kv.set(key, summary, { ex: 86400 * 30 }); // 30日間保持
+        console.log(`[Quote Repost Metrics] ✅ Results saved to KV: ${key}`);
+      } catch (error) {
+        console.warn('[Quote Repost Metrics] Failed to save results to KV:', error.message);
+      }
+    }
+
     return res.status(200).json({
       success: true,
       tracked: successCount,
       failed: failureCount,
       total: recentQuoteReposts.length,
       results: results.slice(0, 10), // 最初の10件のみ返す（デバッグ用）
+      savedToKV: !!kv,
     });
   } catch (error) {
     console.error('[Quote Repost Metrics] ========================================');

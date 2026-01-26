@@ -73,11 +73,14 @@ async function saveInfluencersToStock(lang, influencers) {
 }
 
 /**
- * ストックからインフルエンサーを取得
+ * ストックからインフルエンサーを取得（スコアリング・フィルタリング機能付き）
  * @param {string} lang - 言語コード
- * @returns {Promise<Array>} インフルエンサー配列
+ * @param {Object} options - オプション
+ * @param {boolean} options.enableScoring - スコアリングを有効にする（デフォルト: false）
+ * @param {number} options.topN - 上位N人を返す（デフォルト: 全員）
+ * @returns {Promise<Array>} インフルエンサー配列（スコアリング有効時はスコアでソート）
  */
-async function getInfluencersFromStock(lang) {
+async function getInfluencersFromStock(lang, options = {}) {
   if (!kv) {
     console.warn('[InfluencerStock] KV not available, cannot get influencers from stock');
     return [];
@@ -93,6 +96,50 @@ async function getInfluencersFromStock(lang) {
     }
     
     console.log(`[InfluencerStock] ✅ Retrieved ${influencers.length} influencers from stock for ${lang}`);
+
+    // 🔥 改善: スコアリング機能が有効な場合、Webhookデータからエンゲージメント統計を取得してスコアを計算
+    if (options.enableScoring) {
+      const influencersWithScores = await Promise.all(
+        influencers.map(async (influencer) => {
+          // Webhookデータからインフルエンサー別のエンゲージメント統計を取得
+          const influencerStatsKey = `x:webhook:stats:influencer:${influencer.username}`;
+          const influencerStats = await kv.get(influencerStatsKey) || {
+            totalLikes: 0,
+            totalRetweets: 0,
+            totalReplies: 0,
+            tweetCount: 0,
+          };
+
+          // 動的スコアリング: エンゲージメント率60% + インプレッション30% + コンバージョン10%
+          const engagementRate = influencer.engagementRate || 0;
+          const recentImpressions = influencer.recentImpressions || 0;
+          const totalEngagement = (influencerStats.totalLikes || 0) + (influencerStats.totalRetweets || 0) + (influencerStats.totalReplies || 0);
+          
+          // スコア計算（0-100の範囲に正規化）
+          const engagementScore = engagementRate * 60; // エンゲージメント率（0-1）を60点満点に
+          const impressionsScore = Math.min(recentImpressions / 100000, 1) * 30; // インプレッション（0-100k）を30点満点に
+          const conversionScore = Math.min(totalEngagement / 100, 1) * 10; // 総エンゲージメント（0-100）を10点満点に
+          
+          const score = engagementScore + impressionsScore + conversionScore;
+
+          return {
+            ...influencer,
+            score,
+            webhookStats: influencerStats,
+          };
+        })
+      );
+
+      // スコアでソート（降順）
+      influencersWithScores.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+      // topNが指定されている場合は上位N人を返す
+      const result = options.topN ? influencersWithScores.slice(0, options.topN) : influencersWithScores;
+      
+      console.log(`[InfluencerStock] ✅ Scored and sorted ${result.length} influencers (top score: ${result[0]?.score?.toFixed(2) || 'N/A'})`);
+      return result;
+    }
+    
     return influencers;
   } catch (error) {
     console.error(`[InfluencerStock] ❌ Failed to get influencers from stock for ${lang}:`, error.message);

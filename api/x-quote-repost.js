@@ -4,7 +4,7 @@
 
 const { postQuoteTweet } = require('../services/x/client');
 const { getXConfigStatus } = require('../services/x/config');
-const { discoverInfluencersForQuoteRepost, generateQuoteRepostText } = require('../services/grok/client');
+const { generateQuoteRepostText } = require('../services/grok/client');
 const {
   isPeakTimeWindow,
   shouldPostQuoteRepost,
@@ -519,57 +519,68 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     // 元のピーク時間外でも、日次投稿数が少ない場合は積極的に投稿
     if (!isOriginalPeakTime) {
       // ピーク時間外でも、1日の投稿数が少ない場合は許可（インプレッション最大化）
-      if (dailyPostCount >= 50) { // ⚖️ バランスアプローチ: 1日の投稿数が50以上の場合のみスキップ
-        console.log(`⏰ Skipping quote reposts for ${lang} (not original peak time and daily limit high: ${currentHour} UTC, ${dailyPostCount}/50)`);
+      if (dailyPostCount >= 100) { // 🚀 数撃て作戦: 1日の投稿数が100以上の場合のみスキップ
+        console.log(`⏰ Skipping quote reposts for ${lang} (not original peak time and daily limit high: ${currentHour} UTC, ${dailyPostCount}/100)`);
         return [];
       }
       console.log(`ℹ️ Posting quote reposts for ${lang} outside original peak time (${currentHour} UTC) for impression maximization`);
     }
     
     // ⚖️ バランスアプローチ: Grokの警告を踏まえ、リスクを最小化（50投稿/日）
-    if (!checkDailyPostLimit(dailyPostCount, 50)) {
-      console.log(`⏰ Daily post limit reached (${dailyPostCount}/50), skipping ${lang}`);
+    // 環境変数から取得、デフォルトは100（X APIレート制限に基づく）
+    const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '100', 10);
+    if (!checkDailyPostLimit(dailyPostCount, maxDailyPosts)) {
+      console.log(`⏰ Daily post limit reached (${dailyPostCount}/${maxDailyPosts}), skipping ${lang}`);
       return [];
     }
     
-    // 言語別のインフルエンサー数を取得（10万～20万インプレッション規模を目指す）
-    const targetCount = getInfluencerCountForLang(lang);
+    // 🚀 数撃て作戦: 時価配分を考慮してインフルエンサー数を取得
+    const targetCount = getInfluencerCountForLang(lang, currentHour);
     const impressionTarget = getImpressionTargetForLang(lang);
     
-    console.log(`[Quote Repost] Discovering influencers for ${lang}...`);
+    console.log(`[Quote Repost] 🚀 Hourly distribution: ${currentHour} UTC, target count: ${targetCount} (${isOriginalPeakTime ? 'PEAK' : 'OFF-PEAK'})`);
+    
+    console.log(`[Quote Repost] Getting influencers from STOCK for ${lang}...`);
     console.log(`[Quote Repost] Target: ${targetCount} influencers, ${impressionTarget.min.toLocaleString()}-${impressionTarget.max.toLocaleString()} impressions`);
     
-    let influencers = [];
-    try {
-      // ストックからインフルエンサーを取得（フォールバック付き）
-      const { getInfluencersWithFallback } = require('../services/x/influencerStock');
-      influencers = await getInfluencersWithFallback(lang, false); // ストック優先、空の場合は新規取得
-      console.log(`[Quote Repost] Retrieved ${influencers?.length || 0} influencers for ${lang} (from stock or newly discovered)`);
-    } catch (error) {
-      console.error(`[Quote Repost] ❌ Failed to get influencers for ${lang}:`, error.message);
-      console.error(`[Quote Repost] Error stack:`, error.stack);
-      
-      // フォールバック: 直接Grok APIから取得を試みる
-      try {
-        console.log(`[Quote Repost] Attempting fallback: direct Grok API call...`);
-        const candidateCount = Math.max(targetCount * 3, 5);
-        influencers = await discoverInfluencersForQuoteRepost(lang, { maxResults: candidateCount });
-        console.log(`[Quote Repost] Fallback: Grok API returned ${influencers?.length || 0} candidate influencers for ${lang}`);
-      } catch (fallbackError) {
-        console.error(`[Quote Repost] ❌ Fallback also failed:`, fallbackError.message);
-        return [];
-      }
-    }
+    // ストックからインフルエンサーを取得（既存の70人ホットリストのみ使用）
+    // 🔥 改善: スコアリング機能を有効にして、Webhookデータからエンゲージメント統計を取得
+    const { getInfluencersFromStock } = require('../services/x/influencerStock');
+    const influencers = await getInfluencersFromStock(lang, {
+      enableScoring: true, // スコアリングを有効化
+      topN: undefined, // 全員を返す（後でローテーション機能で選択）
+    });
     
     if (!influencers || influencers.length === 0) {
-      console.warn(`[Quote Repost] ⚠️ No influencers found for ${lang} - skipping quote reposts`);
+      console.warn(`[Quote Repost] ⚠️ No influencers in stock for ${lang} - skipping quote reposts`);
+      console.warn(`[Quote Repost] 💡 Please update stock first: /api/x-update-influencer-stock?lang=${lang}`);
       return [];
     }
     
-    // ストックから取得したインフルエンサーから、投稿用に最適なものを選択
-    // ストックには好反応率重視で多くのインフルエンサーが保存されているため、
-    // そこからインプレッション規模を考慮して選択
-    const selectedInfluencers = selectInfluencersForImpressionTarget(influencers, lang);
+    console.log(`[Quote Repost] ✅ Retrieved ${influencers.length} influencers from STOCK for ${lang} (with scoring)`);
+    
+    // スコアリングが有効な場合、スコア情報をログに出力
+    if (influencers[0]?.score !== undefined) {
+      const topScorers = influencers.slice(0, 5).map(inf => ({
+        username: inf.username,
+        score: inf.score?.toFixed(2),
+        engagementRate: ((inf.engagementRate || 0) * 100).toFixed(2) + '%',
+        impressions: (inf.recentImpressions || 0).toLocaleString(),
+      }));
+      console.log(`[Quote Repost] 📊 Top 5 influencers by score:`, topScorers);
+    }
+    
+    // 🚀 数撃て作戦: ローテーション機能を使用してインフルエンサーを選択
+    // 今日既に投稿した人を除外し、ローテーション順に選択
+    const { selectInfluencersWithRotation } = require('../services/x/influencerRotation');
+    const selectedInfluencers = await selectInfluencersWithRotation(influencers, lang, targetCount, dateString);
+    
+    // ローテーションで選択できなかった場合、フォールバックとして従来の方法を使用
+    if (!selectedInfluencers || selectedInfluencers.length === 0) {
+      console.warn(`[Quote Repost] ⚠️ Rotation selection failed, falling back to impression target selection`);
+      const fallbackSelected = selectInfluencersForImpressionTarget(influencers, lang);
+      selectedInfluencers.push(...fallbackSelected.slice(0, targetCount));
+    }
     
     console.log(`[Quote Repost] ✅ Selected ${selectedInfluencers.length} influencers for ${lang} (target: ${targetCount})`);
     console.log(`[Quote Repost] 📋 Source: STOCK LIST (高品質リストから選択)`);
@@ -782,6 +793,14 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           // 既に140文字以内に制限されているため、そのまま使用
           result = await postQuoteTweet(quoteText, influencer.tweetId);
           
+          // 🚀 数撃て作戦: ローテーション管理 - 投稿済みとしてマーク
+          try {
+            const { markInfluencerPosted } = require('../services/x/influencerRotation');
+            await markInfluencerPosted(lang, influencer.username, dateString);
+          } catch (rotationError) {
+            console.warn(`[Quote Repost] ⚠️ Failed to mark influencer as posted:`, rotationError.message);
+          }
+          
           // 実際に投稿されたことを明確にログに記録
           console.log(`[Quote Repost] ✅✅✅ SUCCESSFULLY POSTED quote repost for ${lang} (@${influencer.username}):`);
           console.log(`[Quote Repost]    - Quote Tweet ID: ${result.id}`);
@@ -789,6 +808,22 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           console.log(`[Quote Repost]    - Language: ${lang}`);
           console.log(`[Quote Repost]    - UTC Hour: ${new Date().getUTCHours()}`);
           console.log(`[Quote Repost]    - Timestamp: ${new Date().toISOString()}`);
+          
+          // 🔥 改善: ツイートIDとインフルエンサーIDの関連を保存（WebhookでインフルエンサーID別の集計に使用）
+          try {
+            if (kv && result.id) {
+              const influencerMappingKey = `x:post:influencer:${result.id}`;
+              await kv.set(influencerMappingKey, {
+                influencerUsername: influencer.username,
+                influencerTweetId: influencer.tweetId,
+                lang,
+                postedAt: new Date().toISOString(),
+              }, { ex: 86400 * 30 }); // 30日間保持
+              console.log(`[Quote Repost] ✅ Saved influencer mapping: ${influencerMappingKey} -> @${influencer.username}`);
+            }
+          } catch (mappingError) {
+            console.warn(`[Quote Repost] ⚠️ Failed to save influencer mapping:`, mappingError.message);
+          }
           
           // CRITICAL: KVストレージに構造化ログを記録（確実な証拠）
           try {
@@ -1305,11 +1340,12 @@ const handler = async (req, res) => {
     const maxDailyPosts = 50; // バランスアプローチ（50投稿/24時間）
     console.log(`[Quote Repost] Daily post count: ${currentDailyPostCount}/${maxDailyPosts}`);
     
-    // ⚖️ バランスアプローチ: 1時間あたりの投稿数制限を調整（5投稿/時間）
+    // ⚖️ バランスアプローチ: X APIレート制限に基づく1時間あたりの投稿数制限
     const hourKey = `${dateString}T${String(currentHour).padStart(2, '0')}`;
     const { checkHourlyPostLimit, getHourlyPostCount, incrementHourlyPostCount } = require('../services/x/optimization');
     const currentHourlyPostCount = await getHourlyPostCount(hourKey);
-    const maxPostsPerHour = 5; // バランスアプローチを考慮した安全な値（50投稿/日 ÷ 10時間 = 5投稿/時間）
+    // 環境変数から取得、デフォルトは100（X APIレート制限: 100/15min = 理論上400/時間、安全のため100/時間）
+    const maxPostsPerHour = parseInt(process.env.X_MAX_HOURLY_POSTS || '100', 10);
     console.log(`[Quote Repost] Hourly post count: ${currentHourlyPostCount}/${maxPostsPerHour}`);
     
     if (!checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour)) {

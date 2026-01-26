@@ -1,0 +1,13 @@
+feat: Add integrated optimization and native expressions to all language Regular Briefing
+
+- Add Grok X algorithm analysis and Gemini deep psychology analysis integration to all language versions
+- Replace translation-style phrases with native expressions based on language tone guidelines
+  - EN: trader-to-trader tone (direct, calm, slightly witty)
+  - ES: LATAM street-smart tone (passionate, direct)
+  - PT-BR: Brazilian conversational tone (warm, friendly)
+  - AR: Gulf/Dubai polished tone (professional, polished)
+  - JA: Natural Japanese trader tone
+  - KO: friendly-pro tone (friendly and professional)
+- Remove banned phrases (translation-style expressions) and reflect cultural nuances
+- Add integrated optimization result display sections (X post optimization, deep psychological insights)
+- Implement error handling and multilingual error messages

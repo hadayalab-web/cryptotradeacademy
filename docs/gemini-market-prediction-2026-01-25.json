@@ -1,0 +1,77 @@
+{
+  "timestamp": "2026-01-25T12:12:20.515Z",
+  "currentData": {
+    "current": {
+      "timestamp": "2026-01-25T12:11:43.752Z",
+      "exchangeInflow": 0,
+      "minerPositionIndex": 0,
+      "price": 88391,
+      "change24h": -1.147493082459358,
+      "fearGreed": 25,
+      "fearGreedLabel": "Extreme Fear"
+    },
+    "deep": {
+      "whaleRatio": null,
+      "exchangeReserve": null,
+      "stablecoinSupply": null,
+      "fundingRate": null
+    },
+    "historical": {
+      "netflow": {},
+      "mpi": {},
+      "whaleRatio": {}
+    }
+  },
+  "prediction": {
+    "similarPatterns": [
+      {
+        "date": "2021-05-24",
+        "description": "大幅な価格調整後の底値圏での推移。価格は高値から急落し、Fear & Greed Indexは10-20台（Extreme Fear）で停滞。Exchange Inflowが一時的に沈静化した局面。",
+        "similarity": "高値圏からの調整局面かつ、極度の恐怖指数と低い売り圧力（Inflow低下）の組み合わせが類似。"
+      },
+      {
+        "date": "2024-01-23",
+        "description": "ETF承認後の「事実売り」による下落局面。市場センチメントが悪化する一方で、オンチェーン上のクジラやマイナーの売り（MPI）は限定的だった。",
+        "similarity": "センチメントと実際のオンチェーン売り圧（MPI低）の乖離が類似。売り手不在の中での価格下落。"
+      },
+      {
+        "date": "2023-08-17",
+        "description": "低ボラティリティ期間中のフラッシュクラッシュ直後。市場参加者が減少し、Inflowが極端に低下した。",
+        "similarity": "Exchange Inflow: 0に近い状態（流動性枯渇）とネガティブなセンチメントが一致。"
+      }
+    ],
+    "prediction24h": {
+      "priceDirection": "sideways",
+      "priceRange": {
+        "min": 87200,
+        "max": 89800
+      },
+      "exchangeInflowTrend": "横ばい（低水準維持）。週末（日曜）のため機関投資家の動きは鈍く、突発的な大量入金がない限り0近辺で推移する予想。",
+      "mpiTrend": "変化なし。現在の価格帯でのマイナーの降伏（Capitulation）や利確売りは見られず、蓄積フェーズまたは静観が続く。",
+      "riskFactors": [
+        "流動性低下（薄い板）を狙った投機的なショートによるフラッシュクラッシュ",
+        "主要データ（Whale Ratio等）欠損による隠れた大口売りの可能性"
+      ],
+      "opportunityFactors": [
+        "「極度の恐怖」と「売り圧枯渇」が重なる地点での逆張り（ショートカバーによる反発期待）",
+        "RSI等のオシレーター系指標での売られすぎシグナル点灯"
+      ],
+      "keyTimeWindows": [
+        {
+          "time": "JST 23:00 - 02:00",
+          "description": "米国市場（先物含む）の活発化時間帯。流動性が低い中でのボラティリティ拡大に注意。"
+        },
+        {
+          "time": "JST 09:00 (翌日)",
+          "description": "月曜日のアジア市場オープンおよびCME先物窓開け。週末のセンチメントを織り込む動きが発生しやすい。"
+        }
+      ]
+    },
+    "reasoning": "現在の市場は「Extreme Fear（指数25）」に支配されていますが、Exchange InflowとMPIが「0」であることは、パニック売りが既に終了しているか、あるいは現物を売ろうとする意志が市場に存在しないことを示唆しています。通常、価格下落時にInflowが増加しない場合、それは『需要不足による下落』であり、強い『売り圧力による崩壊』ではありません。したがって、今後24時間は積極的な売り崩しよりも、様子見のレンジ相場（横ばい）となり、ショートカバーが入れば$89,000台への軽い反発が見込まれます。ただし、データ欠損（N/A）が多く流動性が薄いため、突発的な動きには脆弱です。",
+    "recommendedActions": [
+      "積極的なトレードは控え、$87,200付近でのサポート確認後の打診買い（スキャルピング〜デイトレード）を検討。",
+      "レバレッジは低く抑えること。板が薄いため、小さな成行注文でも価格が大きく滑るリスクがある。",
+      "Inflowデータが急増した場合は即座に撤退（売り圧発生のサイン）。"
+    ]
+  }
+}

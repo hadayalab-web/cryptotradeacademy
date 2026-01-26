@@ -3,6 +3,15 @@
 
 const { generateInfluencerReport, analyzeInfluencerPerformance } = require('../services/x/influencerAnalyzer');
 
+// Vercel KV（レポート保存用）
+let kv = null;
+try {
+  const kvModule = require('@vercel/kv');
+  kv = kvModule.kv;
+} catch (error) {
+  console.warn('[Influencer Report] @vercel/kv not available:', error.message);
+}
+
 /**
  * Vercel Cron Job Handler（週次レポート生成）
  */
@@ -37,12 +46,32 @@ module.exports = async function handler(req, res) {
     console.log(report);
     console.log('[Influencer Report] ========================================');
 
+    // PDCAサイクル用: レポート結果をKVストレージに保存
+    const reportData = {
+      days,
+      report,
+      ranking: ranking,
+      generatedAt: new Date().toISOString(),
+    };
+
+    if (kv) {
+      try {
+        const dateString = new Date().toISOString().split('T')[0];
+        const key = `x:influencer_report:${dateString}`;
+        await kv.set(key, reportData, { ex: 86400 * 90 }); // 90日間保持
+        console.log(`[Influencer Report] ✅ Report saved to KV: ${key}`);
+      } catch (error) {
+        console.warn('[Influencer Report] Failed to save report to KV:', error.message);
+      }
+    }
+
     return res.status(200).json({
       success: true,
       days,
       report,
       ranking: ranking.slice(0, 10), // トップ10のみ返す
       generatedAt: new Date().toISOString(),
+      savedToKV: !!kv,
     });
   } catch (error) {
     console.error('[Influencer Report] ========================================');

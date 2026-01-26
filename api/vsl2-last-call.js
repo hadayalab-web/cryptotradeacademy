@@ -1,6 +1,6 @@
 // api/vsl2-last-call.js
-// 無料版ユーザーへのVSL2終了直前リマインド（22時間後 = 24時間経過の2時間前）
-// Gemini CMO提案: 24時間経過の2時間前（22時間後）に「残り2時間で50%オフが終了します」という通知を送る
+// 無料版ユーザーへのVSL2終了直前リマインド（21時間後 = VSL2配信23時間の2時間前）
+// VSL2配信が23時間後になったため、21時間後に通知（24時間以内にWhop成約を獲得するため）
 
 const { getFreeUsersForVSL2LastCall, markVSL2LastCallSent } = require('../services/free-users/manager');
 const { generateVSL2LastCallMessage, addSubtitleParamsToYouTubeUrl } = require('../services/telegram/messages/vsl2-last-call');
@@ -115,12 +115,12 @@ function generateVSL2LastCallInlineKeyboard(lang = DEFAULT_LANG) {
  */
 async function sendVSL2LastCall() {
   try {
-    // 22時間経過した無料版ユーザーを取得（VSL2未送信、Last Call対象）
-    // Gemini CMO提案: 24時間経過の2時間前（22時間後）に通知
+    // 21時間経過した無料版ユーザーを取得（VSL2未送信、Last Call対象）
+    // VSL2配信が23時間後になったため、21時間後に通知（VSL2配信の2時間前）
     const freeUsers = await getFreeUsersForVSL2LastCall();
     
     if (freeUsers.length === 0) {
-      console.log('ℹ️ No free users to send VSL2 Last Call (22 hours passed, VSL2 not sent yet)');
+      console.log('ℹ️ No free users to send VSL2 Last Call (21 hours passed, VSL2 not sent yet)');
       return { success: true, sent: 0, message: 'No users to send', timestamp: new Date().toISOString() };
     }
     

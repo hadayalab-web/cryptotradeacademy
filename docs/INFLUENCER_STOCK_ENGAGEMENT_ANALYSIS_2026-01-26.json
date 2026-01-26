@@ -1,0 +1,58 @@
+{
+  "timestamp": "2026-01-26T01:02:19.268Z",
+  "summary": {
+    "overallAvgEngagementRate": 0,
+    "overallTotalImpressions": 0,
+    "overallExpectedEngagements": 0
+  },
+  "byLanguage": {
+    "en": {
+      "count": 0,
+      "avgEngagementRate": 0,
+      "minEngagementRate": 0,
+      "maxEngagementRate": 0,
+      "totalImpressions": 0,
+      "expectedEngagements": 0
+    },
+    "es": {
+      "count": 0,
+      "avgEngagementRate": 0,
+      "minEngagementRate": 0,
+      "maxEngagementRate": 0,
+      "totalImpressions": 0,
+      "expectedEngagements": 0
+    },
+    "pt-br": {
+      "count": 0,
+      "avgEngagementRate": 0,
+      "minEngagementRate": 0,
+      "maxEngagementRate": 0,
+      "totalImpressions": 0,
+      "expectedEngagements": 0
+    },
+    "ar": {
+      "count": 0,
+      "avgEngagementRate": 0,
+      "minEngagementRate": 0,
+      "maxEngagementRate": 0,
+      "totalImpressions": 0,
+      "expectedEngagements": 0
+    },
+    "ja": {
+      "count": 0,
+      "avgEngagementRate": 0,
+      "minEngagementRate": 0,
+      "maxEngagementRate": 0,
+      "totalImpressions": 0,
+      "expectedEngagements": 0
+    },
+    "ko": {
+      "count": 0,
+      "avgEngagementRate": 0,
+      "minEngagementRate": 0,
+      "maxEngagementRate": 0,
+      "totalImpressions": 0,
+      "expectedEngagements": 0
+    }
+  }
+}

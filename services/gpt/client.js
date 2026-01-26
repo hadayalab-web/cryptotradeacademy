@@ -50,10 +50,10 @@ const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'production';
 const isDevelopment = APP_ENV === 'development';
 
 // 用途別モデル定義
-// P0修正: 本番デフォルトを実在するモデル名に変更（gpt-5.2-2025-12-11は存在しない可能性があるため）
-const GPT_MODEL_SUMMARY = process.env.GPT_MODEL_SUMMARY || (isDevelopment ? 'gpt-4o' : 'gpt-4o-mini');
-const GPT_MODEL_ANALYSIS = process.env.GPT_MODEL_ANALYSIS || (isDevelopment ? 'gpt-4o' : 'gpt-4o');
-const GPT_MODEL_GATE = process.env.GPT_MODEL_GATE || (isDevelopment ? 'gpt-4o' : 'gpt-4o'); // 最終ゲートは常にハイエンド（本番でもgpt-4o）
+// CRITICAL: 最終ゲートと統合推論にはgpt-5.2-2025-12-11を使用（最高品質を保証）
+const GPT_MODEL_SUMMARY = process.env.GPT_MODEL_SUMMARY || (isDevelopment ? 'gpt-5.2-2025-12-11' : 'gpt-4o-mini');
+const GPT_MODEL_ANALYSIS = process.env.GPT_MODEL_ANALYSIS || (isDevelopment ? 'gpt-5.2-2025-12-11' : 'gpt-5.2-2025-12-11'); // 統合推論は常にgpt-5.2-2025-12-11
+const GPT_MODEL_GATE = process.env.GPT_MODEL_GATE || 'gpt-5.2-2025-12-11'; // 最終ゲートは常にgpt-5.2-2025-12-11（最高品質）
 
 // 後方互換性のため、GPT_MODELも残す（デフォルトはSUMMARY）
 const GPT_MODEL = process.env.GPT_MODEL || process.env.OPENAI_MODEL || GPT_MODEL_SUMMARY;
@@ -320,8 +320,9 @@ Focus on trap detection patterns and early warning signs (SSOT Trap Defense BTC:
 Only recommend AVOID_SHORT/AVOID_LONG if multiple indicators align and confidence is high (>=0.80).
 If data is missing or insufficient, set signal to "STANDBY" and urgency to "low".`;
 
-  // Phase 2: 用途別モデルを使用（SUMMARY: 前処理・要約）
-  const modelToUse = GPT_MODEL_SUMMARY;
+  // CRITICAL: 緊急配信時の最終判定にはgpt-5.2を使用（最高品質を保証）
+  // Phase 2: 用途別モデルを使用（緊急配信は最終ゲートとしてGPT_MODEL_GATEを使用）
+  const modelToUse = GPT_MODEL_GATE; // 緊急配信は最高品質モデルを使用
 
   // キャッシュキー生成
   const cacheKey = buildCacheKey({

@@ -139,16 +139,36 @@ function validateConstants(filePath, expectedConstants) {
       
       // 数値の場合、値を比較
       if (typeof expectedValue === 'number') {
-        const numericValue = parseInt(actualValue);
-        if (numericValue !== expectedValue) {
-          errors.push({
-            file: filePath,
-            constant: constantName,
-            line,
-            error: `定数の値が一致しません: 期待値 ${expectedValue}, 実際 ${actualValue}`,
-            expected: expectedValue,
-            actual: actualValue,
-          });
+        // 環境変数パターンをチェック（parseInt(process.env.XXX || 'デフォルト値', 10)）
+        const envVarPattern = /parseInt\s*\(\s*process\.env\.\w+\s*\|\|\s*['"](\d+)['"]\s*,\s*\d+\s*\)/;
+        const envVarMatch = actualValue.match(envVarPattern);
+        
+        if (envVarMatch) {
+          // 環境変数パターンの場合、デフォルト値をチェック
+          const defaultValue = parseInt(envVarMatch[1], 10);
+          if (defaultValue !== expectedValue) {
+            errors.push({
+              file: filePath,
+              constant: constantName,
+              line,
+              error: `定数のデフォルト値が一致しません: 期待値 ${expectedValue}, 実際 ${defaultValue}`,
+              expected: expectedValue,
+              actual: defaultValue,
+            });
+          }
+        } else {
+          // 直接数値の場合
+          const numericValue = parseInt(actualValue);
+          if (numericValue !== expectedValue) {
+            errors.push({
+              file: filePath,
+              constant: constantName,
+              line,
+              error: `定数の値が一致しません: 期待値 ${expectedValue}, 実際 ${actualValue}`,
+              expected: expectedValue,
+              actual: actualValue,
+            });
+          }
         }
       }
     }

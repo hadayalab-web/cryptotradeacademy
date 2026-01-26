@@ -1,0 +1,15 @@
+{
+  "date": {
+    "target": "2026-01-26",
+    "yesterday": "2026-01-25"
+  },
+  "posts": [],
+  "analysis": {
+    "totalPosts": 0,
+    "postsWithContent": 0,
+    "postsWithoutContent": 0,
+    "averageLength": 0,
+    "engagementIssues": [],
+    "contentIssues": []
+  }
+}

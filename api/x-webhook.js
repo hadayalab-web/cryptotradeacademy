@@ -186,6 +186,7 @@ async function updateEngagementStats(tweetId, eventType) {
   }
 
   try {
+    // ツイートIDでエンゲージメント統計を更新
     const key = `x:webhook:stats:${tweetId}`;
     const stats = await kv.get(key) || {
       likes: 0,
@@ -209,6 +210,46 @@ async function updateEngagementStats(tweetId, eventType) {
     await kv.set(key, stats, { ex: 86400 * 30 });
 
     console.log(`[X Webhook] 📊 Updated engagement stats for tweet ${tweetId}:`, stats);
+
+    // 🔥 改善: インフルエンサーID別にエンゲージメントを集計
+    try {
+      const influencerMappingKey = `x:post:influencer:${tweetId}`;
+      const influencerMapping = await kv.get(influencerMappingKey);
+      
+      if (influencerMapping && influencerMapping.influencerUsername) {
+        const influencerUsername = influencerMapping.influencerUsername;
+        const influencerStatsKey = `x:webhook:stats:influencer:${influencerUsername}`;
+        
+        // インフルエンサーID別の統計を取得または初期化
+        const influencerStats = await kv.get(influencerStatsKey) || {
+          totalLikes: 0,
+          totalRetweets: 0,
+          totalReplies: 0,
+          tweetCount: 0,
+          lastUpdated: new Date().toISOString(),
+        };
+
+        // 統計を更新
+        if (eventType === 'like') {
+          influencerStats.totalLikes = (influencerStats.totalLikes || 0) + 1;
+        } else if (eventType === 'retweet') {
+          influencerStats.totalRetweets = (influencerStats.totalRetweets || 0) + 1;
+        } else if (eventType === 'reply') {
+          influencerStats.totalReplies = (influencerStats.totalReplies || 0) + 1;
+        }
+
+        influencerStats.lastUpdated = new Date().toISOString();
+
+        // インフルエンサーID別の統計を保存（30日間保持）
+        await kv.set(influencerStatsKey, influencerStats, { ex: 86400 * 30 });
+
+        console.log(`[X Webhook] ✅ Updated influencer stats for @${influencerUsername}:`, influencerStats);
+      } else {
+        console.log(`[X Webhook] ℹ️ No influencer mapping found for tweet ${tweetId} (may be original tweet, not our quote repost)`);
+      }
+    } catch (influencerStatsError) {
+      console.warn(`[X Webhook] ⚠️ Failed to update influencer stats:`, influencerStatsError.message);
+    }
   } catch (error) {
     console.error('[X Webhook] Error updating engagement stats:', error.message);
   }
