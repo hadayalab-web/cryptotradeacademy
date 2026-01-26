@@ -12,6 +12,37 @@ function formatUsd(v) {
   return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
+/**
+ * アラビア語の心理的アドバイスを取得（日本語が含まれている場合のフォールバック）
+ * @param {string} psychologicalState - 心理状態
+ * @param {string} psychologicalRisk - リスクレベル
+ * @returns {string} アラビア語のアドバイス
+ */
+function getArabicPsychologicalAdvice(psychologicalState, psychologicalRisk) {
+  if (psychologicalState === 'NEUTRAL' && psychologicalRisk === 'LOW') {
+    return '✅ حالة محايدة - لم يتم اكتشاف عوائق عقلية: مشاعر السوق متوازنة. لم يتم اكتشاف مشاعر متطرفة. الظروف مستقرة.';
+  } else if (psychologicalState === 'NEUTRAL' && psychologicalRisk === 'MEDIUM') {
+    return '⚠️ حالة محايدة - راقب عن كثب: مشاعر السوق متوازنة لكن الظروف قد تتغير. ابق متيقظاً.';
+  } else if (psychologicalState === 'NEUTRAL' && psychologicalRisk === 'HIGH') {
+    return '🚨 حالة محايدة - مخاطر عالية: هذه المشاعر "المحايدة" قد تخفي ظروف فخ. حافظ على الانضباط.';
+  } else if (psychologicalState === 'FOMO') {
+    return '🚨 تم اكتشاف FOMO - ضغط شراء شديد: المتداولون الصغار يطاردون بينما الحيتان قد توزع. هذا نمط فخ كلاسيكي.';
+  } else if (psychologicalState === 'FEAR') {
+    return '😨 تم اكتشاف الخوف - السوق يظهر اهتماماً صغيراً من المتداولين: الخوف قد يكون شللاً، لكنه قد يشير أيضاً إلى فرص محتملة.';
+  } else if (psychologicalState === 'GREED') {
+    return '😍 تم اكتشاف الجشع - ظروف نشوة: الجشع هو المشاعر الأكثر خطورة في التداول. فكر في جني الأرباح.';
+  } else if (psychologicalState === 'PANIC') {
+    return '😱 تم اكتشاف الذعر - خوف شديد: الذعر هو لوزة المخ لديك تختطف قشرة الفص الجبهي. توقف. تنفس. تحقق من البيانات.';
+  } else if (psychologicalState === 'EUPHORIA') {
+    return '😄 تم اكتشاف النشوة - احتفال السوق: النشوة هي طريقة السوق لجعلك تنسى المخاطر. حافظ على الانضباط.';
+  } else if (psychologicalState === 'CONFUSION') {
+    return '🤔 تم اكتشاف الارتباك - إشارات غير واضحة: الارتباك هو دماغك يطلب الوضوح. لا تجبر عملية. عند الشك، انتظر.';
+  }
+  
+  // デフォルト
+  return 'ظروف السوق مستقرة نسبياً. حافظ على الانضباط وانتظر إعدادات الجودة.';
+}
+
 function formatRegularBriefing({
   now,
   inflow,
@@ -456,11 +487,21 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
       lines.push('━━━━━━━━━━━━━━━━━━━━');
       
       if (opt.content.questionCTA) {
-        lines.push(`💡 استراتيجية المشاركة: ${opt.content.questionCTA}`);
+        const questionCTA = opt.content.questionCTA;
+        // 日本語が含まれている場合はスキップ
+        if (!/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(questionCTA)) {
+          lines.push(`💡 استراتيجية المشاركة: ${questionCTA}`);
+        }
       }
       
       if (opt.engagementBoosters && opt.engagementBoosters.length > 0) {
-        lines.push(`🚀 عناصر تزيد المشاركة: ${opt.engagementBoosters.slice(0, 3).join('، ')}`);
+        // 日本語が含まれている要素をフィルタリング
+        const filteredBoosters = opt.engagementBoosters.filter(booster => 
+          !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(booster)
+        );
+        if (filteredBoosters.length > 0) {
+          lines.push(`🚀 عناصر تزيد المشاركة: ${filteredBoosters.slice(0, 3).join('، ')}`);
+        }
       }
       
       // إبراز الإمكانات الفيروسية（معلومات مهمة）- خط فاصل مرة واحدة فقط
@@ -470,7 +511,13 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
         const viralLabel = viralScore >= 70 ? '[عالية]' : viralScore >= 50 ? '[متوسطة]' : '[منخفضة]';
         lines.push(`   ${viralEmoji} ${viralLabel} درجة الإمكانات الفيروسية: ${viralScore}/100`);
         if (opt.viralFactors && opt.viralFactors.length > 0) {
-          lines.push(`   📊 العوامل الرئيسية: ${opt.viralFactors.slice(0, 2).join('، ')}`);
+          // 日本語が含まれている要素をフィルタリング
+          const filteredFactors = opt.viralFactors.filter(factor => 
+            !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(factor)
+          );
+          if (filteredFactors.length > 0) {
+            lines.push(`   📊 العوامل الرئيسية: ${filteredFactors.slice(0, 2).join('، ')}`);
+          }
         }
       }
       
@@ -503,25 +550,41 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
       }
       
       if (psyInsights.mentalBlocks && psyInsights.mentalBlocks.length > 0) {
-        lines.push(`🚧 العوائق العقلية: ${psyInsights.mentalBlocks.slice(0, 2).join('، ')}`);
+        // 日本語が含まれている要素をフィルタリング
+        const filteredBlocks = psyInsights.mentalBlocks.filter(block => 
+          !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(block)
+        );
+        if (filteredBlocks.length > 0) {
+          lines.push(`🚧 العوائق العقلية: ${filteredBlocks.slice(0, 2).join('، ')}`);
+        }
       }
       
       // إبراز رؤى الاختراق（خط فاصل فقط في بداية القسم）
       if (psyInsights.breakthroughInsights && psyInsights.breakthroughInsights.length > 0) {
-        lines.push(`   💡 [مهم] رؤى الاختراق:`);
-        psyInsights.breakthroughInsights.slice(0, 2).forEach(insight => {
-          lines.push(`   🔥 ${insight}`);
-        });
+        // 日本語が含まれている要素をフィルタリング
+        const filteredInsights = psyInsights.breakthroughInsights.filter(insight => 
+          !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(insight)
+        );
+        if (filteredInsights.length > 0) {
+          lines.push(`   💡 [مهم] رؤى الاختراق:`);
+          filteredInsights.slice(0, 2).forEach(insight => {
+            lines.push(`   🔥 ${insight}`);
+          });
+        }
       }
       
       if (psyInsights.personalizedCoaching && psyInsights.personalizedCoaching.trim()) {
-        const coachingLimit = 300;
-        let coachingDisplay = psyInsights.personalizedCoaching;
-        if (coachingDisplay.length > coachingLimit) {
-          coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
+        const coachingText = psyInsights.personalizedCoaching;
+        // 日本語が含まれている場合はスキップ
+        if (!/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(coachingText)) {
+          const coachingLimit = 300;
+          let coachingDisplay = coachingText;
+          if (coachingDisplay.length > coachingLimit) {
+            coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
+          }
+          lines.push(`💊 التدريب الشخصي:`);
+          lines.push(`"${coachingDisplay}"`);
         }
-        lines.push(`💊 التدريب الشخصي:`);
-        lines.push(`"${coachingDisplay}"`);
       }
       
       lines.push('');
@@ -572,7 +635,17 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
                       psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
     lines.push(`💚 الحالة النفسية: ${stateEmoji} ${psychologicalSupport.psychologicalState} (المخاطرة: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
     if (psychologicalSupport.psychologicalAdvice) {
-      lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
+      const advice = psychologicalSupport.psychologicalAdvice;
+      // 日本語が含まれている場合はアラビア語フォールバックを使用
+      if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(advice)) {
+        const fallbackAdvice = getArabicPsychologicalAdvice(
+          psychologicalSupport.psychologicalState,
+          psychologicalSupport.psychologicalRisk
+        );
+        lines.push(`   💡 ${fallbackAdvice}`);
+      } else {
+        lines.push(`   💡 ${advice}`);
+      }
     }
     
     lines.push('');

@@ -12,6 +12,37 @@ function formatUsd(v) {
   return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
+/**
+ * 英語の心理的アドバイスを取得（日本語が含まれている場合のフォールバック）
+ * @param {string} psychologicalState - 心理状態
+ * @param {string} psychologicalRisk - リスクレベル
+ * @returns {string} 英語のアドバイス
+ */
+function getEnglishPsychologicalAdvice(psychologicalState, psychologicalRisk) {
+  if (psychologicalState === 'NEUTRAL' && psychologicalRisk === 'LOW') {
+    return '✅ Neutral state - No mental blocks detected: Market sentiment is balanced. No extreme emotions detected. Conditions are stable.';
+  } else if (psychologicalState === 'NEUTRAL' && psychologicalRisk === 'MEDIUM') {
+    return '⚠️ Neutral state - Monitor closely: Market sentiment is balanced but conditions may change. Stay alert.';
+  } else if (psychologicalState === 'NEUTRAL' && psychologicalRisk === 'HIGH') {
+    return '🚨 Neutral state - High risk: This "neutral" sentiment may be masking trap conditions. Stay disciplined.';
+  } else if (psychologicalState === 'FOMO') {
+    return '🚨 FOMO detected - Extreme buying pressure: Retail is chasing while whales may be distributing. This is a classic trap pattern.';
+  } else if (psychologicalState === 'FEAR') {
+    return '😨 Fear detected - Market shows low retail interest: Fear can be paralyzing, but it can also signal potential opportunities.';
+  } else if (psychologicalState === 'GREED') {
+    return '😍 Greed detected - Euphoric conditions: Greed is the most dangerous emotion in trading. Consider taking profits.';
+  } else if (psychologicalState === 'PANIC') {
+    return '😱 Panic detected - Extreme fear: Panic is your amygdala hijacking your prefrontal cortex. Stop. Breathe. Check the data.';
+  } else if (psychologicalState === 'EUPHORIA') {
+    return '😄 Euphoria detected - Market celebration: Euphoria is the market\'s way of making you forget risk. Stay disciplined.';
+  } else if (psychologicalState === 'CONFUSION') {
+    return '🤔 Confusion detected - Unclear signals: Confusion is your brain asking for clarity. Don\'t force a trade. When in doubt, wait.';
+  }
+  
+  // デフォルト
+  return 'Market conditions are relatively stable. Maintain discipline and wait for quality setups.';
+}
+
 function formatRegularBriefing({
   now,
   inflow,
@@ -617,7 +648,14 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
         const viralLabel = viralScore >= 70 ? '[HIGH]' : viralScore >= 50 ? '[MEDIUM]' : '[LOW]';
         lines.push(`   ${viralEmoji} ${viralLabel} Viral Potential Score: ${viralScore}/100`);
         if (opt.viralFactors && opt.viralFactors.length > 0) {
-          lines.push(`   📊 Key Factors: ${opt.viralFactors.slice(0, 2).join(', ')}`);
+          // 日本語が含まれていないファクターのみを表示
+          const englishFactors = opt.viralFactors.filter(factor => {
+            const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(factor);
+            return !hasJapanese;
+          });
+          if (englishFactors.length > 0) {
+            lines.push(`   📊 Key Factors: ${englishFactors.slice(0, 2).join(', ')}`);
+          }
         }
       }
       
@@ -650,20 +688,42 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
       }
       
       if (psyInsights.mentalBlocks && psyInsights.mentalBlocks.length > 0) {
-        lines.push(`🚧 Mental Blocks: ${psyInsights.mentalBlocks.slice(0, 2).join(', ')}`);
+        // 日本語が含まれていないブロックのみを表示
+        const englishBlocks = psyInsights.mentalBlocks.filter(block => {
+          const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(block);
+          return !hasJapanese;
+        });
+        if (englishBlocks.length > 0) {
+          lines.push(`🚧 Mental Blocks: ${englishBlocks.slice(0, 2).join(', ')}`);
+        }
       }
       
       // ブレークスルーインサイトを強調表示（区切り線はセクション開始のみ）
       if (psyInsights.breakthroughInsights && psyInsights.breakthroughInsights.length > 0) {
         lines.push(`   💡 [IMPORTANT] Breakthrough Insights:`);
         psyInsights.breakthroughInsights.slice(0, 2).forEach(insight => {
-          lines.push(`   🔥 ${insight}`);
+          // 日本語が含まれている場合はスキップ
+          const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(insight);
+          if (!hasJapanese) {
+            lines.push(`   🔥 ${insight}`);
+          }
         });
       }
       
       if (psyInsights.personalizedCoaching && psyInsights.personalizedCoaching.trim()) {
         const coachingLimit = 300;
         let coachingDisplay = psyInsights.personalizedCoaching;
+        
+        // 日本語が含まれている場合は英語のフォールバックを使用
+        const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(coachingDisplay);
+        if (hasJapanese) {
+          // 英語のフォールバックメッセージを使用
+          coachingDisplay = getEnglishPsychologicalAdvice(
+            psyInsights.currentState || 'NEUTRAL',
+            'LOW'
+          );
+        }
+        
         if (coachingDisplay.length > coachingLimit) {
           coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
         }
@@ -713,9 +773,24 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
                       psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
     lines.push(`💚 Psychological State: ${stateEmoji} ${psychologicalSupport.psychologicalState} (Risk: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
     
-    // 具体的な心理的アドバイスを追加
+    // 具体的な心理的アドバイスを追加（日本語が含まれている場合は英語のフォールバックを使用）
     if (psychologicalSupport.psychologicalAdvice) {
-      lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
+      // 日本語が含まれているかチェック（ひらがな、カタカナ、漢字のパターン）
+      const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(psychologicalSupport.psychologicalAdvice);
+      
+      if (hasJapanese) {
+        // 日本語が含まれている場合は英語のフォールバックメッセージを使用
+        const englishAdvice = getEnglishPsychologicalAdvice(
+          psychologicalSupport.psychologicalState,
+          psychologicalSupport.psychologicalRisk
+        );
+        if (englishAdvice) {
+          lines.push(`   💡 ${englishAdvice}`);
+        }
+      } else {
+        // 日本語が含まれていない場合はそのまま使用
+        lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
+      }
     }
     
     lines.push('');

@@ -52,15 +52,26 @@ function loadUserTemplates(lang) {
       const { formatMinimalHighQualityBriefing } = require(
         `../services/telegram/messages/user/${lang}/minimal-high-quality.${lang}`,
       );
-      formatMinimalBriefing = formatMinimalHighQualityBriefing;
+      if (formatMinimalHighQualityBriefing && typeof formatMinimalHighQualityBriefing === 'function') {
+        formatMinimalBriefing = formatMinimalHighQualityBriefing;
+        console.log(`[TEMPLATE] Loaded minimal-high-quality template for ${lang}`);
+      } else {
+        throw new Error(`formatMinimalHighQualityBriefing is not a function for ${lang}`);
+      }
     } catch (e) {
+      console.warn(`[TEMPLATE] Failed to load minimal-high-quality template for ${lang}: ${e.message}`);
       try {
         const { formatMinimalBriefing: minimalFn } = require(
           `../services/telegram/messages/user/${lang}/minimal.${lang}`,
         );
-        formatMinimalBriefing = minimalFn;
+        if (minimalFn && typeof minimalFn === 'function') {
+          formatMinimalBriefing = minimalFn;
+          console.warn(`[TEMPLATE] Fallback to minimal template for ${lang}`);
+        } else {
+          throw new Error(`formatMinimalBriefing is not a function for ${lang}`);
+        }
       } catch (e2) {
-        console.warn(`Minimal template not found for ${lang}, will use EN fallback`);
+        console.warn(`[TEMPLATE] Minimal template not found for ${lang}, will use EN fallback: ${e2.message}`);
       }
     }
     return { formatRegularBriefing, formatTrapAlert, formatMinimalBriefing };
@@ -78,15 +89,26 @@ function loadUserTemplates(lang) {
       const { formatMinimalHighQualityBriefing } = require(
         '../services/telegram/messages/user/en/minimal-high-quality.en',
       );
-      formatMinimalBriefing = formatMinimalHighQualityBriefing;
+      if (formatMinimalHighQualityBriefing && typeof formatMinimalHighQualityBriefing === 'function') {
+        formatMinimalBriefing = formatMinimalHighQualityBriefing;
+        console.log('[TEMPLATE] Loaded minimal-high-quality template for EN fallback');
+      } else {
+        throw new Error('formatMinimalHighQualityBriefing is not a function for EN');
+      }
     } catch (e2) {
+      console.warn(`[TEMPLATE] Failed to load minimal-high-quality template for EN fallback: ${e2.message}`);
       try {
         const { formatMinimalBriefing: minimalFn } = require(
           '../services/telegram/messages/user/en/minimal.en',
         );
-        formatMinimalBriefing = minimalFn;
+        if (minimalFn && typeof minimalFn === 'function') {
+          formatMinimalBriefing = minimalFn;
+          console.warn('[TEMPLATE] Fallback to minimal template for EN');
+        } else {
+          throw new Error('formatMinimalBriefing is not a function for EN');
+        }
       } catch (e3) {
-        console.warn('Minimal template not found even in EN fallback');
+        console.warn(`[TEMPLATE] Minimal template not found even in EN fallback: ${e3.message}`);
       }
     }
     return { formatRegularBriefing, formatTrapAlert, formatMinimalBriefing };
@@ -106,6 +128,8 @@ const { getCQDeepMetrics } = require('../services/cryptoquant/deepMetrics');
 const { getHighResolutionCQData } = require('../services/cryptoquant/highResolution');
 // Phase 3: CryptoQuant capabilities初期化
 const { initializeCapabilities } = require('../services/cryptoquant/capabilities');
+// Grok Xアルゴリズム解析 × Gemini深層心理分析統合サービス
+const { integrateGrokGeminiOptimization } = require('../services/integrated/grokGeminiOptimizer');
 // 価格取得サービス（KO市場用）
 const { fetchBTCKRWPrice } = require('../services/upbit/client');
 const { fetchUSDKRWRate } = require('../services/exchange/rate');
@@ -1076,6 +1100,42 @@ module.exports = async function handler(req, res) {
           console.warn('[Dr. Grok] Error providing psychological support:', errorMsg);
         }
       }
+
+      // GrokとGeminiの統合最適化（定期配信時のみ）
+      let integratedOptimization = null;
+      if (isRegularSlot && grokXAnalysis && psychologicalSupport) {
+        try {
+          console.log('[GrokGeminiOptimizer] Integrating Grok X algorithm analysis and Gemini deep psychology analysis...');
+          integratedOptimization = await integrateGrokGeminiOptimization({
+            marketData: {
+              priceUsd,
+              change24h,
+              score: coreDecision.score,
+              signal: tradeSignal.signal,
+              sentiment: sentimentLabel,
+            },
+            trapScore: cqDeep?.trapScore || trapDetection?.trapScore || null,
+            sentimentData: {
+              sentiment: sentimentLabel,
+              whaleBias: xSentiment?.whaleBias || 0,
+              retailFomo: xSentiment?.retailFomo || 50,
+            },
+            xSentiment,
+            trapDetection,
+            psychologicalSupport,
+            lang: LANG,
+          });
+          
+          if (integratedOptimization && integratedOptimization.integrated) {
+            console.log('[GrokGeminiOptimizer] Integration completed successfully');
+          } else {
+            console.warn('[GrokGeminiOptimizer] Integration failed or returned null');
+          }
+        } catch (error) {
+          console.warn('[GrokGeminiOptimizer] Error integrating optimization:', error.message);
+          integratedOptimization = null;
+        }
+      }
       
     } else if (needsLongReport && !isRegularSlot) {
       // 緊急配信時: divergenceSignalResultを取得（isRegularSlotブロック外でも使用可能にする）
@@ -1326,6 +1386,8 @@ module.exports = async function handler(req, res) {
             trapAlert: trapAlert || null,
             // USP3: Dr. Grokの心理的サポート
             psychologicalSupport: psychologicalSupport || null,
+            // GrokとGeminiの統合最適化結果
+            integratedOptimization: integratedOptimization || null,
             showContent: null, // 後でproduceShowの結果で更新される
           });
 
@@ -1401,6 +1463,8 @@ module.exports = async function handler(req, res) {
               // ニュース番組構造用: GPTリポーターとGrok X解析を分離
               gptReporterAnalysis: gptRegularAnalysis || null, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
               grokXAnalysis: grokXAnalysis || null, // Grok X解析結果（Xセンチメント分析）
+              // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
+              integratedOptimization: integratedOptimization || null,
               highResCQ: finalHighResCQ,
               highResX: finalHighResX,
               divergenceSignal: divergenceSignalResult,
@@ -1579,6 +1643,36 @@ module.exports = async function handler(req, res) {
         try {
           console.log(`[MINIMAL] Processing language: ${targetLang}`);
           
+          // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化（無料版）
+          let grokGeminiOptimizationMinimal = null;
+          try {
+            console.log(`[Grok+Gemini Optimizer] Starting optimization for MINIMAL version (lang: ${targetLang})...`);
+            grokGeminiOptimizationMinimal = await optimizeWithGrokAndGemini({
+              marketData: {
+                priceUsd,
+                change24h,
+                score: snapshot.market_score,
+                sentiment: sentimentLabel,
+                inflow,
+                mpi,
+              },
+              trapScore: minimalTrapScore,
+              sentimentData,
+              xSentiment: grokXAnalysis,
+              lang: targetLang,
+              version: 'minimal',
+            });
+            
+            if (grokGeminiOptimizationMinimal) {
+              console.log(`[Grok+Gemini Optimizer] Optimization completed for MINIMAL version (lang: ${targetLang})`);
+            } else {
+              console.log(`[Grok+Gemini Optimizer] Optimization returned null for ${targetLang}`);
+            }
+          } catch (error) {
+            console.warn(`[Grok+Gemini Optimizer] Error optimizing MINIMAL for ${targetLang}:`, error.message);
+            grokGeminiOptimizationMinimal = null; // エラー時もnullを明示的に設定
+          }
+          
           // 言語別テンプレートを読み込む
           const langTemplates = loadUserTemplates(targetLang);
           const langFormatMinimalBriefing = langTemplates.formatMinimalBriefing;
@@ -1587,7 +1681,14 @@ module.exports = async function handler(req, res) {
             continue;
           }
 
+          // minimal-high-quality版が読み込まれていることを確認
+          if (typeof langFormatMinimalBriefing !== 'function') {
+            console.error(`[MINIMAL] formatMinimalBriefing is not a function for ${targetLang}, skipping`);
+            continue;
+          }
+
           // 無料版メッセージを生成（minimal-high-quality版を使用）
+          // 注意: minimal-high-quality版は4-post thread形式で、trapData, marketData, sentimentData, score, grokGeminiOptimizationパラメータを必要とします
           const minimalText = langFormatMinimalBriefing({
             now,
             trapScore: minimalTrapScore,
@@ -1598,7 +1699,19 @@ module.exports = async function handler(req, res) {
             sentimentData,
             lang: targetLang,
             score: snapshot.market_score, // Market Scoreを追加（状況に応じたメッセージ生成のため）
+            // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
+            grokGeminiOptimization: grokGeminiOptimizationMinimal || null,
           });
+
+          // 生成されたメッセージが4-post thread形式（[1/4], [2/4], [3/4], [4/4]を含む）であることを確認
+          if (minimalText && typeof minimalText === 'string') {
+            const isHighQualityFormat = /\[1\/4\]|\[2\/4\]|\[3\/4\]|\[4\/4\]/.test(minimalText);
+            if (!isHighQualityFormat) {
+              console.warn(`[MINIMAL] Generated message for ${targetLang} does not appear to be in high-quality format (4-post thread). Message preview: ${minimalText.substring(0, 100)}...`);
+            } else {
+              console.log(`[MINIMAL] Successfully generated high-quality format message for ${targetLang}`);
+            }
+          }
 
           // 無料版チャンネルに送信
           if (ENABLE_TELEGRAM) {

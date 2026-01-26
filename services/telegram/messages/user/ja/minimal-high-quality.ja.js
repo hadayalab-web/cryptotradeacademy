@@ -3,26 +3,22 @@
 // Trap Score + 簡易分析 + 簡易Dr. Grokコメント + Mental Note
 
 /**
- * Trap Scoreの説明を取得
+ * Trap Scoreの説明を取得（ネイティブ調）
  */
 function getTrapScoreDescription(trapScore) {
-  if (trapScore == null || trapScore === undefined) {
-    return 'Trap Scoreを計算中です。しばらくしてから再度ご確認ください。';
+  if (trapScore == null || trapScore === undefined || isNaN(Number(trapScore))) {
+    return 'Trap Scoreは計算中。焦って先回りしないでOKです。';
   }
-  
   const score = Number(trapScore);
-  if (isNaN(score)) {
-    return 'Trap Scoreを計算中です。しばらくしてから再度ご確認ください。';
-  }
 
   if (score >= 70) {
-    return '⚠️ 高リスク: 市場トラップの可能性が高いシグナルが検出されました。極度の注意が必要です';
+    return 'Trap Score高め。今日は"攻め"より"守り"優先。';
   } else if (score >= 50) {
-    return '⚡ 中リスク: 一部のトラップ指標が検出されました。警戒を怠らないでください';
+    return '混合ゾーン。確認が出るまで無理に触らない。';
   } else if (score >= 30) {
-    return '✅ 低リスク: トラップ指標は最小限です。市場状況は比較的安全に見えます';
+    return '雰囲気は怖い。でもデータはまだ"罠"寄りじゃない。';
   } else {
-    return '✅ 非常に低リスク: トラップ指標はほとんど検出されていません。市場状況は安全に見えます';
+    return 'Trap Scoreはかなり低め（ただし油断は禁物）。';
   }
 }
 
@@ -30,7 +26,8 @@ function getTrapScoreDescription(trapScore) {
  * What to Avoid（回避行動）を生成
  */
 function generateWhatToAvoid(trapScore, trapData = null) {
-  if (!trapScore || trapScore < 50) {
+  const score = trapScore == null ? null : Number(trapScore);
+  if (score == null || Number.isNaN(score) || score < 50) {
     return null;
   }
 
@@ -40,21 +37,21 @@ function generateWhatToAvoid(trapScore, trapData = null) {
   if (trapData) {
     if (trapData.trapAlert) {
       if (trapData.trapAlert.type === 'AVOID_LONG') {
-        avoidItems.push('LONGポジションを避ける — 高いトラップリスクが検出されました');
+        avoidItems.push('防御モード：今は無理にロング/ショートを作らない');
       } else if (trapData.trapAlert.type === 'AVOID_SHORT') {
-        avoidItems.push('SHORTポジションを避ける — 高いトラップリスクが検出されました');
+        avoidItems.push('防御モード：今は無理にロング/ショートを作らない');
       }
     }
   }
 
-  // デフォルトの回避行動
+  // デフォルトの回避行動（ネイティブ調）
   if (avoidItems.length === 0) {
     if (trapScore >= 70) {
-      avoidItems.push('新しいポジションを開くことを避ける — 強いトラップシグナルが検出されました');
-      avoidItems.push('取引前に市場シグナルがより明確になるまで待つ');
+      avoidItems.push('ロング/ショートは無理に作らない — 防御モード');
+      avoidItems.push('サイズ落として、損切りライン先に決める');
     } else if (trapScore >= 50) {
-      avoidItems.push('注意を払う — 一部のトラップ指標が存在します');
-      avoidItems.push('より良いエントリー機会を待つことを検討する');
+      avoidItems.push('待つのもポジション — 確認待ち');
+      avoidItems.push('混合ゾーン。無理にエントリーしない');
     }
   }
 
@@ -86,9 +83,9 @@ function generateEvidence(trapData = null, marketData = null) {
     if (trapData.whaleRatio !== undefined && trapData.whaleRatio !== null) {
       const whaleRatio = trapData.whaleRatio * 100;
       if (whaleRatio >= 80) {
-        evidenceItems.push(`クジラ比率: ${whaleRatio.toFixed(0)}% — 高い売り圧力が検出されています`);
+        evidenceItems.push(`クジラ比率：${whaleRatio.toFixed(0)}% — 売り圧は強め（でも過剰反応は不要）`);
       } else if (whaleRatio >= 50) {
-        evidenceItems.push(`クジラ比率: ${whaleRatio.toFixed(0)}% — やや高い売り圧力`);
+        evidenceItems.push(`クジラ比率：${whaleRatio.toFixed(0)}% — 売り圧は中程度（警戒寄り）`);
       } else {
         evidenceItems.push(`クジラ比率: ${whaleRatio.toFixed(0)}% — 正常範囲内（クジラの動きは安定）`);
       }
@@ -102,16 +99,16 @@ function generateEvidence(trapData = null, marketData = null) {
       if (mpi > 2.0) {
         evidenceItems.push(`マイナーポジションインデックス: ${mpi.toFixed(2)} — マイナーが売却中（注意が必要）`);
       } else if (mpi < 0.5) {
-        evidenceItems.push(`マイナーポジションインデックス: ${mpi.toFixed(2)} — マイナーが保持中（ポジティブシグナル）`);
+        evidenceItems.push(`マイナーポジションインデックス：${mpi.toFixed(2)} — マイナーは売り急いでいない`);
       } else {
         evidenceItems.push(`マイナーポジションインデックス: ${mpi.toFixed(2)} — 正常範囲`);
       }
     }
   }
 
-  // デフォルトの根拠（データがない場合）
+  // デフォルトの根拠（データがない場合、ネイティブ調）
   if (evidenceItems.length === 0) {
-    evidenceItems.push('オンチェーンデータ分析がトラップリスクを示しています');
+    evidenceItems.push('オンチェーンはまだ決定打なし（だからこそ焦らない）');
   }
 
   return evidenceItems.slice(0, 2); // 最大2つまで
@@ -123,12 +120,13 @@ function generateEvidence(trapData = null, marketData = null) {
 function generateDrGrokComment(trapScore, sentimentData = null) {
   const comments = [];
 
-  if (!trapScore || trapScore < 30) {
-    // Trap Scoreが低い場合：低リスクでも価値を提供
+  const score = trapScore == null ? null : Number(trapScore);
+  if (score == null || Number.isNaN(score) || score < 30) {
+    // Trap Scoreが低い場合：認知的不協和と油断の警告（ネイティブ調）
     const lowRiskMessages = [
-      '"忍耐は戦略的な強さだ。明確な機会を待ち続けよう。"',
-      '"今は低リスクだが、市場は常に変化する。準備を怠らないことが勝利への鍵だ。"',
-      '"防御は弱さではない。70%の時間、何もしないことが最強の戦略だ。"',
+      '"赤いローソクの不快感を消したくて売りたくなる。でも不安は現実じゃない。罠は下落ではなく、衝動的な撤退です。"',
+      '"雰囲気は怖い。でもデータはまだ"罠"寄りじゃない。注意：0/100は油断を生む。"',
+      '"誰も言わないこと：0/100は油断を生む。大きい罠は静かな時間に仕込まれる。"',
     ];
     comments.push(lowRiskMessages[Math.floor(Math.random() * lowRiskMessages.length)]);
   } else if (trapScore >= 70) {
@@ -156,12 +154,12 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
  */
 function generateMentalNote(trapScore = null, avoidProTraderMessage = false, drGrokComment = null) {
   const allMentalNotes = [
-    '"70%の時間、何もしない。明確な優位性が現れるまで防御する。"',
-    '"資本を守ることが最優先。勝つことより、負けないことが重要だ。"',
-    '"市場の70%はノイズだ。明確なシグナルだけに反応する。それが勝利への道だ。"',
-    '"待つことは弱さではない。それは最強の戦略だ。"',
-    '"防御は攻撃の最高の形。資本を守ることがすべての始まりだ。"',
-    '"プロトレーダーの90%は待つ時間を最優先する。あなたも同じ戦略を取ろう。"',
+    '待つのもポジション',
+    '今日の勝ちは「削られないこと」',
+    '手が動くなら、それは感情',
+    '赤いローソク＝危険、ではない',
+    '信号なしならノートレード',
+    '現金もポジション。防御は能動的',
   ];
   
   // 戦略的インサイトで「プロトレーダーは待つ時間を最優先」を使った場合は、メンタルノートでは別のメッセージを選ぶ
@@ -223,6 +221,8 @@ function formatMinimalHighQualityBriefing({
   marketData = null,
   sentimentData = null,
   lang = 'ja',
+  score = null, // Market Score (optional, can also be in marketData.score)
+  grokGeminiOptimization = null, // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
 } = {}) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
   
@@ -242,191 +242,80 @@ function formatMinimalHighQualityBriefing({
   const useProTraderMessageInInsight = trapScoreRounded !== null && trapScoreRounded < 50 && trapScoreRounded >= 0;
   const mentalNote = generateMentalNote(trapScore, useProTraderMessageInInsight, drGrokComment);
 
-  let message = `🌤️ Trap Defence BTC - 無料レポート
-🚨 BREAKING: トラップ防御ブリーフィング
-📅 ${ts}
-
-━━━━━━━━━━━━━━━━━━━━
-🎯 本日のTrap Score
-━━━━━━━━━━━━━━━━━━━━
-${scoreDisplay}/100
-${scoreDescription}
-
-${priceLine}`;
-
-  // 問題の提示セクション（Trap Scoreに基づいて問題を提示）
-  if (trapScore !== null && trapScore >= 30) {
-    const trapScoreRounded = Math.round(trapScore);
-    
-    if (trapScoreRounded >= 70) {
-      message += `\n\n🚨 市場は強いトラップシグナルを示しています。価格チャートが示唆するものにもかかわらず、オンチェーンデータは隠れたリスクを明らかにしています`;
-      message += `\n💡 複数のダイバージェンスと異常が潜在的な市場トラップを示しています。今入場すると、重大なリスクにさらされる可能性があります`;
-    } else if (trapScoreRounded >= 50) {
-      message += `\n\n⚡ 市場は中程度のトラップ指標を示しています。一部のダイバージェンスが注意を促しています`;
-      message += `\n💡 トラップシグナルが存在します。今急いで取引すると損失につながる可能性があります`;
-    } else {
-      message += `\n\n✅ 市場状況は比較的安全に見えますが、トラップパターンは急速に出現する可能性があります`;
-      message += `\n💡 低リスク条件でも、忍耐は戦略的な強さです`;
-    }
-  } else if (trapScore !== null && trapScore < 30) {
-    // 低リスク時でも簡潔な市場状況を提示
-    message += `\n\n💡 現在の市場状況は比較的安定していますが、常に警戒を怠らないことが重要です`;
-  }
-
-  // Step 2: 証拠（Evidence）セクション
-  // 低リスク時でも証拠セクションを常に表示（価値提供のため）
-  if (evidence && evidence.length > 0) {
-    message += `\n\n━━━━━━━━━━━━━━━━━━━━
-📊 データに基づく理由
-━━━━━━━━━━━━━━━━━━━━`;
-    evidence.forEach(item => {
-      message += `\n• ${item}`;
-    });
-    
-    // Market Dataから追加情報を表示（MPI、Sentimentなど）
-    // 重要: evidenceセクションの後に追加情報として表示（常に表示）
-    if (marketData) {
-      if (marketData.mpi !== undefined && marketData.mpi !== null) {
-        const mpi = marketData.mpi;
-        if (mpi > 2.0) {
-          message += `\n• マイナーポジションインデックス (MPI): ${mpi.toFixed(2)} — マイナーが売却中（注意が必要）`;
-        } else if (mpi < 0.5) {
-          message += `\n• マイナーポジションインデックス (MPI): ${mpi.toFixed(2)} — マイナーが保持中（ポジティブシグナル）`;
-        } else {
-          message += `\n• マイナーポジションインデックス (MPI): ${mpi.toFixed(2)} — 正常範囲`;
-        }
-      }
-    }
-    
-    // Sentiment Dataから追加情報を表示
-    // 重要: sentimentDataが存在する場合、必ず表示
-    if (sentimentData && sentimentData.sentiment) {
-      const sentiment = sentimentData.sentiment;
-      const sentimentEmoji = sentiment.toLowerCase().includes('fear') ? '😨' :
-                             sentiment.toLowerCase().includes('greed') ? '😍' :
-                             sentiment.toLowerCase().includes('fomo') ? '😰' :
-                             sentiment.toLowerCase().includes('panic') ? '😱' : '😐';
-      message += `\n• センチメント: ${sentimentEmoji} ${sentiment}`;
-    }
-    
-    // 【改善2: 「70%待機戦略」の証拠ベース説明の統合】EvidenceとMental Noteを連動
-    // 低リスク時でも説明を追加（価値提供のため）
-    if (trapScore !== null) {
-      const trapScoreRounded = Math.round(trapScore);
-      const marketScore = score ?? marketData?.score ?? null;
-      const marketScoreRounded = marketScore !== null ? Math.round(marketScore) : null;
-      const isBullish = marketScoreRounded !== null && marketScoreRounded >= 50;
-      const isLowTrapRisk = trapScoreRounded < 30;
-      
-      message += `\n\n💡 戦略的インサイト`;
-      if (trapScoreRounded >= 70) {
-        message += `\n  🚨 Trap Score ${trapScoreRounded}/100: 強いシグナルが潜在的な市場トラップを示しています`;
-        message += `\n  🛡️ 戦略的な準備は弱さではない—それは勝利への準備だ。極度の注意を払おう`;
-      } else if (trapScoreRounded >= 50) {
-        message += `\n  ⚡ Trap Score ${trapScoreRounded}/100: 中程度のトラップ指標が検出されました`;
-        message += `\n  🛡️ 注意を払おう。行動を起こす前に市場状況を注意深く監視しよう`;
-      } else {
-        // 低リスク時：市場状況に応じたメッセージ
-        if (isLowTrapRisk && isBullish) {
-          // 低リスクかつ強気：より積極的なメッセージ
-          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: 低トラップリスクが検出されました`;
-          message += `\n  📈 市場状況は良好に見えます（スコア: ${marketScoreRounded}/100）。明確なエントリー機会を監視しよう`;
-          message += `\n  💡 低リスク + 強気の勢い = 良好な条件。質の高いセットアップに注意を払おう`;
-        } else if (isLowTrapRisk) {
-          // 低リスクだが中立/弱気：標準的な防御メッセージ
-          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: 現在は低トラップリスク`;
-          message += `\n  🛡️ 市場状況は安定しています。規律を保ち、質の高い機会を待とう`;
-          message += `\n  💡 忍耐は報われる。質の高いセットアップには低リスクと明確な市場方向の両方が必要`;
-        } else {
-          // フォールバック（scoreが取得できない場合）
-          message += `\n  ✅ Trap Score ${trapScoreRounded}/100: 現在は低トラップリスクですが、市場は常に変化します`;
-          message += `\n  🛡️ 規律を保とう。状況を監視し、明確なシグナルを待とう`;
-        }
-      }
-    }
-  }
-
-  // Step 3: 解決策（What to Avoid）
-  if (whatToAvoid && whatToAvoid.length > 0) {
-    message += `\n\n━━━━━━━━━━━━━━━━━━━━
-🚫 避けるべきこと
-━━━━━━━━━━━━━━━━━━━━`;
-    whatToAvoid.forEach(item => {
-      message += `\n• ${item}`;
-    });
-  }
-
-  // Step 4: 成功する結末（Dr. Grok Comment + Mental Note）
-  if (drGrokComment) {
-    message += `\n\n━━━━━━━━━━━━━━━━━━━━
-💊 Dr. Grokのクイックインサイト
-━━━━━━━━━━━━━━━━━━━━
-${drGrokComment}`;
-  }
-
-  // Mental Note
-  if (mentalNote) {
-    message += `\n\n━━━━━━━━━━━━━━━━━━━━
-✅ メンタルノート
-━━━━━━━━━━━━━━━━━━━━
-${mentalNote}`;
-  }
-
-  // CTA（アップセル最適化：開発資金確保のため緊迫感のあるCTA）
-  // VSL2とWhopリンクは別途配信されるため、定期配信のMinimal Briefingには含めない
-  // GPT評価に基づく改善: Trap Scoreに基づく動的メッセージング
+  // GPT設計書に完全準拠: 4-post thread形式（Telegram用に1メッセージに統合）
+  const change24hFormatted = change24h != null ? (change24h >= 0 ? `+${change24h.toFixed(2)}` : change24h.toFixed(2)) : 'N/A';
+  const sentimentLabel = sentimentData?.sentiment || '極度の恐怖';
+  const sentimentLabelJa = sentimentLabel === 'Extreme Fear' ? '極度の恐怖' :
+                           sentimentLabel === 'Fear' ? '恐怖' :
+                           sentimentLabel === 'Greed' ? '強欲' :
+                           sentimentLabel === 'FOMO' ? 'FOMO' : '中立';
+  // trapScoreRoundedは上で既に定義済み
   
-  // Trap Scoreに基づいてCTAのメッセージを動的に変更
-  const trapScoreRounded = trapScore !== null ? Math.round(trapScore) : null;
-  let ctaHeadline = '';
-  let ctaUrgency = '';
+  // [1/4] Hook: Fear vs Trap Score contradiction + immediate action
+  let message = `[1/4] 🚨 Hook
+━━━━━━━━━━━━━━━━━━━━`;
   
-  if (trapScoreRounded !== null && trapScoreRounded >= 50) {
-    // 中リスク以上: 緊急性を強調
-    ctaHeadline = '🚨 今すぐアップグレード: 資本を失う前にリアルタイムトラップアラートを取得';
-    ctaUrgency = '⚠️ 現在、トラップシグナルが検出されています。無料ユーザーはスコアのみを確認できますが、あなたは資本を守るために完全な防御システムが必要です。';
+  if (scoreDisplay === 'N/A') {
+    message += `\n🚨 BTCは${change24hFormatted}%、センチメントは「${sentimentLabelJa}」。
+でもTrap Scoreは計算中。先回りで入らない。`;
   } else {
-    // 低リスク: 価値提案を強調
-    ctaHeadline = '🚀 今すぐアップグレード: 詳細なトレードシグナルとリアルタイムアラートを取得';
-    ctaUrgency = '💡 現在は低リスクですが、市場は急速に変化します。トラップが形成されたときに即座にアラートを受け取るためにアップグレードしてください。';
+    message += `\n🚨 BTCは${change24hFormatted}%、センチメントは「${sentimentLabelJa}」。
+でもTrap Scoreは **${scoreDisplay}/100**。
+
+いまやること：**焦って触らない。**`;
   }
   
-  message += `\n\n━━━━━━━━━━━━━━━━━━━━
-${ctaHeadline}
+  message += `\n\n"怖い"と"安全寄り"が同居してる局面です。短くまとめます。`;
 
-${ctaUrgency}
+  // [2/4] Quick reads (2 bullets max, trader interpretation)
+  message += `\n\n[2/4] 📊 要点だけ
+━━━━━━━━━━━━━━━━━━━━`;
+  
+  // Exchange netflow（ネイティブ調）
+  if (trapData?.exchangeNetflow !== undefined && trapData.exchangeNetflow !== null) {
+    const netflow = trapData.exchangeNetflow;
+    const absValue = Math.abs(netflow);
+    if (netflow < 0) {
+      message += `\n・取引所Netflow：**${absValue.toFixed(0)} BTC（流出）**＝取引所から出ている（短期の売り圧は出にくい）`;
+    } else if (netflow > 0) {
+      message += `\n・取引所Netflow：**+${absValue.toFixed(0)} BTC（流入）**＝売却圧力の可能性`;
+    }
+  }
+  
+  // MPI
+  if (marketData?.mpi !== undefined && marketData.mpi !== null) {
+    const mpi = marketData.mpi;
+    message += `\n・MPI：**${mpi.toFixed(2)}**＝マイナーは投げ売りしていない`;
+  }
+  
+  message += `\n\n赤いローソク＝即トラップ、ではありません。`;
 
-✨ フルメンバーが取得できるもの（あなたが見逃しているもの）：
-
-🎯 リアルタイムトラップアラート
-• AVOID-LONG / AVOID-SHORT / STANDBYシグナル（即座に通知）
-• エグジットマップガイダンス（正確な退出タイミングを知る）
-• NO TRADEアラート（損失が発生する前に回避）
-
-📊 完全なインテリジェンスレポート
-• 完全なオンチェーン分析（すべての指標をリアルタイムで）
-• AI駆動の市場インサイトとトラップ検出（24時間監視）
-• リアルタイムXセンチメント分析（市場の感情を先読み）
-
-💊 完全なDr. Grokの心理的サポート
-• メンタルブロックの解消（FOMO、恐怖、貪欲を克服）
-• パーソナライズされたメンタルトレーニングガイダンス
-• 心理状態の診断
-
-💎 これらすべてが、あなたの資本を守るために設計されています
-
-📊 無料版 vs 完全版
-• 無料版：Trap Scoreのみ（方向性のヒント）
-• 完全版：全データ + リアルタイムアラート（具体的な行動指針）
-
-🛡️ 1つの見逃したシグナルが、あなたの資本を守るか失うかを分けます
-
-🎯 今すぐアップグレードして、完全な防御システムを手に入れましょう
-
+  // [3/4] Psych coaching: latency anxiety (低スコア時の認知的不協和)
+  message += `\n\n[3/4] 🧠 心理コーチング
+━━━━━━━━━━━━━━━━━━━━`;
+  
+  if (trapScoreRounded == null) {
+    message += `\nスコアは計算中。出るまで先回りで入らない。`;
+  } else if (trapScoreRounded < 30) {
+    message += `\n注意：**${trapScoreRounded}/100は油断を生みます。**\n大きい罠は「静かな時間」に仕込まれがち。\n\n寝ている間にスコアが跳ねたら、無料の定期更新だと、その15分に間に合いません。`;
+  } else if (trapScoreRounded < 50) {
+    message += `\n雰囲気は怖い。でもデータはまだ"罠"寄りじゃない。\nここでの役割：恐怖に押されて悪いクリックをしない。\n\n(それでも：寝ている間に反転したら、無料はその15分を逃す。)`;
+  } else {
+    message += `\n防御モード。赤いローソクと現実を混同しないで。罠は下落ではなく、衝動的な撤退です。`;
+  }
+  
+  // [4/4] Poll + question + soft CTA (GPT設計書に完全準拠)
+  message += `\n\n[4/4] 🗳️ 投票 + 質問 + CTA
 ━━━━━━━━━━━━━━━━━━━━
-これは無料レポートです。詳細分析とトラップアラートについては、Trap Defence BTCにアップグレードしてください
+投票：Trap Score ${scoreDisplay === 'N/A' ? '（計算中）' : `**${scoreDisplay}/100**`}、今どうする？
+A) ホールド
+B) 押し目買い
+C) リスク落とす
+D) 確認待ち
 
-教育目的のみ。金融アドバイスではありません`;
+A〜D と、時間軸（短期/スイング）を返信ください。
+
+リアルタイム警告が欲しい人は **TRAP** と返信してくれたら、DMで案内します。 #BTC #Bitcoin #TrapDefence`;
 
   return message.trim();
 }

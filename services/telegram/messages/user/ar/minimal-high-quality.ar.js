@@ -22,7 +22,7 @@ function getTrapScoreHook(trapScore) {
   } else if (score >= 30) {
     return 'الشموع تخوّف… بس البيانات ما تقول "خطر".';
   } else {
-    return 'شكله مخيف… بس البيانات ما تعطيك "فخ واضح" (لحد الآن). لا ترخي حذرك.';
+    return 'شكله مخيف… بس البيانات ما تعطيك "فخ واضح" (لحد الآن). خلّك هادي.';
   }
 }
 
@@ -225,6 +225,8 @@ function formatMinimalHighQualityBriefing({
   marketData = null,
   sentimentData = null,
   lang = 'ar',
+  score = null, // Market Score (optional, can also be in marketData.score)
+  grokGeminiOptimization = null, // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
 } = {}) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
   

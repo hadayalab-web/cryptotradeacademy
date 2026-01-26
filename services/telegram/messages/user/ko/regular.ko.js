@@ -12,6 +12,37 @@ function formatUsd(v) {
   return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
+/**
+ * 한국어의 심리적 조언을 가져오기（일본어가 포함되어 있는 경우의 폴백）
+ * @param {string} psychologicalState - 심리 상태
+ * @param {string} psychologicalRisk - 위험 수준
+ * @returns {string} 한국어 조언
+ */
+function getKoreanPsychologicalAdvice(psychologicalState, psychologicalRisk) {
+  if (psychologicalState === 'NEUTRAL' && psychologicalRisk === 'LOW') {
+    return '✅ 중립 상태 - 멘탈 블록 미검출: 시장 센티먼트가 균형을 이루고 있습니다. 극단적인 감정이 감지되지 않았습니다. 조건이 안정적입니다.';
+  } else if (psychologicalState === 'NEUTRAL' && psychologicalRisk === 'MEDIUM') {
+    return '⚠️ 중립 상태 - 면밀히 모니터링: 시장 센티먼트가 균형을 이루고 있지만 조건이 변할 수 있습니다. 경계를 유지하세요.';
+  } else if (psychologicalState === 'NEUTRAL' && psychologicalRisk === 'HIGH') {
+    return '🚨 중립 상태 - 높은 위험: 이 "중립" 센티먼트가 트랩 조건을 숨기고 있을 수 있습니다. 규율을 유지하세요.';
+  } else if (psychologicalState === 'FOMO') {
+    return '🚨 FOMO 감지 - 극단적인 매수 압력: 소매 투자자들이 추격하는 동안 고래들이 분배하고 있을 수 있습니다. 이것은 고전적인 트랩 패턴입니다.';
+  } else if (psychologicalState === 'FEAR') {
+    return '😨 두려움 감지 - 시장이 낮은 소매 관심을 보여줍니다: 두려움은 마비시킬 수 있지만 잠재적 기회를 시사할 수도 있습니다.';
+  } else if (psychologicalState === 'GREED') {
+    return '😍 탐욕 감지 - 황홀한 조건: 탐욕은 트레이딩에서 가장 위험한 감정입니다. 이익 실현을 고려하세요.';
+  } else if (psychologicalState === 'PANIC') {
+    return '😱 공황 감지 - 극단적인 두려움: 공황은 편도체가 전두엽 피질을 납치하는 것입니다. 멈추세요. 숨을 쉬세요. 데이터를 확인하세요.';
+  } else if (psychologicalState === 'EUPHORIA') {
+    return '😄 황홀감 감지 - 시장 축제: 황홀감은 시장이 당신에게 위험을 잊게 만드는 방법입니다. 규율을 유지하세요.';
+  } else if (psychologicalState === 'CONFUSION') {
+    return '🤔 혼란 감지 - 불명확한 신호: 혼란은 당신의 뇌가 명확성을 요구하는 것입니다. 거래를 강요하지 마세요. 의심스러우면 기다리세요.';
+  }
+  
+  // デフォルト
+  return '시장 조건이 상대적으로 안정적입니다. 규율을 유지하고 품질 있는 설정을 기다리세요.';
+}
+
 function formatRegularBriefing({
   now,
   inflow,
@@ -490,11 +521,21 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
       lines.push('━━━━━━━━━━━━━━━━━━━━');
       
       if (opt.content.questionCTA) {
-        lines.push(`💡 참여 전략: ${opt.content.questionCTA}`);
+        const questionCTA = opt.content.questionCTA;
+        // 日本語が含まれている場合はスキップ
+        if (!/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(questionCTA)) {
+          lines.push(`💡 참여 전략: ${questionCTA}`);
+        }
       }
       
       if (opt.engagementBoosters && opt.engagementBoosters.length > 0) {
-        lines.push(`🚀 반응을 늘리는 요소: ${opt.engagementBoosters.slice(0, 3).join('、')}`);
+        // 日本語が含まれている要素をフィルタリング
+        const filteredBoosters = opt.engagementBoosters.filter(booster => 
+          !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(booster)
+        );
+        if (filteredBoosters.length > 0) {
+          lines.push(`🚀 반응을 늘리는 요소: ${filteredBoosters.slice(0, 3).join('、')}`);
+        }
       }
       
       // 바이럴 가능성 강조 표시（중요 정보）- 구분선은 1회만
@@ -504,7 +545,13 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
         const viralLabel = viralScore >= 70 ? '【높음】' : viralScore >= 50 ? '【중간】' : '【낮음】';
         lines.push(`   ${viralEmoji} ${viralLabel} 바이럴 가능성 점수: ${viralScore}/100`);
         if (opt.viralFactors && opt.viralFactors.length > 0) {
-          lines.push(`   📊 주요 요인: ${opt.viralFactors.slice(0, 2).join(', ')}`);
+          // 日本語が含まれている要素をフィルタリング
+          const filteredFactors = opt.viralFactors.filter(factor => 
+            !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(factor)
+          );
+          if (filteredFactors.length > 0) {
+            lines.push(`   📊 주요 요인: ${filteredFactors.slice(0, 2).join(', ')}`);
+          }
         }
       }
       
@@ -537,25 +584,41 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
       }
       
       if (psyInsights.mentalBlocks && psyInsights.mentalBlocks.length > 0) {
-        lines.push(`🚧 멘탈 블록: ${psyInsights.mentalBlocks.slice(0, 2).join(', ')}`);
+        // 日本語が含まれている要素をフィルタリング
+        const filteredBlocks = psyInsights.mentalBlocks.filter(block => 
+          !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(block)
+        );
+        if (filteredBlocks.length > 0) {
+          lines.push(`🚧 멘탈 블록: ${filteredBlocks.slice(0, 2).join(', ')}`);
+        }
       }
       
       // 브레이크스루 인사이트 강조 표시（구분선은 섹션 시작만）
       if (psyInsights.breakthroughInsights && psyInsights.breakthroughInsights.length > 0) {
-        lines.push(`   💡 【중요】브레이크스루 인사이트:`);
-        psyInsights.breakthroughInsights.slice(0, 2).forEach(insight => {
-          lines.push(`   🔥 ${insight}`);
-        });
+        // 日本語が含まれている要素をフィルタリング
+        const filteredInsights = psyInsights.breakthroughInsights.filter(insight => 
+          !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(insight)
+        );
+        if (filteredInsights.length > 0) {
+          lines.push(`   💡 【중요】브레이크스루 인사이트:`);
+          filteredInsights.slice(0, 2).forEach(insight => {
+            lines.push(`   🔥 ${insight}`);
+          });
+        }
       }
       
       if (psyInsights.personalizedCoaching && psyInsights.personalizedCoaching.trim()) {
-        const coachingLimit = 300;
-        let coachingDisplay = psyInsights.personalizedCoaching;
-        if (coachingDisplay.length > coachingLimit) {
-          coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
+        const coachingText = psyInsights.personalizedCoaching;
+        // 日本語が含まれている場合はスキップ
+        if (!/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(coachingText)) {
+          const coachingLimit = 300;
+          let coachingDisplay = coachingText;
+          if (coachingDisplay.length > coachingLimit) {
+            coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
+          }
+          lines.push(`💊 개인화된 코칭:`);
+          lines.push(`"${coachingDisplay}"`);
         }
-        lines.push(`💊 개인화된 코칭:`);
-        lines.push(`"${coachingDisplay}"`);
       }
       
       lines.push('');
@@ -600,7 +663,17 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
                       psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
     lines.push(`💚 심리 상태: ${stateEmoji} ${psychologicalSupport.psychologicalState} (위험: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
     if (psychologicalSupport.psychologicalAdvice) {
-      lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
+      const advice = psychologicalSupport.psychologicalAdvice;
+      // 日本語が含まれている場合は韓国語フォールバックを使用
+      if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(advice)) {
+        const fallbackAdvice = getKoreanPsychologicalAdvice(
+          psychologicalSupport.psychologicalState,
+          psychologicalSupport.psychologicalRisk
+        );
+        lines.push(`   💡 ${fallbackAdvice}`);
+      } else {
+        lines.push(`   💡 ${advice}`);
+      }
     }
     if (psychologicalSupport.mentalNote) {
       lines.push(`💊 Dr. Grok의 멘탈 노트:`);

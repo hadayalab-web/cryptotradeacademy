@@ -12,6 +12,37 @@ function formatUsd(v) {
   return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
+/**
+ * スペイン語の心理的アドバイスを取得（日本語が含まれている場合のフォールバック）
+ * @param {string} psychologicalState - 心理状態
+ * @param {string} psychologicalRisk - リスクレベル
+ * @returns {string} スペイン語のアドバイス
+ */
+function getSpanishPsychologicalAdvice(psychologicalState, psychologicalRisk) {
+  if (psychologicalState === 'NEUTRAL' && psychologicalRisk === 'LOW') {
+    return '✅ Estado neutral - No se detectaron bloqueos mentales: El sentimiento del mercado está equilibrado. No se detectaron emociones extremas. Las condiciones son estables.';
+  } else if (psychologicalState === 'NEUTRAL' && psychologicalRisk === 'MEDIUM') {
+    return '⚠️ Estado neutral - Monitorear de cerca: El sentimiento del mercado está equilibrado pero las condiciones pueden cambiar. Mantente alerta.';
+  } else if (psychologicalState === 'NEUTRAL' && psychologicalRisk === 'HIGH') {
+    return '🚨 Estado neutral - Alto riesgo: Este sentimiento "neutral" puede estar ocultando condiciones de trampa. Mantén la disciplina.';
+  } else if (psychologicalState === 'FOMO') {
+    return '🚨 FOMO detectado - Presión de compra extrema: Los minoristas están persiguiendo mientras las ballenas pueden estar distribuyendo. Este es un patrón clásico de trampa.';
+  } else if (psychologicalState === 'FEAR') {
+    return '😨 Miedo detectado - El mercado muestra bajo interés minorista: El miedo puede ser paralizante, pero también puede señalar oportunidades potenciales.';
+  } else if (psychologicalState === 'GREED') {
+    return '😍 Codicia detectada - Condiciones eufóricas: La codicia es la emoción más peligrosa en el trading. Considera tomar ganancias.';
+  } else if (psychologicalState === 'PANIC') {
+    return '😱 Pánico detectado - Miedo extremo: El pánico es tu amígdala secuestrando tu corteza prefrontal. Detente. Respira. Revisa los datos.';
+  } else if (psychologicalState === 'EUPHORIA') {
+    return '😄 Euforia detectada - Celebración del mercado: La euforia es la forma del mercado de hacerte olvidar el riesgo. Mantén la disciplina.';
+  } else if (psychologicalState === 'CONFUSION') {
+    return '🤔 Confusión detectada - Señales poco claras: La confusión es tu cerebro pidiendo claridad. No fuerces una operación. Cuando tengas dudas, espera.';
+  }
+  
+  // デフォルト
+  return 'Las condiciones del mercado son relativamente estables. Mantén la disciplina y espera configuraciones de calidad.';
+}
+
 function formatRegularBriefing({
   now,
   inflow,
@@ -457,11 +488,22 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICCIÓN: Puntuación de bajo riesgo
       lines.push('━━━━━━━━━━━━━━━━━━━━');
       
       if (opt.content.questionCTA) {
-        lines.push(`💡 Estrategia de participación: ${opt.content.questionCTA}`);
+        // 日本語が含まれている場合はスキップ
+        const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(opt.content.questionCTA);
+        if (!hasJapanese) {
+          lines.push(`💡 Estrategia de participación: ${opt.content.questionCTA}`);
+        }
       }
       
       if (opt.engagementBoosters && opt.engagementBoosters.length > 0) {
-        lines.push(`🚀 Elementos que aumentan la participación: ${opt.engagementBoosters.slice(0, 3).join(', ')}`);
+        // 日本語が含まれていないブースターのみを表示
+        const spanishBoosters = opt.engagementBoosters.filter(booster => {
+          const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(booster);
+          return !hasJapanese;
+        });
+        if (spanishBoosters.length > 0) {
+          lines.push(`🚀 Elementos que aumentan la participación: ${spanishBoosters.slice(0, 3).join(', ')}`);
+        }
       }
       
       // Resaltar potencial viral（información importante）- línea divisoria solo una vez
@@ -471,7 +513,14 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICCIÓN: Puntuación de bajo riesgo
         const viralLabel = viralScore >= 70 ? '[ALTO]' : viralScore >= 50 ? '[MEDIO]' : '[BAJO]';
         lines.push(`   ${viralEmoji} ${viralLabel} Puntuación de potencial viral: ${viralScore}/100`);
         if (opt.viralFactors && opt.viralFactors.length > 0) {
-          lines.push(`   📊 Factores clave: ${opt.viralFactors.slice(0, 2).join(', ')}`);
+          // 日本語が含まれていないファクターのみを表示
+          const spanishFactors = opt.viralFactors.filter(factor => {
+            const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(factor);
+            return !hasJapanese;
+          });
+          if (spanishFactors.length > 0) {
+            lines.push(`   📊 Factores clave: ${spanishFactors.slice(0, 2).join(', ')}`);
+          }
         }
       }
       
@@ -504,20 +553,42 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICCIÓN: Puntuación de bajo riesgo
       }
       
       if (psyInsights.mentalBlocks && psyInsights.mentalBlocks.length > 0) {
-        lines.push(`🚧 Bloqueos mentales: ${psyInsights.mentalBlocks.slice(0, 2).join(', ')}`);
+        // 日本語が含まれていないブロックのみを表示
+        const spanishBlocks = psyInsights.mentalBlocks.filter(block => {
+          const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(block);
+          return !hasJapanese;
+        });
+        if (spanishBlocks.length > 0) {
+          lines.push(`🚧 Bloqueos mentales: ${spanishBlocks.slice(0, 2).join(', ')}`);
+        }
       }
       
       // Resaltar insights de avance（línea divisoria solo al inicio de la sección）
       if (psyInsights.breakthroughInsights && psyInsights.breakthroughInsights.length > 0) {
         lines.push(`   💡 [IMPORTANTE] Insights de avance:`);
         psyInsights.breakthroughInsights.slice(0, 2).forEach(insight => {
-          lines.push(`   🔥 ${insight}`);
+          // 日本語が含まれている場合はスキップ
+          const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(insight);
+          if (!hasJapanese) {
+            lines.push(`   🔥 ${insight}`);
+          }
         });
       }
       
       if (psyInsights.personalizedCoaching && psyInsights.personalizedCoaching.trim()) {
         const coachingLimit = 300;
         let coachingDisplay = psyInsights.personalizedCoaching;
+        
+        // 日本語が含まれている場合はスペイン語のフォールバックを使用
+        const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(coachingDisplay);
+        if (hasJapanese) {
+          // スペイン語のフォールバックメッセージを使用
+          coachingDisplay = getSpanishPsychologicalAdvice(
+            psyInsights.currentState || 'NEUTRAL',
+            'LOW'
+          );
+        }
+        
         if (coachingDisplay.length > coachingLimit) {
           coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
         }
@@ -572,8 +643,25 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICCIÓN: Puntuación de bajo riesgo
                       psychologicalSupport.psychologicalRisk === 'HIGH' ? '⚠️' :
                       psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
     lines.push(`💚 Estado Psicológico: ${stateEmoji} ${psychologicalSupport.psychologicalState} (Riesgo: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
+    
+    // 具体的な心理的アドバイスを追加（日本語が含まれている場合はスペイン語のフォールバックを使用）
     if (psychologicalSupport.psychologicalAdvice) {
-      lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
+      // 日本語が含まれているかチェック（ひらがな、カタカナ、漢字のパターン）
+      const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(psychologicalSupport.psychologicalAdvice);
+      
+      if (hasJapanese) {
+        // 日本語が含まれている場合はスペイン語のフォールバックメッセージを使用
+        const spanishAdvice = getSpanishPsychologicalAdvice(
+          psychologicalSupport.psychologicalState,
+          psychologicalSupport.psychologicalRisk
+        );
+        if (spanishAdvice) {
+          lines.push(`   💡 ${spanishAdvice}`);
+        }
+      } else {
+        // 日本語が含まれていない場合はそのまま使用
+        lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
+      }
     }
     
     lines.push('');
