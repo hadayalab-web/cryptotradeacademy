@@ -40,6 +40,8 @@ function formatRegularBriefing({
   // ニュース番組構造用パラメータ
   gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
+  // GrokとGeminiの統合最適化結果
+  integratedOptimization, // Grok Xアルゴリズム解析 × Gemini深層心理解析の統合結果
   // Phase 2: 市場別深掘りデータ
   whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
@@ -319,7 +321,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
     const trapTypeDisplay = trapTypeForSummary.replace(/_/g, ' ');
     summaryLine = `📰 الملخص: تُظهر مقاييس On-Chain وضع "انتظار". يشير ${trapTypeDisplay} إلى فخ مخفي رغم الأسعار المستقرة.`;
   } else {
-    summaryLine = `📰 الملخص: تُظهر مقاييس On-Chain وضع "انتظار". ظروف السوق مستقرة، لكن ابق متيقظاً لأنماط الفخ`;
+    summaryLine = `📰 الملخص: تُظهر مقاييس On-Chain وضع "انتظار". البيانات نظيفة، لكن لا تثق كثيراً`;
   }
   lines.push(summaryLine);
   lines.push('');
@@ -355,7 +357,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
         lines.push(`📈 لماذا الانتظار؟ تُظهر البيانات ${trapScoreRounded >= 70 ? 'قوية' : 'معتدلة'} إشارات أن الدخول الآن قد يعرضك لفخاخ السوق`);
       } else {
         lines.push(`✅ درجة الفخ: ${trapScoreRounded}/100 تشير إلى مخاطر فخ منخفضة`);
-        lines.push(`💡 الدليل: ظروف السوق تبدو آمنة نسبياً، لكن ابق متيقظاً لأنماط الفخ`);
+        lines.push(`💡 الدليل: Trap Score عند ${trapScoreRounded}/100—نظيف بقدر ما يمكن. لكن الجزء اللي ما أحد يتكلم عنه: الفخاخ تُبنى في الصمت`);
       }
     } else if (trapDetection || trapAlert) {
       // フォールバック: trapDetectionやtrapAlertから証拠を生成
@@ -382,7 +384,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
       if (trapScoreRounded >= 70) {
         lines.push(`  🚨 درجة الفخ ${trapScoreRounded}/100: إشارات قوية تشير إلى فخاخ سوق محتملة`);
         lines.push(`  📊 تُظهر البيانات انحرافات متعددة وانحرافات on-chain`);
-        lines.push(`  🛡️ الاستعداد الاستراتيجي ليس ضعفاً—إنه استعداد للنصر. مارس الحذر الشديد`);
+        lines.push(`  🛡️ الاستعداد الاستراتيجي ليس ضعفاً—إنه استعداد للنصر. خلّك هادي. لا تخلي العاطفة تسوقك`);
       } else if (trapScoreRounded >= 50) {
         lines.push(`  ⚡ درجة الفخ ${trapScoreRounded}/100: تم اكتشاف مؤشرات فخ معتدلة`);
         lines.push(`  📊 بعض الانحرافات تشير إلى الحذر`);
@@ -392,12 +394,12 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
         if (isLowTrapRisk && isBullish) {
           // مخاطر منخفضة وصاعدة: رسالة أكثر نشاطاً
           lines.push(`  ✅ درجة الفخ ${trapScoreRounded}/100: تم اكتشاف مخاطر فخ منخفضة`);
-          lines.push(`  📈 ظروف السوق تبدو مواتية (النقاط: ${marketScore}/100). راقب فرص الدخول الواضحة`);
+          lines.push(`  📈 النقاط ${marketScore}/100—الظروف تبدو جيدة. لكن النقد موقف أيضاً. انتظر إعدادات الجودة`);
           lines.push(`  💡 مخاطر منخفضة + زخم صاعد = ظروف مواتية. ابق متيقظاً لإعدادات الجودة`);
         } else if (isLowTrapRisk) {
           // مخاطر منخفضة لكن محايدة/هابطة: رسالة دفاع قياسية
           lines.push(`  ✅ درجة الفخ ${trapScoreRounded}/100: مخاطر فخ منخفضة حالياً`);
-          lines.push(`  🛡️ ظروف السوق مستقرة. حافظ على الانضباط وانتظر فرص عالية الجودة`);
+          lines.push(`  🛡️ البيانات نظيفة، لكن الانضباط يهزم FOMO. انتظر إعدادات الجودة`);
           lines.push(`  💡 الصبر يؤتي ثماره. إعدادات الجودة تتطلب مخاطر منخفضة واتجاه سوق واضح`);
         } else {
           // Fallback (إذا لم يتم الحصول على النقاط)
@@ -419,7 +421,114 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
   // 【コメンテーター】Dr. Grokメンタルコーチ（固定コーナー）
   lines.push('💊 رؤية سريعة من Dr. Grok');
   
-  // Grok X解析結果（Xセンチメント分析）
+  // ===== عرض نتائج التحسين المتكاملة لـ Grok و Gemini =====
+  if (integratedOptimization && integratedOptimization.integrated && integratedOptimization.optimization) {
+    const opt = integratedOptimization.optimization;
+    
+    // تحويل رموز الخطأ إلى رسائل متعددة اللغات（العربية）
+    const errorMessages = {
+      GROK_UNAVAILABLE: 'تحليل خوارزمية X لـ Grok غير متاح',
+      GROK_ERROR: 'حدث خطأ في تحليل خوارزمية X لـ Grok',
+      GEMINI_UNAVAILABLE: 'التحليل النفسي العميق لـ Gemini غير متاح',
+      GEMINI_ERROR: 'حدث خطأ في التحليل النفسي العميق لـ Gemini',
+    };
+    
+    // عرض رسائل الخطأ（التكامل الجزئي）
+    if (integratedOptimization.errorCodes && integratedOptimization.errorCodes.length > 0) {
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('⚠️ بعض التحليلات غير متاحة');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      integratedOptimization.errorCodes.forEach(code => {
+        const msg = errorMessages[code] || code;
+        lines.push(`   • ${msg}`);
+      });
+      lines.push('   💡 عرض النتائج المتاحة فقط');
+      lines.push('');
+    }
+    
+    // التحقق من وجود بيانات Grok（بناءً على sources）
+    const hasGrok = !!integratedOptimization.sources?.grok && !integratedOptimization.sources.grok.error;
+    
+    // رؤى تحسين خوارزمية X（من تحليل Grok）- عرض بناءً على sources
+    if (hasGrok && opt.content && (opt.content.questionCTA || opt.engagementBoosters || opt.viralPotential !== undefined)) {
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('📱 تحسين منشورات X（النطاق المتاح）');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      
+      if (opt.content.questionCTA) {
+        lines.push(`💡 استراتيجية المشاركة: ${opt.content.questionCTA}`);
+      }
+      
+      if (opt.engagementBoosters && opt.engagementBoosters.length > 0) {
+        lines.push(`🚀 عناصر تزيد المشاركة: ${opt.engagementBoosters.slice(0, 3).join('، ')}`);
+      }
+      
+      // إبراز الإمكانات الفيروسية（معلومات مهمة）- خط فاصل مرة واحدة فقط
+      if (opt.viralPotential !== null && opt.viralPotential !== undefined) {
+        const viralScore = Math.round(opt.viralPotential);
+        const viralEmoji = viralScore >= 70 ? '🔥' : viralScore >= 50 ? '⚡' : '💡';
+        const viralLabel = viralScore >= 70 ? '[عالية]' : viralScore >= 50 ? '[متوسطة]' : '[منخفضة]';
+        lines.push(`   ${viralEmoji} ${viralLabel} درجة الإمكانات الفيروسية: ${viralScore}/100`);
+        if (opt.viralFactors && opt.viralFactors.length > 0) {
+          lines.push(`   📊 العوامل الرئيسية: ${opt.viralFactors.slice(0, 2).join('، ')}`);
+        }
+      }
+      
+      if (opt.timing && opt.timing.length > 0) {
+        lines.push(`⏰ أوقات النشر المثلى: ${opt.timing.slice(0, 2).join('، ')}`);
+      }
+      
+      lines.push('');
+    }
+    
+    // التحقق من وجود بيانات Gemini（بناءً على sources）
+    const hasGemini = !!integratedOptimization.sources?.gemini && !integratedOptimization.sources.gemini.error;
+    
+    // رؤى نفسية عميقة（من تحليل Gemini）- إبراز كمعلومات مهمة（عرض بناءً على sources）
+    if (hasGemini && opt.psychologicalInsights) {
+      const psyInsights = opt.psychologicalInsights;
+      
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('🧠 [مهم] رؤى نفسية عميقة');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      
+      if (psyInsights.currentState && psyInsights.currentState !== 'NEUTRAL') {
+        const stateEmoji = psyInsights.currentState === 'FOMO' ? '😰' :
+                           psyInsights.currentState === 'FEAR' ? '😨' :
+                           psyInsights.currentState === 'GREED' ? '😍' :
+                           psyInsights.currentState === 'PANIC' ? '😱' :
+                           psyInsights.currentState === 'EUPHORIA' ? '😄' :
+                           psyInsights.currentState === 'CONFUSION' ? '🤔' : '😐';
+        lines.push(`💚 الحالة النفسية: ${stateEmoji} ${psyInsights.currentState}`);
+      }
+      
+      if (psyInsights.mentalBlocks && psyInsights.mentalBlocks.length > 0) {
+        lines.push(`🚧 العوائق العقلية: ${psyInsights.mentalBlocks.slice(0, 2).join('، ')}`);
+      }
+      
+      // إبراز رؤى الاختراق（خط فاصل فقط في بداية القسم）
+      if (psyInsights.breakthroughInsights && psyInsights.breakthroughInsights.length > 0) {
+        lines.push(`   💡 [مهم] رؤى الاختراق:`);
+        psyInsights.breakthroughInsights.slice(0, 2).forEach(insight => {
+          lines.push(`   🔥 ${insight}`);
+        });
+      }
+      
+      if (psyInsights.personalizedCoaching && psyInsights.personalizedCoaching.trim()) {
+        const coachingLimit = 300;
+        let coachingDisplay = psyInsights.personalizedCoaching;
+        if (coachingDisplay.length > coachingLimit) {
+          coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
+        }
+        lines.push(`💊 التدريب الشخصي:`);
+        lines.push(`"${coachingDisplay}"`);
+      }
+      
+      lines.push('');
+    }
+  }
+  
+  // Grok X解析結果（Xセンチメント分析）- 統合最適化がない場合のフォールバック
   if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
     const grokXLimit = 600;
     let grokXDisplay = grokXAnalysis;
@@ -450,7 +559,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
     lines.push('');
   }
   
-  // Dr. Grokの心理的サポート（癒し系コメンテーターとして）
+  // Dr. Grokの心理的サポート（癒し系コメンテーターとして）- 統合最適化がない場合のフォールバック
   if (psychologicalSupport && psychologicalSupport.psychologicalState !== 'UNKNOWN') {
     const stateEmoji = psychologicalSupport.psychologicalState === 'FOMO' ? '😰' :
                        psychologicalSupport.psychologicalState === 'FEAR' ? '😨' :
@@ -472,11 +581,11 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
       lines.push(`💊 ملاحظة Dr. Grok العقلية:`);
       lines.push(`"${psychologicalSupport.mentalNote}"`);
     }
-  } else {
+  } else if (!integratedOptimization || !integratedOptimization.integrated) {
     // Fallback: توفير رسالة قيمة حتى عندما لا تكون البيانات متاحة
     lines.push('💚 الحالة النفسية: 😐 NEUTRAL (المخاطرة: 💡 منخفضة)');
     lines.push('');
-    lines.push('   💡 ظروف السوق مستقرة نسبياً. حافظ على الانضباط');
+    lines.push('   💡 البيانات نظيفة، لكن لا تثق كثيراً. حافظ على الانضباط');
     lines.push('');
     lines.push('💊 ملاحظة Dr. Grok العقلية:');
     lines.push('"الصبر ليس ضعفاً—إنه قوة استراتيجية. أفضل المتداولين يعرفون متى لا يتداولون."');

@@ -44,6 +44,8 @@ function formatRegularBriefing({
   // ニュース番組構造用パラメータ
   gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
+  // GrokとGeminiの統合最適化結果
+  integratedOptimization, // Grok Xアルゴリズム解析 × Gemini深層心理解析の統合結果
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -338,7 +340,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
     // Telegram Markdownでは [text] がリンクとして解釈されるため、[Summary]ではなく Summary: を使用
     summaryLine = `📰 Summary: On-chain metrics show a "Wait-and-See" mode. ${trapTypeDisplay} suggests a hidden trap despite stable prices.`;
   } else {
-    summaryLine = `📰 Summary: On-chain metrics show a "Wait-and-See" mode. Market conditions are stable, but remain vigilant for trap patterns`;
+    summaryLine = `📰 Summary: On-chain metrics show a "Wait-and-See" mode. The data's clean, but don't let your guard down`;
   }
   lines.push(summaryLine);
   lines.push('');
@@ -419,7 +421,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
             lines.push(`📈 Why Wait? The data shows ${trapScoreRounded >= 70 ? 'strong' : 'moderate'} signals that entering now could expose you to market traps`);
           } else {
             lines.push(`✅ Trap Score: ${trapScoreRounded}/100 indicates low trap risk`);
-            lines.push(`💡 Evidence: Market conditions appear relatively safe, but remain vigilant for trap patterns`);
+            lines.push(`💡 Evidence: Trap Score's at ${trapScoreRounded}/100—about as clean as it gets. But here's the thing: traps build in the quiet`);
           }
         }
       }
@@ -437,22 +439,22 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
         if (trapScoreRounded >= 70) {
           lines.push(`  🚨 Trap Score ${trapScoreRounded}/100: Strong signals indicate potential market traps`);
           lines.push(`  📊 The data shows multiple divergences and on-chain anomalies`);
-          lines.push(`  🛡️ Strategic preparation is not weakness—it's victory preparation. Exercise extreme caution`);
+          lines.push(`  🛡️ Strategic preparation is not weakness—it's victory preparation. Don't confuse red candles with real risk`);
         } else if (trapScoreRounded >= 50) {
           lines.push(`  ⚡ Trap Score ${trapScoreRounded}/100: Moderate trap indicators detected`);
           lines.push(`  📊 Some divergences suggest caution`);
-          lines.push(`  🛡️ Exercise caution. Monitor market conditions closely before taking action`);
+          lines.push(`  🛡️ Your brain wants to do the wrong thing here. Wait for confirmation before jumping in`);
         } else {
           // 低リスク時：市場状況に応じたメッセージ
           if (isLowTrapRisk && isBullish) {
             // 低リスクかつ強気：より積極的なメッセージ
             lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Low trap risk detected`);
-            lines.push(`  📈 Market conditions appear favorable (Score: ${marketScore}/100). Monitor for clear entry opportunities`);
+            lines.push(`  📈 Score's at ${marketScore}/100—conditions look good. But cash is a position too. Wait for quality setups`);
             lines.push(`  💡 Low risk + bullish momentum = favorable conditions. Stay alert for quality setups`);
           } else if (isLowTrapRisk) {
             // 低リスクだが中立/弱気：標準的な防御メッセージ
             lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk`);
-            lines.push(`  🛡️ Market conditions are stable. Maintain discipline and wait for high-quality opportunities`);
+            lines.push(`  🛡️ The data's clean, but discipline beats FOMO. Wait for quality setups`);
             lines.push(`  💡 Patience pays. Quality setups require both low risk and clear market direction`);
           } else {
             // フォールバック（scoreが取得できない場合）
@@ -502,7 +504,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
           lines.push(`📈 Why Wait? The data shows ${trapScoreRounded >= 70 ? 'strong' : 'moderate'} signals that entering now could expose you to market traps`);
         } else {
           lines.push(`✅ Trap Score: ${trapScoreRounded}/100 indicates low trap risk`);
-          lines.push(`💡 Evidence: Market conditions appear relatively safe, but remain vigilant for trap patterns`);
+          lines.push(`💡 Evidence: Trap Score's at ${trapScoreRounded}/100—about as clean as it gets. But here's the thing: traps build in the quiet`);
         }
       } else if (trapDetection || trapAlert) {
         // フォールバック: trapDetectionやtrapAlertから証拠を生成
@@ -530,22 +532,22 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
         if (trapScoreRounded >= 70) {
           lines.push(`  🚨 Trap Score ${trapScoreRounded}/100: Strong signals indicate potential market traps`);
           lines.push(`  📊 The data shows multiple divergences and on-chain anomalies`);
-          lines.push(`  🛡️ Strategic preparation is not weakness—it's victory preparation. Exercise extreme caution`);
+          lines.push(`  🛡️ Strategic preparation is not weakness—it's victory preparation. Don't confuse red candles with real risk`);
         } else if (trapScoreRounded >= 50) {
           lines.push(`  ⚡ Trap Score ${trapScoreRounded}/100: Moderate trap indicators detected`);
           lines.push(`  📊 Some divergences suggest caution`);
-          lines.push(`  🛡️ Exercise caution. Monitor market conditions closely before taking action`);
+          lines.push(`  🛡️ Your brain wants to do the wrong thing here. Wait for confirmation before jumping in`);
         } else {
           // 低リスク時：市場状況に応じたメッセージ
           if (isLowTrapRisk && isBullish) {
             // 低リスクかつ強気：より積極的なメッセージ
             lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Low trap risk detected`);
-            lines.push(`  📈 Market conditions appear favorable (Score: ${marketScore}/100). Monitor for clear entry opportunities`);
+            lines.push(`  📈 Score's at ${marketScore}/100—conditions look good. But cash is a position too. Wait for quality setups`);
             lines.push(`  💡 Low risk + bullish momentum = favorable conditions. Stay alert for quality setups`);
           } else if (isLowTrapRisk) {
             // 低リスクだが中立/弱気：標準的な防御メッセージ
             lines.push(`  ✅ Trap Score ${trapScoreRounded}/100: Currently low trap risk`);
-            lines.push(`  🛡️ Market conditions are stable. Maintain discipline and wait for high-quality opportunities`);
+            lines.push(`  🛡️ The data's clean, but discipline beats FOMO. Wait for quality setups`);
             lines.push(`  💡 Patience pays. Quality setups require both low risk and clear market direction`);
           } else {
             // フォールバック（scoreが取得できない場合）
@@ -566,7 +568,114 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
   lines.push('💊 Dr. Grok\'s Quick Insight');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   
-  // Grok X解析結果（Xセンチメント分析）
+  // ===== GrokとGeminiの統合最適化結果を表示 =====
+  if (integratedOptimization && integratedOptimization.integrated && integratedOptimization.optimization) {
+    const opt = integratedOptimization.optimization;
+    
+    // エラーコードを多言語メッセージに変換（英語）
+    const errorMessages = {
+      GROK_UNAVAILABLE: 'Grok X algorithm analysis is unavailable',
+      GROK_ERROR: 'Error occurred in Grok X algorithm analysis',
+      GEMINI_UNAVAILABLE: 'Gemini deep psychology analysis is unavailable',
+      GEMINI_ERROR: 'Error occurred in Gemini deep psychology analysis',
+    };
+    
+    // エラーメッセージの表示（部分的な統合の場合）
+    if (integratedOptimization.errorCodes && integratedOptimization.errorCodes.length > 0) {
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('⚠️ Some analyses are unavailable');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      integratedOptimization.errorCodes.forEach(code => {
+        const msg = errorMessages[code] || code;
+        lines.push(`   • ${msg}`);
+      });
+      lines.push('   💡 Displaying available results only');
+      lines.push('');
+    }
+    
+    // Grok由来のデータがあるかチェック（sourcesベース）
+    const hasGrok = !!integratedOptimization.sources?.grok && !integratedOptimization.sources.grok.error;
+    
+    // X Algorithm Optimization Insights (from Grok analysis) - sourcesベースで表示判定
+    if (hasGrok && opt.content && (opt.content.questionCTA || opt.engagementBoosters || opt.viralPotential !== undefined)) {
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('📱 X Post Optimization (Available Range)');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      
+      if (opt.content.questionCTA) {
+        lines.push(`💡 Engagement Strategy: ${opt.content.questionCTA}`);
+      }
+      
+      if (opt.engagementBoosters && opt.engagementBoosters.length > 0) {
+        lines.push(`🚀 Engagement Boosters: ${opt.engagementBoosters.slice(0, 3).join(', ')}`);
+      }
+      
+      // バイラル可能性を強調表示（重要情報）- 区切り線は1回のみ
+      if (opt.viralPotential !== null && opt.viralPotential !== undefined) {
+        const viralScore = Math.round(opt.viralPotential);
+        const viralEmoji = viralScore >= 70 ? '🔥' : viralScore >= 50 ? '⚡' : '💡';
+        const viralLabel = viralScore >= 70 ? '[HIGH]' : viralScore >= 50 ? '[MEDIUM]' : '[LOW]';
+        lines.push(`   ${viralEmoji} ${viralLabel} Viral Potential Score: ${viralScore}/100`);
+        if (opt.viralFactors && opt.viralFactors.length > 0) {
+          lines.push(`   📊 Key Factors: ${opt.viralFactors.slice(0, 2).join(', ')}`);
+        }
+      }
+      
+      if (opt.timing && opt.timing.length > 0) {
+        lines.push(`⏰ Optimal Posting Times: ${opt.timing.slice(0, 2).join(', ')}`);
+      }
+      
+      lines.push('');
+    }
+    
+    // Gemini由来のデータがあるかチェック（sourcesベース）
+    const hasGemini = !!integratedOptimization.sources?.gemini && !integratedOptimization.sources.gemini.error;
+    
+    // Deep Psychological Insights (from Gemini analysis) - 重要情報として強調表示（sourcesベースで表示判定）
+    if (hasGemini && opt.psychologicalInsights) {
+      const psyInsights = opt.psychologicalInsights;
+      
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('🧠 [IMPORTANT] Deep Psychological Insights');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      
+      if (psyInsights.currentState && psyInsights.currentState !== 'NEUTRAL') {
+        const stateEmoji = psyInsights.currentState === 'FOMO' ? '😰' :
+                           psyInsights.currentState === 'FEAR' ? '😨' :
+                           psyInsights.currentState === 'GREED' ? '😍' :
+                           psyInsights.currentState === 'PANIC' ? '😱' :
+                           psyInsights.currentState === 'EUPHORIA' ? '😄' :
+                           psyInsights.currentState === 'CONFUSION' ? '🤔' : '😐';
+        lines.push(`💚 Psychological State: ${stateEmoji} ${psyInsights.currentState}`);
+      }
+      
+      if (psyInsights.mentalBlocks && psyInsights.mentalBlocks.length > 0) {
+        lines.push(`🚧 Mental Blocks: ${psyInsights.mentalBlocks.slice(0, 2).join(', ')}`);
+      }
+      
+      // ブレークスルーインサイトを強調表示（区切り線はセクション開始のみ）
+      if (psyInsights.breakthroughInsights && psyInsights.breakthroughInsights.length > 0) {
+        lines.push(`   💡 [IMPORTANT] Breakthrough Insights:`);
+        psyInsights.breakthroughInsights.slice(0, 2).forEach(insight => {
+          lines.push(`   🔥 ${insight}`);
+        });
+      }
+      
+      if (psyInsights.personalizedCoaching && psyInsights.personalizedCoaching.trim()) {
+        const coachingLimit = 300;
+        let coachingDisplay = psyInsights.personalizedCoaching;
+        if (coachingDisplay.length > coachingLimit) {
+          coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
+        }
+        lines.push(`💊 Personalized Coaching:`);
+        lines.push(`"${coachingDisplay}"`);
+      }
+      
+      lines.push('');
+    }
+  }
+  
+  // Grok X解析結果（Xセンチメント分析）- 統合最適化がない場合のフォールバック
   if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
     const grokXLimit = 600;
     let grokXDisplay = grokXAnalysis;
@@ -591,7 +700,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
     lines.push('');
   }
   
-  // Dr. Grokの心理的サポート（メンタルコーチとして、具体的な心理的アドバイスを含む）
+  // Dr. Grokの心理的サポート（メンタルコーチとして、具体的な心理的アドバイスを含む）- 統合最適化がない場合のフォールバック
   if (psychologicalSupport && psychologicalSupport.psychologicalState !== 'UNKNOWN') {
     const stateEmoji = psychologicalSupport.psychologicalState === 'FOMO' ? '😰' :
                        psychologicalSupport.psychologicalState === 'FEAR' ? '😨' :
@@ -636,7 +745,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
       lines.push(`💊 Dr. Grok's Mental Note:`);
       lines.push(`"${mentalNote}"`);
     }
-  } else {
+  } else if (!integratedOptimization || !integratedOptimization.integrated) {
     // フォールバック: データが取得できない場合でも価値のあるメッセージを提供
     lines.push('💚 Psychological State: 😐 NEUTRAL (Risk: 💡 LOW)');
     lines.push('');

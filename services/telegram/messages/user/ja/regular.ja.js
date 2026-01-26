@@ -43,6 +43,8 @@ function formatRegularBriefing({
   // ニュース番組構造用パラメータ
   gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
+  // GrokとGeminiの統合最適化結果
+  integratedOptimization, // Grok Xアルゴリズム解析 × Gemini深層心理解析の統合結果
   // Phase 2: 市場別深掘りデータ
   whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
@@ -349,7 +351,7 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
     // Telegram Markdownでは [text] がリンクとして解釈されるため、[Summary]ではなく Summary: を使用
     summaryLine = `📰 要約: オンチェーンメトリクスは「待機モード」を示しています。${trapTypeDisplay}は安定した価格にもかかわらず、隠れたトラップを示唆しています。`;
   } else {
-    summaryLine = `📰 要約: オンチェーンメトリクスは「待機モード」を示しています。市場状況は安定していますが、トラップパターンに注意を払い続けてください。`;
+    summaryLine = `📰 要約: オンチェーンメトリクスは「待機モード」を示しています。データはクリーンですが、油断は禁物です。`;
   }
   lines.push(summaryLine);
   lines.push('');
@@ -385,7 +387,7 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
         lines.push(`📈 なぜ待つべきか？データは、${trapScoreRounded >= 70 ? '強い' : '中程度の'}シグナルを示しており、今エントリーすると市場のトラップにさらされる可能性があります`);
       } else {
         lines.push(`✅ トラップスコア: ${trapScoreRounded}/100 は低いトラップリスクを示しています`);
-        lines.push(`💡 証拠: 市場状況は比較的安全に見えますが、トラップパターンに注意を払い続けてください`);
+        lines.push(`💡 証拠: トラップスコアは${trapScoreRounded}/100—これ以上ないほどクリーンです。でも、ここがポイント：トラップは静けさの中で作られます`);
       }
     } else if (trapDetection || trapAlert) {
       // フォールバック: trapDetectionやtrapAlertから証拠を生成
@@ -413,27 +415,27 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
       if (trapScoreRounded >= 70) {
         lines.push(`  🚨 トラップスコア ${trapScoreRounded}/100: 強いシグナルが潜在的な市場トラップを示しています`);
         lines.push(`  📊 データは複数のダイバージェンスとオンチェーン異常を示しています`);
-        lines.push(`  🛡️ 戦略的な準備は弱さではない—勝利の準備だ。極度の注意を払おう`);
+        lines.push(`  🛡️ 戦略的な準備は弱さではない—勝利の準備だ。今いちばん危ないのは"焦り"です。赤いローソク足と本当のリスクを混同しないで`);
       } else if (trapScoreRounded >= 50) {
         lines.push(`  ⚡ トラップスコア ${trapScoreRounded}/100: 中程度のトラップ指標を検知しました`);
         lines.push(`  📊 一部のダイバージェンスが注意を促しています`);
-        lines.push(`  🛡️ 注意を払おう。行動を起こす前に市場状況を注意深く監視しよう`);
+        lines.push(`  🛡️ 焦って触らない。確認を待ってから動こう`);
       } else {
         // 低リスク時：市場状況に応じたメッセージ
         if (isLowTrapRisk && isBullish) {
           // 低リスクかつ強気：より積極的なメッセージ
           lines.push(`  ✅ トラップスコア ${trapScoreRounded}/100: 低トラップリスクが検出されました`);
-          lines.push(`  📈 市場状況は良好に見えます（スコア: ${marketScore}/100）。明確なエントリー機会を監視しよう`);
+          lines.push(`  📈 スコアは${marketScore}/100—条件は良さそうだ。でも待つのもポジション。質の高いセットアップを待とう`);
           lines.push(`  💡 低リスク + 強気の勢い = 良好な条件。質の高いセットアップに注意を払おう`);
         } else if (isLowTrapRisk) {
           // 低リスクだが中立/弱気：標準的な防御メッセージ
           lines.push(`  ✅ トラップスコア ${trapScoreRounded}/100: 現在は低トラップリスク`);
-          lines.push(`  🛡️ 市場状況は安定しています。規律を保ち、質の高い機会を待とう`);
+          lines.push(`  🛡️ データはクリーンだが、規律がFOMOに勝つ。質の高いセットアップを待とう`);
           lines.push(`  💡 忍耐は報われる。質の高いセットアップには低リスクと明確な市場方向の両方が必要`);
         } else {
           // フォールバック（scoreが取得できない場合）
           lines.push(`  ✅ トラップスコア ${trapScoreRounded}/100: 現在は低トラップリスクですが、市場は常に変化します`);
-          lines.push(`  🛡️ 規律を保とう。状況を監視し、明確なシグナルを待とう`);
+          lines.push(`  🛡️ 規律を保とう。状況を見守り、明確なシグナルを待とう`);
         }
       }
     }
@@ -454,7 +456,114 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
   // 安住紳一郎スタイル：落ち着いた解説トーンで、データに基づいた信頼感のある見立て
   lines.push('💊 Dr. Grokのクイックインサイト');
   
-  // Grok X解析結果（Xセンチメント分析）
+  // ===== GrokとGeminiの統合最適化結果を表示 =====
+  if (integratedOptimization && integratedOptimization.integrated && integratedOptimization.optimization) {
+    const opt = integratedOptimization.optimization;
+    
+    // エラーコードを多言語メッセージに変換（日本語）
+    const errorMessages = {
+      GROK_UNAVAILABLE: 'Grok Xアルゴリズム解析が利用できません',
+      GROK_ERROR: 'Grok Xアルゴリズム解析でエラーが発生しました',
+      GEMINI_UNAVAILABLE: 'Gemini深層心理解析が利用できません',
+      GEMINI_ERROR: 'Gemini深層心理解析でエラーが発生しました',
+    };
+    
+    // エラーメッセージの表示（部分的な統合の場合）
+    if (integratedOptimization.errorCodes && integratedOptimization.errorCodes.length > 0) {
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('⚠️ 一部の解析が利用できません');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      integratedOptimization.errorCodes.forEach(code => {
+        const msg = errorMessages[code] || code;
+        lines.push(`   • ${msg}`);
+      });
+      lines.push('   💡 利用可能な結果のみ表示しています');
+      lines.push('');
+    }
+    
+    // Grok由来のデータがあるかチェック（sourcesベース）
+    const hasGrok = !!integratedOptimization.sources?.grok && !integratedOptimization.sources.grok.error;
+    
+    // Xアルゴリズム最適化インサイト（Grok解析から）- sourcesベースで表示判定
+    if (hasGrok && opt.content && (opt.content.questionCTA || opt.engagementBoosters || opt.viralPotential !== undefined)) {
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('📱 X投稿の最適化（利用可能な範囲）');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      
+      if (opt.content.questionCTA) {
+        lines.push(`💡 エンゲージメント戦略: ${opt.content.questionCTA}`);
+      }
+      
+      if (opt.engagementBoosters && opt.engagementBoosters.length > 0) {
+        lines.push(`🚀 反応を増やす要素: ${opt.engagementBoosters.slice(0, 3).join('、')}`);
+      }
+      
+      // バイラル可能性を強調表示（重要情報）- 区切り線は1回のみ
+      if (opt.viralPotential !== null && opt.viralPotential !== undefined) {
+        const viralScore = Math.round(opt.viralPotential);
+        const viralEmoji = viralScore >= 70 ? '🔥' : viralScore >= 50 ? '⚡' : '💡';
+        const viralLabel = viralScore >= 70 ? '【高】' : viralScore >= 50 ? '【中】' : '【低】';
+        lines.push(`   ${viralEmoji} ${viralLabel} バイラル可能性スコア: ${viralScore}/100`);
+        if (opt.viralFactors && opt.viralFactors.length > 0) {
+          lines.push(`   📊 主要要因: ${opt.viralFactors.slice(0, 2).join('、')}`);
+        }
+      }
+      
+      if (opt.timing && opt.timing.length > 0) {
+        lines.push(`⏰ 最適投稿タイミング: ${opt.timing.slice(0, 2).join('、')}`);
+      }
+      
+      lines.push('');
+    }
+    
+    // Gemini由来のデータがあるかチェック（sourcesベース）
+    const hasGemini = !!integratedOptimization.sources?.gemini && !integratedOptimization.sources.gemini.error;
+    
+    // 深層心理インサイト（Gemini解析から）- 重要情報として強調表示（sourcesベースで表示判定）
+    if (hasGemini && opt.psychologicalInsights) {
+      const psyInsights = opt.psychologicalInsights;
+      
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('🧠 【重要】深層心理インサイト');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      
+      if (psyInsights.currentState && psyInsights.currentState !== 'NEUTRAL') {
+        const stateEmoji = psyInsights.currentState === 'FOMO' ? '😰' :
+                           psyInsights.currentState === 'FEAR' ? '😨' :
+                           psyInsights.currentState === 'GREED' ? '😍' :
+                           psyInsights.currentState === 'PANIC' ? '😱' :
+                           psyInsights.currentState === 'EUPHORIA' ? '😄' :
+                           psyInsights.currentState === 'CONFUSION' ? '🤔' : '😐';
+        lines.push(`💚 心理状態: ${stateEmoji} ${psyInsights.currentState}`);
+      }
+      
+      if (psyInsights.mentalBlocks && psyInsights.mentalBlocks.length > 0) {
+        lines.push(`🚧 メンタルブロック: ${psyInsights.mentalBlocks.slice(0, 2).join('、')}`);
+      }
+      
+      // ブレークスルーインサイトを強調表示（区切り線はセクション開始のみ）
+      if (psyInsights.breakthroughInsights && psyInsights.breakthroughInsights.length > 0) {
+        lines.push(`   💡 【重要】ブレークスルーインサイト:`);
+        psyInsights.breakthroughInsights.slice(0, 2).forEach(insight => {
+          lines.push(`   🔥 ${insight}`);
+        });
+      }
+      
+      if (psyInsights.personalizedCoaching && psyInsights.personalizedCoaching.trim()) {
+        const coachingLimit = 300;
+        let coachingDisplay = psyInsights.personalizedCoaching;
+        if (coachingDisplay.length > coachingLimit) {
+          coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
+        }
+        lines.push(`💊 パーソナライズされたコーチング:`);
+        lines.push(`"${coachingDisplay}"`);
+      }
+      
+      lines.push('');
+    }
+  }
+  
+  // Grok X解析結果（Xセンチメント分析）- 統合最適化がない場合のフォールバック
   if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
     const grokXLimit = 600;
     let grokXDisplay = grokXAnalysis;
@@ -479,7 +588,7 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
     lines.push('');
   }
   
-  // Dr. Grokの心理的サポート（癒し系コメンテーターとして）
+  // Dr. Grokの心理的サポート（癒し系コメンテーターとして）- 統合最適化がない場合のフォールバック
   if (psychologicalSupport && psychologicalSupport.psychologicalState !== 'UNKNOWN') {
     const stateEmoji = psychologicalSupport.psychologicalState === 'FOMO' ? '😰' :
                        psychologicalSupport.psychologicalState === 'FEAR' ? '😨' :
@@ -498,7 +607,7 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
       lines.push(`💊 Dr. Grokのメンタルノート:`);
       lines.push(`"${psychologicalSupport.mentalNote}"`);
     }
-  } else {
+  } else if (!integratedOptimization || !integratedOptimization.integrated) {
     // フォールバック: データが取得できない場合でも価値のあるメッセージを提供
     lines.push('💚 心理状態: 😐 NEUTRAL (リスク: 💡 低)');
     lines.push('');

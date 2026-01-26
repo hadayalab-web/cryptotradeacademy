@@ -42,6 +42,8 @@ function formatRegularBriefing({
   // ニュース番組構造用パラメータ
   gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
+  // GrokとGeminiの統合最適化結果
+  integratedOptimization, // Grok Xアルゴリズム解析 × Gemini深層心理解析の統合結果
   // Phase 2: 市場別深掘りデータ
   whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
@@ -270,7 +272,7 @@ function formatRegularBriefing({
    → ${mpi >= 0 ? '채굴자들이 매도 중. 이것은 단기적으로 약세입니다.' : '채굴자들이 매도하지 않습니다. 이것은 장기적으로 강세입니다.'}
 
 3. 🧠 ${sentimentLabel} 센티먼트
-   → ${sentimentLabel.toLowerCase().includes('fear') ? '소매 공황. 이것은 스마트 머니에게 기회입니다.' : sentimentLabel.toLowerCase().includes('greed') ? '소매 유포리아. 이것은 늦게 사는 사람들에게 위험입니다.' : '중립 조건. 경계하라.'}
+   → ${sentimentLabel.toLowerCase().includes('fear') ? '소매 공황. 이것은 스마트 머니에게 기회입니다.' : sentimentLabel.toLowerCase().includes('greed') ? '소매 유포리아. 이것은 늦게 사는 사람들에게 위험입니다.' : '중립 조건. 서두르지 마세요.'}
 
 💡 심리적 해석:
 
@@ -278,7 +280,7 @@ CryptoQuant 데이터는 ${inflowDisplay}, 채굴자 포지션 지수(MPI) ${mpi
 
 심리적 관점에서 이러한 지표는 ${sentimentLabel.toLowerCase()} 시장 환경을 시사합니다. ${inflow >= 0 ? '유입' : '유출'}은 ${inflow >= 0 ? '더 많은 암호화폐가 거래소로 유입되고 있음' : '더 많은 암호화폐가 거래소에서 유출되고 있음'}을 나타내며, 이는 종종 ${inflow >= 0 ? '잠재적인 매도 압력' : '보유자들이 거래소 외부에서 자산을 보호하고 있음'}을 의미합니다.
 
-${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 매도 압력. 이것이 바로 트랩이 형성되는 때입니다. 경계하라.' : '시장은 관망 모드에 있으며, 트레이더들이 조건을 신중하게 모니터링합니다.'}`;
+${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 매도 압력. 이것이 바로 트랩이 형성되는 때입니다. 서두르지 마세요.' : '시장은 관망 모드입니다. 서두르지 마세요.'}`;
   }
   
   // Telegram互換性: Markdown見出し（###）を削除してTelegramネイティブな形式に変換（先に実行）
@@ -388,7 +390,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
         lines.push(`📈 왜 기다려야 하는가? 데이터는 ${trapScoreRounded >= 70 ? '강한' : '중간 정도의'} 신호를 보여주며, 지금 진입하면 시장 트랩에 노출될 수 있습니다.`);
       } else {
         lines.push(`✅ 트랩 점수: ${trapScoreRounded}/100은 낮은 트랩 위험을 나타냅니다.`);
-        lines.push(`💡 증거: 시장 상황이 상대적으로 안전해 보이지만, 트랩 패턴에 대해 경계를 유지하세요.`);
+        lines.push(`💡 증거: 트랩 점수는 ${trapScoreRounded}/100—가능한 한 깨끗해요. 하지만 지금 제일 위험한 건 '손이 근질근질한 거'예요. 큰 함정은 조용히 만들어집니다`);
       }
     } else if (trapDetection || trapAlert) {
       // フォールバック: trapDetectionやtrapAlertから証拠を生成
@@ -420,7 +422,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
       } else if (trapScoreRounded >= 50) {
         lines.push(`  ⚡ 트랩 점수 ${trapScoreRounded}/100: 중간 정도의 트랩 지표가 감지되었습니다.`);
         lines.push(`  📊 일부 다이버전스가 주의를 촉구합니다.`);
-        lines.push(`  🛡️ 주의를 기울이세요. 행동하기 전에 시장 상황을 면밀히 모니터링하세요.`);
+        lines.push(`  🛡️ 지금은 '방어 모드'가 이기는 자리. 확인을 기다린 후 들어가세요`);
       } else {
         // 낮은 리스크: 시장 상황에 따른 메시지
         if (isLowTrapRisk && isBullish) {
@@ -431,12 +433,12 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
         } else if (isLowTrapRisk) {
           // 낮은 리스크이지만 중립/약세: 표준 방어 메시지
           lines.push(`  ✅ 트랩 점수 ${trapScoreRounded}/100: 현재 낮은 트랩 위험`);
-          lines.push(`  🛡️ 시장 상황이 안정적입니다. 규율을 유지하고 고품질 기회를 기다리세요.`);
+          lines.push(`  🛡️ 데이터는 깨끗하지만, 규율이 FOMO를 이겨요. 품질 있는 설정을 기다리세요`);
           lines.push(`  💡 인내는 보상받습니다. 품질 있는 설정은 낮은 리스크와 명확한 시장 방향 모두가 필요합니다.`);
         } else {
           // Fallback (점수를 얻을 수 없는 경우)
           lines.push(`  ✅ 트랩 점수 ${trapScoreRounded}/100: 현재 낮은 트랩 위험이지만 시장은 항상 변합니다.`);
-          lines.push(`  🛡️ 규율을 유지하세요. 상황을 모니터링하고 명확한 신호를 기다리세요.`);
+          lines.push(`  🛡️ 규율을 유지하세요. 상황을 지켜보고 명확한 신호를 기다리세요.`);
         }
       }
     }
@@ -453,7 +455,114 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
   // 【コメンテーター】Dr. Grok癒し系コメンテーター（固定コーナー）
   lines.push('💊 Dr. Grok의 의견');
   
-  // Grok X解析結果（Xセンチメント分析）
+  // ===== Grok와 Gemini 통합 최적화 결과 표시 =====
+  if (integratedOptimization && integratedOptimization.integrated && integratedOptimization.optimization) {
+    const opt = integratedOptimization.optimization;
+    
+    // 에러 코드를 다국어 메시지로 변환（한국어）
+    const errorMessages = {
+      GROK_UNAVAILABLE: 'Grok X 알고리즘 분석을 사용할 수 없습니다',
+      GROK_ERROR: 'Grok X 알고리즘 분석에서 오류가 발생했습니다',
+      GEMINI_UNAVAILABLE: 'Gemini 심층 심리 분석을 사용할 수 없습니다',
+      GEMINI_ERROR: 'Gemini 심층 심리 분석에서 오류가 발생했습니다',
+    };
+    
+    // 에러 메시지 표시（부분 통합의 경우）
+    if (integratedOptimization.errorCodes && integratedOptimization.errorCodes.length > 0) {
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('⚠️ 일부 분석을 사용할 수 없습니다');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      integratedOptimization.errorCodes.forEach(code => {
+        const msg = errorMessages[code] || code;
+        lines.push(`   • ${msg}`);
+      });
+      lines.push('   💡 사용 가능한 결과만 표시합니다');
+      lines.push('');
+    }
+    
+    // Grok 기원 데이터 확인（sources 기반）
+    const hasGrok = !!integratedOptimization.sources?.grok && !integratedOptimization.sources.grok.error;
+    
+    // X 알고리즘 최적화 인사이트（Grok 분석에서）- sources 기반으로 표시 판정
+    if (hasGrok && opt.content && (opt.content.questionCTA || opt.engagementBoosters || opt.viralPotential !== undefined)) {
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('📱 X 게시물 최적화（사용 가능한 범위）');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      
+      if (opt.content.questionCTA) {
+        lines.push(`💡 참여 전략: ${opt.content.questionCTA}`);
+      }
+      
+      if (opt.engagementBoosters && opt.engagementBoosters.length > 0) {
+        lines.push(`🚀 반응을 늘리는 요소: ${opt.engagementBoosters.slice(0, 3).join('、')}`);
+      }
+      
+      // 바이럴 가능성 강조 표시（중요 정보）- 구분선은 1회만
+      if (opt.viralPotential !== null && opt.viralPotential !== undefined) {
+        const viralScore = Math.round(opt.viralPotential);
+        const viralEmoji = viralScore >= 70 ? '🔥' : viralScore >= 50 ? '⚡' : '💡';
+        const viralLabel = viralScore >= 70 ? '【높음】' : viralScore >= 50 ? '【중간】' : '【낮음】';
+        lines.push(`   ${viralEmoji} ${viralLabel} 바이럴 가능성 점수: ${viralScore}/100`);
+        if (opt.viralFactors && opt.viralFactors.length > 0) {
+          lines.push(`   📊 주요 요인: ${opt.viralFactors.slice(0, 2).join(', ')}`);
+        }
+      }
+      
+      if (opt.timing && opt.timing.length > 0) {
+        lines.push(`⏰ 최적 게시 시간: ${opt.timing.slice(0, 2).join(', ')}`);
+      }
+      
+      lines.push('');
+    }
+    
+    // Gemini 기원 데이터 확인（sources 기반）
+    const hasGemini = !!integratedOptimization.sources?.gemini && !integratedOptimization.sources.gemini.error;
+    
+    // 심층 심리 인사이트（Gemini 분석에서）- 중요 정보로 강조 표시（sources 기반으로 표시 판정）
+    if (hasGemini && opt.psychologicalInsights) {
+      const psyInsights = opt.psychologicalInsights;
+      
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('🧠 【중요】심층 심리 인사이트');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      
+      if (psyInsights.currentState && psyInsights.currentState !== 'NEUTRAL') {
+        const stateEmoji = psyInsights.currentState === 'FOMO' ? '😰' :
+                           psyInsights.currentState === 'FEAR' ? '😨' :
+                           psyInsights.currentState === 'GREED' ? '😍' :
+                           psyInsights.currentState === 'PANIC' ? '😱' :
+                           psyInsights.currentState === 'EUPHORIA' ? '😄' :
+                           psyInsights.currentState === 'CONFUSION' ? '🤔' : '😐';
+        lines.push(`💚 심리 상태: ${stateEmoji} ${psyInsights.currentState}`);
+      }
+      
+      if (psyInsights.mentalBlocks && psyInsights.mentalBlocks.length > 0) {
+        lines.push(`🚧 멘탈 블록: ${psyInsights.mentalBlocks.slice(0, 2).join(', ')}`);
+      }
+      
+      // 브레이크스루 인사이트 강조 표시（구분선은 섹션 시작만）
+      if (psyInsights.breakthroughInsights && psyInsights.breakthroughInsights.length > 0) {
+        lines.push(`   💡 【중요】브레이크스루 인사이트:`);
+        psyInsights.breakthroughInsights.slice(0, 2).forEach(insight => {
+          lines.push(`   🔥 ${insight}`);
+        });
+      }
+      
+      if (psyInsights.personalizedCoaching && psyInsights.personalizedCoaching.trim()) {
+        const coachingLimit = 300;
+        let coachingDisplay = psyInsights.personalizedCoaching;
+        if (coachingDisplay.length > coachingLimit) {
+          coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
+        }
+        lines.push(`💊 개인화된 코칭:`);
+        lines.push(`"${coachingDisplay}"`);
+      }
+      
+      lines.push('');
+    }
+  }
+  
+  // Grok X解析結果（Xセンチメント分析）- 統合最適化がない場合のフォールバック
   if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
     const grokXLimit = 600;
     let grokXDisplay = grokXAnalysis;
@@ -478,7 +587,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
     lines.push('');
   }
   
-  // Dr. Grokの心理的サポート（癒し系コメンテーターとして）
+  // Dr. Grokの心理的サポート（癒し系コメンテーターとして）- 統合最適化がない場合のフォールバック
   if (psychologicalSupport && psychologicalSupport.psychologicalState !== 'UNKNOWN') {
     const stateEmoji = psychologicalSupport.psychologicalState === 'FOMO' ? '😰' :
                        psychologicalSupport.psychologicalState === 'FEAR' ? '😨' :
@@ -497,7 +606,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
       lines.push(`💊 Dr. Grok의 멘탈 노트:`);
       lines.push(`"${psychologicalSupport.mentalNote}"`);
     }
-  } else {
+  } else if (!integratedOptimization || !integratedOptimization.integrated) {
     // 폴백: 데이터를 가져올 수 없는 경우에도 가치 있는 메시지 제공
     lines.push('💚 심리 상태: 😐 NEUTRAL (위험: 💡 낮음)');
     lines.push('');
