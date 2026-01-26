@@ -256,7 +256,9 @@ const TWEET_TEMPLATES = {
       ? `\n🤔 Market stable NOW, but ${netflowStr} inflow & ${whaleStr} Whale Ratio scream SELLING PRESSURE. Calm before storm?`
       : `\n💡 Market stable NOW, but traps lurk. Stay alert!`;
     
-    // Grok最適化: 質問CTA（アルゴリズム評価UP）
+    // Grok + Gemini統合: 質問CTA（アルゴリズム評価UP）
+    // オープンエンド質問でリプライ誘導、投稿の20-30%を占めず自然配置
+    // 質問CTAはツイートの最後に配置（Gemini推奨）
     const question = trapScore <= 25 
       ? (exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50 
         ? "What's YOUR move if whales dump? Reply below! 👇"
@@ -908,20 +910,43 @@ async function postFreeReportAsThread(targetLangs, reportData) {
       // メイン投稿を実行（メディアIDを添付）
       const langMainResult = await postTweet(langMainTweet.substring(0, 280), mediaIds.length > 0 ? mediaIds : null, pollOptions);
       langMainTweetId = langMainResult.id;
-      await incrementDailyPostCount(dateString, 1);
-      await incrementHourlyPostCount(hourKey); // 1時間あたりの投稿数をインクリメント
       results.push({ lang, success: true, tweetId: langMainTweetId, isMain: true });
       console.log(`✅ Main tweet posted for ${lang}: ${langMainTweetId}`);
       
-      // 投稿IDをKVに保存（メトリクス追跡用）
+      // CRITICAL: KVストレージに構造化ログを記録
       try {
-        const { savePostId } = require('../services/x/postTracker');
+        const { logPostSuccess } = require('../services/core/postLogger');
+        await logPostSuccess({
+          postType: 'free_report',
+          tweetId: langMainTweetId,
+          lang,
+          contentFormat,
+          trapScore: reportData?.trapScore,
+          hasMedia: mediaIds.length > 0,
+          hasPoll: !!pollOptions,
+          dateString,
+        });
+      } catch (logError) {
+        console.warn(`[X Post Free Report] ⚠️ Failed to log post success to KV:`, logError.message);
+      }
+      
+      // 投稿IDをKVに保存（メトリクス追跡用）
+      // CRITICAL FIX: savePostIdが失敗した場合は致命的エラーとして処理
+      const { savePostId } = require('../services/x/postTracker');
+      try {
         await savePostId(langMainTweetId, 'free_report', lang, {
           contentFormat,
           trapScore: reportData?.trapScore,
         });
-      } catch (error) {
-        console.warn('[X Post Free Report] Failed to save post ID:', error.message);
+        
+        // 保存に成功した場合のみ投稿数をインクリメント（メイン投稿のみカウント）
+        await incrementDailyPostCount(dateString, 1);
+        await incrementHourlyPostCount(hourKey); // 1時間あたりの投稿数をインクリメント
+        console.log(`[X Post Free Report] ✅ Post count incremented after successful save (main tweet)`);
+      } catch (saveError) {
+        // CRITICAL: 保存に失敗した場合は致命的エラー
+        console.error(`[X Post Free Report] ❌ CRITICAL: Failed to save main post ID:`, saveError.message);
+        throw new Error(`CRITICAL: Failed to save main post ID to KV: ${langMainTweetId}. Original error: ${saveError.message}`);
       }
       
       // メイン投稿IDを設定（最初の言語の場合）
@@ -1005,23 +1030,27 @@ async function postFreeReportAsThread(targetLangs, reportData) {
           break;
         }
         const threadResult = await replyToTweet(optimizedThreadText.substring(0, 280), langMainTweetId);
-        await incrementDailyPostCount(dateString, 1); // 投稿数をインクリメント
-        await incrementHourlyPostCount(hourKey); // 1時間あたりの投稿数をインクリメント
         results.push({ lang, success: true, tweetId: threadResult.id, isThread: true, threadIndex: i + 2 });
         console.log(`✅ Thread ${i + 2}/${actualReplyCount + 1} posted for ${lang}: ${threadResult.id}`);
         
         // スレッドの投稿IDもKVに保存（メトリクス追跡用）
-        try {
-          const { savePostId } = require('../services/x/postTracker');
-          await savePostId(threadResult.id, 'free_report', lang, {
-            contentFormat,
-            isThread: true,
-            threadIndex: i + 2,
-            mainTweetId: langMainTweetId,
-          });
-        } catch (error) {
-          console.warn('[X Post Free Report] Failed to save thread post ID:', error.message);
+        // CRITICAL FIX: スレッドリプライはカウントしない（メイン投稿のみカウント）
+        // ただし、メトリクス追跡のためには保存する
+        const { savePostId } = require('../services/x/postTracker');
+        const threadSaveSuccess = await savePostId(threadResult.id, 'free_report', lang, {
+          contentFormat,
+          isThread: true,
+          threadIndex: i + 2,
+          mainTweetId: langMainTweetId,
+        });
+        
+        if (!threadSaveSuccess) {
+          console.warn(`[X Post Free Report] ⚠️ Failed to save thread post ID: ${threadResult.id} (non-critical, continuing)`);
         }
+        
+        // スレッドリプライは投稿数にカウントしない（メイン投稿のみカウント）
+        // incrementDailyPostCountは呼ばない
+        await incrementHourlyPostCount(hourKey); // 1時間あたりの投稿数のみインクリメント（レート制限管理用）
         
         // レート制限対策（2秒待機）
         await new Promise(resolve => setTimeout(resolve, 2000));

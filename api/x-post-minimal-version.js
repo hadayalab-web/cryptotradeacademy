@@ -352,16 +352,36 @@ async function postMinimalVersionToX(targetLangs, reportData) {
       const mainTweetId = mainResult.id;
       
       console.log(`[X Post Minimal] ✅ Main tweet posted: ${mainTweetId}`);
-      await incrementDailyPostCount(dateString, 1);
+      
+      // CRITICAL: KVストレージに構造化ログを記録
+      try {
+        const { logPostSuccess } = require('../services/core/postLogger');
+        await logPostSuccess({
+          postType: 'minimal_version',
+          tweetId: mainTweetId,
+          lang: normalizedLang,
+          threadLength: threadChunks.length,
+          dateString,
+        });
+      } catch (logError) {
+        console.warn(`[X Post Minimal] ⚠️ Failed to log post success to KV:`, logError.message);
+      }
       
       // 投稿IDをKVに保存（メトリクス追跡用）
+      // CRITICAL FIX: savePostIdが失敗した場合は致命的エラーとして処理
+      const { savePostId } = require('../services/x/postTracker');
       try {
-        const { savePostId } = require('../services/x/postTracker');
         await savePostId(mainTweetId, 'minimal_version', normalizedLang, {
           threadLength: threadChunks.length,
         });
-      } catch (error) {
-        console.warn('[X Post Minimal] Failed to save main post ID:', error.message);
+        
+        // 保存に成功した場合のみ投稿数をインクリメント（メイン投稿のみカウント）
+        await incrementDailyPostCount(dateString, 1);
+        console.log(`[X Post Minimal] ✅ Post count incremented after successful save (main tweet)`);
+      } catch (saveError) {
+        // CRITICAL: 保存に失敗した場合は致命的エラー
+        console.error(`[X Post Minimal] ❌ CRITICAL: Failed to save main post ID:`, saveError.message);
+        throw new Error(`CRITICAL: Failed to save main post ID to KV: ${mainTweetId}. Original error: ${saveError.message}`);
       }
       
       // リプライ（残りのチャンク）
@@ -386,19 +406,39 @@ async function postMinimalVersionToX(targetLangs, reportData) {
         const replyResult = await replyToTweet(replyText, lastReplyId);
         lastReplyId = replyResult.id;
         console.log(`[X Post Minimal] ✅ Reply ${i} posted: ${replyResult.id}`);
-        await incrementDailyPostCount(dateString, 1);
+        
+        // CRITICAL: リプライ投稿もログに記録
+        try {
+          const { logPostSuccess } = require('../services/core/postLogger');
+          await logPostSuccess({
+            postType: 'minimal_version_reply',
+            tweetId: replyResult.id,
+            lang: normalizedLang,
+            mainTweetId,
+            threadIndex: i + 1,
+            threadLength: threadChunks.length,
+            dateString,
+          });
+        } catch (logError) {
+          console.warn(`[X Post Minimal] ⚠️ Failed to log reply success to KV:`, logError.message);
+        }
         
         // スレッドのリプライIDもKVに保存（メトリクス追跡用）
-        try {
-          const { savePostId } = require('../services/x/postTracker');
-          await savePostId(replyResult.id, 'minimal_version', normalizedLang, {
-            isThread: true,
-            threadIndex: i + 1,
-            mainTweetId,
-          });
-        } catch (error) {
-          console.warn('[X Post Minimal] Failed to save thread reply ID:', error.message);
+        // CRITICAL FIX: スレッドリプライはカウントしない（メイン投稿のみカウント）
+        // ただし、メトリクス追跡のためには保存する
+        const { savePostId } = require('../services/x/postTracker');
+        const threadSaveSuccess = await savePostId(replyResult.id, 'minimal_version', normalizedLang, {
+          isThread: true,
+          threadIndex: i + 1,
+          mainTweetId,
+        });
+        
+        if (!threadSaveSuccess) {
+          console.warn(`[X Post Minimal] ⚠️ Failed to save thread reply ID: ${replyResult.id} (non-critical, continuing)`);
         }
+        
+        // スレッドリプライは投稿数にカウントしない（メイン投稿のみカウント）
+        // incrementDailyPostCountは呼ばない
       }
       
       // 投稿をマーク

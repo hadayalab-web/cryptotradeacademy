@@ -568,12 +568,35 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     const selectedInfluencers = selectInfluencersForImpressionTarget(influencers, lang);
     
     console.log(`[Quote Repost] ✅ Selected ${selectedInfluencers.length} influencers for ${lang} (target: ${targetCount})`);
+    console.log(`[Quote Repost] 📋 Source: STOCK LIST (高品質リストから選択)`);
     const totalImpressions = selectedInfluencers.reduce((sum, inf) => sum + (inf.recentImpressions || 0), 0);
     console.log(`[Quote Repost] 📊 Total estimated impressions: ${totalImpressions.toLocaleString()} (target: ${impressionTarget.min.toLocaleString()}-${impressionTarget.max.toLocaleString()})`);
     
     selectedInfluencers.forEach((inf, idx) => {
       console.log(`[Quote Repost]   [${idx + 1}] @${inf.username} - tweetId: ${inf.tweetId || 'MISSING'}, impressions: ${(inf.recentImpressions || 0).toLocaleString()}, engagement: ${((inf.engagementRate || 0) * 100).toFixed(2)}%`);
     });
+    
+    // CRITICAL: ストックリストからの選択をログに記録
+    try {
+      const { logPostSuccess } = require('../services/core/postLogger');
+      await logPostSuccess({
+        postType: 'quote_repost_selection',
+        lang,
+        selectedCount: selectedInfluencers.length,
+        targetCount,
+        totalEstimatedImpressions: totalImpressions,
+        source: 'stock_list',
+        influencers: selectedInfluencers.map(inf => ({
+          username: inf.username,
+          tweetId: inf.tweetId,
+          impressions: inf.recentImpressions || 0,
+          engagementRate: inf.engagementRate || 0,
+        })),
+        dateString: dateString,
+      });
+    } catch (logError) {
+      console.warn(`[Quote Repost] ⚠️ Failed to log selection to KV:`, logError.message);
+    }
     
     // 選択されたインフルエンサーを使用
     influencers = selectedInfluencers;
@@ -762,11 +785,52 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           console.log(`[Quote Repost]    - Language: ${lang}`);
           console.log(`[Quote Repost]    - UTC Hour: ${new Date().getUTCHours()}`);
           console.log(`[Quote Repost]    - Timestamp: ${new Date().toISOString()}`);
+          
+          // CRITICAL: KVストレージに構造化ログを記録（確実な証拠）
+          try {
+            const { logPostSuccess } = require('../services/core/postLogger');
+            await logPostSuccess({
+              postType: 'quote_repost',
+              quoteTweetId: result.id,
+              originalTweetId: influencer.tweetId,
+              lang,
+              influencerUsername: influencer.username,
+              influencerTweetId: influencer.tweetId,
+              estimatedImpressions: influencer.recentImpressions || 0,
+              engagementRate: influencer.engagementRate || 0,
+              quoteText: quoteText.substring(0, 200), // 最初の200文字のみ保存
+              quoteTextLength: quoteText.length,
+              utcHour: new Date().getUTCHours(),
+              dateString: dateString,
+            });
+          } catch (logError) {
+            // ログ記録の失敗は警告のみ（投稿は成功しているため）
+            console.warn(`[Quote Repost] ⚠️ Failed to log post success to KV:`, logError.message);
+          }
         } catch (postError) {
           // 投稿エラーを明確にログに記録
           console.error(`[Quote Repost] ❌❌❌ FAILED TO POST quote repost for ${lang} (@${influencer.username}):`);
           console.error(`[Quote Repost]    - Error: ${postError.message}`);
           console.error(`[Quote Repost]    - Stack: ${postError.stack?.substring(0, 500)}`);
+          
+          // CRITICAL: KVストレージに失敗ログを記録
+          try {
+            const { logPostFailure } = require('../services/core/postLogger');
+            await logPostFailure({
+              postType: 'quote_repost',
+              lang,
+              influencerUsername: influencer.username,
+              influencerTweetId: influencer.tweetId,
+              error: postError.message,
+              errorStack: postError.stack?.substring(0, 500),
+              quoteText: quoteText.substring(0, 200),
+              utcHour: new Date().getUTCHours(),
+              dateString: dateString,
+            });
+          } catch (logError) {
+            console.warn(`[Quote Repost] ⚠️ Failed to log post failure to KV:`, logError.message);
+          }
+          
           throw postError; // エラーを再スローして、下のcatchブロックで処理
         }
         
@@ -925,12 +989,48 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         console.log(`[Quote Repost] ✅✅✅ CONFIRMED: Quote repost ACTUALLY POSTED for ${lang} (@${influencer.username}): ${result.id}`);
         console.log(`[Quote Repost] 📊 Metrics tracking: Quote repost ${result.id} will be tracked by Cron Job (accurate impressions + engagement)`);
         
+        // CRITICAL: 最終確認ログをKVに記録（二重チェック）
+        try {
+          const { logPostSuccess } = require('../services/core/postLogger');
+          await logPostSuccess({
+            postType: 'quote_repost_confirmed',
+            quoteTweetId: result.id,
+            originalTweetId: influencer.tweetId,
+            lang,
+            influencerUsername: influencer.username,
+            confirmedAt: new Date().toISOString(),
+            metricsTracked: true,
+            impressions: quoteImpressions,
+            engagements: quoteEngagement,
+          });
+        } catch (logError) {
+          console.warn(`[Quote Repost] ⚠️ Failed to log confirmation to KV:`, logError.message);
+        }
+        
         // レート制限対策（1時間あたり3-4投稿まで）
         await new Promise(resolve => setTimeout(resolve, 900000)); // 15分待機（1時間4投稿まで）
       } catch (error) {
         console.error(`[Quote Repost] ❌❌❌ FAILED TO POST quote repost for ${lang} (@${influencer.username}):`);
         console.error(`[Quote Repost]    - Error: ${error.message}`);
         console.error(`[Quote Repost]    - Stack: ${error.stack?.substring(0, 500)}`);
+        
+        // CRITICAL: エラー時のログ記録
+        try {
+          const { logPostFailure } = require('../services/core/postLogger');
+          await logPostFailure({
+            postType: 'quote_repost',
+            lang,
+            influencerUsername: influencer.username,
+            influencerTweetId: influencer.tweetId,
+            error: error.message,
+            errorStack: error.stack?.substring(0, 500),
+            utcHour: new Date().getUTCHours(),
+            dateString: dateString,
+          });
+        } catch (logError) {
+          console.warn(`[Quote Repost] ⚠️ Failed to log error to KV:`, logError.message);
+        }
+        
         results.push({
           lang,
           influencer: influencer.username,
