@@ -333,7 +333,6 @@ module.exports = async function handler(req, res) {
   // P0 FIX: integratedOptimizationを関数スコープの最初で定義（スコープ問題の修正）
   // これにより、isRegularSlotブロックが実行されない場合でも、言語ループ内で使用可能
   let integratedOptimization = null;
-  }
 
   const debugBypass = req.query?.debug === 'local';
   const authHeader = req.headers.authorization;

@@ -27,6 +27,9 @@ const {
 // 8時間クールダウン関連のインポート
 const { isInCooldown, markLastPostedAt } = require('../services/x/influencerRotation');
 
+// ジッター（ランダム遅延）と言語間ウェイトのインポート（P0: 実装漏れ対応）
+const { applyJitter, applyLanguageWait } = require('../utils/scheduler');
+
 // Vercel KV（投稿履歴追跡用）
 let kv = null;
 try {
@@ -492,7 +495,7 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
  * インフルエンサーを発掘して引用リポスト（最適化版）
  * Grok推奨: 12投稿/日、ピーク時間のみ、投稿後15-60分以内
  */
-async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount = null, runId = null) {
+async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount = null, runId = null, deadlineMs = null) {
   // P0: 言語単位で例外を握りつぶさず、どのステップで落ちたかをログに残す
   const langRunId = runId || `qr-lang-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   let currentStep = 'start';
@@ -521,8 +524,8 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     // 修正: ピーク時間外の制限を緩和して、より多くの投稿を許可
     if (!isOriginalPeakTime) {
       // ピーク時間外でも、1日の投稿数が上限に達していない場合は許可（インプレッション最大化）
-      // 修正: 100ではなく、maxDailyPosts（環境変数で設定可能）と比較
-      const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '100', 10);
+      // AI推奨値200-300の中間値250をデフォルトに（スパム判定回避のため）
+      const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '250', 10);
       if (dailyPostCount >= maxDailyPosts) {
         console.log(`⏰ Skipping quote reposts for ${lang} (not original peak time and daily limit reached: ${currentHour} UTC, ${dailyPostCount}/${maxDailyPosts}) [runId: ${langRunId}, step: ${currentStep}]`);
         return [];
@@ -531,9 +534,10 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     }
     
     // 🚀 数撃て作戦: X APIレート制限とトークンコストを考慮した最適化（環境変数から取得）
-    // デフォルトは100（X APIレート制限: Per App 10,000/24hrs、Per User 100/15min）
+    // デフォルトは250（AI推奨値200-300の中間値、スパム判定回避のため）
+    // X APIレート制限: Per App 10,000/24hrs、Per User 100/15min（理論上9,600/24hrs）
     currentStep = 'daily_limit_check';
-    const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '100', 10);
+    const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '250', 10);
     if (!checkDailyPostLimit(dailyPostCount, maxDailyPosts)) {
       console.log(`⏰ Daily post limit reached (${dailyPostCount}/${maxDailyPosts}), skipping ${lang} [runId: ${langRunId}, step: ${currentStep}]`);
       return [];
@@ -698,7 +702,7 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     // フィルタで0件なら、その言語はスキップ（=条件付き実行）
     if (filteredInfluencers.length === 0) {
       console.log(`[Quote Repost] ⏰ All influencers for ${lang} are in cooldown, skipping [runId: ${langRunId}]`);
-      continue;
+      return []; // continueはループ内でのみ使用可能。関数内ではreturnを使用
     }
     
     // フィルタ後のインフルエンサーを使用
@@ -1287,7 +1291,16 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         }
         
         // レート制限対策（1時間あたり3-4投稿まで）
-        await new Promise(resolve => setTimeout(resolve, 900000)); // 15分待機（1時間4投稿まで）
+        // P0 FIX: 固定待機をジッター（ランダム遅延）に置き換え（maxDuration=60秒制約を考慮）
+        // 15分待機はmaxDuration=60秒を超えるため、3-10秒のジッターに変更
+        // 実際のレート制限はCronスケジュール（2時間ごと）で担保
+        // P0 FIX: deadlineMsを関数パラメータから取得（GPT-5.2レビュー対応）
+        await applyJitter({ 
+          label: `quote-repost ${lang} @${influencer.username} [runId: ${langRunId}]`, 
+          minMs: 3000, 
+          maxMs: 10000,
+          deadlineMs: deadlineMs
+        });
       } catch (error) {
         console.error(`[Quote Repost] ❌❌❌ FAILED TO POST quote repost for ${lang} (@${influencer.username}):`);
         console.error(`[Quote Repost]    - Error: ${error.message}`);
@@ -1363,8 +1376,11 @@ async function postQuoteReposts(reportData = null) {
     
     // 各言語ごとに引用リポスト（1時間に1言語 = 6時間で完了）
     // 実際の実装では、スケジューラーで1時間ごとに1言語ずつ実行
+    // P0 FIX: deadlineMsを統一生成して渡す（GPT-5.2レビュー対応）
+    const MAX_DURATION_MS = 60_000;
+    const deadlineMs = Date.now() + MAX_DURATION_MS - 1500;
     for (const lang of targetLangs) {
-      const langResults = await postQuoteRepostsForLang(lang, reportData);
+      const langResults = await postQuoteRepostsForLang(lang, reportData, null, null, null, deadlineMs);
       allResults.push(...langResults);
     }
     
@@ -1398,6 +1414,11 @@ const handler = async (req, res) => {
   // タイムアウト対策: 開始時刻を記録
   const startTime = Date.now();
   const TIMEOUT_MS = 50000; // 50秒（60秒制限の前に終了）
+  
+  // P0 FIX: エントリポイントでdeadlineMsを統一生成（GPT-5.2レビュー対応）
+  // すべての下位関数に渡すことで、タイムアウト処理を統一
+  const MAX_DURATION_MS = 60_000; // Vercel FunctionsのmaxDuration=60秒
+  const deadlineMs = Date.now() + MAX_DURATION_MS - 1500; // 1.5秒の安全マージン
   
   console.log('[Quote Repost] ========================================');
   console.log('[Quote Repost] Cron job triggered at', new Date().toISOString());
@@ -1669,7 +1690,7 @@ const handler = async (req, res) => {
     
     console.log(`[Quote Repost] Processing ${targetLangs.join(', ')} at peak time (${currentHour}:00 UTC, type: ${type}, count: ${count} per lang)`);
     // 🚀 数撃て作戦: X APIレート制限とトークンコストを考慮した最適化（環境変数から取得）
-    const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '100', 10); // デフォルト100投稿/日（X APIレート制限: Per App 10,000/24hrs）
+    const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '250', 10); // デフォルト250投稿/日（AI推奨値200-300の中間値、スパム判定回避のため）
     console.log(`[Quote Repost] Daily post count: ${currentDailyPostCount}/${maxDailyPosts}`);
     
     // ⚖️ バランスアプローチ: X APIレート制限に基づく1時間あたりの投稿数制限
@@ -1753,7 +1774,8 @@ const handler = async (req, res) => {
           
           try {
             langStep = 'postQuoteRepostsForLang';
-            const langResults = await postQuoteRepostsForLang(targetLang, reportData, updatedDailyPostCount, runId);
+            // P0 FIX: deadlineMsはhandler関数で統一生成済み（GPT-5.2レビュー対応）
+            const langResults = await postQuoteRepostsForLang(targetLang, reportData, updatedDailyPostCount, runId, deadlineMs);
             allResults.push(...langResults);
             
             // 投稿成功数をカウント
@@ -1778,22 +1800,16 @@ const handler = async (req, res) => {
           updatedHourlyPostCount = await incrementHourlyPostCount(hourKey);
           console.log(`[Quote Repost] Updated hourly post count: ${updatedHourlyPostCount}/${maxPostsPerHour} [runId: ${runId}]`);
           
-          // P0 FIX: レート制限対策（同一言語内で5-10分間隔）- forループ内に配置
-          // タイムアウト対策: 待機時間を短縮（タイムアウトが近い場合はスキップ）
+          // P0 FIX: レート制限対策（同一言語内でジッター適用）- forループ内に配置
+          // タイムアウト対策: 残り実行時間を考慮したジッター（ランダム遅延）
+          // P0 FIX: deadlineMsはhandler関数で統一生成済み（GPT-5.2レビュー対応）
           if (i < count - 1) {
-            const elapsed = Date.now() - startTime;
-            const remainingTime = TIMEOUT_MS - elapsed;
-            if (remainingTime > 60000) { // 残り時間が1分以上ある場合のみ待機
-              const delayMs = Math.min(5 * 60 * 1000, remainingTime - 10000); // 最低10秒のバッファを残す
-              if (delayMs > 0) {
-                console.log(`[Quote Repost] Waiting ${delayMs / 1000} seconds before next post for ${targetLang}... [runId: ${runId}]`);
-                await new Promise(resolve => setTimeout(resolve, delayMs));
-              } else {
-                console.log(`[Quote Repost] ⚠️ Timeout approaching, skipping delay [runId: ${runId}]`);
-              }
-            } else {
-              console.log(`[Quote Repost] ⚠️ Timeout approaching (${remainingTime}ms remaining), skipping delay [runId: ${runId}]`);
-            }
+            await applyJitter({ 
+              label: `quote-repost ${targetLang} next-post [runId: ${runId}]`, 
+              minMs: 3000, 
+              maxMs: 10000,
+              deadlineMs: deadlineMs
+            });
           }
         }
         
@@ -1812,22 +1828,17 @@ const handler = async (req, res) => {
         // 次の言語に進む（1言語失敗しても全体を止めない）
       }
       
-      // 言語間の待機時間（1-2分）
-      // タイムアウト対策: 待機時間を短縮
+      // 言語間の待機時間（言語間ウェイト）
+      // P0 FIX: 固定待機を`applyLanguageWait`（ランダム遅延）に置き換え
+      // タイムアウト対策: 残り実行時間を考慮
+      // P0 FIX: deadlineMsはhandler関数で統一生成済み（GPT-5.2レビュー対応）
       if (targetLang !== targetLangs[targetLangs.length - 1]) {
-        const elapsed = Date.now() - startTime;
-        const remainingTime = TIMEOUT_MS - elapsed;
-        if (remainingTime > 30000) { // 残り時間が30秒以上ある場合のみ待機
-          const delayMs = Math.min(1 * 60 * 1000, remainingTime - 10000); // 最低10秒のバッファを残す
-          if (delayMs > 0) {
-            console.log(`[Quote Repost] Waiting ${delayMs / 1000} seconds before next language...`);
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-          } else {
-            console.log(`[Quote Repost] ⚠️ Timeout approaching, skipping delay`);
-          }
-        } else {
-          console.log(`[Quote Repost] ⚠️ Timeout approaching (${remainingTime}ms remaining), skipping delay`);
-        }
+        await applyLanguageWait({ 
+          label: `quote-repost ${targetLang} -> next-lang [runId: ${runId}]`, 
+          minMs: 0, 
+          maxMs: 3000, // maxDuration=60秒制約を考慮し、0-3秒に短縮（Gemini推奨30-60秒は実現困難）
+          deadlineMs: deadlineMs
+        });
       }
     }
     
