@@ -25,7 +25,13 @@ const {
 } = require('../config/influencerStrategy');
 
 // 8時間クールダウン関連のインポート
-const { isInCooldown, markLastPostedAt } = require('../services/x/influencerRotation');
+const { 
+  isInCooldown, 
+  markLastPostedAt,
+  getDailyPostCount,
+  incrementDailyPostCount,
+  hasReachedDailyLimit,
+} = require('../services/x/influencerRotation');
 
 // ジッター（ランダム遅延）と言語間ウェイトのインポート（P0: 実装漏れ対応）
 const { applyJitter, applyLanguageWait } = require('../utils/scheduler');
@@ -679,9 +685,15 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       timestamp: new Date().toISOString(),
     });
     
-    // P0: 8時間クールダウンチェック（Grok + Gemini + GPT-5.2推奨）
+    // P0: 8時間クールダウンチェック + 日次上限チェック（Grok + Gemini + GPT-5.2推奨）
     currentStep = 'cooldown_filter';
     const filteredInfluencers = [];
+    
+    // 日次上限設定（環境変数から取得、デフォルト: 4回/日）
+    // 🚀 298投稿/日達成のため: 70人で平均4.3回/日が必要
+    // 8時間クールダウンにより実質的には最大3回/日が上限だが、ローテーションにより平均4.3回/日を達成可能
+    const maxDailyPostsPerInfluencer = parseInt(process.env.X_MAX_DAILY_POSTS_PER_INFLUENCER || '4', 10);
+    
     for (const inf of influencers) {
       const username = (inf.username || inf.userId || inf.id || '').replace(/^@/, '');
       if (!username) {
@@ -693,6 +705,14 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       const inCooldown = await isInCooldown(lang, username, 8);
       if (inCooldown) {
         console.log(`[Quote Repost] ⏰ Skipping @${username} (${lang}): in 8h cooldown [runId: ${langRunId}]`);
+        continue;
+      }
+      
+      // 日次上限チェック（298投稿/日達成のため: 1人あたり最大4回/日）
+      // 8時間クールダウンにより実質的には最大3回/日が上限だが、ローテーションにより平均4.3回/日を達成可能
+      const reachedLimit = await hasReachedDailyLimit(lang, username, maxDailyPostsPerInfluencer, dateString);
+      if (reachedLimit) {
+        console.log(`[Quote Repost] ⚠️ Skipping @${username} (${lang}): reached daily limit (${maxDailyPostsPerInfluencer} posts/day) [runId: ${langRunId}]`);
         continue;
       }
       
@@ -1013,6 +1033,14 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             await markLastPostedAt(lang, influencer.username, new Date());
           } catch (cooldownError) {
             console.warn(`[Quote Repost] ⚠️ Failed to mark last posted at (non-fatal):`, cooldownError.message);
+            // エラーでも投稿は成功扱い（可用性優先）
+          }
+          
+          // P0: 日次投稿数をインクリメント（Grok + Gemini + GPT-5.2推奨: 1人あたり2回/日上限）
+          try {
+            await incrementDailyPostCount(lang, influencer.username, dateString);
+          } catch (dailyLimitError) {
+            console.warn(`[Quote Repost] ⚠️ Failed to increment daily post count (non-fatal):`, dailyLimitError.message);
             // エラーでも投稿は成功扱い（可用性優先）
           }
           
@@ -1513,6 +1541,12 @@ const handler = async (req, res) => {
       });
     }
     
+    // Gemini推奨: ジッター（揺らぎ）の実装（1-15分のランダム遅延）
+    // ボット判定を回避するため、機械的な投稿タイミングを排除
+    const jitterMs = Math.random() * 15 * 60 * 1000; // 0〜15分のランダム遅延（ミリ秒）
+    console.log(`[Quote Repost] 🎲 Applying jitter: ${(jitterMs / 1000 / 60).toFixed(2)} minutes delay [runId: ${runId}]`);
+    await new Promise(resolve => setTimeout(resolve, jitterMs));
+    
     // Grok推奨: UTC時刻に基づいて処理する言語を決定（dry-runチェックの前に取得）
     const { getLanguagesForCurrentHour } = require('../services/x/optimization');
     const currentHour = new Date().getUTCHours();
@@ -1748,7 +1782,17 @@ const handler = async (req, res) => {
       timestamp: new Date().toISOString(),
     });
     
-    for (const targetLang of targetLangs) {
+    for (let langIndex = 0; langIndex < targetLangs.length; langIndex++) {
+      const targetLang = targetLangs[langIndex];
+      
+      // Gemini推奨: 言語間ウェイト（30-60秒の間隔）
+      // 6言語を一気に投稿すると「スパム」と判定されやすいため、言語ごとに30-60秒の間隔を空ける
+      if (langIndex > 0) {
+        const langWaitMs = (30 + Math.random() * 30) * 1000; // 30-60秒のランダム待機（ミリ秒）
+        console.log(`[Quote Repost] ⏳ Language wait: ${(langWaitMs / 1000).toFixed(1)} seconds before processing ${targetLang} [runId: ${runId}]`);
+        await new Promise(resolve => setTimeout(resolve, langWaitMs));
+      }
+      
       // タイムアウトチェック
       checkTimeout();
       

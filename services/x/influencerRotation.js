@@ -408,6 +408,90 @@ async function isInCooldown(lang, username, cooldownHours = 8, now = new Date())
   return inCooldown;
 }
 
+// 日次投稿数カウンターのキープレフィックス
+const DAILY_POST_COUNT_KEY_PREFIX = 'x:influencer_daily_post_count:';
+
+/**
+ * インフルエンサーの日次投稿数キーを生成
+ * @param {string} lang - 言語コード
+ * @param {string} username - インフルエンサーのユーザー名
+ * @param {string} dateString - 日付文字列（YYYY-MM-DD、省略時は今日）
+ * @returns {string} KVキー
+ */
+function getDailyPostCountKey(lang, username, dateString = null) {
+  const targetDate = dateString || new Date().toISOString().split('T')[0];
+  const l = (lang || 'en').toLowerCase();
+  const u = (username || '').replace(/^@/, '').toLowerCase();
+  return `${DAILY_POST_COUNT_KEY_PREFIX}${l}:${u}:${targetDate}`;
+}
+
+/**
+ * インフルエンサーの今日の投稿数を取得
+ * @param {string} lang - 言語コード
+ * @param {string} username - インフルエンサーのユーザー名
+ * @param {string} dateString - 日付文字列（YYYY-MM-DD、省略時は今日）
+ * @returns {Promise<number>} 今日の投稿数（取得できない場合は0）
+ */
+async function getDailyPostCount(lang, username, dateString = null) {
+  if (!kv) return 0;
+  try {
+    const key = getDailyPostCountKey(lang, username, dateString);
+    const count = await kv.get(key);
+    return typeof count === 'number' ? count : 0;
+  } catch (e) {
+    console.warn('[InfluencerRotation] getDailyPostCount failed:', e.message);
+    return 0;
+  }
+}
+
+/**
+ * インフルエンサーの日次投稿数をインクリメント
+ * @param {string} lang - 言語コード
+ * @param {string} username - インフルエンサーのユーザー名
+ * @param {string} dateString - 日付文字列（YYYY-MM-DD、省略時は今日）
+ * @returns {Promise<number>} インクリメント後の投稿数
+ */
+async function incrementDailyPostCount(lang, username, dateString = null) {
+  if (!kv) return 0;
+  try {
+    const targetDate = dateString || new Date().toISOString().split('T')[0];
+    const key = getDailyPostCountKey(lang, username, targetDate);
+    
+    // INCR操作（原子性を保証）
+    const newCount = await kv.incr(key);
+    
+    // TTLを設定（日付が変わっても安全に保持、48時間）
+    await kv.expire(key, 48 * 60 * 60);
+    
+    console.log(`[InfluencerRotation] ✅ Incremented daily post count for @${username} (${lang}): ${newCount}`);
+    return newCount;
+  } catch (e) {
+    console.warn('[InfluencerRotation] incrementDailyPostCount failed:', e.message);
+    return 0;
+  }
+}
+
+/**
+ * インフルエンサーが日次上限に達しているかチェック
+ * 🚀 298投稿/日達成のため: 1人あたり最大4回/日（デフォルト）
+ * 8時間クールダウンにより実質的には最大3回/日が上限だが、ローテーションにより平均4.3回/日を達成可能
+ * @param {string} lang - 言語コード
+ * @param {string} username - インフルエンサーのユーザー名
+ * @param {number} maxDailyPosts - 日次上限（デフォルト: 4回/日）
+ * @param {string} dateString - 日付文字列（YYYY-MM-DD、省略時は今日）
+ * @returns {Promise<boolean>} 上限に達している場合true
+ */
+async function hasReachedDailyLimit(lang, username, maxDailyPosts = 4, dateString = null) {
+  const currentCount = await getDailyPostCount(lang, username, dateString);
+  const reached = currentCount >= maxDailyPosts;
+  
+  if (reached) {
+    console.log(`[InfluencerRotation] ⚠️ @${username} (${lang}) has reached daily limit: ${currentCount}/${maxDailyPosts} posts`);
+  }
+  
+  return reached;
+}
+
 /**
  * 今日の投稿統計を取得
  * @param {string} lang - 言語コード
@@ -439,4 +523,8 @@ module.exports = {
   getLastPostedAt,
   markLastPostedAt,
   isInCooldown,
+  // 日次投稿数上限関連（Grok + Gemini + GPT-5.2推奨）
+  getDailyPostCount,
+  incrementDailyPostCount,
+  hasReachedDailyLimit,
 };
