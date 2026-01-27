@@ -365,13 +365,15 @@ If data is missing or insufficient, set signal to "STANDBY" and urgency to "low"
             Authorization: `Bearer ${OPENAI_API_KEY}`,
           },
           body: JSON.stringify({
-            model: modelToUse, // Phase 2: 用途別モデルを使用
+            model: modelToUse, // Phase 2: 用途別モデルを使用（gpt-5.2-2025-12-11）
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userContent },
             ],
             response_format: { type: 'json_object' },
-            max_tokens: 1000,
+            // GPT-5.2-2025-12-11の公式仕様に準拠
+            max_completion_tokens: 1000, // GPT-5.2ではmax_completion_tokensを使用
+            max_tokens: 1000, // 後方互換性のため残す
             temperature: 0.3,
           }),
         },
@@ -644,13 +646,17 @@ If data is missing or insufficient, state that clearly and provide general Trap 
             Authorization: `Bearer ${OPENAI_API_KEY}`,
           },
           body: JSON.stringify({
-            model: modelToUse, // Phase 2: 用途別モデルを使用
+            model: modelToUse, // Phase 2: 用途別モデルを使用（gpt-5.2-2025-12-11）
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userContent },
             ],
-            max_tokens: 800,
+            // GPT-5.2-2025-12-11の公式仕様に準拠
+            max_completion_tokens: 800, // GPT-5.2ではmax_completion_tokensを使用（max_tokensは後方互換性のため残す）
+            max_tokens: 800, // 後方互換性のため残す
             temperature: 0.6,
+            // reasoning.effortはGPT-5.2でサポートされているが、デフォルト（none）で問題ない
+            // 必要に応じて reasoning: { effort: "medium" } を追加可能
           }),
         },
         GPT_TIMEOUT_MS
@@ -840,12 +846,14 @@ If data is missing or insufficient, state that clearly.`;
             Authorization: `Bearer ${OPENAI_API_KEY}`,
           },
           body: JSON.stringify({
-            model: modelToUse, // Phase 2: 用途別モデルを使用
+            model: modelToUse, // Phase 2: 用途別モデルを使用（gpt-5.2-2025-12-11）
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userContent },
             ],
-            max_tokens: 1000,
+            // GPT-5.2-2025-12-11の公式仕様に準拠
+            max_completion_tokens: 1000, // GPT-5.2ではmax_completion_tokensを使用
+            max_tokens: 1000, // 後方互換性のため残す
             temperature: 0.7,
           }),
         },

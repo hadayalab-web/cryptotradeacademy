@@ -327,8 +327,12 @@ module.exports = async function handler(req, res) {
       pRetry = pRetryModule.default || pRetryModule;
     } catch (error) {
       console.error('[p-retry] Failed to import:', error);
-      throw error;
     }
+  }
+
+  // P0 FIX: integratedOptimizationを関数スコープの最初で定義（スコープ問題の修正）
+  // これにより、isRegularSlotブロックが実行されない場合でも、言語ループ内で使用可能
+  let integratedOptimization = null;
   }
 
   const debugBypass = req.query?.debug === 'local';
@@ -893,18 +897,28 @@ module.exports = async function handler(req, res) {
         }
       } catch (error) {
         console.error('[Event-Driven] Error in event trigger evaluation, falling back to legacy mode:', error);
-        // エラー時は既存動作を維持
+        console.error('[Event-Driven] Error stack:', error.stack);
+        // エラー時は既存動作を維持（isRegularSlotの場合は必ず送信）
+        if (isRegularSlot) {
+          shouldSend = true;
+          triggerType = 'REGULAR';
+          triggerReason = 'Fallback due to event-driven error';
+          console.log('[Event-Driven] Fallback: isRegularSlot=true, forcing shouldSend=true');
+        }
       }
     }
     // ===== Phase 1 End =====
 
     // 6-2. 定期配信時のAI解析（GPT + Grok分離）
     // イベント駆動有効時は、トリガー判定後にAI呼び出しを調整
+    // P0 FIX: isRegularSlotの場合は必ずAI解析を実行（エラー時も配信を継続）
     const shouldCallAI = shouldSend || isRegularSlot || force;
     let gptRegularAnalysis = null; // 定期配信用GPT解析
     let grokXAnalysis = null; // 定期配信用Grok X解析
     
+    // P0 FIX: isRegularSlotの場合は必ずAI解析を実行（エラー時も配信を継続）
     if (needsLongReport && shouldCallAI && isRegularSlot) {
+      console.log('[AI Analysis] Starting AI analysis for regular briefing (GPT + Grok + Gemini)...');
       // 定期配信時: GPTがCryptoQuantデータを解析、GrokがXを解析
       const cryptoQuantData = {
         inflow,
@@ -1102,7 +1116,7 @@ module.exports = async function handler(req, res) {
       }
 
       // GrokとGeminiの統合最適化（定期配信時のみ）
-      let integratedOptimization = null;
+      // P0 FIX: integratedOptimizationは関数スコープの最初で既に定義済み
       if (isRegularSlot && grokXAnalysis && psychologicalSupport) {
         try {
           console.log('[GrokGeminiOptimizer] Integrating Grok X algorithm analysis and Gemini deep psychology analysis...');
@@ -1229,11 +1243,22 @@ module.exports = async function handler(req, res) {
     // 定期配信（isRegularSlot）と強制配信（force）は必ず送信
     // イベント駆動のREGULARトリガーも送信（早期returnで既にフィルタリング済み）
     if (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && triggerType === 'REGULAR')) {
-      console.log('Sending REGULAR message to all languages...');
+      console.log('[REGULAR] Sending REGULAR message to all languages...');
+      console.log('[REGULAR] isRegularSlot:', isRegularSlot, 'force:', force, 'ENABLE_EVENT_DRIVEN:', ENABLE_EVENT_DRIVEN, 'triggerType:', triggerType);
       
       // 配信対象言語を取得（デフォルト: 6言語すべて）
       const targetLangsForRegular = getTargetLanguagesForRegular();
-      console.log(`[REGULAR] Target languages: ${targetLangsForRegular.join(', ')}`);
+      console.log(`[REGULAR] Target languages: ${targetLangsForRegular.join(', ')} (${targetLangsForRegular.length} languages)`);
+      
+      // P0 FIX: 言語リストが空でないことを確認
+      if (!targetLangsForRegular || targetLangsForRegular.length === 0) {
+        console.error('[REGULAR] ERROR: No target languages found! REGULAR_MULTI_LANG:', REGULAR_MULTI_LANG, 'LANG:', LANG);
+        return res.status(500).json({ 
+          error: 'No target languages configured for Regular Briefing',
+          REGULAR_MULTI_LANG,
+          LANG,
+        });
+      }
       
       // ===== 定期配信: サービス未利用ユーザーの悲惨な状況を報道 =====
       // 一度だけ計算して、各言語で使用
