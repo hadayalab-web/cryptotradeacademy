@@ -1,8 +1,5 @@
 {
   "functions": {
-    "api/**/*.js": {
-      "runtime": "nodejs18.x"
-    },
     "api/x-update-influencer-stock.js": {
       "maxDuration": 60
     },
