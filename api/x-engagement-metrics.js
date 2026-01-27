@@ -282,6 +282,67 @@ async function updateMetricsForDate(dateString) {
     if (failedTweetIds.length > 0) {
       console.log(`  Failed tweet IDs: ${failedTweetIds.join(", ")}`);
     }
+
+    // P0-1: インフルエンサー別パフォーマンスを構築（日次確定メトリクスから）
+    try {
+      const {
+        buildInfluencerDailyPerformance,
+      } = require("../services/x/influencerPerformance");
+
+      // metricsFetcher: tweetIdから確定メトリクスを取得する関数
+      const metricsFetcher = async (tweetId) => {
+        try {
+          const metrics = await getTweetMetrics(tweetId, true, {
+            maxRetries: 1,
+          });
+          if (!metrics || !metrics.publicMetrics) {
+            return null;
+          }
+
+          const impressions =
+            metrics.nonPublicMetrics?.impression_count ??
+            metrics.organicMetrics?.impression_count ??
+            0;
+          const engagements =
+            (metrics.publicMetrics?.like_count || 0) +
+            (metrics.publicMetrics?.retweet_count || 0) +
+            (metrics.publicMetrics?.reply_count || 0) +
+            (metrics.publicMetrics?.quote_count || 0);
+
+          return {
+            impressions,
+            engagements,
+            replies: metrics.publicMetrics?.reply_count || 0,
+            retweets: metrics.publicMetrics?.retweet_count || 0,
+            likes: metrics.publicMetrics?.like_count || 0,
+            quoteTweets: metrics.publicMetrics?.quote_count || 0,
+          };
+        } catch (error) {
+          console.warn(
+            `[X Engagement Metrics] ⚠️ Failed to fetch metrics for influencer performance (tweet ${tweetId}):`,
+            error.message
+          );
+          return null;
+        }
+      };
+
+      const perfResult = await buildInfluencerDailyPerformance(
+        dateString,
+        posts,
+        metricsFetcher
+      );
+
+      console.log(
+        `[X Engagement Metrics] ✅ Built influencer daily performance for ${dateString}:`,
+        perfResult
+      );
+    } catch (perfError) {
+      console.warn(
+        `[X Engagement Metrics] ⚠️ Failed to build influencer daily performance (non-fatal):`,
+        perfError.message
+      );
+      // エラーでもメトリクス更新は成功しているため続行
+    }
   } catch (error) {
     console.warn("[X Engagement Metrics] Failed to update metrics for date:", error.message);
   }
@@ -312,7 +373,7 @@ async function generateEngagementDashboard(dateString) {
   const replyRate =
     metrics.totalImpressions > 0 ? (metrics.totalReplies / metrics.totalImpressions) * 100 : 0;
 
-  return {
+  const dashboard = {
     date: dateString,
     summary: {
       totalTweets: metrics.tweets.length,
@@ -332,6 +393,138 @@ async function generateEngagementDashboard(dateString) {
     tweets: metrics.tweets,
     generatedAt: new Date().toISOString()
   };
+
+  // P0-2: インフルエンサー別パフォーマンスと投稿タイミング別エンゲージメント率を追加
+  try {
+    const { getPostsForDate } = require("../services/x/postTracker");
+    const { getInfluencerMapping } = require("../services/x/influencerPerformance");
+    const posts = await getPostsForDate(dateString);
+
+    // influencer単位に集約
+    const influencerAgg = new Map(); // key: `${lang}:${username}`
+    // UTC hour別に集約（0-23時）
+    const hourAgg = Array.from({ length: 24 }, (_, h) => ({
+      hour: h,
+      posts: 0,
+      impressions: 0,
+      engagements: 0,
+    }));
+
+    for (const t of metrics.tweets || []) {
+      // t: {tweetId, impressions, engagements, ...}
+      if (!t.tweetId) continue;
+
+      try {
+        // インフルエンサーマッピングを取得
+        const mapping = await getInfluencerMapping(t.tweetId);
+        if (mapping?.influencerUsername) {
+          const lang = mapping.lang || t.lang || "unknown";
+          const username = mapping.influencerUsername;
+          const key = `${lang}:${username}`;
+          const cur =
+            influencerAgg.get(key) ||
+            {
+              username,
+              lang,
+              posts: 0,
+              impressions: 0,
+              engagements: 0,
+            };
+
+          cur.posts += 1;
+          cur.impressions += t.impressions || 0;
+          cur.engagements += t.engagements || 0;
+          influencerAgg.set(key, cur);
+        }
+
+        // 投稿タイミング別集計（postedAtからUTC hourを取得）
+        const post = posts.find((p) => p.tweetId === t.tweetId);
+        if (post?.postedAt && (t.impressions || 0) > 0) {
+          try {
+            const hour = new Date(post.postedAt).getUTCHours();
+            hourAgg[hour].posts += 1;
+            hourAgg[hour].impressions += t.impressions || 0;
+            hourAgg[hour].engagements += t.engagements || 0;
+          } catch (dateError) {
+            // 日付パースエラーはスキップ
+          }
+        }
+      } catch (error) {
+        // 個別のエラーは警告のみ（全体の処理は続行）
+        console.warn(
+          `[X Engagement Metrics] ⚠️ Error processing tweet ${t.tweetId} for extensions:`,
+          error.message
+        );
+      }
+    }
+
+    // インフルエンサー別パフォーマンスを計算
+    const influencerRows = Array.from(influencerAgg.values())
+      .map((r) => ({
+        username: r.username,
+        lang: r.lang,
+        posts: r.posts,
+        avgER:
+          r.impressions > 0 ? r.engagements / r.impressions : null,
+      }))
+      .filter((r) => r.avgER != null)
+      .sort((a, b) => b.avgER - a.avgER);
+
+    // 上位20%の閾値（P80）を計算
+    const p80Index = Math.floor(influencerRows.length * 0.2) - 1;
+    const p80Threshold =
+      influencerRows.length > 0
+        ? influencerRows[Math.max(0, p80Index)]?.avgER || null
+        : null;
+
+    // UTC hour別のエンゲージメント率を計算
+    const byUtcHour = hourAgg.map((h) => ({
+      hour: h.hour,
+      posts: h.posts,
+      avgER:
+        h.impressions > 0 ? h.engagements / h.impressions : null,
+    }));
+
+    // 高エンゲージメントタイミングを特定（最低3投稿以上、ER降順）
+    const bestHours = byUtcHour
+      .filter((x) => x.avgER != null && x.posts >= 3)
+      .sort((a, b) => b.avgER - a.avgER)
+      .slice(0, 3)
+      .map((x) => x.hour);
+
+    // extensionsを追加
+    dashboard.extensions = {
+      influencers: {
+        top: influencerRows.slice(
+          0,
+          Math.max(5, Math.ceil(influencerRows.length * 0.2))
+        ),
+        bottom: influencerRows.slice(-5),
+        p80Threshold,
+      },
+      timing: {
+        byUtcHour,
+        bestHours,
+      },
+    };
+
+    console.log(
+      `[X Engagement Metrics] ✅ Added extensions to dashboard for ${dateString}:`,
+      {
+        influencerCount: influencerRows.length,
+        topInfluencers: dashboard.extensions.influencers.top.length,
+        bestHours: dashboard.extensions.timing.bestHours,
+      }
+    );
+  } catch (extError) {
+    console.warn(
+      `[X Engagement Metrics] ⚠️ Failed to add extensions to dashboard (non-fatal):`,
+      extError.message
+    );
+    // エラーでも基本ダッシュボードは返す
+  }
+
+  return dashboard;
 }
 
 // Vercel Cron実行時（毎日UTC 0時に実行）

@@ -275,9 +275,37 @@ async function updateEngagementStats(tweetId, eventType) {
   }
 
   try {
+    // P0-1: 新しいインフルエンサーパフォーマンス分析機能を統合
+    // 可能ならマッピングを取得してメタ補完（KV read 1回）
+    let meta = {};
+    try {
+      const {
+        getInfluencerMapping,
+        incrementTweetEngagement,
+      } = require("../services/x/influencerPerformance");
+      const mapping = await getInfluencerMapping(tweetId);
+      if (mapping?.influencerUsername) {
+        meta = {
+          influencerUsername: mapping.influencerUsername,
+          lang: mapping.lang,
+          postType: mapping.postType,
+        };
+      }
+
+      // tweet単位の速報カウンタ更新（KV write 1回）
+      await incrementTweetEngagement(tweetId, eventType, meta);
+    } catch (perfError) {
+      console.warn(
+        "[X Webhook] ⚠️ Failed to update influencer performance (non-fatal):",
+        perfError.message
+      );
+      // エラーでも既存の統計更新は続行
+    }
+
+    // 既存の統計更新ロジック（後方互換性のため維持）
     // ツイートIDでエンゲージメント統計を更新
     const key = `x:webhook:stats:${tweetId}`;
-    const stats = await kv.get(key) || {
+    const stats = (await kv.get(key)) || {
       likes: 0,
       retweets: 0,
       replies: 0,
@@ -285,11 +313,11 @@ async function updateEngagementStats(tweetId, eventType) {
     };
 
     // イベントタイプに応じてカウントを増加
-    if (eventType === 'like') {
+    if (eventType === "like") {
       stats.likes = (stats.likes || 0) + 1;
-    } else if (eventType === 'retweet') {
+    } else if (eventType === "retweet") {
       stats.retweets = (stats.retweets || 0) + 1;
-    } else if (eventType === 'reply') {
+    } else if (eventType === "reply") {
       stats.replies = (stats.replies || 0) + 1;
     }
 
@@ -298,19 +326,22 @@ async function updateEngagementStats(tweetId, eventType) {
     // KVストレージに保存（30日間保持）
     await kv.set(key, stats, { ex: 86400 * 30 });
 
-    console.log(`[X Webhook] 📊 Updated engagement stats for tweet ${tweetId}:`, stats);
+    console.log(
+      `[X Webhook] 📊 Updated engagement stats for tweet ${tweetId}:`,
+      stats
+    );
 
-    // 🔥 改善: インフルエンサーID別にエンゲージメントを集計
+    // 🔥 改善: インフルエンサーID別にエンゲージメントを集計（既存ロジック）
     try {
       const influencerMappingKey = `x:post:influencer:${tweetId}`;
       const influencerMapping = await kv.get(influencerMappingKey);
-      
+
       if (influencerMapping && influencerMapping.influencerUsername) {
         const influencerUsername = influencerMapping.influencerUsername;
         const influencerStatsKey = `x:webhook:stats:influencer:${influencerUsername}`;
-        
+
         // インフルエンサーID別の統計を取得または初期化
-        const influencerStats = await kv.get(influencerStatsKey) || {
+        const influencerStats = (await kv.get(influencerStatsKey)) || {
           totalLikes: 0,
           totalRetweets: 0,
           totalReplies: 0,
@@ -319,11 +350,12 @@ async function updateEngagementStats(tweetId, eventType) {
         };
 
         // 統計を更新
-        if (eventType === 'like') {
+        if (eventType === "like") {
           influencerStats.totalLikes = (influencerStats.totalLikes || 0) + 1;
-        } else if (eventType === 'retweet') {
-          influencerStats.totalRetweets = (influencerStats.totalRetweets || 0) + 1;
-        } else if (eventType === 'reply') {
+        } else if (eventType === "retweet") {
+          influencerStats.totalRetweets =
+            (influencerStats.totalRetweets || 0) + 1;
+        } else if (eventType === "reply") {
           influencerStats.totalReplies = (influencerStats.totalReplies || 0) + 1;
         }
 
@@ -332,15 +364,26 @@ async function updateEngagementStats(tweetId, eventType) {
         // インフルエンサーID別の統計を保存（30日間保持）
         await kv.set(influencerStatsKey, influencerStats, { ex: 86400 * 30 });
 
-        console.log(`[X Webhook] ✅ Updated influencer stats for @${influencerUsername}:`, influencerStats);
+        console.log(
+          `[X Webhook] ✅ Updated influencer stats for @${influencerUsername}:`,
+          influencerStats
+        );
       } else {
-        console.log(`[X Webhook] ℹ️ No influencer mapping found for tweet ${tweetId} (may be original tweet, not our quote repost)`);
+        console.log(
+          `[X Webhook] ℹ️ No influencer mapping found for tweet ${tweetId} (may be original tweet, not our quote repost)`
+        );
       }
     } catch (influencerStatsError) {
-      console.warn(`[X Webhook] ⚠️ Failed to update influencer stats:`, influencerStatsError.message);
+      console.warn(
+        `[X Webhook] ⚠️ Failed to update influencer stats:`,
+        influencerStatsError.message
+      );
     }
   } catch (error) {
-    console.error('[X Webhook] Error updating engagement stats:', error.message);
+    console.error(
+      "[X Webhook] Error updating engagement stats:",
+      error.message
+    );
   }
 }
 
@@ -443,11 +486,26 @@ async function handler(req, res) {
   // POSTリクエスト: Webhookイベント受信
   if (req.method === 'POST') {
     try {
+      // P0修正: raw body取得の試行（Vercel制約により、現状はJSON文字列化されたbodyを使用）
+      // 将来的には vercel.json で bodyParser: false を設定し、ストリームから読み取る実装を推奨
+      let rawBody = null;
+      let bodyString = null;
+      
+      // Vercelでは req.body が既にパースされているため、raw bodyを取得するには
+      // vercel.json で bodyParser: false を設定し、req.on('data') でストリームから読み取る必要がある
+      // 現状は JSON.stringify(req.body) を使用（キー順序がX APIと一致する可能性は低いが、動作確認は可能）
+      if (req.body) {
+        // 可能な限り一貫性のあるJSON文字列化（キー順序を固定）
+        bodyString = JSON.stringify(req.body, Object.keys(req.body).sort());
+        rawBody = bodyString; // 現状は同一として扱う
+      }
+      
       // 🔍 重要: POSTリクエストの詳細をログに記録
       console.log('[X Webhook] 🔵 POST request received:', {
         hasBody: !!req.body,
         bodyType: typeof req.body,
         bodyKeys: req.body ? Object.keys(req.body) : [],
+        hasRawBody: !!rawBody,
         headers: {
           'x-twitter-webhooks-signature': req.headers['x-twitter-webhooks-signature'] ? 'present' : 'missing',
           'x-twitter-request-timestamp': req.headers['x-twitter-request-timestamp'] || 'missing',
@@ -470,12 +528,26 @@ async function handler(req, res) {
       const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
       
       if (signature && timestamp) {
-        // P0 FIX: 生のリクエストボディを使用（JSON文字列化前）
-        // Vercelではreq.bodyが既にパースされているため、rawBodyが必要な場合は
-        // vercel.jsonで設定するか、ミドルウェアで保存する必要がある
-        // 現状はJSON文字列化したものを使用（実装の制約）
-        const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-        const isValid = verifyWebhookSignature(signature, body, timestamp);
+      // P0修正: raw body取得（Vercel制約により、現状はJSON文字列化されたbodyを使用）
+      // 将来的には vercel.json で bodyParser: false を設定し、ストリームから読み取る実装を推奨
+      // 現状は JSON.stringify(req.body) を使用（キー順序がX APIと一致する可能性は低いが、動作確認は可能）
+      let rawBody = null;
+      
+      // Vercelでは req.body が既にパースされているため、raw bodyを取得するには
+      // vercel.json で bodyParser: false を設定し、req.on('data') でストリームから読み取る必要がある
+      // 現状は JSON.stringify(req.body) を使用（実装の制約）
+      if (typeof req.body === 'string') {
+        // 既に文字列の場合はそのまま使用
+        rawBody = req.body;
+      } else if (req.body) {
+        // オブジェクトの場合はJSON文字列化（キー順序を固定して一貫性を保つ）
+        rawBody = JSON.stringify(req.body, Object.keys(req.body).sort());
+      } else {
+        // bodyが無い場合は空文字列
+        rawBody = '';
+      }
+      
+      const isValid = verifyWebhookSignature(signature, rawBody, timestamp);
         
         console.log('[X Webhook] 🔐 Signature verification:', {
           hasSignature: !!signature,

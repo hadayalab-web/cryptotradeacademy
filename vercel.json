@@ -7,6 +7,12 @@
       "maxDuration": 60
     }
   },
+  "rewrites": [
+    {
+      "source": "/api/x-webhook",
+      "destination": "/api/x-webhook"
+    }
+  ],
   "crons": [
     { "path": "/api/cron", "schedule": "*/15 * * * *" },
     { "path": "/api/weekly-report", "schedule": "0 0 * * 0" },

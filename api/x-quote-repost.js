@@ -1013,16 +1013,18 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           }
           
           // 🔥 改善: ツイートIDとインフルエンサーIDの関連を保存（WebhookでインフルエンサーID別の集計に使用）
+          // P1推奨実装: influencerPerformanceモジュールのsetInfluencerMappingを使用
           try {
-            if (kv && result.id) {
-              const influencerMappingKey = `x:post:influencer:${result.id}`;
-              await kv.set(influencerMappingKey, {
+            if (result.id) {
+              const { setInfluencerMapping } = require('../services/x/influencerPerformance');
+              await setInfluencerMapping(result.id, {
+                username: influencer.username,
                 influencerUsername: influencer.username,
-                influencerTweetId: influencer.tweetId,
                 lang,
+                postType: 'quote_repost',
                 postedAt: new Date().toISOString(),
-              }, { ex: 86400 * 30 }); // 30日間保持
-              console.log(`[Quote Repost] ✅ Saved influencer mapping: ${influencerMappingKey} -> @${influencer.username}`);
+              });
+              console.log(`[Quote Repost] ✅ Saved influencer mapping: tweetId=${result.id} -> @${influencer.username}`);
             }
           } catch (mappingError) {
             console.warn(`[Quote Repost] ⚠️ Failed to save influencer mapping:`, mappingError.message);
