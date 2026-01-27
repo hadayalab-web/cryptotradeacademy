@@ -5,13 +5,8 @@
 // - 日付キーは `new Date().toISOString().split('T')[0]` で生成（UTC基準）
 // - ローテーション、投稿済み判定、日次上限はすべてUTC日付で動作
 
-let kv = null;
-try {
-  const kvModule = require('@vercel/kv');
-  kv = kvModule.kv;
-} catch (error) {
-  console.warn('[InfluencerRotation] @vercel/kv not available:', error.message);
-}
+// 🚀 シームレスなKVアクセス（utils/kv.js経由）
+const { kv } = require('../../utils/kv');
 
 // KVキーのプレフィックス
 const ROTATION_KEY_PREFIX = 'x:influencer_rotation:';

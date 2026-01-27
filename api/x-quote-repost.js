@@ -36,14 +36,8 @@ const {
 // ジッター（ランダム遅延）と言語間ウェイトのインポート（P0: 実装漏れ対応）
 const { applyJitter, applyLanguageWait } = require('../utils/scheduler');
 
-// Vercel KV（投稿履歴追跡用）
-let kv = null;
-try {
-  const kvModule = require('@vercel/kv');
-  kv = kvModule.kv;
-} catch (error) {
-  console.warn('[Quote Repost] @vercel/kv not available:', error.message);
-}
+// 🚀 シームレスなKVアクセス（utils/kv.js経由）
+const { kv } = require('../../utils/kv');
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 

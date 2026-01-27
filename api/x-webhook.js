@@ -4,14 +4,8 @@
 const crypto = require('crypto');
 const getRawBody = require('raw-body');
 
-// Vercel KV（エンゲージメントデータ保存用）
-let kv = null;
-try {
-  const kvModule = require('@vercel/kv');
-  kv = kvModule.kv;
-} catch (error) {
-  console.warn('[X Webhook] @vercel/kv not available:', error.message);
-}
+// 🚀 シームレスなKVアクセス（utils/kv.js経由）
+const { kv } = require('../../utils/kv');
 
 // X API Consumer Secret（Webhook署名検証用）
 const X_API_CONSUMER_KEY_SECRET = process.env.X_API_CONSUMER_KEY_SECRET;

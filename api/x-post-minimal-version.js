@@ -23,14 +23,8 @@ const loadUserTemplates = (lang) => {
   }
 };
 
-// Vercel KV（投稿履歴追跡用）
-let kv = null;
-try {
-  const kvModule = require('@vercel/kv');
-  kv = kvModule.kv;
-} catch (error) {
-  console.warn('[X Post Minimal] @vercel/kv not available:', error.message);
-}
+// 🚀 シームレスなKVアクセス（utils/kv.js経由）
+const { kv } = require('../../utils/kv');
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 

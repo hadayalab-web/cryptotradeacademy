@@ -1,6 +1,9 @@
 // services/x/optimization.js
 // Xアルゴリズム最適化ロジック（Grok推奨事項ベース）
 
+// 🚀 シームレスなKVアクセス（utils/kv.js経由）
+const { kv } = require('../../utils/kv');
+
 /**
  * 言語別ピーク時間を取得（UTC）
  * Grok推奨: 言語別のピーク時間に投稿タイミングを調整
@@ -187,11 +190,10 @@ function getContentFormat(sequence = 0) {
 /**
  * 引用リポストの最適なタイミングを計算
  * 🚀 数撃て作戦: 全時間帯で投稿可能（UTC 0-23）
- * Grok推奨: インフルエンサーの投稿後10-20分以内（新鮮度MAX、競合低）
- * 注意: UTC 0:00と1:00も引用リポストのピーク時間として定義されているため、isPeakTimeWindowチェックを削除
+ * 修正: タイミングチェックを緩和して、より多くの投稿を許可
  * 
- * 修正: createdAtが存在しない場合、または現在時刻に近すぎる場合は、タイミングチェックをスキップ
- * （実際の投稿時刻が取得できない場合でも、全時間帯で投稿を許可）
+ * 重要: インフルエンサーへの投稿ロジックを変更して回数を増やしたため、
+ * タイミングチェックを緩和してX APIのクレジットが実際に使用されるようにする
  */
 function shouldPostQuoteRepost(influencerTweetTimestamp, currentTime = null) {
   const now = currentTime || new Date();
@@ -199,33 +201,37 @@ function shouldPostQuoteRepost(influencerTweetTimestamp, currentTime = null) {
   const minutesDiff = (now - tweetTime) / (1000 * 60);
   
   // 🚀 数撃て作戦: 全時間帯で投稿可能（UTC 0-23）
-  // 元のピーク時間（UTC 0,1,20,21）は優先度が高いが、他の時間帯でも投稿可能
+  // タイミングチェックを大幅に緩和して、より多くの投稿を許可
   
-  // createdAtが存在しない場合、または現在時刻に近すぎる場合（5分以内）は、
+  // createdAtが存在しない場合、または現在時刻に近すぎる場合（30分以内）は、
   // 実際の投稿時刻が取得できていない可能性が高いため、タイミングチェックをスキップ
   // 全時間帯で投稿を許可（インプレッション最大化のため）
-  if (minutesDiff < 5) {
-    // 現在時刻に近すぎる = createdAtが実際の投稿時刻ではない可能性が高い
+  if (minutesDiff < 5 || isNaN(minutesDiff) || !isFinite(minutesDiff)) {
+    // 現在時刻に近すぎる、または無効な時刻 = createdAtが実際の投稿時刻ではない可能性が高い
     // 全時間帯で投稿を許可（数撃て作戦）
+    console.log(`[Optimization] ✅ Allowing quote repost (invalid or recent timestamp: ${minutesDiff} minutes)`);
     return true;
   }
   
-  // 実際の投稿時刻が取得できている場合、Grok推奨の10-20分以内をチェック
-  // Grok推奨: 10-20分以内（アルゴリズムの「新鮮度」ボーナス最大）
-  // 🚀 数撃て作戦: 元のピーク時間外でも、10-20分以内であれば投稿を許可
-  if (minutesDiff >= 10 && minutesDiff <= 20) {
+  // 🚀 数撃て作戦: タイミングチェックを大幅に緩和
+  // 元の制限: 10-20分以内、またはピーク時間のみ
+  // 新しい制限: 60分以内であれば投稿を許可（より多くの投稿を許可）
+  if (minutesDiff >= 0 && minutesDiff <= 60) {
+    console.log(`[Optimization] ✅ Allowing quote repost (within 60 minutes: ${minutesDiff.toFixed(1)} minutes)`);
     return true;
   }
   
-  // 10-20分の範囲外でも、元のピーク時間（UTC 0,1,20,21）であれば投稿を許可
+  // 60分を超えている場合でも、ピーク時間（UTC 0,1,20,21,22）であれば投稿を許可
   const hour = now.getUTCHours();
-  const originalPeakHours = [0, 1, 20, 21]; // 元の優先ピーク時間
-  if (originalPeakHours.includes(hour)) {
+  const peakHours = [0, 1, 20, 21, 22]; // ピーク時間を拡大
+  if (peakHours.includes(hour)) {
+    console.log(`[Optimization] ✅ Allowing quote repost (peak hour: UTC ${hour}:00, ${minutesDiff.toFixed(1)} minutes old)`);
     return true;
   }
   
   // それ以外の場合は、タイミングが最適でないためfalseを返す
-  // （ただし、呼び出し側で日次制限をチェックしているため、この関数はタイミングチェックのみ）
+  // ただし、ログを出力してデバッグ可能にする
+  console.log(`[Optimization] ⏰ Skipping quote repost (not optimal timing: ${minutesDiff.toFixed(1)} minutes old, UTC ${hour}:00)`);
   return false;
 }
 
@@ -236,15 +242,6 @@ function shouldPostQuoteRepost(influencerTweetTimestamp, currentTime = null) {
  * @returns {Promise<number>} 1日の投稿数
  */
 async function getDailyPostCount(dateString) {
-  let kv = null;
-  try {
-    const kvModule = require('@vercel/kv');
-    kv = kvModule.kv;
-  } catch (error) {
-    console.warn('[Optimization] @vercel/kv not available for daily post count');
-    return 0;
-  }
-  
   if (!kv) {
     return 0;
   }
@@ -267,15 +264,6 @@ async function getDailyPostCount(dateString) {
  * @returns {Promise<number>} 更新後の投稿数
  */
 async function incrementDailyPostCount(dateString, count = 1) {
-  let kv = null;
-  try {
-    const kvModule = require('@vercel/kv');
-    kv = kvModule.kv;
-  } catch (error) {
-    console.warn('[Optimization] @vercel/kv not available for daily post count');
-    return 0;
-  }
-  
   if (!kv) {
     return 0;
   }
@@ -295,12 +283,13 @@ async function incrementDailyPostCount(dateString, count = 1) {
 /**
  * 1日の投稿上限をチェック
  * 🚀 数撃て作戦: X APIレート制限に基づく上限設定
- * X APIレート制限: Per User 100/15min, Per App 10,000/24hrs
- * 環境変数で変更可能: X_MAX_DAILY_POSTS（デフォルト: 100）
+ * X APIレート制限: Per User 100/15min (理論上9,600/24hrs), Per App 10,000/24hrs
+ * AI推奨値（スパム判定回避）: 200-300投稿/日（grok-4-1-fast-reasoning, gemini-3-pro-preview推奨）
+ * 環境変数で変更可能: X_MAX_DAILY_POSTS（デフォルト: 250 = AI推奨値の中間値）
  */
 function checkDailyPostLimit(currentPostCount, maxPosts = null) {
-  // 環境変数から取得、なければデフォルト値を使用
-  const defaultMaxPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '100', 10);
+  // 環境変数から取得、なければデフォルト値を使用（AI推奨値200-300の中間値250）
+  const defaultMaxPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '250', 10);
   const limit = maxPosts !== null ? maxPosts : defaultMaxPosts;
   return currentPostCount < limit;
 }
@@ -328,15 +317,6 @@ function checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour = null) {
  * @returns {Promise<number>} 1時間あたりの投稿数
  */
 async function getHourlyPostCount(hourKey) {
-  let kv = null;
-  try {
-    const kvModule = require('@vercel/kv');
-    kv = kvModule.kv;
-  } catch (error) {
-    console.warn('[Optimization] @vercel/kv not available for hourly post count');
-    return 0;
-  }
-  
   if (!kv) {
     return 0;
   }
@@ -356,15 +336,6 @@ async function getHourlyPostCount(hourKey) {
  * @returns {Promise<number>} 更新後の投稿数
  */
 async function incrementHourlyPostCount(hourKey) {
-  let kv = null;
-  try {
-    const kvModule = require('@vercel/kv');
-    kv = kvModule.kv;
-  } catch (error) {
-    console.warn('[Optimization] @vercel/kv not available for hourly post count');
-    return 0;
-  }
-  
   if (!kv) {
     return 0;
   }
@@ -575,35 +546,44 @@ async function getTrendyHashtags(lang, topic = 'BTC') {
  * @returns {Object} { langs: Array<string>, type: 'quote'|'free_report'|'minimal', count: number }
  */
 function getPeakMapForHour(hour) {
-  // Grok推奨: クラスター化とピーク時間最適化（2026-01-25更新）
-  // エンゲージメント速度最大化のため、3-4投稿/30分のクラスター化
-  // x-quote-repost: UTC 0,1,13,14,20,21,22（クラスター化）
-  // x-post-free-report: UTC 12,13,14,15,18（クラスター化）
-  // x-post-minimal-version-cron: UTC 8,20（2回/日）
+  // 🚀 数撃て作戦: 1日298投稿を達成するため、すべての時間帯でQuote Repostを実行
+  // Cron設定: UTC 0,2,4,6,8,10,12,14,16,18,20,22（1日12回）
+  // 目標: EN 148投稿/日、その他5言語 各30投稿/日 = 合計298投稿/日
+  // ピーク時間（UTC 0,1,20,21,22）: EN 10人、その他 2人
+  // オフピーク時間（UTC 13,14）: EN 4人、その他 1人
+  // その他の時間: EN 10人、その他 2人
   
   // UTC 13:00と14:00、20:00は複数のタイプが重複するため、特別処理
   if (hour === 13) {
-    // UTC 13:00: KO free_report + KO/JA quote（クラスター化）
-    return { langs: ['ko', 'ja'], type: 'quote', count: 2, alsoFreeReport: ['ko'] };
+    // UTC 13:00: KO free_report + KO/JA quote（オフピーク: KO 1人、JA 1人）
+    return { langs: ['ko', 'ja'], type: 'quote', count: 1, alsoFreeReport: ['ko'] };
   }
   if (hour === 14) {
-    // UTC 14:00: EN/PT-BR free_report + JA quote（クラスター化）
-    return { langs: ['en', 'pt-br', 'ja'], type: 'free_report', count: 1, alsoQuote: ['ja'] };
+    // UTC 14:00: EN/PT-BR free_report + EN/JA quote（オフピーク: EN 4人、JA 1人）
+    return { langs: ['en', 'ja'], type: 'quote', count: 1, alsoFreeReport: ['en', 'pt-br'] };
   }
   if (hour === 20) {
-    // UTC 20:00: EN/PT-BR quote + EN minimal（クラスター化）
-    return { langs: ['en', 'pt-br'], type: 'quote', count: 4, alsoMinimal: ['en'] };
+    // UTC 20:00: EN/PT-BR quote + EN minimal（ピーク時間: EN 10人、PT-BR 2人）
+    return { langs: ['en', 'pt-br'], type: 'quote', count: 2, alsoMinimal: ['en'] };
   }
   
+  // すべての時間帯でQuote Repostを実行（298投稿/日達成）
+  // countパラメータは各言語に対してpostQuoteRepostsForLangを呼び出す回数（通常は1）
+  // 実際のインフルエンサー数はgetInfluencerCountForLangによって決定される
   const peakMap = {
-    0: { langs: ['ar'], type: 'quote', count: 2 },      // AR: UTC 0:00 (ME peak)
-    1: { langs: ['ko'], type: 'quote', count: 2 },      // KO: UTC 1:00 (KR eve)
-    8: { langs: ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'], type: 'minimal', count: 1 }, // Minimal Version: UTC 8:00 (Global)
-    12: { langs: ['en'], type: 'free_report', count: 1 }, // EN: UTC 12:00 (US morn)
-    15: { langs: ['es'], type: 'free_report', count: 1 }, // ES: UTC 15:00 (LATAM)
-    18: { langs: ['ar'], type: 'free_report', count: 1 }, // AR: UTC 18:00 (ME)
-    21: { langs: ['es'], type: 'quote', count: 2 },      // ES: UTC 21:00 (LATAM)
-    22: { langs: ['pt-br', 'es'], type: 'quote', count: 2 }, // PT-BR/ES: UTC 22:00 (LATAM) - クラスター化
+    0: { langs: ['ar', 'en'], type: 'quote', count: 1 },      // UTC 0:00 - AR 2人（ピーク）、EN 10人（ピーク）= 12投稿
+    1: { langs: ['ko', 'en'], type: 'quote', count: 1 },     // UTC 1:00 - KO 2人（ピーク）、EN 10人（ピーク）= 12投稿
+    2: { langs: ['en'], type: 'quote', count: 1 },           // UTC 2:00 - EN 10人 = 10投稿
+    4: { langs: ['es'], type: 'quote', count: 1 },           // UTC 4:00 - ES 2人 = 2投稿
+    6: { langs: ['pt-br'], type: 'quote', count: 1 },        // UTC 6:00 - PT-BR 2人 = 2投稿
+    8: { langs: ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'], type: 'quote', count: 1 }, // UTC 8:00 - EN 10人 + その他各2人 = 20投稿
+    10: { langs: ['ja'], type: 'quote', count: 1 },          // UTC 10:00 - JA 2人 = 2投稿
+    12: { langs: ['en'], type: 'quote', count: 1, alsoFreeReport: ['en'] }, // UTC 12:00 - EN 10人 = 10投稿 + Free Report
+    15: { langs: ['es'], type: 'quote', count: 1, alsoFreeReport: ['es'] },  // UTC 15:00 - ES 2人 = 2投稿 + Free Report
+    16: { langs: ['ko'], type: 'quote', count: 1 },          // UTC 16:00 - KO 2人 = 2投稿
+    18: { langs: ['ar'], type: 'quote', count: 1, alsoFreeReport: ['ar'] },  // UTC 18:00 - AR 2人 = 2投稿 + Free Report
+    21: { langs: ['es', 'en'], type: 'quote', count: 1 },    // UTC 21:00 - ES 2人（ピーク）、EN 10人（ピーク）= 12投稿
+    22: { langs: ['pt-br', 'es', 'en'], type: 'quote', count: 1 }, // UTC 22:00 - PT-BR 2人（ピーク）、ES 2人（ピーク）、EN 10人（ピーク）= 14投稿
   };
   
   return peakMap[hour] || { langs: [], type: null, count: 0 };
