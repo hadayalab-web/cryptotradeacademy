@@ -1,6 +1,8 @@
 // Tier1 BTC regular briefing (JP)
 // services/telegram/messages/user/ja/regular.ja.js
 
+const { cleanTimingInfo, formatViralScore } = require('../shared/contentFilters');
+
 function formatPercent(pct) {
   if (pct == null || Number.isNaN(pct)) return 'n/a';
   const sign = pct >= 0 ? '+' : '';
@@ -485,32 +487,30 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
     const hasGrok = !!integratedOptimization.sources?.grok && !integratedOptimization.sources.grok.error;
     
     // Xアルゴリズム最適化インサイト（Grok解析から）- sourcesベースで表示判定
-    if (hasGrok && opt.content && (opt.content.questionCTA || opt.engagementBoosters || opt.viralPotential !== undefined)) {
+    // P0 FIX: questionCTAとengagementBoostersは有料版レポートの文脈に合わないため、バイラル可能性スコアとタイミング情報のみを表示
+    if (hasGrok && opt.content && (opt.viralPotential !== undefined || opt.timing)) {
       lines.push('━━━━━━━━━━━━━━━━━━━━');
-      lines.push('📱 X投稿の最適化（利用可能な範囲）');
+      lines.push('📱 X投稿の最適化'); // P0 FIX: 括弧内の説明を削除
       lines.push('━━━━━━━━━━━━━━━━━━━━');
       
-      if (opt.content.questionCTA) {
-        lines.push(`💡 エンゲージメント戦略: ${opt.content.questionCTA}`);
-      }
-      
-      if (opt.engagementBoosters && opt.engagementBoosters.length > 0) {
-        lines.push(`🚀 反応を増やす要素: ${opt.engagementBoosters.slice(0, 3).join('、')}`);
-      }
-      
-      // バイラル可能性を強調表示（重要情報）- 区切り線は1回のみ
+      // Viral potential score display
       if (opt.viralPotential !== null && opt.viralPotential !== undefined) {
-        const viralScore = Math.round(opt.viralPotential);
-        const viralEmoji = viralScore >= 70 ? '🔥' : viralScore >= 50 ? '⚡' : '💡';
-        const viralLabel = viralScore >= 70 ? '【高】' : viralScore >= 50 ? '【中】' : '【低】';
-        lines.push(`   ${viralEmoji} ${viralLabel} バイラル可能性スコア: ${viralScore}/100`);
+        const { emoji, label, score } = formatViralScore(opt.viralPotential, {
+          high: '【高】',
+          medium: '【中】',
+          low: '【低】'
+        });
+        lines.push(`   ${emoji} ${label} バイラル可能性スコア: ${score}/100`);
         if (opt.viralFactors && opt.viralFactors.length > 0) {
           lines.push(`   📊 主要要因: ${opt.viralFactors.slice(0, 2).join('、')}`);
         }
       }
       
       if (opt.timing && opt.timing.length > 0) {
-        lines.push(`⏰ 最適投稿タイミング: ${opt.timing.slice(0, 2).join('、')}`);
+        const cleanedTimings = cleanTimingInfo(opt.timing);
+        if (cleanedTimings.length > 0) {
+          lines.push(`⏰ 最適投稿タイミング: ${cleanedTimings.slice(0, 2).join('、')}`);
+        }
       }
       
       lines.push('');

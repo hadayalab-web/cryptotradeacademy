@@ -1,6 +1,8 @@
 // Tier1 BTC regular briefing (KR)
 // services/telegram/messages/user/ko/regular.ko.js
 
+const { hasJapanese, filterJapaneseFromArray, cleanTimingInfo, hasJapaneseInPsychologicalInsights, formatViralScore } = require('../shared/contentFilters');
+
 function formatPercent(pct) {
   if (pct == null || Number.isNaN(pct)) return 'n/a';
   const sign = pct >= 0 ? '+' : '';
@@ -515,40 +517,22 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
     const hasGrok = !!integratedOptimization.sources?.grok && !integratedOptimization.sources.grok.error;
     
     // X 알고리즘 최적화 인사이트（Grok 분석에서）- sources 기반으로 표시 판정
-    if (hasGrok && opt.content && (opt.content.questionCTA || opt.engagementBoosters || opt.viralPotential !== undefined)) {
+    // P0 FIX: questionCTAとengagementBoostersは有料版レポートの文脈に合わないため、バイラル可能性スコアとタイミング情報のみを表示
+    if (hasGrok && opt.content && (opt.viralPotential !== undefined || opt.timing)) {
       lines.push('━━━━━━━━━━━━━━━━━━━━');
-      lines.push('📱 X 게시물 최적화（사용 가능한 범위）');
+      lines.push('📱 X 게시물 최적화'); // P0 FIX: 日本語の括弧を削除
       lines.push('━━━━━━━━━━━━━━━━━━━━');
       
-      if (opt.content.questionCTA) {
-        const questionCTA = opt.content.questionCTA;
-        // 日本語が含まれている場合はスキップ
-        if (!/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(questionCTA)) {
-          lines.push(`💡 참여 전략: ${questionCTA}`);
-        }
-      }
-      
-      if (opt.engagementBoosters && opt.engagementBoosters.length > 0) {
-        // 日本語が含まれている要素をフィルタリング
-        const filteredBoosters = opt.engagementBoosters.filter(booster => 
-          !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(booster)
-        );
-        if (filteredBoosters.length > 0) {
-          lines.push(`🚀 반응을 늘리는 요소: ${filteredBoosters.slice(0, 3).join('、')}`);
-        }
-      }
-      
-      // 바이럴 가능성 강조 표시（중요 정보）- 구분선은 1회만
+      // Viral potential score display
       if (opt.viralPotential !== null && opt.viralPotential !== undefined) {
-        const viralScore = Math.round(opt.viralPotential);
-        const viralEmoji = viralScore >= 70 ? '🔥' : viralScore >= 50 ? '⚡' : '💡';
-        const viralLabel = viralScore >= 70 ? '【높음】' : viralScore >= 50 ? '【중간】' : '【낮음】';
-        lines.push(`   ${viralEmoji} ${viralLabel} 바이럴 가능성 점수: ${viralScore}/100`);
+        const { emoji, label, score } = formatViralScore(opt.viralPotential, {
+          high: '【높음】',
+          medium: '【중간】',
+          low: '【낮음】'
+        });
+        lines.push(`   ${emoji} ${label} 바이럴 가능성 점수: ${score}/100`);
         if (opt.viralFactors && opt.viralFactors.length > 0) {
-          // 日本語が含まれている要素をフィルタリング
-          const filteredFactors = opt.viralFactors.filter(factor => 
-            !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(factor)
-          );
+          const filteredFactors = filterJapaneseFromArray(opt.viralFactors);
           if (filteredFactors.length > 0) {
             lines.push(`   📊 주요 요인: ${filteredFactors.slice(0, 2).join(', ')}`);
           }
@@ -556,7 +540,10 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
       }
       
       if (opt.timing && opt.timing.length > 0) {
-        lines.push(`⏰ 최적 게시 시간: ${opt.timing.slice(0, 2).join(', ')}`);
+        const koreanTimings = cleanTimingInfo(opt.timing);
+        if (koreanTimings.length > 0) {
+          lines.push(`⏰ 최적 게시 시간: ${koreanTimings.slice(0, 2).join(', ')}`);
+        }
       }
       
       lines.push('');
@@ -569,85 +556,128 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
     if (hasGemini && opt.psychologicalInsights) {
       const psyInsights = opt.psychologicalInsights;
       
-      lines.push('━━━━━━━━━━━━━━━━━━━━');
-      lines.push('🧠 【중요】심층 심리 인사이트');
-      lines.push('━━━━━━━━━━━━━━━━━━━━');
-      
-      if (psyInsights.currentState && psyInsights.currentState !== 'NEUTRAL') {
-        const stateEmoji = psyInsights.currentState === 'FOMO' ? '😰' :
-                           psyInsights.currentState === 'FEAR' ? '😨' :
-                           psyInsights.currentState === 'GREED' ? '😍' :
-                           psyInsights.currentState === 'PANIC' ? '😱' :
-                           psyInsights.currentState === 'EUPHORIA' ? '😄' :
-                           psyInsights.currentState === 'CONFUSION' ? '🤔' : '😐';
-        lines.push(`💚 심리 상태: ${stateEmoji} ${psyInsights.currentState}`);
-      }
-      
-      if (psyInsights.mentalBlocks && psyInsights.mentalBlocks.length > 0) {
-        // 日本語が含まれている要素をフィルタリング
-        const filteredBlocks = psyInsights.mentalBlocks.filter(block => 
-          !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(block)
-        );
-        if (filteredBlocks.length > 0) {
-          lines.push(`🚧 멘탈 블록: ${filteredBlocks.slice(0, 2).join(', ')}`);
+      // Check if entire psychologicalInsights object contains Japanese
+      if (hasJapaneseInPsychologicalInsights(psyInsights)) {
+        console.warn('[Regular KO] Japanese characters detected in psychologicalInsights, skipping entire section');
+        // フォールバック: 基本的な心理状態のみ表示
+        if (psychologicalSupport && psychologicalSupport.psychologicalState !== 'UNKNOWN') {
+          const stateEmoji = psychologicalSupport.psychologicalState === 'FOMO' ? '😰' :
+                             psychologicalSupport.psychologicalState === 'FEAR' ? '😨' :
+                             psychologicalSupport.psychologicalState === 'GREED' ? '😍' :
+                             psychologicalSupport.psychologicalState === 'PANIC' ? '😱' :
+                             psychologicalSupport.psychologicalState === 'EUPHORIA' ? '😄' :
+                             psychologicalSupport.psychologicalState === 'CONFUSION' ? '🤔' : '😐';
+          const riskEmoji = psychologicalSupport.psychologicalRisk === 'CRITICAL' ? '🚨' :
+                            psychologicalSupport.psychologicalRisk === 'HIGH' ? '⚠️' :
+                            psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
+          lines.push('━━━━━━━━━━━━━━━━━━━━');
+          lines.push('🧠 【중요】심층 심리 인사이트');
+          lines.push('━━━━━━━━━━━━━━━━━━━━');
+          lines.push(`💚 심리 상태: ${stateEmoji} ${psychologicalSupport.psychologicalState} (위험: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
+          if (psychologicalSupport.psychologicalAdvice) {
+            if (!hasJapanese(psychologicalSupport.psychologicalAdvice)) {
+              lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
+            } else {
+              const koreanAdvice = getKoreanPsychologicalAdvice(
+                psychologicalSupport.psychologicalState,
+                psychologicalSupport.psychologicalRisk
+              );
+              if (koreanAdvice) {
+                lines.push(`   💡 ${koreanAdvice}`);
+              }
+            }
+          }
+          lines.push('');
         }
-      }
-      
-      // 브레이크스루 인사이트 강조 표시（구분선은 섹션 시작만）
-      if (psyInsights.breakthroughInsights && psyInsights.breakthroughInsights.length > 0) {
-        // 日本語が含まれている要素をフィルタリング
-        const filteredInsights = psyInsights.breakthroughInsights.filter(insight => 
-          !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(insight)
-        );
-        if (filteredInsights.length > 0) {
-          lines.push(`   💡 【중요】브레이크스루 인사이트:`);
-          filteredInsights.slice(0, 2).forEach(insight => {
-            lines.push(`   🔥 ${insight}`);
-          });
+      } else {
+        // 日本語が含まれていない場合のみ表示
+        lines.push('━━━━━━━━━━━━━━━━━━━━');
+        lines.push('🧠 【중요】심층 심리 인사이트');
+        lines.push('━━━━━━━━━━━━━━━━━━━━');
+        
+        if (psyInsights.currentState && psyInsights.currentState !== 'NEUTRAL') {
+          if (!hasJapanese(psyInsights.currentState)) {
+            const stateEmoji = psyInsights.currentState === 'FOMO' ? '😰' :
+                               psyInsights.currentState === 'FEAR' ? '😨' :
+                               psyInsights.currentState === 'GREED' ? '😍' :
+                               psyInsights.currentState === 'PANIC' ? '😱' :
+                               psyInsights.currentState === 'EUPHORIA' ? '😄' :
+                               psyInsights.currentState === 'CONFUSION' ? '🤔' : '😐';
+            lines.push(`💚 심리 상태: ${stateEmoji} ${psyInsights.currentState}`);
+          }
         }
-      }
-      
-      if (psyInsights.personalizedCoaching && psyInsights.personalizedCoaching.trim()) {
-        const coachingText = psyInsights.personalizedCoaching;
-        // 日本語が含まれている場合はスキップ
-        if (!/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(coachingText)) {
+        
+        if (psyInsights.mentalBlocks && psyInsights.mentalBlocks.length > 0) {
+          // 日本語が含まれている要素をフィルタリング
+          const filteredBlocks = psyInsights.mentalBlocks.filter(block => 
+            !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(block)
+          );
+          if (filteredBlocks.length > 0) {
+            lines.push(`🚧 멘탈 블록: ${filteredBlocks.slice(0, 2).join(', ')}`);
+          }
+        }
+        
+        if (psyInsights.breakthroughInsights && psyInsights.breakthroughInsights.length > 0) {
+          const filteredInsights = filterJapaneseFromArray(psyInsights.breakthroughInsights);
+          if (filteredInsights.length > 0) {
+            lines.push(`   💡 【중요】브레이크스루 인사이트:`);
+            filteredInsights.slice(0, 2).forEach(insight => {
+              lines.push(`   🔥 ${insight}`);
+            });
+          }
+        }
+        
+        if (psyInsights.personalizedCoaching && psyInsights.personalizedCoaching.trim()) {
+          const coachingText = psyInsights.personalizedCoaching;
           const coachingLimit = 300;
           let coachingDisplay = coachingText;
+          
+          if (hasJapanese(coachingText)) {
+            coachingDisplay = getKoreanPsychologicalAdvice(
+              psyInsights.currentState || 'NEUTRAL',
+              'LOW'
+            );
+          }
+          
           if (coachingDisplay.length > coachingLimit) {
             coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
           }
           lines.push(`💊 개인화된 코칭:`);
           lines.push(`"${coachingDisplay}"`);
         }
+        
+        lines.push('');
       }
-      
-      lines.push('');
     }
   }
   
-  // Grok X解析結果（Xセンチメント分析）- 統合最適化がない場合のフォールバック
+  // Grok X analysis fallback (X sentiment analysis)
   if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
-    const grokXLimit = 600;
-    let grokXDisplay = grokXAnalysis;
-    if (grokXAnalysis.length > grokXLimit) {
-      // 文の終わりで切るようにする（最後の文の終わりを探す）
-      const truncated = grokXAnalysis.slice(0, grokXLimit);
-      const lastSentenceEnd = Math.max(
-        truncated.lastIndexOf('.'),
-        truncated.lastIndexOf('!'),
-        truncated.lastIndexOf('?'),
-        truncated.lastIndexOf('\n')
-      );
-      // 文の終わりが見つかった場合、その位置で切る
-      if (lastSentenceEnd > grokXLimit * 0.7) {
-        grokXDisplay = truncated.slice(0, lastSentenceEnd + 1) + '…';
-      } else {
-        // 文の終わりが見つからない場合、単純に切る
-        grokXDisplay = truncated + '…';
+    if (!hasJapanese(grokXAnalysis)) {
+      const grokXLimit = 600;
+      let grokXDisplay = grokXAnalysis;
+      if (grokXAnalysis.length > grokXLimit) {
+        // 文の終わりで切るようにする（最後の文の終わりを探す）
+        const truncated = grokXAnalysis.slice(0, grokXLimit);
+        const lastSentenceEnd = Math.max(
+          truncated.lastIndexOf('.'),
+          truncated.lastIndexOf('!'),
+          truncated.lastIndexOf('?'),
+          truncated.lastIndexOf('\n')
+        );
+        // 文の終わりが見つかった場合、その位置で切る
+        if (lastSentenceEnd > grokXLimit * 0.7) {
+          grokXDisplay = truncated.slice(0, lastSentenceEnd + 1) + '…';
+        } else {
+          // 文の終わりが見つからない場合、単純に切る
+          grokXDisplay = truncated + '…';
+        }
       }
+      lines.push(`📱 X 센티먼트 분석: ${grokXDisplay}`);
+      lines.push('');
+    } else {
+      console.warn('[Regular KO] Japanese characters detected in grokXAnalysis, skipping');
     }
-    lines.push(`📱 X 센티먼트 분석: ${grokXDisplay}`);
-    lines.push('');
   }
   
   // Dr. Grokの心理的サポート（癒し系コメンテーターとして）- 統合最適化がない場合のフォールバック
@@ -676,8 +706,14 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
       }
     }
     if (psychologicalSupport.mentalNote) {
-      lines.push(`💊 Dr. Grok의 멘탈 노트:`);
-      lines.push(`"${psychologicalSupport.mentalNote}"`);
+      if (!hasJapanese(psychologicalSupport.mentalNote)) {
+        lines.push(`💊 Dr. Grok의 멘탈 노트:`);
+        lines.push(`"${psychologicalSupport.mentalNote}"`);
+      } else {
+        const fallbackNote = '인내는 약점이 아닙니다—전략적 강점입니다. 최고의 트레이더들은 거래하지 않을 때를 압니다.';
+        lines.push(`💊 Dr. Grok의 멘탈 노트:`);
+        lines.push(`"${fallbackNote}"`);
+      }
     }
   } else if (!integratedOptimization || !integratedOptimization.integrated) {
     // 폴백: 데이터를 가져올 수 없는 경우에도 가치 있는 메시지 제공

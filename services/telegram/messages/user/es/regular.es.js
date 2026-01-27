@@ -1,6 +1,8 @@
 // Tier1 BTC regular briefing (ES)
 // services/telegram/messages/user/es/regular.es.js
 
+const { hasJapanese, filterJapaneseFromArray, cleanTimingInfo, hasJapaneseInPsychologicalInsights, formatViralScore } = require('../shared/contentFilters');
+
 function formatPercent(pct) {
   if (pct == null || Number.isNaN(pct)) return 'n/a';
   const sign = pct >= 0 ? '+' : '';
@@ -482,42 +484,22 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICCIÓN: Puntuación de bajo riesgo
     const hasGrok = !!integratedOptimization.sources?.grok && !integratedOptimization.sources.grok.error;
     
     // Insights de optimización del algoritmo X（del análisis de Grok）- mostrar basado en sources
-    if (hasGrok && opt.content && (opt.content.questionCTA || opt.engagementBoosters || opt.viralPotential !== undefined)) {
+    // P0 FIX: questionCTAとengagementBoostersは有料版レポートの文脈に合わないため、バイラル可能性スコアとタイミング情報のみを表示
+    if (hasGrok && opt.content && (opt.viralPotential !== undefined || opt.timing)) {
       lines.push('━━━━━━━━━━━━━━━━━━━━');
-      lines.push('📱 Optimización de publicaciones X（rango disponible）');
+      lines.push('📱 Optimización de publicaciones X'); // P0 FIX: 日本語の括弧を削除
       lines.push('━━━━━━━━━━━━━━━━━━━━');
       
-      if (opt.content.questionCTA) {
-        // 日本語が含まれている場合はスキップ
-        const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(opt.content.questionCTA);
-        if (!hasJapanese) {
-          lines.push(`💡 Estrategia de participación: ${opt.content.questionCTA}`);
-        }
-      }
-      
-      if (opt.engagementBoosters && opt.engagementBoosters.length > 0) {
-        // 日本語が含まれていないブースターのみを表示
-        const spanishBoosters = opt.engagementBoosters.filter(booster => {
-          const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(booster);
-          return !hasJapanese;
-        });
-        if (spanishBoosters.length > 0) {
-          lines.push(`🚀 Elementos que aumentan la participación: ${spanishBoosters.slice(0, 3).join(', ')}`);
-        }
-      }
-      
-      // Resaltar potencial viral（información importante）- línea divisoria solo una vez
+      // Viral potential score display
       if (opt.viralPotential !== null && opt.viralPotential !== undefined) {
-        const viralScore = Math.round(opt.viralPotential);
-        const viralEmoji = viralScore >= 70 ? '🔥' : viralScore >= 50 ? '⚡' : '💡';
-        const viralLabel = viralScore >= 70 ? '[ALTO]' : viralScore >= 50 ? '[MEDIO]' : '[BAJO]';
-        lines.push(`   ${viralEmoji} ${viralLabel} Puntuación de potencial viral: ${viralScore}/100`);
+        const { emoji, label, score } = formatViralScore(opt.viralPotential, {
+          high: '[ALTO]',
+          medium: '[MEDIO]',
+          low: '[BAJO]'
+        });
+        lines.push(`   ${emoji} ${label} Puntuación de potencial viral: ${score}/100`);
         if (opt.viralFactors && opt.viralFactors.length > 0) {
-          // 日本語が含まれていないファクターのみを表示
-          const spanishFactors = opt.viralFactors.filter(factor => {
-            const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(factor);
-            return !hasJapanese;
-          });
+          const spanishFactors = filterJapaneseFromArray(opt.viralFactors);
           if (spanishFactors.length > 0) {
             lines.push(`   📊 Factores clave: ${spanishFactors.slice(0, 2).join(', ')}`);
           }
@@ -525,7 +507,10 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICCIÓN: Puntuación de bajo riesgo
       }
       
       if (opt.timing && opt.timing.length > 0) {
-        lines.push(`⏰ Tiempos óptimos de publicación: ${opt.timing.slice(0, 2).join(', ')}`);
+        const spanishTimings = cleanTimingInfo(opt.timing);
+        if (spanishTimings.length > 0) {
+          lines.push(`⏰ Tiempos óptimos de publicación: ${spanishTimings.slice(0, 2).join(', ')}`);
+        }
       }
       
       lines.push('');
@@ -538,97 +523,138 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICCIÓN: Puntuación de bajo riesgo
     if (hasGemini && opt.psychologicalInsights) {
       const psyInsights = opt.psychologicalInsights;
       
-      lines.push('━━━━━━━━━━━━━━━━━━━━');
-      lines.push('🧠 [IMPORTANTE] Insights psicológicos profundos');
-      lines.push('━━━━━━━━━━━━━━━━━━━━');
-      
-      if (psyInsights.currentState && psyInsights.currentState !== 'NEUTRAL') {
-        const stateEmoji = psyInsights.currentState === 'FOMO' ? '😰' :
-                           psyInsights.currentState === 'FEAR' ? '😨' :
-                           psyInsights.currentState === 'GREED' ? '😍' :
-                           psyInsights.currentState === 'PANIC' ? '😱' :
-                           psyInsights.currentState === 'EUPHORIA' ? '😄' :
-                           psyInsights.currentState === 'CONFUSION' ? '🤔' : '😐';
-        lines.push(`💚 Estado psicológico: ${stateEmoji} ${psyInsights.currentState}`);
-      }
-      
-      if (psyInsights.mentalBlocks && psyInsights.mentalBlocks.length > 0) {
-        // 日本語が含まれていないブロックのみを表示
-        const spanishBlocks = psyInsights.mentalBlocks.filter(block => {
-          const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(block);
-          return !hasJapanese;
-        });
-        if (spanishBlocks.length > 0) {
-          lines.push(`🚧 Bloqueos mentales: ${spanishBlocks.slice(0, 2).join(', ')}`);
-        }
-      }
-      
-      // Resaltar insights de avance（línea divisoria solo al inicio de la sección）
-      if (psyInsights.breakthroughInsights && psyInsights.breakthroughInsights.length > 0) {
-        lines.push(`   💡 [IMPORTANTE] Insights de avance:`);
-        psyInsights.breakthroughInsights.slice(0, 2).forEach(insight => {
-          // 日本語が含まれている場合はスキップ
-          const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(insight);
-          if (!hasJapanese) {
-            lines.push(`   🔥 ${insight}`);
+      // Check if entire psychologicalInsights object contains Japanese
+      if (hasJapaneseInPsychologicalInsights(psyInsights)) {
+        console.warn('[Regular ES] Japanese characters detected in psychologicalInsights, skipping entire section');
+        // フォールバック: 基本的な心理状態のみ表示
+        if (psychologicalSupport && psychologicalSupport.psychologicalState !== 'UNKNOWN') {
+          const stateEmoji = psychologicalSupport.psychologicalState === 'FOMO' ? '😰' :
+                             psychologicalSupport.psychologicalState === 'FEAR' ? '😨' :
+                             psychologicalSupport.psychologicalState === 'GREED' ? '😍' :
+                             psychologicalSupport.psychologicalState === 'PANIC' ? '😱' :
+                             psychologicalSupport.psychologicalState === 'EUPHORIA' ? '😄' :
+                             psychologicalSupport.psychologicalState === 'CONFUSION' ? '🤔' : '😐';
+          const riskEmoji = psychologicalSupport.psychologicalRisk === 'CRITICAL' ? '🚨' :
+                            psychologicalSupport.psychologicalRisk === 'HIGH' ? '⚠️' :
+                            psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
+          lines.push('━━━━━━━━━━━━━━━━━━━━');
+          lines.push('🧠 [IMPORTANTE] Insights psicológicos profundos');
+          lines.push('━━━━━━━━━━━━━━━━━━━━');
+          lines.push(`💚 Estado Psicológico: ${stateEmoji} ${psychologicalSupport.psychologicalState} (Riesgo: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
+          if (psychologicalSupport.psychologicalAdvice) {
+            const hasJapaneseInAdvice = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(psychologicalSupport.psychologicalAdvice);
+            if (!hasJapaneseInAdvice) {
+              lines.push(`   💡 ${psychologicalSupport.psychologicalAdvice}`);
+            } else {
+              const spanishAdvice = getSpanishPsychologicalAdvice(
+                psychologicalSupport.psychologicalState,
+                psychologicalSupport.psychologicalRisk
+              );
+              if (spanishAdvice) {
+                lines.push(`   💡 ${spanishAdvice}`);
+              }
+            }
           }
-        });
-      }
-      
-      if (psyInsights.personalizedCoaching && psyInsights.personalizedCoaching.trim()) {
-        const coachingLimit = 300;
-        let coachingDisplay = psyInsights.personalizedCoaching;
+          lines.push('');
+        }
+      } else {
+        // 日本語が含まれていない場合のみ表示
+        lines.push('━━━━━━━━━━━━━━━━━━━━');
+        lines.push('🧠 [IMPORTANTE] Insights psicológicos profundos');
+        lines.push('━━━━━━━━━━━━━━━━━━━━');
         
-        // 日本語が含まれている場合はスペイン語のフォールバックを使用
-        const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(coachingDisplay);
-        if (hasJapanese) {
-          // スペイン語のフォールバックメッセージを使用
-          coachingDisplay = getSpanishPsychologicalAdvice(
-            psyInsights.currentState || 'NEUTRAL',
-            'LOW'
-          );
+        if (psyInsights.currentState && psyInsights.currentState !== 'NEUTRAL') {
+          if (!hasJapanese(psyInsights.currentState)) {
+            const stateEmoji = psyInsights.currentState === 'FOMO' ? '😰' :
+                               psyInsights.currentState === 'FEAR' ? '😨' :
+                               psyInsights.currentState === 'GREED' ? '😍' :
+                               psyInsights.currentState === 'PANIC' ? '😱' :
+                               psyInsights.currentState === 'EUPHORIA' ? '😄' :
+                               psyInsights.currentState === 'CONFUSION' ? '🤔' : '😐';
+            lines.push(`💚 Estado psicológico: ${stateEmoji} ${psyInsights.currentState}`);
+          }
         }
         
-        if (coachingDisplay.length > coachingLimit) {
-          coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
+        if (psyInsights.mentalBlocks && psyInsights.mentalBlocks.length > 0) {
+          // 日本語が含まれていないブロックのみを表示
+          const spanishBlocks = psyInsights.mentalBlocks.filter(block => {
+            const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(block);
+            return !hasJapanese;
+          });
+          if (spanishBlocks.length > 0) {
+            lines.push(`🚧 Bloqueos mentales: ${spanishBlocks.slice(0, 2).join(', ')}`);
+          }
         }
-        lines.push(`💊 Coaching personalizado:`);
-        lines.push(`"${coachingDisplay}"`);
+        
+        // Resaltar insights de avance（línea divisoria solo al inicio de la sección）
+        if (psyInsights.breakthroughInsights && psyInsights.breakthroughInsights.length > 0) {
+          const filteredInsights = filterJapaneseFromArray(psyInsights.breakthroughInsights);
+          if (filteredInsights.length > 0) {
+            lines.push(`   💡 [IMPORTANTE] Insights de avance:`);
+            filteredInsights.slice(0, 2).forEach(insight => {
+              lines.push(`   🔥 ${insight}`);
+            });
+          }
+        }
+        
+        if (psyInsights.personalizedCoaching && psyInsights.personalizedCoaching.trim()) {
+          const coachingLimit = 300;
+          let coachingDisplay = psyInsights.personalizedCoaching;
+          
+          if (hasJapanese(coachingDisplay)) {
+            coachingDisplay = getSpanishPsychologicalAdvice(
+              psyInsights.currentState || 'NEUTRAL',
+              'LOW'
+            );
+          }
+          
+          if (coachingDisplay.length > coachingLimit) {
+            coachingDisplay = coachingDisplay.slice(0, coachingLimit) + '…';
+          }
+          lines.push(`💊 Coaching personalizado:`);
+          lines.push(`"${coachingDisplay}"`);
+        }
+        
+        lines.push('');
       }
-      
-      lines.push('');
     }
   }
   
   // Grok X解析結果（Xセンチメント分析）- 統合最適化がない場合のフォールバック
   if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
-    const grokXLimit = 600;
-    let grokXDisplay = grokXAnalysis;
-    if (grokXAnalysis.length > grokXLimit) {
-      // 文の終わりで切るようにする（最後の文の終わりを探す）
-      const truncated = grokXAnalysis.slice(0, grokXLimit);
-      const sentenceEnds = [
-        truncated.lastIndexOf('. '),
-        truncated.lastIndexOf('.\n'),
-        truncated.lastIndexOf('! '),
-        truncated.lastIndexOf('!\n'),
-        truncated.lastIndexOf('? '),
-        truncated.lastIndexOf('?\n'),
-        truncated.lastIndexOf('\n\n'),
-        truncated.lastIndexOf('\n')
-      ].filter(pos => pos !== -1);
-      
-      const lastSentenceEnd = sentenceEnds.length > 0 ? Math.max(...sentenceEnds) : -1;
-      
-      if (lastSentenceEnd > grokXLimit * 0.5) {
-        const endPos = truncated[lastSentenceEnd + 1] === ' ' ? lastSentenceEnd + 1 : lastSentenceEnd;
-        grokXDisplay = truncated.slice(0, endPos) + '…';
-      } else {
-        grokXDisplay = truncated + '…';
+    // P0 FIX: 日本語が含まれている場合はスキップ
+    const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(grokXAnalysis);
+    if (!hasJapanese) {
+      const grokXLimit = 600;
+      let grokXDisplay = grokXAnalysis;
+      if (grokXAnalysis.length > grokXLimit) {
+        // 文の終わりで切るようにする（最後の文の終わりを探す）
+        const truncated = grokXAnalysis.slice(0, grokXLimit);
+        const sentenceEnds = [
+          truncated.lastIndexOf('. '),
+          truncated.lastIndexOf('.\n'),
+          truncated.lastIndexOf('! '),
+          truncated.lastIndexOf('!\n'),
+          truncated.lastIndexOf('? '),
+          truncated.lastIndexOf('?\n'),
+          truncated.lastIndexOf('\n\n'),
+          truncated.lastIndexOf('\n')
+        ].filter(pos => pos !== -1);
+        
+        const lastSentenceEnd = sentenceEnds.length > 0 ? Math.max(...sentenceEnds) : -1;
+        
+        if (lastSentenceEnd > grokXLimit * 0.5) {
+          const endPos = truncated[lastSentenceEnd + 1] === ' ' ? lastSentenceEnd + 1 : lastSentenceEnd;
+          grokXDisplay = truncated.slice(0, endPos) + '…';
+        } else {
+          grokXDisplay = truncated + '…';
+        }
       }
+      lines.push(`📱 Análisis de Sentimiento X: ${grokXDisplay}`);
+      lines.push('');
+    } else {
+      console.warn('[Regular ES] Japanese characters detected in grokXAnalysis, skipping');
     }
-    lines.push(`📱 Análisis de Sentimiento X: ${grokXDisplay}`);
-    lines.push('');
   }
   
   // Dr. Grokの心理的サポート（癒し系コメンテーターとして）- 統合最適化がない場合のフォールバック
@@ -667,8 +693,17 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICCIÓN: Puntuación de bajo riesgo
     lines.push('');
     
     if (psychologicalSupport.mentalNote) {
-      lines.push(`💊 Nota Mental de Dr. Grok:`);
-      lines.push(`"${psychologicalSupport.mentalNote}"`);
+      // P0 FIX: 日本語が含まれている場合はスキップ
+      const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(psychologicalSupport.mentalNote);
+      if (!hasJapanese) {
+        lines.push(`💊 Nota Mental de Dr. Grok:`);
+        lines.push(`"${psychologicalSupport.mentalNote}"`);
+      } else {
+        // スペイン語のフォールバックメッセージを使用
+        const fallbackNote = 'La paciencia no es debilidad—es fuerza estratégica. Los mejores traders saben cuándo no operar.';
+        lines.push(`💊 Nota Mental de Dr. Grok:`);
+        lines.push(`"${fallbackNote}"`);
+      }
     }
   } else if (!integratedOptimization || !integratedOptimization.integrated) {
     // Fallback: Proporcionar un mensaje valioso incluso cuando los datos no están disponibles
