@@ -4,6 +4,7 @@
 const OAuth = require("oauth-1.0a");
 const crypto = require("crypto");
 const { Blob } = require("buffer");
+const { recordRateLimit } = require("./rateLimitTracker");
 
 // OAuth 1.0a認証情報
 const X_API_CONSUMER_KEY = process.env.X_API_CONSUMER_KEY;
@@ -221,6 +222,20 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
           let delay;
           
           if (response.status === 429) {
+            // 🔒 レート制限情報をKVに記録（429エラー時）
+            try {
+              const endpointKey = `${method} ${endpoint}`;
+              const headers = {};
+              for (const [key, value] of response.headers.entries()) {
+                if (key.toLowerCase().startsWith('x-rate-limit')) {
+                  headers[key.toLowerCase()] = value;
+                }
+              }
+              await recordRateLimit(endpointKey, 'user', headers);
+            } catch (rateLimitError) {
+              console.warn(`[X API] ⚠️ Failed to record rate limit (429):`, rateLimitError.message);
+            }
+            
             // レート制限ヘッダーを確認（X-RateLimit-Reset）
             const resetHeader =
               response.headers.get("x-rate-limit-reset") || response.headers.get("X-RateLimit-Reset");
@@ -270,6 +285,22 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
           url,
         });
         throw new Error(`X API Response Errors: ${errorMessages} - ${JSON.stringify(responseData)}`);
+      }
+
+      // 🔒 レート制限情報をKVに記録（レスポンス成功時）
+      try {
+        const endpointKey = `${method} ${endpoint}`;
+        const headers = {};
+        // レスポンスヘッダーからレート制限情報を取得
+        for (const [key, value] of response.headers.entries()) {
+          if (key.toLowerCase().startsWith('x-rate-limit')) {
+            headers[key.toLowerCase()] = value;
+          }
+        }
+        await recordRateLimit(endpointKey, 'user', headers);
+      } catch (rateLimitError) {
+        // レート制限記録の失敗は警告のみ（APIリクエスト自体は成功）
+        console.warn(`[X API] ⚠️ Failed to record rate limit:`, rateLimitError.message);
       }
 
       return responseData;
