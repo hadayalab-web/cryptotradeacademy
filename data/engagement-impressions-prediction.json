@@ -1,0 +1,96 @@
+{
+  "timestamp": "2026-01-27T15:48:01.532Z",
+  "influencerStats": {
+    "en": {
+      "count": 150,
+      "avgER": 0.10066666666666671,
+      "avgImpressions": 436066.6666666667,
+      "totalImpressions": 65410000
+    },
+    "es": {
+      "count": 76,
+      "avgER": 0.10249999999999995,
+      "avgImpressions": 95657.8947368421,
+      "totalImpressions": 7270000
+    },
+    "pt-br": {
+      "count": 58,
+      "avgER": 0.10982758620689653,
+      "avgImpressions": 117310.3448275862,
+      "totalImpressions": 6804000
+    },
+    "ar": {
+      "count": 40,
+      "avgER": 0.10874999999999999,
+      "avgImpressions": 98575,
+      "totalImpressions": 3943000
+    },
+    "ja": {
+      "count": 40,
+      "avgER": 0.10950000000000001,
+      "avgImpressions": 105625,
+      "totalImpressions": 4225000
+    },
+    "ko": {
+      "count": 22,
+      "avgER": 0.10590909090909094,
+      "avgImpressions": 116136.36363636363,
+      "totalImpressions": 2555000
+    }
+  },
+  "overallStats": {
+    "totalInfluencers": 386,
+    "avgER": 0.10445595854922282,
+    "avgImpressions": 233696.89119170984
+  },
+  "predictions": {
+    "best": {
+      "name": "最良のケース",
+      "postsPerDay": 520,
+      "description": "ローテーション制約により若干減少",
+      "langPosts": {
+        "en": 208,
+        "es": 104,
+        "pt-br": 78,
+        "ar": 52,
+        "ja": 52,
+        "ko": 26
+      },
+      "totalImpressions": 123438440.07039542,
+      "avgER": 0.10235045545179504,
+      "totalEngagements": 12633980.561464079
+    },
+    "realistic": {
+      "name": "現実的なケース",
+      "postsPerDay": 490,
+      "description": "ローテーション制約 + エラー・失敗（5-10%）",
+      "langPosts": {
+        "en": 195,
+        "es": 98,
+        "pt-br": 74,
+        "ar": 49,
+        "ja": 49,
+        "ko": 25
+      },
+      "totalImpressions": 115997648.29236099,
+      "avgER": 0.10236234758984755,
+      "totalEngagements": 11873791.594107542
+    },
+    "worst": {
+      "name": "最悪のケース",
+      "postsPerDay": 465,
+      "description": "ストック不足 + 多数のエラー + レート制限",
+      "langPosts": {
+        "en": 185,
+        "es": 93,
+        "pt-br": 70,
+        "ar": 47,
+        "ja": 47,
+        "ko": 23
+      },
+      "totalImpressions": 110048778.04542705,
+      "avgER": 0.10236447842883396,
+      "totalEngagements": 11265085.766350655
+    }
+  }
+}

@@ -5,12 +5,11 @@ const REQUIRED_KEYS = [
   'X_API_ACCESS_TOKEN_SECRET',
 ];
 
+// P2 FIX: 共通ユーティリティを使用
+const { parseBoolean: parseBooleanUtil } = require('../../utils/common');
+
 function parseBoolean(value, defaultValue = false) {
-  if (value === undefined || value === null || value === '') return defaultValue;
-  const normalized = String(value).trim().toLowerCase();
-  if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) return true;
-  if (['0', 'false', 'no', 'n', 'off'].includes(normalized)) return false;
-  return defaultValue;
+  return parseBooleanUtil(value, defaultValue);
 }
 
 function getXConfigStatus() {

@@ -570,6 +570,22 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     
     console.log(`[Quote Repost] ✅ Retrieved ${influencers.length} influencers from STOCK for ${lang} (with scoring) [runId: ${langRunId}, step: ${currentStep}]`);
     
+    // 🔒 追加の言語整合性チェック: ストックから取得したインフルエンサーの言語を検証
+    const langMismatched = influencers.filter(inf => inf.lang && inf.lang.toLowerCase() !== lang.toLowerCase());
+    if (langMismatched.length > 0) {
+      console.error(`[Quote Repost] ⚠️⚠️⚠️ Found ${langMismatched.length} influencers with language mismatch in stock for ${lang}:`, 
+        langMismatched.map(inf => `@${inf.username} (lang: ${inf.lang})`));
+      // 言語不一致のインフルエンサーを除外
+      influencers = influencers.filter(inf => !inf.lang || inf.lang.toLowerCase() === lang.toLowerCase());
+      console.log(`[Quote Repost] ✅ Filtered to ${influencers.length} influencers with correct language (${lang})`);
+    }
+    
+    // langフィールドがないインフルエンサーにlangを設定
+    influencers = influencers.map(inf => ({
+      ...inf,
+      lang: inf.lang || lang, // langフィールドがない場合は現在の言語を設定
+    }));
+    
     // スコアリングが有効な場合、スコア情報をログに出力
     if (influencers[0]?.score !== undefined) {
       const topScorers = influencers.slice(0, 5).map(inf => ({
@@ -771,10 +787,22 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       try {
         // 🔒 言語整合性検証: インフルエンサーの言語が投稿言語と一致しているか確認
         currentStep = 'language_verification';
+        
+        // langフィールドがない場合の警告
+        if (!influencer.lang) {
+          console.warn(`[Quote Repost] ⚠️ WARNING: @${influencer.username} has no lang field, assuming lang=${lang} from KV key [runId: ${langRunId}, step: ${currentStep}]`);
+          // langフィールドを設定（後続処理で使用）
+          influencer.lang = lang;
+        }
+        
+        // 言語不一致のチェック（厳格）
         if (influencer.lang && influencer.lang.toLowerCase() !== lang.toLowerCase()) {
           console.error(`[Quote Repost] ⚠️⚠️⚠️ LANGUAGE MISMATCH: Skipping @${influencer.username} - influencer lang (${influencer.lang}) does not match post lang (${lang}) [runId: ${langRunId}, step: ${currentStep}]`);
           continue;
         }
+        
+        // 最終確認: langフィールドを確実に設定
+        influencer.lang = lang;
         
         // tweetIdが必須
         currentStep = 'tweet_id_check';
@@ -989,8 +1017,17 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         try {
           // 重要: 引用リポストは140文字以内に制限されているため、280文字に切り詰めない
           // 既に140文字以内に制限されているため、そのまま使用
+          
+          // 🔒 投稿前の最終言語整合性チェック（二重チェック）
+          currentStep = 'final_language_check';
+          const finalLang = influencer.lang || lang;
+          if (finalLang.toLowerCase() !== lang.toLowerCase()) {
+            console.error(`[Quote Repost] ⚠️⚠️⚠️ FINAL LANGUAGE MISMATCH: Aborting post for @${influencer.username} - influencer lang (${finalLang}) does not match post lang (${lang}) [runId: ${langRunId}, step: ${currentStep}]`);
+            throw new Error(`Language mismatch: influencer lang (${finalLang}) does not match post lang (${lang})`);
+          }
+          
           currentStep = 'x_api_call';
-          console.log(`[Quote Repost] 🚀 Step: ${currentStep} [runId: ${langRunId}]: CALLING postQuoteTweet for @${influencer.username}...`);
+          console.log(`[Quote Repost] 🚀 Step: ${currentStep} [runId: ${langRunId}]: CALLING postQuoteTweet for @${influencer.username} (lang=${lang}, verified)...`);
           result = await postQuoteTweet(quoteText, influencer.tweetId);
           
           // P1 FIX: 投稿成功後のログを完璧化（tweet IDを必ず記録）

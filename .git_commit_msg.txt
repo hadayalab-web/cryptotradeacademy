@@ -1,13 +1,35 @@
-feat: Add integrated optimization and native expressions to all language Regular Briefing
+feat: Webhookデータ活用戦略の実装完了（P0/P1項目）
 
-- Add Grok X algorithm analysis and Gemini deep psychology analysis integration to all language versions
-- Replace translation-style phrases with native expressions based on language tone guidelines
-  - EN: trader-to-trader tone (direct, calm, slightly witty)
-  - ES: LATAM street-smart tone (passionate, direct)
-  - PT-BR: Brazilian conversational tone (warm, friendly)
-  - AR: Gulf/Dubai polished tone (professional, polished)
-  - JA: Natural Japanese trader tone
-  - KO: friendly-pro tone (friendly and professional)
-- Remove banned phrases (translation-style expressions) and reflect cultural nuances
-- Add integrated optimization result display sections (X post optimization, deep psychological insights)
-- Implement error handling and multilingual error messages
+## 実装内容
+
+### 新規追加
+- `services/x/influencerPerformance.js`: インフルエンサー別パフォーマンス分析モジュール
+  - Webhook増分の原子インクリメント（カウンタ/メタ分離）
+  - 日次パフォーマンス集計（並列度制限付き）
+  - Rolling集計（7d/30d）
+  - マッピング保存/取得関数
+  - 遅延解決キュー（missing mapping/impressions）
+
+### 修正・改善
+- `api/x-webhook.js`: Webhook増分処理をinfluencerPerformanceモジュールに統合
+- `api/x-engagement-metrics.js`: 日次集計にinfluencer別パフォーマンス分析を追加
+- `api/x-quote-repost.js`: マッピング保存をinfluencerPerformanceモジュールに統一
+- `vercel.json`: Webhookエンドポイントの設定追加
+
+### 最適化
+- KV書込過多の削減（lastEventAtを別キーに分離）
+- 並列度制限（p-limit導入、安全なフォールバック）
+- エラーカウントの改善（失敗理由別集計）
+- 日次集計ログの構造化（JSON形式）
+
+### 入力検証
+- tweetId/username/dateString/windowDaysのバリデーション追加
+- マッピングフィールド名の両対応（influencerUsername/username）
+
+## GPT-5.2レビュー対応
+- P0問題: カウンタ不整合、並列化、入力検証、KV書込過多を修正
+- P1問題: マッピング保存関数追加、ログ構造化、エラーカウント改善
+
+## 設計との差分
+- tweet集計キーを分割方式（カウンタ/メタ/lastEventAt）に変更
+- 設計ドキュメントとの整合性は`getTweetEngagement()`で互換性を確保

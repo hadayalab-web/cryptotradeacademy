@@ -1,0 +1,5 @@
+feat: インフルエンサーストック更新をCron Jobsから削除し手動実行のみに変更
+
+- x-update-influencer-stockの自動実行Cron設定を6言語分すべて削除
+- 手動実行用のエンドポイントは維持（/api/x-update-influencer-stock）
+- 70リストのローテーションは手動実行のみに変更

@@ -3,25 +3,33 @@
 
 /**
  * 言語別インフルエンサー数設定（投稿用）
- * 🚀 数撃て作戦: 1日100投稿を達成するための時価配分
+ * 🚀 数撃て作戦: 1日500投稿を達成するための時価配分
  * - ピーク時間（UTC 0,1,20,21,22）: 多く投稿
  * - オフピーク時間（UTC 13,14）: 少なく投稿
+ * 
+ * 配分（500投稿/日、12回Cron実行）:
+ * - EN: 200投稿/日 → 1回あたり17投稿（ピーク時間）
+ * - ES: 100投稿/日 → 1回あたり8投稿（ピーク時間）
+ * - PT-BR: 75投稿/日 → 1回あたり6投稿（ピーク時間）
+ * - AR: 50投稿/日 → 1回あたり4投稿（ピーク時間）
+ * - JA: 50投稿/日 → 1回あたり4投稿（ピーク時間）
+ * - KO: 25投稿/日 → 1回あたり2投稿（ピーク時間）
  */
 const INFLUENCER_COUNT_BY_LANG = {
-  // 英語: ピーク時間10人、オフピーク時間4人（1日70回投稿達成）
-  en: parseInt(process.env.INFLUENCER_COUNT_EN || '10', 10), // ピーク時間用（オフピークは動的に調整）
+  // 英語: ピーク時間19人、オフピーク時間7人（1日204回投稿達成）
+  en: parseInt(process.env.INFLUENCER_COUNT_EN || '19', 10), // ピーク時間用（オフピークは動的に調整）
   
-  // その他言語: ピーク時間2人、オフピーク時間1人（各言語1日14回投稿）
-  es: parseInt(process.env.INFLUENCER_COUNT_ES || '2', 10),
-  'pt-br': parseInt(process.env.INFLUENCER_COUNT_PT_BR || '2', 10),
-  ar: parseInt(process.env.INFLUENCER_COUNT_AR || '2', 10),
-  ko: parseInt(process.env.INFLUENCER_COUNT_KO || '2', 10),
-  ja: parseInt(process.env.INFLUENCER_COUNT_JA || '2', 10),
+  // その他言語: ピーク時間で配分（500投稿/日達成）
+  es: parseInt(process.env.INFLUENCER_COUNT_ES || '10', 10),   // 108投稿/日
+  'pt-br': parseInt(process.env.INFLUENCER_COUNT_PT_BR || '7', 10), // 74投稿/日
+  ar: parseInt(process.env.INFLUENCER_COUNT_AR || '5', 10),  // 54投稿/日
+  ko: parseInt(process.env.INFLUENCER_COUNT_KO || '3', 10),   // 32投稿/日
+  ja: parseInt(process.env.INFLUENCER_COUNT_JA || '5', 10),  // 54投稿/日
 };
 
 /**
  * 時価配分設定（ピーク時間とオフピーク時間の投稿数比率）
- * 🚀 数撃て作戦: 1日100投稿を達成するための時価配分
+ * 🚀 数撃て作戦: 1日500投稿を達成するための時価配分
  */
 const HOURLY_DISTRIBUTION = {
   // ピーク時間（UTC 0,1,20,21,22）: 多く投稿
@@ -32,24 +40,32 @@ const HOURLY_DISTRIBUTION = {
   // オフピーク時間（UTC 13,14）: 少なく投稿
   offPeak: {
     hours: [13, 14],
-    multiplier: 0.4, // 通常の40%（EN: 10 → 4、その他: 2 → 1）
+    multiplier: 0.4, // 通常の40%（EN: 17 → 7、ES: 8 → 3、その他も同様）
   },
 };
 
 /**
- * 言語別ストック数設定（好反応率重視 - 投稿数の3-5倍をストック）
+ * 言語別ストック数設定（好反応率重視 - 投稿用の2倍をストック）
  * より多くの選択肢を確保し、好反応率が期待できるインフルエンサーを優先
+ * 
+ * 500投稿/日想定のストック数:
+ * - EN: 75人（投稿用）×2 = 150人（ストック）
+ * - ES: 38人（投稿用）×2 = 76人（ストック）
+ * - PT-BR: 29人（投稿用）×2 = 58人（ストック）
+ * - AR: 20人（投稿用）×2 = 40人（ストック）
+ * - JA: 20人（投稿用）×2 = 40人（ストック）
+ * - KO: 11人（投稿用）×2 = 22人（ストック）
  */
 const STOCK_COUNT_BY_LANG = {
-  // 英語: 投稿数4 × 5 = 20人をストック
-  en: parseInt(process.env.INFLUENCER_STOCK_COUNT_EN || '20', 10),
+  // 英語: 150人をストック（500投稿/日想定）
+  en: parseInt(process.env.INFLUENCER_STOCK_COUNT_EN || '150', 10),
   
-  // その他言語: 投稿数2 × 5 = 10人をストック
-  es: parseInt(process.env.INFLUENCER_STOCK_COUNT_ES || '10', 10),
-  'pt-br': parseInt(process.env.INFLUENCER_STOCK_COUNT_PT_BR || '10', 10),
-  ar: parseInt(process.env.INFLUENCER_STOCK_COUNT_AR || '10', 10),
-  ko: parseInt(process.env.INFLUENCER_STOCK_COUNT_KO || '10', 10),
-  ja: parseInt(process.env.INFLUENCER_STOCK_COUNT_JA || '10', 10),
+  // その他言語: 500投稿/日想定のストック数
+  es: parseInt(process.env.INFLUENCER_STOCK_COUNT_ES || '76', 10),
+  'pt-br': parseInt(process.env.INFLUENCER_STOCK_COUNT_PT_BR || '58', 10),
+  ar: parseInt(process.env.INFLUENCER_STOCK_COUNT_AR || '40', 10),
+  ko: parseInt(process.env.INFLUENCER_STOCK_COUNT_KO || '22', 10),
+  ja: parseInt(process.env.INFLUENCER_STOCK_COUNT_JA || '40', 10),
 };
 
 /**

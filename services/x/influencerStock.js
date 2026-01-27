@@ -88,7 +88,7 @@ async function getInfluencersFromStock(lang, options = {}) {
 
   try {
     const stockKey = getStockKey(lang);
-    const influencers = await kv.get(stockKey);
+    let influencers = await kv.get(stockKey);
     
     if (!influencers || !Array.isArray(influencers) || influencers.length === 0) {
       console.log(`[InfluencerStock] No influencers in stock for ${lang}`);
@@ -107,6 +107,12 @@ async function getInfluencersFromStock(lang, options = {}) {
       influencers = influencers.filter(inf => !inf.lang || inf.lang.toLowerCase() === lang.toLowerCase());
       console.log(`[InfluencerStock] ✅ Filtered to ${influencers.length} influencers with correct language (${lang})`);
     }
+    
+    // 🔒 言語フィールドがないインフルエンサーにlangを設定（古いストックデータ対応）
+    influencers = influencers.map(inf => ({
+      ...inf,
+      lang: inf.lang || lang, // langフィールドがない場合は現在の言語を設定
+    }));
 
     // 🔥 改善: スコアリング機能が有効な場合、Webhookデータからエンゲージメント統計を取得してスコアを計算
     if (options.enableScoring) {

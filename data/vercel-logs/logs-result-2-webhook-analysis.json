@@ -1,0 +1,27 @@
+{
+  "crcRequests": [
+    {
+      "timestamp": "2026-01-27 01:35:56",
+      "queryString": "crc_token=ODdiZjFmODMtYTk3ZS00MDk2LWFhNTktZjNlZWRhYTJmOGFm&nonce=MTc2OTQ3Nzc1NTQ5Mg",
+      "message": "[X Webhook] ✅ CRC verification successful for token: ODdiZjFmOD..."
+    },
+    {
+      "timestamp": "2026-01-27 01:35:56",
+      "queryString": "crc_token=ODdiZjFmODMtYTk3ZS00MDk2LWFhNTktZjNlZWRhYTJmOGFm&nonce=MTc2OTQ3Nzc1NTQ5Mg",
+      "message": "(node:4) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `node --trace-deprecation ...` to show where the warning was created)"
+    },
+    {
+      "timestamp": "2026-01-27 01:35:55",
+      "queryString": "crc_token=ODdiZjFmODMtYTk3ZS00MDk2LWFhNTktZjNlZWRhYTJmOGFm&nonce=MTc2OTQ3Nzc1NTQ5Mg",
+      "message": ""
+    }
+  ],
+  "postRequests": [],
+  "events": {
+    "like": 0,
+    "retweet": 0,
+    "reply": 0,
+    "other": 0
+  },
+  "errors": []
+}

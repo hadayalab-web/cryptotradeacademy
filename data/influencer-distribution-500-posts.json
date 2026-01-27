@@ -1,0 +1,68 @@
+{
+  "en": {
+    "weight": 0.4,
+    "postsPerDay": 200,
+    "postsPerRun": 17,
+    "reason": "最大市場、最高エンゲージメント率",
+    "influencers": {
+      "min": 50,
+      "recommended": 75,
+      "stock": 150
+    }
+  },
+  "es": {
+    "weight": 0.2,
+    "postsPerDay": 100,
+    "postsPerRun": 8,
+    "reason": "ラテンアメリカ市場、高成長",
+    "influencers": {
+      "min": 25,
+      "recommended": 38,
+      "stock": 76
+    }
+  },
+  "pt-br": {
+    "weight": 0.15,
+    "postsPerDay": 75,
+    "postsPerRun": 6,
+    "reason": "ブラジル市場、高エンゲージメント",
+    "influencers": {
+      "min": 19,
+      "recommended": 29,
+      "stock": 58
+    }
+  },
+  "ar": {
+    "weight": 0.1,
+    "postsPerDay": 50,
+    "postsPerRun": 4,
+    "reason": "中東市場、高購買力",
+    "influencers": {
+      "min": 13,
+      "recommended": 20,
+      "stock": 40
+    }
+  },
+  "ja": {
+    "weight": 0.1,
+    "postsPerDay": 50,
+    "postsPerRun": 4,
+    "reason": "日本市場、最高ER（12.5%）",
+    "influencers": {
+      "min": 13,
+      "recommended": 20,
+      "stock": 40
+    }
+  },
+  "ko": {
+    "weight": 0.05,
+    "postsPerDay": 25,
+    "postsPerRun": 2,
+    "reason": "韓国市場、安定した需要",
+    "influencers": {
+      "min": 7,
+      "recommended": 11,
+      "stock": 22
+    }
+  }
+}

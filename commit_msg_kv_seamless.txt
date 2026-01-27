@@ -1,0 +1,15 @@
+feat: KVシームレスアクセス実装 - Redis.fromEnv()のような使い勝手を提供
+
+- utils/kv.js: シームレスなKVアクセスユーティリティを新規作成
+  - 環境変数の自動読み込み
+  - 統一されたエラーハンドリング
+  - シングルトンパターンで効率的な初期化
+- scripts/test-kv-connection.js: KV接続テストスクリプトを追加
+- docs/KV_SEAMLESS_MIGRATION.md: 移行ガイドを追加
+- utils/README-KV.md: APIドキュメントを追加
+- services/cryptoquant/client.js: utils/kv.jsを使用するように更新
+- utils/stateManager.js: utils/kv.jsを使用するように更新
+- services/gpt/client.js: utils/kv.jsを使用するように更新
+
+これにより、各ファイルで同じ初期化コードを繰り返す必要がなくなり、
+Redis.fromEnv()のようなシームレスなアクセスが可能になりました。

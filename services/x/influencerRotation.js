@@ -265,10 +265,24 @@ async function selectInfluencersWithRotation(influencers, lang, count, dateStrin
   // 今日既に投稿したインフルエンサーを取得
   const postedToday = await getPostedInfluencersToday(lang, targetDate);
   
-  // 投稿済みを除外
+  // 投稿済みを除外 + 言語整合性チェック
   const availableInfluencers = influencers.filter(inf => {
     const username = inf.username || inf.userId || inf.id;
-    return username && !postedToday.has(username);
+    if (!username) return false;
+    
+    // 言語整合性チェック: langフィールドがある場合、一致しているか確認
+    if (inf.lang && inf.lang.toLowerCase() !== lang.toLowerCase()) {
+      console.warn(`[InfluencerRotation] ⚠️ Skipping @${username}: lang mismatch (${inf.lang} !== ${lang})`);
+      return false;
+    }
+    
+    // langフィールドがない場合は警告して続行（後で設定される）
+    if (!inf.lang) {
+      console.warn(`[InfluencerRotation] ⚠️ @${username} has no lang field, assuming lang=${lang}`);
+      inf.lang = lang; // 後続処理で使用するため設定
+    }
+    
+    return !postedToday.has(username);
   });
   
   // 利用可能なインフルエンサーが不足している場合、投稿済みも含める（ローテーションをリセット）

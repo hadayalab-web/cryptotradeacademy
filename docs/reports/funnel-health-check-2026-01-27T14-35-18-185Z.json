@@ -1,0 +1,398 @@
+{
+  "timestamp": "2026-01-27T14:35:18.185Z",
+  "environment": {
+    "required": {
+      "TELEGRAM_BOT_USERNAME": {
+        "set": true,
+        "value": "dr_grok_bot"
+      },
+      "TELEGRAM_BOT_TOKEN": {
+        "set": true,
+        "value": "***"
+      },
+      "X_API_CONSUMER_KEY": {
+        "set": true,
+        "value": "***"
+      },
+      "X_API_CONSUMER_KEY_SECRET": {
+        "set": true,
+        "value": "***"
+      },
+      "X_API_ACCESS_TOKEN": {
+        "set": true,
+        "value": "***"
+      },
+      "X_API_ACCESS_TOKEN_SECRET": {
+        "set": true,
+        "value": "***"
+      }
+    },
+    "optional": {
+      "WHOP_PRODUCT_ID_EN": {
+        "set": false,
+        "value": null
+      },
+      "WHOP_PRODUCT_ID_JA": {
+        "set": false,
+        "value": null
+      },
+      "WHOP_PRODUCT_ID_ES": {
+        "set": false,
+        "value": null
+      },
+      "WHOP_PRODUCT_ID_PT_BR": {
+        "set": false,
+        "value": null
+      },
+      "WHOP_PRODUCT_ID_AR": {
+        "set": false,
+        "value": null
+      },
+      "WHOP_PRODUCT_ID_KO": {
+        "set": false,
+        "value": null
+      }
+    }
+  },
+  "cron": {
+    "success": true,
+    "crons": [
+      {
+        "path": "/api/x-post-minimal-version-cron",
+        "schedule": "0 7,12,15,23 * * *"
+      },
+      {
+        "path": "/api/x-post-free-report",
+        "schedule": "30 4,10,17,19 * * *"
+      },
+      {
+        "path": "/api/x-quote-repost",
+        "schedule": "0 0,2,4,6,8,10,12,14,16,18,20,22 * * *"
+      },
+      {
+        "path": "/api/x-quote-repost-metrics",
+        "schedule": "0 1 * * *"
+      }
+    ],
+    "totalCrons": 17
+  },
+  "links": {
+    "quoteRepost": {
+      "en": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_en_x_quote&utm_source=x_quote_en&utm_medium=social&utm_campaign=x_quote_en_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_en_x_quote",
+          "lang": "en",
+          "source": "x_quote"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defence-btc-en/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defence-btc-en/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "en"
+        }
+      },
+      "es": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_es_x_quote&utm_source=x_quote_es&utm_medium=social&utm_campaign=x_quote_es_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_es_x_quote",
+          "lang": "es",
+          "source": "x_quote"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defense-btc-es/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defense-btc-es/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "es"
+        }
+      },
+      "pt-br": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_pt-br_x_quote&utm_source=x_quote_pt-br&utm_medium=social&utm_campaign=x_quote_pt-br_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_pt-br_x_quote",
+          "lang": "pt-br",
+          "source": "x_quote"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defense-btc-ptbr/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defense-btc-ptbr/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "pt-br"
+        }
+      },
+      "ar": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_ar_x_quote&utm_source=x_quote_ar&utm_medium=social&utm_campaign=x_quote_ar_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_ar_x_quote",
+          "lang": "ar",
+          "source": "x_quote"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/tap-defense-btc-ar/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/tap-defense-btc-ar/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "ar"
+        }
+      },
+      "ja": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_ja_x_quote&utm_source=x_quote_ja&utm_medium=social&utm_campaign=x_quote_ja_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_ja_x_quote",
+          "lang": "ja",
+          "source": "x_quote"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defence-btc-ja/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defence-btc-ja/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "ja"
+        }
+      },
+      "ko": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_ko_x_quote&utm_source=x_quote_ko&utm_medium=social&utm_campaign=x_quote_ko_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_ko_x_quote",
+          "lang": "ko",
+          "source": "x_quote"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defense-btc-ko/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defense-btc-ko/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "ko"
+        }
+      }
+    },
+    "freeReport": {
+      "en": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_en_x_direct&utm_source=x_direct_en&utm_medium=social&utm_campaign=x_direct_en_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_en_x_direct",
+          "lang": "en",
+          "source": "x_direct"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defence-btc-en/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defence-btc-en/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "en"
+        }
+      },
+      "es": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_es_x_direct&utm_source=x_direct_es&utm_medium=social&utm_campaign=x_direct_es_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_es_x_direct",
+          "lang": "es",
+          "source": "x_direct"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defense-btc-es/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defense-btc-es/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "es"
+        }
+      },
+      "pt-br": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_pt-br_x_direct&utm_source=x_direct_pt-br&utm_medium=social&utm_campaign=x_direct_pt-br_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_pt-br_x_direct",
+          "lang": "pt-br",
+          "source": "x_direct"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defense-btc-ptbr/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defense-btc-ptbr/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "pt-br"
+        }
+      },
+      "ar": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_ar_x_direct&utm_source=x_direct_ar&utm_medium=social&utm_campaign=x_direct_ar_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_ar_x_direct",
+          "lang": "ar",
+          "source": "x_direct"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/tap-defense-btc-ar/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/tap-defense-btc-ar/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "ar"
+        }
+      },
+      "ja": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_ja_x_direct&utm_source=x_direct_ja&utm_medium=social&utm_campaign=x_direct_ja_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_ja_x_direct",
+          "lang": "ja",
+          "source": "x_direct"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defence-btc-ja/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defence-btc-ja/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "ja"
+        }
+      },
+      "ko": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_ko_x_direct&utm_source=x_direct_ko&utm_medium=social&utm_campaign=x_direct_ko_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_ko_x_direct",
+          "lang": "ko",
+          "source": "x_direct"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defense-btc-ko/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defense-btc-ko/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "ko"
+        }
+      }
+    },
+    "minimalVersion": {
+      "en": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_en_x_minimal&utm_source=x_minimal_en&utm_medium=social&utm_campaign=x_minimal_en_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_en_x_minimal",
+          "lang": "en",
+          "source": "x_minimal"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defence-btc-en/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defence-btc-en/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "en"
+        }
+      },
+      "es": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_es_x_minimal&utm_source=x_minimal_es&utm_medium=social&utm_campaign=x_minimal_es_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_es_x_minimal",
+          "lang": "es",
+          "source": "x_minimal"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defense-btc-es/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defense-btc-es/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "es"
+        }
+      },
+      "pt-br": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_pt-br_x_minimal&utm_source=x_minimal_pt-br&utm_medium=social&utm_campaign=x_minimal_pt-br_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_pt-br_x_minimal",
+          "lang": "pt-br",
+          "source": "x_minimal"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defense-btc-ptbr/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defense-btc-ptbr/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "pt-br"
+        }
+      },
+      "ar": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_ar_x_minimal&utm_source=x_minimal_ar&utm_medium=social&utm_campaign=x_minimal_ar_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_ar_x_minimal",
+          "lang": "ar",
+          "source": "x_minimal"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/tap-defense-btc-ar/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/tap-defense-btc-ar/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "ar"
+        }
+      },
+      "ja": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_ja_x_minimal&utm_source=x_minimal_ja&utm_medium=social&utm_campaign=x_minimal_ja_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_ja_x_minimal",
+          "lang": "ja",
+          "source": "x_minimal"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defence-btc-ja/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defence-btc-ja/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "ja"
+        }
+      },
+      "ko": {
+        "telegram": {
+          "success": true,
+          "deepLink": "https://t.me/dr_grok_bot?start=minimal_ko_x_minimal&utm_source=x_minimal_ko&utm_medium=social&utm_campaign=x_minimal_ko_2026-01-27",
+          "botUsername": "dr_grok_bot",
+          "startParam": "minimal_ko_x_minimal",
+          "lang": "ko",
+          "source": "x_minimal"
+        },
+        "whop": {
+          "success": true,
+          "whopLink": "https://whop.com/aio-media-llc/trap-defense-btc-ko/",
+          "whopLinkWithPromo": "https://whop.com/aio-media-llc/trap-defense-btc-ko/?promo=DEFEND50",
+          "promoCode": "DEFEND50",
+          "lang": "ko"
+        }
+      }
+    }
+  },
+  "summary": {
+    "allRequiredVarsSet": true,
+    "cronConfigured": true,
+    "linksWorking": true
+  }
+}

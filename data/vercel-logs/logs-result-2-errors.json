@@ -1,0 +1,463 @@
+{
+  "totalErrors": 44,
+  "errors": [
+    {
+      "timestamp": "2026-01-27 01:35:56",
+      "endpoint": "x-webhook",
+      "method": "GET",
+      "statusCode": "",
+      "message": "(node:4) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `node --trace-deprecation ...` to show where the warning was created)",
+      "requestId": "tngtt-1769477755750-272828c421f7",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 01:30:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-27T01:30:04.699Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "db7d9-1769477403282-1cbd0ef8a8b3",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 01:15:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-27T01:15:04.445Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "h664x-1769476503307-9efb7b6174f1",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 01:00:46",
+      "endpoint": "x-quote-repost",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "❌ Failed to post quote reposts for ko: Assignment to constant variable.",
+      "requestId": "tmczm-1769475644429-39713e1e95c2",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 01:00:48",
+      "endpoint": "x-quote-repost",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "❌ Failed to post quote reposts for ko: Assignment to constant variable.",
+      "requestId": "tmczm-1769475644429-39713e1e95c2",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 01:00:41",
+      "endpoint": "x-post-performance-analysis",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "(node:4) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(Use `node --trace-deprecation ...` to show where the warning was created)",
+      "requestId": "zhg57-1769475641255-06f5ff5f6590",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 01:00:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-27T01:00:04.882Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "cwfw6-1769475603308-089edac917fb",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:45:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-27T00:45:04.477Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "q6cwq-1769474703301-b8f5cc07443e",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:30:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-27T00:30:04.036Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "pldj8-1769473803296-172c282bb3d4",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:15:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-27T00:15:04.427Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "2vpfv-1769472903166-d58fd3e31d54",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:00:46",
+      "endpoint": "x-quote-repost",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "❌ Failed to post quote reposts for ar: Assignment to constant variable.",
+      "requestId": "wpg86-1769472044196-97fcfe690338",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:00:48",
+      "endpoint": "x-quote-repost",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "❌ Failed to post quote reposts for ar: Assignment to constant variable.",
+      "requestId": "wpg86-1769472044196-97fcfe690338",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:00:12",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"generateCryptoQuantAnalysis\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-27T00:00:12.833Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:01:00",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "[REGULAR] Error processing language en: integratedOptimization is not defined",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:01:00",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "[REGULAR] Error processing language es: integratedOptimization is not defined",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:01:00",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "[REGULAR] Error processing language pt-br: integratedOptimization is not defined",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:01:00",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "[REGULAR] Error processing language ar: integratedOptimization is not defined",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:01:00",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "[REGULAR] Error processing language ja: integratedOptimization is not defined",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:01:00",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "[REGULAR] Error processing language ko: integratedOptimization is not defined",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:01:00",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "[Grok+Gemini Optimizer] Error optimizing MINIMAL for en: optimizeWithGrokAndGemini is not defined",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:01:00",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "[Grok+Gemini Optimizer] Error optimizing MINIMAL for es: optimizeWithGrokAndGemini is not defined",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:01:01",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "[Grok+Gemini Optimizer] Error optimizing MINIMAL for pt-br: optimizeWithGrokAndGemini is not defined",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:01:01",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "[Grok+Gemini Optimizer] Error optimizing MINIMAL for ar: optimizeWithGrokAndGemini is not defined",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:01:01",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "[Grok+Gemini Optimizer] Error optimizing MINIMAL for ja: optimizeWithGrokAndGemini is not defined",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-27 00:01:01",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "[Grok+Gemini Optimizer] Error optimizing MINIMAL for ko: optimizeWithGrokAndGemini is not defined",
+      "requestId": "xkjpd-1769472003689-fe07b80e47d8",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 23:45:03",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "(node:4) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.",
+      "requestId": "frvjt-1769471103356-15971a3d891e",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 23:45:06",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-26T23:45:06.194Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "frvjt-1769471103356-15971a3d891e",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 23:30:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": "",
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-26T23:30:04.662Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "ljhl4-1769470203281-6e56067dbc67",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 23:15:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-26T23:15:04.252Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "6jl46-1769469303360-fd8b056deea3",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 23:00:03",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-26T23:00:03.986Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "8rkn7-1769468403300-ec573db9e4b5",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 22:45:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-26T22:45:04.302Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "q2w4w-1769467503218-4648beb39b67",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 22:30:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-26T22:30:04.616Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "rxgrf-1769466603088-219538c58acb",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 22:15:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-26T22:15:04.741Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "c2rb5-1769465703289-5741dbad06dc",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 22:00:47",
+      "endpoint": "x-quote-repost",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "❌ Failed to post quote reposts for pt-br: Assignment to constant variable.",
+      "requestId": "xc9pg-1769464844356-1c76edda03c4",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 22:00:49",
+      "endpoint": "x-quote-repost",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "❌ Failed to post quote reposts for pt-br: Assignment to constant variable.",
+      "requestId": "xc9pg-1769464844356-1c76edda03c4",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 22:01:25",
+      "endpoint": "x-quote-repost",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "❌ Failed to post quote reposts for es: Assignment to constant variable.",
+      "requestId": "xc9pg-1769464844356-1c76edda03c4",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 22:01:27",
+      "endpoint": "x-quote-repost",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "❌ Failed to post quote reposts for es: Assignment to constant variable.",
+      "requestId": "xc9pg-1769464844356-1c76edda03c4",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 22:00:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "(node:4) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.",
+      "requestId": "jrdj4-1769464803598-aad8e8fc09f0",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 22:00:06",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-26T22:00:06.042Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "jrdj4-1769464803598-aad8e8fc09f0",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 21:45:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-26T21:45:04.926Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "vmh5s-1769463903255-f623dadcf595",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 21:30:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-26T21:30:04.659Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "szqrt-1769463003239-3ecaa0f6d224",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 21:15:04",
+      "endpoint": "cron",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "{\"level\":\"error\",\"service\":\"gpt-client\",\"prefix\":\"analyzeCryptoQuantData\",\"msg\":\"GPT API failed after retries\",\"time\":\"2026-01-26T21:15:04.700Z\",\"error\":\"OpenAI API error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "requestId": "g5tt2-1769462103242-074ced758984",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 21:00:47",
+      "endpoint": "x-quote-repost",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "❌ Failed to post quote reposts for es: Assignment to constant variable.",
+      "requestId": "spmgr-1769461244466-fbd844631fc5",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    },
+    {
+      "timestamp": "2026-01-26 21:00:48",
+      "endpoint": "x-quote-repost",
+      "method": "GET",
+      "statusCode": 200,
+      "message": "❌ Failed to post quote reposts for es: Assignment to constant variable.",
+      "requestId": "spmgr-1769461244466-fbd844631fc5",
+      "deploymentId": "dpl_6AXE6eyffoPdUofi8BvfTv3fccsG"
+    }
+  ],
+  "errorPatterns": {
+    "(node:4) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to error": 4,
+    "error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}": 18,
+    "❌ Failed to post quote reposts for ko: Assignment to constant variable.": 2,
+    "❌ Failed to post quote reposts for ar: Assignment to constant variable.": 2,
+    "[REGULAR] Error processing language en: integratedOptimization is not defined": 1,
+    "[REGULAR] Error processing language es: integratedOptimization is not defined": 1,
+    "[REGULAR] Error processing language pt-br: integratedOptimization is not defined": 1,
+    "[REGULAR] Error processing language ar: integratedOptimization is not defined": 1,
+    "[REGULAR] Error processing language ja: integratedOptimization is not defined": 1,
+    "[REGULAR] Error processing language ko: integratedOptimization is not defined": 1,
+    "[Grok+Gemini Optimizer] Error optimizing MINIMAL for en: optimizeWithGrokAndGemini is not defined": 1,
+    "[Grok+Gemini Optimizer] Error optimizing MINIMAL for es: optimizeWithGrokAndGemini is not defined": 1,
+    "[Grok+Gemini Optimizer] Error optimizing MINIMAL for pt-br: optimizeWithGrokAndGemini is not defined": 1,
+    "[Grok+Gemini Optimizer] Error optimizing MINIMAL for ar: optimizeWithGrokAndGemini is not defined": 1,
+    "[Grok+Gemini Optimizer] Error optimizing MINIMAL for ja: optimizeWithGrokAndGemini is not defined": 1,
+    "[Grok+Gemini Optimizer] Error optimizing MINIMAL for ko: optimizeWithGrokAndGemini is not defined": 1,
+    "❌ Failed to post quote reposts for pt-br: Assignment to constant variable.": 2,
+    "❌ Failed to post quote reposts for es: Assignment to constant variable.": 4
+  },
+  "commonErrors": [
+    {
+      "pattern": "error: 400\",\"isTimeout\":true,\"apiKeyMasked\":\"sk-***z4A\"}",
+      "count": 18
+    },
+    {
+      "pattern": "(node:4) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to error",
+      "count": 4
+    },
+    {
+      "pattern": "❌ Failed to post quote reposts for es: Assignment to constant variable.",
+      "count": 4
+    },
+    {
+      "pattern": "❌ Failed to post quote reposts for ko: Assignment to constant variable.",
+      "count": 2
+    },
+    {
+      "pattern": "❌ Failed to post quote reposts for ar: Assignment to constant variable.",
+      "count": 2
+    },
+    {
+      "pattern": "❌ Failed to post quote reposts for pt-br: Assignment to constant variable.",
+      "count": 2
+    },
+    {
+      "pattern": "[REGULAR] Error processing language en: integratedOptimization is not defined",
+      "count": 1
+    },
+    {
+      "pattern": "[REGULAR] Error processing language es: integratedOptimization is not defined",
+      "count": 1
+    },
+    {
+      "pattern": "[REGULAR] Error processing language pt-br: integratedOptimization is not defined",
+      "count": 1
+    },
+    {
+      "pattern": "[REGULAR] Error processing language ar: integratedOptimization is not defined",
+      "count": 1
+    }
+  ]
+}

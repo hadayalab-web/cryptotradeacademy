@@ -1,0 +1,265 @@
+{
+  "timestamp": "2026-01-27T02:32:14.852Z",
+  "products": {
+    "EN": {
+      "id": "prod_6RjqaJMGyEw1F",
+      "name": "Trap Defence BTC - English",
+      "description": "undefined...",
+      "visibility": "visible",
+      "created_at": 1763136259,
+      "plan_count": 3
+    },
+    "ES": {
+      "id": "prod_Eg1V8et0WTg69",
+      "name": "Trap Defense BTC - Spanish",
+      "description": "undefined...",
+      "visibility": "visible",
+      "created_at": 1767406936,
+      "plan_count": 3
+    },
+    "PT-BR": {
+      "id": "prod_Cpz4oQla16GUB",
+      "name": "Trap Defense BTC - Portuguese",
+      "description": "undefined...",
+      "visibility": "visible",
+      "created_at": 1767407016,
+      "plan_count": 3
+    },
+    "AR": {
+      "id": "prod_l4ipnvNhwFpdQ",
+      "name": "Trap Defense BTC - Arabic",
+      "description": "undefined...",
+      "visibility": "visible",
+      "created_at": 1767406985,
+      "plan_count": 3
+    },
+    "KO": {
+      "id": "prod_HouQTKTN1F7vD",
+      "name": "Trap Defense BTC - Korean",
+      "description": "undefined...",
+      "visibility": "visible",
+      "created_at": 1767407041,
+      "plan_count": 3
+    },
+    "JA": {
+      "id": "prod_756mUZhSfLAkL",
+      "name": "Trap Defense BTC - Japanese",
+      "description": "undefined...",
+      "visibility": "visible",
+      "created_at": 1767407069,
+      "plan_count": 3
+    }
+  },
+  "plans": {
+    "EN": [
+      {
+        "id": "plan_SatV2J5R7gvHn",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "99.0",
+        "billing_period": 30,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1764579965
+      },
+      {
+        "id": "plan_L1xVv19322pC3",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "237.0",
+        "billing_period": 90,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1765205380
+      },
+      {
+        "id": "plan_CKOj1QCfnlr1j",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "845.0",
+        "billing_period": 365,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767398212
+      }
+    ],
+    "ES": [
+      {
+        "id": "plan_NJWa1JUcDx5Fa",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "89.0",
+        "billing_period": 30,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964152
+      },
+      {
+        "id": "plan_kQhbzBdoir5xC",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "214.0",
+        "billing_period": 90,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964152
+      },
+      {
+        "id": "plan_l2chYQncOcB1I",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "758.0",
+        "billing_period": 365,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964153
+      }
+    ],
+    "PT-BR": [
+      {
+        "id": "plan_o0zp6ijFsahMC",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "87.0",
+        "billing_period": 30,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964154
+      },
+      {
+        "id": "plan_0NuklMva0SQbz",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "209.0",
+        "billing_period": 90,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964154
+      },
+      {
+        "id": "plan_zWA7dBw46iQic",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "741.0",
+        "billing_period": 365,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964154
+      }
+    ],
+    "AR": [
+      {
+        "id": "plan_trhNqPmGEBV49",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "79.0",
+        "billing_period": 30,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964147
+      },
+      {
+        "id": "plan_BFAUO1jBunao6",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "190.0",
+        "billing_period": 90,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964148
+      },
+      {
+        "id": "plan_TZLVX52Fy9iV2",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "673.0",
+        "billing_period": 365,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964148
+      }
+    ],
+    "KO": [
+      {
+        "id": "plan_LZf2Jium9Gk3h",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "95.0",
+        "billing_period": 30,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964149
+      },
+      {
+        "id": "plan_8pMQo0mlMuLj6",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "228.0",
+        "billing_period": 90,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964149
+      },
+      {
+        "id": "plan_QlHefoBY983BV",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "809.0",
+        "billing_period": 365,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964150
+      }
+    ],
+    "JA": [
+      {
+        "id": "plan_0b6EOuqxk6TPb",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "95.0",
+        "billing_period": 30,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964150
+      },
+      {
+        "id": "plan_2vKR0Xd77d7Rp",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "228.0",
+        "billing_period": 90,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964151
+      },
+      {
+        "id": "plan_moF8lZrc4nElw",
+        "name": "N/A",
+        "plan_type": "renewal",
+        "initial_price": "0.0",
+        "renewal_price": "809.0",
+        "billing_period": 365,
+        "expiration_days": null,
+        "visibility": "visible",
+        "created_at": 1767964151
+      }
+    ]
+  }
+}

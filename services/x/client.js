@@ -196,6 +196,23 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
           }
         }
 
+        // 401/403エラーの詳細ログ（OAuth署名エラーの可能性）
+        if (response.status === 401 || response.status === 403) {
+          console.error(`[X API] ❌ Authentication/Authorization Error (${response.status}):`, {
+            endpoint,
+            method,
+            errorData,
+            url,
+            possibleCauses: [
+              "OAuth signature mismatch",
+              "Invalid access token",
+              "Expired credentials",
+              "Invalid consumer key/secret"
+            ],
+            note: "This may indicate OAuth signature verification failure on X API side"
+          });
+        }
+
         const error = new Error(`X API Error: ${response.status} - ${JSON.stringify(errorData)}`);
 
         // P1 FIX: HTTPステータスベースでリトライ（429, 5xxをリトライ対象）
@@ -239,7 +256,23 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
         throw error;
       }
 
-      return await response.json();
+      // P0 FIX: response.okがtrueでも、X API v2のerrorsフィールドが含まれている場合はエラーとして扱う
+      const responseData = await response.json();
+      
+      // X API v2のエラーレスポンス形式: { errors: [{ code: number, message: string }] }
+      if (responseData.errors && Array.isArray(responseData.errors) && responseData.errors.length > 0) {
+        const errorMessages = responseData.errors.map(e => `${e.code}: ${e.message}`).join(', ');
+        console.error(`[X API] ❌ Response contains errors field (but status was ${response.status}):`, {
+          endpoint,
+          method,
+          errors: responseData.errors,
+          fullResponse: responseData,
+          url,
+        });
+        throw new Error(`X API Response Errors: ${errorMessages} - ${JSON.stringify(responseData)}`);
+      }
+
+      return responseData;
     } catch (error) {
       // P1 FIX: リトライ対象を拡大（429以外もリトライ）
       const isRetryableError = 
@@ -695,13 +728,34 @@ async function postQuoteTweet(text, quoteTweetId, mediaIds = [], maxRetries = 3)
     );
 
     // 🔍 重要: レスポンスの検証を強化（空振りを検出）
-    if (!response || !response.data) {
-      console.error(`[X API] ❌ Invalid response structure:`, {
+    // P0 FIX: レスポンス構造とエラーフィールドを厳密に検証
+    if (!response) {
+      console.error(`[X API] ❌ Empty response from xApiRequest:`, {
+        body,
+        timestamp: new Date().toISOString(),
+      });
+      throw new Error(`Empty response from xApiRequest`);
+    }
+
+    // X API v2のエラーレスポンス形式を確認（xApiRequestで既にチェック済みだが、念のため）
+    if (response.errors && Array.isArray(response.errors) && response.errors.length > 0) {
+      const errorMessages = response.errors.map(e => `${e.code}: ${e.message}`).join(', ');
+      console.error(`[X API] ❌ Response contains errors field:`, {
+        errors: response.errors,
+        fullResponse: response,
+        body,
+        timestamp: new Date().toISOString(),
+      });
+      throw new Error(`X API Response Errors: ${errorMessages} - ${JSON.stringify(response)}`);
+    }
+
+    if (!response.data) {
+      console.error(`[X API] ❌ Invalid response structure (missing data field):`, {
         response,
         body,
         timestamp: new Date().toISOString(),
       });
-      throw new Error(`Invalid response structure: ${JSON.stringify(response)}`);
+      throw new Error(`Invalid response structure (missing data field): ${JSON.stringify(response)}`);
     }
 
     if (!response.data.id) {
@@ -717,6 +771,7 @@ async function postQuoteTweet(text, quoteTweetId, mediaIds = [], maxRetries = 3)
       tweetId: response.data.id,
       text: response.data.text,
       timestamp: new Date().toISOString(),
+      fullResponse: response, // デバッグ用に完全なレスポンスをログに記録
     });
     
     return {

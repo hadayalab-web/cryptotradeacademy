@@ -1,0 +1,134 @@
+{
+  "timestamp": "2026-01-27T16:05:07.189Z",
+  "totalPostsPerDay": 490,
+  "conversionRates": {
+    "engagementToClick": {
+      "best": 0.03,
+      "realistic": 0.02,
+      "worst": 0.01
+    },
+    "clickToOptIn": {
+      "best": 0.3,
+      "realistic": 0.2,
+      "worst": 0.1
+    },
+    "whopTrafficToConversion": {
+      "best": 0.05,
+      "realistic": 0.03,
+      "worst": 0.01
+    },
+    "optInToWhopConversion": {
+      "best": 0.15,
+      "realistic": 0.1,
+      "worst": 0.05
+    },
+    "whopClickRatio": 0.5,
+    "telegramClickRatio": 0.5,
+    "couponCampaignMultiplier": {
+      "best": 1.5,
+      "realistic": 1.3,
+      "worst": 1.1
+    }
+  },
+  "predictions": {
+    "realistic": {
+      "scenarioName": "現実的なケース",
+      "totalPostsPerDay": 490,
+      "totalImpressions": 115997648,
+      "totalEngagements": 11873791,
+      "avgER": 0.10236234758984755,
+      "totalClicks": 237475.82,
+      "whopTraffic": 118737.91,
+      "telegramClicks": 118737.91,
+      "telegramOptIns": 23747.582000000002,
+      "whopDirectConversions": 4630.77849,
+      "optInToWhopConversions": 2374.7582,
+      "whopTotalConversions": 7005.53669,
+      "engagementToClick": 0.02,
+      "clickToOptIn": 0.2,
+      "whopTrafficToConversion": 0.03,
+      "optInToWhopConversion": 0.1,
+      "couponMultiplier": 1.3
+    }
+  },
+  "languageBreakdown": [
+    {
+      "lang": "en",
+      "postsPerDay": 195,
+      "impressionsPerDay": 85033000,
+      "engagementsPerDay": 8559988,
+      "avgER": 0.10066665882657322,
+      "clicksPerDay": 171200,
+      "telegramOptInsPerDay": 17120,
+      "whopTrafficPerDay": 85600,
+      "whopDirectConversionsPerDay": 3338,
+      "optInToWhopConversionsPerDay": 1712,
+      "whopTotalConversionsPerDay": 5050
+    },
+    {
+      "lang": "es",
+      "postsPerDay": 98,
+      "impressionsPerDay": 9374473,
+      "engagementsPerDay": 960883,
+      "avgER": 0.10249994853044006,
+      "clicksPerDay": 19218,
+      "telegramOptInsPerDay": 1922,
+      "whopTrafficPerDay": 9609,
+      "whopDirectConversionsPerDay": 375,
+      "optInToWhopConversionsPerDay": 192,
+      "whopTotalConversionsPerDay": 567
+    },
+    {
+      "lang": "pt-br",
+      "postsPerDay": 74,
+      "impressionsPerDay": 8680965,
+      "engagementsPerDay": 953409,
+      "avgER": 0.1098275364547605,
+      "clicksPerDay": 19068,
+      "telegramOptInsPerDay": 1907,
+      "whopTrafficPerDay": 9534,
+      "whopDirectConversionsPerDay": 372,
+      "optInToWhopConversionsPerDay": 191,
+      "whopTotalConversionsPerDay": 563
+    },
+    {
+      "lang": "ar",
+      "postsPerDay": 49,
+      "impressionsPerDay": 4830175,
+      "engagementsPerDay": 525281,
+      "avgER": 0.10874989001433695,
+      "clicksPerDay": 10506,
+      "telegramOptInsPerDay": 1051,
+      "whopTrafficPerDay": 5253,
+      "whopDirectConversionsPerDay": 205,
+      "optInToWhopConversionsPerDay": 105,
+      "whopTotalConversionsPerDay": 310
+    },
+    {
+      "lang": "ja",
+      "postsPerDay": 49,
+      "impressionsPerDay": 5175625,
+      "engagementsPerDay": 566730,
+      "avgER": 0.10949981886245623,
+      "clicksPerDay": 11335,
+      "telegramOptInsPerDay": 1133,
+      "whopTrafficPerDay": 5667,
+      "whopDirectConversionsPerDay": 221,
+      "optInToWhopConversionsPerDay": 113,
+      "whopTotalConversionsPerDay": 334
+    },
+    {
+      "lang": "ko",
+      "postsPerDay": 25,
+      "impressionsPerDay": 2903409,
+      "engagementsPerDay": 307497,
+      "avgER": 0.10590895047855814,
+      "clicksPerDay": 6150,
+      "telegramOptInsPerDay": 615,
+      "whopTrafficPerDay": 3075,
+      "whopDirectConversionsPerDay": 120,
+      "optInToWhopConversionsPerDay": 61,
+      "whopTotalConversionsPerDay": 181
+    }
+  ]
+}

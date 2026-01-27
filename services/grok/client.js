@@ -382,7 +382,11 @@ async function discoverInfluencersForQuoteRepost(lang = "en", options = {}) {
       const cached = await kv.get(cacheKey);
       if (cached && Array.isArray(cached) && cached.length > 0) {
         console.log(`[Grok] Using cached influencers for ${targetLang} (${cached.length} results)`);
-        return cached.slice(0, maxResults);
+        // 🔒 キャッシュから取得した場合もlangフィールドを設定
+        return cached.slice(0, maxResults).map(inf => ({
+          ...inf,
+          lang: inf.lang || targetLang, // langフィールドがない場合は現在の言語を設定
+        }));
       }
     } catch (error) {
       console.warn("[Grok] Failed to get cached influencers:", error.message);
