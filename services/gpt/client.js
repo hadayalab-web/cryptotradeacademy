@@ -372,8 +372,7 @@ If data is missing or insufficient, set signal to "STANDBY" and urgency to "low"
             ],
             response_format: { type: 'json_object' },
             // GPT-5.2-2025-12-11の公式仕様に準拠
-            max_completion_tokens: 1000, // GPT-5.2ではmax_completion_tokensを使用
-            max_tokens: 1000, // 後方互換性のため残す
+            max_completion_tokens: 1000, // GPT-5.2ではmax_completion_tokensのみを使用（max_tokensは非対応）
             temperature: 0.3,
           }),
         },
@@ -652,8 +651,7 @@ If data is missing or insufficient, state that clearly and provide general Trap 
               { role: 'user', content: userContent },
             ],
             // GPT-5.2-2025-12-11の公式仕様に準拠
-            max_completion_tokens: 800, // GPT-5.2ではmax_completion_tokensを使用（max_tokensは後方互換性のため残す）
-            max_tokens: 800, // 後方互換性のため残す
+            max_completion_tokens: 800, // GPT-5.2ではmax_completion_tokensのみを使用（max_tokensは非対応）
             temperature: 0.6,
             // reasoning.effortはGPT-5.2でサポートされているが、デフォルト（none）で問題ない
             // 必要に応じて reasoning: { effort: "medium" } を追加可能
@@ -852,8 +850,7 @@ If data is missing or insufficient, state that clearly.`;
               { role: 'user', content: userContent },
             ],
             // GPT-5.2-2025-12-11の公式仕様に準拠
-            max_completion_tokens: 1000, // GPT-5.2ではmax_completion_tokensを使用
-            max_tokens: 1000, // 後方互換性のため残す
+            max_completion_tokens: 1000, // GPT-5.2ではmax_completion_tokensのみを使用（max_tokensは非対応）
             temperature: 0.7,
           }),
         },
@@ -1018,7 +1015,8 @@ async function generateText(systemPrompt, userPrompt, options = {}) {
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt },
             ],
-            max_tokens,
+            // GPT-5.2-2025-12-11の公式仕様に準拠
+            max_completion_tokens: max_tokens, // GPT-5.2ではmax_completion_tokensのみを使用（max_tokensは非対応）
             temperature,
           }),
         },
