@@ -22,17 +22,20 @@ try {
  */
 async function getTweetReplies(tweetId, maxResults = 10) {
   try {
-    // URLSearchParamsを使用してクエリ文字列を構築（searchTweets関数と同じ方式）
-    const params = new URLSearchParams({
-      query: `conversation_id:${tweetId}`,
-      max_results: Math.min(Math.max(10, maxResults), 100).toString(),
+    // P0 FIX: options.paramsを使用する形式に修正（Grok推奨）
+    // conversation_idクエリを使用してリプライを取得（過去7日以内）
+    // Grok推奨: `conversation_id:TARGET_TWEET_ID -is:retweet`でリツイートを除外
+    const paramsObj = {
+      query: `conversation_id:${tweetId} -is:retweet`, // リツイートを除外
+      max_results: Math.min(Math.max(10, maxResults), 100).toString(), // X APIは文字列を期待する場合があるため、toString()を追加
       'tweet.fields': 'author_id,created_at,public_metrics,text,in_reply_to_user_id',
       'user.fields': 'username,name',
       expansions: 'author_id',
-    });
+    };
     
-    const response = await xApiRequest(`/tweets/search/recent?${params.toString()}`, {
+    const response = await xApiRequest('/tweets/search/recent', {
       method: 'GET',
+      params: paramsObj,
     });
 
     if (!response.data || !Array.isArray(response.data)) {
