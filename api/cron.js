@@ -1198,7 +1198,10 @@ module.exports = async function handler(req, res) {
     // イベント駆動有効時は、shouldSend判定を優先
     const willSend = ENABLE_EVENT_DRIVEN ? shouldSend : true;
 
-    if (!willSend && !force) {
+    // P0 FIX: 早期returnを「定期枠以外」に限定（GPT-5.2推奨案A）
+    // 定期枠(isRegularSlot)は shouldSend=false でも送る（forceも同様）
+    // これにより「isRegularSlot=true なのに止まる」が解消される
+    if (!force && !isRegularSlot && !willSend) {
       console.log(`[Event-Driven] Skipping send: ${triggerReason}`);
       return res.status(200).json({
         success: true,
@@ -1222,6 +1225,9 @@ module.exports = async function handler(req, res) {
     // ===== Phase 1 End =====
 
     // 7-A. REGULAR（6言語すべてに配信）
+    // P0 FIX: 早期return条件を修正したため、isRegularSlotがtrueの場合は必ず到達する
+    // 定期配信（isRegularSlot）と強制配信（force）は必ず送信
+    // イベント駆動のREGULARトリガーも送信（早期returnで既にフィルタリング済み）
     if (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && triggerType === 'REGULAR')) {
       console.log('Sending REGULAR message to all languages...');
       
@@ -1584,7 +1590,11 @@ module.exports = async function handler(req, res) {
     const hasAnyMinimalChatId = targetLangsForMinimal.some(lang => resolveMinimalChatId(lang) !== null);
     const ENABLE_MINIMAL_VERSION = hasMinimalBotToken && hasAnyMinimalChatId;
     
-    if (ENABLE_MINIMAL_VERSION && shouldSend && (isRegularSlot || force)) {
+    // P0 FIX: 無料版も定期枠（isRegularSlot）は必ず送るように修正（有料版と統一）
+    // 早期return条件を修正したため、isRegularSlotがtrueの場合は必ず到達する
+    // 定期配信（isRegularSlot）と強制配信（force）は必ず送信
+    // イベント駆動の判定（shouldSend）は定期枠以外の場合のみ適用
+    if (ENABLE_MINIMAL_VERSION && (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && shouldSend))) {
       console.log('[Free Version] Sending free briefing to all languages...');
       
       // 配信対象言語を取得（デフォルト: 6言語すべて）
@@ -1647,20 +1657,20 @@ module.exports = async function handler(req, res) {
           let grokGeminiOptimizationMinimal = null;
           try {
             console.log(`[Grok+Gemini Optimizer] Starting optimization for MINIMAL version (lang: ${targetLang})...`);
-            grokGeminiOptimizationMinimal = await optimizeWithGrokAndGemini({
+            grokGeminiOptimizationMinimal = await integrateGrokGeminiOptimization({
               marketData: {
                 priceUsd,
                 change24h,
                 score: snapshot.market_score,
+                signal: 'NONE', // MINIMALバージョンではシグナルなし
                 sentiment: sentimentLabel,
-                inflow,
-                mpi,
               },
               trapScore: minimalTrapScore,
               sentimentData,
               xSentiment: grokXAnalysis,
+              trapDetection: null, // MINIMALバージョンではトラップ検出なし
+              psychologicalSupport: null, // MINIMALバージョンでは心理的サポートなし
               lang: targetLang,
-              version: 'minimal',
             });
             
             if (grokGeminiOptimizationMinimal) {
