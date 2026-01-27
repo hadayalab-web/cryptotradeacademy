@@ -447,7 +447,11 @@ async function discoverInfluencersForQuoteRepost(lang = "en", options = {}) {
 
     const obj = safeJsonParse(text);
     if (obj && obj.influencers && Array.isArray(obj.influencers)) {
-      const influencers = obj.influencers.slice(0, maxResults);
+      // 🔒 言語整合性保証: すべてのインフルエンサーにlangフィールドを設定
+      const influencers = obj.influencers.slice(0, maxResults).map(inf => ({
+        ...inf,
+        lang: targetLang, // 明示的に言語を設定
+      }));
 
       // キャッシュに保存
       if (kv && influencers.length > 0) {

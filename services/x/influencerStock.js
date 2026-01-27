@@ -97,6 +97,17 @@ async function getInfluencersFromStock(lang, options = {}) {
     
     console.log(`[InfluencerStock] ✅ Retrieved ${influencers.length} influencers from stock for ${lang}`);
 
+    // 🔒 言語整合性検証: ストックに保存されたインフルエンサーが正しい言語のストックから取得されているか確認
+    // 注意: インフルエンサーオブジェクトにlangフィールドがある場合は検証、なければ警告のみ
+    const mismatchedLang = influencers.filter(inf => inf.lang && inf.lang.toLowerCase() !== lang.toLowerCase());
+    if (mismatchedLang.length > 0) {
+      console.error(`[InfluencerStock] ⚠️⚠️⚠️ LANGUAGE MISMATCH WARNING: Found ${mismatchedLang.length} influencers with mismatched language in stock for ${lang}:`, 
+        mismatchedLang.map(inf => `@${inf.username} (lang: ${inf.lang})`));
+      // 言語不一致のインフルエンサーを除外
+      influencers = influencers.filter(inf => !inf.lang || inf.lang.toLowerCase() === lang.toLowerCase());
+      console.log(`[InfluencerStock] ✅ Filtered to ${influencers.length} influencers with correct language (${lang})`);
+    }
+
     // 🔥 改善: スコアリング機能が有効な場合、Webhookデータからエンゲージメント統計を取得してスコアを計算
     if (options.enableScoring) {
       const influencersWithScores = await Promise.all(
@@ -222,8 +233,14 @@ async function updateInfluencerStock(lang, options = {}) {
       console.log(`[InfluencerStock] 📊 Average impressions: ${avgImpressions.toLocaleString()}`);
     }
     
+    // 🔒 言語整合性保証: すべてのインフルエンサーにlangフィールドを設定
+    const influencersWithLang = selectedInfluencers.map(inf => ({
+      ...inf,
+      lang: targetLang, // 明示的に言語を設定
+    }));
+    
     // ストックに保存
-    const saved = await saveInfluencersToStock(targetLang, selectedInfluencers);
+    const saved = await saveInfluencersToStock(targetLang, influencersWithLang);
     
     if (saved) {
       console.log(`[InfluencerStock] ✅✅✅ Successfully updated stock for ${targetLang} with ${selectedInfluencers.length} influencers`);

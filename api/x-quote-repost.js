@@ -769,6 +769,13 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         timestamp: new Date().toISOString(),
       });
       try {
+        // 🔒 言語整合性検証: インフルエンサーの言語が投稿言語と一致しているか確認
+        currentStep = 'language_verification';
+        if (influencer.lang && influencer.lang.toLowerCase() !== lang.toLowerCase()) {
+          console.error(`[Quote Repost] ⚠️⚠️⚠️ LANGUAGE MISMATCH: Skipping @${influencer.username} - influencer lang (${influencer.lang}) does not match post lang (${lang}) [runId: ${langRunId}, step: ${currentStep}]`);
+          continue;
+        }
+        
         // tweetIdが必須
         currentStep = 'tweet_id_check';
         if (!influencer.tweetId) {
