@@ -2,7 +2,8 @@
 // CryptoTrade Academy - イベント駆動配信システム用状態管理
 // Vercel KVを使用して前回配信状態を保存・取得
 
-const { kv } = require('@vercel/kv');
+// 🚀 シームレスなKVアクセス（utils/kv.js経由）
+const { kv } = require('./kv');
 
 // Valid market codes
 const VALID_MARKETS = ['EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR'];

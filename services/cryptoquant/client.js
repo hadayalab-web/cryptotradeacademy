@@ -1,10 +1,11 @@
-﻿// services/cryptoquant/client.js
+// services/cryptoquant/client.js
 // Node.js 18+ Native Fetchを使用
 // Phase 3: キャッシュ導入と分散レート制限対応
 
 const BASE_URL = "https://api.cryptoquant.com/v1";
 const API_KEY = process.env.CRYPTOQUANT_API_KEY;
-const { kv } = require('@vercel/kv');
+// 🚀 シームレスなKVアクセス（utils/kv.js経由）
+const { kv } = require('../../utils/kv');
 
 // Phase 3: 分散レート制限（Professionalプラン: concurrency=1, Premium以上: concurrency=2-3）
 const CRYPTOQUANT_PLAN = process.env.CRYPTOQUANT_PLAN || 'professional';

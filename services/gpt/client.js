@@ -32,7 +32,8 @@ const LRUCacheModule = require('lru-cache');
 const LRUCache = (typeof LRUCacheModule === 'function') 
   ? LRUCacheModule 
   : (LRUCacheModule.default ?? LRUCacheModule.LRUCache ?? LRUCacheModule);
-const { kv } = require('@vercel/kv');
+// 🚀 シームレスなKVアクセス（utils/kv.js経由）
+const { kv } = require('../../utils/kv');
 // recordMetric はオプショナル（存在しない場合は無視）
 let recordMetric;
 try {
