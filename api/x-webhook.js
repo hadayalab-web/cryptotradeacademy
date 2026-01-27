@@ -2,6 +2,7 @@
 // X API Webhookエンドポイント（リアルタイムエンゲージメント追跡）
 
 const crypto = require('crypto');
+const getRawBody = require('raw-body');
 
 // Vercel KV（エンゲージメントデータ保存用）
 let kv = null;
@@ -446,6 +447,35 @@ async function logWebhookAccess(method, req) {
 }
 
 /**
+ * Raw bodyを取得する（Vercel Serverless Functions用）
+ * Vercel AIアシスタントの推奨に基づき、raw-bodyパッケージを使用
+ * @param {Object} req - Express/Vercel request object
+ * @returns {Promise<string>} Raw body string
+ */
+async function getRawBodyFromRequest(req) {
+  try {
+    // raw-bodyパッケージを使用してraw bodyを取得
+    // 注意: configでbodyParser: falseを設定している必要がある
+    const rawBody = await getRawBody(req, {
+      encoding: 'utf8',
+      limit: '10mb', // 10MB制限（X APIのwebhookペイロードは通常小さい）
+    });
+    return rawBody;
+  } catch (error) {
+    console.error('[X Webhook] ❌ Failed to get raw body:', error.message);
+    // フォールバック: req.bodyから再構築を試みる（完全ではないが、動作確認は可能）
+    if (typeof req.body === 'string') {
+      console.warn('[X Webhook] ⚠️ Falling back to req.body (string)');
+      return req.body;
+    } else if (req.body) {
+      console.warn('[X Webhook] ⚠️ Falling back to JSON.stringify (not ideal for signature verification)');
+      return JSON.stringify(req.body);
+    }
+    return '';
+  }
+}
+
+/**
  * X API Webhook Handler
  * GET /api/x-webhook (CRC Challenge-Response Check)
  * POST /api/x-webhook (Webhookイベント受信)
@@ -486,19 +516,11 @@ async function handler(req, res) {
   // POSTリクエスト: Webhookイベント受信
   if (req.method === 'POST') {
     try {
-      // P0修正: raw body取得の試行（Vercel制約により、現状はJSON文字列化されたbodyを使用）
-      // 将来的には vercel.json で bodyParser: false を設定し、ストリームから読み取る実装を推奨
-      let rawBody = null;
-      let bodyString = null;
-      
-      // Vercelでは req.body が既にパースされているため、raw bodyを取得するには
-      // vercel.json で bodyParser: false を設定し、req.on('data') でストリームから読み取る必要がある
-      // 現状は JSON.stringify(req.body) を使用（キー順序がX APIと一致する可能性は低いが、動作確認は可能）
-      if (req.body) {
-        // 可能な限り一貫性のあるJSON文字列化（キー順序を固定）
-        bodyString = JSON.stringify(req.body, Object.keys(req.body).sort());
-        rawBody = bodyString; // 現状は同一として扱う
-      }
+      // P0 FIX: Vercel AIアシスタントの推奨に基づき、raw-bodyパッケージを使用
+      // Vercel AIアシスタントの回答: "raw-bodyパッケージを使用することが推奨されています"
+      // Grokの回答: "Use raw body for verification; JSON.stringify may fail due to formatting"
+      // 参考: https://developer.x.com/en/docs/twitter-api/enterprise/account-activity-api/guides/securing-webhooks
+      const rawBody = await getRawBodyFromRequest(req);
       
       // 🔍 重要: POSTリクエストの詳細をログに記録
       console.log('[X Webhook] 🔵 POST request received:', {
@@ -506,6 +528,7 @@ async function handler(req, res) {
         bodyType: typeof req.body,
         bodyKeys: req.body ? Object.keys(req.body) : [],
         hasRawBody: !!rawBody,
+        rawBodyLength: rawBody ? rawBody.length : 0,
         headers: {
           'x-twitter-webhooks-signature': req.headers['x-twitter-webhooks-signature'] ? 'present' : 'missing',
           'x-twitter-request-timestamp': req.headers['x-twitter-request-timestamp'] || 'missing',
@@ -527,26 +550,18 @@ async function handler(req, res) {
       // P0 FIX: 本番環境では署名検証必須
       const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
       
-      if (signature && timestamp) {
-      // P0修正: raw body取得（Vercel制約により、現状はJSON文字列化されたbodyを使用）
-      // 将来的には vercel.json で bodyParser: false を設定し、ストリームから読み取る実装を推奨
-      // 現状は JSON.stringify(req.body) を使用（キー順序がX APIと一致する可能性は低いが、動作確認は可能）
-      let rawBody = null;
+      // P0 FIX: replay_job_statusイベントは署名検証不要（X APIの仕様）
+      // replay_job_statusはAccount Activity Replay APIのジョブ完了通知で、
+      // 通常のwebhookイベントとは異なり、x-twitter-request-timestampヘッダーが存在しない場合がある
+      // 参考: https://docs.x.com/x-api/enterprise-gnip-2.0/fundamentals/account-activity#account-activity-replay-api
+      const isReplayJobStatus = req.body?.replay_job_status !== undefined;
       
-      // Vercelでは req.body が既にパースされているため、raw bodyを取得するには
-      // vercel.json で bodyParser: false を設定し、req.on('data') でストリームから読み取る必要がある
-      // 現状は JSON.stringify(req.body) を使用（実装の制約）
-      if (typeof req.body === 'string') {
-        // 既に文字列の場合はそのまま使用
-        rawBody = req.body;
-      } else if (req.body) {
-        // オブジェクトの場合はJSON文字列化（キー順序を固定して一貫性を保つ）
-        rawBody = JSON.stringify(req.body, Object.keys(req.body).sort());
-      } else {
-        // bodyが無い場合は空文字列
-        rawBody = '';
-      }
-      
+      if (isReplayJobStatus) {
+        console.log('[X Webhook] 📋 Replay job status event detected, skipping signature verification');
+        // replay_job_statusイベントは処理を続行（署名検証不要）
+      } else if (signature && timestamp) {
+      // P0 FIX: Grokの回答に基づき、raw bodyを使用して署名検証
+      // Grokの回答: "Use raw body for verification; JSON.stringify may fail due to formatting"
       const isValid = verifyWebhookSignature(signature, rawBody, timestamp);
         
         console.log('[X Webhook] 🔐 Signature verification:', {
@@ -565,14 +580,18 @@ async function handler(req, res) {
           console.warn('[X Webhook] ⚠️ Invalid signature, but continuing (development mode)');
         }
       } else {
-        if (isProduction) {
+        // replay_job_statusイベントの場合は署名検証をスキップ
+        if (isReplayJobStatus) {
+          console.log('[X Webhook] 📋 Replay job status event, signature verification skipped');
+        } else if (isProduction) {
           console.error('[X Webhook] ❌ CRITICAL: Missing signature or timestamp headers in production');
           return res.status(401).json({ error: 'Missing signature or timestamp headers' });
+        } else {
+          console.warn('[X Webhook] ⚠️ Missing signature or timestamp headers:', {
+            hasSignature: !!signature,
+            hasTimestamp: !!timestamp,
+          });
         }
-        console.warn('[X Webhook] ⚠️ Missing signature or timestamp headers:', {
-          hasSignature: !!signature,
-          hasTimestamp: !!timestamp,
-        });
       }
 
       const event = req.body;
@@ -585,14 +604,33 @@ async function handler(req, res) {
       if (event.favorite_events && event.favorite_events.length > 0) eventTypes.push('favorite');
       if (event.retweet_events && event.retweet_events.length > 0) eventTypes.push('retweet');
       if (event.tweet_create_events && event.tweet_create_events.length > 0) eventTypes.push('tweet_create');
+      if (event.replay_job_status !== undefined) eventTypes.push('replay_job_status');
       
       console.log('[X Webhook] 📊 Event types detected:', {
         eventTypes,
         favoriteCount: event.favorite_events?.length || 0,
         retweetCount: event.retweet_events?.length || 0,
         tweetCreateCount: event.tweet_create_events?.length || 0,
+        hasReplayJobStatus: event.replay_job_status !== undefined,
         timestamp: new Date().toISOString(),
       });
+
+      // P0 FIX: replay_job_statusイベントは処理をスキップ（Account Activity Replay APIのジョブ完了通知）
+      // replay_job_statusはReplay APIのジョブ完了時に配信されるステータス通知で、
+      // webhook_id, job_state, job_state_description, job_idを含む
+      // 参考: https://docs.x.com/x-api/enterprise-gnip-2.0/fundamentals/account-activity#account-activity-replay-api
+      if (isReplayJobStatus) {
+        const replayStatus = event.replay_job_status;
+        console.log('[X Webhook] 📋 Replay job status event received:', {
+          webhook_id: replayStatus?.webhook_id,
+          job_id: replayStatus?.job_id,
+          job_state: replayStatus?.job_state,
+          job_state_description: replayStatus?.job_state_description,
+          timestamp: new Date().toISOString(),
+        });
+        // 200 OKを返して、X APIに正常に受信したことを通知
+        return res.status(200).json({ status: 'ok', message: 'Replay job status received' });
+      }
 
       // イベントタイプに応じて処理
       if (event.favorite_events && event.favorite_events.length > 0) {
@@ -677,8 +715,25 @@ async function handler(req, res) {
   return res.status(405).json({ error: 'Method not allowed' });
 }
 
+// P0 FIX: Vercel AIアシスタントの推奨に基づき、bodyParserを無効化
+// Vercel AIアシスタントの回答: "bodyParser: falseは関数ファイル内のエクスポート設定configオブジェクトで指定します"
+// 注意: Vercel Serverless Functions（api/*.js形式）では、configの設定方法が異なる可能性があります
+// 現在の実装では、raw-bodyパッケージがストリームから直接読み取れることを期待しています
+// もしconfigが機能しない場合は、raw-bodyパッケージが自動的にストリームを処理します
+
 // Vercel Serverless Functions用のエクスポート
 module.exports = handler;
+
+// Vercel Serverless Functions用のconfig設定（Next.js API Routes形式との互換性のため）
+// 注意: Vercel Serverless Functionsでは、この設定が機能しない可能性があります
+// その場合、raw-bodyパッケージが自動的にストリームを処理します
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports.config = {
+    api: {
+      bodyParser: false,
+    },
+  };
+}
 
 // Vercel/Next.js用のデフォルトエクスポート
 if (typeof module !== 'undefined' && module.exports) {

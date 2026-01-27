@@ -5,6 +5,9 @@
     },
     "api/x-quote-repost.js": {
       "maxDuration": 60
+    },
+    "api/x-webhook.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [

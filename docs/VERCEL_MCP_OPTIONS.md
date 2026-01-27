@@ -205,11 +205,17 @@ Vercel公式でMCPサーバーのデプロイをサポートしていますが�
 - [Vercel MCP Documentation](https://vercel.com/docs/mcp)
 - [Vercel REST API Documentation](https://vercel.com/docs/rest-api)
 - [Vercel Logs API](https://vercel.com/docs/rest-api/endpoints/logs)
+- [Vercel Agent Documentation](https://vercel.com/docs/agent)
 - [Model Context Protocol Documentation](https://modelcontextprotocol.io/)
+
+## 🔗 関連ドキュメント
+
+- [Vercel Agent統合ガイド](./VERCEL_AGENT_INTEGRATION.md) - Vercel Agentの活用方法
 
 ---
 
-**作成日**: 2026-01-17
+**作成日**: 2026-01-17  
+**最終更新**: 2026-01-27  
 **次回更新**: Vercel MCP実装後
 
 
