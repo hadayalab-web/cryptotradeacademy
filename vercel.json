@@ -1,4 +1,15 @@
 {
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs18.x"
+    },
+    "api/x-update-influencer-stock.js": {
+      "maxDuration": 60
+    },
+    "api/x-quote-repost.js": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     { "path": "/api/cron", "schedule": "*/15 * * * *" },
     { "path": "/api/weekly-report", "schedule": "0 0 * * 0" },
@@ -16,13 +27,5 @@
     { "path": "/api/x-post-performance-analysis", "schedule": "0 1 * * *" },
     { "path": "/api/x-influencer-report", "schedule": "0 9 * * 1" },
     { "path": "/api/x-algorithm-analysis", "schedule": "0 10 * * 1" }
-  ],
-  "functions": {
-    "api/x-update-influencer-stock.js": {
-      "maxDuration": 60
-    },
-    "api/x-quote-repost.js": {
-      "maxDuration": 60
-    }
-  }
+  ]
 }

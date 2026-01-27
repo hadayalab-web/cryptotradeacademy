@@ -3,6 +3,9 @@
     "version": "1.0.0",
     "description": "AI-driven Crypto Signal Bot with Whale Analysis",
     "main": "api/cron.js",
+    "engines": {
+        "node": ">=18.0.0"
+    },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
         "start": "node scripts/monitor_process.js",
@@ -41,7 +44,7 @@
         "summary:real": "node scripts/backtest/summarize_backtest.js",
         "copilot:review": "node scripts/request-copilot-review.js",
         "verify:syntax": "node scripts/verify-syntax.js",
-        "predeploy": "echo Skipping syntax check for deployment",
+        "predeploy": "node -c api/x-quote-repost.js && node -c services/x/client.js && node -c api/x-webhook.js",
         "vercel:logs": "node scripts/fetch-vercel-logs.js",
         "vercel:logs:safe": "node scripts/fetch-vercel-logs-safe.js",
         "vercel:analyze": "node scripts/analyze-vercel-errors.js",
@@ -56,7 +59,6 @@
     "dependencies": {
         "@vercel/kv": "^0.2.1",
         "canvas": "^3.2.1",
-        "crypto": "^1.0.1",
         "date-fns-tz": "^2.0.0",
         "dotenv": "^16.6.1",
         "lru-cache": "^10.1.0",

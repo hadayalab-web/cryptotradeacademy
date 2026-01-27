@@ -35,18 +35,16 @@ try {
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 
+// P2 FIX: normalizeLangの改善（複数のアンダースコアに対応）
+// P2 FIX: 共通ユーティリティを使用
+const { normalizeLang: normalizeLangUtil, parseBoolean: parseBooleanUtil } = require('../utils/common');
+
 function normalizeLang(value) {
-  if (!value) return null;
-  const normalizedBase = String(value).trim().toLowerCase().split('.')[0].replace('_', '-');
-  return SUPPORTED_LANGS.includes(normalizedBase) ? normalizedBase : null;
+  return normalizeLangUtil(value, SUPPORTED_LANGS);
 }
 
 function parseBoolean(value, defaultValue = false) {
-  if (value === undefined || value === null || value === '') return defaultValue;
-  const normalizedValue = String(value).trim().toLowerCase();
-  if (['1', 'true', 'yes', 'y', 'on'].includes(normalizedValue)) return true;
-  if (['0', 'false', 'no', 'n', 'off'].includes(normalizedValue)) return false;
-  return defaultValue;
+  return parseBooleanUtil(value, defaultValue);
 }
 
 function getTelegramDeepLinkWithSource(lang, source = 'x_quote', options = {}) {
@@ -102,11 +100,10 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
     
     // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
-      // 矛盾を強調: 低リスクなのに売り圧力が存在 + Whop直リン導線を最優先に
+      // P1 FIX: 外部リンクを1つに制限（Whop優先、freeLinkは削除）
       const question = '🚨 CONTRADICTION: Low risk BUT whales positioning. What\'s your move? Reply!';
       const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('en')}?promo=DEFEND50`;
-      const freeLink = `(Free: ${deepLink})`;
-      return `Agree! Trap Score 0/100 BUT ${whaleStr} to sell. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
+      return `Agree! Trap Score 0/100 BUT ${whaleStr} to sell. ${whopLink} ${question} #BTC #TrapDefence`;
     }
     
     // Grok + Gemini統合: 質問CTA必須（アルゴリズム評価UP）
@@ -115,14 +112,12 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
       ? '🚀 What\'s your biggest fear in this market? Reply!' 
       : '💥 Protecting capital or chasing? Reply!';
     
-    // Whop直リン導線を最優先に（Grok推奨: Whop first, free as afterthought）
-    // 外部リンクは1投稿1個以内に抑え、ネイティブコンテンツ優先
+    // P1 FIX: 外部リンクを1つに制限（Whop優先、freeLinkは削除）
     const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('en')}?promo=DEFEND50`;
-    const freeLink = `(Free: ${deepLink})`;
     
     // ハッシュタグ: トレンド1個+ニッチ2個（3個超はスパム判定リスク）
     // 絵文字: 3-5個（冒頭/区切り/末尾に視覚強調）
-    return `Agree! TrapDefence detected this 🚀 ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
+    return `Agree! TrapDefence detected this 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
   },
   ja: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -131,10 +126,10 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
     
     // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
+      // P1 FIX: 外部リンクを1つに制限（Whop優先）
       const question = '🚨 矛盾: 低リスクなのにクジラがポジショニング中。どうする？リプライ！';
       const whopLink = `🔥 PRO 50%OFF (DEFEND50): ${getWhopProductUrl('ja')}?promo=DEFEND50`;
-      const freeLink = `(無料: ${deepLink})`;
-      return `同意！Trap Score 0/100 なのに ${whaleStr} 売却準備中。${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
+      return `同意！Trap Score 0/100 なのに ${whaleStr} 売却準備中。${whopLink} ${question} #BTC #TrapDefence`;
     }
     
     // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
@@ -142,12 +137,11 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
       ? '🚀 この市場で最も大きな恐怖は何ですか？リプライ！' 
       : '💥 資本保護？それとも追いかけ中？リプライ！';
     
-    // Whop直リン導線を最優先に（外部リンクは1投稿1個以内）
+    // P1 FIX: 外部リンクを1つに制限（Whop優先）
     const whopLink = `🔥 PRO 50%OFF (DEFEND50): ${getWhopProductUrl('ja')}?promo=DEFEND50`;
-    const freeLink = `(無料: ${deepLink})`;
     
     // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
-    return `同意！TrapDefenceで検知済み 🚀 ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
+    return `同意！TrapDefenceで検知済み 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
   },
   es: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -156,10 +150,10 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
     
     // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
+      // P1 FIX: 外部リンクを1つに制限（Whop優先）
       const question = '🚨 CONTRADICCIÓN: Bajo riesgo PERO ballenas posicionándose. ¿Cuál es tu movimiento? ¡Responde!';
       const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('es')}?promo=DEFEND50`;
-      const freeLink = `(Gratis: ${deepLink})`;
-      return `¡De acuerdo! Trap Score 0/100 PERO ${whaleStr} para vender. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
+      return `¡De acuerdo! Trap Score 0/100 PERO ${whaleStr} para vender. ${whopLink} ${question} #BTC #TrapDefence`;
     }
     
     // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
@@ -167,12 +161,11 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
       ? '🚀 ¿Cuál es tu mayor miedo en este mercado? ¡Responde!' 
       : '💥 ¿Protegiendo capital o persiguiendo? ¡Responde!';
     
-    // Whop直リン導線を最優先に（外部リンクは1投稿1個以内）
+    // P1 FIX: 外部リンクを1つに制限（Whop優先）
     const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('es')}?promo=DEFEND50`;
-    const freeLink = `(Gratis: ${deepLink})`;
     
     // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
-    return `¡De acuerdo! TrapDefence detectó esto 🚀 ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
+    return `¡De acuerdo! TrapDefence detectó esto 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
   },
   'pt-br': (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -181,10 +174,10 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
     
     // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
+      // P1 FIX: 外部リンクを1つに制限（Whop優先）
       const question = '🚨 CONTRADIÇÃO: Baixo risco MAS baleias se posicionando. Qual é sua jogada? Responda!';
       const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('pt-br')}?promo=DEFEND50`;
-      const freeLink = `(Grátis: ${deepLink})`;
-      return `Concordo! Trap Score 0/100 MAS ${whaleStr} para vender. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
+      return `Concordo! Trap Score 0/100 MAS ${whaleStr} para vender. ${whopLink} ${question} #BTC #TrapDefence`;
     }
     
     // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
@@ -192,12 +185,11 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
       ? '🚀 Qual é o seu maior medo neste mercado? Responda!' 
       : '💥 Protegendo capital ou perseguindo? Responda!';
     
-    // Whop直リン導線を最優先に（外部リンクは1投稿1個以内）
+    // P1 FIX: 外部リンクを1つに制限（Whop優先）
     const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('pt-br')}?promo=DEFEND50`;
-    const freeLink = `(Grátis: ${deepLink})`;
     
     // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
-    return `Concordo! TrapDefence detectou isso 🚀 ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
+    return `Concordo! TrapDefence detectou isso 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
   },
   ar: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -217,12 +209,11 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
       ? '🚀 ما هو أكبر خوفك في هذا السوق؟ أجب!' 
       : '💥 هل تحمي رأس المال أم تطارد؟ أجب!';
     
-    // Whop直リン導線を最優先に（外部リンクは1投稿1個以内）
+    // P1 FIX: 外部リンクを1つに制限（Whop優先）
     const whopLink = `🔥 PRO 50% خصم (DEFEND50): ${getWhopProductUrl('ar')}?promo=DEFEND50`;
-    const freeLink = `(مجاني: ${deepLink})`;
     
     // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
-    return `موافق! TrapDefence اكتشف هذا 🚀 ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
+    return `موافق! TrapDefence اكتشف هذا 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
   },
   ko: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
     const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
@@ -231,10 +222,10 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
     
     // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
+      // P1 FIX: 外部リンクを1つに制限（Whop優先）
       const question = '🚨 모순: 낮은 리스크인데 고래가 포지셔닝 중. 어떻게 하시겠습니까? 답글!';
       const whopLink = `🔥 PRO 50% 할인 (DEFEND50): ${getWhopProductUrl('ko')}?promo=DEFEND50`;
-      const freeLink = `(무료: ${deepLink})`;
-      return `동의! Trap Score 0/100 인데 ${whaleStr} 매도 준비 중. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
+      return `동의! Trap Score 0/100 인데 ${whaleStr} 매도 준비 중. ${whopLink} ${question} #BTC #TrapDefence`;
     }
     
     // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
@@ -242,12 +233,11 @@ const FALLBACK_QUOTE_REPOST_TEMPLATES = {
       ? '🚀 이 시장에서 가장 큰 두려움은 무엇인가요? 답글!' 
       : '💥 자본 보호 중인가요? 추격 중인가요? 답글!';
     
-    // Whop直リン導線を最優先に（外部リンクは1投稿1個以内）
+    // P1 FIX: 外部リンクを1つに制限（Whop優先）
     const whopLink = `🔥 PRO 50% 할인 (DEFEND50): ${getWhopProductUrl('ko')}?promo=DEFEND50`;
-    const freeLink = `(무료: ${deepLink})`;
     
     // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
-    return `동의! TrapDefence가 이것을 감지했습니다 🚀 ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
+    return `동의! TrapDefence가 이것을 감지했습니다 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
   },
 };
 
@@ -499,12 +489,20 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
  * インフルエンサーを発掘して引用リポスト（最適化版）
  * Grok推奨: 12投稿/日、ピーク時間のみ、投稿後15-60分以内
  */
-async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount = null) {
+async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount = null, runId = null) {
+  // P0: 言語単位で例外を握りつぶさず、どのステップで落ちたかをログに残す
+  const langRunId = runId || `qr-lang-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  let currentStep = 'start';
+  
   try {
+    currentStep = 'initialization';
+    console.log(`[Quote Repost] 🔵 Processing language: ${lang} [runId: ${langRunId}, step: ${currentStep}]`);
+    
     const currentHour = new Date().getUTCHours();
     const dateString = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     
     // 1日の投稿数を取得（Vercel KV）
+    currentStep = 'get_daily_post_count';
     if (dailyPostCount === null) {
       dailyPostCount = await getDailyPostCount(dateString);
     }
@@ -512,52 +510,66 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     // 🚀 数撃て作戦: 引用リポストのピーク時間を拡大（UTC 0-23の全時間帯で可能に）
     // 元のピーク時間: UTC 0,1,20,21
     // 拡大: UTC 0-23の全時間帯で投稿可能（ただし、優先度は元のピーク時間が高い）
+    currentStep = 'peak_time_check';
     const originalPeakHours = [0, 1, 20, 21]; // 元の優先ピーク時間
     const isOriginalPeakTime = originalPeakHours.includes(currentHour);
     
     // 🚀 数撃て作戦: 全時間帯で投稿可能（ただし、日次制限内で）
-    // 元のピーク時間外でも、日次投稿数が少ない場合は積極的に投稿
+    // 修正: ピーク時間外の制限を緩和して、より多くの投稿を許可
     if (!isOriginalPeakTime) {
-      // ピーク時間外でも、1日の投稿数が少ない場合は許可（インプレッション最大化）
-      if (dailyPostCount >= 100) { // 🚀 数撃て作戦: 1日の投稿数が100以上の場合のみスキップ
-        console.log(`⏰ Skipping quote reposts for ${lang} (not original peak time and daily limit high: ${currentHour} UTC, ${dailyPostCount}/100)`);
+      // ピーク時間外でも、1日の投稿数が上限に達していない場合は許可（インプレッション最大化）
+      // 修正: 100ではなく、maxDailyPosts（環境変数で設定可能）と比較
+      const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '100', 10);
+      if (dailyPostCount >= maxDailyPosts) {
+        console.log(`⏰ Skipping quote reposts for ${lang} (not original peak time and daily limit reached: ${currentHour} UTC, ${dailyPostCount}/${maxDailyPosts}) [runId: ${langRunId}, step: ${currentStep}]`);
         return [];
       }
-      console.log(`ℹ️ Posting quote reposts for ${lang} outside original peak time (${currentHour} UTC) for impression maximization`);
+      console.log(`ℹ️ Posting quote reposts for ${lang} outside original peak time (${currentHour} UTC, ${dailyPostCount}/${maxDailyPosts}) for impression maximization [runId: ${langRunId}]`);
     }
     
     // ⚖️ バランスアプローチ: Grokの警告を踏まえ、リスクを最小化（50投稿/日）
     // 環境変数から取得、デフォルトは100（X APIレート制限に基づく）
+    currentStep = 'daily_limit_check';
     const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '100', 10);
     if (!checkDailyPostLimit(dailyPostCount, maxDailyPosts)) {
-      console.log(`⏰ Daily post limit reached (${dailyPostCount}/${maxDailyPosts}), skipping ${lang}`);
+      console.log(`⏰ Daily post limit reached (${dailyPostCount}/${maxDailyPosts}), skipping ${lang} [runId: ${langRunId}, step: ${currentStep}]`);
       return [];
     }
     
     // 🚀 数撃て作戦: 時価配分を考慮してインフルエンサー数を取得
+    currentStep = 'get_influencer_count';
     const targetCount = getInfluencerCountForLang(lang, currentHour);
     const impressionTarget = getImpressionTargetForLang(lang);
     
-    console.log(`[Quote Repost] 🚀 Hourly distribution: ${currentHour} UTC, target count: ${targetCount} (${isOriginalPeakTime ? 'PEAK' : 'OFF-PEAK'})`);
-    
-    console.log(`[Quote Repost] Getting influencers from STOCK for ${lang}...`);
-    console.log(`[Quote Repost] Target: ${targetCount} influencers, ${impressionTarget.min.toLocaleString()}-${impressionTarget.max.toLocaleString()} impressions`);
+    console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]:`, {
+      lang,
+      currentHour,
+      targetCount,
+      impressionTarget: {
+        min: impressionTarget.min.toLocaleString(),
+        max: impressionTarget.max.toLocaleString(),
+      },
+      isOriginalPeakTime,
+    });
     
     // ストックからインフルエンサーを取得（既存の70人ホットリストのみ使用）
     // 🔥 改善: スコアリング機能を有効にして、Webhookデータからエンゲージメント統計を取得
+    currentStep = 'get_influencers_from_stock';
+    console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: Getting influencers from STOCK for ${lang}...`);
+    
     const { getInfluencersFromStock } = require('../services/x/influencerStock');
-    const influencers = await getInfluencersFromStock(lang, {
+    let influencers = await getInfluencersFromStock(lang, {
       enableScoring: true, // スコアリングを有効化
       topN: undefined, // 全員を返す（後でローテーション機能で選択）
     });
     
     if (!influencers || influencers.length === 0) {
-      console.warn(`[Quote Repost] ⚠️ No influencers in stock for ${lang} - skipping quote reposts`);
+      console.warn(`[Quote Repost] ⚠️ No influencers in stock for ${lang} - skipping quote reposts [runId: ${langRunId}, step: ${currentStep}]`);
       console.warn(`[Quote Repost] 💡 Please update stock first: /api/x-update-influencer-stock?lang=${lang}`);
       return [];
     }
     
-    console.log(`[Quote Repost] ✅ Retrieved ${influencers.length} influencers from STOCK for ${lang} (with scoring)`);
+    console.log(`[Quote Repost] ✅ Retrieved ${influencers.length} influencers from STOCK for ${lang} (with scoring) [runId: ${langRunId}, step: ${currentStep}]`);
     
     // スコアリングが有効な場合、スコア情報をログに出力
     if (influencers[0]?.score !== undefined) {
@@ -572,14 +584,42 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     
     // 🚀 数撃て作戦: ローテーション機能を使用してインフルエンサーを選択
     // 今日既に投稿した人を除外し、ローテーション順に選択
+    currentStep = 'rotation_selection';
+    
+    // P1: ローテーション選択の直前で候補数・除外内訳をログ化
+    console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: Before rotation selection:`, {
+      lang,
+      candidateCount: influencers.length,
+      targetCount,
+      timestamp: new Date().toISOString(),
+    });
+    
     const { selectInfluencersWithRotation } = require('../services/x/influencerRotation');
-    const selectedInfluencers = await selectInfluencersWithRotation(influencers, lang, targetCount, dateString);
+    let selectedInfluencers = await selectInfluencersWithRotation(influencers, lang, targetCount, dateString);
+    
+    // P1: ローテーション選択の直後で選定数をログ化
+    console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: Rotation selection result:`, {
+      lang,
+      selectedCount: selectedInfluencers?.length || 0,
+      targetCount,
+      excludedCount: influencers.length - (selectedInfluencers?.length || 0),
+      timestamp: new Date().toISOString(),
+    });
     
     // ローテーションで選択できなかった場合、フォールバックとして従来の方法を使用
     if (!selectedInfluencers || selectedInfluencers.length === 0) {
-      console.warn(`[Quote Repost] ⚠️ Rotation selection failed, falling back to impression target selection`);
+      console.warn(`[Quote Repost] ⚠️ Rotation selection failed, falling back to impression target selection [runId: ${langRunId}, step: ${currentStep}]`);
+      currentStep = 'fallback_selection';
       const fallbackSelected = selectInfluencersForImpressionTarget(influencers, lang);
-      selectedInfluencers.push(...fallbackSelected.slice(0, targetCount));
+      // 🔧 修正: selectedInfluencersがnullまたはundefinedの場合、空配列で初期化
+      selectedInfluencers = fallbackSelected.slice(0, targetCount);
+      
+      console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: Fallback selection result:`, {
+        lang,
+        selectedCount: selectedInfluencers.length,
+        targetCount,
+        timestamp: new Date().toISOString(),
+      });
     }
     
     console.log(`[Quote Repost] ✅ Selected ${selectedInfluencers.length} influencers for ${lang} (target: ${targetCount})`);
@@ -613,8 +653,24 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       console.warn(`[Quote Repost] ⚠️ Failed to log selection to KV:`, logError.message);
     }
     
+    // 🔍 デバッグ: influencers変数の代入前にログを記録
+    currentStep = 'assign_influencers';
+    console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: About to assign selectedInfluencers to influencers:`, {
+      lang,
+      influencersLength: influencers.length,
+      selectedInfluencersLength: selectedInfluencers.length,
+      timestamp: new Date().toISOString(),
+    });
+    
     // 選択されたインフルエンサーを使用
     influencers = selectedInfluencers;
+    
+    // 🔍 デバッグ: influencers変数の代入後にログを記録
+    console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: Successfully assigned influencers:`, {
+      lang,
+      influencersLength: influencers.length,
+      timestamp: new Date().toISOString(),
+    });
     
     // インフルエンサーをリストに追加（リスト管理）
     for (const influencer of influencers) {
@@ -631,41 +687,91 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     
     const results = [];
     
+    // P1 FIX: 重複投稿防止の最適化（言語処理の最初に1回だけ取得）
+    currentStep = 'duplicate_check_prep';
+    let recentPostsSet = null;
+    try {
+      const { getPostsForLastNDays } = require('../services/x/postTracker');
+      const recentPosts = await getPostsForLastNDays(1); // 過去24時間の投稿を取得
+      // Setで高速検索可能にする
+      recentPostsSet = new Set(
+        recentPosts
+          .filter(post => post.postType === 'quote_repost' && post.lang === lang)
+          .map(post => `${post.influencerTweetId || post.tweetId}`)
+      );
+      console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: Loaded ${recentPostsSet.size} recent posts for duplicate check`);
+    } catch (dedupeError) {
+      console.warn(`[Quote Repost] ⚠️ Failed to load recent posts for duplicate check (non-fatal):`, dedupeError.message);
+      recentPostsSet = null; // エラー時は重複チェックをスキップ
+    }
+    
+    // 🔍 デバッグ: ループ開始前にログを記録
+    currentStep = 'influencer_loop_start';
+    console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: Starting influencer loop:`, {
+      lang,
+      influencersCount: influencers.length,
+      maxInfluencers: targetCount,
+      timestamp: new Date().toISOString(),
+    });
+    
     // Grok推奨: ENは4本/日、その他は2本/日（言語別インフルエンサー数に基づく）
     const maxInfluencers = targetCount; // EN: 4, その他: 2
     for (const influencer of influencers.slice(0, maxInfluencers)) {
+      // 🔍 デバッグ: 各インフルエンサーの処理開始時にログを記録
+      currentStep = 'processing_influencer';
+      console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: Processing influencer:`, {
+        lang,
+        influencer: influencer.username,
+        tweetId: influencer.tweetId,
+        timestamp: new Date().toISOString(),
+      });
       try {
         // tweetIdが必須
+        currentStep = 'tweet_id_check';
         if (!influencer.tweetId) {
-          console.warn(`[Quote Repost] Skipping influencer @${influencer.username}: no tweetId`);
+          console.warn(`[Quote Repost] ⏰ Skipping influencer @${influencer.username}: no tweetId [runId: ${langRunId}, step: ${currentStep}]`);
+          continue;
+        }
+        
+        // P1 FIX: 重複投稿防止の最適化（メモリ上のSetで高速チェック）
+        currentStep = 'duplicate_check';
+        if (recentPostsSet && recentPostsSet.has(String(influencer.tweetId))) {
+          console.log(`⏰ Skipping quote repost for @${influencer.username} (already posted tweetId: ${influencer.tweetId} in last 24h) [runId: ${langRunId}, step: ${currentStep}]`);
           continue;
         }
         
         // インフルエンサーの投稿時刻を取得（tweetTextから推測、またはAPIから取得）
         // 注意: Grok APIから返されるinfluencerオブジェクトにはcreatedAtが含まれていない可能性がある
         // その場合、shouldPostQuoteRepost関数内で適切に処理される（ピーク時間であれば投稿を許可）
+        currentStep = 'timing_check';
         const influencerTweetTime = influencer.createdAt || new Date(Date.now() - 15 * 60 * 1000).toISOString(); // デフォルト: 15分前（10-20分の範囲内）
         
-        // 最適なタイミングかチェック（投稿後10-20分以内、またはcreatedAtが存在しない場合はピーク時間のみチェック）
-        if (!shouldPostQuoteRepost(influencerTweetTime)) {
-          console.log(`⏰ Skipping quote repost for @${influencer.username} (not optimal timing: ${influencerTweetTime}, current hour: ${new Date().getUTCHours()})`);
+        // 最適なタイミングかチェック（修正: タイミングチェックを緩和）
+        // 重要: インフルエンサーへの投稿ロジックを変更して回数を増やしたため、
+        // タイミングチェックを緩和してX APIのクレジットが実際に使用されるようにする
+        const shouldPost = shouldPostQuoteRepost(influencerTweetTime);
+        if (!shouldPost) {
+          console.log(`⏰ Skipping quote repost for @${influencer.username} (not optimal timing: ${influencerTweetTime}, current hour: ${new Date().getUTCHours()}) [runId: ${langRunId}, step: ${currentStep}]`);
           continue;
         }
+        console.log(`[Quote Repost] ✅ Timing check passed for @${influencer.username} (tweet time: ${influencerTweetTime}) [runId: ${langRunId}, step: ${currentStep}]`);
         
         // インプレッション規模チェック（言語別の目標を考慮）
         // 注意: selectInfluencersForImpressionTargetで既にフィルタリングされているため、
         // ここでのチェックは緩和（目標の30%以上、または最低10,000インプレッション）
+        currentStep = 'impression_check';
         const impressions = influencer.recentImpressions || 0;
         const minImpressions = Math.max(impressionTarget.min * 0.3, 10000); // 目標の30%以上、または最低10,000
         
         if (impressions < minImpressions) {
-          console.log(`⏰ Skipping quote repost for @${influencer.username} (low impressions: ${impressions.toLocaleString()}, min: ${minImpressions.toLocaleString()})`);
+          console.log(`⏰ Skipping quote repost for @${influencer.username} (low impressions: ${impressions.toLocaleString()}, min: ${minImpressions.toLocaleString()}) [runId: ${langRunId}, step: ${currentStep}]`);
           continue;
         }
         
-        console.log(`[Quote Repost] ✅ @${influencer.username} meets impression target: ${impressions.toLocaleString()} (target: ${impressionTarget.min.toLocaleString()}-${impressionTarget.max.toLocaleString()})`);
+        console.log(`[Quote Repost] ✅ @${influencer.username} meets impression target: ${impressions.toLocaleString()} (target: ${impressionTarget.min.toLocaleString()}-${impressionTarget.max.toLocaleString()}) [runId: ${langRunId}, step: ${currentStep}]`);
         
         // Grokが引用リポスト用のテキストを生成（Xアルゴリズム最適化版）
+        currentStep = 'text_generation';
         let quoteText;
         try {
           quoteText = await generateQuoteRepostTextWithGrok(lang, influencer, reportData);
@@ -787,27 +893,80 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         console.log(`[Quote Repost] Quote text full length: ${quoteText.length} characters`);
         console.log(`[Quote Repost] Quote text full content: ${quoteText}`);
         
+        // P1 FIX: X APIの呼び出し前にログを完璧化
+        // 重要: X API設定を再確認（dryRunやpostingEnabledが変更されている可能性がある）
+        currentStep = 'before_x_api_call';
+        const xStatusBeforePost = getXConfigStatus();
+        console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: About to call postQuoteTweet:`, {
+          lang,
+          influencer: influencer.username,
+          tweetId: influencer.tweetId,
+          textLength: quoteText.length,
+          postingEnabled: xStatusBeforePost.postingEnabled,
+          dryRun: xStatusBeforePost.dryRun,
+          configured: xStatusBeforePost.configured,
+          timestamp: new Date().toISOString(),
+          xApiConfigured: xStatusBeforePost.configured,
+          xApiPostingEnabled: xStatusBeforePost.postingEnabled,
+          xApiDryRun: xStatusBeforePost.dryRun,
+        });
+        
+        // X API設定の最終チェック（dryRunやpostingEnabledが変更されている可能性がある）
+        if (!xStatusBeforePost.postingEnabled) {
+          console.error(`[Quote Repost] ❌ X posting disabled before postQuoteTweet call (X_POSTING_ENABLED=${process.env.X_POSTING_ENABLED})`);
+          continue;
+        }
+        
+        if (xStatusBeforePost.dryRun) {
+          console.log(`[Quote Repost] 🧪 X dry-run enabled, skipping actual post for @${influencer.username}`);
+          // ドライランの場合は、成功として扱うが実際には投稿しない
+          results.push({
+            success: true,
+            dryRun: true,
+            lang,
+            influencer: influencer.username,
+            tweetId: influencer.tweetId,
+          });
+          continue;
+        }
+        
+        if (!xStatusBeforePost.configured) {
+          console.error(`[Quote Repost] ❌ X API not configured before postQuoteTweet call (missing: ${xStatusBeforePost.missing.join(', ')})`);
+          continue;
+        }
+        
         let result;
         try {
           // 重要: 引用リポストは140文字以内に制限されているため、280文字に切り詰めない
           // 既に140文字以内に制限されているため、そのまま使用
+          currentStep = 'x_api_call';
+          console.log(`[Quote Repost] 🚀 Step: ${currentStep} [runId: ${langRunId}]: CALLING postQuoteTweet for @${influencer.username}...`);
           result = await postQuoteTweet(quoteText, influencer.tweetId);
+          
+          // P1 FIX: 投稿成功後のログを完璧化（tweet IDを必ず記録）
+          currentStep = 'post_success';
+          if (!result || !result.id) {
+            throw new Error(`Invalid response from postQuoteTweet: ${JSON.stringify(result)}`);
+          }
+          
+          console.log(`[Quote Repost] ✅✅✅ SUCCESSFULLY POSTED quote repost [runId: ${langRunId}, step: ${currentStep}]:`, {
+            lang,
+            influencer: influencer.username,
+            quoteTweetId: result.id,
+            originalTweetId: influencer.tweetId,
+            textLength: quoteText.length,
+            utcHour: new Date().getUTCHours(),
+            timestamp: new Date().toISOString(),
+            xApiCreditUsed: true, // X APIクレジットが使用されたことを明示
+          });
           
           // 🚀 数撃て作戦: ローテーション管理 - 投稿済みとしてマーク
           try {
             const { markInfluencerPosted } = require('../services/x/influencerRotation');
             await markInfluencerPosted(lang, influencer.username, dateString);
           } catch (rotationError) {
-            console.warn(`[Quote Repost] ⚠️ Failed to mark influencer as posted:`, rotationError.message);
+            console.warn(`[Quote Repost] ⚠️ Failed to mark influencer as posted (non-fatal):`, rotationError.message);
           }
-          
-          // 実際に投稿されたことを明確にログに記録
-          console.log(`[Quote Repost] ✅✅✅ SUCCESSFULLY POSTED quote repost for ${lang} (@${influencer.username}):`);
-          console.log(`[Quote Repost]    - Quote Tweet ID: ${result.id}`);
-          console.log(`[Quote Repost]    - Original Tweet ID: ${influencer.tweetId}`);
-          console.log(`[Quote Repost]    - Language: ${lang}`);
-          console.log(`[Quote Repost]    - UTC Hour: ${new Date().getUTCHours()}`);
-          console.log(`[Quote Repost]    - Timestamp: ${new Date().toISOString()}`);
           
           // 🔥 改善: ツイートIDとインフルエンサーIDの関連を保存（WebhookでインフルエンサーID別の集計に使用）
           try {
@@ -847,10 +1006,37 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             console.warn(`[Quote Repost] ⚠️ Failed to log post success to KV:`, logError.message);
           }
         } catch (postError) {
-          // 投稿エラーを明確にログに記録
-          console.error(`[Quote Repost] ❌❌❌ FAILED TO POST quote repost for ${lang} (@${influencer.username}):`);
-          console.error(`[Quote Repost]    - Error: ${postError.message}`);
-          console.error(`[Quote Repost]    - Stack: ${postError.stack?.substring(0, 500)}`);
+          // P1 FIX: 投稿エラーを完璧化（runIdとstepを含める）
+          currentStep = 'post_error';
+          console.error(`[Quote Repost] ❌❌❌ FAILED TO POST quote repost [runId: ${langRunId}, step: ${currentStep}]:`, {
+            lang,
+            influencer: influencer.username,
+            tweetId: influencer.tweetId,
+            error: postError.message,
+            stack: postError.stack?.substring(0, 500),
+            xApiConfig: {
+              configured: xStatusBeforePost?.configured,
+              postingEnabled: xStatusBeforePost?.postingEnabled,
+              dryRun: xStatusBeforePost?.dryRun,
+              missing: xStatusBeforePost?.missing,
+            },
+            timestamp: new Date().toISOString(),
+          });
+          
+          // X APIエラーの詳細をログに記録（クレジット不足の可能性を確認）
+          if (postError.message?.includes('X API Error') || postError.message?.includes('X_API')) {
+            console.error(`[Quote Repost] ⚠️ X API Error detected [runId: ${langRunId}]:`, {
+              errorMessage: postError.message,
+              possibleCauses: [
+                'X API credit shortage',
+                'Invalid request parameters',
+                'Rate limit exceeded',
+                'Authentication failure',
+                'Network timeout',
+                'OAuth signature mismatch (P0 fix applied)',
+              ],
+            });
+          }
           
           // CRITICAL: KVストレージに失敗ログを記録
           try {
@@ -865,6 +1051,9 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
               quoteText: quoteText.substring(0, 200),
               utcHour: new Date().getUTCHours(),
               dateString: dateString,
+              xApiConfigured: xStatusBeforePost?.configured,
+              xApiPostingEnabled: xStatusBeforePost?.postingEnabled,
+              xApiDryRun: xStatusBeforePost?.dryRun,
             });
           } catch (logError) {
             console.warn(`[Quote Repost] ⚠️ Failed to log post failure to KV:`, logError.message);
@@ -878,22 +1067,27 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         // const influencerId = generateInfluencerId(influencer);
         // await recordQuoteRepost(influencerId, result.id);
         
-        // 投稿IDをKVに保存（メトリクス追跡用）
-        // CRITICAL FIX: savePostIdが失敗した場合は致命的エラーとして処理
+        // P1 FIX: savePostIdの失敗は非致命的（投稿成功と分離）
         const { savePostId } = require('../services/x/postTracker');
-        try {
-          await savePostId(result.id, 'quote_repost', lang, {
-            influencerUsername: influencer.username,
-            influencerTweetId: influencer.tweetId,
-          });
-          
+        const trackingSuccess = await savePostId(result.id, 'quote_repost', lang, {
+          influencerUsername: influencer.username,
+          influencerTweetId: influencer.tweetId,
+        });
+        
+        if (trackingSuccess) {
           // 保存に成功した場合のみ投稿数をインクリメント
           await incrementDailyPostCount(dateString, 1);
-          console.log(`[Quote Repost] ✅ Post count incremented after successful save`);
-        } catch (saveError) {
-          // CRITICAL: 保存に失敗した場合は致命的エラー
-          console.error(`[Quote Repost] ❌ CRITICAL: Failed to save post ID:`, saveError.message);
-          throw new Error(`CRITICAL: Failed to save post ID to KV: ${result.id}. Original error: ${saveError.message}`);
+          console.log(`[Quote Repost] ✅ Post count incremented after successful save [runId: ${langRunId}, step: ${currentStep}]`);
+        } else {
+          // P1 FIX: トラッキング失敗は警告に落として継続（投稿は成功している）
+          console.warn(`[Quote Repost] ⚠️ Post tracking failed (non-fatal), but post succeeded: tweetId=${result.id} [runId: ${langRunId}, step: ${currentStep}]`);
+          // 投稿は成功しているため、投稿数はインクリメントする（トラッキングは後で再試行可能）
+          try {
+            await incrementDailyPostCount(dateString, 1);
+            console.log(`[Quote Repost] ✅ Post count incremented despite tracking failure [runId: ${langRunId}, step: ${currentStep}]`);
+          } catch (countError) {
+            console.warn(`[Quote Repost] ⚠️ Failed to increment post count:`, countError.message);
+          }
         }
         
         // Grok推奨: EN実測ダッシュボード用メトリクス記録
@@ -1083,8 +1277,16 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     
     return results;
   } catch (error) {
-    console.error(`❌ Failed to post quote reposts for ${lang}:`, error.message);
-    return [];
+    // P0: 言語単位で例外を握りつぶさず、どのステップで落ちたかをログに残す
+    console.error(`[Quote Repost] ❌ Failed to post quote reposts for ${lang} [runId: ${langRunId}, step: ${currentStep}]:`, {
+      error: error.message,
+      stack: error.stack,
+      lang,
+      step: currentStep,
+      timestamp: new Date().toISOString(),
+    });
+    // エラーを再スローして、呼び出し側で処理できるようにする
+    throw error;
   }
 }
 
@@ -1137,6 +1339,13 @@ async function postQuoteReposts(reportData = null) {
 
 // Vercel Cron実行時（1時間ごと）
 const handler = async (req, res) => {
+  // P0: フロー観測可能なログ設計 - runIdを生成
+  const runId = `qr-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  
+  // P0: 本番デプロイの確認 - GIT_SHAをログ出力
+  const gitSha = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_SHA || 'unknown';
+  const buildTime = process.env.VERCEL_BUILD_TIME || 'unknown';
+  
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET;
   
@@ -1146,11 +1355,14 @@ const handler = async (req, res) => {
   
   console.log('[Quote Repost] ========================================');
   console.log('[Quote Repost] Cron job triggered at', new Date().toISOString());
+  console.log('[Quote Repost] 🔵 RunId:', runId);
+  console.log('[Quote Repost] 🔵 Git SHA:', gitSha);
+  console.log('[Quote Repost] 🔵 Build Time:', buildTime);
   console.log('[Quote Repost] ========================================');
   
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    console.error('[Quote Repost] ❌ Unauthorized: Invalid CRON_SECRET');
-    return res.status(401).json({ error: 'Unauthorized' });
+    console.error(`[Quote Repost] ❌ Unauthorized: Invalid CRON_SECRET [runId: ${runId}]`);
+    return res.status(401).json({ error: 'Unauthorized', runId });
   }
   
   // タイムアウトチェック関数
@@ -1162,49 +1374,100 @@ const handler = async (req, res) => {
   };
   
   try {
+    // P1: スキップ理由のログを追加（GPT-5.2推奨）
+    const skipReasons = {
+      cronAuth: false,
+      kvAvailable: false,
+      xApiConfigured: false,
+      xApiPostingEnabled: false,
+      xApiDryRun: false,
+      timeWindow: false,
+      dailyLimit: false,
+      hourlyLimit: false,
+    };
+    
     // KVストレージ接続確認
     if (!kv) {
-      console.warn('[Quote Repost] ⚠️ KV storage not available - post count tracking may not work');
+      console.warn(`[Quote Repost] ⚠️ KV storage not available - post count tracking may not work [runId: ${runId}]`);
+      skipReasons.kvAvailable = false;
     } else {
-      console.log('[Quote Repost] ✅ KV storage available');
+      console.log(`[Quote Repost] ✅ KV storage available [runId: ${runId}]`);
+      skipReasons.kvAvailable = true;
     }
     
     // X API設定状況を確認
     const xStatus = getXConfigStatus();
-    console.log('[Quote Repost] X API Status:', {
+    console.log(`[Quote Repost] 🔵 X API Status [runId: ${runId}]:`, {
       configured: xStatus.configured,
       postingEnabled: xStatus.postingEnabled,
       dryRun: xStatus.dryRun,
       missing: xStatus.missing,
     });
     
+    skipReasons.xApiConfigured = xStatus.configured;
+    skipReasons.xApiPostingEnabled = xStatus.postingEnabled;
+    skipReasons.xApiDryRun = xStatus.dryRun;
+    
     if (!xStatus.postingEnabled) {
-      console.log('[Quote Repost] ❌ X posting disabled by X_POSTING_ENABLED');
-      return res.status(200).json({ success: false, skipped: true, error: 'X posting disabled' });
+      console.log(`[Quote Repost] ⏰ SKIPPED: X posting disabled by X_POSTING_ENABLED [runId: ${runId}, step: x_api_check]`);
+      return res.status(200).json({ 
+        success: false, 
+        skipped: true, 
+        reason: 'x_posting_disabled',
+        runId,
+        gitSha,
+        skipReasons,
+        metrics: {
+          invoked: 1,
+          skipped: 1,
+          processed_langs: 0,
+          posted_count: 0,
+        },
+      });
     }
     
     if (!xStatus.configured) {
-      console.error(`[Quote Repost] ❌ X API not configured, missing: ${xStatus.missing.join(', ')}`);
+      console.error(`[Quote Repost] ⏰ SKIPPED: X API not configured, missing: ${xStatus.missing.join(', ')} [runId: ${runId}, step: x_api_check]`);
       return res.status(200).json({ 
         success: false, 
+        skipped: true,
+        reason: 'x_api_not_configured',
         error: 'X API credentials missing', 
-        missing: xStatus.missing 
+        missing: xStatus.missing,
+        runId,
+        gitSha,
+        skipReasons,
+        metrics: {
+          invoked: 1,
+          skipped: 1,
+          processed_langs: 0,
+          posted_count: 0,
+        },
       });
     }
     
     // Grok推奨: UTC時刻に基づいて処理する言語を決定（dry-runチェックの前に取得）
     const { getLanguagesForCurrentHour } = require('../services/x/optimization');
     const currentHour = new Date().getUTCHours();
-    const { langs: targetLangsForDryRun } = getLanguagesForCurrentHour(currentHour);
+    const { langs: targetLangsForDryRun, type: typeForDryRun, count: countForDryRun } = getLanguagesForCurrentHour(currentHour);
     
     if (xStatus.dryRun) {
-      console.log('[Quote Repost] 🧪 DRY RUN MODE - No actual posts will be made');
+      console.log(`[Quote Repost] 🧪 DRY RUN MODE - No actual posts will be made [runId: ${runId}]`);
       return res.status(200).json({ 
         success: true, 
         dryRun: true,
         message: 'Dry run mode enabled - no posts will be made',
         currentHour,
         targetLangs: targetLangsForDryRun || [],
+        runId,
+        gitSha,
+        skipReasons,
+        metrics: {
+          invoked: 1,
+          skipped: 0,
+          processed_langs: targetLangsForDryRun?.length || 0,
+          posted_count: 0,
+        },
       });
     }
     
@@ -1319,11 +1582,23 @@ const handler = async (req, res) => {
     
     const { langs: targetLangs, type, count } = getLanguagesForCurrentHour(currentHour);
     
+    // P1: スキップ理由のログを追加
+    console.log(`[Quote Repost] 🔵 Execution context [runId: ${runId}]:`, {
+      step: 'language_selection',
+      currentHour,
+      targetLangs: targetLangs || [],
+      targetLangsCount: targetLangs?.length || 0,
+      type: type || 'none',
+      count: count || 0,
+      timestamp: new Date().toISOString(),
+    });
+    
     // 引用リポストのピーク時間でない場合はスキップ
     // 注意: getPeakMapForHour()で定義された時刻（UTC 0,1,20,21）を信頼し、isPeakTimeWindowチェックは削除
     // UTC 0:00と1:00はisPeakTimeWindowの範囲外（10-23）だが、引用リポストのピーク時間として定義されている
     if (!targetLangs || targetLangs.length === 0 || type !== 'quote') {
-      console.log(`[Quote Repost] ⏰ Skipping quote reposts (not quote repost peak time: ${currentHour} UTC, type: ${type || 'none'})`);
+      skipReasons.timeWindow = true;
+      console.log(`[Quote Repost] ⏰ SKIPPED: Not quote repost peak time [runId: ${runId}, step: time_window_check, currentHour: ${currentHour} UTC, type: ${type || 'none'}]`);
       return res.status(200).json({
         success: true,
         skipped: true,
@@ -1332,8 +1607,19 @@ const handler = async (req, res) => {
         type,
         results: [],
         dailyPostCount: currentDailyPostCount,
+        runId,
+        gitSha,
+        skipReasons,
+        metrics: {
+          invoked: 1,
+          skipped: 1,
+          processed_langs: 0,
+          posted_count: 0,
+        },
       });
     }
+    
+    skipReasons.timeWindow = false;
     
     console.log(`[Quote Repost] Processing ${targetLangs.join(', ')} at peak time (${currentHour}:00 UTC, type: ${type}, count: ${count} per lang)`);
     // ⚖️ バランスアプローチ: Grokの警告を踏まえ、リスクを最小化（50投稿/日）
@@ -1349,7 +1635,8 @@ const handler = async (req, res) => {
     console.log(`[Quote Repost] Hourly post count: ${currentHourlyPostCount}/${maxPostsPerHour}`);
     
     if (!checkHourlyPostLimit(currentHourlyPostCount, maxPostsPerHour)) {
-      console.log(`[Quote Repost] ⏰ Hourly post limit reached (${currentHourlyPostCount}/${maxPostsPerHour}), skipping quote reposts`);
+      skipReasons.hourlyLimit = true;
+      console.log(`[Quote Repost] ⏰ SKIPPED: Hourly post limit reached [runId: ${runId}, step: hourly_limit_check, current: ${currentHourlyPostCount}, max: ${maxPostsPerHour}]`);
       return res.status(200).json({
         success: true,
         skipped: true,
@@ -1358,54 +1645,125 @@ const handler = async (req, res) => {
         maxPostsPerHour,
         results: [],
         dailyPostCount: currentDailyPostCount,
+        runId,
+        gitSha,
+        skipReasons,
+        metrics: {
+          invoked: 1,
+          skipped: 1,
+          processed_langs: 0,
+          posted_count: 0,
+        },
       });
     }
+    
+    skipReasons.hourlyLimit = false;
     
     // Grok推奨: 1日6言語すべてを時間帯別で回す（各言語count回）
     const allResults = [];
     let updatedDailyPostCount = currentDailyPostCount;
     let updatedHourlyPostCount = currentHourlyPostCount;
     
+    // P1: スキップを成功に埋めない - 指標を分ける
+    const metrics = {
+      invoked: 1,
+      skipped: 0,
+      processed_langs: 0,
+      posted_count: 0,
+      failed_langs: [],
+    };
+    
+    console.log(`[Quote Repost] 🔵 Starting language processing loop [runId: ${runId}]:`, {
+      step: 'language_loop_start',
+      targetLangs: targetLangs,
+      targetLangsCount: targetLangs.length,
+      countPerLang: count,
+      timestamp: new Date().toISOString(),
+    });
+    
     for (const targetLang of targetLangs) {
       // タイムアウトチェック
       checkTimeout();
       
-      // 各言語でcount回の引用リポストを実行
-      for (let i = 0; i < count; i++) {
-        // タイムアウトチェック
-        checkTimeout();
+      // P0: 言語単位で例外を握りつぶさず、どのステップで落ちたかをログに残す
+      let langProcessed = false;
+      let langError = null;
+      let langStep = 'start';
+      
+      try {
+        console.log(`[Quote Repost] 🔵 Processing language: ${targetLang} [runId: ${runId}, step: language_processing_start]`);
         
-        // 1時間あたりの投稿数制限をチェック
-        if (!checkHourlyPostLimit(updatedHourlyPostCount, maxPostsPerHour)) {
-          console.log(`[Quote Repost] ⏰ Hourly post limit reached during processing (${updatedHourlyPostCount}/${maxPostsPerHour}), stopping`);
-          break;
-        }
-        console.log(`[Quote Repost] Starting influencer discovery for ${targetLang} (${i + 1}/${count})...`);
-        const langResults = await postQuoteRepostsForLang(targetLang, reportData, updatedDailyPostCount);
-        allResults.push(...langResults);
-        
-        // 投稿数を更新（日次と時間次）
-        updatedDailyPostCount = await getDailyPostCount(dateString);
-        updatedHourlyPostCount = await incrementHourlyPostCount(hourKey);
-        console.log(`[Quote Repost] Updated hourly post count: ${updatedHourlyPostCount}/${maxPostsPerHour}`);
-        
-        // レート制限対策（同一言語内で5-10分間隔）
-        // タイムアウト対策: 待機時間を短縮（タイムアウトが近い場合はスキップ）
-        if (i < count - 1) {
-          const elapsed = Date.now() - startTime;
-          const remainingTime = TIMEOUT_MS - elapsed;
-          if (remainingTime > 60000) { // 残り時間が1分以上ある場合のみ待機
-            const delayMs = Math.min(5 * 60 * 1000, remainingTime - 10000); // 最低10秒のバッファを残す
-            if (delayMs > 0) {
-              console.log(`[Quote Repost] Waiting ${delayMs / 1000} seconds before next post for ${targetLang}...`);
-              await new Promise(resolve => setTimeout(resolve, delayMs));
+        // 各言語でcount回の引用リポストを実行
+        for (let i = 0; i < count; i++) {
+          // タイムアウトチェック
+          checkTimeout();
+          
+          // 1時間あたりの投稿数制限をチェック
+          if (!checkHourlyPostLimit(updatedHourlyPostCount, maxPostsPerHour)) {
+            console.log(`[Quote Repost] ⏰ Hourly post limit reached during processing (${updatedHourlyPostCount}/${maxPostsPerHour}), stopping [runId: ${runId}]`);
+            break;
+          }
+          console.log(`[Quote Repost] 🔵 Starting influencer discovery for ${targetLang} (${i + 1}/${count}) [runId: ${runId}, step: influencer_discovery_start]`);
+          
+          try {
+            langStep = 'postQuoteRepostsForLang';
+            const langResults = await postQuoteRepostsForLang(targetLang, reportData, updatedDailyPostCount, runId);
+            allResults.push(...langResults);
+            
+            // 投稿成功数をカウント
+            const successCount = langResults.filter(r => r.success && !r.dryRun).length;
+            metrics.posted_count += successCount;
+            
+            langProcessed = true;
+          } catch (langError) {
+            console.error(`[Quote Repost] ❌ Error processing ${targetLang} [runId: ${runId}, step: ${langStep}]:`, {
+              error: langError.message,
+              stack: langError.stack,
+              lang: targetLang,
+              iteration: i + 1,
+            });
+            metrics.failed_langs.push({ lang: targetLang, step: langStep, error: langError.message });
+            // 次のイテレーションに進む（1回失敗しても全体を止めない）
+            continue;
+          }
+          
+          // 投稿数を更新（日次と時間次）
+          updatedDailyPostCount = await getDailyPostCount(dateString);
+          updatedHourlyPostCount = await incrementHourlyPostCount(hourKey);
+          console.log(`[Quote Repost] Updated hourly post count: ${updatedHourlyPostCount}/${maxPostsPerHour} [runId: ${runId}]`);
+          
+          // P0 FIX: レート制限対策（同一言語内で5-10分間隔）- forループ内に配置
+          // タイムアウト対策: 待機時間を短縮（タイムアウトが近い場合はスキップ）
+          if (i < count - 1) {
+            const elapsed = Date.now() - startTime;
+            const remainingTime = TIMEOUT_MS - elapsed;
+            if (remainingTime > 60000) { // 残り時間が1分以上ある場合のみ待機
+              const delayMs = Math.min(5 * 60 * 1000, remainingTime - 10000); // 最低10秒のバッファを残す
+              if (delayMs > 0) {
+                console.log(`[Quote Repost] Waiting ${delayMs / 1000} seconds before next post for ${targetLang}... [runId: ${runId}]`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+              } else {
+                console.log(`[Quote Repost] ⚠️ Timeout approaching, skipping delay [runId: ${runId}]`);
+              }
             } else {
-              console.log(`[Quote Repost] ⚠️ Timeout approaching, skipping delay`);
+              console.log(`[Quote Repost] ⚠️ Timeout approaching (${remainingTime}ms remaining), skipping delay [runId: ${runId}]`);
             }
-          } else {
-            console.log(`[Quote Repost] ⚠️ Timeout approaching (${remainingTime}ms remaining), skipping delay`);
           }
         }
+        
+        if (langProcessed) {
+          metrics.processed_langs++;
+        }
+      } catch (error) {
+        langError = error;
+        langStep = 'language_loop';
+        console.error(`[Quote Repost] ❌ Fatal error processing language ${targetLang} [runId: ${runId}, step: ${langStep}]:`, {
+          error: error.message,
+          stack: error.stack,
+          lang: targetLang,
+        });
+        metrics.failed_langs.push({ lang: targetLang, step: langStep, error: error.message });
+        // 次の言語に進む（1言語失敗しても全体を止めない）
       }
       
       // 言語間の待機時間（1-2分）
@@ -1428,33 +1786,55 @@ const handler = async (req, res) => {
     }
     
     const totalElapsed = Date.now() - startTime;
-    console.log(`[Quote Repost] ✅ Completed in ${totalElapsed}ms`);
+    console.log(`[Quote Repost] ✅ Completed in ${totalElapsed}ms [runId: ${runId}]`);
     
     const langResults = allResults;
     
     // 更新後の投稿数を取得
     const finalDailyPostCount = await getDailyPostCount(dateString);
     
-    const successCount = langResults.filter(r => r.success).length;
+    const successCount = langResults.filter(r => r.success && !r.dryRun).length;
     console.log(`[Quote Repost] ========================================`);
-    console.log(`[Quote Repost] Completed for ${targetLangs.join(', ')}: ${successCount}/${langResults.length} successful`);
+    console.log(`[Quote Repost] Completed for ${targetLangs.join(', ')}: ${successCount}/${langResults.length} successful [runId: ${runId}]`);
+    console.log(`[Quote Repost] Metrics:`, JSON.stringify(metrics, null, 2));
     console.log(`[Quote Repost] Results:`, JSON.stringify(langResults, null, 2));
     console.log(`[Quote Repost] ========================================`);
     
+    // P1: スキップを成功に埋めない - 指標を分ける
     return res.status(200).json({
-      success: true,
+      success: metrics.posted_count > 0 || metrics.processed_langs > 0,
       langs: targetLangs,
       type,
       count,
       results: langResults,
       dailyPostCount: finalDailyPostCount,
+      runId,
+      gitSha,
+      skipReasons,
+      metrics: {
+        ...metrics,
+        success_count: successCount,
+        total_results: langResults.length,
+      },
     });
   } catch (error) {
-    console.error('[Quote Repost] ========================================');
-    console.error('[Quote Repost] ❌ Handler error:', error.message);
-    console.error('[Quote Repost] Stack:', error.stack);
-    console.error('[Quote Repost] ========================================');
-    return res.status(500).json({ error: error.message, stack: error.stack });
+    console.error(`[Quote Repost] ======================================== [runId: ${runId}]`);
+    console.error(`[Quote Repost] ❌ Handler error [runId: ${runId}]:`, error.message);
+    console.error(`[Quote Repost] Stack:`, error.stack);
+    console.error(`[Quote Repost] ========================================`);
+    return res.status(500).json({ 
+      error: error.message, 
+      stack: error.stack,
+      runId,
+      gitSha,
+      metrics: {
+        invoked: 1,
+        skipped: 0,
+        processed_langs: 0,
+        posted_count: 0,
+        failed_langs: [{ lang: 'handler', step: 'handler_error', error: error.message }],
+      },
+    });
   }
 };
 

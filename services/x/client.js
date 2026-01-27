@@ -10,7 +10,8 @@ const X_API_CONSUMER_KEY = process.env.X_API_CONSUMER_KEY;
 const X_API_CONSUMER_KEY_SECRET = process.env.X_API_CONSUMER_KEY_SECRET;
 const X_API_ACCESS_TOKEN = process.env.X_API_ACCESS_TOKEN;
 const X_API_ACCESS_TOKEN_SECRET = process.env.X_API_ACCESS_TOKEN_SECRET;
-const X_API_BASE_URL = process.env.X_API_BASE_URL || "https://api.x.com/2";
+// P1 FIX: X_API_BASE_URLのデフォルトをapi.twitter.comに変更（互換性向上）
+const X_API_BASE_URL = process.env.X_API_BASE_URL || "https://api.twitter.com/2";
 const X_UPLOAD_URL = "https://upload.x.com/1.1/media/upload.json";
 
 // OAuth 1.0aインスタンス
@@ -47,21 +48,54 @@ function isRateLimitError(error) {
  * @returns {Promise<Object>} APIレスポンス
  */
 async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
+  // P2 FIX: 本番環境では認証情報の存在をログに出さない（情報漏えい対策）
+  const isDebugMode = process.env.X_API_DEBUG === 'true' || process.env.NODE_ENV !== 'production';
+  if (isDebugMode) {
+    console.log('[X API] 🔵 xApiRequest called:', {
+      endpoint,
+      method: options.method || 'GET',
+      hasConsumerKey: !!X_API_CONSUMER_KEY,
+      hasConsumerSecret: !!X_API_CONSUMER_KEY_SECRET,
+      hasAccessToken: !!X_API_ACCESS_TOKEN,
+      hasAccessTokenSecret: !!X_API_ACCESS_TOKEN_SECRET,
+      timestamp: new Date().toISOString(),
+    });
+  } else {
+    console.log('[X API] 🔵 xApiRequest called:', {
+      endpoint,
+      method: options.method || 'GET',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   if (
     !X_API_CONSUMER_KEY ||
     !X_API_CONSUMER_KEY_SECRET ||
     !X_API_ACCESS_TOKEN ||
     !X_API_ACCESS_TOKEN_SECRET
   ) {
+    console.error('[X API] ❌ Missing credentials:', {
+      hasConsumerKey: !!X_API_CONSUMER_KEY,
+      hasConsumerSecret: !!X_API_CONSUMER_KEY_SECRET,
+      hasAccessToken: !!X_API_ACCESS_TOKEN,
+      hasAccessTokenSecret: !!X_API_ACCESS_TOKEN_SECRET,
+    });
     throw new Error(
       "X_API_CONSUMER_KEY, X_API_CONSUMER_KEY_SECRET, X_API_ACCESS_TOKEN, and X_API_ACCESS_TOKEN_SECRET are required for OAuth 1.0a User Context authentication."
     );
   }
 
-  // GETリクエストの場合、paramsオブジェクトをクエリ文字列に変換
-  let url = `${X_API_BASE_URL}${endpoint}`;
+  // P0 FIX: OAuth 1.0a署名にクエリパラメータを含める
+  // endpointに?が含まれる場合は禁止（options.paramsに統一）
+  if (endpoint.includes('?')) {
+    throw new Error(`Endpoint must not contain query string. Use options.params instead: ${endpoint}`);
+  }
+  
+  const baseUrl = `${X_API_BASE_URL}${endpoint}`;
   const method = options.method || "GET";
 
+  // P0 FIX: 最終的にfetchするURLを先に構築（署名対象URLと一致させる）
+  let finalUrl = baseUrl;
   if (method === "GET" && options.params) {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(options.params)) {
@@ -71,22 +105,30 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
     }
     const queryString = params.toString();
     if (queryString) {
-      url += (endpoint.includes("?") ? "&" : "?") + queryString;
+      finalUrl += "?" + queryString;
     }
   }
 
-  // OAuth 1.0a認証ヘッダーを生成
+  // OAuth 1.0a認証ヘッダーを生成（paramsを含める）
   const token = {
     key: X_API_ACCESS_TOKEN,
     secret: X_API_ACCESS_TOKEN_SECRET
   };
 
+  // P0 FIX: OAuth署名の「署名対象URL」と「実送信URL」を一致させる（GPT-5.2推奨）
+  // 最も堅い方式: requestData.urlにfinalUrl（クエリ付き）を渡し、dataはundefinedにする
+  // これにより、署名対象と実送信URLが完全に一致し、署名不一致のリスクを排除
   const requestData = {
-    url,
-    method
+    url: finalUrl, // クエリ付きの最終URLを使用（署名対象と実送信URLを一致）
+    method,
+    // dataはundefined（URLのクエリが署名対象となる）
+    data: undefined
   };
 
   const authHeader = oauth.toHeader(oauth.authorize(requestData, token));
+
+  // fetch用のURLは既に構築済み
+  const url = finalUrl;
 
   const headers = {
     ...authHeader,
@@ -94,14 +136,28 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
     ...options.headers
   };
 
+  // P0 FIX: タイムアウト設定（各attemptごとにAbortControllerを作成）
+  const timeoutMs = 30000; // 30秒
+
   // リトライロジック（指数バックオフ）
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    // P0 FIX: 各attemptごとにAbortControllerとタイマーを作成
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortController.abort();
+      console.warn(`[X API] Request timeout after ${timeoutMs}ms (attempt ${attempt + 1}): ${endpoint}`);
+    }, timeoutMs);
+
     try {
       const response = await fetch(url, {
         method,
         headers,
-        body: options.body ? JSON.stringify(options.body) : undefined
+        body: options.body ? JSON.stringify(options.body) : undefined,
+        signal: abortController.signal
       });
+
+      // タイムアウトIDをクリア（成功時）
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -142,24 +198,40 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
 
         const error = new Error(`X API Error: ${response.status} - ${JSON.stringify(errorData)}`);
 
-        // レート制限エラー（429）の場合、リトライ（インプレッション最大化のため待機時間を最適化）
-        if (response.status === 429 && attempt < maxRetries) {
-          // レート制限ヘッダーを確認（X-RateLimit-Reset）
-          const resetHeader =
-            response.headers.get("x-rate-limit-reset") || response.headers.get("X-RateLimit-Reset");
+        // P1 FIX: HTTPステータスベースでリトライ（429, 5xxをリトライ対象）
+        const retryableStatuses = [429, 500, 502, 503, 504];
+        if (retryableStatuses.includes(response.status) && attempt < maxRetries) {
           let delay;
-          if (resetHeader) {
-            // リセット時刻まで待機（最大5分）
-            const resetTime = parseInt(resetHeader, 10) * 1000;
-            const now = Date.now();
-            delay = Math.min(resetTime - now, 5 * 60 * 1000); // 最大5分
-            if (delay < 0) delay = Math.pow(2, attempt) * 1000; // フォールバック
+          
+          if (response.status === 429) {
+            // レート制限ヘッダーを確認（X-RateLimit-Reset）
+            const resetHeader =
+              response.headers.get("x-rate-limit-reset") || response.headers.get("X-RateLimit-Reset");
+            if (resetHeader) {
+              // リセット時刻まで待機（最大5分）
+              const resetTime = parseInt(resetHeader, 10) * 1000;
+              const now = Date.now();
+              delay = Math.min(resetTime - now, 5 * 60 * 1000); // 最大5分
+              if (delay < 0) delay = Math.pow(2, attempt) * 1000; // フォールバック
+            } else {
+              delay = Math.pow(2, attempt) * 1000; // 指数バックオフ: 1s, 2s, 4s
+            }
+            console.warn(
+              `[X API] Rate limit hit (429), retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
+            );
           } else {
-            delay = Math.pow(2, attempt) * 1000; // 指数バックオフ: 1s, 2s, 4s
+            // 5xxエラーの場合
+            const retryAfter = response.headers.get("retry-after") || response.headers.get("Retry-After");
+            if (retryAfter) {
+              delay = parseInt(retryAfter, 10) * 1000;
+            } else {
+              delay = Math.pow(2, attempt) * 1000; // 指数バックオフ: 1s, 2s, 4s
+            }
+            console.warn(
+              `[X API] Server error (${response.status}), retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
+            );
           }
-          console.warn(
-            `[X API] Rate limit hit, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
-          );
+          
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
@@ -169,17 +241,31 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
 
       return await response.json();
     } catch (error) {
-      // レート制限エラーの場合、リトライ
-      if (isRateLimitError(error) && attempt < maxRetries) {
+      // P1 FIX: リトライ対象を拡大（429以外もリトライ）
+      const isRetryableError = 
+        isRateLimitError(error) ||
+        error.name === 'AbortError' ||
+        error.message?.includes('ECONNRESET') ||
+        error.message?.includes('ETIMEDOUT') ||
+        error.message?.includes('network') ||
+        error.message?.includes('timeout');
+
+      if (isRetryableError && attempt < maxRetries) {
+        // タイムアウトIDをクリア（リトライ前に）
+        clearTimeout(timeoutId);
         const delay = Math.pow(2, attempt) * 1000; // 指数バックオフ: 1s, 2s, 4s
         console.warn(
-          `[X API] Rate limit error, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
+          `[X API] Retryable error (${error.name || 'unknown'}), retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries}):`,
+          error.message
         );
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
 
-      // 最後の試行またはレート制限以外のエラーの場合
+      // タイムアウトIDをクリア（エラー時）
+      clearTimeout(timeoutId);
+
+      // 最後の試行またはリトライ不可エラーの場合
       if (attempt === maxRetries) {
         console.error("[X API] Request failed after retries:", error.message);
         throw error;
@@ -220,6 +306,20 @@ async function uploadMedia(mediaBuffer, options = {}) {
 
   const authHeader = oauth.toHeader(oauth.authorize(requestData, token));
 
+  // P0 FIX: FormDataの互換性確保（Node 18+では標準で利用可能）
+  // Vercel環境ではNode 18+が使用されるため、FormDataは利用可能
+  if (typeof FormData === 'undefined') {
+    throw new Error('FormData is not available. Please ensure Node.js 18+ runtime.');
+  }
+  
+  // P1 FIX: タイムアウト設定（AbortController）
+  const timeoutMs = 60000; // メディアアップロードは60秒
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => {
+    abortController.abort();
+    console.warn('[X API] Media upload timeout after 60s');
+  }, timeoutMs);
+  
   // FormDataの作成
   const formData = new FormData();
   const filename = mediaType === "video" ? "video.mp4" : "image.png";
@@ -239,8 +339,12 @@ async function uploadMedia(mediaBuffer, options = {}) {
         ...authHeader
         // Content-Typeはfetchが自動設定する（boundaryを含むため）
       },
-      body: formData
+      body: formData,
+      signal: abortController.signal
     });
+
+    // タイムアウトIDをクリア
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -250,6 +354,8 @@ async function uploadMedia(mediaBuffer, options = {}) {
     const data = await response.json();
     return data.media_id_string;
   } catch (error) {
+    // タイムアウトIDをクリア
+    clearTimeout(timeoutId);
     console.error("[X API] Media upload failed:", error.message);
     throw error;
   }
@@ -413,24 +519,28 @@ async function searchTweets(query, options = {}) {
     sortOrder = "relevancy"
   } = options;
 
-  // クエリパラメータを構築
-  const params = new URLSearchParams({
+  // P0 FIX: OAuth署名にクエリを含めるため、paramsをオブジェクトとして渡す
+  const paramsObj = {
     query: query.trim(),
     max_results: Math.min(Math.max(10, maxResults), 100).toString(),
     "tweet.fields": "id,text,author_id,created_at,public_metrics,lang",
     "user.fields": "id,name,username,public_metrics",
     expansions: "author_id",
     sort_order: sortOrder
-  });
+  };
 
-  if (startTime) params.append("start_time", startTime);
-  if (endTime) params.append("end_time", endTime);
-  if (sinceId) params.append("since_id", sinceId);
-  if (untilId) params.append("until_id", untilId);
-  if (nextToken) params.append("next_token", nextToken);
+  if (startTime) paramsObj.start_time = startTime;
+  if (endTime) paramsObj.end_time = endTime;
+  if (sinceId) paramsObj.since_id = sinceId;
+  if (untilId) paramsObj.until_id = untilId;
+  if (nextToken) paramsObj.next_token = nextToken;
 
   try {
-    const response = await xApiRequest(`/tweets/search/recent?${params.toString()}`);
+    // P0 FIX: endpointはパスのみ、クエリはoptions.paramsに統一
+    const response = await xApiRequest('/tweets/search/recent', {
+      method: 'GET',
+      params: paramsObj
+    });
     return {
       data: response.data || [],
       includes: response.includes || {},
@@ -584,13 +694,42 @@ async function postQuoteTweet(text, quoteTweetId, mediaIds = [], maxRetries = 3)
       maxRetries
     );
 
-    console.log(`[X API] Quote tweet posted successfully: ${response.data?.id}`);
+    // 🔍 重要: レスポンスの検証を強化（空振りを検出）
+    if (!response || !response.data) {
+      console.error(`[X API] ❌ Invalid response structure:`, {
+        response,
+        body,
+        timestamp: new Date().toISOString(),
+      });
+      throw new Error(`Invalid response structure: ${JSON.stringify(response)}`);
+    }
+
+    if (!response.data.id) {
+      console.error(`[X API] ❌ Response missing tweet ID:`, {
+        response,
+        body,
+        timestamp: new Date().toISOString(),
+      });
+      throw new Error(`Response missing tweet ID: ${JSON.stringify(response)}`);
+    }
+
+    console.log(`[X API] ✅ Quote tweet posted successfully:`, {
+      tweetId: response.data.id,
+      text: response.data.text,
+      timestamp: new Date().toISOString(),
+    });
+    
     return {
-      id: response.data?.id,
-      text: response.data?.text
+      id: response.data.id,
+      text: response.data.text
     };
   } catch (error) {
-    console.error("[X API] Failed to post quote tweet:", error.message);
+    console.error("[X API] ❌ Failed to post quote tweet:", {
+      error: error.message,
+      stack: error.stack?.substring(0, 500),
+      body,
+      timestamp: new Date().toISOString(),
+    });
     throw error;
   }
 }
