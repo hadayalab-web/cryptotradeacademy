@@ -737,14 +737,11 @@ async function postFreeReportAsThread(targetLangs, reportData) {
   }
   console.log('[X Post Free Report] ✅ No duplicate found, proceeding...');
   
-  // 1日の投稿上限チェック（35投稿/日に増加 - インプレッション最大化のため）
+  // 🚀 チート級戦略: 日次上限を撤廃（Cronスケジュールで制御されているため不要）
+  // Cronスケジュール: 4回/日（30 4,10,17,19 * * *）
+  // ログ出力のみ残す（モニタリング用）
   const dailyPostCount = await getDailyPostCount(dateString);
-  const maxDailyPosts = 35; // インプレッション最大化: 25→35に増加（スパム判定回避しつつ最大化）
-  console.log(`[X Post Free Report] Daily post count: ${dailyPostCount}/${maxDailyPosts}`);
-  if (dailyPostCount >= maxDailyPosts) {
-    console.log(`[X Post Free Report] ⏰ Daily post limit reached (${dailyPostCount}/${maxDailyPosts}), skipping free report post`);
-    return { success: false, skipped: true, reason: 'daily_limit_reached', dailyPostCount };
-  }
+  console.log(`[X Post Free Report] Daily post count: ${dailyPostCount} (no limit, controlled by Cron schedule)`);
   
   // コンテンツ形式を決定（シーケンスベース + リアルタイム最適化）
   const sequence = Math.floor(Date.now() / (1000 * 60 * 60)) % 10; // 時間ベースのシーケンス

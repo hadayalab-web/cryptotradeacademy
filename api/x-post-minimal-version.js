@@ -230,15 +230,11 @@ async function postMinimalVersionToX(targetLangs, reportData) {
         continue;
       }
       
-      // 🔴 CRITICAL FIX: 1日の投稿上限を35に統一（Free Reportと同じ上限を使用）
-      // 注意: 投稿タイプごとに異なる上限を設定する場合は、カウンターも分離する必要がある
-      const maxDailyPosts = 35; // Free Reportと同じ上限に統一（インプレッション最大化）
+      // 🚀 チート級戦略: 日次上限を撤廃（Cronスケジュールで制御されているため不要）
+      // Cronスケジュール: 4回/日（0 7,12,15,23 * * *）
+      // ログ出力のみ残す（モニタリング用）
       const dailyPostCount = await getDailyPostCount(dateString);
-      if (dailyPostCount >= maxDailyPosts) {
-        console.log(`[X Post Minimal] ⏰ Daily post limit reached (${dailyPostCount}/${maxDailyPosts}), skipping minimal version post for ${normalizedLang}`);
-        results.push({ lang: normalizedLang, success: false, skipped: true, reason: 'daily_limit_reached' });
-        continue;
-      }
+      console.log(`[X Post Minimal] Daily post count: ${dailyPostCount} (no limit, controlled by Cron schedule) for ${normalizedLang}`);
       
       // Grok推奨: 最初のツイートを強力なフックにする
       const trapScoreRounded = Math.round(trapScore || 0);

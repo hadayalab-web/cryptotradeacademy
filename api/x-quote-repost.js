@@ -527,27 +527,19 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     const isOriginalPeakTime = originalPeakHours.includes(currentHour);
     
     // 🚀 数撃て作戦: 全時間帯で投稿可能（ただし、日次制限内で）
-    // 修正: ピーク時間外の制限を緩和して、より多くの投稿を許可
+    // 🚀 チート級戦略: 日次上限を撤廃（Cronスケジュールで制御されているため不要）
+    // 制御は以下で行う:
+    // 1. Cronスケジュール（vercel.json）: 12回/日（0,2,4,6,8,10,12,14,16,18,20,22 UTC）
+    // 2. インフルエンサー1人あたりの日次上限（X_MAX_DAILY_POSTS_PER_INFLUENCER）: デフォルト4回/日
+    // 3. 1時間あたりの投稿数制限（X_MAX_HOURLY_POSTS）: デフォルト100/時間
+    // 4. X APIレート制限（技術的制約）: Per App 10,000/24hrs
     if (!isOriginalPeakTime) {
-      // ピーク時間外でも、1日の投稿数が上限に達していない場合は許可（インプレッション最大化）
-      // AI推奨値200-300の中間値250をデフォルトに（スパム判定回避のため）
-      const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '250', 10);
-      if (dailyPostCount >= maxDailyPosts) {
-        console.log(`⏰ Skipping quote reposts for ${lang} (not original peak time and daily limit reached: ${currentHour} UTC, ${dailyPostCount}/${maxDailyPosts}) [runId: ${langRunId}, step: ${currentStep}]`);
-        return [];
-      }
-      console.log(`ℹ️ Posting quote reposts for ${lang} outside original peak time (${currentHour} UTC, ${dailyPostCount}/${maxDailyPosts}) for impression maximization [runId: ${langRunId}]`);
+      console.log(`ℹ️ Posting quote reposts for ${lang} outside original peak time (${currentHour} UTC, daily count: ${dailyPostCount}) for impression maximization [runId: ${langRunId}]`);
     }
     
-    // 🚀 数撃て作戦: X APIレート制限とトークンコストを考慮した最適化（環境変数から取得）
-    // デフォルトは250（AI推奨値200-300の中間値、スパム判定回避のため）
-    // X APIレート制限: Per App 10,000/24hrs、Per User 100/15min（理論上9,600/24hrs）
-    currentStep = 'daily_limit_check';
-    const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '250', 10);
-    if (!checkDailyPostLimit(dailyPostCount, maxDailyPosts)) {
-      console.log(`⏰ Daily post limit reached (${dailyPostCount}/${maxDailyPosts}), skipping ${lang} [runId: ${langRunId}, step: ${currentStep}]`);
-      return [];
-    }
+    // 日次上限チェックを削除（Cronスケジュールで制御されているため不要）
+    // ログ出力のみ残す（モニタリング用）
+    console.log(`[Quote Repost] Daily post count: ${dailyPostCount} (no limit, controlled by Cron schedule) [runId: ${langRunId}]`);
     
     // 🚀 数撃て作戦: 時価配分を考慮してインフルエンサー数を取得
     currentStep = 'get_influencer_count';
@@ -1723,9 +1715,9 @@ const handler = async (req, res) => {
     skipReasons.timeWindow = false;
     
     console.log(`[Quote Repost] Processing ${targetLangs.join(', ')} at peak time (${currentHour}:00 UTC, type: ${type}, count: ${count} per lang)`);
-    // 🚀 数撃て作戦: X APIレート制限とトークンコストを考慮した最適化（環境変数から取得）
-    const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '250', 10); // デフォルト250投稿/日（AI推奨値200-300の中間値、スパム判定回避のため）
-    console.log(`[Quote Repost] Daily post count: ${currentDailyPostCount}/${maxDailyPosts}`);
+    // 🚀 チート級戦略: 日次上限を撤廃（Cronスケジュールで制御されているため不要）
+    // ログ出力のみ残す（モニタリング用）
+    console.log(`[Quote Repost] Daily post count: ${currentDailyPostCount} (no limit, controlled by Cron schedule)`);
     
     // ⚖️ バランスアプローチ: X APIレート制限に基づく1時間あたりの投稿数制限
     const hourKey = `${dateString}T${String(currentHour).padStart(2, '0')}`;
