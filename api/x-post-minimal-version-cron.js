@@ -14,7 +14,35 @@ try {
 }
 
 /**
+ * fetch with timeout (P1-5対応: 外部API呼び出しにタイムアウトを追加)
+ * @param {string} url - リクエストURL
+ * @param {Object} options - fetchオプション
+ * @param {number} timeoutMs - タイムアウト時間（ミリ秒、デフォルト: 5000 = 5秒）
+ * @returns {Promise<Response>}
+ */
+async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
+}
+
+/**
  * 最新の市場データを取得（CryptoQuant APIから）
+ * P1-5対応: 外部API呼び出しにタイムアウトを追加
  */
 async function fetchLatestMarketData() {
   try {
@@ -22,30 +50,56 @@ async function fetchLatestMarketData() {
     const { getExchangeInflow, getMinerPositionIndex } = require('../services/cryptoquant/endpoints/btc');
     const { getCQDeepMetrics } = require('../services/cryptoquant/deepMetrics');
     
-    // 価格データを取得
-    const priceRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');
-    const priceData = await priceRes.json();
-    const priceUsd = priceData?.bitcoin?.usd || 0;
-    const change24h = priceData?.bitcoin?.usd_24h_change || 0;
+    // P1-5対応: 価格データを取得（タイムアウト: 5秒）
+    let priceUsd = 89859; // デフォルト値
+    let change24h = -0.02; // デフォルト値
     
-    // CryptoQuantデータを取得
-    const [inflowData, mpiData] = await Promise.all([
-      getExchangeInflow().catch(() => null),
-      getMinerPositionIndex().catch(() => null),
-    ]);
+    try {
+      const priceRes = await fetchWithTimeout(
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',
+        {},
+        5000 // 5秒タイムアウト
+      );
+      const priceData = await priceRes.json();
+      priceUsd = priceData?.bitcoin?.usd || priceUsd;
+      change24h = priceData?.bitcoin?.usd_24h_change || change24h;
+    } catch (error) {
+      console.warn('[X Post Minimal Cron] Failed to fetch price data (timeout or error), using defaults:', error.message);
+    }
     
-    const exchangeNetflow = inflowData?.value || null;
-    const mpi = mpiData?.value || null;
+    // P1-5対応: CryptoQuantデータを取得（タイムアウト: 8秒）
+    let exchangeNetflow = null;
+    let mpi = null;
     
-    // 深掘りデータを取得（Trap Score用）
+    try {
+      const [inflowData, mpiData] = await Promise.race([
+        Promise.all([
+          getExchangeInflow().catch(() => null),
+          getMinerPositionIndex().catch(() => null),
+        ]),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('CryptoQuant API timeout')), 8000)),
+      ]);
+      
+      exchangeNetflow = inflowData?.value || null;
+      mpi = mpiData?.value || null;
+    } catch (error) {
+      console.warn('[X Post Minimal Cron] Failed to fetch CryptoQuant data (timeout or error), using defaults:', error.message);
+    }
+    
+    // P1-5対応: 深掘りデータを取得（Trap Score用、タイムアウト: 8秒）
     let trapScore = 25; // デフォルト
     let whaleRatio = null;
     
     try {
-      const deepData = await getCQDeepMetrics('EN', {
+      const deepDataPromise = getCQDeepMetrics('EN', {
         upbitPrice: priceUsd,
         usdKrwRate: 1300,
       });
+      
+      const deepData = await Promise.race([
+        deepDataPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Deep metrics timeout')), 8000)),
+      ]);
       
       if (deepData?.trapScore != null) {
         trapScore = deepData.trapScore;
@@ -54,7 +108,7 @@ async function fetchLatestMarketData() {
         whaleRatio = deepData.whaleFlows.whaleRatio;
       }
     } catch (error) {
-      console.warn('[X Post Minimal Cron] Failed to fetch deep metrics, using defaults:', error.message);
+      console.warn('[X Post Minimal Cron] Failed to fetch deep metrics (timeout or error), using defaults:', error.message);
     }
     
     return {
@@ -97,6 +151,10 @@ module.exports = async (req, res) => {
     ) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    
+    // P0: ジッター（揺らぎ）を適用（GPT-5.2推奨、maxDuration制約を考慮）
+    const { applyJitter } = require('../utils/scheduler');
+    await applyJitter({ label: 'x-post-minimal-version-cron', minMs: 5000, maxMs: 20000 });
     
     console.log('[X Post Minimal Cron] Starting minimal version X posting...');
     

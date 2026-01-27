@@ -213,8 +213,12 @@ async function postMinimalVersionToX(targetLangs, reportData) {
   const results = [];
   const dateString = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
   
+  // P0: 言語間ウェイト用のユーティリティをインポート
+  const { applyLanguageWait } = require('../utils/scheduler');
+  
   // 各言語ごとに投稿
-  for (const lang of targetLangs) {
+  for (let i = 0; i < targetLangs.length; i++) {
+    const lang = targetLangs[i];
     try {
       const normalizedLang = normalizeLang(lang) || 'en';
       
@@ -383,7 +387,7 @@ async function postMinimalVersionToX(targetLangs, reportData) {
       
       console.log(`[X Post Minimal] ✅ Main tweet posted: ${mainTweetId}`);
       
-      // CRITICAL: KVストレージに構造化ログを記録
+      // CRITICAL: KVストレージに構造化ログを記録（A/Bテスト情報を含む）
       try {
         const { logPostSuccess } = require('../services/core/postLogger');
         await logPostSuccess({
@@ -392,6 +396,10 @@ async function postMinimalVersionToX(targetLangs, reportData) {
           lang: normalizedLang,
           threadLength: threadChunks.length,
           dateString,
+          // A/Bテスト情報を追加
+          abTestVariant: abTestVariant,
+          timeOptimization: timeOptimization,
+          utcHour: currentHour,
         });
       } catch (logError) {
         console.warn(`[X Post Minimal] ⚠️ Failed to log post success to KV:`, logError.message);
@@ -403,6 +411,10 @@ async function postMinimalVersionToX(targetLangs, reportData) {
       try {
         await savePostId(mainTweetId, 'minimal_version', normalizedLang, {
           threadLength: threadChunks.length,
+          // A/Bテスト情報を追加
+          abTestVariant: abTestVariant,
+          timeOptimization: timeOptimization,
+          utcHour: currentHour,
         });
         
         // 保存に成功した場合のみ投稿数をインクリメント（メイン投稿のみカウント）
@@ -499,6 +511,12 @@ async function postMinimalVersionToX(targetLangs, reportData) {
     } catch (error) {
       console.error(`[X Post Minimal] ❌ Failed to post minimal version for ${lang}:`, error.message);
       results.push({ lang: normalizeLang(lang) || lang, success: false, error: error.message });
+    }
+    
+    // P0: 言語間ウェイト（GPT-5.2推奨、maxDuration制約を考慮）
+    // 最後の言語では待たない
+    if (i < targetLangs.length - 1) {
+      await applyLanguageWait({ label: `x-post-minimal ${lang} -> next` });
     }
   }
   

@@ -316,6 +316,10 @@ async function buildXPostPayload(lang) {
 
 async function postVSL1() {
   try {
+    // P0: ジッター（揺らぎ）を適用（GPT-5.2推奨、maxDuration制約を考慮）
+    const { applyJitter } = require('../utils/scheduler');
+    await applyJitter({ label: 'vsl1-post', minMs: 5000, maxMs: 20000 });
+    
     const results = {
       telegram: null,
       x: null,
@@ -436,7 +440,11 @@ async function postVSL1() {
         const xResults = [];
         let xSuccessCount = 0;
         
-        for (const xLang of xLangs) {
+        // P0: 言語間ウェイト用のユーティリティをインポート
+        const { applyLanguageWait } = require('../utils/scheduler');
+        
+        for (let i = 0; i < xLangs.length; i++) {
+          const xLang = xLangs[i];
           try {
             const xPayload = await buildXPostPayload(xLang);
             if (xStatus.dryRun) {
@@ -464,11 +472,12 @@ async function postVSL1() {
               });
               xSuccessCount++;
               console.log(`✅ VSL1 posted to X (Twitter) [${xLang}]: ${tweetResult.id} (Media: ${!!mediaId})`);
-              
-              // レート制限対策（X API: 50投稿/15分）
-              if (xLangs.length > 1) {
-                await new Promise(resolve => setTimeout(resolve, 2000)); // 2秒待機
-              }
+            }
+            
+            // P0: 言語間ウェイト（GPT-5.2推奨、maxDuration制約を考慮）
+            // 最後の言語では待たない
+            if (i < xLangs.length - 1) {
+              await applyLanguageWait({ label: `vsl1-post ${xLang} -> next` });
             }
           } catch (error) {
             xResults.push({

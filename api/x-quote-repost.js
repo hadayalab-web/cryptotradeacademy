@@ -24,6 +24,9 @@ const {
   selectInfluencersForImpressionTarget,
 } = require('../config/influencerStrategy');
 
+// 8時間クールダウン関連のインポート
+const { isInCooldown, markLastPostedAt } = require('../services/x/influencerRotation');
+
 // Vercel KV（投稿履歴追跡用）
 let kv = null;
 try {
@@ -527,8 +530,8 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       console.log(`ℹ️ Posting quote reposts for ${lang} outside original peak time (${currentHour} UTC, ${dailyPostCount}/${maxDailyPosts}) for impression maximization [runId: ${langRunId}]`);
     }
     
-    // ⚖️ バランスアプローチ: Grokの警告を踏まえ、リスクを最小化（50投稿/日）
-    // 環境変数から取得、デフォルトは100（X APIレート制限に基づく）
+    // 🚀 数撃て作戦: X APIレート制限とトークンコストを考慮した最適化（環境変数から取得）
+    // デフォルトは100（X APIレート制限: Per App 10,000/24hrs、Per User 100/15min）
     currentStep = 'daily_limit_check';
     const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '100', 10);
     if (!checkDailyPostLimit(dailyPostCount, maxDailyPosts)) {
@@ -671,6 +674,36 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
       influencersLength: influencers.length,
       timestamp: new Date().toISOString(),
     });
+    
+    // P0: 8時間クールダウンチェック（Grok + Gemini + GPT-5.2推奨）
+    currentStep = 'cooldown_filter';
+    const filteredInfluencers = [];
+    for (const inf of influencers) {
+      const username = (inf.username || inf.userId || inf.id || '').replace(/^@/, '');
+      if (!username) {
+        console.warn(`[Quote Repost] ⚠️ Influencer missing username, skipping:`, inf);
+        continue;
+      }
+      
+      // 8時間クールダウンチェック
+      const inCooldown = await isInCooldown(lang, username, 8);
+      if (inCooldown) {
+        console.log(`[Quote Repost] ⏰ Skipping @${username} (${lang}): in 8h cooldown [runId: ${langRunId}]`);
+        continue;
+      }
+      
+      filteredInfluencers.push(inf);
+    }
+    
+    // フィルタで0件なら、その言語はスキップ（=条件付き実行）
+    if (filteredInfluencers.length === 0) {
+      console.log(`[Quote Repost] ⏰ All influencers for ${lang} are in cooldown, skipping [runId: ${langRunId}]`);
+      continue;
+    }
+    
+    // フィルタ後のインフルエンサーを使用
+    influencers = filteredInfluencers;
+    console.log(`[Quote Repost] ✅ After cooldown filter: ${influencers.length} influencers available for ${lang} [runId: ${langRunId}]`);
     
     // インフルエンサーをリストに追加（リスト管理）
     for (const influencer of influencers) {
@@ -949,6 +982,7 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             throw new Error(`Invalid response from postQuoteTweet: ${JSON.stringify(result)}`);
           }
           
+          // P1-2対応: 投稿成功（X API成功レスポンス取得）後にのみ記録を実行
           console.log(`[Quote Repost] ✅✅✅ SUCCESSFULLY POSTED quote repost [runId: ${langRunId}, step: ${currentStep}]:`, {
             lang,
             influencer: influencer.username,
@@ -960,12 +994,22 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             xApiCreditUsed: true, // X APIクレジットが使用されたことを明示
           });
           
+          // P1-2対応: 投稿成功後にのみローテーション管理とクールダウン記録を実行
           // 🚀 数撃て作戦: ローテーション管理 - 投稿済みとしてマーク
           try {
             const { markInfluencerPosted } = require('../services/x/influencerRotation');
             await markInfluencerPosted(lang, influencer.username, dateString);
           } catch (rotationError) {
             console.warn(`[Quote Repost] ⚠️ Failed to mark influencer as posted (non-fatal):`, rotationError.message);
+          }
+          
+          // P0: 8時間クールダウン用の最終投稿時刻を記録（Grok + Gemini + GPT-5.2推奨）
+          // P1-2対応: 投稿成功後にのみ記録（失敗時は記録しない）
+          try {
+            await markLastPostedAt(lang, influencer.username, new Date());
+          } catch (cooldownError) {
+            console.warn(`[Quote Repost] ⚠️ Failed to mark last posted at (non-fatal):`, cooldownError.message);
+            // エラーでも投稿は成功扱い（可用性優先）
           }
           
           // 🔥 改善: ツイートIDとインフルエンサーIDの関連を保存（WebhookでインフルエンサーID別の集計に使用）
@@ -1622,8 +1666,8 @@ const handler = async (req, res) => {
     skipReasons.timeWindow = false;
     
     console.log(`[Quote Repost] Processing ${targetLangs.join(', ')} at peak time (${currentHour}:00 UTC, type: ${type}, count: ${count} per lang)`);
-    // ⚖️ バランスアプローチ: Grokの警告を踏まえ、リスクを最小化（50投稿/日）
-    const maxDailyPosts = 50; // バランスアプローチ（50投稿/24時間）
+    // 🚀 数撃て作戦: X APIレート制限とトークンコストを考慮した最適化（環境変数から取得）
+    const maxDailyPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '100', 10); // デフォルト100投稿/日（X APIレート制限: Per App 10,000/24hrs）
     console.log(`[Quote Repost] Daily post count: ${currentDailyPostCount}/${maxDailyPosts}`);
     
     // ⚖️ バランスアプローチ: X APIレート制限に基づく1時間あたりの投稿数制限

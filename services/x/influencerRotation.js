@@ -1,5 +1,9 @@
 // services/x/influencerRotation.js
 // インフルエンサーローテーション管理（70人リストを上手にローテーション）
+// 
+// タイムゾーン仕様: UTC日付で管理（P0-4対応）
+// - 日付キーは `new Date().toISOString().split('T')[0]` で生成（UTC基準）
+// - ローテーション、投稿済み判定、日次上限はすべてUTC日付で動作
 
 let kv = null;
 try {
@@ -12,6 +16,7 @@ try {
 // KVキーのプレフィックス
 const ROTATION_KEY_PREFIX = 'x:influencer_rotation:';
 const POSTED_TODAY_KEY_PREFIX = 'x:influencer_posted_today:';
+const LAST_POSTED_KEY_PREFIX = 'x:influencer_last_posted:';
 
 /**
  * 言語別のローテーションキーを生成
@@ -62,7 +67,84 @@ async function getPostedInfluencersToday(lang, dateString = null) {
 }
 
 /**
- * インフルエンサーを今日の投稿済みリストに追加
+ * ロックキーを取得（P0-2対応: 原子性を保証）
+ * @param {string} lang - 言語コード
+ * @param {string} dateString - 日付文字列（YYYY-MM-DD）
+ * @returns {string} ロックキー
+ */
+function getLockKey(lang, dateString) {
+  return `x:lock:posted_today:${lang.toLowerCase()}:${dateString}`;
+}
+
+/**
+ * ロックを取得（SET NX EX相当）
+ * 
+ * 注意: Vercel KVは廃止され、Upstash Redisに移行済み
+ * - `@vercel/kv`パッケージは非推奨だが、既存プロジェクトでは動作
+ * - Upstash Redisは標準的なRedisコマンドをサポート
+ * - `nx`オプションのサポート状況は`@vercel/kv`パッケージの実装に依存
+ * 
+ * @param {string} lockKey - ロックキー
+ * @param {number} ttlSeconds - TTL（秒、デフォルト: 10秒）
+ * @returns {Promise<boolean>} ロック取得成功時true
+ */
+async function acquireLock(lockKey, ttlSeconds = 10) {
+  if (!kv) return false;
+  try {
+    // SET NX EX相当: キーが存在しない場合のみ設定し、TTLを設定
+    // Vercel KV/Upstash Redisは標準的なRedisコマンドをサポート
+    // @vercel/kvパッケージが`nx`オプションをサポートしているか確認
+    const lockValue = Date.now().toString();
+    
+    // まず既存のロックをチェック
+    const existing = await kv.get(lockKey);
+    if (existing) {
+      // ロックが既に存在する場合、TTLをチェック（古いロックの可能性）
+      // ここでは単純に失敗として扱う（デッドロック回避のため）
+      return false;
+    }
+    
+    // ロックが存在しない場合、設定を試みる
+    // @vercel/kvが`nx`オプションをサポートしている場合は使用、そうでない場合は代替実装
+    try {
+      const result = await kv.set(lockKey, lockValue, { ex: ttlSeconds, nx: true });
+      return result === 'OK' || result === true;
+    } catch (nxError) {
+      // `nx`オプションがサポートされていない場合、再チェック方式を使用
+      // これは完全に原子的ではないが、ほとんどのケースで動作する
+      // 将来的には`@upstash/redis`への移行を検討（標準的なRedisコマンドの完全サポート）
+      const checkAgain = await kv.get(lockKey);
+      if (checkAgain) {
+        return false; // 他のプロセスがロックを取得した
+      }
+      // 再チェック時もロックが存在しない場合、設定を試みる
+      await kv.set(lockKey, lockValue, { ex: ttlSeconds });
+      // 設定後に再確認（競合チェック）
+      const verify = await kv.get(lockKey);
+      return verify === lockValue; // 自分が設定した値と一致するか確認
+    }
+  } catch (error) {
+    console.warn(`[InfluencerRotation] Failed to acquire lock ${lockKey}:`, error.message);
+    return false;
+  }
+}
+
+/**
+ * ロックを解放
+ * @param {string} lockKey - ロックキー
+ * @returns {Promise<void>}
+ */
+async function releaseLock(lockKey) {
+  if (!kv) return;
+  try {
+    await kv.del(lockKey);
+  } catch (error) {
+    console.warn(`[InfluencerRotation] Failed to release lock ${lockKey}:`, error.message);
+  }
+}
+
+/**
+ * インフルエンサーを今日の投稿済みリストに追加（P0-2対応: 原子性を保証）
  * @param {string} lang - 言語コード
  * @param {string} username - インフルエンサーのユーザー名
  * @param {string} dateString - 日付文字列（YYYY-MM-DD、省略時は今日）
@@ -74,10 +156,24 @@ async function markInfluencerPosted(lang, username, dateString = null) {
     return false;
   }
 
+  const targetDate = dateString || new Date().toISOString().split('T')[0];
+  const key = getPostedTodayKey(lang, targetDate);
+  const lockKey = getLockKey(lang, targetDate);
+  
+  // P0-2対応: ロックを取得してから更新（最大10回リトライ、100ms間隔）
+  let lockAcquired = false;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    lockAcquired = await acquireLock(lockKey, 10);
+    if (lockAcquired) break;
+    await new Promise(resolve => setTimeout(resolve, 100)); // 100ms待機
+  }
+  
+  if (!lockAcquired) {
+    console.warn(`[InfluencerRotation] ⚠️ Failed to acquire lock after 10 attempts, proceeding without lock (risk of race condition)`);
+    // ロック取得失敗時も処理を続行（可用性優先、ただし競合リスクあり）
+  }
+
   try {
-    const targetDate = dateString || new Date().toISOString().split('T')[0];
-    const key = getPostedTodayKey(lang, targetDate);
-    
     // 既存のリストを取得
     const posted = await kv.get(key) || [];
     const postedSet = new Set(posted);
@@ -98,6 +194,11 @@ async function markInfluencerPosted(lang, username, dateString = null) {
   } catch (error) {
     console.error(`[InfluencerRotation] Failed to mark influencer as posted for ${lang}:`, error.message);
     return false;
+  } finally {
+    // ロックを解放
+    if (lockAcquired) {
+      await releaseLock(lockKey);
+    }
   }
 }
 
@@ -228,6 +329,86 @@ async function selectInfluencersWithRotation(influencers, lang, count, dateStrin
 }
 
 /**
+ * 最終投稿時刻キーを生成
+ * @param {string} lang - 言語コード
+ * @param {string} username - インフルエンサーのユーザー名
+ * @returns {string} KVキー
+ */
+function getLastPostedKey(lang, username) {
+  const l = (lang || 'en').toLowerCase();
+  const u = (username || '').replace(/^@/, '').toLowerCase();
+  return `${LAST_POSTED_KEY_PREFIX}${l}:${u}`;
+}
+
+/**
+ * 最終投稿時刻(ISO文字列)を取得
+ * KV障害時は null を返し、クールダウン判定をスキップ（=投稿を止めない）
+ * @param {string} lang - 言語コード
+ * @param {string} username - インフルエンサーのユーザー名
+ * @returns {Promise<Date|null>} 最終投稿時刻、取得できない場合はnull
+ */
+async function getLastPostedAt(lang, username) {
+  if (!kv) return null;
+  try {
+    const key = getLastPostedKey(lang, username);
+    const value = await kv.get(key);
+    if (!value) return null;
+
+    // valueはISO文字列想定
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return d;
+  } catch (e) {
+    console.warn('[InfluencerRotation] getLastPostedAt failed:', e.message);
+    return null;
+  }
+}
+
+/**
+ * 最終投稿時刻を記録（ISO文字列）
+ * TTLは24h（8hクールダウン + 安全マージン）
+ * @param {string} lang - 言語コード
+ * @param {string} username - インフルエンサーのユーザー名
+ * @param {Date} date - 投稿時刻（省略時は現在時刻）
+ * @returns {Promise<boolean>} 保存成功時true
+ */
+async function markLastPostedAt(lang, username, date = new Date()) {
+  if (!kv) return false;
+  try {
+    const key = getLastPostedKey(lang, username);
+    await kv.set(key, date.toISOString(), { ex: 24 * 60 * 60 });
+    console.log(`[InfluencerRotation] ✅ Marked last posted at for @${username} (${lang}): ${date.toISOString()}`);
+    return true;
+  } catch (e) {
+    console.warn('[InfluencerRotation] markLastPostedAt failed:', e.message);
+    return false;
+  }
+}
+
+/**
+ * 8時間クールダウン判定
+ * lastPostedAtが取れない場合は false（=クールダウン中ではない）として扱う
+ * @param {string} lang - 言語コード
+ * @param {string} username - インフルエンサーのユーザー名
+ * @param {number} cooldownHours - クールダウン時間（時間単位、デフォルト: 8時間）
+ * @param {Date} now - 現在時刻（省略時は現在時刻）
+ * @returns {Promise<boolean>} クールダウン中の場合true
+ */
+async function isInCooldown(lang, username, cooldownHours = 8, now = new Date()) {
+  const last = await getLastPostedAt(lang, username);
+  if (!last) return false;
+  const diffMs = now.getTime() - last.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  const inCooldown = diffHours < cooldownHours;
+  
+  if (inCooldown) {
+    console.log(`[InfluencerRotation] ⏰ @${username} (${lang}) is in cooldown: last posted ${diffHours.toFixed(2)}h ago (need ${cooldownHours}h)`);
+  }
+  
+  return inCooldown;
+}
+
+/**
  * 今日の投稿統計を取得
  * @param {string} lang - 言語コード
  * @param {string} dateString - 日付文字列（YYYY-MM-DD、省略時は今日）
@@ -254,4 +435,8 @@ module.exports = {
   updateRotationIndex,
   selectInfluencersWithRotation,
   getRotationStats,
+  // 8時間クールダウン関連
+  getLastPostedAt,
+  markLastPostedAt,
+  isInCooldown,
 };

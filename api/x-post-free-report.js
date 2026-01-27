@@ -774,8 +774,12 @@ async function postFreeReportAsThread(targetLangs, reportData) {
   const maxPostsPerHour = parseInt(process.env.X_MAX_HOURLY_POSTS || '5', 10);
   console.log(`[X Post Free Report] Hourly post count: ${currentHourlyPostCount}/${maxPostsPerHour}`);
   
+  // P0: 言語間ウェイト用のユーティリティをインポート
+  const { applyLanguageWait } = require('../utils/scheduler');
+  
   // インプレッション最大化: 複数言語を個別に処理（ピーク時間チェックを緩和）
-  for (const lang of langsToPost) {
+  for (let i = 0; i < langsToPost.length; i++) {
+    const lang = langsToPost[i];
     // ピーク時間チェックを緩和（ピーク時間外でも投稿可能にする）
     // ただし、ピーク時間の場合は優先的に投稿
     const isPeakHour = isPeakHourForLang(lang, currentHour);
@@ -1062,11 +1066,10 @@ async function postFreeReportAsThread(targetLangs, reportData) {
       }
     }
     
-    // 言語間の待機時間（1-2分）
-    if (lang !== langsToPost[langsToPost.length - 1]) {
-      const delayMs = 1 * 60 * 1000; // 1分待機
-      console.log(`[X Post Free Report] Waiting ${delayMs / 1000} seconds before next language...`);
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+    // P0: 言語間ウェイト（GPT-5.2推奨、maxDuration制約を考慮）
+    // 最後の言語では待たない
+    if (i < langsToPost.length - 1) {
+      await applyLanguageWait({ label: `x-post-free-report ${lang} -> next` });
     }
   }
   
@@ -1209,6 +1212,10 @@ const handler = async (req, res) => {
   }
   
   try {
+    // P0: ジッター（揺らぎ）を適用（GPT-5.2推奨、maxDuration制約を考慮）
+    const { applyJitter } = require('../utils/scheduler');
+    await applyJitter({ label: 'x-post-free-report-handler', minMs: 5000, maxMs: 20000 });
+    
     // KVストレージ接続確認
     if (!kv) {
       console.warn('[X Post Free Report] ⚠️ KV storage not available - duplicate prevention may not work');
