@@ -14,17 +14,11 @@ const X_API_CONSUMER_KEY_SECRET = process.env.X_API_CONSUMER_KEY_SECRET;
  * CRC Challenge-Response Check（Webhook URL検証）
  * X APIがWebhook URLの所有権を確認するために送信するCRCトークンを検証
  * @param {string} crcToken - CRCトークン
- * @returns {Object|null} 検証レスポンストークン、またはnull（エラー時）
+ * @returns {string} 検証レスポンストークン
  */
 function generateCrcResponse(crcToken) {
   if (!X_API_CONSUMER_KEY_SECRET) {
-    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
-    if (isProduction) {
-      console.error('[X Webhook] ❌ CRITICAL: X_API_CONSUMER_KEY_SECRET not set in production');
-      return null; // 本番環境ではnullを返してエラーとして処理
-    }
-    console.warn('[X Webhook] ⚠️ X_API_CONSUMER_KEY_SECRET not set, cannot generate CRC response (development mode)');
-    return null; // 開発環境でもnullを返す（エラーハンドリングを統一）
+    throw new Error('X_API_CONSUMER_KEY_SECRET is required for CRC verification');
   }
 
   // HMAC SHA-256ハッシュを生成
@@ -505,24 +499,11 @@ async function handler(req, res) {
 
     try {
       const response = generateCrcResponse(crcToken);
-      
-      if (!response) {
-        // X_API_CONSUMER_KEY_SECRETが設定されていない場合
-        const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
-        if (isProduction) {
-          console.error('[X Webhook] ❌ CRITICAL: X_API_CONSUMER_KEY_SECRET not set in production, CRC verification failed');
-          return res.status(500).json({ error: 'CRC verification failed: X_API_CONSUMER_KEY_SECRET not configured' });
-        }
-        console.warn('[X Webhook] ⚠️ X_API_CONSUMER_KEY_SECRET not set, returning 500 (development mode)');
-        return res.status(500).json({ error: 'CRC verification failed: X_API_CONSUMER_KEY_SECRET not configured' });
-      }
-      
       console.log('[X Webhook] ✅ CRC verification successful for token:', crcToken.substring(0, 10) + '...');
       return res.status(200).json(response);
     } catch (error) {
       console.error('[X Webhook] ❌ CRC verification failed:', error.message);
-      console.error('[X Webhook] Stack:', error.stack);
-      return res.status(500).json({ error: 'CRC verification failed', details: error.message });
+      return res.status(500).json({ error: 'CRC verification failed' });
     }
   }
 
