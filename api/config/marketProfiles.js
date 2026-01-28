@@ -1,4 +1,4 @@
-// api/config/marketProfiles.js
+// config/marketProfiles.js
 // CryptoTradeAcademy - ChangeEdge BTC 市場別プロファイル設定
 // Strategic SSOT v4.0 ULTIMATE Section 1に基づく
 
@@ -39,9 +39,9 @@ function getMarketProfile(market) {
       },
 
       pricing: {
-        trial: { days: 1, price: 0 },
-        monthly: 69,
-        annual: 588, // SSOT決定価格: $588（$49/月換算、-29%割引）
+        monthly: 99, // Whop API最新価格: $99/月（30日）
+        quarterly: 237, // Whop API最新価格: $237/月（90日）
+        annual: 845, // Whop API最新価格: $845/月（365日）
         currency: 'USD',
       },
     },
@@ -76,9 +76,9 @@ function getMarketProfile(market) {
       islamicCompliant: true,
 
       pricing: {
-        trial: { days: 1, price: 0 },
-        monthly: 89,
-        annual: 890,
+        monthly: 79, // Whop API最新価格: $79/月（30日）
+        quarterly: 190, // Whop API最新価格: $190/月（90日）
+        annual: 673, // Whop API最新価格: $673/月（365日）
         currency: 'USD',
       },
     },
@@ -112,10 +112,10 @@ function getMarketProfile(market) {
       },
 
       pricing: {
-        trial: { days: 1, price: 0 },
-        monthly: 79000,
-        annual: 790000,
-        currency: 'KRW',
+        monthly: 95, // Whop API最新価格: $95/月（30日）
+        quarterly: 228, // Whop API最新価格: $228/月（90日）
+        annual: 809, // Whop API最新価格: $809/月（365日）
+        currency: 'USD',
       },
     },
 
@@ -150,10 +150,10 @@ function getMarketProfile(market) {
       },
 
       pricing: {
-        trial: { days: 1, price: 0 },
-        monthly: 10350,
-        annual: 103500,
-        currency: 'JPY',
+        monthly: 95, // Whop API最新価格: $95/月（30日）
+        quarterly: 228, // Whop API最新価格: $228/月（90日）
+        annual: 809, // Whop API最新価格: $809/月（365日）
+        currency: 'USD',
       },
     },
 
@@ -185,9 +185,9 @@ function getMarketProfile(market) {
       },
 
       pricing: {
-        trial: { days: 1, price: 0 },
-        monthly: 49,
-        annual: 490,
+        monthly: 89, // Whop API最新価格: $89/月（30日）
+        quarterly: 214, // Whop API最新価格: $214/月（90日）
+        annual: 758, // Whop API最新価格: $758/月（365日）
         currency: 'USD',
       },
     },
@@ -220,9 +220,9 @@ function getMarketProfile(market) {
       },
 
       pricing: {
-        trial: { days: 1, price: 0 },
-        monthly: 49,
-        annual: 490,
+        monthly: 87, // Whop API最新価格: $87/月（30日）
+        quarterly: 209, // Whop API最新価格: $209/月（90日）
+        annual: 741, // Whop API最新価格: $741/月（365日）
         currency: 'USD',
       },
     },
@@ -237,3 +237,6 @@ function getMarketProfile(market) {
 module.exports = {
   getMarketProfile,
 };
+
+
+

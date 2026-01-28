@@ -3,14 +3,18 @@
   "functions": {
     "api/cron.js": {
       "includeFiles": [
-        "api/services/**"
+        "api/services/**",
+        "api/config/**"
       ]
     },
     "api/x-update-influencer-stock.js": {
       "maxDuration": 60
     },
     "api/x-quote-repost.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": [
+        "api/config/**"
+      ]
     },
     "api/x-webhook.js": {
       "maxDuration": 30
