@@ -58,13 +58,28 @@ async function saveInfluencersToStock(lang, influencers) {
     const stockKey = getStockKey(lang);
     const updateTimeKey = getUpdateTimeKey(lang);
     
+    // 🔒 言語整合性保証: すべてのインフルエンサーにlangフィールドを明示的に設定
+    const targetLang = (lang || 'en').toLowerCase();
+    const influencersWithLang = influencers.map(inf => ({
+      ...inf,
+      lang: targetLang, // 明示的に言語を設定（上書きも含む）
+    }));
+    
+    // 言語不一致のインフルエンサーを警告（保存前に検証）
+    const mismatchedLang = influencersWithLang.filter(inf => inf.lang && inf.lang.toLowerCase() !== targetLang);
+    if (mismatchedLang.length > 0) {
+      console.warn(`[InfluencerStock] ⚠️ Found ${mismatchedLang.length} influencers with mismatched language before saving for ${targetLang}:`, 
+        mismatchedLang.map(inf => `@${inf.username} (lang: ${inf.lang})`));
+      console.warn(`[InfluencerStock] 🔧 Correcting language field to ${targetLang} for all influencers`);
+    }
+    
     // インフルエンサーをストックに保存（TTL: 24時間）
-    await kv.set(stockKey, influencers, { ex: STOCK_TTL });
+    await kv.set(stockKey, influencersWithLang, { ex: STOCK_TTL });
     
     // 更新時刻を保存
     await kv.set(updateTimeKey, new Date().toISOString(), { ex: STOCK_TTL });
     
-    console.log(`[InfluencerStock] ✅ Saved ${influencers.length} influencers to stock for ${lang}`);
+    console.log(`[InfluencerStock] ✅ Saved ${influencersWithLang.length} influencers to stock for ${targetLang} (all with lang field set)`);
     return true;
   } catch (error) {
     console.error(`[InfluencerStock] ❌ Failed to save influencers to stock for ${lang}:`, error.message);

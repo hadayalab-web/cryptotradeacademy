@@ -1,0 +1,12 @@
+fix: X WebhookのCRC Challenge-Response Checkエラーハンドリング改善
+
+- api/x-webhook.js: logWebhookAccessを非同期実行に変更（エラーが発生してもハンドラーを続行）
+- api/x-webhook.js: CRC Challenge-Response CheckでX_API_CONSUMER_KEY_SECRETが未設定の場合のエラーメッセージを改善
+
+修正内容:
+1. logWebhookAccessをawaitせずに非同期実行（エラーは無視）
+2. より詳細なエラーメッセージとログ出力を追加
+
+これにより、ログ記録のエラーが発生してもWebhookのCRC Challenge-Response Checkが正常に動作する。
+
+注意: Vercel DashboardでX_API_CONSUMER_KEY_SECRET環境変数が設定されていることを確認してください。

@@ -429,6 +429,19 @@ async function postVSL1() {
              const imageBuffer = Buffer.from(base64Data, 'base64');
              mediaId = await uploadMedia(imageBuffer);
              console.log(`✅ VSL1 thumbnail uploaded to X. Media ID: ${mediaId}`);
+             
+             // 🔒 X APIコストを記録（画像アップロード）
+             try {
+               const { recordCost } = require('../services/x/costTracker');
+               await recordCost('imageUpload', 1, {
+                 lang: xLang,
+                 jobId: 'vsl1-post',
+                 mediaId: mediaId,
+                 contentType: 'image',
+               });
+             } catch (costError) {
+               console.warn(`[VSL1 Post] ⚠️ Failed to record cost for image upload:`, costError.message);
+             }
           } catch (uploadError) {
              console.error(`⚠️ Failed to upload VSL1 thumbnail to X: ${uploadError.message}`);
              // 画像アップロード失敗しても投稿は継続
@@ -472,6 +485,20 @@ async function postVSL1() {
               });
               xSuccessCount++;
               console.log(`✅ VSL1 posted to X (Twitter) [${xLang}]: ${tweetResult.id} (Media: ${!!mediaId})`);
+              
+              // 🔒 X APIコストを記録（KVストレージ）
+              try {
+                const { recordCost } = require('../services/x/costTracker');
+                await recordCost('post', 1, {
+                  lang: xLang,
+                  jobId: 'vsl1-post',
+                  tweetId: tweetResult.id,
+                  variant: xPayload.variant,
+                  hasMedia: !!mediaId,
+                });
+              } catch (costError) {
+                console.warn(`[VSL1 Post] ⚠️ Failed to record cost:`, costError.message);
+              }
             }
             
             // P0: 言語間ウェイト（GPT-5.2推奨、maxDuration制約を考慮）

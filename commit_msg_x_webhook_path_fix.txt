@@ -1,0 +1,17 @@
+fix: X Webhook 500エラー修正 - utils/kvインポートパス誤りを修正
+
+問題:
+- X WebhookのCRC Challenge-Response Checkで500エラーが発生
+- ログ: "Cannot find module '../../utils/kv'"
+- 原因: api/x-webhook.jsが間違ったパス (../../utils/kv) を使用
+
+修正内容:
+- api/x-webhook.js: require('../../utils/kv') → require('../utils/kv')
+- api/x-post-minimal-version.js: require('../../utils/kv') → require('../utils/kv')
+- api/x-quote-repost.js: require('../../utils/kv') → require('../utils/kv')
+- api/x-post-free-report.js: require('../../utils/kv') → require('../utils/kv')
+- logWebhookAccessのエラーハンドリング改善（KVアクセス失敗時もハンドラー続行）
+
+影響:
+- X WebhookのCRC Challenge-Response Checkが正常に動作
+- 他のX関連APIエンドポイントも同様のパス誤りを修正

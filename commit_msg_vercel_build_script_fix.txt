@@ -1,0 +1,16 @@
+fix: Vercelデプロイ修正 - ビルドスクリプトでcontentFiltersをコピー
+
+問題:
+- includeFilesだけでは不十分でデプロイが失敗
+- contentFiltersモジュールが見つからないエラーが継続
+
+修正内容:
+- scripts/copy-telegram-messages.js: services/telegram/messages/shared/をapi/services/telegram/messages/shared/にコピーするスクリプトを追加
+- package.json: buildとvercel-buildスクリプトを追加
+- vercel.json: buildCommandを追加し、includeFilesをapi/services/telegram/messages/**に変更
+- .gitignore: api/services/を追加（ビルド成果物）
+
+影響:
+- ビルド時にcontentFilters.jsが確実にapi/配下にコピーされる
+- デプロイが正常に完了する
+- /api/cronのエラーが解消される

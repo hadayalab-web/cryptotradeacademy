@@ -390,9 +390,10 @@ module.exports = async function handler(req, res) {
     const nowUTC = zonedTimeToUtc(now, TZ_UTC);
     const utcHour = Number(formatInTimeZone(nowUTC, TZ_UTC, "HH"));
     const utcMinute = Number(formatInTimeZone(nowUTC, TZ_UTC, "mm"));
-    // 定期配信スケジュール: 6時間ごと（0, 6, 12, 18）デフォルト、または4時間ごと（0, 4, 8, 12, 16, 20）
+    // 定期配信スケジュール: 6時間ごと（0, 6, 12, 18）デフォルト、または4時間ごと（0, 4, 8, 12, 16, 18, 20）
+    // P0 FIX: JST3時（UTC 18時）の配信を確実にするため、4時間スケジュールにも18時を追加
     const REGULAR_HOURS_6H = [0, 6, 12, 18];
-    const REGULAR_HOURS_4H = [0, 4, 8, 12, 16, 20];
+    const REGULAR_HOURS_4H = [0, 4, 8, 12, 16, 18, 20]; // 18時を追加（JST3時対応）
     // 環境変数で切り替え可能（デフォルトは6時間ごと）
     const USE_4H_SCHEDULE = process.env.REGULAR_SCHEDULE === "4h";
     const REGULAR_HOURS = USE_4H_SCHEDULE ? REGULAR_HOURS_4H : REGULAR_HOURS_6H;
@@ -1152,7 +1153,8 @@ module.exports = async function handler(req, res) {
       marketBugDetection = trapDetection;
 
       // ===== USP3: Dr. Grokの心理的サポート =====
-      // psychologicalSupportは関数スコープで既に定義済み
+      // P0 FIX: 各言語ループ内で計算するように変更（言語ごとに正しいアドバイスを返すため）
+      // psychologicalSupportは各言語ループ内で計算される（後で定義）
       // divergenceSignalResultは関数スコープの最初で定義済み（700行目付近）
       // 値がnullの場合は更新を試みる
       if (!divergenceSignalResult) {
@@ -1166,82 +1168,13 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      try {
-        console.log("[Dr. Grok] Diagnosing user sentiment and providing psychological support...");
-        psychologicalSupport = await diagnoseUserSentimentCompat(
-          {
-            price_usd_display: priceUsd,
-            change_24h: change24h,
-            market_score: snapshot.market_score,
-            trapDetection: trapDetection,
-            marketBug: marketBugDetection, // 後方互換性
-            trapAlert: trapAlert,
-            divergenceSignal: divergenceSignalResult || null // nullを明示的に設定
-          },
-          xSentiment,
-          LANG
-        );
+      // P0 FIX: 言語ごとにpsychologicalSupportを計算するため、ここでは計算しない
+      // 各言語ループ内で計算する（targetLangを正しく渡すため）
+      psychologicalSupport = null; // 各言語ループ内で計算される
 
-        if (psychologicalSupport && psychologicalSupport.psychologicalState !== "UNKNOWN") {
-          console.log("[Dr. Grok] Psychological diagnosis completed:", {
-            state: psychologicalSupport.psychologicalState,
-            risk: psychologicalSupport.psychologicalRisk,
-            supportLevel:
-              psychologicalSupport.psychologicalSupportLevel ||
-              psychologicalSupport.medicalSupportLevel
-          });
-        }
-      } catch (error) {
-        // エラーメッセージを詳細化（divergenceSignalResultが原因かどうかを確認）
-        const errorMsg = error.message || String(error);
-        if (errorMsg.includes("divergenceSignalResult")) {
-          console.warn(
-            "[Dr. Grok] Error providing psychological support (divergenceSignalResult issue):",
-            errorMsg
-          );
-          console.warn("[Dr. Grok] divergenceSignalResult value:", divergenceSignalResult);
-        } else {
-          console.warn("[Dr. Grok] Error providing psychological support:", errorMsg);
-        }
-      }
-
-      // GrokとGeminiの統合最適化（定期配信時のみ）
-      // P0 FIX: integratedOptimizationは関数スコープの最初で既に定義済み
-      if (isRegularSlot && grokXAnalysis && psychologicalSupport) {
-        try {
-          console.log(
-            "[GrokGeminiOptimizer] Integrating Grok X algorithm analysis and Gemini deep psychology analysis..."
-          );
-          integratedOptimization = await integrateGrokGeminiOptimization({
-            marketData: {
-              priceUsd,
-              change24h,
-              score: coreDecision.score,
-              signal: tradeSignal.signal,
-              sentiment: sentimentLabel
-            },
-            trapScore: cqDeep?.trapScore || trapDetection?.trapScore || null,
-            sentimentData: {
-              sentiment: sentimentLabel,
-              whaleBias: xSentiment?.whaleBias || 0,
-              retailFomo: xSentiment?.retailFomo || 50
-            },
-            xSentiment,
-            trapDetection,
-            psychologicalSupport,
-            lang: LANG
-          });
-
-          if (integratedOptimization && integratedOptimization.integrated) {
-            console.log("[GrokGeminiOptimizer] Integration completed successfully");
-          } else {
-            console.warn("[GrokGeminiOptimizer] Integration failed or returned null");
-          }
-        } catch (error) {
-          console.warn("[GrokGeminiOptimizer] Error integrating optimization:", error.message);
-          integratedOptimization = null;
-        }
-      }
+      // P0 FIX: GrokとGeminiの統合最適化は各言語ループ内で実行する（言語ごとのpsychologicalSupportを使用するため）
+      // integratedOptimizationは各言語ループ内で計算される（後で定義）
+      integratedOptimization = null; // 各言語ループ内で計算される
     } else if (needsLongReport && !isRegularSlot) {
       // 緊急配信時: divergenceSignalResultを取得（isRegularSlotブロック外でも使用可能にする）
       if (typeof divergenceSignalResult === "undefined") {
@@ -1422,6 +1355,40 @@ module.exports = async function handler(req, res) {
         try {
           console.log(`[REGULAR] Processing language: ${targetLang}`);
 
+          // P0 FIX: 各言語ごとにpsychologicalSupportを計算（targetLangを正しく渡すため）
+          let langPsychologicalSupport = null;
+          try {
+            console.log(`[Dr. Grok] Diagnosing user sentiment for ${targetLang}...`);
+            langPsychologicalSupport = await diagnoseUserSentimentCompat(
+              {
+                price_usd_display: priceUsd,
+                change_24h: change24h,
+                market_score: snapshot.market_score,
+                trapDetection: trapDetection,
+                marketBug: marketBugDetection, // 後方互換性
+                trapAlert: trapAlert,
+                divergenceSignal: divergenceSignalResult || null // nullを明示的に設定
+              },
+              xSentiment,
+              targetLang // P0 FIX: LANGではなくtargetLangを渡す
+            );
+
+            if (langPsychologicalSupport && langPsychologicalSupport.psychologicalState !== "UNKNOWN") {
+              console.log(`[Dr. Grok] Psychological diagnosis completed for ${targetLang}:`, {
+                state: langPsychologicalSupport.psychologicalState,
+                risk: langPsychologicalSupport.psychologicalRisk,
+                supportLevel:
+                  langPsychologicalSupport.psychologicalSupportLevel ||
+                  langPsychologicalSupport.medicalSupportLevel
+              });
+            }
+          } catch (error) {
+            // エラーメッセージを詳細化
+            const errorMsg = error.message || String(error);
+            console.warn(`[Dr. Grok] Error providing psychological support for ${targetLang}:`, errorMsg);
+            langPsychologicalSupport = null; // エラー時はnullを設定
+          }
+
           // 言語別テンプレートを読み込む
           const langTemplates = loadUserTemplates(targetLang);
           const langFormatRegularBriefing = langTemplates.formatRegularBriefing;
@@ -1444,6 +1411,44 @@ module.exports = async function handler(req, res) {
               whaleFlows: cqDeep?.whaleFlows,
               liquidations: cqDeep?.liquidations
             });
+          }
+
+          // P0 FIX: GrokとGeminiの統合最適化（各言語ごとに実行）
+          let langIntegratedOptimization = null;
+          if (isRegularSlot && grokXAnalysis && langPsychologicalSupport) {
+            try {
+              console.log(
+                `[GrokGeminiOptimizer] Integrating Grok X algorithm analysis and Gemini deep psychology analysis for ${targetLang}...`
+              );
+              langIntegratedOptimization = await integrateGrokGeminiOptimization({
+                marketData: {
+                  priceUsd,
+                  change24h,
+                  score: coreDecision.score,
+                  signal: tradeSignal.signal,
+                  sentiment: sentimentLabel
+                },
+                trapScore: cqDeep?.trapScore || trapDetection?.trapScore || null,
+                sentimentData: {
+                  sentiment: sentimentLabel,
+                  whaleBias: xSentiment?.whaleBias || 0,
+                  retailFomo: xSentiment?.retailFomo || 50
+                },
+                xSentiment,
+                trapDetection,
+                psychologicalSupport: langPsychologicalSupport, // P0 FIX: 言語ごとのpsychologicalSupportを使用
+                lang: targetLang // P0 FIX: LANGではなくtargetLangを渡す
+              });
+
+              if (langIntegratedOptimization && langIntegratedOptimization.integrated) {
+                console.log(`[GrokGeminiOptimizer] Integration completed successfully for ${targetLang}`);
+              } else {
+                console.warn(`[GrokGeminiOptimizer] Integration failed or returned null for ${targetLang}`);
+              }
+            } catch (error) {
+              console.warn(`[GrokGeminiOptimizer] Error integrating optimization for ${targetLang}:`, error.message);
+              langIntegratedOptimization = null;
+            }
           }
 
           // Phase 2: A/Bテストバリアント識別（50/50分割）
@@ -1557,10 +1562,10 @@ module.exports = async function handler(req, res) {
             trapDetection: trapDetection || null,
             marketBug: marketBugDetection || null, // 後方互換性
             trapAlert: trapAlert || null,
-            // USP3: Dr. Grokの心理的サポート
-            psychologicalSupport: psychologicalSupport || null,
-            // GrokとGeminiの統合最適化結果
-            integratedOptimization: integratedOptimization || null,
+            // USP3: Dr. Grokの心理的サポート（言語ごとに計算）
+            psychologicalSupport: langPsychologicalSupport || null, // P0 FIX: 言語ごとのpsychologicalSupportを使用
+            // GrokとGeminiの統合最適化結果（言語ごとに計算）
+            integratedOptimization: langIntegratedOptimization || null, // P0 FIX: 言語ごとのintegratedOptimizationを使用
             showContent: null // 後でproduceShowの結果で更新される
           });
 
@@ -1584,7 +1589,7 @@ module.exports = async function handler(req, res) {
               },
               cryptoQuantData: cqDeep,
               trapDetection: trapDetection,
-              psychologicalSupport: psychologicalSupport,
+              psychologicalSupport: langPsychologicalSupport || null, // P0 FIX: 言語ごとのpsychologicalSupportを使用
               gptMentalTrainerAnalysis: gptRegularAnalysis,
               lang: targetLang
             });

@@ -1,0 +1,16 @@
+fix: Vercelデプロイ修正 - includeFiles設定をより広範囲に変更
+
+問題:
+- デプロイが正常に完了していない
+- contentFiltersモジュールが見つからないエラーが継続
+
+修正内容:
+- vercel.json: api/cron.jsのincludeFilesをより広範囲に変更
+  - 変更前: services/telegram/messages/shared/** と user/**
+  - 変更後: services/telegram/messages/**, services/telegram/**, services/**
+- 動的require()で参照されるすべてのファイルを確実に含める
+
+影響:
+- contentFilters.jsが確実にデプロイバンドルに含まれる
+- すべての言語テンプレートが含まれる
+- デプロイが正常に完了する

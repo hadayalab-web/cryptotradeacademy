@@ -1,0 +1,14 @@
+fix: X Webhookの500エラー修正とVercel環境変数設定ガイド追加
+
+- api/x-webhook.js: CRC Challenge-Response CheckでX_API_CONSUMER_KEY_SECRETが未設定の場合のエラーハンドリングを改善
+- docs: X Webhook 500エラー修正レポートを追加
+- docs: Vercel環境変数設定ガイドを追加
+
+修正内容:
+1. generateCrcResponse関数: エラーをスローせずにnullを返すように変更
+2. GETリクエストハンドラー: nullが返された場合の適切なエラーハンドリングを追加
+3. より詳細なエラーメッセージとログ出力を追加
+
+これにより、X_API_CONSUMER_KEY_SECRETが設定されていない場合でも、より明確なエラーメッセージが返され、問題の特定が容易になる。
+
+注意: Vercel DashboardでX_API_CONSUMER_KEY_SECRET環境変数を設定する必要があります。

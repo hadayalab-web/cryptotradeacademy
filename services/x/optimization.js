@@ -546,12 +546,12 @@ async function getTrendyHashtags(lang, topic = 'BTC') {
  * @returns {Object} { langs: Array<string>, type: 'quote'|'free_report'|'minimal', count: number }
  */
 function getPeakMapForHour(hour) {
-  // 🚀 数撃て作戦: 1日298投稿を達成するため、すべての時間帯でQuote Repostを実行
+  // 🚀 数撃て作戦: 1日500投稿以上を達成するため、すべての時間帯でQuote Repostを実行
   // Cron設定: UTC 0,2,4,6,8,10,12,14,16,18,20,22（1日12回）
-  // 目標: EN 148投稿/日、その他5言語 各30投稿/日 = 合計298投稿/日
-  // ピーク時間（UTC 0,1,20,21,22）: EN 10人、その他 2人
-  // オフピーク時間（UTC 13,14）: EN 4人、その他 1人
-  // その他の時間: EN 10人、その他 2人
+  // 目標: EN 約200投稿/日、その他5言語 合計約300投稿/日 = 合計500投稿/日以上
+  // ピーク時間（UTC 0,1,20,21,22）: EN 32人、その他言語も増加
+  // オフピーク時間（UTC 13,14）: EN 12人、その他言語も動的に調整
+  // その他の時間: EN 32人、その他言語も増加
   
   // UTC 13:00と14:00、20:00は複数のタイプが重複するため、特別処理
   if (hour === 13) {
@@ -567,23 +567,23 @@ function getPeakMapForHour(hour) {
     return { langs: ['en', 'pt-br'], type: 'quote', count: 2, alsoMinimal: ['en'] };
   }
   
-  // すべての時間帯でQuote Repostを実行（298投稿/日達成）
+  // すべての時間帯でQuote Repostを実行（500投稿/日以上達成）
   // countパラメータは各言語に対してpostQuoteRepostsForLangを呼び出す回数（通常は1）
   // 実際のインフルエンサー数はgetInfluencerCountForLangによって決定される
   const peakMap = {
-    0: { langs: ['ar', 'en'], type: 'quote', count: 1 },      // UTC 0:00 - AR 2人（ピーク）、EN 10人（ピーク）= 12投稿
-    1: { langs: ['ko', 'en'], type: 'quote', count: 1 },     // UTC 1:00 - KO 2人（ピーク）、EN 10人（ピーク）= 12投稿
-    2: { langs: ['en'], type: 'quote', count: 1 },           // UTC 2:00 - EN 10人 = 10投稿
-    4: { langs: ['es'], type: 'quote', count: 1 },           // UTC 4:00 - ES 2人 = 2投稿
-    6: { langs: ['pt-br'], type: 'quote', count: 1 },        // UTC 6:00 - PT-BR 2人 = 2投稿
-    8: { langs: ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'], type: 'quote', count: 1 }, // UTC 8:00 - EN 10人 + その他各2人 = 20投稿
-    10: { langs: ['ja'], type: 'quote', count: 1 },          // UTC 10:00 - JA 2人 = 2投稿
-    12: { langs: ['en'], type: 'quote', count: 1, alsoFreeReport: ['en'] }, // UTC 12:00 - EN 10人 = 10投稿 + Free Report
-    15: { langs: ['es'], type: 'quote', count: 1, alsoFreeReport: ['es'] },  // UTC 15:00 - ES 2人 = 2投稿 + Free Report
-    16: { langs: ['ko'], type: 'quote', count: 1 },          // UTC 16:00 - KO 2人 = 2投稿
-    18: { langs: ['ar'], type: 'quote', count: 1, alsoFreeReport: ['ar'] },  // UTC 18:00 - AR 2人 = 2投稿 + Free Report
-    21: { langs: ['es', 'en'], type: 'quote', count: 1 },    // UTC 21:00 - ES 2人（ピーク）、EN 10人（ピーク）= 12投稿
-    22: { langs: ['pt-br', 'es', 'en'], type: 'quote', count: 1 }, // UTC 22:00 - PT-BR 2人（ピーク）、ES 2人（ピーク）、EN 10人（ピーク）= 14投稿
+    0: { langs: ['ar', 'en'], type: 'quote', count: 1 },      // UTC 0:00 - AR 8人（ピーク）、EN 32人（ピーク）= 40投稿
+    1: { langs: ['ko', 'en'], type: 'quote', count: 1 },     // UTC 1:00 - KO 5人（ピーク）、EN 32人（ピーク）= 37投稿
+    2: { langs: ['en'], type: 'quote', count: 1 },           // UTC 2:00 - EN 32人 = 32投稿
+    4: { langs: ['es'], type: 'quote', count: 1 },           // UTC 4:00 - ES 17人 = 17投稿
+    6: { langs: ['pt-br'], type: 'quote', count: 1 },        // UTC 6:00 - PT-BR 12人 = 12投稿
+    8: { langs: ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'], type: 'quote', count: 1 }, // UTC 8:00 - EN 32人 + その他各言語 = 82投稿
+    10: { langs: ['ja'], type: 'quote', count: 1 },          // UTC 10:00 - JA 8人 = 8投稿
+    12: { langs: ['en'], type: 'quote', count: 1, alsoFreeReport: ['en'] }, // UTC 12:00 - EN 32人 = 32投稿 + Free Report
+    15: { langs: ['es'], type: 'quote', count: 1, alsoFreeReport: ['es'] },  // UTC 15:00 - ES 17人 = 17投稿 + Free Report
+    16: { langs: ['ko'], type: 'quote', count: 1 },          // UTC 16:00 - KO 5人 = 5投稿
+    18: { langs: ['ar'], type: 'quote', count: 1, alsoFreeReport: ['ar'] },  // UTC 18:00 - AR 8人 = 8投稿 + Free Report
+    21: { langs: ['es', 'en'], type: 'quote', count: 1 },    // UTC 21:00 - ES 17人（ピーク）、EN 32人（ピーク）= 49投稿
+    22: { langs: ['pt-br', 'es', 'en'], type: 'quote', count: 1 }, // UTC 22:00 - PT-BR 12人（ピーク）、ES 17人（ピーク）、EN 32人（ピーク）= 61投稿
   };
   
   return peakMap[hour] || { langs: [], type: null, count: 0 };

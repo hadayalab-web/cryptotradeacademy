@@ -8,23 +8,23 @@
  * - オフピーク時間（UTC 13,14）: 少なく投稿
  * 
  * 配分（500投稿/日、12回Cron実行）:
- * - EN: 200投稿/日 → 1回あたり17投稿（ピーク時間）
- * - ES: 100投稿/日 → 1回あたり8投稿（ピーク時間）
- * - PT-BR: 75投稿/日 → 1回あたり6投稿（ピーク時間）
- * - AR: 50投稿/日 → 1回あたり4投稿（ピーク時間）
- * - JA: 50投稿/日 → 1回あたり4投稿（ピーク時間）
- * - KO: 25投稿/日 → 1回あたり2投稿（ピーク時間）
+ * - EN: 約200投稿/日 → 1回あたり19投稿（基本値）
+ * - ES: 約100投稿/日 → 1回あたり9投稿（基本値）
+ * - PT-BR: 約75投稿/日 → 1回あたり7投稿（基本値）
+ * - AR: 約50投稿/日 → 1回あたり5投稿（基本値）
+ * - JA: 約50投稿/日 → 1回あたり5投稿（基本値）
+ * - KO: 約25投稿/日 → 1回あたり2投稿（基本値）
  */
 const INFLUENCER_COUNT_BY_LANG = {
-  // 英語: ピーク時間19人、オフピーク時間7人（1日204回投稿達成）
+  // 英語: ピーク時間19人、オフピーク時間8人（1日500投稿達成）
   en: parseInt(process.env.INFLUENCER_COUNT_EN || '19', 10), // ピーク時間用（オフピークは動的に調整）
   
   // その他言語: ピーク時間で配分（500投稿/日達成）
-  es: parseInt(process.env.INFLUENCER_COUNT_ES || '10', 10),   // 108投稿/日
-  'pt-br': parseInt(process.env.INFLUENCER_COUNT_PT_BR || '7', 10), // 74投稿/日
-  ar: parseInt(process.env.INFLUENCER_COUNT_AR || '5', 10),  // 54投稿/日
-  ko: parseInt(process.env.INFLUENCER_COUNT_KO || '3', 10),   // 32投稿/日
-  ja: parseInt(process.env.INFLUENCER_COUNT_JA || '5', 10),  // 54投稿/日
+  es: parseInt(process.env.INFLUENCER_COUNT_ES || '9', 10),   // 約100投稿/日
+  'pt-br': parseInt(process.env.INFLUENCER_COUNT_PT_BR || '7', 10), // 約75投稿/日
+  ar: parseInt(process.env.INFLUENCER_COUNT_AR || '5', 10),  // 約50投稿/日
+  ko: parseInt(process.env.INFLUENCER_COUNT_KO || '2', 10),   // 約25投稿/日
+  ja: parseInt(process.env.INFLUENCER_COUNT_JA || '5', 10),  // 約50投稿/日
 };
 
 /**

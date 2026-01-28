@@ -1,10 +1,9 @@
 {
+  "buildCommand": "npm run build",
   "functions": {
     "api/cron.js": {
       "includeFiles": [
-        "services/telegram/messages/**",
-        "services/telegram/**",
-        "services/**"
+        "api/services/**"
       ]
     },
     "api/x-update-influencer-stock.js": {
