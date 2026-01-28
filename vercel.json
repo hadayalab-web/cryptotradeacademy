@@ -1,5 +1,11 @@
 {
   "functions": {
+    "api/cron.js": {
+      "includeFiles": [
+        "services/telegram/messages/shared/**",
+        "services/telegram/messages/user/**"
+      ]
+    },
     "api/x-update-influencer-stock.js": {
       "maxDuration": 60
     },

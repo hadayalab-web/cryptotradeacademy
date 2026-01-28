@@ -10,8 +10,7 @@ const {
   shouldPostQuoteRepost,
   checkDailyPostLimit,
   getOptimizedHashtags,
-  getDailyPostCount,
-  incrementDailyPostCount,
+  // getDailyPostCount と incrementDailyPostCount は services/x/influencerRotation から統一実装を使用
 } = require('../services/x/optimization');
 const { QUOTE_REPOST_TEMPLATES } = require('./x-post-free-report');
 const { getTweetMetrics } = require('../services/x/metrics');
