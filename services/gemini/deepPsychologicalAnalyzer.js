@@ -11,6 +11,71 @@ if (!GEMINI_API_KEY) {
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const GEMINI_MODEL = 'gemini-3-pro-preview';
 
+// キャッシュ設定（GPTと同じパターンで一貫性を保つ）
+const GEMINI_CACHE_TTL_SECONDS = Number(process.env.GEMINI_CACHE_TTL_SECONDS || 900); // デフォルト: 15分
+
+// LRUCacheのインポート（GPTと同じパターン）
+const LRUCacheModule = require('lru-cache');
+const LRUCache = (typeof LRUCacheModule === 'function') 
+  ? LRUCacheModule 
+  : (LRUCacheModule.default ?? LRUCacheModule.LRUCache ?? LRUCacheModule);
+
+// メモリキャッシュ（同一実行内の重複排除）
+const memoryCache = new LRUCache({
+  max: 200,
+  ttl: GEMINI_CACHE_TTL_SECONDS * 1000,
+});
+
+// KVキャッシュ（GPTと同じパターン）
+const { kv } = require('../../utils/kv');
+
+/**
+ * KVからキャッシュを取得
+ */
+async function getKVCache(key) {
+  try {
+    if (!kv) return null;
+    return await kv.get(key);
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * KVにキャッシュを保存
+ */
+async function setKVCache(key, value, ttlSeconds) {
+  try {
+    if (!kv) return false;
+    await kv.set(key, value, { ex: ttlSeconds });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * キャッシュキーを生成（GPTと同じパターン）
+ * 言語と市場データから一意のキーを生成
+ */
+function buildCacheKey(options) {
+  const { marketData = {}, trapScore = null, sentimentData = null, xSentiment = null, lang = 'en' } = options;
+  
+  // キャッシュキーに含める重要なパラメータ
+  const keyData = {
+    trapScore: trapScore !== null ? Math.round(trapScore) : null,
+    sentiment: sentimentData?.sentiment || null,
+    priceChange: marketData.change24h !== undefined ? Math.round(marketData.change24h * 100) / 100 : null, // 小数点第2位まで
+    whaleBias: xSentiment?.whaleBias !== undefined ? Math.round(xSentiment.whaleBias) : null,
+    retailFomo: xSentiment?.retailFomo !== undefined ? Math.round(xSentiment.retailFomo) : null,
+    lang: (lang || 'en').toLowerCase(),
+  };
+  
+  // Base64URLエンコードでキーを生成（GPTと同じパターン）
+  const keyString = JSON.stringify(keyData);
+  return `gemini:deep-psychology:${Buffer.from(keyString).toString('base64url')}`;
+}
+
 /**
  * 深層心理分析を実行
  * - ユーザーの潜在的な心理的ブロックを特定
@@ -40,6 +105,25 @@ async function analyzeDeepPsychology(options = {}) {
 
   const targetLang = (lang || 'en').toLowerCase();
 
+  // キャッシュキーを生成
+  const cacheKey = buildCacheKey(options);
+
+  // 1. メモリキャッシュチェック（GPTと同じパターン）
+  const memHit = memoryCache.get(cacheKey);
+  if (memHit) {
+    console.log('[Gemini Deep Psychological Analyzer] Memory cache hit');
+    return memHit;
+  }
+
+  // 2. KVキャッシュチェック（GPTと同じパターン）
+  const kvHit = await getKVCache(cacheKey);
+  if (kvHit) {
+    console.log('[Gemini Deep Psychological Analyzer] KV cache hit');
+    memoryCache.set(cacheKey, kvHit);
+    return kvHit;
+  }
+
+  // 3. API呼び出し（キャッシュヒットしなかった場合のみ）
   try {
     const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
@@ -108,26 +192,28 @@ Focus on:
 Language: ${targetLang}
 CRITICAL: Respond ONLY in ${targetLang === 'ja' ? 'Japanese' : targetLang === 'ko' ? 'Korean' : targetLang === 'es' ? 'Spanish' : targetLang === 'pt-br' ? 'Portuguese (Brazilian)' : targetLang === 'ar' ? 'Arabic' : 'English'}.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const apiResult = await model.generateContent(prompt);
+    const response = await apiResult.response;
     const text = response.text();
 
     // 構造化されたJSONを抽出（GeminiがJSONを返す場合）
+    let finalResult = null;
     try {
       // JSONブロックを探す
       const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const jsonText = jsonMatch[1] || jsonMatch[0];
         const parsed = JSON.parse(jsonText);
-        return parsed;
+        finalResult = parsed;
       }
     } catch (parseError) {
-      // JSONでない場合はテキストを構造化
+      // JSONでない場合はテキストを構造化（下記の処理に続く）
     }
 
-    // テキストベースの応答を構造化
-    return {
-      psychologicalProfile: {
+    // JSONパースが失敗した場合、またはJSONが見つからなかった場合、テキストベースの応答を構造化
+    if (!finalResult) {
+      finalResult = {
+        psychologicalProfile: {
         currentState: extractSection(text, 'Psychological Profile', 'Mental Blocks') || text.substring(0, 300),
         hiddenFears: extractListItems(text, 'fears', 'desires'),
         motivations: extractSection(text, 'motivations', 'patterns'),
@@ -151,8 +237,21 @@ CRITICAL: Respond ONLY in ${targetLang === 'ja' ? 'Japanese' : targetLang === 'k
         ahaMoments: extractSection(text, 'Aha', 'perspective'),
         competitiveAdvantages: extractSection(text, 'advantages', 'mastery'),
       },
-      rawText: text,
-    };
+        rawText: text,
+      };
+    }
+
+    // 4. 結果をキャッシュに保存（GPTと同じパターン）
+    // エラーがない場合のみキャッシュに保存
+    if (finalResult && !finalResult.error) {
+      memoryCache.set(cacheKey, finalResult);
+      await setKVCache(cacheKey, finalResult, GEMINI_CACHE_TTL_SECONDS).catch(() => {
+        // KVキャッシュ保存失敗は警告のみ（メモリキャッシュは有効）
+        console.warn('[Gemini Deep Psychological Analyzer] Failed to save to KV cache');
+      });
+    }
+
+    return finalResult;
   } catch (error) {
     console.error('[Gemini Deep Psychological Analyzer] Error:', error.message);
     return {
