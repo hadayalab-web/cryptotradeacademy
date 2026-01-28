@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const getRawBody = require('raw-body');
 
 // 🚀 シームレスなKVアクセス（utils/kv.js経由）
-const { kv } = require('../../utils/kv');
+const { kv } = require('../utils/kv');
 
 // X API Consumer Secret（Webhook署名検証用）
 const X_API_CONSUMER_KEY_SECRET = process.env.X_API_CONSUMER_KEY_SECRET;
@@ -416,27 +416,33 @@ async function detectViralPost(tweetId, stats) {
  */
 async function logWebhookAccess(method, req) {
   try {
-    const logKey = `x:webhook:access:${Date.now()}`;
-    const logData = {
-      method,
-      timestamp: new Date().toISOString(),
-      path: req.url,
-      query: req.query,
-      hasBody: !!req.body,
-      headers: {
-        'x-twitter-webhooks-signature': req.headers['x-twitter-webhooks-signature'] ? 'present' : 'missing',
-        'x-twitter-request-timestamp': req.headers['x-twitter-request-timestamp'] || 'missing',
-        'user-agent': req.headers['user-agent'] || 'missing',
-      },
-    };
+    // ログ出力のみ（KVへの保存はオプション、エラーが発生してもハンドラーを続行）
+    console.log(`[X Webhook] 📝 Access: ${method} ${req.url} at ${new Date().toISOString()}`);
     
-    if (kv) {
-      await kv.set(logKey, logData, { ex: 86400 * 7 }); // 7日間保持
+    // KVへの保存は非同期で実行（エラーは無視）
+    if (kv && typeof kv.set === 'function') {
+      const logKey = `x:webhook:access:${Date.now()}`;
+      const logData = {
+        method,
+        timestamp: new Date().toISOString(),
+        path: req.url,
+        query: req.query,
+        hasBody: !!req.body,
+        headers: {
+          'x-twitter-webhooks-signature': req.headers['x-twitter-webhooks-signature'] ? 'present' : 'missing',
+          'x-twitter-request-timestamp': req.headers['x-twitter-request-timestamp'] || 'missing',
+          'user-agent': req.headers['user-agent'] || 'missing',
+        },
+      };
+      
+      // 非同期で実行（エラーは無視）
+      kv.set(logKey, logData, { ex: 86400 * 7 }).catch((error) => {
+        console.warn('[X Webhook] ⚠️ Failed to save access log to KV (non-critical):', error.message);
+      });
     }
-    
-    console.log(`[X Webhook] 📝 Access logged: ${method} ${req.url} at ${logData.timestamp}`);
   } catch (error) {
-    console.warn('[X Webhook] ⚠️ Failed to log webhook access:', error.message);
+    // ログ記録のエラーは無視（ハンドラーを続行）
+    console.warn('[X Webhook] ⚠️ Failed to log webhook access (non-critical):', error.message);
   }
 }
 
@@ -476,7 +482,10 @@ async function getRawBodyFromRequest(req) {
  */
 async function handler(req, res) {
   // 🔍 重要: すべてのリクエストをログに記録（デバッグ用）
-  await logWebhookAccess(req.method, req);
+  // P0 FIX: ログ記録がエラーでもハンドラーを続行できるように、非同期で実行（エラーは無視）
+  logWebhookAccess(req.method, req).catch((error) => {
+    console.warn('[X Webhook] ⚠️ Failed to log webhook access (non-critical):', error.message);
+  });
   
   // GETリクエスト: CRC Challenge-Response Check
   if (req.method === 'GET') {

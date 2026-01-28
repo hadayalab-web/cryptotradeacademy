@@ -69,7 +69,7 @@ async function convertDataUrlToBuffer(dataUrl) {
 }
 
 // 🚀 シームレスなKVアクセス（utils/kv.js経由）
-const { kv } = require('../../utils/kv');
+const { kv } = require('../utils/kv');
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 
@@ -877,6 +877,19 @@ async function postFreeReportAsThread(targetLangs, reportData) {
                 if (videoMediaId) {
                   mediaIds.push(videoMediaId);
                   console.log(`[X Post Free Report] ✅ Video uploaded for ${lang}: ${videoMediaId}`);
+                  
+                  // 🔒 X APIコストを記録（動画アップロード）
+                  try {
+                    const { recordCost } = require('../services/x/costTracker');
+                    await recordCost('videoUpload', 1, {
+                      lang,
+                      jobId: 'x-post-free-report',
+                      mediaId: videoMediaId,
+                      contentType: 'video',
+                    });
+                  } catch (costError) {
+                    console.warn(`[X Post Free Report] ⚠️ Failed to record cost for video upload:`, costError.message);
+                  }
                 }
               }
             } catch (error) {
@@ -893,6 +906,19 @@ async function postFreeReportAsThread(targetLangs, reportData) {
                 if (imageMediaId) {
                   mediaIds.push(imageMediaId);
                   console.log(`[X Post Free Report] ✅ Image uploaded for ${lang}: ${imageMediaId}`);
+                  
+                  // 🔒 X APIコストを記録（画像アップロード）
+                  try {
+                    const { recordCost } = require('../services/x/costTracker');
+                    await recordCost('imageUpload', 1, {
+                      lang,
+                      jobId: 'x-post-free-report',
+                      mediaId: imageMediaId,
+                      contentType: 'image',
+                    });
+                  } catch (costError) {
+                    console.warn(`[X Post Free Report] ⚠️ Failed to record cost for image upload:`, costError.message);
+                  }
                 }
               }
             } catch (error) {
@@ -909,6 +935,21 @@ async function postFreeReportAsThread(targetLangs, reportData) {
       langMainTweetId = langMainResult.id;
       results.push({ lang, success: true, tweetId: langMainTweetId, isMain: true });
       console.log(`✅ Main tweet posted for ${lang}: ${langMainTweetId}`);
+      
+      // 🔒 X APIコストを記録（KVストレージ）
+      try {
+        const { recordCost } = require('../services/x/costTracker');
+        await recordCost('post', 1, {
+          lang,
+          jobId: 'x-post-free-report',
+          tweetId: langMainTweetId,
+          contentFormat,
+          hasMedia: mediaIds.length > 0,
+          hasPoll: !!pollOptions,
+        });
+      } catch (costError) {
+        console.warn(`[X Post Free Report] ⚠️ Failed to record cost:`, costError.message);
+      }
       
       // CRITICAL: KVストレージに構造化ログを記録
       try {
@@ -963,8 +1004,22 @@ async function postFreeReportAsThread(targetLangs, reportData) {
             }
             const velocityReply = `${selfQuestions[2]}\n\n${generateEngagementCTA(lang)}`;
             // 🔴 CRITICAL FIX: 引数の順序を修正（textが先、inReplyToTweetIdが後）
-            await replyToTweet(velocityReply.substring(0, 280), currentMainTweetId);
+            const velocityResult = await replyToTweet(velocityReply.substring(0, 280), currentMainTweetId);
             console.log(`[X Post Free Report] ✅ Velocity self-question posted for ${lang}: ${currentMainTweetId}`);
+            
+            // 🔒 X APIコストを記録（ベロシティ戦術リプライ）
+            try {
+              const { recordCost } = require('../services/x/costTracker');
+              await recordCost('post', 1, {
+                lang,
+                jobId: 'x-post-free-report',
+                tweetId: velocityResult?.id,
+                isVelocityReply: true,
+                mainTweetId: currentMainTweetId,
+              });
+            } catch (costError) {
+              console.warn(`[X Post Free Report] ⚠️ Failed to record cost for velocity reply:`, costError.message);
+            }
           } catch (error) {
             console.error(`[X Post Free Report] ❌ CRITICAL: Failed to post velocity self-question for ${lang}:`, {
               error: error.message,
@@ -1029,6 +1084,21 @@ async function postFreeReportAsThread(targetLangs, reportData) {
         const threadResult = await replyToTweet(optimizedThreadText.substring(0, 280), langMainTweetId);
         results.push({ lang, success: true, tweetId: threadResult.id, isThread: true, threadIndex: i + 2 });
         console.log(`✅ Thread ${i + 2}/${actualReplyCount + 1} posted for ${lang}: ${threadResult.id}`);
+        
+        // 🔒 X APIコストを記録（リプライ投稿）
+        try {
+          const { recordCost } = require('../services/x/costTracker');
+          await recordCost('post', 1, {
+            lang,
+            jobId: 'x-post-free-report',
+            tweetId: threadResult.id,
+            isThread: true,
+            threadIndex: i + 2,
+            mainTweetId: langMainTweetId,
+          });
+        } catch (costError) {
+          console.warn(`[X Post Free Report] ⚠️ Failed to record cost for thread reply:`, costError.message);
+        }
         
         // スレッドの投稿IDもKVに保存（メトリクス追跡用）
         // CRITICAL FIX: スレッドリプライはカウントしない（メイン投稿のみカウント）

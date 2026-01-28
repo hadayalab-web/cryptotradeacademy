@@ -24,7 +24,7 @@ const loadUserTemplates = (lang) => {
 };
 
 // 🚀 シームレスなKVアクセス（utils/kv.js経由）
-const { kv } = require('../../utils/kv');
+const { kv } = require('../utils/kv');
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 
@@ -377,6 +377,20 @@ async function postMinimalVersionToX(targetLangs, reportData) {
       
       console.log(`[X Post Minimal] ✅ Main tweet posted: ${mainTweetId}`);
       
+      // 🔒 X APIコストを記録（KVストレージ）
+      try {
+        const { recordCost } = require('../services/x/costTracker');
+        await recordCost('post', 1, {
+          lang: normalizedLang,
+          jobId: 'x-post-minimal-version-cron',
+          tweetId: mainTweetId,
+          threadLength: threadChunks.length,
+          abTestVariant: abTestVariant,
+        });
+      } catch (costError) {
+        console.warn(`[X Post Minimal] ⚠️ Failed to record cost:`, costError.message);
+      }
+      
       // CRITICAL: KVストレージに構造化ログを記録（A/Bテスト情報を含む）
       try {
         const { logPostSuccess } = require('../services/core/postLogger');
@@ -438,6 +452,21 @@ async function postMinimalVersionToX(targetLangs, reportData) {
         const replyResult = await replyToTweet(replyText, lastReplyId);
         lastReplyId = replyResult.id;
         console.log(`[X Post Minimal] ✅ Reply ${i} posted: ${replyResult.id}`);
+        
+        // 🔒 X APIコストを記録（リプライ投稿）
+        try {
+          const { recordCost } = require('../services/x/costTracker');
+          await recordCost('post', 1, {
+            lang: normalizedLang,
+            jobId: 'x-post-minimal-version-cron',
+            tweetId: replyResult.id,
+            isThread: true,
+            threadIndex: i + 1,
+            mainTweetId,
+          });
+        } catch (costError) {
+          console.warn(`[X Post Minimal] ⚠️ Failed to record cost for reply:`, costError.message);
+        }
         
         // CRITICAL: リプライ投稿もログに記録
         try {

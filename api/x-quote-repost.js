@@ -37,7 +37,7 @@ const {
 const { applyJitter, applyLanguageWait } = require('../utils/scheduler');
 
 // 🚀 シームレスなKVアクセス（utils/kv.js経由）
-const { kv } = require('../../utils/kv');
+const { kv } = require('../utils/kv');
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 
@@ -380,6 +380,12 @@ async function getMinimalVersionContent(lang, reportData = null) {
  * CRITICAL: GrokのXアルゴリズムハッキング × Geminiの心理ハッキングで最適化
  */
 async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData = null) {
+  // 🔒 言語整合性チェック: テキスト生成前に言語不一致を検証
+  if (influencerTweet.lang && influencerTweet.lang.toLowerCase() !== lang.toLowerCase()) {
+    console.error(`[Quote Repost] ⚠️⚠️⚠️ LANGUAGE MISMATCH in text generation: influencer lang (${influencerTweet.lang}) does not match post lang (${lang})`);
+    throw new Error(`Language mismatch in text generation: influencer lang (${influencerTweet.lang}) does not match post lang (${lang})`);
+  }
+  
   try {
     // Grok推奨: UTMパラメータ強化（インフルエンサー追跡）
     const deepLink = getTelegramDeepLinkWithSource(lang, 'x_quote', {
@@ -625,7 +631,17 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     if (!selectedInfluencers || selectedInfluencers.length === 0) {
       console.warn(`[Quote Repost] ⚠️ Rotation selection failed, falling back to impression target selection [runId: ${langRunId}, step: ${currentStep}]`);
       currentStep = 'fallback_selection';
-      const fallbackSelected = selectInfluencersForImpressionTarget(influencers, lang);
+      
+      // 🔒 言語整合性チェック: フォールバック選択前に言語不一致のインフルエンサーを除外
+      const langFiltered = influencers.filter(inf => 
+        !inf.lang || inf.lang.toLowerCase() === lang.toLowerCase()
+      );
+      if (langFiltered.length < influencers.length) {
+        const filteredCount = influencers.length - langFiltered.length;
+        console.warn(`[Quote Repost] ⚠️ Filtered out ${filteredCount} influencers with language mismatch before fallback selection [runId: ${langRunId}]`);
+      }
+      
+      const fallbackSelected = selectInfluencersForImpressionTarget(langFiltered, lang);
       // 🔧 修正: selectedInfluencersがnullまたはundefinedの場合、空配列で初期化
       selectedInfluencers = fallbackSelected.slice(0, targetCount);
       
@@ -633,6 +649,7 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         lang,
         selectedCount: selectedInfluencers.length,
         targetCount,
+        filteredCount: influencers.length - langFiltered.length,
         timestamp: new Date().toISOString(),
       });
     }
@@ -1047,6 +1064,21 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             timestamp: new Date().toISOString(),
             xApiCreditUsed: true, // X APIクレジットが使用されたことを明示
           });
+          
+          // 🔒 X APIコストを記録（KVストレージ）
+          try {
+            const { recordCost } = require('../services/x/costTracker');
+            await recordCost('post', 1, {
+              lang,
+              jobId: 'x-quote-repost',
+              influencer: influencer.username,
+              quoteTweetId: result.id,
+              originalTweetId: influencer.tweetId,
+            });
+          } catch (costError) {
+            console.warn(`[Quote Repost] ⚠️ Failed to record cost:`, costError.message);
+            // コスト記録の失敗は投稿成功に影響しない
+          }
           
           // P1-2対応: 投稿成功後にのみローテーション管理とクールダウン記録を実行
           // 🚀 数撃て作戦: ローテーション管理 - 投稿済みとしてマーク
