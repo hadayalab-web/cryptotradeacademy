@@ -41,6 +41,20 @@ function copyDirectory(srcDir, destDir, description) {
   if (fs.existsSync(srcDir)) {
     copyDir(srcDir, destDir);
     console.log(`✅ Copied ${description}: ${srcDir} → ${destDir}`);
+    
+    // コピー後の検証
+    if (fs.existsSync(destDir)) {
+      const files = fs.readdirSync(destDir);
+      console.log(`✅ Verified: ${files.length} files/directories copied to ${destDir}`);
+      files.forEach(file => {
+        const filePath = path.join(destDir, file);
+        const stats = fs.statSync(filePath);
+        console.log(`   - ${file} (${stats.isDirectory() ? 'directory' : 'file'})`);
+      });
+    } else {
+      console.error(`❌ Verification failed: ${destDir} does not exist after copy`);
+      return false;
+    }
     return true;
   } else {
     console.warn(`⚠️ Source directory not found: ${srcDir}`);

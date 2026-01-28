@@ -21,7 +21,7 @@ const {
   getInfluencerCountForLang,
   getImpressionTargetForLang,
   selectInfluencersForImpressionTarget,
-} = require('../config/influencerStrategy');
+} = require('./config/influencerStrategy');
 
 // 8時間クールダウン関連のインポート
 const { 

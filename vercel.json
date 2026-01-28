@@ -4,16 +4,22 @@
     "api/cron.js": {
       "includeFiles": [
         "api/services/**",
-        "api/config/**"
+        "api/config/**",
+        "config/**"
       ]
     },
     "api/x-update-influencer-stock.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": [
+        "api/config/**",
+        "config/**"
+      ]
     },
     "api/x-quote-repost.js": {
       "maxDuration": 60,
       "includeFiles": [
-        "api/config/**"
+        "api/config/**",
+        "config/**"
       ]
     },
     "api/x-webhook.js": {
