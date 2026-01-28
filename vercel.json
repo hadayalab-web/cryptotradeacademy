@@ -2,25 +2,15 @@
   "buildCommand": "npm run build",
   "functions": {
     "api/cron.js": {
-      "includeFiles": [
-        "api/services/**",
-        "api/config/**",
-        "config/**"
-      ]
+      "includeFiles": "{api/services/**,config/**}"
     },
     "api/x-update-influencer-stock.js": {
       "maxDuration": 60,
-      "includeFiles": [
-        "api/config/**",
-        "config/**"
-      ]
+      "includeFiles": "config/**"
     },
     "api/x-quote-repost.js": {
       "maxDuration": 60,
-      "includeFiles": [
-        "api/config/**",
-        "config/**"
-      ]
+      "includeFiles": "config/**"
     },
     "api/x-webhook.js": {
       "maxDuration": 30
