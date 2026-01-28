@@ -2,8 +2,9 @@
   "functions": {
     "api/cron.js": {
       "includeFiles": [
-        "services/telegram/messages/shared/**",
-        "services/telegram/messages/user/**"
+        "services/telegram/messages/**",
+        "services/telegram/**",
+        "services/**"
       ]
     },
     "api/x-update-influencer-stock.js": {
