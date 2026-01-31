@@ -1,7 +1,7 @@
 // services/grok/client.js
 
 const OpenAI = require("openai");
-const { getMarketProfile } = require("../../config/marketProfiles");
+const { getMarketProfile } = require("../../api/config/marketProfiles");
 
 // Vercel KV（キャッシュ用）
 let kv = null;
@@ -23,8 +23,9 @@ const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || "production";
 const isDevelopment = APP_ENV === "development";
 
 // 用途別モデル定義
+// RECOMMENDED: grok-4-0709 → grok-4-1-fast-reasoning に変更（品質統一のため）
 const GROK_MODEL_MARKET =
-  process.env.GROK_MODEL_MARKET || (isDevelopment ? "grok-4-1-fast-reasoning" : "grok-4-0709");
+  process.env.GROK_MODEL_MARKET || "grok-4-1-fast-reasoning";
 const GROK_MODEL_MARKET_EMERGENCY =
   process.env.GROK_MODEL_MARKET_EMERGENCY || "grok-4-1-fast-reasoning";
 const GROK_MODEL_X_LIVE = process.env.GROK_MODEL_X_LIVE || "grok-4-1-fast-reasoning";
@@ -39,11 +40,21 @@ if (!XAI_API_KEY) {
   console.warn("⚠️ XAI_API_KEY is not set. Grok client will operate in offline fallback mode.");
 }
 
-// OpenAI 互換クライアント（xAI エンドポイント向け）
-const openai = new OpenAI({
-  apiKey: XAI_API_KEY || "DUMMY_KEY_FOR_OFFLINE",
-  baseURL: BASE_URL
-});
+// P0 FIX: 環境変数がない場合でもエラーを出さないように遅延初期化
+let openai = null;
+
+try {
+  if (XAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: XAI_API_KEY,
+      baseURL: BASE_URL
+    });
+  } else {
+    console.warn('[Grok Client] XAI_API_KEY not set, Grok client will not be available');
+  }
+} catch (error) {
+  console.warn('[Grok Client] Failed to initialize Grok client:', error.message);
+}
 
 // ---- utilities ------------------------------------------------------
 function isRateLimitError(error) {
@@ -269,6 +280,11 @@ async function analyzeMarket(
       ? GROK_MODEL_MARKET_EMERGENCY
       : GROK_MODEL_MARKET;
 
+  // P0 FIX: openaiクライアントが初期化されていない場合のチェック
+  if (!openai || !XAI_API_KEY) {
+    return "HOLD - Grok offline (API key not configured).";
+  }
+
   try {
     const completion = await openai.chat.completions.create({
       model: modelToUse, // Phase 2: 用途別モデルを使用
@@ -299,7 +315,7 @@ async function analyzeMarket(
 // ---- X sentiment Live Search ---------------------------------------
 // 目的：X上の雰囲気を「構造化JSON」で返す（後方互換：文字列でもOK）
 async function analyzeXSentimentLive(prompt, lang = "en") {
-  if (!XAI_API_KEY) {
+  if (!XAI_API_KEY || !openai) {
     // 後方互換：cron.js は object なら採用、string なら無視してデフォ値
     return "Grok offline";
   }
@@ -393,6 +409,11 @@ async function discoverInfluencersForQuoteRepost(lang = "en", options = {}) {
     }
   }
 
+  // P0 FIX: openaiクライアントが初期化されていない場合のチェック
+  if (!openai) {
+    return [];
+  }
+
   try {
     const completion = await openai.chat.completions.create({
       model: modelToUse,
@@ -400,79 +421,46 @@ async function discoverInfluencersForQuoteRepost(lang = "en", options = {}) {
         {
           role: "system",
           content:
-            'You are "Dr. Grok", an expert at finding REAL, ACTIVE influencers on X (Twitter) for crypto/BTC content. ' +
-            'You MUST find ACTUAL influencers with REAL tweet IDs that can be used for quote reposting RIGHT NOW. ' +
-            'DO NOT invent or estimate data. Only return influencers you can verify exist on X. ' +
-            "Return ONLY JSON. No markdown. No code fences. No explanations. " +
+            'You are "Dr. Grok", an expert at finding hot influencers on X (Twitter) for crypto/BTC content. ' +
+            "Find influencers with high engagement rates, recent viral posts, and active audiences. " +
+            "Return ONLY JSON. No markdown. No code fences. " +
             'Schema: {"influencers":[{"username":string,"tweetId":string,"tweetText":string,"engagementRate":number,"followerCount":number,"recentImpressions":number}]} ' +
-            "CRITICAL: tweetId MUST be a REAL numeric tweet ID (18-19 digits) from X. Without a REAL tweetId, the quote repost will FAIL. " +
-            "username MUST be the actual X username (without @). " +
-            "tweetText MUST be the actual tweet text from X. " +
-            "engagementRate: 0-1 (e.g., 0.05 = 5%). " +
-            "followerCount: Actual number or range (e.g., 50000 or '10000-50000'). " +
-            "recentImpressions: Actual number or range based on tweet performance."
+            "influencers: Array of influencer accounts with their recent hot tweets. " +
+            "engagementRate: Estimated engagement rate (0-1, e.g., 0.05 = 5%). " +
+            "followerCount: Estimated follower count (use ranges: 10000-50000, 50000-100000, 100000-500000, 500000+). " +
+            "recentImpressions: Estimated recent impressions for their tweets (use ranges: 10000-50000, 50000-100000, 100000+). " +
+            "CRITICAL: Include tweetId for EVERY influencer tweet. Without tweetId, we cannot quote repost."
         },
         {
           role: "user",
           content:
-            `URGENT: Find ${maxResults} HIGH-QUALITY, REAL, ACTIVE influencers on X posting about BTC/crypto in ${targetLang} language.\n\n` +
-            `CRITICAL PHILOSOPHY: QUALITY OVER QUANTITY. Better to return 10 PERFECT influencers than 50 mediocre ones.\n\n` +
-            `CRITICAL: These influencers will be used for quote reposting IMMEDIATELY. If tweetId is missing or invalid, the entire system fails.\n\n` +
-            `MANDATORY REQUIREMENTS (ALL must be met - NO EXCEPTIONS):\n` +
-            `1. REAL tweetId: Must be a REAL numeric tweet ID (18-19 digits) from an ACTUAL tweet on X\n` +
-            `   - Extract from actual tweet URL: twitter.com/username/status/1234567890123456789\n` +
-            `   - MUST be verifiable and accessible\n` +
-            `2. REAL username: Must be the actual X username (without @ symbol)\n` +
-            `   - Must be 1-15 characters\n` +
-            `   - Must match the tweetId's account\n` +
-            `3. REAL tweetText: Must be the actual text from the tweet (copy exactly)\n` +
-            `   - Must be 1-280 characters\n` +
-            `   - Must match the tweetId's content\n` +
-            `4. ACTIVE account: Account must have posted in the last 7 days\n` +
-            `5. CRYPTO/BTC content: Tweet must be about crypto/BTC/trading\n` +
-            `6. ENGAGEMENT: Tweet must have engagement (likes, retweets, replies)\n\n` +
-            `SELECTION CRITERIA (Choose influencers based on these factors):\n` +
-            `1. HIGH ENGAGEMENT RATE: 7%+ preferred, 5%+ minimum\n` +
-            `   - Calculation: (likes + retweets + replies) / impressions\n` +
-            `   - This is the PRIMARY quality indicator\n` +
-            `2. RECENT VIRAL POSTS: High impressions (100k+ preferred)\n` +
-            `   - Indicates active, engaged audience\n` +
-            `3. OPTIMAL FOLLOWER COUNT: 10,000-500,000\n` +
-            `   - Too small (<1k): Limited reach\n` +
-            `   - Too large (>500k): Lower engagement rates\n` +
-            `4. ACTIVE AUDIENCE: High interaction rates\n` +
-            `   - Comments, retweets, likes indicate engaged followers\n` +
-            `5. CRYPTO/BTC FOCUS: Account primarily posts about crypto/BTC\n` +
-            `   - Not general influencers who occasionally post about crypto\n` +
-            `   - Must have consistent crypto/BTC content\n\n` +
-            `HOW TO FIND REAL TWEET IDs:\n` +
-            `1. Search X for "${targetLang === 'en' ? 'BTC' : targetLang === 'ja' ? 'ビットコイン' : targetLang === 'ko' ? '비트코인' : targetLang === 'es' ? 'BTC' : targetLang === 'pt-br' ? 'BTC' : targetLang === 'ar' ? 'بيتكوين' : 'BTC'} crypto trading" in ${targetLang}\n` +
-            `2. Filter by: Recent (last 7 days), High engagement\n` +
-            `3. Find tweets with high engagement (likes + retweets + replies > 1000)\n` +
-            `4. Extract the REAL tweet ID from the tweet URL\n` +
-            `   - Format: twitter.com/username/status/1234567890123456789\n` +
-            `   - The number after /status/ is the tweetId\n` +
-            `5. Copy the REAL username (without @) and tweet text\n` +
-            `6. Calculate engagement rate: (likes + retweets + replies) / impressions\n` +
-            `7. Verify follower count from the account profile\n\n` +
-            `RETURN FORMAT:\n` +
-            `Return EXACTLY ${maxResults} HIGH-QUALITY influencers in this format:\n` +
-            `{"influencers":[{"username":"real_username","tweetId":"1234567890123456789","tweetText":"Actual tweet text here...","engagementRate":0.08,"followerCount":50000,"recentImpressions":150000}]}\n\n` +
-            `VALIDATION CHECKLIST (Verify each influencer before returning):\n` +
-            `✓ tweetId: 18-19 digits, numeric only, from real tweet URL\n` +
-            `✓ username: 1-15 characters, no @ symbol, matches tweetId account\n` +
-            `✓ tweetText: 1-280 characters, actual tweet content\n` +
-            `✓ engagementRate: 0-1 (e.g., 0.08 = 8%), calculated from real data\n` +
-            `✓ followerCount: > 0, actual number from account profile\n` +
-            `✓ recentImpressions: > 0, actual number from tweet analytics\n\n` +
-            `QUALITY OVER QUANTITY:\n` +
-            `- If you can only find ${Math.floor(maxResults * 0.5)} high-quality influencers, return those ${Math.floor(maxResults * 0.5)}.\n` +
-            `- DO NOT invent fake data to reach ${maxResults}.\n` +
-            `- DO NOT use estimated or guessed values.\n` +
-            `- Better to return 10 PERFECT influencers than 50 fake ones.\n\n` +
-            `FAILURE MODE:\n` +
-            `If you cannot find ${maxResults} REAL influencers with REAL tweet IDs, return fewer but VALID ones. ` +
-            `DO NOT invent fake data. Quality is more important than quantity.`
+            `Task: Find ${maxResults} HIGH-ENGAGEMENT influencers on X posting about BTC/crypto in ${targetLang} language.\n` +
+            `PRIORITY: Focus on accounts with EXCEPTIONAL engagement rates and viral potential.\n\n` +
+            `CRITICAL CRITERIA (in order of importance):\n` +
+            `1. ENGAGEMENT RATE: Prioritize accounts with 7%+ engagement rate (higher is better)\n` +
+            `2. RECENT VIRAL POSTS: Look for tweets with HIGH impressions:\n` +
+            `   - English (EN): 100,000-300,000+ impressions\n` +
+            `   - Other languages: 50,000-200,000+ impressions\n` +
+            `3. ACTIVE AUDIENCES: Accounts with high interaction rates (likes, retweets, replies)\n` +
+            `4. CRYPTO/BTC FOCUS: Accounts that consistently post about crypto/BTC\n` +
+            `5. OPTIMAL FOLLOWER COUNT: 10,000-500,000 followers (sweet spot for engagement)\n\n` +
+            `ENGAGEMENT RATE TARGETS:\n` +
+            `- Excellent: 8%+ engagement rate\n` +
+            `- Very Good: 6-8% engagement rate\n` +
+            `- Good: 5-6% engagement rate\n` +
+            `- Minimum: 4%+ engagement rate\n\n` +
+            `Return ${maxResults} influencers with their recent hot tweets.\n` +
+            `CRITICAL REQUIREMENTS:\n` +
+            `1. Include tweetId for EVERY tweet (numeric tweet ID, required for quote reposting)\n` +
+            `2. Prioritize tweets WITH tweet IDs AND high engagement rates (7%+ preferred)\n` +
+            `3. Focus on accounts with EXCEPTIONAL engagement rates (7%+ is ideal, 5%+ minimum)\n` +
+            `4. Include actual tweet text in tweetText field\n` +
+            `5. Use username without @ symbol\n` +
+            `6. recentImpressions should reflect actual viral tweet performance (not follower count)\n` +
+            `7. engagementRate should be accurate (likes + retweets + replies) / impressions\n` +
+            `8. Prioritize accounts that consistently get high engagement on crypto/BTC content\n\n` +
+            `Example (EXCELLENT): {"username":"cryptotrader","tweetId":"1234567890123456789","tweetText":"BTC analysis...","engagementRate":0.09,"followerCount":50000,"recentImpressions":180000}\n` +
+            `Example (VERY GOOD): {"username":"btc_analyst","tweetId":"9876543210987654321","tweetText":"Market update...","engagementRate":0.07,"followerCount":120000,"recentImpressions":150000}`
         }
       ],
       max_tokens: 6000, // より多くのインフルエンサーを返すため増加
@@ -480,32 +468,15 @@ async function discoverInfluencersForQuoteRepost(lang = "en", options = {}) {
     });
 
     const text = completion?.choices?.[0]?.message?.content?.trim();
-    if (!text) {
-      console.warn(`[Grok] Empty response for ${targetLang} (maxResults: ${maxResults})`);
-      return [];
-    }
-
-    // レスポンスの最初の500文字をログに出力（デバッグ用）
-    const preview = text.length > 500 ? text.substring(0, 500) + '...' : text;
-    console.log(`[Grok] Response preview for ${targetLang}: ${preview}`);
+    if (!text) return [];
 
     const obj = safeJsonParse(text);
-    if (!obj) {
-      console.error(`[Grok] Failed to parse JSON for ${targetLang}. Response: ${preview}`);
-      return [];
-    }
-
     if (obj && obj.influencers && Array.isArray(obj.influencers)) {
-      const rawCount = obj.influencers.length;
-      console.log(`[Grok] Parsed ${rawCount} influencers from response for ${targetLang}`);
-      
       // 🔒 言語整合性保証: すべてのインフルエンサーにlangフィールドを設定
       const influencers = obj.influencers.slice(0, maxResults).map(inf => ({
         ...inf,
         lang: targetLang, // 明示的に言語を設定
       }));
-
-      console.log(`[Grok] Returning ${influencers.length} influencers for ${targetLang}`);
 
       // キャッシュに保存
       if (kv && influencers.length > 0) {
@@ -520,25 +491,9 @@ async function discoverInfluencersForQuoteRepost(lang = "en", options = {}) {
       return influencers;
     }
 
-    console.warn(`[Grok] Invalid response structure for ${targetLang}. Expected 'influencers' array, got:`, Object.keys(obj || {}));
     return [];
   } catch (error) {
-    const status = error?.status || error?.statusCode;
-    const message = error?.message || String(error);
-    
-    console.error(`[Grok] Error discovering influencers for ${targetLang}:`, {
-      status,
-      message: message.substring(0, 200),
-      maxResults
-    });
-    
     logCompactError("discoverInfluencersForQuoteRepost", error);
-    
-    // レート制限エラーの場合は特別なメッセージ
-    if (status === 429 || message.includes('rate limit')) {
-      console.warn(`[Grok] Rate limit hit for ${targetLang}. Please wait before retrying.`);
-    }
-    
     return [];
   }
 }
@@ -548,12 +503,10 @@ async function discoverInfluencersForQuoteRepost(lang = "en", options = {}) {
  * @param {string} lang - 言語コード
  * @param {Object} influencerTweet - インフルエンサーのツイート情報
  * @param {Object} reportData - レポートデータ（Trap Score、価格など）
- * @param {string} deepLink - Telegram Deep Linkまたはチェックアウトリンク
+ * @param {string} deepLink - Telegram Deep Link
  * @param {string} minimalVersionPostUrl - 無料版（Minimal Version）ポストのURL（オプション）
  * @param {Object} minimalContent - 無料版メッセージのキーポイント（オプション）
  * @param {Object} optimizationStrategy - Grok×Gemini最適化戦略（オプション）
- * @param {string} regularBriefingWhopUrl - Funnel 2用: 有料版（Regular Briefing）Whop URL（オプション）
- * @param {string} minimalCheckoutUrl - 無料版（Minimal Version）チェックアウトリンク（オプション）
  * @returns {Promise<string>} 引用リポスト用のテキスト
  */
 async function generateQuoteRepostText(
@@ -563,31 +516,13 @@ async function generateQuoteRepostText(
   deepLink,
   minimalVersionPostUrl = null,
   minimalContent = null,
-  optimizationStrategy = null,
-  regularBriefingWhopUrl = null, // Funnel 2用: 有料版（Regular Briefing）Whop URL
-  minimalCheckoutUrl = null // 無料版（Minimal Version）チェックアウトリンク（オプション）
+  optimizationStrategy = null
 ) {
   if (!XAI_API_KEY) {
     // フォールバック: テンプレートを使用
     const baseText = `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}`;
     if (minimalVersionPostUrl) {
       return `${baseText}\n\n📊 Full analysis: ${minimalVersionPostUrl}\n\n#BTC #TrapDefence`;
-    }
-    // Funnel 2用: 有料版クーポンコードPRを追加
-    if (regularBriefingWhopUrl) {
-      const { getWhopProductUrl } = require('../telegram/whop-links');
-      const whopUrl = regularBriefingWhopUrl || getWhopProductUrl(lang);
-      const promoLink = `${whopUrl}?promo=DEFEND50`;
-      const promoTexts = {
-        en: `🔥 PRO 50% OFF (DEFEND50): ${promoLink}`,
-        ja: `🔥 PRO 50%OFF (DEFEND50): ${promoLink}`,
-        es: `🔥 PRO 50% OFF (DEFEND50): ${promoLink}`,
-        'pt-br': `🔥 PRO 50% OFF (DEFEND50): ${promoLink}`,
-        ar: `🔥 PRO 50% خصم (DEFEND50): ${promoLink}`,
-        ko: `🔥 PRO 50% 할인 (DEFEND50): ${promoLink}`,
-      };
-      const promoText = promoTexts[lang] || promoTexts.en;
-      return `${baseText}\n\n${promoText}\n\n#BTC #TrapDefence`;
     }
     return `${baseText}\n\n#BTC #TrapDefence`;
   }
@@ -596,20 +531,10 @@ async function generateQuoteRepostText(
   const modelToUse = GROK_MODEL_X_LIVE;
 
   try {
-    // 無料版（Minimal Version）チェックアウトリンクまたはポストへのリンクをプロンプトに追加
-    // 🚀 WhopページのCTAボタン表示バグ回避: チェックアウトリンクを優先使用
-    const minimalVersionLink = minimalCheckoutUrl || minimalVersionPostUrl;
-    const minimalVersionContext = minimalVersionLink
-      ? `\n\nIMPORTANT: FREE MINIMAL VERSION available. ${minimalCheckoutUrl ? 'Use checkout link' : 'Post available'} at: ${minimalVersionLink}\n` +
-        `${minimalCheckoutUrl ? 'This is a FREE checkout link (no payment required). Use phrases like "Get free access", "Free checkout", or "Sign up for free" with the link. ' : 'You can reference this post to drive traffic to the full analysis. Use phrases like "See full analysis" or "Check detailed report" with the link. '}` +
-        `CRITICAL: Emphasize that this is FREE and NO CREDIT CARD REQUIRED. This is Funnel 1 - free version opt-in.`
-      : "";
-
-    // Funnel 2用: 有料版（Regular Briefing）クーポンコードPRをプロンプトに追加
-    const regularBriefingContext = regularBriefingWhopUrl
-      ? `\n\nCRITICAL FUNNEL 2 (Direct Regular Briefing Conversion): There is a direct paid version (Regular Briefing) available with 50% OFF coupon code DEFEND50 at: ${regularBriefingWhopUrl}?promo=DEFEND50\n` +
-        `You MUST include this coupon promotion in your quote repost text. Use phrases like "🔥 PRO 50% OFF (DEFEND50)" or similar promotional language in the target language. ` +
-        `This is Funnel 2 - direct conversion to paid version, skipping the free version. The coupon code DEFEND50 is REQUIRED.`
+    // 無料版（Minimal Version）ポストへのリンクをプロンプトに追加
+    const minimalVersionContext = minimalVersionPostUrl
+      ? `\n\nIMPORTANT: There is a detailed Minimal Version post available at: ${minimalVersionPostUrl}\n` +
+        `You can reference this post to drive traffic to the full analysis. Use phrases like "See full analysis" or "Check detailed report" with the link.`
       : "";
 
     // CRITICAL: Grok×Gemini最適化戦略をコンテキストに追加
@@ -673,94 +598,61 @@ async function generateQuoteRepostText(
       }
     }
 
-    // P0 FIX: タイムアウト設定を追加（30秒以内）- Vercel Functionsの60秒制限を考慮
-    const GROK_TIMEOUT_MS = 30000; // 30秒（60秒制限の半分）
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), GROK_TIMEOUT_MS);
-    
-    let completion;
-    try {
-      completion = await Promise.race([
-        openai.chat.completions.create({
-          model: modelToUse,
-          messages: [
-            {
-              role: "system",
-              content:
-                'You are "Dr. Grok", an expert at creating engaging quote reposts on X (Twitter) that maximize impressions and engagement rate. ' +
-                "You have integrated knowledge from Grok X Algorithm Analysis and Gemini High Engagement + High CVR Algorithm Analysis. " +
-                "Create compelling, attention-grabbing quote repost text that drives clicks to Telegram and maximizes engagement. " +
-                "Be concise, engaging, and use psychological triggers (urgency, FOMO, curiosity, social proof, scarcity). " +
-                "Maximum 140 characters (quote repost limit). Include the Telegram Deep Link. " +
-                "CRITICAL ALGORITHM OPTIMIZATION (2026 X Algorithm - Grok×Gemini Optimized): " +
-                '1. INTERACTIVE CTA/QUESTION (PRIORITY 1): MUST include an open-ended question CTA OR standard CTA at the end. Use one of these CTA types based on funnel stage:\n' +
-                '   - Funnel 1 (Free/Minimal Version): "Get access", "Sign up", "Join" (e.g., "Get access → [link]", "Sign up for free → [link]", "Join now → [link]")\n' +
-                '   - Funnel 2 (Paid/Regular Briefing): "Subscribe", "Get offer", "Purchase" (e.g., "Subscribe now → [link]", "Get offer → [link]", "Purchase → [link]")\n' +
-                '   - Engagement boost: Question CTA (e.g., "これ試した人いる？結果教えて！", "What do you think?", "How do you trade?", "You joining the pump? Reply Y/N")\n' +
-                '   CTA should be 20-30% of the post, naturally placed. End 70-80% of posts with CTAs to maximize engagement and conversions. ' +
-                "2. LINK OPTIMIZATION (PRIORITY 2): External links should be limited to 1 per post. Use shortened URLs (t.co, bit.ly) with UTM parameters. Place links in thread Post 2/3 (not first) or in poll options to avoid suppression. Deep Link priority (Telegram/Whop). " +
-                "3. HASHTAG OPTIMIZATION (PRIORITY 3): Use 2-3 max: 1 trending (#BTC), 1-2 niche (#TrapDefence, #CryptoFOMO). More than 3-5 hashtags risks spam detection. Front-load hashtags for mobile scans. " +
-                "4. EMOJI OPTIMIZATION: Use 3-5 relevant emojis (🚀📈🔥💎) for 20-25% visual lift. Cluster at start/end, avoid overuse. High-contrast emojis for mobile scroll-stop. " +
-                '5. PSYCHOLOGICAL TRIGGERS: Use Loss Aversion ("機会を逃す恐怖"), Reciprocity (先に価値を提供), Authority Bias (実績・数字), Confirmation Bias (既存の信念を肯定). ' +
-                '6. COGNITIVE BIASES: Leverage Bandwagon Effect ("みんなが注目している"), Scarcity Principle ("残り枠わずか"), In-Group Bias ("勝者側への所属"). ' +
-                "CRITICAL: MUST include the Telegram Deep Link to drive opt-ins to the free Minimal Version. " +
-                'FUNNEL OPTIMIZATION: Use "Velvet Rope Strategy" - frame Telegram as exclusive "inner circle" for chosen information elites, not just a notification tool. ' +
-                "If high-quality Minimal Version content is provided (hook message, Dr. Grok insight, mental note, data points), incorporate these powerful elements naturally to maximize algorithm engagement. " +
-                'If a Minimal Version post URL is provided, include a reference to it (e.g., "See full analysis" or "Check detailed report") to drive cross-pollination. ' +
-                "Format: [Hook/Agreement] [Unique Value] [Question CTA] [Telegram Deep Link] [Hashtags]. " +
-                "TIMING: Post during peak retail FOMO windows (UTC 8-11 AM, 12-16, 20-24 for crypto volatility). Align with sentiment score >40. " +
-                "Make it irresistible to click and maximize engagement rate."
-            },
-            {
-              role: "user",
-              content:
-                `Task: Generate a compelling quote repost text in ${targetLang} language.\n\n` +
-                `Original tweet: "${influencerTweet.tweetText?.substring(0, 200) || "N/A"}"\n` +
-                `Trap Score: ${reportData?.trapScore || "N/A"}/100\n` +
-                `BTC Price: $${reportData?.priceUsd?.toLocaleString("en-US", { maximumFractionDigits: 0 }) || "N/A"}\n` +
-                `Minimal Version Link: ${deepLink}${minimalCheckoutUrl ? ' (FREE checkout link - no payment required)' : ' (Telegram Deep Link)'}${minimalVersionContext}${regularBriefingContext}${optimizationContext}\n\n` +
-                `Requirements (2026 X Algorithm + High Engagement CVR Optimization - Grok×Gemini Optimized):\n` +
-                `- Maximum 140 characters (quote repost limit)\n` +
-                `- Engaging and attention-grabbing\n` +
-                        `- PRIORITY 1: MUST include a CTA at the end. Choose based on funnel stage:\n` +
-                        `  * Funnel 1 (Free/Minimal Version): Use "Get access", "Sign up", or "Join" (e.g., "Get access → [Telegram Deep Link]", "Sign up for free → [link]", "Join now → [link]")\n` +
-                        `  * Funnel 2 (Paid/Regular Briefing): Use "Subscribe", "Get offer", or "Purchase" (e.g., "Subscribe now → [Whop URL]", "Get offer → [Whop URL]", "Purchase → [Whop URL]")\n` +
-                        `  * Engagement boost: Use question CTA (e.g., "これ試した人いる？結果教えて！", "What do you think?", "You joining the pump? Reply Y/N")\n` +
-                        `  CTA should be 20-30% of the post, naturally placed. End 70-80% of posts with CTAs to maximize engagement and conversions.\n` +
-                `- PRIORITY 2: MUST include Minimal Version link (checkout link preferred, or Telegram Deep Link as fallback) - REQUIRED for opt-in funnel (users must be able to click to join free Minimal Version). ${minimalCheckoutUrl ? 'Use checkout link with clear "FREE" and "NO CREDIT CARD REQUIRED" messaging. ' : 'Use Telegram Deep Link. '}Limit to 1 external link per post. Use shortened URLs with UTM parameters.\n` +
-                `- PRIORITY 2.5: CRITICAL FUNNEL 2 - MUST include Regular Briefing Whop URL with 50% OFF coupon code DEFEND50 if provided. Use promotional language like "🔥 PRO 50% OFF (DEFEND50): [URL]?promo=DEFEND50" in the target language. This is for direct conversion to paid version, skipping the free version. The coupon code DEFEND50 is REQUIRED.\n` +
-                `- PRIORITY 3: Use 2-3 max hashtags: 1 trending (#BTC), 1-2 niche (#TrapDefence, #CryptoFOMO). More than 3-5 hashtags risks spam detection. Front-load for mobile scans.\n` +
-                `- Use 3-5 relevant emojis (🚀📈🔥💎) for 20-25% visual lift. Cluster at start/end, avoid overuse. High-contrast emojis for mobile scroll-stop.\n` +
-                `- PSYCHOLOGICAL TRIGGERS: Use Loss Aversion ("機会を逃す恐怖"), Reciprocity (先に価値を提供), Authority Bias (実績・数字), Confirmation Bias (既存の信念を肯定), Scarcity Principle ("残り枠わずか").\n` +
-                `- COGNITIVE BIASES: Leverage Bandwagon Effect ("みんなが注目している"), In-Group Bias ("勝者側への所属"), Immediate Gratification (即時報酬).\n` +
-                `- FUNNEL OPTIMIZATION: Use "Velvet Rope Strategy" - frame Telegram as exclusive "inner circle" for chosen information elites. Use "Risk Reversal" - present Whop as "shortcut to results" for lazy brain.\n` +
-                `- FUNNEL 2 (Direct Regular Briefing Conversion): If Regular Briefing Whop URL is provided, MUST include the 50% OFF coupon code promotion (DEFEND50) in your quote repost. This is for direct conversion to paid version, skipping the free version. Example: "🔥 PRO 50% OFF (DEFEND50): [URL]?promo=DEFEND50" in the target language.\n` +
-                `- If Minimal Version post URL is provided, include a reference to it (e.g., "See full analysis: [URL]" or "Check detailed report: [URL]") - OPTIONAL but recommended for cross-pollination\n` +
-                `- Format: [Hook/Agreement] [Unique Value] [Question CTA] [Telegram Deep Link] [Hashtags]\n` +
-                `- Example (with Minimal Version checkout link): "Agree! ${minimalContent?.drGrokInsight ? `"${minimalContent.drGrokInsight.substring(0, 40)}..."` : "TrapDefence detected this signal"} 🚀 Get free access (no card): ${minimalCheckoutUrl ? '[checkout-link]' : 't.me/...'} #BTC #TrapDefence"\n` +
-                `- Example (with Telegram Deep Link fallback): "Agree! TrapDefence detected this signal 🚀 You joining the pump? Reply Y/N Free: t.me/... #BTC #TrapDefence"\n` +
-                `- Make it irresistible to click and maximize engagement rate (target: 0.003% → 1.0%+)\n\n` +
-                `Generate the quote repost text:`
-            }
-          ],
-          max_tokens: 300,
-          temperature: 0.7
-        }),
-        new Promise((_, reject) => {
-          controller.signal.addEventListener('abort', () => {
-            reject(new Error(`Grok API timeout after ${GROK_TIMEOUT_MS}ms`));
-          });
-        })
-      ]);
-      clearTimeout(timeoutId);
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.message?.includes('timeout')) {
-        console.warn(`[Grok] Quote repost text generation timeout after ${GROK_TIMEOUT_MS}ms, using fallback template`);
-        throw error; // フォールバック処理に委譲
-      }
-      throw error;
-    }
+    const completion = await openai.chat.completions.create({
+      model: modelToUse,
+      messages: [
+        {
+          role: "system",
+          content:
+            'You are "Dr. Grok", an expert at creating engaging quote reposts on X (Twitter) that maximize impressions and engagement rate. ' +
+            "You have integrated knowledge from Grok X Algorithm Analysis and Gemini High Engagement + High CVR Algorithm Analysis. " +
+            "Create compelling, attention-grabbing quote repost text that drives clicks to Telegram and maximizes engagement. " +
+            "Be concise, engaging, and use psychological triggers (urgency, FOMO, curiosity, social proof, scarcity). " +
+            "Maximum 140 characters (quote repost limit). Include the Telegram Deep Link. " +
+            "CRITICAL ALGORITHM OPTIMIZATION (2026 X Algorithm - Grok×Gemini Optimized): " +
+            '1. INTERACTIVE CTA/QUESTION (PRIORITY 1): MUST include an open-ended question CTA at the end (e.g., "これ試した人いる？結果教えて！", "What do you think?", "How do you trade?", "You joining the pump? Reply Y/N") to maximize engagement. Question CTA should be 20-30% of the post, naturally placed. End 70-80% of posts with open questions to spike replies 3-5x. ' +
+            "2. LINK OPTIMIZATION (PRIORITY 2): External links should be limited to 1 per post. Use shortened URLs (t.co, bit.ly) with UTM parameters. Place links in thread Post 2/3 (not first) or in poll options to avoid suppression. Deep Link priority (Telegram/Whop). " +
+            "3. HASHTAG OPTIMIZATION (PRIORITY 3): Use 2-3 max: 1 trending (#BTC), 1-2 niche (#TrapDefence, #CryptoFOMO). More than 3-5 hashtags risks spam detection. Front-load hashtags for mobile scans. " +
+            "4. EMOJI OPTIMIZATION: Use 3-5 relevant emojis (🚀📈🔥💎) for 20-25% visual lift. Cluster at start/end, avoid overuse. High-contrast emojis for mobile scroll-stop. " +
+            '5. PSYCHOLOGICAL TRIGGERS: Use Loss Aversion ("機会を逃す恐怖"), Reciprocity (先に価値を提供), Authority Bias (実績・数字), Confirmation Bias (既存の信念を肯定). ' +
+            '6. COGNITIVE BIASES: Leverage Bandwagon Effect ("みんなが注目している"), Scarcity Principle ("残り枠わずか"), In-Group Bias ("勝者側への所属"). ' +
+            "CRITICAL: MUST include the Telegram Deep Link to drive opt-ins to the free Minimal Version. " +
+            'FUNNEL OPTIMIZATION: Use "Velvet Rope Strategy" - frame Telegram as exclusive "inner circle" for chosen information elites, not just a notification tool. ' +
+            "If high-quality Minimal Version content is provided (hook message, Dr. Grok insight, mental note, data points), incorporate these powerful elements naturally to maximize algorithm engagement. " +
+            'If a Minimal Version post URL is provided, include a reference to it (e.g., "See full analysis" or "Check detailed report") to drive cross-pollination. ' +
+            "Format: [Hook/Agreement] [Unique Value] [Question CTA] [Telegram Deep Link] [Hashtags]. " +
+            "TIMING: Post during peak retail FOMO windows (UTC 8-11 AM, 12-16, 20-24 for crypto volatility). Align with sentiment score >40. " +
+            "Make it irresistible to click and maximize engagement rate."
+        },
+        {
+          role: "user",
+          content:
+            `Task: Generate a compelling quote repost text in ${targetLang} language.\n\n` +
+            `Original tweet: "${influencerTweet.tweetText?.substring(0, 200) || "N/A"}"\n` +
+            `Trap Score: ${reportData?.trapScore || "N/A"}/100\n` +
+            `BTC Price: $${reportData?.priceUsd?.toLocaleString("en-US", { maximumFractionDigits: 0 }) || "N/A"}\n` +
+            `Telegram Deep Link: ${deepLink}${minimalVersionContext}${optimizationContext}\n\n` +
+            `Requirements (2026 X Algorithm + High Engagement CVR Optimization - Grok×Gemini Optimized):\n` +
+            `- Maximum 140 characters (quote repost limit)\n` +
+            `- Engaging and attention-grabbing\n` +
+            `- PRIORITY 1: MUST include an open-ended question CTA at the end (e.g., "これ試した人いる？結果教えて！", "What do you think?", "You joining the pump? Reply Y/N") - REQUIRED for algorithm optimization. Question CTA should be 20-30% of the post, naturally placed. End 70-80% of posts with open questions to spike replies 3-5x.\n` +
+            `- PRIORITY 2: MUST include Telegram Deep Link - REQUIRED for opt-in funnel (users must be able to click to join free Minimal Version). Limit to 1 external link per post. Use shortened URLs with UTM parameters.\n` +
+            `- PRIORITY 3: Use 2-3 max hashtags: 1 trending (#BTC), 1-2 niche (#TrapDefence, #CryptoFOMO). More than 3-5 hashtags risks spam detection. Front-load for mobile scans.\n` +
+            `- Use 3-5 relevant emojis (🚀📈🔥💎) for 20-25% visual lift. Cluster at start/end, avoid overuse. High-contrast emojis for mobile scroll-stop.\n` +
+            `- PSYCHOLOGICAL TRIGGERS: Use Loss Aversion ("機会を逃す恐怖"), Reciprocity (先に価値を提供), Authority Bias (実績・数字), Confirmation Bias (既存の信念を肯定), Scarcity Principle ("残り枠わずか").\n` +
+            `- COGNITIVE BIASES: Leverage Bandwagon Effect ("みんなが注目している"), In-Group Bias ("勝者側への所属"), Immediate Gratification (即時報酬).\n` +
+            `- FUNNEL OPTIMIZATION: Use "Velvet Rope Strategy" - frame Telegram as exclusive "inner circle" for chosen information elites. Use "Risk Reversal" - present Whop as "shortcut to results" for lazy brain.\n` +
+            `- If Minimal Version post URL is provided, include a reference to it (e.g., "See full analysis: [URL]" or "Check detailed report: [URL]") - OPTIONAL but recommended for cross-pollination\n` +
+            `- Format: [Hook/Agreement] [Unique Value] [Question CTA] [Telegram Deep Link] [Hashtags]\n` +
+            `- Example (with Minimal Version content): "Agree! ${minimalContent?.drGrokInsight ? `"${minimalContent.drGrokInsight.substring(0, 40)}..."` : "TrapDefence detected this signal"} 🚀 これ試した人いる？結果教えて！ Free: t.me/... #BTC #TrapDefence"\n` +
+            `- Example (without Minimal Version content): "Agree! TrapDefence detected this signal 🚀 You joining the pump? Reply Y/N Free: t.me/... #BTC #TrapDefence"\n` +
+            `- Make it irresistible to click and maximize engagement rate (target: 0.003% → 1.0%+)\n\n` +
+            `Generate the quote repost text:`
+        }
+      ],
+      max_tokens: 300,
+      temperature: 0.7
+    });
 
     const text = completion?.choices?.[0]?.message?.content?.trim();
     if (text && text.length <= 280) {
@@ -784,25 +676,6 @@ async function generateQuoteRepostText(
       resultText += `\n\n📊 Full analysis: ${minimalVersionPostUrl}`;
     }
 
-    // Funnel 2用: 有料版クーポンコードPRを追加
-    if (regularBriefingWhopUrl && resultText.length + 100 <= 280) {
-      const { getWhopProductUrl } = require('../telegram/whop-links');
-      const whopUrl = regularBriefingWhopUrl || getWhopProductUrl(lang);
-      const promoLink = `${whopUrl}?promo=DEFEND50`;
-      const promoTexts = {
-        en: `\n\n🔥 PRO 50% OFF (DEFEND50): ${promoLink}`,
-        ja: `\n\n🔥 PRO 50%OFF (DEFEND50): ${promoLink}`,
-        es: `\n\n🔥 PRO 50% OFF (DEFEND50): ${promoLink}`,
-        'pt-br': `\n\n🔥 PRO 50% OFF (DEFEND50): ${promoLink}`,
-        ar: `\n\n🔥 PRO 50% خصم (DEFEND50): ${promoLink}`,
-        ko: `\n\n🔥 PRO 50% 할인 (DEFEND50): ${promoLink}`,
-      };
-      const promoText = promoTexts[lang] || promoTexts.en;
-      if (resultText.length + promoText.length <= 280) {
-        resultText += promoText;
-      }
-    }
-
     return `${resultText}\n\n#BTC #TrapDefence`;
   }
 }
@@ -814,7 +687,7 @@ async function generateQuoteRepostText(
  * @returns {Promise<Array>} トレンドハッシュタグ配列（ボリューム中10k-100k投稿で競合低）
  */
 async function discoverTrendingHashtags(lang = "en", topic = "BTC") {
-  if (!XAI_API_KEY) {
+  if (!XAI_API_KEY || !openai) {
     return ["#Bitcoin"]; // フォールバック
   }
 

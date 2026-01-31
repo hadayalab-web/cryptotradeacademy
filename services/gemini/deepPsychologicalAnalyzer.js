@@ -10,10 +10,12 @@ if (!GEMINI_API_KEY) {
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 // P0 FIX: タイムアウト対策 - 本番環境では軽量モデルを使用（60秒制限を考慮）
-// P0 FIX: 最新のgemini-3-flash-previewを使用（Proレベルの推論能力 + Flashレベルの速度）
+// RECOMMENDED: 開発環境は gemini-3-pro-preview、本番環境は gemini-3-flash
+// - 開発環境: gemini-3-pro-preview（最高品質で開発効率優先）
+// - 本番環境: gemini-3-flash（タイムアウト対策とコスト効率）
 const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'production';
 const isDevelopment = APP_ENV === 'development';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || (isDevelopment ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview');
+const GEMINI_MODEL = process.env.GEMINI_MODEL || (isDevelopment ? 'gemini-3-pro-preview' : 'gemini-3-flash');
 
 // キャッシュ設定（GPTと同じパターンで一貫性を保つ）
 const GEMINI_CACHE_TTL_SECONDS = Number(process.env.GEMINI_CACHE_TTL_SECONDS || 900); // デフォルト: 15分
@@ -196,7 +198,18 @@ Focus on:
 Language: ${targetLang}
 CRITICAL: Respond ONLY in ${targetLang === 'ja' ? 'Japanese' : targetLang === 'ko' ? 'Korean' : targetLang === 'es' ? 'Spanish' : targetLang === 'pt-br' ? 'Portuguese (Brazilian)' : targetLang === 'ar' ? 'Arabic' : 'English'}.`;
 
-    const apiResult = await model.generateContent(prompt);
+    // CRITICAL: Gemini 3の推奨設定に準拠
+    // - 温度はデフォルト1.0を使用（指定しない）
+    // - 深層心理解析には高レベルの思考が必要（thinking_level: "high"）
+    const apiResult = await model.generateContent({
+      contents: prompt,
+      generationConfig: {
+        thinkingConfig: {
+          thinkingLevel: "high"  // 深層心理解析には高レベルの思考が必要
+        }
+        // temperatureはデフォルト1.0を使用（Gemini 3の推論機能はデフォルト設定用に最適化されている）
+      }
+    });
     const response = await apiResult.response;
     const text = response.text();
 

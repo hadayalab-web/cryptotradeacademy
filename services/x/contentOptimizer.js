@@ -17,16 +17,87 @@ const XAI_API_KEY = process.env.XAI_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const XAI_BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
 
-// 最上位モデルを使用
-const GROK_MODEL = 'grok-4-1-fast-reasoning'; // Xアルゴリズム分析用最上位モデル
-const GEMINI_MODEL = 'gemini-3-pro-preview'; // 心理分析用最上位モデル（2026年最新、プレビュー版）
+// P0 FIX: タイムアウト対策 - 本番環境では軽量モデルを使用（60秒制限を考慮）
+const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'production';
+const isDevelopment = APP_ENV === 'development';
 
-const grokClient = new OpenAI({
-  apiKey: XAI_API_KEY,
-  baseURL: XAI_BASE_URL,
-});
+// 用途別モデル定義（環境変数ベース）
+// Grok: Xアルゴリズム分析用（本番環境でも品質優先でgrok-4-1-fast-reasoningを使用）
+const GROK_MODEL = process.env.GROK_MODEL_X_ALGORITHM || 
+  (isDevelopment ? 'grok-4-1-fast-reasoning' : 'grok-4-1-fast-reasoning');
 
-const geminiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
+// Gemini: 心理分析用
+// RECOMMENDED: 開発環境は gemini-3-pro-preview、本番環境は gemini-3-flash
+// - 開発環境: gemini-3-pro-preview（最高品質で開発効率優先）
+// - 本番環境: gemini-3-flash（タイムアウト対策とコスト効率）
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 
+  (isDevelopment ? 'gemini-3-pro-preview' : 'gemini-3-flash');
+
+// P0 FIX: 環境変数がない場合でもエラーを出さないように遅延初期化
+let grokClient = null;
+let geminiClient = null;
+
+try {
+  if (XAI_API_KEY) {
+    grokClient = new OpenAI({
+      apiKey: XAI_API_KEY,
+      baseURL: XAI_BASE_URL,
+    });
+  } else {
+    console.warn('[X Content Optimizer] XAI_API_KEY not set, Grok client will not be available');
+  }
+} catch (error) {
+  console.warn('[X Content Optimizer] Failed to initialize Grok client:', error.message);
+}
+
+try {
+  if (GEMINI_API_KEY) {
+    geminiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
+  } else {
+    console.warn('[X Content Optimizer] GEMINI_API_KEY not set, Gemini client will not be available');
+  }
+} catch (error) {
+  console.warn('[X Content Optimizer] Failed to initialize Gemini client:', error.message);
+}
+
+/**
+ * キャッシュキーを生成（決定論的）
+ * @param {Object} currentMetrics - 現在のメトリクス
+ * @param {Object} marketData - 市場データ
+ * @param {Object} xSentiment - Xセンチメントデータ
+ * @param {string} lang - 言語コード
+ * @returns {string} キャッシュキー
+ */
+function generateCacheKey(currentMetrics = {}, marketData = {}, xSentiment = {}, lang = 'en') {
+  // 決定論的なキーを生成（同じ入力に対して同じキーを返す）
+  const normalized = {
+    lang: lang || 'en',
+    metrics: {
+      impressions: currentMetrics.impressions || 0,
+      engagements: currentMetrics.engagements || 0,
+      engagementRate: currentMetrics.engagementRate || 0,
+    },
+    market: {
+      price: marketData.price || 0,
+      change24h: marketData.change24h || 0,
+    },
+    sentiment: {
+      score: xSentiment.score || 0,
+      trend: xSentiment.trend || 'neutral',
+    },
+  };
+  
+  // JSONを正規化してハッシュ化（簡易版）
+  const keyString = JSON.stringify(normalized);
+  // 簡易ハッシュ（実際のプロダクションではcryptoなどを使う）
+  let hash = 0;
+  for (let i = 0; i < keyString.length; i++) {
+    const char = keyString.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return `x:optimizer:${lang}:${Math.abs(hash).toString(36)}`;
+}
 
 /**
  * GrokでXアルゴリズム分析を実行（最上位モデル）
@@ -45,8 +116,8 @@ async function analyzeXAlgorithmWithGrok(options = {}) {
     lang = 'en',
   } = options;
 
-  if (!XAI_API_KEY) {
-    console.warn('[X Content Optimizer] XAI_API_KEY not set, skipping Grok analysis');
+  if (!XAI_API_KEY || !grokClient) {
+    console.warn('[X Content Optimizer] XAI_API_KEY not set or Grok client not initialized, skipping Grok analysis');
     return null;
   }
 
@@ -214,6 +285,11 @@ async function analyzePsychologyWithGemini(options = {}) {
     return null;
   }
 
+  if (!GEMINI_API_KEY || !geminiClient) {
+    console.warn('[X Content Optimizer] GEMINI_API_KEY not set or Gemini client not initialized, skipping Gemini analysis');
+    return null;
+  }
+  
   const model = geminiClient.getGenerativeModel({ model: GEMINI_MODEL });
 
   const prompt = `あなたは高エンゲージメント率と高CVR（コンバージョン率）を実現する心理戦略の専門家です。X（Twitter）でのエンゲージメント率とCVRを最大化するための心理的アルゴリズムを分析してください。
@@ -291,7 +367,18 @@ async function analyzePsychologyWithGemini(options = {}) {
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
+    // CRITICAL: Gemini 3の推奨設定に準拠
+    // - 温度はデフォルト1.0を使用（指定しない）
+    // - 心理分析には高レベルの思考が必要（thinking_level: "high"）
+    const result = await model.generateContent({
+      contents: prompt,
+      generationConfig: {
+        thinkingConfig: {
+          thinkingLevel: "high"  // 心理分析には高レベルの思考が必要
+        }
+        // temperatureはデフォルト1.0を使用（Gemini 3の推論機能はデフォルト設定用に最適化されている）
+      }
+    });
     const response = result.response;
     const text = response.text();
 
