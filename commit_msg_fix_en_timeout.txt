@@ -1,0 +1,21 @@
+fix(api): Limit EN influencer processing to prevent timeout
+
+P0 Fix: x-quote-repost-en timeout caused by processing too many influencers
+
+Root Cause:
+- EN endpoint processes 35 influencers (vs 8-20 for other languages)
+- Each influencer requires Grok API call (2-10 seconds)
+- Sequential processing: 35 × 10s = 350 seconds (exceeds 60s limit)
+
+Solution:
+- Limit EN influencers to maximum 10 per run
+- Processing time: 35 × 10s = 350s → 10 × 10s = 100s
+- With early return checks, actual processing will be even less
+
+Impact:
+- Fixes timeout for /api/x-quote-repost-en endpoint
+- Reduces processing time from 350s to ~100s (still sequential)
+- Future optimization: Implement parallel processing with p-limit
+
+Note:
+- This is a temporary fix. Full parallel processing implementation is planned for future optimization.
