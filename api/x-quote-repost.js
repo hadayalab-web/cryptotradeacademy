@@ -1038,39 +1038,40 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           try {
             quoteText = await generateQuoteRepostTextWithGrok(lang, influencer, reportData);
           } catch (error) {
-          // フォールバック: Xアルゴリズム最適化版テンプレートを使用
-          // 重要: Minimal Version URLも取得してフォールバックテンプレートに渡す
-          const dateString = new Date().toISOString().split('T')[0];
-          const minimalVersionPostUrl = await getMinimalVersionPostUrl(lang, dateString).catch(() => null);
-          
-          const template = QUOTE_REPOST_TEMPLATES?.[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES.en;
-          const { trapScore = 25, priceUsd = null, change24h = null, exchangeNetflow = null, whaleRatio = null } = reportData || {};
-          const baseText = template(
-            trapScore,
-            priceUsd,
-            change24h,
-            getTelegramDeepLinkWithSource(lang, 'x_quote', {
-              influencerUsername: influencer.username,
-              utm_content: `influencer_${influencer.username}`,
-            }),
-            exchangeNetflow,
-            whaleRatio
-          );
-          
-          // Minimal Version URLが存在する場合は追加（クロスポリネーション）
-          if (minimalVersionPostUrl && baseText.length + minimalVersionPostUrl.length + 30 <= 280) {
-            const minimalLinkTexts = {
-              en: ` See full analysis: ${minimalVersionPostUrl}`,
-              ja: ` 詳細分析: ${minimalVersionPostUrl}`,
-              es: ` Ver análisis completo: ${minimalVersionPostUrl}`,
-              'pt-br': ` Ver análise completa: ${minimalVersionPostUrl}`,
-              ar: ` راجع التحليل الكامل: ${minimalVersionPostUrl}`,
-              ko: ` 전체 분석 보기: ${minimalVersionPostUrl}`,
-            };
-            const minimalLinkText = minimalLinkTexts[lang] || minimalLinkTexts.en;
-            quoteText = baseText + minimalLinkText;
-          } else {
-            quoteText = baseText;
+            // フォールバック: Xアルゴリズム最適化版テンプレートを使用
+            // 重要: Minimal Version URLも取得してフォールバックテンプレートに渡す
+            const dateString = new Date().toISOString().split('T')[0];
+            const minimalVersionPostUrl = await getMinimalVersionPostUrl(lang, dateString).catch(() => null);
+            
+            const template = QUOTE_REPOST_TEMPLATES?.[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES.en;
+            const { trapScore = 25, priceUsd = null, change24h = null, exchangeNetflow = null, whaleRatio = null } = reportData || {};
+            const baseText = template(
+              trapScore,
+              priceUsd,
+              change24h,
+              getTelegramDeepLinkWithSource(lang, 'x_quote', {
+                influencerUsername: influencer.username,
+                utm_content: `influencer_${influencer.username}`,
+              }),
+              exchangeNetflow,
+              whaleRatio
+            );
+            
+            // Minimal Version URLが存在する場合は追加（クロスポリネーション）
+            if (minimalVersionPostUrl && baseText.length + minimalVersionPostUrl.length + 30 <= 280) {
+              const minimalLinkTexts = {
+                en: ` See full analysis: ${minimalVersionPostUrl}`,
+                ja: ` 詳細分析: ${minimalVersionPostUrl}`,
+                es: ` Ver análisis completo: ${minimalVersionPostUrl}`,
+                'pt-br': ` Ver análise completa: ${minimalVersionPostUrl}`,
+                ar: ` راجع التحليل الكامل: ${minimalVersionPostUrl}`,
+                ko: ` 전체 분석 보기: ${minimalVersionPostUrl}`,
+              };
+              const minimalLinkText = minimalLinkTexts[lang] || minimalLinkTexts.en;
+              quoteText = baseText + minimalLinkText;
+            } else {
+              quoteText = baseText;
+            }
           }
         }
         
