@@ -1333,6 +1333,7 @@ const handler = async (req, res) => {
         currentHour,
         type,
         results: [],
+        dryRun: xStatus.dryRun, // 🚀 ドライランモード情報を追加
       });
     }
     
@@ -1346,7 +1347,13 @@ const handler = async (req, res) => {
     console.log('[X Post Free Report] Result:', JSON.stringify(result, null, 2));
     console.log('[X Post Free Report] ========================================');
     
-    return res.status(200).json(result);
+    // 🚀 ドライランモード情報を確実にレスポンスに含める
+    const response = {
+      ...result,
+      dryRun: xStatus.dryRun || result.dryRun || false, // ドライランモード情報を明示的に含める
+    };
+    
+    return res.status(200).json(response);
   } catch (error) {
     console.error('[X Post Free Report] ========================================');
     console.error('[X Post Free Report] ❌ Handler error:', error.message);

@@ -11,6 +11,30 @@ module.exports = async (req, res) => {
   try {
     console.log(`[QuoteRepost-AR] 実行開始: ${new Date().toISOString()} [runId: ${runId}]`);
     
+    // 🚀 ゴール逆算最適化: ピーク時間帯チェック（インプレッション最大化のため）
+    const force = req.query?.force === 'true';
+    if (!force) {
+      const { getLanguagesForCurrentHour } = require('../services/x/optimization');
+      const currentHour = new Date().getUTCHours();
+      const { langs, type } = getLanguagesForCurrentHour(currentHour);
+      
+      if (!langs.includes('ar') || type !== 'quote') {
+        console.log(`[QuoteRepost-AR] ⏰ SKIPPED: Not peak time for AR quote reposts [runId: ${runId}, currentHour: ${currentHour} UTC]`);
+        return res.status(200).json({
+          success: true,
+          skipped: true,
+          reason: 'not_peak_time',
+          currentHour,
+          message: 'Not peak time for AR quote reposts. Use ?force=true to override.',
+          runId,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      console.log(`[QuoteRepost-AR] ✅ Peak time confirmed: UTC ${currentHour}:00 [runId: ${runId}]`);
+    } else {
+      console.log(`[QuoteRepost-AR] 🔧 Force mode enabled - skipping time check [runId: ${runId}]`);
+    }
+    
     // 市場データを取得（リクエストボディから、または最新データを取得）
     let reportData = req.body?.reportData || null;
     

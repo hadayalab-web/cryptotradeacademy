@@ -11,6 +11,34 @@ module.exports = async (req, res) => {
   try {
     console.log(`[QuoteRepost-EN] 実行開始: ${new Date().toISOString()} [runId: ${runId}]`);
     
+    // 🚀 ゴール逆算最適化: ピーク時間帯チェック（インプレッション最大化のため）
+    // force=trueパラメータがある場合は強制実行を許可（テスト用）
+    const force = req.query?.force === 'true';
+    if (!force) {
+      const { getLanguagesForCurrentHour } = require('../services/x/optimization');
+      const currentHour = new Date().getUTCHours();
+      const { langs, type } = getLanguagesForCurrentHour(currentHour);
+      
+      // ENが対象時間帯でない場合はスキップ（ピーク時間帯に最適化）
+      if (!langs.includes('en') || type !== 'quote') {
+        console.log(`[QuoteRepost-EN] ⏰ SKIPPED: Not peak time for EN quote reposts [runId: ${runId}, currentHour: ${currentHour} UTC, targetLangs: ${langs?.join(',') || 'none'}, type: ${type || 'none'}]`);
+        return res.status(200).json({
+          success: true,
+          skipped: true,
+          reason: 'not_peak_time',
+          currentHour,
+          targetLangs: langs || [],
+          type: type || null,
+          message: 'Not peak time for EN quote reposts. Use ?force=true to override.',
+          runId,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      console.log(`[QuoteRepost-EN] ✅ Peak time confirmed: UTC ${currentHour}:00 [runId: ${runId}]`);
+    } else {
+      console.log(`[QuoteRepost-EN] 🔧 Force mode enabled - skipping time check [runId: ${runId}]`);
+    }
+    
     // 市場データを取得（リクエストボディから、または最新データを取得）
     let reportData = req.body?.reportData || null;
     

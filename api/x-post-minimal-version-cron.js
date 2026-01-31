@@ -183,14 +183,20 @@ module.exports = async (req, res) => {
       },
     };
     
+    // X API設定状況を確認（ドライランモード情報を取得）
+    const { getXConfigStatus } = require('../services/x/config');
+    const xStatus = getXConfigStatus();
+    
     // 無料版（Minimal Version）をXに投稿
     const result = await postMinimalVersionToX(targetLangs, reportData);
     
     console.log('[X Post Minimal Cron] ✅ Minimal version X posting completed:', result);
     
+    // 🚀 ドライランモード情報を確実にレスポンスに含める
     return res.status(200).json({
       success: true,
       result,
+      dryRun: xStatus.dryRun || result.dryRun || false, // ドライランモード情報を明示的に含める
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
