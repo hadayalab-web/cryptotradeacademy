@@ -1279,6 +1279,12 @@ const handler = async (req, res) => {
     console.error('[X Post Free Report] ❌ Unauthorized: Invalid CRON_SECRET');
     return res.status(401).json({ error: 'Unauthorized' });
   }
+
+  // TG直誘導オフ: ENABLE_X_POST_FREE_REPORT=false で無料レポートX投稿（t.meカード付き）を停止
+  if (!parseBoolean(process.env.ENABLE_X_POST_FREE_REPORT, true)) {
+    console.log('[X Post Free Report] ⏹️ Skipped by ENABLE_X_POST_FREE_REPORT=false (TG直誘導オフ)');
+    return res.status(200).json({ success: true, skipped: true, reason: 'ENABLE_X_POST_FREE_REPORT=false' });
+  }
   
   try {
     // P0: ジッター（揺らぎ）を適用（GPT-5.2推奨、maxDuration制約を考慮）

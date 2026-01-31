@@ -2220,76 +2220,7 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      // Grok推奨: 無料版（Minimal Version）配信完了後、X投稿を実行（非同期、エラーは無視）
-      // Grok戦略: UTC 8:00にMV投稿、UTC 14:00に引用リポスト（6時間後）
-      // 注意: 独立したCronジョブ（api/x-post-minimal-version-cron）で実行されるため、ここでは実行しない
-      // ただし、force=trueの場合は即座に実行する
-      if (ENABLE_MINIMAL_VERSION && shouldSend && force) {
-        try {
-          const xPostMinimalModule = require("./x-post-minimal-version");
-          const postMinimalVersionToX =
-            xPostMinimalModule.postMinimalVersionToX || xPostMinimalModule;
-
-          if (typeof postMinimalVersionToX === "function") {
-            const reportData = {
-              trapScore: minimalTrapScore,
-              priceUsd,
-              change24h,
-              trapData: {
-                trapAlert: trapAlert || null,
-                exchangeNetflow: inflow,
-                whaleRatio: whaleRatioValue
-              },
-              marketData: minimalMarketData,
-              sentimentData
-            };
-
-            // Grok推奨: 非同期で実行（エラーは無視、タイミングは独立したCronジョブで制御）
-            postMinimalVersionToX(targetLangsForMinimal, reportData).catch((error) => {
-              console.warn("[MINIMAL] Failed to post minimal version to X:", error.message);
-            });
-          } else {
-            console.warn(
-              "[MINIMAL] postMinimalVersionToX function not found in x-post-minimal-version module"
-            );
-          }
-        } catch (error) {
-          // モジュールが見つからない場合は警告のみ（独立したCronジョブで実行されるため）
-          console.warn(
-            "[MINIMAL] Failed to import x-post-minimal-version (will be handled by independent cron job):",
-            error.message
-          );
-        }
-      }
-
-      // 無料版レポート配信完了後、X投稿を実行（非同期、エラーは無視）
-      // 注意: 独立したCronジョブ（api/x-post-free-report）も実行されるため、
-      // 二重実行を防ぐため、ここでは実行しない（独立したCronジョブに任せる）
-      // ただし、force=trueの場合は即座に実行する
-      if (ENABLE_MINIMAL_VERSION && shouldSend && force) {
-        try {
-          const { postFreeReportToX } = require("./x-post-free-report");
-          const reportData = {
-            trapScore: minimalTrapScore,
-            priceUsd,
-            change24h,
-            exchangeNetflow: inflow,
-            whaleRatio: whaleRatioValue
-          };
-
-          // 非同期で実行（エラーは無視）
-          postFreeReportToX(reportData).catch((error) => {
-            console.error("[X Post Free Report] Failed:", error.message);
-          });
-
-          console.log("[X Post Free Report] Triggered after free report delivery (force mode)");
-        } catch (error) {
-          console.error("[X Post Free Report] Failed to trigger:", error.message);
-        }
-      } else if (ENABLE_MINIMAL_VERSION && shouldSend && (isRegularSlot || force)) {
-        // 通常の定期実行時は、独立したCronジョブに任せる（二重実行防止）
-        console.log("[X Post Free Report] Skipping (will be handled by independent cron job)");
-      }
+      // TG直誘導（無料レポートX投稿・無料版X投稿）は廃止。Xはスニペット（ENABLE_X_SNIPPET_POST）と引用リポストに一本化。
     }
 
     // 7-B. EMERGENCY (Trap) - 15分ごとの緊急配信。RANDOM_EMERGENCY = 間欠的強化（Do Not Trade のみ短文化）

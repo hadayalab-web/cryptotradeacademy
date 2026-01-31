@@ -527,52 +527,19 @@ async function getTrendyHashtags(lang, topic = 'BTC') {
 
 /**
  * 時間帯別のピークマップを取得
- * Grok推奨: 各時間帯に処理すべき言語と投稿タイプを定義
- * @param {number} hour - UTC時刻（0-23）
- * @returns {Object} { langs: Array<string>, type: 'quote'|'free_report'|'minimal', count: number }
+ * 最適化後: 引用リポスト 1日4回/言語（EN/ES/PT-BR/AR: 8,12,16,20 UTC / JA/KO: 9,13,17,21 UTC）
  */
 function getPeakMapForHour(hour) {
-  // 🚀 数撃て作戦: 1日500投稿以上を達成するため、すべての時間帯でQuote Repostを実行
-  // Cron設定: UTC 0,2,4,6,8,10,12,14,16,18,20,22（1日12回）
-  // 目標: EN 約200投稿/日、その他5言語 合計約300投稿/日 = 合計500投稿/日以上
-  // ピーク時間（UTC 0,1,20,21,22）: EN 32人、その他言語も増加
-  // オフピーク時間（UTC 13,14）: EN 12人、その他言語も動的に調整
-  // その他の時間: EN 32人、その他言語も増加
-  
-  // UTC 13:00と14:00、20:00は複数のタイプが重複するため、特別処理
-  if (hour === 13) {
-    // UTC 13:00: KO free_report + KO/JA quote（オフピーク: KO 1人、JA 1人）
-    return { langs: ['ko', 'ja'], type: 'quote', count: 1, alsoFreeReport: ['ko'] };
-  }
-  if (hour === 14) {
-    // UTC 14:00: EN/PT-BR free_report + EN/JA quote（オフピーク: EN 4人、JA 1人）
-    return { langs: ['en', 'ja'], type: 'quote', count: 1, alsoFreeReport: ['en', 'pt-br'] };
-  }
-  if (hour === 20) {
-    // 100/15min 厳守: UTC 20:00 は EN のみ（33×3=99）+ minimal
-    return { langs: ['en'], type: 'quote', count: 1, alsoMinimal: ['en'] };
-  }
-  
-  // すべての時間帯でQuote Repostを実行（500投稿/日以上達成）
-  // 100/15min 厳守: 8時=ENのみ(33)、9時=他5言語(各10)、20-22時=ENのみ(33)、23時=PT-BR+ES
   const peakMap = {
-    0: { langs: ['ar', 'en'], type: 'quote', count: 1 },      // UTC 0:00 - AR 12、EN 35 = 47
-    1: { langs: ['ko', 'en'], type: 'quote', count: 1 },     // UTC 1:00 - KO 8、EN 35 = 43
-    2: { langs: ['en'], type: 'quote', count: 1 },           // UTC 2:00 - EN 35 = 35
-    4: { langs: ['es'], type: 'quote', count: 1 },           // UTC 4:00 - ES 20 = 20
-    6: { langs: ['pt-br'], type: 'quote', count: 1 },        // UTC 6:00 - PT-BR 16 = 16
-    8: { langs: ['en'], type: 'quote', count: 1 },           // UTC 8:00 - EN のみ 33×3 = 99（100/15min 厳守）
-    9: { langs: ['es', 'pt-br', 'ar', 'ja', 'ko'], type: 'quote', count: 1 }, // UTC 9:00 - 他5言語 各10、15分窓≤100
-    10: { langs: ['ja'], type: 'quote', count: 1 },          // UTC 10:00 - JA 10 = 10
-    12: { langs: ['en'], type: 'quote', count: 1, alsoFreeReport: ['en'] }, // UTC 12:00 - EN 35 + Free Report
-    15: { langs: ['es'], type: 'quote', count: 1, alsoFreeReport: ['es'] },  // UTC 15:00 - ES 20 + Free Report
-    16: { langs: ['ko'], type: 'quote', count: 1 },          // UTC 16:00 - KO 8 = 8
-    18: { langs: ['ar'], type: 'quote', count: 1, alsoFreeReport: ['ar'] },  // UTC 18:00 - AR 12 + Free Report
-    21: { langs: ['en'], type: 'quote', count: 1 },    // UTC 21:00 - EN のみ 33×3 = 99（100/15min 厳守）
-    22: { langs: ['en'], type: 'quote', count: 1 }, // UTC 22:00 - EN のみ 33×3 = 99（100/15min 厳守）
-    23: { langs: ['pt-br', 'es'], type: 'quote', count: 1 }, // UTC 23:00 - PT-BR+ES（20/22時から移動）
+    8: { langs: ['en', 'es', 'pt-br', 'ar'], type: 'quote', count: 1 },
+    9: { langs: ['ja', 'ko'], type: 'quote', count: 1 },
+    12: { langs: ['en', 'es', 'pt-br', 'ar'], type: 'quote', count: 1 },
+    13: { langs: ['ja', 'ko'], type: 'quote', count: 1 },
+    16: { langs: ['en', 'es', 'pt-br', 'ar'], type: 'quote', count: 1 },
+    17: { langs: ['ja', 'ko'], type: 'quote', count: 1 },
+    20: { langs: ['en', 'es', 'pt-br', 'ar'], type: 'quote', count: 1 },
+    21: { langs: ['ja', 'ko'], type: 'quote', count: 1 },
   };
-  
   return peakMap[hour] || { langs: [], type: null, count: 0 };
 }
 

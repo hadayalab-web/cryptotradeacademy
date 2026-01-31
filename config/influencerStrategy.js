@@ -2,37 +2,16 @@
 // 言語別インフルエンサー戦略設定（10万～20万インプレッション規模を目指す）
 
 /**
- * 言語別インフルエンサー数設定（投稿用）
- * 🚀 824人ストックを最大限活用: 1日1,000-1,200投稿を達成するための時価配分
- * - ピーク時間（UTC 0,1,20,21,22）: 多く投稿
- * - オフピーク時間（UTC 13,14）: 少なく投稿
- * 
- * 配分（1,000-1,200投稿/日、6分ごと実行 = 1日240回）:
- * - EN: 約400-500投稿/日 → 1回あたり35-40人（基本値、ピーク時間）
- * - ES: 約200-250投稿/日 → 1回あたり18-22人（基本値、ピーク時間）
- * - PT-BR: 約150-200投稿/日 → 1回あたり15-18人（基本値、ピーク時間）
- * - AR: 約100-150投稿/日 → 1回あたり10-15人（基本値、ピーク時間）
- * - JA: 約80-120投稿/日 → 1回あたり8-12人（基本値、ピーク時間）
- * - KO: 約60-100投稿/日 → 1回あたり6-10人（基本値、ピーク時間）
- * 
- * ストック数（実際）:
- * - EN: 210人 → 1人あたり約2回/日（最大限活用）
- * - ES: 168人 → 1人あたり約1.2-1.5回/日
- * - PT-BR: 158人 → 1人あたり約1-1.3回/日
- * - AR: 112人 → 1人あたり約1-1.3回/日
- * - JA: 98人 → 1人あたり約1-1.2回/日
- * - KO: 78人 → 1人あたり約1-1.3回/日
+ * 言語別インフルエンサー数設定（1回の実行あたりの引用リポスト数）
+ * TG直誘導廃止後の最適化: 品質優先、1日4回/言語 × 2〜4投稿/回 = 約48〜96引用リポスト/日
  */
 const INFLUENCER_COUNT_BY_LANG = {
-  // 英語: ピーク時間35-40人、オフピーク時間14-16人（1日1,000-1,200投稿達成）
-  en: parseInt(process.env.INFLUENCER_COUNT_EN || '35', 10), // ピーク時間用（オフピークは動的に調整）
-  
-  // その他言語: ピーク時間で配分（1,000-1,200投稿/日達成）
-  es: parseInt(process.env.INFLUENCER_COUNT_ES || '20', 10),   // 約200-250投稿/日
-  'pt-br': parseInt(process.env.INFLUENCER_COUNT_PT_BR || '16', 10), // 約150-200投稿/日
-  ar: parseInt(process.env.INFLUENCER_COUNT_AR || '12', 10),  // 約100-150投稿/日
-  ko: parseInt(process.env.INFLUENCER_COUNT_KO || '8', 10),   // 約60-100投稿/日
-  ja: parseInt(process.env.INFLUENCER_COUNT_JA || '10', 10),  // 約80-120投稿/日
+  en: parseInt(process.env.INFLUENCER_COUNT_EN || '4', 10),
+  es: parseInt(process.env.INFLUENCER_COUNT_ES || '3', 10),
+  'pt-br': parseInt(process.env.INFLUENCER_COUNT_PT_BR || '3', 10),
+  ar: parseInt(process.env.INFLUENCER_COUNT_AR || '2', 10),
+  ko: parseInt(process.env.INFLUENCER_COUNT_KO || '2', 10),
+  ja: parseInt(process.env.INFLUENCER_COUNT_JA || '2', 10),
 };
 
 /**
@@ -132,31 +111,14 @@ function getInfluencerCountForLang(lang, currentHour = null) {
   const normalizedLang = normalizeLang(lang);
   const baseCount = INFLUENCER_COUNT_BY_LANG[normalizedLang] || 1;
   
-  // 時価配分を考慮
+  // スケジュール最適化後: 1日4回/言語・品質優先のため baseCount をそのまま使用
   if (currentHour !== null) {
-    const hour = currentHour;
-    // 100/15min 厳守: 15分窓で100超にならないよう、多言語が重なる時間帯は人数を制限
-    if (hour === 0 && normalizedLang === 'en') return 33; // UTC0時: EN 33×3=99（ARは同窓で2回→0に）
-    if (hour === 0 && normalizedLang === 'ar') return 0;  // UTC0時: 同窓100超回避
-    if (hour === 1 && normalizedLang === 'en') return 33; // UTC1時: EN 33×3=99
-    if (hour === 1 && normalizedLang === 'ko') return 0;  // UTC1時: 同窓100超回避
-    if (hour === 2 && normalizedLang === 'en') return 33; // UTC2時: ENのみ 33×3=99
-    if (hour === 8 && normalizedLang === 'en') return 33; // UTC8時: ENのみ 33×3=99
-    if (hour === 9 && ['es', 'pt-br', 'ar', 'ja', 'ko'].includes(normalizedLang)) return 10; // UTC9時: 他5言語 各10
-    if (hour === 12 && normalizedLang === 'en') return 33; // UTC12時: ENのみ 33×3=99
-    if ([20, 21, 22].includes(hour) && normalizedLang === 'en') return 33; // UTC20-22時: ENのみ 33×3=99
-    const isPeakHour = HOURLY_DISTRIBUTION.peak.hours.includes(hour);
-    const isOffPeakHour = HOURLY_DISTRIBUTION.offPeak.hours.includes(hour);
-    
+    const isOffPeakHour = HOURLY_DISTRIBUTION.offPeak.hours.includes(currentHour);
     if (isOffPeakHour) {
-      // オフピーク時間: 通常の40%
       return Math.max(1, Math.floor(baseCount * HOURLY_DISTRIBUTION.offPeak.multiplier));
     }
-    // ピーク時間: 通常の投稿数
     return baseCount;
   }
-  
-  // 時刻が指定されていない場合は基本値を返す
   return baseCount;
 }
 

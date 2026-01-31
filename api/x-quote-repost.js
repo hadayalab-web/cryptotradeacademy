@@ -1,10 +1,11 @@
 // api/x-quote-repost.js
 // 引用リポスト自動化（Grokがインフルエンサー発掘 + 引用リポスト）
-// 24投稿/日（6言語 × 2人 × 2投稿）
+// 約48-96投稿/日（6言語×4回/日×2-4投稿/回、TG直誘導廃止後の最適化）
 
 const { postQuoteTweet, replyToTweet } = require('../services/x/client');
 const { getXConfigStatus } = require('../services/x/config');
 const { generateQuoteRepostText } = require('../services/grok/client');
+const { getOneRandomHeadlineTrap } = require('../config/headlineTraps');
 const {
   isPeakTimeWindow,
   shouldPostQuoteRepost,
@@ -148,155 +149,71 @@ function getTelegramDeepLinkWithSource(lang, source = 'x_quote', options = {}) {
   return deepLink;
 }
 
-// 言語別引用リポストテンプレート（Xアルゴリズム最適化版: 140文字以内）
-// x-post-free-report.jsからインポート、またはフォールバック用に定義
+// 言語別引用リポストテンプレート（魔改造: 歴史的ヘッドライン風・掴む/恐怖、140文字以内）
 const FALLBACK_QUOTE_REPOST_TEMPLATES = {
   en: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
-    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
-    const netflowStr = exchangeNetflow ? `Inflow +${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
     const whaleStr = whaleRatio ? `${whaleRatio}% whales = $${Math.floor((whaleRatio / 100) * 89000 * 1000)}M+ ready` : '';
-    
-    // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
+    const whopLink = `🔥 ${getWhopProductUrl('en')}?promo=DEFEND50`;
+    const headline = (getOneRandomHeadlineTrap && getOneRandomHeadlineTrap('en')) || 'They laughed. Then they cried.';
+    const hook = headline.length > 38 ? headline.slice(0, 35) + '…' : headline;
+
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
-      // P1 FIX: 外部リンクを1つに制限（Whop優先、freeLinkは削除）
-      const question = '🚨 CONTRADICTION: Low risk BUT whales positioning. What\'s your move? Reply!';
-      const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('en')}?promo=DEFEND50`;
-      return `Agree! Trap Score 0/100 BUT ${whaleStr} to sell. ${whopLink} ${question} #BTC #TrapDefence`;
+      const question = 'What\'s your move? Reply!';
+      const out = `${hook} Trap 0/100 BUT ${whaleStr}. ${whopLink} ${question} #BTC #TrapDefence`;
+      return out.length > 140 ? out.slice(0, 137) + '…' : out;
     }
-    
-    // Grok + Gemini統合: 質問CTA必須（アルゴリズム評価UP）
-    // オープンエンド質問でリプライ誘導、投稿の20-30%を占めず自然配置
-    const question = trapScore <= 25 
-      ? '🚀 What\'s your biggest fear in this market? Reply!' 
-      : '💥 Protecting capital or chasing? Reply!';
-    
-    // P1 FIX: 外部リンクを1つに制限（Whop優先、freeLinkは削除）
-    const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('en')}?promo=DEFEND50`;
-    
-    // ハッシュタグ: トレンド1個+ニッチ2個（3個超はスパム判定リスク）
-    // 絵文字: 3-5個（冒頭/区切り/末尾に視覚強調）
-    return `Agree! TrapDefence detected this 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
+
+    const question = trapScore <= 25 ? 'Your biggest fear? Reply!' : 'Protecting or chasing? Reply!';
+    const out = `${hook} Trap ${trapScore}/100. ${whopLink} ${question} #BTC #TrapDefence`;
+    return out.length > 140 ? out.slice(0, 137) + '…' : out;
   },
   ja: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
-    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
-    const whaleStr = whaleRatio ? `${whaleRatio}%クジラ = $${Math.floor((whaleRatio / 100) * 89000 * 1000)}M+ 準備完了` : '';
-    
-    // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
+    const whaleStr = whaleRatio ? `${whaleRatio}%クジラ準備` : '';
+    const whopLink = `🔥 ${getWhopProductUrl('ja')}?promo=DEFEND50`;
+    const headline = (getOneRandomHeadlineTrap && getOneRandomHeadlineTrap('ja')) || '彼らは笑った。それから泣いた。';
+    const hook = headline.length > 30 ? headline.slice(0, 27) + '…' : headline;
+
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
-      // P1 FIX: 外部リンクを1つに制限（Whop優先）
-      const question = '🚨 矛盾: 低リスクなのにクジラがポジショニング中。どうする？リプライ！';
-      const whopLink = `🔥 PRO 50%OFF (DEFEND50): ${getWhopProductUrl('ja')}?promo=DEFEND50`;
-      return `同意！Trap Score 0/100 なのに ${whaleStr} 売却準備中。${whopLink} ${question} #BTC #TrapDefence`;
+      const question = 'どうする？リプライ！';
+      const out = `${hook} Trap 0/100 なのに${whaleStr}。${whopLink} ${question} #BTC #TrapDefence`;
+      return out.length > 140 ? out.slice(0, 137) + '…' : out;
     }
-    
-    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
-    const question = trapScore <= 25 
-      ? '🚀 この市場で最も大きな恐怖は何ですか？リプライ！' 
-      : '💥 資本保護？それとも追いかけ中？リプライ！';
-    
-    // P1 FIX: 外部リンクを1つに制限（Whop優先）
-    const whopLink = `🔥 PRO 50%OFF (DEFEND50): ${getWhopProductUrl('ja')}?promo=DEFEND50`;
-    
-    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
-    return `同意！TrapDefenceで検知済み 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
+
+    const question = trapScore <= 25 ? '最大の恐怖は？リプライ！' : '保護？追いかけ？リプライ！';
+    const out = `${hook} Trap ${trapScore}/100。${whopLink} ${question} #BTC #TrapDefence`;
+    return out.length > 140 ? out.slice(0, 137) + '…' : out;
   },
   es: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
-    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
-    const whaleStr = whaleRatio ? `${whaleRatio}% ballenas = $${Math.floor((whaleRatio / 100) * 89000 * 1000)}M+ listas` : '';
-    
-    // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
-    if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
-      // P1 FIX: 外部リンクを1つに制限（Whop優先）
-      const question = '🚨 CONTRADICCIÓN: Bajo riesgo PERO ballenas posicionándose. ¿Cuál es tu movimiento? ¡Responde!';
-      const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('es')}?promo=DEFEND50`;
-      return `¡De acuerdo! Trap Score 0/100 PERO ${whaleStr} para vender. ${whopLink} ${question} #BTC #TrapDefence`;
-    }
-    
-    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
-    const question = trapScore <= 25 
-      ? '🚀 ¿Cuál es tu mayor miedo en este mercado? ¡Responde!' 
-      : '💥 ¿Protegiendo capital o persiguiendo? ¡Responde!';
-    
-    // P1 FIX: 外部リンクを1つに制限（Whop優先）
-    const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('es')}?promo=DEFEND50`;
-    
-    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
-    return `¡De acuerdo! TrapDefence detectó esto 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
+    const whopLink = `🔥 ${getWhopProductUrl('es')}?promo=DEFEND50`;
+    const headline = (getOneRandomHeadlineTrap && getOneRandomHeadlineTrap('es')) || 'They laughed. Then they cried.';
+    const hook = headline.length > 38 ? headline.slice(0, 35) + '…' : headline;
+    const question = trapScore <= 25 ? '¿Tu mayor miedo? ¡Responde!' : '¿Protegiendo o persiguiendo? ¡Responde!';
+    const out = `${hook} Trap ${trapScore}/100. ${whopLink} ${question} #BTC #TrapDefence`;
+    return out.length > 140 ? out.slice(0, 137) + '…' : out;
   },
   'pt-br': (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
-    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
-    const whaleStr = whaleRatio ? `${whaleRatio}% baleias = $${Math.floor((whaleRatio / 100) * 89000 * 1000)}M+ prontas` : '';
-    
-    // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
-    if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
-      // P1 FIX: 外部リンクを1つに制限（Whop優先）
-      const question = '🚨 CONTRADIÇÃO: Baixo risco MAS baleias se posicionando. Qual é sua jogada? Responda!';
-      const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('pt-br')}?promo=DEFEND50`;
-      return `Concordo! Trap Score 0/100 MAS ${whaleStr} para vender. ${whopLink} ${question} #BTC #TrapDefence`;
-    }
-    
-    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
-    const question = trapScore <= 25 
-      ? '🚀 Qual é o seu maior medo neste mercado? Responda!' 
-      : '💥 Protegendo capital ou perseguindo? Responda!';
-    
-    // P1 FIX: 外部リンクを1つに制限（Whop優先）
-    const whopLink = `🔥 PRO 50% OFF (DEFEND50): ${getWhopProductUrl('pt-br')}?promo=DEFEND50`;
-    
-    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
-    return `Concordo! TrapDefence detectou isso 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
+    const whopLink = `🔥 ${getWhopProductUrl('pt-br')}?promo=DEFEND50`;
+    const headline = (getOneRandomHeadlineTrap && getOneRandomHeadlineTrap('pt-br')) || 'They laughed. Then they cried.';
+    const hook = headline.length > 38 ? headline.slice(0, 35) + '…' : headline;
+    const question = trapScore <= 25 ? 'Seu maior medo? Responda!' : 'Protegendo ou perseguindo? Responda!';
+    const out = `${hook} Trap ${trapScore}/100. ${whopLink} ${question} #BTC #TrapDefence`;
+    return out.length > 140 ? out.slice(0, 137) + '…' : out;
   },
   ar: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
-    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
-    const whaleStr = whaleRatio ? `${whaleRatio}% حيتان = $${Math.floor((whaleRatio / 100) * 89000 * 1000)}M+ جاهزة` : '';
-    
-    // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
-    if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
-      const question = '🚨 تناقض: مخاطر منخفضة لكن الحيتان تتجهز. ما خطوتك؟ أجب!';
-      const whopLink = `🔥 PRO 50% خصم (DEFEND50): ${getWhopProductUrl('ar')}?promo=DEFEND50`;
-      const freeLink = `(مجاني: ${deepLink})`;
-      return `موافق! Trap Score 0/100 لكن ${whaleStr} للبيع. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
-    }
-    
-    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
-    const question = trapScore <= 25 
-      ? '🚀 ما هو أكبر خوفك في هذا السوق؟ أجب!' 
-      : '💥 هل تحمي رأس المال أم تطارد؟ أجب!';
-    
-    // P1 FIX: 外部リンクを1つに制限（Whop優先）
-    const whopLink = `🔥 PRO 50% خصم (DEFEND50): ${getWhopProductUrl('ar')}?promo=DEFEND50`;
-    
-    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
-    return `موافق! TrapDefence اكتشف هذا 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
+    const whopLink = `🔥 ${getWhopProductUrl('ar')}?promo=DEFEND50`;
+    const headline = (getOneRandomHeadlineTrap && getOneRandomHeadlineTrap('ar')) || 'They laughed. Then they cried.';
+    const hook = headline.length > 38 ? headline.slice(0, 35) + '…' : headline;
+    const question = trapScore <= 25 ? 'أكبر خوفك؟ أجب!' : 'تحمي أم تطارد؟ أجب!';
+    const out = `${hook} Trap ${trapScore}/100. ${whopLink} ${question} #BTC #TrapDefence`;
+    return out.length > 140 ? out.slice(0, 137) + '…' : out;
   },
   ko: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
-    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
-    const whaleStr = whaleRatio ? `${whaleRatio}% 고래 = $${Math.floor((whaleRatio / 100) * 89000 * 1000)}M+ 준비됨` : '';
-    
-    // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
-    if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
-      // P1 FIX: 外部リンクを1つに制限（Whop優先）
-      const question = '🚨 모순: 낮은 리스크인데 고래가 포지셔닝 중. 어떻게 하시겠습니까? 답글!';
-      const whopLink = `🔥 PRO 50% 할인 (DEFEND50): ${getWhopProductUrl('ko')}?promo=DEFEND50`;
-      return `동의! Trap Score 0/100 인데 ${whaleStr} 매도 준비 중. ${whopLink} ${question} #BTC #TrapDefence`;
-    }
-    
-    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
-    const question = trapScore <= 25 
-      ? '🚀 이 시장에서 가장 큰 두려움은 무엇인가요? 답글!' 
-      : '💥 자본 보호 중인가요? 추격 중인가요? 답글!';
-    
-    // P1 FIX: 外部リンクを1つに制限（Whop優先）
-    const whopLink = `🔥 PRO 50% 할인 (DEFEND50): ${getWhopProductUrl('ko')}?promo=DEFEND50`;
-    
-    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
-    return `동의! TrapDefence가 이것을 감지했습니다 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
+    const whopLink = `🔥 ${getWhopProductUrl('ko')}?promo=DEFEND50`;
+    const headline = (getOneRandomHeadlineTrap && getOneRandomHeadlineTrap('ko')) || '그들은 웃었다. 그다음 울었다.';
+    const hook = headline.length > 30 ? headline.slice(0, 27) + '…' : headline;
+    const question = trapScore <= 25 ? '가장 큰 두려움? 답글!' : '보호? 추격? 답글!';
+    const out = `${hook} Trap ${trapScore}/100. ${whopLink} ${question} #BTC #TrapDefence`;
+    return out.length > 140 ? out.slice(0, 137) + '…' : out;
   },
 };
 
@@ -714,7 +631,7 @@ function getQuoteRepostThreadReplyTexts(lang, replyCount, minimalLink) {
 
 /**
  * インフルエンサーを発掘して引用リポスト（最適化版）
- * Grok推奨: 12投稿/日、ピーク時間のみ、投稿後15-60分以内
+ * 最適化: 1日4回/言語・品質優先（約48-96引用リポスト/日）
  */
 async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount = null, runId = null, deadlineMs = null) {
   // P0: 言語単位で例外を握りつぶさず、どのステップで落ちたかをログに残す
