@@ -6,7 +6,7 @@ const { postTweet, replyToTweet } = require('../services/x/client');
 const { getXConfigStatus } = require('../services/x/config');
 const { getTweetMetrics } = require('../services/x/metrics');
 const { getOptimizedHashtags, getDailyPostCount, incrementDailyPostCount } = require('../services/x/optimization');
-const { getWhopProductUrl } = require('../services/telegram/whop-links');
+const { getWhopProductUrl, getMinimalVersionCheckoutUrl } = require('../services/telegram/whop-links');
 
 // 無料版（Minimal Version）メッセージ生成関数をインポート
 const { formatMinimalHighQualityBriefing } = require('../services/telegram/messages/user/en/minimal-high-quality.en');
@@ -263,8 +263,19 @@ async function postMinimalVersionToX(targetLangs, reportData) {
         lang: normalizedLang,
       });
       
-      // Deep Linkを追加
+      // 無料版（Minimal Version）導線: Whopチェックアウト経由に統一（TG直接誘導しない）
       const deepLink = getTelegramDeepLinkWithSource(normalizedLang, 'x_minimal');
+      const minimalCheckoutUrl = getMinimalVersionCheckoutUrl(normalizedLang, {
+        source: 'x_minimal',
+        medium: 'social',
+        campaign: 'minimal_version',
+      });
+      const freeCtaLink = minimalCheckoutUrl || deepLink; // Whop優先、未設定時のみt.me
+      if (minimalCheckoutUrl) {
+        console.log(`[X Post Minimal] 無料版CTA: Whopチェックアウト経由 (${normalizedLang})`);
+      } else {
+        console.log(`[X Post Minimal] 無料版CTA: Whop未設定のためt.meフォールバック (${normalizedLang})`);
+      }
       
       // Grok推奨: エンゲージメントCTAを追加
       const engagementCTAs = {
@@ -290,24 +301,24 @@ async function postMinimalVersionToX(targetLangs, reportData) {
       // A/Bテスト: 50%の確率でCTAバリエーションを切り替え
       const useWhopFirst = Math.random() < 0.5;
       
-      // Whop優先CTA（直接コンバージョン重視）
+      // Whop優先CTA（無料版はWhopチェックアウト経由に統一）
       const whopFirstCTAs = {
-        en: `🔥 UPGRADE NOW: PRO Access (50% OFF DEFEND50)\n💎 Unlock Full Access + Alerts: ${whopLinkWithPromo}\n🚨 Limited Time: DEFEND50 code expires soon!\n\n(Or free daily score: ${deepLink})`,
-        ja: `🔥 今すぐアップグレード: PRO版アクセス（50%OFF DEFEND50）\n💎 フルアクセス+アラート解除: ${whopLinkWithPromo}\n🚨 期間限定: DEFEND50コードはまもなく期限切れ！\n\n（または無料日次スコア: ${deepLink}）`,
-        es: `🔥 ACTUALIZA AHORA: Acceso PRO (50% OFF DEFEND50)\n💎 Desbloquea Acceso Completo + Alertas: ${whopLinkWithPromo}\n🚨 Tiempo Limitado: ¡Código DEFEND50 expira pronto!\n\n(O score diario gratis: ${deepLink})`,
-        'pt-br': `🔥 UPGRADE AGORA: Acesso PRO (50% OFF DEFEND50)\n💎 Desbloqueie Acesso Completo + Alertas: ${whopLinkWithPromo}\n🚨 Tempo Limitado: Código DEFEND50 expira em breve!\n\n(Ou score diário grátis: ${deepLink})`,
-        ar: `🔥 ترقية الآن: الوصول PRO (50% خصم DEFEND50)\n💎 فك قفل الوصول الكامل + التنبيهات: ${whopLinkWithPromo}\n🚨 وقت محدود: كود DEFEND50 ينتهي قريباً!\n\n(أو النتيجة اليومية المجانية: ${deepLink})`,
-        ko: `🔥 지금 업그레이드: PRO 액세스 (50% 할인 DEFEND50)\n💎 전체 액세스+알림 잠금 해제: ${whopLinkWithPromo}\n🚨 제한 시간: DEFEND50 코드 곧 만료!\n\n(또는 무료 일일 스코어: ${deepLink})`,
+        en: `🔥 UPGRADE NOW: PRO Access (50% OFF DEFEND50)\n💎 Unlock Full Access + Alerts: ${whopLinkWithPromo}\n🚨 Limited Time: DEFEND50 code expires soon!\n\n(Or free daily score: ${freeCtaLink})`,
+        ja: `🔥 今すぐアップグレード: PRO版アクセス（50%OFF DEFEND50）\n💎 フルアクセス+アラート解除: ${whopLinkWithPromo}\n🚨 期間限定: DEFEND50コードはまもなく期限切れ！\n\n（または無料日次スコア: ${freeCtaLink}）`,
+        es: `🔥 ACTUALIZA AHORA: Acceso PRO (50% OFF DEFEND50)\n💎 Desbloquea Acceso Completo + Alertas: ${whopLinkWithPromo}\n🚨 Tiempo Limitado: ¡Código DEFEND50 expira pronto!\n\n(O score diario gratis: ${freeCtaLink})`,
+        'pt-br': `🔥 UPGRADE AGORA: Acesso PRO (50% OFF DEFEND50)\n💎 Desbloqueie Acesso Completo + Alertas: ${whopLinkWithPromo}\n🚨 Tempo Limitado: Código DEFEND50 expira em breve!\n\n(Ou score diário grátis: ${freeCtaLink})`,
+        ar: `🔥 ترقية الآن: الوصول PRO (50% خصم DEFEND50)\n💎 فك قفل الوصول الكامل + التنبيهات: ${whopLinkWithPromo}\n🚨 وقت محدود: كود DEFEND50 ينتهي قريباً!\n\n(أو النتيجة اليومية المجانية: ${freeCtaLink})`,
+        ko: `🔥 지금 업그레이드: PRO 액세스 (50% 할인 DEFEND50)\n💎 전체 액세스+알림 잠금 해제: ${whopLinkWithPromo}\n🚨 제한 시간: DEFEND50 코드 곧 만료!\n\n(또는 무료 일일 스코어: ${freeCtaLink})`,
       };
       
-      // Telegram優先CTA（リスト収集重視）
+      // 無料版ファーストCTA（無料版はWhopチェックアウト経由に統一）
       const telegramFirstCTAs = {
-        en: `📱 Get FREE Daily Trap Score: ${deepLink}\n\n💎 Want PRO Access? 50% OFF with DEFEND50: ${whopLinkWithPromo}`,
-        ja: `📱 無料日次Trap Scoreを取得: ${deepLink}\n\n💎 PRO版アクセスが欲しい？DEFEND50で50%OFF: ${whopLinkWithPromo}`,
-        es: `📱 Obtén Trap Score Diario GRATIS: ${deepLink}\n\n💎 ¿Quieres Acceso PRO? 50% OFF con DEFEND50: ${whopLinkWithPromo}`,
-        'pt-br': `📱 Obtenha Trap Score Diário GRÁTIS: ${deepLink}\n\n💎 Quer Acesso PRO? 50% OFF com DEFEND50: ${whopLinkWithPromo}`,
-        ar: `📱 احصل على Trap Score اليومي المجاني: ${deepLink}\n\n💎 تريد الوصول PRO؟ خصم 50% مع DEFEND50: ${whopLinkWithPromo}`,
-        ko: `📱 무료 일일 Trap Score 받기: ${deepLink}\n\n💎 PRO 액세스 원하세요? DEFEND50으로 50% 할인: ${whopLinkWithPromo}`,
+        en: `📱 Get FREE Daily Trap Score: ${freeCtaLink}\n\n💎 Want PRO Access? 50% OFF with DEFEND50: ${whopLinkWithPromo}`,
+        ja: `📱 無料日次Trap Scoreを取得: ${freeCtaLink}\n\n💎 PRO版アクセスが欲しい？DEFEND50で50%OFF: ${whopLinkWithPromo}`,
+        es: `📱 Obtén Trap Score Diario GRATIS: ${freeCtaLink}\n\n💎 ¿Quieres Acceso PRO? 50% OFF con DEFEND50: ${whopLinkWithPromo}`,
+        'pt-br': `📱 Obtenha Trap Score Diário GRÁTIS: ${freeCtaLink}\n\n💎 Quer Acesso PRO? 50% OFF com DEFEND50: ${whopLinkWithPromo}`,
+        ar: `📱 احصل على Trap Score اليومي المجاني: ${freeCtaLink}\n\n💎 تريد الوصول PRO؟ خصم 50% مع DEFEND50: ${whopLinkWithPromo}`,
+        ko: `📱 무료 일일 Trap Score 받기: ${freeCtaLink}\n\n💎 PRO 액세스 원하세요? DEFEND50으로 50% 할인: ${whopLinkWithPromo}`,
       };
       
       // 時間帯別の最適化: ピーク時間はWhop優先、オフピーク時間はTelegram優先
@@ -344,18 +355,17 @@ async function postMinimalVersionToX(targetLangs, reportData) {
         hashtags = defaultHashtags[normalizedLang] || defaultHashtags.en;
       }
       
-      // Grok推奨: 最初のツイートを強力なフック + Deep Link + ハッシュタグ
-      // 重要: 最初のツイートにDeep Linkを含めてオプトインを最大化
-      const firstTweetDeepLinkCTAs = {
-        en: `Get FREE Report: ${deepLink}`,
-        ja: `無料レポートを取得: ${deepLink}`,
-        es: `Obtén Reporte GRATIS: ${deepLink}`,
-        'pt-br': `Obtenha Relatório GRÁTIS: ${deepLink}`,
-        ar: `احصل على تقرير مجاني: ${deepLink}`,
-        ko: `무료 리포트 받기: ${deepLink}`,
+      // Grok推奨: 最初のツイートを強力なフック + 無料版CTA（Whopチェックアウト経由に統一）
+      const firstTweetCTAs = {
+        en: `Get FREE Report: ${freeCtaLink}`,
+        ja: `無料レポートを取得: ${freeCtaLink}`,
+        es: `Obtén Reporte GRATIS: ${freeCtaLink}`,
+        'pt-br': `Obtenha Relatório GRÁTIS: ${freeCtaLink}`,
+        ar: `احصل على تقرير مجاني: ${freeCtaLink}`,
+        ko: `무료 리포트 받기: ${freeCtaLink}`,
       };
-      const firstTweetDeepLinkCTA = firstTweetDeepLinkCTAs[normalizedLang] || firstTweetDeepLinkCTAs.en;
-      const firstTweet = `${hookMessage}\n\n${firstTweetDeepLinkCTA}\n\n${hashtags}`;
+      const firstTweetCTA = firstTweetCTAs[normalizedLang] || firstTweetCTAs.en;
+      const firstTweet = `${hookMessage}\n\n${firstTweetCTA}\n\n${hashtags}`;
       
       // 残りのメッセージをスレッド形式に分割
       const threadChunks = splitTextForThread(structuredMessage, 280);

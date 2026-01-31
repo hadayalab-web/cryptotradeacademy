@@ -1,4 +1,4 @@
-// Tier1 BTC trap alert (JP)
+// Tier1 BTC trap alert (JA) - 緊急配信: 面白く・刺さるコンテンツ（Grok + Gemini 1ライナー）
 // services/telegram/messages/user/ja/emergency.ja.js
 
 function formatUsd(v) {
@@ -6,13 +6,22 @@ function formatUsd(v) {
   return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
-function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
-  const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
+function formatTrapAlert({
+  inflow,
+  mpi,
+  priceUsd,
+  trap,
+  aiAnalysis,
+  grokReasoningShort = null,
+  geminiInsightShort = null,
+  trapDetection = null,
+} = {}) {
+  const flowDir = inflow >= 0 ? '流入' : '流出';
   const flowAbs = Math.abs(inflow || 0);
 
-  const trapLabel = trap?.label || 'Whale Trap';
-  // BUY/SELL/LONG/SHORTは完全削除 - トラップ検知のみ表示
-  const trapSide = '⚠️ 相場上にトラップが検知されています。';
+  const trapLabel = trap?.label || trapDetection?.trapType || 'クジラの罠';
+  const trapScoreDisplay =
+    trapDetection?.trapScore != null ? `Trap Score *${Math.round(trapDetection.trapScore)}/100*` : '';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -20,22 +29,33 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
 
   const GROK_LIMIT = 260;
   if (!grokText) {
-    grokText = '高リスク局面です。レバレッジを落とし、防御を最優先してください。';
+    grokText = '高リスク局面です。防御を最優先し、感情的なエントリーは避けてください。';
   } else if (isOffline) {
-    grokText = '現在Grokはオフラインです。この価格帯は「ハイリスク・トラップゾーン」として扱ってください。';
+    grokText = 'Grokはオフラインです。この価格帯はハイリスク・トラップゾーンとして扱ってください。';
   } else if (grokText.length > GROK_LIMIT) {
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
   const lines = [];
-  lines.push('🚨 *Dr. Grok トラップアラート*');
-  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} 信頼度)`);
+  lines.push('🚨 *トラップアラート — 今がその瞬間です。*');
+  lines.push(`*${trapLabel}* ${trapScoreDisplay ? `| ${trapScoreDisplay}` : ''} (${trap?.confidence || 'HIGH'} 信頼度)`);
   lines.push('');
-  lines.push(`💰 BTC 現在価格: *${formatUsd(priceUsd)}*`);
-  lines.push(`📊 取引所ネットフロー: *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`);
+  lines.push(`💰 BTC: *${formatUsd(priceUsd)}* | 📊 ネットフロー *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI *${(mpi ?? 0).toFixed(2)}*`);
   lines.push('');
-  lines.push(trapSide);
 
+  if (grokReasoningShort && typeof grokReasoningShort === 'string' && grokReasoningShort.trim()) {
+    lines.push('⚡ *今なぜ危険か:*');
+    lines.push(grokReasoningShort.trim());
+    lines.push('');
+  }
+
+  if (geminiInsightShort && typeof geminiInsightShort === 'string' && geminiInsightShort.trim()) {
+    lines.push('🎯 *今やること:*');
+    lines.push(geminiInsightShort.trim());
+    lines.push('');
+  }
+
+  lines.push('⚠️ *トラップ検知* — 追いかけない。スコアが落ち着くまで sidelines で待機。');
   if (trap?.note) lines.push(`• ${trap.note}`);
   if (trap?.hint) lines.push(`• ${trap.hint}`);
 

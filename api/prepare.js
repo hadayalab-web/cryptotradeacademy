@@ -356,49 +356,45 @@ module.exports = async function handler(req, res) {
     // 後方互換性のため、aiAnalysisにGPT解析結果を設定
     let aiAnalysis = gptAnalysis;
 
-    // 8. Gemini画像生成（無効化）
-    // P0 FIX: Vercelの60秒タイムアウト制限により動作しないため削除
-    // - Nano Banana: 画像生成APIが時間がかかり、タイムアウトの可能性が高い
+    // 8. Gemini画像生成
     let imageUrl = null;
-    // try {
-    //   logger.info('Generating market image');
-    //   imageUrl = await generateMarketImage(snapshot, LANG);
-    //   if (imageUrl) {
-    //     logger.info('Image generated successfully', {
-    //       imageUrlLength: imageUrl.length,
-    //     });
-    //   } else {
-    //     logger.warn('Image generation returned null');
-    //   }
-    // } catch (error) {
-    //   logger.warn('Image generation failed', {
-    //     error: error?.message,
-    //     stack: error?.stack?.substring(0, 200),
-    //   });
-    // }
+    try {
+      logger.info('Generating market image');
+      imageUrl = await generateMarketImage(snapshot, LANG);
+      if (imageUrl) {
+        logger.info('Image generated successfully', {
+          imageUrlLength: imageUrl.length,
+        });
+      } else {
+        logger.warn('Image generation returned null');
+      }
+    } catch (error) {
+      logger.warn('Image generation failed', {
+        error: error?.message,
+        stack: error?.stack?.substring(0, 200),
+      });
+    }
 
-    // 9. Gemini動画生成（無効化）
-    // P0 FIX: Vercelの60秒タイムアウト制限により動作しないため削除
-    // - Veo: ポーリングが最大600秒（10分）かかるため、Vercelでは使用不可能
+    // 9. Gemini動画生成（AIキャスター）
     let videoUrl = null;
-    // if (aiAnalysis) {
-    //   try {
-    //     logger.info('Generating market video (AI caster)');
-    //     videoUrl = await generateMarketVideo(snapshot, aiAnalysis, LANG);
-    //     if (videoUrl) {
-    //       logger.info('Video generated successfully', {
-    //         videoUrlLength: videoUrl.length,
-    //       });
-    //     } else {
-    //       logger.warn('Video generation returned null');
-    //     }
-    //   } catch (error) {
-    //     logger.warn('Video generation failed', {
-    //       error: error?.message,
-    //       stack: error?.stack?.substring(0, 200),
-    //     });
-    //   }
-    // }
+    if (aiAnalysis) {
+      try {
+        logger.info('Generating market video (AI caster)');
+        videoUrl = await generateMarketVideo(snapshot, aiAnalysis, LANG);
+        if (videoUrl) {
+          logger.info('Video generated successfully', {
+            videoUrlLength: videoUrl.length,
+          });
+        } else {
+          logger.warn('Video generation returned null');
+        }
+      } catch (error) {
+        logger.warn('Video generation failed', {
+          error: error?.message,
+          stack: error?.stack?.substring(0, 200),
+        });
+      }
+    }
 
     // 10. コンテンツをVercel KVに保存
     // GPT解析結果とGrok X解析結果の両方を保存

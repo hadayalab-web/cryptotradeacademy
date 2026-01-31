@@ -79,6 +79,9 @@ function formatRegularBriefing({
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
   // GrokとGeminiの統合最適化結果
   integratedOptimization, // Grok Xアルゴリズム解析 × Gemini深層心理解析の統合結果
+  // SoSoValue風記事 + Grok推論（有料版メインコンテンツ）
+  sosovalueArticle = null, // Gemini生成のSoSoValue風オンチェーン記事（優先表示）
+  grokReasoning = null, // Grok 4.1の推論チェーン（なぜSTANDBY/AVOIDか）
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -268,9 +271,9 @@ function formatRegularBriefing({
   
   // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
   
-  // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
+  // メイン記事: SoSoValue風（Gemini）を優先、なければGPTリポーター分析
   // エラーメッセージやnullの場合は、フォールバック処理
-  let gptNewsText = gptReporterAnalysis || aiAnalysis || null;
+  let gptNewsText = sosovalueArticle || gptReporterAnalysis || aiAnalysis || null;
   
   // エラーメッセージを検出（API error, unavailable, error等のキーワード）
   if (gptNewsText && typeof gptNewsText === 'string') {
@@ -596,6 +599,22 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
   // 【解説】GPTリポーターの詳細解説（既にオープニングで表示済みの場合は省略）
   // 必要に応じて追加の解説セクションをここに追加可能
   
+  // 【Grok推論】Grok 4.1 Fast Reasoningの推論チェーン（なぜSTANDBY/AVOIDか）
+  if (grokReasoning && typeof grokReasoning === 'string' && grokReasoning.trim()) {
+    const grokReasoningLimit = 800;
+    let grokReasoningDisplay = grokReasoning.trim();
+    if (grokReasoningDisplay.length > grokReasoningLimit) {
+      grokReasoningDisplay = grokReasoningDisplay.slice(0, grokReasoningLimit) + '…';
+    }
+    if (!/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(grokReasoningDisplay)) {
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push('🧠 Grok\'s Reasoning (Why this verdict)');
+      lines.push('━━━━━━━━━━━━━━━━━━━━');
+      lines.push(grokReasoningDisplay);
+      lines.push('');
+    }
+  }
+  
   // 【コメンテーター】Dr. Grokメンタルコーチ（固定コーナー）
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('💊 Dr. Grok\'s Quick Insight');
@@ -866,9 +885,9 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
   lines.push('✅ NO TRADE alerts (avoid losses before they happen)');
   lines.push('');
   lines.push('📊 Deep Intelligence Analysis:');
-  lines.push('✅ Complete on-chain analysis (CryptoQuant data, all indicators)');
-  lines.push('✅ AI-powered trap pattern detection (24/7 monitoring)');
-  lines.push('✅ Real-time X sentiment analysis (predict market emotions)');
+  lines.push('✅ SoSoValue-style on-chain article (data + historical parallels, no fluff signals)');
+  lines.push('✅ Grok\'s reasoning chain (why STANDBY/AVOID—X algo + on-chain divergence)');
+  lines.push('✅ Complete CryptoQuant data, trap pattern detection, X sentiment');
   lines.push('');
   lines.push('💊 Full Psychological Support:');
   lines.push('✅ Dr. Grok\'s mental coaching (overcome FOMO, FEAR, GREED)');

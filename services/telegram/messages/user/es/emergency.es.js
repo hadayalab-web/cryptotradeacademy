@@ -1,4 +1,4 @@
-// Tier1 BTC trap alert (ES)
+// Tier1 BTC trap alert (ES) - 緊急配信: 面白く・刺さるコンテンツ（Grok + Gemini 1ライナー）
 // services/telegram/messages/user/es/emergency.es.js
 
 function formatUsd(v) {
@@ -6,13 +6,22 @@ function formatUsd(v) {
   return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
-function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
-  const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
+function formatTrapAlert({
+  inflow,
+  mpi,
+  priceUsd,
+  trap,
+  aiAnalysis,
+  grokReasoningShort = null,
+  geminiInsightShort = null,
+  trapDetection = null,
+} = {}) {
+  const flowDir = inflow >= 0 ? 'Entrada' : 'Salida';
   const flowAbs = Math.abs(inflow || 0);
 
-  const trapLabel = trap?.label || 'Whale Trap';
-  // BUY/SELL/LONG/SHORT completamente eliminado - solo se muestra la detección de trampa
-  const trapSide = '⚠️ Trampa detectada';
+  const trapLabel = trap?.label || trapDetection?.trapType || 'Trampa de ballenas';
+  const trapScoreDisplay =
+    trapDetection?.trapScore != null ? `Trap Score *${Math.round(trapDetection.trapScore)}/100*` : '';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -20,22 +29,33 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
 
   const GROK_LIMIT = 260;
   if (!grokText) {
-    grokText = 'Zona de alto riesgo. Reduce exposición y evita entradas impulsivas.';
+    grokText = 'Zona de alto riesgo. Prioriza defensa y evita entradas emocionales.';
   } else if (isOffline) {
-    grokText = 'Grok está offline; trata esta zona como una trampa de alto riesgo.';
+    grokText = 'Grok está offline; trata esta zona como trampa de alto riesgo.';
   } else if (grokText.length > GROK_LIMIT) {
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
   const lines = [];
-  lines.push('🚨 *Alerta de trampa de Dr. Grok*');
-  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} confianza)`);
+  lines.push('🚨 *ALERTA DE TRAMPA — Este es el momento.*');
+  lines.push(`*${trapLabel}* ${trapScoreDisplay ? `| ${trapScoreDisplay}` : ''} (${trap?.confidence || 'HIGH'} confianza)`);
   lines.push('');
-  lines.push(`💰 Precio BTC: *${formatUsd(priceUsd)}*`);
-  lines.push(`📊 Flujo neto de exchanges: *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`);
+  lines.push(`💰 BTC: *${formatUsd(priceUsd)}* | 📊 Netflow *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI *${(mpi ?? 0).toFixed(2)}*`);
   lines.push('');
-  lines.push(trapSide);
 
+  if (grokReasoningShort && typeof grokReasoningShort === 'string' && grokReasoningShort.trim()) {
+    lines.push('⚡ *Por qué ahora:*');
+    lines.push(grokReasoningShort.trim());
+    lines.push('');
+  }
+
+  if (geminiInsightShort && typeof geminiInsightShort === 'string' && geminiInsightShort.trim()) {
+    lines.push('🎯 *Tu jugada:*');
+    lines.push(geminiInsightShort.trim());
+    lines.push('');
+  }
+
+  lines.push('⚠️ *Trampa detectada* — No persigas. Quédate al margen hasta que el score confirme.');
   if (trap?.note) lines.push(`• ${trap.note}`);
   if (trap?.hint) lines.push(`• ${trap.hint}`);
 

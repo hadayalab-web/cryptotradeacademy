@@ -2,13 +2,14 @@
 // 引用リポスト自動化（Grokがインフルエンサー発掘 + 引用リポスト）
 // 24投稿/日（6言語 × 2人 × 2投稿）
 
-const { postQuoteTweet } = require('../services/x/client');
+const { postQuoteTweet, replyToTweet } = require('../services/x/client');
 const { getXConfigStatus } = require('../services/x/config');
 const { generateQuoteRepostText } = require('../services/grok/client');
 const {
   isPeakTimeWindow,
   shouldPostQuoteRepost,
   getOptimizedHashtags,
+  getThreadStrategy,
   // getDailyPostCount と incrementDailyPostCount は services/x/influencerRotation から統一実装を使用
 } = require('../services/x/optimization');
 const { QUOTE_REPOST_TEMPLATES } = require('./x-post-free-report');
@@ -529,7 +530,7 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
       // Grok-Code-Fast-1推奨: タイムアウトリスクが高い場合は最適化処理をスキップ（60秒→30秒に短縮）
       const remainingTime = deadlineMs ? deadlineMs - Date.now() : Infinity;
       const OPTIMIZATION_TIMEOUT_MS = 15000; // 15秒
-      const MIN_REMAINING_TIME_FOR_OPTIMIZATION = 30000; // P0 FIX: 30秒以上残っていれば実行（Grok推奨）
+      const MIN_REMAINING_TIME_FOR_OPTIMIZATION = 15000; // 監査対応: 15秒以上残っていれば実行（最適化スキップ緩和）
       
       // デフォルトでnull（最適化なし）- フォールバック処理で続行
       optimizationStrategy = null;
@@ -582,7 +583,7 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
       regularBriefingWhopUrl, // Funnel 2用: 有料版（Regular Briefing）Whop URL
       minimalCheckoutUrl // 無料版（Minimal Version）チェックアウトリンク（オプション）
     );
-    return quoteText;
+    return { quoteText, optimizationStrategy };
   } catch (error) {
     console.error(`[Quote Repost] Failed to generate text with Grok for ${lang}:`, error.message);
     // フォールバック: テンプレートを使用（FALLBACK_QUOTE_REPOST_TEMPLATESを使用）
@@ -622,11 +623,86 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
         ko: ` 전체 분석 보기: ${minimalVersionPostUrl}`,
       };
       const minimalLinkText = minimalLinkTexts[lang] || minimalLinkTexts.en;
-      return baseText + minimalLinkText;
+      return { quoteText: baseText + minimalLinkText, optimizationStrategy: null };
     }
     
-    return baseText;
+    return { quoteText: baseText, optimizationStrategy: null };
   }
+}
+
+/**
+ * 監査対応: 質問CTAのコード保証。投稿前に ? が末尾50文字以内にない場合はデフォルトCTAを付与
+ * @param {string} quoteText - 引用リポスト本文
+ * @param {string} lang - 言語コード
+ * @returns {string} 質問CTAを保証した本文（140文字で切り詰める場合あり）
+ */
+function ensureQuestionCTA(quoteText, lang) {
+  if (!quoteText || typeof quoteText !== 'string') return quoteText;
+  const last50 = quoteText.slice(-50);
+  if (last50.includes('?')) return quoteText;
+  const defaultCTA = {
+    en: ' What\'s your take? Reply!',
+    ja: ' どう思う？リプライ！',
+    es: ' ¿Qué opinas? ¡Responde!',
+    'pt-br': ' O que acha? Responda!',
+    ar: ' ما رأيك؟ رد!',
+    ko: ' 어떻게 생각해? 답글 달아줘!',
+  };
+  const cta = defaultCTA[normalizeLang(lang)] || defaultCTA.en;
+  let out = (quoteText.trim() + cta).trim();
+  if (out.length > 140) {
+    const linkMatch = out.match(/(https?:\/\/[^\s]+)/);
+    const linkPart = linkMatch ? linkMatch[1] : '';
+    const reserved = linkPart.length + cta.length + 5;
+    if (140 - reserved > 20) {
+      out = out.substring(0, 140 - reserved).trim() + ' ' + linkPart + cta;
+    } else {
+      out = (linkPart + cta).trim();
+    }
+    if (out.length > 140) out = out.substring(0, 137) + '...';
+  }
+  return out;
+}
+
+// 引用リポスト画像付与は廃止（NanoBanana/Veo 不安定のため）。無料版・有料版のテキスト引用のみ。
+
+/** 監査対応: スレッドリプライ用テキスト（1メイン + replyCount リプライ） */
+function getQuoteRepostThreadReplyTexts(lang, replyCount, minimalLink) {
+  const link = minimalLink || '';
+  const templates = {
+    en: [
+      `Get full report 👇 ${link}`.trim(),
+      'Part 2/4: Key levels & flow. #BTC #TrapDefence',
+      "What's your take? Reply with your level!",
+    ],
+    ja: [
+      `詳細レポートはこちら 👇 ${link}`.trim(),
+      'Part 2/4: 重要レベルとフロー。 #BTC #TrapDefence',
+      'あなたの見解は？レベルをリプライで！',
+    ],
+    es: [
+      `Reporte completo 👇 ${link}`.trim(),
+      'Parte 2/4: Niveles y flujo. #BTC #TrapDefence',
+      '¿Tu opinión? ¡Responde con tu nivel!',
+    ],
+    'pt-br': [
+      `Relatório completo 👇 ${link}`.trim(),
+      'Parte 2/4: Níveis e fluxo. #BTC #TrapDefence',
+      'Sua opinião? Responda com seu nível!',
+    ],
+    ar: [
+      `التقرير الكامل 👇 ${link}`.trim(),
+      'الجزء 2/4: المستويات والتدفق. #BTC #TrapDefence',
+      'رأيك؟ رد بمستواك!',
+    ],
+    ko: [
+      `전체 보고서 👇 ${link}`.trim(),
+      'Part 2/4: 주요 구간과 유입. #BTC #TrapDefence',
+      '의견 남겨줘! 레벨 알려줘!',
+    ],
+  };
+  const arr = templates[normalizeLang(lang)] || templates.en;
+  return arr.slice(0, Math.max(0, replyCount)).map((t, i) => (t.length > 280 ? t.substring(0, 277) + '...' : t));
 }
 
 /**
@@ -1090,6 +1166,7 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         const isDryRun = xStatusForTextGen.dryRun;
         
         let quoteText;
+        let optimizationStrategyFromGen = null;
         if (isDryRun) {
           // P0 FIX: dry-runモード: 超高速フォールバックテキストを使用（すべてのAPI呼び出しをスキップ）
           console.log(`[Quote Repost] 🧪 Dry-run mode: Using ultra-fast fallback text for @${influencer.username} (skipping all API calls) [runId: ${langRunId}]`);
@@ -1144,11 +1221,13 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           
           try {
             // P0 FIX: GPT-5-mini推奨 - generateQuoteRepostTextWithGrokに10秒のタイムアウトを設定
-            quoteText = await withTimeout(
+            const grokResult = await withTimeout(
               generateQuoteRepostTextWithGrok(lang, influencer, reportData, deadlineMs, langRunId),
               10000, // 10秒タイムアウト（GPT-5-mini推奨: テキスト生成は最大10s待つ）
               () => console.warn(`[Quote Repost] ⏰ generateQuoteRepostTextWithGrok timeout after 10s for @${influencer.username} [runId: ${langRunId}]`)
             );
+            quoteText = grokResult.quoteText;
+            optimizationStrategyFromGen = grokResult.optimizationStrategy || null;
           } catch (error) {
             // フォールバック: Xアルゴリズム最適化版テンプレートを使用
             // 重要: Minimal Version URLも取得してフォールバックテンプレートに渡す
@@ -1235,6 +1314,9 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           console.log(`[Quote Repost] 🧪 Dry-run mode: Skipping social proof and hashtag optimization for speed [runId: ${langRunId}]`);
         }
         
+        // 監査対応: 質問CTAのコード保証（投稿前に ? が末尾50文字以内にない場合はデフォルトCTA付与）
+        quoteText = ensureQuestionCTA(quoteText, lang);
+        
         // 140文字以内に制限（引用リポスト用）- ソーシャルプルーフ追加後の最終チェック
         // 重要: 質問CTAとリンクを優先的に保持するため、末尾から削除
         if (quoteText.length > 140) {
@@ -1276,6 +1358,9 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             quoteText = quoteText.substring(0, 137) + '...';
           }
         }
+        
+        // 引用リポストはテキストのみ（画像付与は廃止: NanoBanana/Veo 不安定。無料版・有料版の引用で運用）
+        const mediaIds = [];
         
         // 引用リポストを投稿
         console.log(`[Quote Repost] 🚀 ACTUALLY POSTING quote repost for @${influencer.username} (tweetId: ${influencer.tweetId})...`);
@@ -1343,7 +1428,7 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           // P0 FIX: GPT-5-mini推奨 - postQuoteTweetに8秒のタイムアウトを設定
           try {
             result = await withTimeout(
-              postQuoteTweet(quoteText, influencer.tweetId),
+              postQuoteTweet(quoteText, influencer.tweetId, mediaIds),
               8000, // 8秒タイムアウト（GPT-5-mini推奨）
               () => console.warn(`[Quote Repost] ⏰ postQuoteTweet timeout after 8s for @${influencer.username} [runId: ${langRunId}]`)
             );
@@ -1428,6 +1513,32 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             }
           } catch (mappingError) {
             console.warn(`[Quote Repost] ⚠️ Failed to save influencer mapping:`, mappingError.message);
+          }
+          
+          // 監査対応: スレッド戦略の接続（getThreadStrategy・リプライ投稿）
+          const threadStrategy = getThreadStrategy(lang);
+          if (threadStrategy.replyCount > 0 && result.id) {
+            const minimalLink = getMinimalVersionCheckoutUrl(lang, {
+              source: 'x',
+              medium: 'quote_repost',
+              campaign: 'minimal_version',
+              content: `influencer_${influencer.username}`,
+              influencerUsername: influencer.username,
+            }) || getTelegramDeepLinkWithSource(lang, 'x_quote', { influencerUsername: influencer.username });
+            const replyTexts = getQuoteRepostThreadReplyTexts(lang, threadStrategy.replyCount, minimalLink);
+            let lastReplyId = result.id;
+            for (let i = 0; i < replyTexts.length; i++) {
+              try {
+                const replyResult = await withTimeout(
+                  replyToTweet(replyTexts[i], lastReplyId),
+                  8000,
+                  () => console.warn(`[Quote Repost] ⏰ Thread reply ${i + 1}/${replyTexts.length} timeout for @${influencer.username}`)
+                );
+                if (replyResult && replyResult.id) lastReplyId = replyResult.id;
+              } catch (replyErr) {
+                console.warn(`[Quote Repost] Thread reply ${i + 1}/${replyTexts.length} failed:`, replyErr.message);
+              }
+            }
           }
           
           // CRITICAL: KVストレージに構造化ログを記録（確実な証拠）

@@ -9,10 +9,19 @@ if (!XAI_API_KEY) {
   console.warn('[Grok X Algorithm Analyzer] XAI_API_KEY is not set');
 }
 
-const grokClient = new OpenAI({
-  apiKey: XAI_API_KEY,
-  baseURL: XAI_BASE_URL,
-});
+// P0 FIX: 環境変数がない場合でもエラーを出さないように遅延初期化
+let grokClient = null;
+
+try {
+  if (XAI_API_KEY) {
+    grokClient = new OpenAI({
+      apiKey: XAI_API_KEY,
+      baseURL: XAI_BASE_URL,
+    });
+  }
+} catch (error) {
+  console.warn('[Grok X Algorithm Analyzer] Failed to initialize Grok client:', error.message);
+}
 
 const GROK_MODEL_X_LIVE = 'grok-4-1-fast-reasoning';
 
@@ -31,14 +40,14 @@ async function analyzeXAlgorithmOptimization(options = {}) {
     lang = 'en',
   } = options;
 
-  if (!XAI_API_KEY) {
+  if (!XAI_API_KEY || !grokClient) {
     return {
       algorithmInsights: null,
       viralPotential: null,
       engagementStrategy: null,
       optimalPostingTime: null,
       contentOptimization: null,
-      error: 'XAI_API_KEY not set',
+      error: 'XAI_API_KEY not set or Grok client not initialized',
     };
   }
 

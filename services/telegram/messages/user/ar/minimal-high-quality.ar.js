@@ -227,6 +227,8 @@ function formatMinimalHighQualityBriefing({
   lang = 'ar',
   score = null, // Market Score (optional, can also be in marketData.score)
   grokGeminiOptimization = null, // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
+  grokReasoningMinimal = null, // Grok 4.1 Fast Reasoning: なぜこのTrap Scoreか・何を見るか（2バレット）
+  geminiInsight = null, // Gemini 3 Flash: 心理の罠＋1アクション（1–2文）
 } = {}) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
   
@@ -291,6 +293,11 @@ function formatMinimalHighQualityBriefing({
   
   message += `\n\nالشموع الحمراء تخوّف… بس مو دايم يعني فخ.`;
 
+  // Grok 4.1 Fast Reasoning: なぜこのスコアか・何を見るか（密度強化）
+  if (grokReasoningMinimal && typeof grokReasoningMinimal === 'string' && grokReasoningMinimal.trim()) {
+    message += `\n\n🔍 **Dr. Grok** (ليش هالسكور + وش تراقب):\n${grokReasoningMinimal.trim()}`;
+  }
+
   // [3/4] Psych coaching: latency anxiety (低スコア時の認知的不協和)
   message += `\n\n[3/4] 🧠 توجيه نفسي
 ━━━━━━━━━━━━━━━━━━━━`;
@@ -303,6 +310,11 @@ function formatMinimalHighQualityBriefing({
     message += `\nالشموع تخوّف… بس البيانات ما تقول "خطر".\nوظيفتك هنا: لا تخلط الخوف مع الإشارة.\n\n(مع ذلك: لو انقلب وأنت نايم، المجاني يفوّت عليك نافذة الـ15 دقيقة.)`;
   } else {
     message += `\nدفاع نشط. لا تخلط بين الشموع الحمراء والواقع. الفخ مو النزول—الفخ هو الخروج المتسرّع.`;
+  }
+
+  // Gemini 3 Flash: 心理の罠＋1アクション（密度強化）
+  if (geminiInsight && typeof geminiInsight === 'string' && geminiInsight.trim()) {
+    message += `\n\n💡 **فخ اليوم + إجراء واحد:**\n${geminiInsight.trim()}`;
   }
   
   // [4/4] Poll + question + soft CTA (GPT設計書に完全準拠)

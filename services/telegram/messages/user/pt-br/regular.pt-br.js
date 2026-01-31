@@ -75,6 +75,9 @@ function formatRegularBriefing({
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
   // GrokとGeminiの統合最適化結果
   integratedOptimization, // Grok Xアルゴリズム解析 × Gemini深層心理解析の統合結果
+  // SoSoValue風記事 + Grok推論（有料版メインコンテンツ）
+  sosovalueArticle = null, // Gemini生成のSoSoValue風オンチェーン記事（優先表示）
+  grokReasoning = null, // Grok 4.1の推論チェーン（なぜSTANDBY/AVOIDか）
   // Phase 2: 市場別深掘りデータ
   whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
@@ -244,9 +247,9 @@ function formatRegularBriefing({
   }
   
   // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
-  // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
+  // メイン記事: SoSoValue風（Gemini）を優先、なければGPTリポーター分析
   // エラーメッセージやnullの場合は、フォールバック処理
-  let gptNewsText = gptReporterAnalysis || aiAnalysis || null;
+  let gptNewsText = sosovalueArticle || gptReporterAnalysis || aiAnalysis || null;
   
   // エラーメッセージを検出（API error, unavailable, error等のキーワード）
   if (gptNewsText && typeof gptNewsText === 'string') {
@@ -449,6 +452,20 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADIÇÃO: Pontuação de baixo risco 
   if (hasGeminiContent) {
     lines.push('📊 Infográfico NanoBanana');
     lines.push('🎬 Verifique as mídias anexas!');
+    lines.push('');
+  }
+  
+  // 【Grok推論】Grok 4.1 Fast Reasoningの推論チェーン
+  if (grokReasoning && typeof grokReasoning === 'string' && grokReasoning.trim()) {
+    const grokReasoningLimit = 800;
+    let grokReasoningDisplay = grokReasoning.trim();
+    if (grokReasoningDisplay.length > grokReasoningLimit) {
+      grokReasoningDisplay = grokReasoningDisplay.slice(0, grokReasoningLimit) + '…';
+    }
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('🧠 Raciocínio do Grok (Por que este veredicto)');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push(grokReasoningDisplay);
     lines.push('');
   }
   
@@ -714,9 +731,9 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADIÇÃO: Pontuação de baixo risco 
   lines.push('✅ Alertas NO TRADE (evitar perdas antes que ocorram)');
   lines.push('');
   lines.push('📊 Análise Profunda de Inteligência:');
-  lines.push('✅ Análise completa on-chain (dados CryptoQuant, todos os indicadores)');
-  lines.push('✅ Detecção de padrões de armadilha impulsionada por IA (monitoramento 24/7)');
-  lines.push('✅ Análise de sentimento X em tempo real (prevê emoções do mercado)');
+  lines.push('✅ Artigo on-chain estilo SoSoValue (dados + paralelos históricos, sem sinais vazios)');
+  lines.push('✅ Cadeia de raciocínio do Grok (por que STANDBY/AVOID—algo X + divergência on-chain)');
+  lines.push('✅ Dados CryptoQuant completos, detecção de armadilhas, sentimento X');
   lines.push('');
   lines.push('💊 Suporte Psicológico Completo:');
   lines.push('✅ Coaching mental do Dr. Grok (superar FOMO, MEDO, GANÂNCIA)');

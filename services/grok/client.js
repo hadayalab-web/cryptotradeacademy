@@ -560,8 +560,13 @@ async function generateQuoteRepostText(
         `- Telegram Opt-In: ${opt?.funnel?.telegramOptIn || "N/A"}\n` +
         `- Whop Conversion: ${opt?.funnel?.whopConversion || "N/A"}\n` +
         `- Funnel Psychological Triggers: ${opt?.funnel?.psychologicalTriggers?.join(", ") || "N/A"}\n` +
-        `PRIORITY ORDER: ${opt?.priorityOrder?.join(" → ") || "N/A"}\n` +
-        `\nCRITICAL: Apply these optimization strategies to maximize engagement rate and CVR!\n`;
+        `PRIORITY ORDER: ${opt?.priorityOrder?.join(" → ") || "N/A"}\n`;
+      if (opt?.content?.lexiconTerms && opt.content.lexiconTerms.length > 0) {
+        optimizationContext +=
+          `LEXICON (use when relevant, 3-5 terms only): ${opt.content.lexiconTerms.join(", ")}\n` +
+          "Use Algo-Spike for sudden algo-driven moves, Dopamine-Trap for FOMO/revenge setups, Saved Loss for loss-avoided framing.\n";
+      }
+      optimizationContext += "\nCRITICAL: Apply these optimization strategies to maximize engagement rate and CVR!\n";
     }
 
     // 無料版メッセージのキーポイントをコンテキストに追加（Xアルゴリズム最適化用）

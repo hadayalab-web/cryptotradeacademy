@@ -4,6 +4,9 @@
 const OpenAI = require('openai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+// 次のフェーズ戦略: 独自用語（3-5語）を最適化結果に渡し、コンテンツで使用可能にする
+const { TRAP_DEFENCE_LEXICON } = require('../../config/lexicon');
+
 // Vercel KV（キャッシュ用）
 let kv = null;
 try {
@@ -507,6 +510,9 @@ async function optimizeContentAndFunnel(options = {}) {
                  '絵文字は2-3個、感情的なインパクトを最大化',
           psychologicalTriggers: geminiAnalysis?.psychologicalAlgorithm?.psychologicalTriggers || [],
           cognitiveBiases: geminiAnalysis?.psychologicalAlgorithm?.cognitiveBiases || [],
+          // 次のフェーズ戦略: 独自用語（Algo-Spike, Dopamine-Trap, Saved Loss）を渡し、関連時に使用
+          lexicon: TRAP_DEFENCE_LEXICON,
+          lexiconTerms: ['Algo-Spike', 'Dopamine-Trap', 'Saved Loss'],
         },
         timing: grokAnalysis?.algorithmInsights?.timingOptimization ||
                 'ピーク時間（UTC 0,1,20,21）に投稿',

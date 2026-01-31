@@ -223,6 +223,8 @@ function formatMinimalHighQualityBriefing({
   lang = 'ko',
   score = null, // Market Score (optional, can also be in marketData.score)
   grokGeminiOptimization = null, // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
+  grokReasoningMinimal = null, // Grok 4.1 Fast Reasoning: なぜこのTrap Scoreか・何を見るか（2バレット）
+  geminiInsight = null, // Gemini 3 Flash: 心理の罠＋1アクション（1–2文）
 } = {}) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
   
@@ -288,6 +290,11 @@ function formatMinimalHighQualityBriefing({
   
   message += `\n\n빨간 캔들 = 바로 함정, 이건 아니에요.`;
 
+  // Grok 4.1 Fast Reasoning: なぜこのスコアか・何を見るか（密度強化）
+  if (grokReasoningMinimal && typeof grokReasoningMinimal === 'string' && grokReasoningMinimal.trim()) {
+    message += `\n\n🔍 **Dr. Grok** (이 스코어 이유 + 주목할 지표):\n${grokReasoningMinimal.trim()}`;
+  }
+
   // [3/4] Psych coaching: latency anxiety (低スコア時の認知的不協和)
   message += `\n\n[3/4] 🧠 심리 코칭
 ━━━━━━━━━━━━━━━━━━━━`;
@@ -300,6 +307,11 @@ function formatMinimalHighQualityBriefing({
     message += `\n차트는 무서운데, 데이터는 아직 "함정" 쪽이 아니에요.\n여기서 할 일: 공포 때문에 클릭하지 않기.\n\n(그래도: 자는 동안 반전되면, 무료는 그 15분을 놓쳐요.)`;
   } else {
     message += `\n방어 모드. 빨간 캔들이랑 현실을 헷갈리지 마요. 함정은 하락이 아니라 '충동 청산'입니다.`;
+  }
+
+  // Gemini 3 Flash: 心理の罠＋1アクション（密度強化）
+  if (geminiInsight && typeof geminiInsight === 'string' && geminiInsight.trim()) {
+    message += `\n\n💡 **오늘의 심리 함정 + 한 가지 액션:**\n${geminiInsight.trim()}`;
   }
   
   // [4/4] Poll + question + soft CTA (GPT設計書に完全準拠)

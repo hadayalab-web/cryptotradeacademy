@@ -1,233 +1,256 @@
-// scripts/analyze-vercel-logs.js
-// Vercelログを分析してエラーパターンを特定
+// analyze-vercel-logs.js
+// Vercel Dashboardのログ結果JSONを分析
 
 const fs = require('fs');
 const path = require('path');
 
-async function analyzeLogs() {
-  const logPath = process.argv[2] || path.join(__dirname, '../../Downloads/logs_result (1).json');
-  
-  console.log('📊 Vercelログ分析を開始...');
-  console.log(`📁 ログファイル: ${logPath}`);
-  
-  if (!fs.existsSync(logPath)) {
-    console.error(`❌ ログファイルが見つかりません: ${logPath}`);
-    process.exit(1);
-  }
-  
-  const logContent = fs.readFileSync(logPath, 'utf-8');
-  const logs = JSON.parse(logContent);
-  
-  console.log(`✅ ${logs.length}件のログエントリを読み込みました\n`);
-  
-  // エラーパターンを分析
-  const errors = [];
-  const warnings = [];
-  const xApiErrors = [];
-  const rateLimitErrors = [];
-  const failedPosts = [];
-  const skippedPosts = [];
-  
-  logs.forEach((log, index) => {
-    const message = log.message || '';
-    const level = log.level || 'info';
-    const statusCode = log.responseStatusCode;
-    const requestPath = log.requestPath || '';
-    
-    // エラーレベルのログ
-    if (level === 'error' || level === 'ERROR') {
-      errors.push({
-        index,
-        timestamp: log.TimeUTC || log.timestamp,
-        path: requestPath,
-        message,
-        statusCode,
-      });
-    }
-    
-    // 警告レベルのログ
-    if (level === 'warn' || level === 'warning' || message.toLowerCase().includes('warn')) {
-      warnings.push({
-        index,
-        timestamp: log.TimeUTC || log.timestamp,
-        path: requestPath,
-        message,
-      });
-    }
-    
-    // X API関連のエラー
-    if (message.includes('X API') || message.includes('Twitter') || requestPath.includes('x-')) {
-      if (message.includes('error') || message.includes('Error') || message.includes('failed') || message.includes('Failed')) {
-        xApiErrors.push({
-          index,
-          timestamp: log.TimeUTC || log.timestamp,
-          path: requestPath,
-          message,
-          statusCode,
-        });
-      }
-    }
-    
-    // レート制限エラー（429）
-    if (statusCode === 429 || message.includes('rate limit') || message.includes('Rate limit') || message.includes('429')) {
-      rateLimitErrors.push({
-        index,
-        timestamp: log.TimeUTC || log.timestamp,
-        path: requestPath,
-        message,
-      });
-    }
-    
-    // 投稿失敗
-    if (message.includes('Failed to post') || message.includes('failed to post') || message.includes('post failed')) {
-      failedPosts.push({
-        index,
-        timestamp: log.TimeUTC || log.timestamp,
-        path: requestPath,
-        message,
-      });
-    }
-    
-    // スキップされた投稿
-    if (message.includes('Skipping') || message.includes('skipping') || message.includes('skipped')) {
-      skippedPosts.push({
-        index,
-        timestamp: log.TimeUTC || log.timestamp,
-        path: requestPath,
-        message,
-      });
-    }
-  });
-  
-  // 結果を表示
-  console.log('='.repeat(80));
-  console.log('📊 エラー分析結果');
-  console.log('='.repeat(80));
-  
-  console.log(`\n❌ エラーログ: ${errors.length}件`);
-  if (errors.length > 0) {
-    console.log('\n最初の10件:');
-    errors.slice(0, 10).forEach((err, i) => {
-      console.log(`\n[${i + 1}] ${err.timestamp || 'N/A'}`);
-      console.log(`   パス: ${err.path || 'N/A'}`);
-      console.log(`   メッセージ: ${err.message.substring(0, 200)}`);
-      if (err.statusCode) console.log(`   ステータス: ${err.statusCode}`);
-    });
-  }
-  
-  console.log(`\n⚠️  警告ログ: ${warnings.length}件`);
-  if (warnings.length > 0) {
-    console.log('\n最初の10件:');
-    warnings.slice(0, 10).forEach((warn, i) => {
-      console.log(`\n[${i + 1}] ${warn.timestamp || 'N/A'}`);
-      console.log(`   パス: ${warn.path || 'N/A'}`);
-      console.log(`   メッセージ: ${warn.message.substring(0, 200)}`);
-    });
-  }
-  
-  console.log(`\n🐦 X API関連エラー: ${xApiErrors.length}件`);
-  if (xApiErrors.length > 0) {
-    console.log('\n最初の10件:');
-    xApiErrors.slice(0, 10).forEach((err, i) => {
-      console.log(`\n[${i + 1}] ${err.timestamp || 'N/A'}`);
-      console.log(`   パス: ${err.path || 'N/A'}`);
-      console.log(`   メッセージ: ${err.message.substring(0, 200)}`);
-      if (err.statusCode) console.log(`   ステータス: ${err.statusCode}`);
-    });
-  }
-  
-  console.log(`\n⏱️  レート制限エラー (429): ${rateLimitErrors.length}件`);
-  if (rateLimitErrors.length > 0) {
-    console.log('\n最初の10件:');
-    rateLimitErrors.slice(0, 10).forEach((err, i) => {
-      console.log(`\n[${i + 1}] ${err.timestamp || 'N/A'}`);
-      console.log(`   パス: ${err.path || 'N/A'}`);
-      console.log(`   メッセージ: ${err.message.substring(0, 200)}`);
-    });
-  }
-  
-  console.log(`\n📝 投稿失敗: ${failedPosts.length}件`);
-  if (failedPosts.length > 0) {
-    console.log('\n最初の10件:');
-    failedPosts.slice(0, 10).forEach((post, i) => {
-      console.log(`\n[${i + 1}] ${post.timestamp || 'N/A'}`);
-      console.log(`   パス: ${post.path || 'N/A'}`);
-      console.log(`   メッセージ: ${post.message.substring(0, 200)}`);
-    });
-  }
-  
-  console.log(`\n⏭️  スキップされた投稿: ${skippedPosts.length}件`);
-  if (skippedPosts.length > 0) {
-    console.log('\n最初の10件:');
-    skippedPosts.slice(0, 10).forEach((skip, i) => {
-      console.log(`\n[${i + 1}] ${skip.timestamp || 'N/A'}`);
-      console.log(`   パス: ${skip.path || 'N/A'}`);
-      console.log(`   メッセージ: ${skip.message.substring(0, 200)}`);
-    });
-  }
-  
-  // パス別の統計
-  const pathStats = {};
-  logs.forEach(log => {
-    const path = log.requestPath || 'unknown';
-    if (!pathStats[path]) {
-      pathStats[path] = { total: 0, errors: 0, warnings: 0, success: 0 };
-    }
-    pathStats[path].total++;
-    const level = log.level || 'info';
-    const statusCode = log.responseStatusCode;
-    if (level === 'error' || statusCode >= 400) {
-      pathStats[path].errors++;
-    } else if (level === 'warn' || level === 'warning') {
-      pathStats[path].warnings++;
-    } else if (statusCode >= 200 && statusCode < 300) {
-      pathStats[path].success++;
-    }
-  });
-  
-  console.log('\n' + '='.repeat(80));
-  console.log('📈 パス別統計');
-  console.log('='.repeat(80));
-  Object.entries(pathStats)
-    .sort((a, b) => b[1].total - a[1].total)
-    .slice(0, 20)
-    .forEach(([path, stats]) => {
-      const errorRate = ((stats.errors / stats.total) * 100).toFixed(1);
-      console.log(`\n${path}`);
-      console.log(`  総リクエスト: ${stats.total}, 成功: ${stats.success}, エラー: ${stats.errors}, 警告: ${stats.warnings}`);
-      console.log(`  エラー率: ${errorRate}%`);
-    });
-  
-  // 推奨事項を出力
-  console.log('\n' + '='.repeat(80));
-  console.log('💡 推奨事項');
-  console.log('='.repeat(80));
-  
-  if (rateLimitErrors.length > 0) {
-    console.log('\n⚠️  レート制限エラーが多数発生しています:');
-    console.log('   - リトライ間隔を増やす');
-    console.log('   - 投稿頻度を調整する');
-    console.log('   - レート制限ヘッダーを確認して適切に待機する');
-  }
-  
-  if (xApiErrors.length > 0) {
-    console.log('\n⚠️  X APIエラーが発生しています:');
-    console.log('   - 認証情報を確認する');
-    console.log('   - エラーハンドリングを強化する');
-    console.log('   - リトライロジックを改善する');
-  }
-  
-  if (skippedPosts.length > failedPosts.length * 2) {
-    console.log('\n⚠️  スキップされた投稿が多すぎます:');
-    console.log('   - ピーク時間の設定を確認する');
-    console.log('   - 投稿制限の設定を緩和する');
-    console.log('   - インプレッション最大化のため、より積極的に投稿する');
-  }
-  
-  console.log('\n✅ 分析完了\n');
-}
+const logFile = process.argv[2] || 'C:/Users/chiba/Downloads/logs_result (15).json';
 
-analyzeLogs().catch(error => {
-  console.error('❌ 分析エラー:', error);
-  process.exit(1);
-});
+console.log('📊 Vercel Dashboard ログ結果分析');
+console.log('='.repeat(80));
+console.log(`📁 ファイル: ${logFile}`);
+console.log('='.repeat(80));
+
+try {
+    const fileContent = fs.readFileSync(logFile, 'utf-8');
+    const logs = JSON.parse(fileContent);
+    
+    console.log(`\n✅ ログエントリ数: ${logs.length}件\n`);
+    
+    // エンドポイント別にグループ化
+    const endpointGroups = {};
+    
+    logs.forEach(log => {
+        const endpoint = log.requestPath || log.function || 'unknown';
+        const cleanEndpoint = endpoint.replace(/^.*\/api\//, '/api/');
+        
+        if (!endpointGroups[cleanEndpoint]) {
+            endpointGroups[cleanEndpoint] = {
+                endpoint: cleanEndpoint,
+                requests: [],
+                successCount: 0,
+                errorCount: 0,
+                statusCodes: {},
+                dryRunCount: 0,
+                skippedCount: 0,
+                durations: []
+            };
+        }
+        
+        const group = endpointGroups[cleanEndpoint];
+        group.requests.push(log);
+        
+        // ステータスコード集計
+        const statusCode = log.responseStatusCode || log.statusCode || 'unknown';
+        group.statusCodes[statusCode] = (group.statusCodes[statusCode] || 0) + 1;
+        
+        if (statusCode === 200) {
+            group.successCount++;
+        } else {
+            group.errorCount++;
+        }
+        
+        // 実行時間
+        if (log.durationMs) {
+            group.durations.push(parseFloat(log.durationMs));
+        }
+        
+        // メッセージからdryRunやskippedを検出
+        const message = log.message || '';
+        if (message.includes('dryRun') || message.includes('DRY_RUN') || message.includes('ドライラン')) {
+            group.dryRunCount++;
+        }
+        if (message.includes('skipped') || message.includes('SKIP') || message.includes('スキップ')) {
+            group.skippedCount++;
+        }
+    });
+    
+    // CronJobsのリスト（vercel.jsonから）
+    const cronJobs = [
+        { path: '/api/cron', name: 'Trap Defence BTC配信', phase: 'Phase 1' },
+        { path: '/api/vsl1-post', name: 'VSL1自動投稿', phase: 'Phase 2' },
+        { path: '/api/x-post-minimal-version-cron', name: '無料版X投稿', phase: 'Phase 2' },
+        { path: '/api/x-post-free-report', name: '無料版レポートX投稿', phase: 'Phase 2' },
+        { path: '/api/x-quote-repost-en', name: '引用リポスト EN', phase: 'Phase 2' },
+        { path: '/api/x-quote-repost-es', name: '引用リポスト ES', phase: 'Phase 2' },
+        { path: '/api/x-quote-repost-pt-br', name: '引用リポスト PT-BR', phase: 'Phase 2' },
+        { path: '/api/x-quote-repost-ar', name: '引用リポスト AR', phase: 'Phase 2' },
+        { path: '/api/x-quote-repost-ja', name: '引用リポスト JA', phase: 'Phase 2' },
+        { path: '/api/x-quote-repost-ko', name: '引用リポスト KO', phase: 'Phase 2' },
+        { path: '/api/vsl2-free-users', name: 'VSL2自動配信', phase: 'Phase 3' },
+        { path: '/api/vsl1-reminder', name: 'VSL1リマインド', phase: 'Phase 3' },
+        { path: '/api/vsl2-last-call', name: 'VSL2終了直前リマインド', phase: 'Phase 3' },
+        { path: '/api/promo-stock-monitor', name: 'プロモコード在庫監視', phase: 'Phase 4' }
+    ];
+    
+    // Phase別にグループ化
+    const phaseResults = {};
+    
+    cronJobs.forEach(cronJob => {
+        const group = endpointGroups[cronJob.path];
+        if (!phaseResults[cronJob.phase]) {
+            phaseResults[cronJob.phase] = [];
+        }
+        
+        if (group) {
+            const avgDuration = group.durations.length > 0
+                ? (group.durations.reduce((a, b) => a + b, 0) / group.durations.length).toFixed(2)
+                : 'N/A';
+            const minDuration = group.durations.length > 0
+                ? Math.min(...group.durations).toFixed(2)
+                : 'N/A';
+            const maxDuration = group.durations.length > 0
+                ? Math.max(...group.durations).toFixed(2)
+                : 'N/A';
+            
+            phaseResults[cronJob.phase].push({
+                ...cronJob,
+                ...group,
+                avgDuration,
+                minDuration,
+                maxDuration,
+                totalRequests: group.requests.length
+            });
+        } else {
+            // ログに記録されていないCronJob
+            phaseResults[cronJob.phase].push({
+                ...cronJob,
+                totalRequests: 0,
+                successCount: 0,
+                errorCount: 0,
+                statusCodes: {},
+                dryRunCount: 0,
+                skippedCount: 0,
+                avgDuration: 'N/A',
+                minDuration: 'N/A',
+                maxDuration: 'N/A'
+            });
+        }
+    });
+    
+    // 結果を表示
+    Object.keys(phaseResults).sort().forEach(phase => {
+        console.log(`\n📋 ${phase}`);
+        console.log('-'.repeat(80));
+        
+        phaseResults[phase].forEach(result => {
+            const statusEmoji = result.totalRequests === 0
+                ? '⚠️  未実行'
+                : result.errorCount === 0
+                    ? '✅ 成功'
+                    : '❌ エラーあり';
+            
+            const statusCodeStr = Object.keys(result.statusCodes).length > 0
+                ? `HTTP ${Object.keys(result.statusCodes).join(', ')}`
+                : 'N/A';
+            
+            const durationStr = result.avgDuration !== 'N/A'
+                ? ` (平均: ${result.avgDuration}ms, 最小: ${result.minDuration}ms, 最大: ${result.maxDuration}ms)`
+                : '';
+            
+            const dryRunStr = result.dryRunCount > 0 ? ` [🧪 ドライラン: ${result.dryRunCount}件]` : '';
+            const skippedStr = result.skippedCount > 0 ? ` [⏰ スキップ: ${result.skippedCount}件]` : '';
+            
+            console.log(`  ${statusEmoji} ${result.name}`);
+            console.log(`     エンドポイント: ${result.path}`);
+            console.log(`     リクエスト数: ${result.totalRequests}件`);
+            if (result.totalRequests > 0) {
+                console.log(`     成功: ${result.successCount}件, エラー: ${result.errorCount}件`);
+                console.log(`     ステータスコード: ${statusCodeStr}${durationStr}`);
+                if (dryRunStr || skippedStr) {
+                    console.log(`     ${dryRunStr}${skippedStr}`);
+                }
+            }
+            console.log('');
+        });
+    });
+    
+    // サマリー
+    console.log('\n' + '='.repeat(80));
+    console.log('📊 全体サマリー');
+    console.log('='.repeat(80));
+    
+    let totalRequests = 0;
+    let totalSuccess = 0;
+    let totalErrors = 0;
+    let totalDryRun = 0;
+    let totalSkipped = 0;
+    let executedCronJobs = 0;
+    
+    Object.values(phaseResults).forEach(results => {
+        results.forEach(result => {
+            totalRequests += result.totalRequests;
+            totalSuccess += result.successCount;
+            totalErrors += result.errorCount;
+            totalDryRun += result.dryRunCount;
+            totalSkipped += result.skippedCount;
+            if (result.totalRequests > 0) {
+                executedCronJobs++;
+            }
+        });
+    });
+    
+    const successRate = totalRequests > 0
+        ? ((totalSuccess / totalRequests) * 100).toFixed(1)
+        : 0;
+    
+    console.log(`\n合計リクエスト数: ${totalRequests}件`);
+    console.log(`実行されたCronJobs: ${executedCronJobs}/14件`);
+    console.log(`成功率: ${totalSuccess}/${totalRequests}件 (${successRate}%)`);
+    console.log(`エラー数: ${totalErrors}件`);
+    console.log(`ドライランモード: ${totalDryRun}件`);
+    console.log(`スキップ: ${totalSkipped}件`);
+    
+    if (executedCronJobs === 14 && totalErrors === 0) {
+        console.log('\n🎉 すべてのCronJobs（14個）が正常に実行されました！');
+        console.log('   本番環境移行の準備が整っています。');
+    } else if (executedCronJobs < 14) {
+        console.log(`\n⚠️  ${14 - executedCronJobs}個のCronJobsがログに記録されていません。`);
+        console.log('   すべてのCronJobsを手動実行したか確認してください。');
+    } else if (totalErrors > 0) {
+        console.log(`\n⚠️  ${totalErrors}件のエラーが発生しています。`);
+        console.log('   エラーの詳細を確認してください。');
+    }
+    
+    // エラーがある場合、詳細を表示
+    if (totalErrors > 0) {
+        console.log('\n' + '='.repeat(80));
+        console.log('❌ エラー詳細');
+        console.log('='.repeat(80));
+        
+        Object.values(phaseResults).forEach(results => {
+            results.forEach(result => {
+                if (result.errorCount > 0) {
+                    console.log(`\n${result.name} (${result.path})`);
+                    console.log(`  エラー数: ${result.errorCount}件`);
+                    console.log(`  ステータスコード: ${Object.keys(result.statusCodes).join(', ')}`);
+                    
+                    // エラーログを抽出
+                    const errorLogs = result.requests.filter(req => {
+                        const status = req.responseStatusCode || req.statusCode;
+                        return status !== 200 && status !== undefined;
+                    });
+                    
+                    if (errorLogs.length > 0) {
+                        console.log(`  エラーログサンプル:`);
+                        errorLogs.slice(0, 3).forEach(log => {
+                            const status = log.responseStatusCode || log.statusCode || 'unknown';
+                            const message = log.message || 'No message';
+                            console.log(`    - HTTP ${status}: ${message.substring(0, 100)}`);
+                        });
+                    }
+                }
+            });
+        });
+    }
+    
+    console.log('\n💡 ヒント:');
+    console.log('   - すべてのCronJobsが正常に実行されていることを確認してください');
+    console.log('   - エラーがある場合は、Vercel Dashboardで詳細ログを確認してください');
+    console.log('   - ドライランモードが有効な場合は、X_POSTING_DRY_RUN=true が設定されています');
+    
+} catch (error) {
+    console.error('❌ エラー:', error.message);
+    console.error(error.stack);
+    process.exit(1);
+}

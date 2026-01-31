@@ -75,6 +75,9 @@ function formatRegularBriefing({
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
   // GrokとGeminiの統合最適化結果
   integratedOptimization, // Grok Xアルゴリズム解析 × Gemini深層心理解析の統合結果
+  // SoSoValue風記事 + Grok推論（有料版メインコンテンツ）
+  sosovalueArticle = null, // Gemini生成のSoSoValue風オンチェーン記事（優先表示）
+  grokReasoning = null, // Grok 4.1の推論チェーン（なぜSTANDBY/AVOIDか）
   // Phase 2: 市場別深掘りデータ
   whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
@@ -244,9 +247,9 @@ function formatRegularBriefing({
   }
   
   // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
-  // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
+  // メイン記事: SoSoValue風（Gemini）を優先、なければGPTリポーター分析
   // エラーメッセージやnullの場合は、フォールバック処理
-  let gptNewsText = gptReporterAnalysis || aiAnalysis || null;
+  let gptNewsText = sosovalueArticle || gptReporterAnalysis || aiAnalysis || null;
   
   // エラーメッセージを検出（API error, unavailable, error等のキーワード）
   if (gptNewsText && typeof gptNewsText === 'string') {
@@ -448,6 +451,20 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
   if (hasGeminiContent) {
     lines.push('📊 رسم بياني NanoBanana');
     lines.push('🎬 تحقق من الوسائط المرفقة!');
+    lines.push('');
+  }
+  
+  // 【Grok推論】Grok 4.1 Fast Reasoningの推論チェーン
+  if (grokReasoning && typeof grokReasoning === 'string' && grokReasoning.trim()) {
+    const grokReasoningLimit = 800;
+    let grokReasoningDisplay = grokReasoning.trim();
+    if (grokReasoningDisplay.length > grokReasoningLimit) {
+      grokReasoningDisplay = grokReasoningDisplay.slice(0, grokReasoningLimit) + '…';
+    }
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('🧠 استدلال Grok (لماذا هذا الحكم)');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push(grokReasoningDisplay);
     lines.push('');
   }
   
@@ -715,9 +732,9 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
   lines.push('✅ تنبيهات NO TRADE (تجنب الخسائر قبل حدوثها)');
   lines.push('');
   lines.push('📊 تحليل الاستخبارات العميق:');
-  lines.push('✅ تحليل on-chain كامل (بيانات CryptoQuant، جميع المؤشرات)');
-  lines.push('✅ اكتشاف أنماط الفخاخ المدعوم بالذكاء الاصطناعي (مراقبة على مدار الساعة)');
-  lines.push('✅ تحليل مشاعر X في الوقت الفعلي (توقع مشاعر السوق)');
+  lines.push('✅ مقال on-chain بأسلوب SoSoValue (بيانات + أوجه تشابه تاريخية، بدون إشارات فارغة)');
+  lines.push('✅ سلسلة استدلال Grok (لماذا STANDBY/AVOID—خوارزمية X + تباعد on-chain)');
+  lines.push('✅ بيانات CryptoQuant كاملة، كشف الفخاخ، مشاعر X');
   lines.push('');
   lines.push('💊 الدعم النفسي الكامل:');
   lines.push('✅ التدريب النفسي من Dr. Grok (التغلب على FOMO، الخوف، الجشع)');

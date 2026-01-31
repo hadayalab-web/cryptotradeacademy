@@ -219,6 +219,8 @@ function formatMinimalHighQualityBriefing({
   lang = 'en',
   score = null, // Market Score (optional, can also be in marketData.score)
   grokGeminiOptimization = null, // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
+  grokReasoningMinimal = null, // Grok 4.1 Fast Reasoning: なぜこのTrap Scoreか・何を見るか（2バレット）
+  geminiInsight = null, // Gemini 3 Flash: 心理の罠＋1アクション（1–2文）
 } = {}) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
   
@@ -297,6 +299,11 @@ function formatMinimalHighQualityBriefing({
     message += `\nChart looks scary. Data isn't screaming "trap."\nYour job here is simple: don't let fear force a bad click.\n\n(Still: if it flips while you sleep, free updates miss that 15-minute gap.)`;
   } else {
     message += `\nDefense mode. Candles are loud; risk isn't (yet).`;
+  }
+
+  // Gemini 3 Flash: 心理の罠＋1アクション（密度強化）
+  if (geminiInsight && typeof geminiInsight === 'string' && geminiInsight.trim()) {
+    message += `\n\n💡 **Today's trap + one action:**\n${geminiInsight.trim()}`;
   }
   
   // [4/4] Poll + question + soft CTA (GPT設計書に完全準拠)

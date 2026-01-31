@@ -47,6 +47,9 @@ function formatRegularBriefing({
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
   // GrokとGeminiの統合最適化結果
   integratedOptimization, // Grok Xアルゴリズム解析 × Gemini深層心理解析の統合結果
+  // SoSoValue風記事 + Grok推論（有料版メインコンテンツ）
+  sosovalueArticle = null, // Gemini生成のSoSoValue風オンチェーン記事（優先表示）
+  grokReasoning = null, // Grok 4.1の推論チェーン（なぜSTANDBY/AVOIDか）
   // Phase 2: 市場別深掘りデータ
   whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
@@ -246,9 +249,9 @@ function formatRegularBriefing({
   
   // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
   
-  // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
+  // メイン記事: SoSoValue風（Gemini）を優先、なければGPTリポーター分析
   // エラーメッセージやnullの場合は、フォールバック処理
-  let gptNewsText = gptReporterAnalysis || aiAnalysis || null;
+  let gptNewsText = sosovalueArticle || gptReporterAnalysis || aiAnalysis || null;
   
   // エラーメッセージを検出（API error, unavailable, error等のキーワード）
   if (gptNewsText && typeof gptNewsText === 'string') {
@@ -454,6 +457,20 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
   // 【解説】GPTリポーターの詳細解説（既にオープニングで表示済みの場合は省略）
   // 必要に応じて追加の解説セクションをここに追加可能
   
+  // 【Grok推論】Grok 4.1 Fast Reasoningの推論チェーン（なぜSTANDBY/AVOIDか）
+  if (grokReasoning && typeof grokReasoning === 'string' && grokReasoning.trim()) {
+    const grokReasoningLimit = 800;
+    let grokReasoningDisplay = grokReasoning.trim();
+    if (grokReasoningDisplay.length > grokReasoningLimit) {
+      grokReasoningDisplay = grokReasoningDisplay.slice(0, grokReasoningLimit) + '…';
+    }
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('🧠 Grokの推論（なぜこの判定か）');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push(grokReasoningDisplay);
+    lines.push('');
+  }
+  
   // 【コメンテーター】Dr. Grok癒し系コメンテーター（固定コーナー）
   // 安住紳一郎スタイル：落ち着いた解説トーンで、データに基づいた信頼感のある見立て
   lines.push('💊 Dr. Grokのクイックインサイト');
@@ -631,9 +648,9 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
   lines.push('✅ NO TRADEアラート（損失が発生する前に回避）');
   lines.push('');
   lines.push('📊 深いインテリジェンス分析：');
-  lines.push('✅ 完全なオンチェーン分析（CryptoQuantデータ、すべての指標）');
-  lines.push('✅ AI駆動のトラップパターン検出（24時間監視）');
-  lines.push('✅ リアルタイムXセンチメント分析（市場の感情を先読み）');
+  lines.push('✅ SoSoValue風オンチェーン記事（データ＋歴史的類似、シグナル煽りなし）');
+  lines.push('✅ Grokの推論チェーン（なぜSTANDBY/AVOIDか—Xアルゴ＋オンチェーン乖離）');
+  lines.push('✅ CryptoQuant全指標・トラップ検出・Xセンチメント');
   lines.push('');
   lines.push('💊 完全な心理的サポート：');
   lines.push('✅ Dr. Grokのメンタルコーチング（FOMO、恐怖、貪欲を克服）');
