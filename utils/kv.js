@@ -19,20 +19,59 @@ function initKV() {
   kvInitialized = true;
 
   try {
+    // 環境変数の確認（詳細ログ）
+    const hasRestApiUrl = !!process.env.KV_REST_API_URL;
+    const hasKvUrl = !!process.env.KV_URL;
+    const hasRestApiToken = !!process.env.KV_REST_API_TOKEN;
+    
+    console.log('[KV] 🔵 KV初期化開始...');
+    console.log('[KV] 環境変数確認:');
+    console.log(`[KV]   KV_REST_API_URL: ${hasRestApiUrl ? '✅ 設定済み' : '❌ 未設定'}`);
+    console.log(`[KV]   KV_REST_API_TOKEN: ${hasRestApiToken ? '✅ 設定済み' : '❌ 未設定'}`);
+    console.log(`[KV]   KV_URL: ${hasKvUrl ? '✅ 設定済み' : '❌ 未設定'}`);
+    
+    if (!hasRestApiUrl && !hasKvUrl) {
+      console.error('[KV] ❌ CRITICAL: KV環境変数が設定されていません');
+      console.error('[KV] 💡 以下の環境変数を設定してください:');
+      console.error('[KV]   - KV_REST_API_URL または KV_URL');
+      console.error('[KV]   - KV_REST_API_TOKEN（KV_REST_API_URL使用時）');
+      kvInstance = null;
+      return kvInstance;
+    }
+    
     // @vercel/kvを試す（Vercel環境で自動的に環境変数が設定される）
     const kvModule = require('@vercel/kv');
     kvInstance = kvModule.kv;
     
-    // 環境変数が設定されているか確認
-    if (!process.env.KV_REST_API_URL && !process.env.KV_URL) {
-      console.warn('[KV] KV環境変数が設定されていません（KV_REST_API_URL または KV_URL）');
-      // インスタンスはnullのまま（フォールバック動作）
+    if (!kvInstance) {
+      console.error('[KV] ❌ CRITICAL: @vercel/kv.kv が null です');
       kvInstance = null;
-    } else {
-      console.log('[KV] ✅ KVインスタンス初期化成功（@vercel/kv）');
+      return kvInstance;
     }
+    
+    console.log('[KV] ✅ KVインスタンス初期化成功（@vercel/kv）');
+    
+    // 接続テスト（初期化時に実行）
+    (async () => {
+      try {
+        const testKey = `__kv_init_test__${Date.now()}`;
+        await kvInstance.set(testKey, { test: true }, { ex: 1 });
+        const testValue = await kvInstance.get(testKey);
+        if (testValue && testValue.test === true) {
+          await kvInstance.del(testKey);
+          console.log('[KV] ✅ KV接続テスト成功（初期化時）');
+        } else {
+          console.error('[KV] ⚠️ KV接続テスト警告: 保存した値が取得できません');
+        }
+      } catch (testError) {
+        console.error('[KV] ⚠️ KV接続テスト警告（初期化時）:', testError.message);
+        // 接続テスト失敗でも続行（環境変数が後で設定される可能性がある）
+      }
+    })();
+    
   } catch (error) {
-    console.warn('[KV] @vercel/kv not available:', error.message);
+    console.error('[KV] ❌ @vercel/kv 初期化エラー:', error.message);
+    console.error('[KV] Stack:', error.stack);
     kvInstance = null;
   }
 
@@ -120,14 +159,22 @@ const kv = {
   async set(key, value, options = {}) {
     const instance = getKV();
     if (!instance) {
-      console.warn(`[KV] KV not available, set('${key}') skipped`);
+      console.error(`[KV] ❌ KV not available, set('${key}') failed`);
+      console.error(`[KV] 💡 Check KV environment variables: KV_REST_API_URL, KV_REST_API_TOKEN`);
       return false;
     }
     try {
+      // CRITICAL: @vercel/kvのsetメソッドはPromise<void>を返す
       await instance.set(key, value, options);
+      console.log(`[KV] ✅ Successfully set '${key}' (value type: ${Array.isArray(value) ? `Array[${value.length}]` : typeof value})`);
       return true;
     } catch (error) {
-      console.error(`[KV] Error setting '${key}':`, error.message);
+      console.error(`[KV] ❌ Error setting '${key}':`, error.message);
+      console.error(`[KV] Stack:`, error.stack);
+      console.error(`[KV] Value type:`, Array.isArray(value) ? `Array[${value.length}]` : typeof value);
+      if (Array.isArray(value) && value.length > 0) {
+        console.error(`[KV] Sample value:`, JSON.stringify(value[0], null, 2));
+      }
       return false;
     }
   },

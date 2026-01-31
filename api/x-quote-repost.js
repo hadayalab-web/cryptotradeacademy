@@ -14,29 +14,35 @@ const {
 } = require('../services/x/optimization');
 const { QUOTE_REPOST_TEMPLATES } = require('./x-post-free-report');
 const { getTweetMetrics } = require('../services/x/metrics');
-const { getWhopProductUrl } = require('../services/telegram/whop-links');
+const { getWhopProductUrl, getMinimalVersionCheckoutUrl } = require('../services/telegram/whop-links');
 const { optimizeContentAndFunnel } = require('../services/x/contentOptimizer');
 
 const {
   getInfluencerCountForLang,
   getImpressionTargetForLang,
   selectInfluencersForImpressionTarget,
-} = require('./config/influencerStrategy');
+} = require('../config/influencerStrategy');
 
-// 8時間クールダウン関連のインポート
+// 8時間クールダウン関連のインポート（インフルエンサー別の日次投稿数管理）
 const { 
   isInCooldown, 
   markLastPostedAt,
-  getDailyPostCount,
-  incrementDailyPostCount,
+  getDailyPostCount: getDailyPostCountForInfluencer,
+  incrementDailyPostCount: incrementDailyPostCountForInfluencer,
   hasReachedDailyLimit,
 } = require('../services/x/influencerRotation');
+
+// グローバルな日次投稿数管理（optimization.js）
+const { 
+  getDailyPostCount: getGlobalDailyPostCount,
+  incrementDailyPostCount: incrementGlobalDailyPostCount,
+} = require('../services/x/optimization');
 
 // ジッター（ランダム遅延）と言語間ウェイトのインポート（P0: 実装漏れ対応）
 const { applyJitter, applyLanguageWait } = require('../utils/scheduler');
 
-// 🚀 シームレスなKVアクセス（utils/kv.js経由）
-const { kv } = require('../utils/kv');
+// KV廃止: ファイルシステム方式に移行
+// const { kv } = require('../utils/kv'); // KV廃止
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 
@@ -446,10 +452,12 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
       lang, 
       influencerTweet, 
       reportData, 
-      deepLink, 
+      deepLink, // チェックアウトリンクまたはTelegram Deep Link
       minimalVersionPostUrl, 
       minimalContent,
-      optimizationStrategy // 最適化戦略を追加
+      optimizationStrategy, // 最適化戦略を追加
+      regularBriefingWhopUrl, // Funnel 2用: 有料版（Regular Briefing）Whop URL
+      minimalCheckoutUrl // 無料版（Minimal Version）チェックアウトリンク（オプション）
     );
     return quoteText;
   } catch (error) {
@@ -512,10 +520,10 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     const currentHour = new Date().getUTCHours();
     const dateString = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     
-    // 1日の投稿数を取得（Vercel KV）
+    // 1日の投稿数を取得（Vercel KV）- グローバルな日次投稿数
     currentStep = 'get_daily_post_count';
     if (dailyPostCount === null) {
-      dailyPostCount = await getDailyPostCount(dateString);
+      dailyPostCount = await getGlobalDailyPostCount(dateString);
     }
     
     // 🚀 数撃て作戦: 引用リポストのピーク時間を拡大（UTC 0-23の全時間帯で可能に）
@@ -561,19 +569,48 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     currentStep = 'get_influencers_from_stock';
     console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: Getting influencers from STOCK for ${lang}...`);
     
-    const { getInfluencersFromStock } = require('../services/x/influencerStock');
-    let influencers = await getInfluencersFromStock(lang, {
-      enableScoring: true, // スコアリングを有効化
-      topN: undefined, // 全員を返す（後でローテーション機能で選択）
+    // KV廃止: ファイルシステム方式に移行
+    const { getInfluencersFromStock } = require('../services/x/influencerStockFromFile');
+    let influencers = getInfluencersFromStock(lang, {
+      activeOnly: true,
+      excludeShadowbanned: true,
+      // enableScoringは未実装のため削除（後で実装可能）
     });
     
     if (!influencers || influencers.length === 0) {
-      console.warn(`[Quote Repost] ⚠️ No influencers in stock for ${lang} - skipping quote reposts [runId: ${langRunId}, step: ${currentStep}]`);
-      console.warn(`[Quote Repost] 💡 Please update stock first: /api/x-update-influencer-stock?lang=${lang}`);
+      console.error(`[Quote Repost] ❌❌❌ CRITICAL: No influencers in stock for ${lang} - ZERO DELIVERIES [runId: ${langRunId}, step: ${currentStep}]`);
+      console.error(`[Quote Repost] 💡 ACTION REQUIRED: Run /api/x-update-influencer-stock?lang=${lang} or execute discover-and-stock-influencers-840.js`);
       return [];
     }
     
-    console.log(`[Quote Repost] ✅ Retrieved ${influencers.length} influencers from STOCK for ${lang} (with scoring) [runId: ${langRunId}, step: ${currentStep}]`);
+    // CRITICAL: tweetIdの検証（引用リポストに必須）
+    const validInfluencers = influencers.filter(inf => {
+      if (!inf.tweetId) {
+        console.error(`[Quote Repost] ❌ CRITICAL: Influencer @${inf.username || 'unknown'} has no tweetId - cannot quote repost`);
+        return false;
+      }
+      const tweetIdStr = String(inf.tweetId).trim();
+      if (!/^\d{18,19}$/.test(tweetIdStr)) {
+        console.error(`[Quote Repost] ❌ CRITICAL: Invalid tweetId format: ${tweetIdStr} for @${inf.username || 'unknown'}`);
+        return false;
+      }
+      return true;
+    });
+    
+    if (validInfluencers.length === 0) {
+      console.error(`[Quote Repost] ❌❌❌ CRITICAL: All influencers in stock for ${lang} have invalid tweetIds - ZERO DELIVERIES [runId: ${langRunId}, step: ${currentStep}]`);
+      console.error(`[Quote Repost] 💡 ACTION REQUIRED: Rebuild stock with valid tweetIds using discover-and-stock-influencers-840.js`);
+      return [];
+    }
+    
+    if (validInfluencers.length < influencers.length) {
+      console.warn(`[Quote Repost] ⚠️ Filtered out ${influencers.length - validInfluencers.length} influencers with invalid tweetIds [runId: ${langRunId}]`);
+    }
+    
+    console.log(`[Quote Repost] ✅ Retrieved ${validInfluencers.length} VALID influencers from STOCK for ${lang} (with valid tweetIds) [runId: ${langRunId}, step: ${currentStep}]`);
+    
+    // 検証済みインフルエンサーを使用
+    influencers = validInfluencers;
     
     // 🔒 追加の言語整合性チェック: ストックから取得したインフルエンサーの言語を検証
     const langMismatched = influencers.filter(inf => inf.lang && inf.lang.toLowerCase() !== lang.toLowerCase());
@@ -719,16 +756,20 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         continue;
       }
       
-      // 8時間クールダウンチェック
-      const inCooldown = await isInCooldown(lang, username, 8);
+      // クールダウンチェック（言語別に調整: ENは6時間、その他は8時間）
+      // 🚀 824人ストックを最大限活用するため、ENのクールダウンを短縮
+      const cooldownHours = lang.toLowerCase() === 'en' ? 6 : 8;
+      const inCooldown = await isInCooldown(lang, username, cooldownHours);
       if (inCooldown) {
-        console.log(`[Quote Repost] ⏰ Skipping @${username} (${lang}): in 8h cooldown [runId: ${langRunId}]`);
+        console.log(`[Quote Repost] ⏰ Skipping @${username} (${lang}): in ${cooldownHours}h cooldown [runId: ${langRunId}]`);
         continue;
       }
       
       // 日次上限チェック（298投稿/日達成のため: 1人あたり最大4回/日）
       // 8時間クールダウンにより実質的には最大3回/日が上限だが、ローテーションにより平均4.3回/日を達成可能
-      const reachedLimit = await hasReachedDailyLimit(lang, username, maxDailyPostsPerInfluencer, dateString);
+      // インフルエンサー別の日次投稿数を取得
+      const currentInfluencerDailyCount = await getDailyPostCountForInfluencer(lang, username, dateString);
+      const reachedLimit = currentInfluencerDailyCount >= maxDailyPostsPerInfluencer;
       if (reachedLimit) {
         console.log(`[Quote Repost] ⚠️ Skipping @${username} (${lang}): reached daily limit (${maxDailyPostsPerInfluencer} posts/day) [runId: ${langRunId}]`);
         continue;
@@ -820,12 +861,22 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         // 最終確認: langフィールドを確実に設定
         influencer.lang = lang;
         
-        // tweetIdが必須
+        // CRITICAL: tweetIdが必須（引用リポストに必要）
         currentStep = 'tweet_id_check';
         if (!influencer.tweetId) {
-          console.warn(`[Quote Repost] ⏰ Skipping influencer @${influencer.username}: no tweetId [runId: ${langRunId}, step: ${currentStep}]`);
+          console.error(`[Quote Repost] ❌ CRITICAL: Skipping influencer @${influencer.username}: no tweetId - CANNOT QUOTE REPOST [runId: ${langRunId}, step: ${currentStep}]`);
           continue;
         }
+        
+        // tweetIdの形式検証（18-19桁の数値）
+        const tweetIdStr = String(influencer.tweetId).trim();
+        if (!/^\d{18,19}$/.test(tweetIdStr)) {
+          console.error(`[Quote Repost] ❌ CRITICAL: Invalid tweetId format: ${tweetIdStr} for @${influencer.username} - CANNOT QUOTE REPOST [runId: ${langRunId}, step: ${currentStep}]`);
+          continue;
+        }
+        
+        // tweetIdを正規化
+        influencer.tweetId = tweetIdStr;
         
         // P1 FIX: 重複投稿防止の最適化（メモリ上のSetで高速チェック）
         currentStep = 'duplicate_check';
@@ -1097,11 +1148,11 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             // エラーでも投稿は成功扱い（可用性優先）
           }
           
-          // P0: 日次投稿数をインクリメント（Grok + Gemini + GPT-5.2推奨: 1人あたり2回/日上限）
+          // P0: インフルエンサー別の日次投稿数をインクリメント（Grok + Gemini + GPT-5.2推奨: 1人あたり4回/日上限）
           try {
-            await incrementDailyPostCount(lang, influencer.username, dateString);
+            await incrementDailyPostCountForInfluencer(lang, influencer.username, dateString);
           } catch (dailyLimitError) {
-            console.warn(`[Quote Repost] ⚠️ Failed to increment daily post count (non-fatal):`, dailyLimitError.message);
+            console.warn(`[Quote Repost] ⚠️ Failed to increment influencer daily post count (non-fatal):`, dailyLimitError.message);
             // エラーでも投稿は成功扱い（可用性優先）
           }
           
@@ -1213,19 +1264,24 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           influencerTweetId: influencer.tweetId,
         });
         
+        // グローバルな日次投稿数をインクリメント（投稿成功時）
         if (trackingSuccess) {
-          // 保存に成功した場合のみ投稿数をインクリメント
-          await incrementDailyPostCount(dateString, 1);
-          console.log(`[Quote Repost] ✅ Post count incremented after successful save [runId: ${langRunId}, step: ${currentStep}]`);
+          try {
+            await incrementGlobalDailyPostCount(dateString, 1);
+            console.log(`[Quote Repost] ✅ Global daily post count incremented after successful save [runId: ${langRunId}, step: ${currentStep}]`);
+          } catch (countError) {
+            console.warn(`[Quote Repost] ⚠️ Failed to increment global daily post count:`, countError.message);
+          }
         } else {
           // P1 FIX: トラッキング失敗は警告に落として継続（投稿は成功している）
           console.warn(`[Quote Repost] ⚠️ Post tracking failed (non-fatal), but post succeeded: tweetId=${result.id} [runId: ${langRunId}, step: ${currentStep}]`);
-          // 投稿は成功しているため、投稿数はインクリメントする（トラッキングは後で再試行可能）
+          // トラッキングは後で再試行可能（投稿は成功している）
+          // グローバルな日次投稿数はインクリメントする（投稿は成功しているため）
           try {
-            await incrementDailyPostCount(dateString, 1);
-            console.log(`[Quote Repost] ✅ Post count incremented despite tracking failure [runId: ${langRunId}, step: ${currentStep}]`);
+            await incrementGlobalDailyPostCount(dateString, 1);
+            console.log(`[Quote Repost] ✅ Global daily post count incremented despite tracking failure [runId: ${langRunId}, step: ${currentStep}]`);
           } catch (countError) {
-            console.warn(`[Quote Repost] ⚠️ Failed to increment post count:`, countError.message);
+            console.warn(`[Quote Repost] ⚠️ Failed to increment global daily post count:`, countError.message);
           }
         }
         
@@ -1738,9 +1794,9 @@ const handler = async (req, res) => {
       });
     }
     
-    // 1日の投稿数を取得（Vercel KV）- 変数名を明確に（重複回避）
+    // 1日の投稿数を取得（Vercel KV）- グローバルな日次投稿数
     const dateString = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const currentDailyPostCount = await getDailyPostCount(dateString);
+    const currentDailyPostCount = await getGlobalDailyPostCount(dateString);
     
     const { langs: targetLangs, type, count } = getLanguagesForCurrentHour(currentHour);
     
@@ -1900,8 +1956,8 @@ const handler = async (req, res) => {
             continue;
           }
           
-          // 投稿数を更新（日次と時間次）
-          updatedDailyPostCount = await getDailyPostCount(dateString);
+          // 投稿数を更新（日次と時間次）- グローバルな日次投稿数
+          updatedDailyPostCount = await getGlobalDailyPostCount(dateString);
           updatedHourlyPostCount = await incrementHourlyPostCount(hourKey);
           console.log(`[Quote Repost] Updated hourly post count: ${updatedHourlyPostCount}/${maxPostsPerHour} [runId: ${runId}]`);
           
@@ -1952,8 +2008,8 @@ const handler = async (req, res) => {
     
     const langResults = allResults;
     
-    // 更新後の投稿数を取得
-    const finalDailyPostCount = await getDailyPostCount(dateString);
+    // 更新後の投稿数を取得 - グローバルな日次投稿数
+    const finalDailyPostCount = await getGlobalDailyPostCount(dateString);
     
     const successCount = langResults.filter(r => r.success && !r.dryRun).length;
     console.log(`[Quote Repost] ========================================`);

@@ -1,0 +1,267 @@
+{
+  "algorithmHacking": {
+    "exploitationMechanisms": [
+      "Exploit reply weighting: Algorithm prioritizes posts with high reply velocity in first 30 mins; flood with sockpuppet replies agreeing/disagreeing to boost.",
+      "Leverage quote reposts: Quotes inherit 20-50% of original post's reach if timed right, amplifying to influencer's audience.",
+      "Media boosts: Attach high-contrast images/GIFs of BTC charts with red arrows (fear) or green explosions (greed) for 2-3x impression multiplier.",
+      "Thread chaining: Post 5-10 tweet threads ending with CTA; algorithm treats as single high-engagement unit.",
+      "Shadow profile farms: Use 100+ aged alt accounts to like/reply within 1 min for initial velocity spike."
+    ],
+    "postingPatterns": [
+      "Post 3-5x/day per language, spaced 4-6 hours to hit global peaks.",
+      "Mirror viral formats: Copy top crypto posts (e.g., 'This chart changed everything' + screenshot).",
+      "Reply storms: Target 50+ hot crypto threads daily with value-add replies linking product.",
+      "Hashtag minimalism: 1-2 niche tags like #CryptoTraps #TradingPsychology to avoid spam flags.",
+      "Poll injection: Every 3rd post as poll ('Did this trap wipe you? Yes/No') to force engagement."
+    ],
+    "engagementGaming": [
+      "Sockpuppet loops: Alt accounts like → reply → quote each other's posts in 60s window.",
+      "Fake controversy: Post 'Most traders are idiots, here's proof' and have alts argue in replies.",
+      "Retweet cascades: Coordinate 20 alts to RT within 2 mins for exponential feed push.",
+      "Reply bait: End posts with 'Prove me wrong' or 'Tag a degens who needs this'.",
+      "Quote chains: Quote your own quote reposts to create infinite amplification loops."
+    ],
+    "timingStrategies": [
+      "EN: 8-10AM EST (US open), 2-4PM EST (EU overlap).",
+      "ES/PT-BR: 9AM-12PM GMT-3 (Latam peaks).",
+      "AR: 8-11PM GST (post-prayer trading frenzy).",
+      "JA/KO: 9-11AM JST/KST (Asia session start).",
+      "Velocity timing: Post during influencer's live spikes, quote within 5 mins of their viral hit."
+    ],
+    "algorithmFriendlyContent": [
+      "Pain-agitate-solution: 'Sick of BTC traps? [Chart loss] This psych hack saved me $10k [Link]'.",
+      "Visual fear porn: Bleeding charts + 'Avoid this forever' overlay.",
+      "Question hooks: 'Traders: What's your biggest psych leak? Mine was FOMO [Thread]'.",
+      "Meme templates: Wojak trader crying → Trap Defence shield meme.",
+      "Short videos: 15s 'Trap exposed' screen recordings with urgent voiceover."
+    ]
+  },
+  "influencerParasite": {
+    "maximizationStrategy": "Divide 386 influencers into tiers (Top 50: 10k+ followers, Mid 200: 1-10k, Bottom 136: <1k). Quote only Top/Mid during their peak posts (losses, pumps). Cycle daily: 20 quotes/language. Use alts to boost quote engagement. Track via API for 1M+ monthly impressions.",
+    "quoteRepostPatterns": [
+      "Pattern A: 'EXACTLY why I built Trap Defence BTC [Link] – saved me from this trap'.",
+      "Pattern B: 'Influencer wrong here – psych fix: [Quick tip] Full system: [Link]'.",
+      "Pattern C: Meme reaction GIF + 'Trap Defence users dodge this' [Link].",
+      "Pattern D: Poll quote: 'Agree with @influencer? Vote then claim defense [Link]'.",
+      "Pattern E: Thread quote: 'Part 1/5 response – psych breakdown [Link to product thread]'."
+    ],
+    "rotationStrategy": "Rotate 60 influencers/day/language (10/hour peak windows). Blacklist after 3 quotes/week to evade shadowbans. Refresh lists weekly via API scrapes for rising crypto voices. Use 5 alt accounts/influencer pool for distributed quoting.",
+    "viralTactics": [
+      "Alt reply swarms: 10 alts reply to your quote with 'Life-changing!' + emojis.",
+      "Cross-quote: Quote your own quote on influencer's quote for chain reaction.",
+      "Tag bait: Quote + tag 5 similar influencers to spark reply wars.",
+      "FOMO stack: '500 spots left – quote RT for access' on high-engagement quotes.",
+      "Loss leader: Free 'mini-trap audit' link in quote, upsell product."
+    ],
+    "parasiticContent": [
+      "'@influencer nailed the pump – but traps next. My psych shield: [Link]'.",
+      "Screenshot influencer's chart + red 'TRAP' overlay + 'Defense here [Link]'.",
+      "'If you follow @influencer, you NEED Trap Defence [Proof chart]'.",
+      "Wojak vs Chad: Influencer prediction fail vs Trap Defence win.",
+      "'@influencer pump call? Psych addicts fall here – not me [Link]'."
+    ]
+  },
+  "apiLimitOptimization": {
+    "maximizationStrategy": "X API v2 Basic: 10k tweets/month/account. Use 50 alt accounts (10/language) for 500k quotes/month. Auth via OAuth2 app. Rate limit: 300 posts/3hrs/account – burst quote during peaks.",
+    "optimalFrequency": "Per account: 50 quotes/day (spread 12hrs). Total: 2500 quotes/day across alts. Post originals: 10/account/day. Monitor via API dashboard, pause at 80% limit.",
+    "distributionStrategy": "EN/ES/PT-BR: 40% volume (high addiction markets). AR/JA/KO: 20% each. Assign 65 influencers/language. Stagger: Hour 1 EN top tier, Hour 2 ES, etc.",
+    "automationStrategies": [
+      "Zapier/Python bot: Monitor influencer RSS/API for keywords ('BTC', 'trap', 'FOMO'), auto-quote.",
+      "Queue system: Pre-load 100 quotes/day/account, drip via cron jobs.",
+      "Proxy rotation: 100 proxies for alts to evade IP bans.",
+      "Error handling: Retry failed quotes x3, log for manual override.",
+      "A/B testing: API track impressions/engagements, auto-scale winning patterns."
+    ]
+  },
+  "conversionFunnel": {
+    "postStructure": "Hook (pain: 'Wiped $5k on this trap?') + Agitate ('Psych addicts repeat') + Solution Tease ('Trap Defence fixed me') + CTA Link + Proof (chart/testimonial). Keep <100 chars + image.",
+    "effectiveCTAs": [
+      "'DM 'TRAP' for free audit – 100 spots'.",
+      "'Claim psych shield NOW [Link] – ends in 24h'.",
+      "'Stop losing: Signup [Bit.ly]'.",
+      "'Tag your broke trading buddy + Link'.",
+      "'Beta access free: [Link] – addicts only'."
+    ],
+    "urgencyCreation": [
+      "Countdown timers in images: 'Slots close in 3:42'.",
+      "'Last 50 addicts accepted – refreshing soon'.",
+      "'BTC dump incoming – armor up NOW'.",
+      "Fake scarcity: 'Waitlist 10k – insiders jump queue'.",
+      "'Price jumps midnight – lock in $47/mo'."
+    ],
+    "psychologicalTriggers": [
+      "Loss aversion: 'Avoid next $10k trap'.",
+      "FOMO: 'While you sleep on it, winners stack sats'.",
+      "Authority: 'Backed by 7fig traders'.",
+      "Social proof: '1k addicts saved – your turn?'.",
+      "Addict bait: 'Beat the dopamine crash forever'."
+    ],
+    "seamlessPath": "Bit.ly link → Mobile-optimized LP with 1-click signup (Stripe/Telegram bot). No email gate – instant 'Trap Audit' quiz → Upsell product. Pixel track for retargeting quotes to engagers."
+  },
+  "viralGrowth": {
+    "viralLoops": [
+      "Referral embed: 'Share for free month – tag 3 degens'.",
+      "'RT if trapped, quote your loss story'.",
+      "Challenge: 'Post your worst trade + #TrapDefence for shoutout'.",
+      "Unroll threads: Viral thread → auto-link to product.",
+      "Meme kit: Free downloadable memes with watermarked Link."
+    ],
+    "shareableContent": [
+      "'99% traders lose to psych – cheat code [Image + Link]'.",
+      "Ultimate trap list infographic.",
+      "'My $50k revenge trade [Story + Link]'.",
+      "Predictive chart templates: 'Fill your trap here'.",
+      "Addict confession threads."
+    ],
+    "networkEffects": [
+      "Tag storms: 'Tag every trader you know'.",
+      "Community bait: 'Degens unite vs traps [Link]'.",
+      "Reply incentives: 'Best reply wins free access'.",
+      "Cross-promote: Influencer quotes tag each other.",
+      "Alt amplification: Fake 'group buys' in replies."
+    ],
+    "controversialContent": [
+      "'Exchanges rig traps – fight back [Link]'.",
+      "'Gurus lie: Psych > TA [Proof]'.",
+      "'Addicts: Quit or die broke? [Poll + Link]'.",
+      "'BTC maxis are delusional psych slaves'.",
+      "'Your altcoin bag = psych weakness exposed'."
+    ],
+    "hookPatterns": [
+      "'You won't believe this BTC trap...'.",
+      "'Traders hate me for this'.",
+      "'Secret 10x psych hack'.",
+      "'Why you're still broke [Chart]'.",
+      "'1 tweet = $ saved forever'."
+    ]
+  },
+  "multiLanguage": {
+    "optimizationStrategy": "Translate hooks/CTAs via DeepL + native tweak. Post parallel: Same UTC time slots adjusted local. Cross-post viral EN hits to others with 'Global traders agree'. Track lang-specific ER via API.",
+    "languageSpecificTactics": {
+      "en": [
+        "Heavy FOMO polls",
+        "Wojak memes",
+        "US session bursts"
+      ],
+      "es": [
+        "Emotive storytelling",
+        "Latam pump chases",
+        "Machismo challenges"
+      ],
+      "pt-br": [
+        "Football-style hype",
+        "Samba energy GIFs",
+        "Favela-to-riches arcs"
+      ],
+      "ar": [
+        "Halal wealth frames",
+        "Prayer-time posts",
+        "Family protection angles"
+      ],
+      "ja": [
+        "Precision charts",
+        "Salaryman grind hooks",
+        "Zen psych mastery"
+      ],
+      "ko": [
+        "K-pop speed edits",
+        "Tech gadget analogies",
+        "Chaebol envy triggers"
+      ]
+    },
+    "crossLanguageViral": "Quote EN virals in other langs ('Global trap exposed – [Local trans] [Link]'). Unified #TrapDefenceBTC multilingual. Alt replies bridge: English user → Local quote chain.",
+    "culturalTriggers": {
+      "en": [
+        "American Dream sats",
+        "Hustle porn",
+        "YOLO degens"
+      ],
+      "es": [
+        "Pasión por BTC",
+        "Venganza contra traps",
+        "Familia riqueza"
+      ],
+      "pt-br": [
+        "Sonhar grande",
+        "Fugir da favela",
+        "Festa do lucro"
+      ],
+      "ar": [
+        "Barakah en trading",
+        "Halal gains",
+        "Proteger haram losses"
+      ],
+      "ja": [
+        "Bushido discipline",
+        "Kaizen psych",
+        "Samurai trader"
+      ],
+      "ko": [
+        "Hyundai-speed wins",
+        "Oppa K-trades",
+        "Nationwide moonshots"
+      ]
+    }
+  },
+  "impressionEngagement": {
+    "impressionTactics": [
+      "Peak hour blasts + media.",
+      "Influencer quote floods.",
+      "Hashtag hijacks on trending crypto.",
+      "Alt like velocity (100/min).",
+      "Geotarget proxies per lang."
+    ],
+    "algorithmBoostedContent": [
+      "High-contrast fear charts.",
+      "15s urgent videos.",
+      "Interactive polls/threads.",
+      "Meme storms.",
+      "Controversy + proof screenshots."
+    ],
+    "recommendationTriggers": [
+      "Reply velocity >10/min first hour.",
+      "Diverse engagers (alts + real).",
+      "Quote depth >3 levels.",
+      "Cross-follower tags.",
+      "Session stickiness via threads."
+    ],
+    "stickyContent": [
+      "Long threads (8+ tweets).",
+      "Quizzes/polls in thread.",
+      "Cliffhanger ends.",
+      "User-gen reply prompts.",
+      "Embedded mini-courses."
+    ],
+    "velocityStrategies": [
+      "Bot swarm first 5 mins.",
+      "Live event tie-ins (BTC pumps).",
+      "Chain posts every 15 mins.",
+      "RT own posts via alts.",
+      "Paid micro-influencer bursts."
+    ]
+  },
+  "conversionOptimization": {
+    "funnelOptimization": "X Post → Bit.ly (UTM lang/source) → Quiz LP (2min psych test → personalized 'Your trap score: 8/10 – Fix now') → Stripe checkout → Telegram upsell bot. Retarget engagers with quote ads.",
+    "landingPageStrategies": [
+      "Mobile-first, 5s load, no nav.",
+      "Video testimonial loop.",
+      "Dynamic pricing: 'Your offer: $37 (24h only)'.",
+      "Exit pop: 'Wait! Free trap map'.",
+      "A/B: Quiz vs direct pitch."
+    ],
+    "irresistibleOffers": [
+      "'Lifetime $97 – or $997 value free'.",
+      "'7-day money pump guarantee'.",
+      "'Free month + $1k trap bounty'.",
+      "'VIP Discord + signals'.",
+      "'Burn your losses cert: Signup proof'."
+    ],
+    "psychologicalTriggers": [
+      "Dopamine hits: Instant quiz results.",
+      "Sunk cost: 'You've lost $Xk – recover'.",
+      "Bandwagon: 'Join 5k addicts'.",
+      "Scarcity: 'Audit closes forever'.",
+      "Ego stroke: 'Elite trader unlock'."
+    ]
+  }
+}

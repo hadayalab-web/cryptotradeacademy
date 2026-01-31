@@ -319,21 +319,43 @@ async function selectInfluencersWithRotation(influencers, lang, count, dateStrin
   }
   
   // 利用可能なインフルエンサーが十分ある場合
+  // 🚀 最適化: 未使用インフルエンサーを優先的に選択
+  // 1. 最終投稿時刻でソート（未使用または古い投稿を優先）
+  const influencersWithLastPosted = await Promise.all(
+    availableInfluencers.map(async (inf) => {
+      const username = inf.username || inf.userId || inf.id;
+      const lastPosted = await getLastPostedAt(lang, username);
+      return {
+        influencer: inf,
+        lastPosted: lastPosted || new Date(0), // 未使用の場合は1970-01-01
+        username,
+      };
+    })
+  );
+  
+  // 最終投稿時刻でソート（古い順 = 未使用優先）
+  influencersWithLastPosted.sort((a, b) => {
+    return a.lastPosted.getTime() - b.lastPosted.getTime();
+  });
+  
   // ローテーションインデックスを取得
   const rotationIndex = await getRotationIndex(lang, targetDate);
   
-  // ローテーション順に選択（循環）
+  // ローテーション順に選択（循環、未使用優先）
   const selected = [];
-  for (let i = 0; i < count && i < availableInfluencers.length; i++) {
-    const index = (rotationIndex + i) % availableInfluencers.length;
-    selected.push(availableInfluencers[index]);
+  const sortedInfluencers = influencersWithLastPosted.map(item => item.influencer);
+  
+  for (let i = 0; i < count && i < sortedInfluencers.length; i++) {
+    const index = (rotationIndex + i) % sortedInfluencers.length;
+    selected.push(sortedInfluencers[index]);
   }
   
   // ローテーションインデックスを更新
-  const newIndex = (rotationIndex + count) % availableInfluencers.length;
+  const newIndex = (rotationIndex + count) % sortedInfluencers.length;
   await updateRotationIndex(lang, newIndex, targetDate);
   
-  console.log(`[InfluencerRotation] ✅ Selected ${selected.length} influencers with rotation (available: ${availableInfluencers.length}, index: ${rotationIndex} → ${newIndex})`);
+  const unusedCount = influencersWithLastPosted.filter(item => item.lastPosted.getTime() === new Date(0).getTime()).length;
+  console.log(`[InfluencerRotation] ✅ Selected ${selected.length} influencers with rotation (available: ${availableInfluencers.length}, unused: ${unusedCount}, index: ${rotationIndex} → ${newIndex})`);
   return selected;
 }
 

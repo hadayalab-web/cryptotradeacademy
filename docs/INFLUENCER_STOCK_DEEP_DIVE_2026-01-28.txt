@@ -1,0 +1,176 @@
+{
+  "dynamicPoolImplementation": {
+    "replacementStrategy": {
+      "metrics": ["ER (primary: engagement rate = likes+RTs+replies/impressions)", "impressions (secondary: >10k min)", "conversions (tertiary: tracked via UTM)", "shadowban flags (e.g., impressions drop >50% on test post)"],
+      "threshold": "Rank all 840 by composite score: 70% ER + 20% impressions/10k normalized + 10% conversions. Bottom 20% (exactly 168) where avg ER <0.5% or composite <0.7. Flag shadowbanned if impressions <20% of followers on last 3 posts.",
+      "batchSize": 168,
+      "replacementTiming": "Stagger over 7 days: 24 influencers/day (3/language adjusted by size: EN=6, ES/PT-BR=5 each, AR=3, JA/KO=2 each). Replace Mon 12AM UTC, Tue 2AM, etc., to spread load.",
+      "discoveryProcess": "Grok API prompt: 'List 50 active [tier] [lang] trading influencers (BTC/crypto traps/scams focus,  [follower range], ER>1.2%, posted in last 48h, username, bio snippet, last post ER'. Batch 10 langs/tiers=350 calls/week ($3.50). Filter: verify via X API impressions>5k/post, no recent promo spam."
+    },
+    "bandMaintenance": {
+      "addTriggers": ["Total influencers <700", "Avg ER across pool >1.2%", "Conversions >12/influencer/month", "API util <30%"],
+      "removeTriggers": ["Total >900", "Avg ER <0.8%", "Shadowban flags >5%", "Conversions <8/influencer/month"],
+      "languageBalance": "Target ratios: EN25%, ES/PT-BR20% each, AR13%, JA12%, KO10%. Weekly audit: if EN<23%, discover 20 extra EN. Rebalance by +5/-5 per lang deviation >2%."
+    },
+    "costOptimization": {
+      "discoveryCostReduction": "Batch 50 discoveries/call (Grok supports lists), seed from cached winners + 'similar to @top3'. Target 80% hit rate >1% ER to cut calls 40% ($3k/week). Prioritize mid-tier (higher ROI).",
+      "cachingStrategy": "Cache 2000 influencers/lang in KV (JSON: {user_id, metrics, expiry}). Reuse if ER>1% and active (posted <7days), 60% reuse rate across markets (ES/PT-BR share 70%, JA/KO 50%). Expire 30 days or ER drop."
+    }
+  },
+  "patternTierMatching": {
+    "topTierPatterns": {
+      "bestPatterns": ["A", "D"],
+      "reasoning": "Top (10k+ fols) maximize reach via authority piggyback. A: direct endorsement-style boosts RTs 3x (impressions 500k+). D: polls spike engagement 4x algo boost.",
+      "rotationStrategy": "50% A, 50% D per influencer. Rotate every 4 quotes."
+    },
+    "midTierPatterns": {
+      "bestPatterns": ["B", "E"],
+      "reasoning": "Mid (1-10k) engagement-focused: B psych fixes debates (replies 2x), E threads deep-dive (time-on-post 5x algo favor). ER 2.5% avg.",
+      "rotationStrategy": "40% B, 40% E, 20% A. Rotate per quote to test."
+    },
+    "bottomTierPatterns": {
+      "bestPatterns": ["C", "B"],
+      "reasoning": "Bottom (<1k) conversion direct: C memes visual hook (click 15% CTR), B quick tips low-barrier. Niche trusts micro-influencers.",
+      "rotationStrategy": "60% C, 40% B. Fixed to maximize sparse traffic."
+    },
+    "patternMixOptimization": {
+      "dailyMix": "Per lang/day (70 quotes): Top20%: 10A/10D; Mid60%: 15B/15E/5A; Bottom20%: 5C/5B. Total: 20A/20B/10C/10D/10E.",
+      "fatigueAvoidance": "Rotate weekly: Week1 heavy A/D, Week2 B/E/C. Track pattern ER drop >20% → pause 48h. Max 3 same/influencer cycle."
+    }
+  },
+  "timingStrategyDetails": {
+    "languagePeakTimes": {
+      "en": {"times": ["8-10AM EST", "2-4PM EST"], "strategy": "Split 35 quotes/window: 18 first, 17 second. Focus US/EU traders."},
+      "es": {"times": ["9AM-12PM GMT-3"], "strategy": "70 quotes/3h =23/h. Latam morning frenzy."},
+      "pt-br": {"times": ["9AM-12PM GMT-3"], "strategy": "Same as ES, but +1h offset for BR."},
+      "ar": {"times": ["8-11PM GST"], "strategy": "70/3h=23/h. Post-prayer BTC pumps."},
+      "ja": {"times": ["9-11AM JST"], "strategy": "70/2h=35/h burst Asia open."},
+      "ko": {"times": ["9-11AM KST"], "strategy": "Same as JA, minor offset."
+    },
+    "tierSpecificTiming": {
+      "top": "Peak +30min (e.g. EN 8:30AM): leverage initial algo blast.",
+      "mid": "Peak core (e.g. 9AM): steady engagement.",
+      "bottom": "Peak tail (e.g. 9:45AM): lower competition."
+    },
+    "frequencyDistribution": {
+      "withinPeakWindows": "12 quotes/h = 1 every 5min. Distribute: 40% even (5min), 60% micro-bursts (2 in 3min, 8min gap).",
+      "burstVsSpread": "Hybrid: 3 bursts/h (3 quotes/5min) + 3 singles. Boosts momentum without spam flag."
+    },
+    "crossLanguageCoordination": {
+      "staggerPattern": "EN start, +15min ES/PT, +30min AR, +45min JA/KO. No >2 langs burst same 10min.",
+      "riskReduction": "Account caps: 1 quote/10min cross-lang. Randomize ±2min."
+    }
+  },
+  "shadowbanAvoidance": {
+    "rotationMechanics": {
+      "implementation": "2-day cycle: Day1 quote influencers 1-420, Day2 421-840. Reset Mon. Script: cron daily check last_quote_time >48h.",
+      "tracking": "KV store {influencer_id: {last_quote_utc, cycle_day}}.",
+      "inactiveHandling": "If no post 7days, skip + flag for replace. Test post from alt first."
+    },
+    "accountDistribution": {
+      "accountAssignment": "50 alts (10/lang): Assign 16-42 influencers/account (EN21/account). Rotate weekly: shift 10% influencers/account.",
+      "ipRotation": "Proxy pool 100 IPs (residential, $0.5/GB). Rotate IP/account every 50 quotes (2days). VPN chains for alts.",
+      "correlationAvoidance": "Vary bio/PFP 10% alts/month. Mix original tweets 30% (retweet memes). Device ID spoof via headless browser."
+    },
+    "activityDilution": {
+      "coordinationAvoidance": "Per account: 70% quotes + 20% RTs + 10% replies (random). Vary text 15% (synonyms).",
+      "delayOptimization": "Account delay: 8-15min between quotes. Random uniform dist.",
+      "randomization": "Timing jitter ±3min. Quote text mutate 5% words."
+    },
+    "detectionAvoidance": {
+      "detectablePatterns": ["Identical phrasing >5 accounts", "Same link burst", "Quote-only accounts", ">20 quotes/day/account", "High link CTR no engagement"],
+      "avoidanceStrategies": ["Text variation 20%", "Mix media/links 50/50", "Original content 25%", "Cap 15 quotes/day/account", "Engage back 10% replies"],
+      "warningSigns": ["Impressions <10% fols", "No notifications 24h", "Search invisible", "ER drop 70%", "Alt test post <1k imp"]
+    }
+  },
+  "conversionOptimization": {
+    "ctaPatternMatching": {
+      "patternA": {"bestCTAs": ["Claim psych shield NOW [Bit.ly/utm?pattern=A]"], "reasoning": "Urgency + direct link: 12% CTR Top tier."},
+      "patternB": {"bestCTAs": ["Tag broke buddy + Signup [Bit.ly/B]"], "reasoning": "Social proof viral: 18% Mid ER."},
+      "patternC": {"bestCTAs": ["Beta free: [Link/C] – addicts only"], "reasoning": "FOMO meme: 22% Bottom CTR."},
+      "patternD": {"bestCTAs": ["Vote then claim [Link/D]"], "reasoning": "Poll friction → high intent 15%."},
+      "patternE": {"bestCTAs": ["Full thread + DM 'TRAP' [Link/E]"], "reasoning": "Thread authority: 14% qual leads."}
+    },
+    "tierSpecificCTAs": {
+      "top": {"bestCTAs": ["DM 'ELITE' for audit [Link]"], "reasoning": "Exclusive: 8% conv but $200 LTV."},
+      "mid": {"bestCTAs": ["Signup FREE [Bit.ly]"], "reasoning": "Volume: 15 conv/inf/month."},
+      "bottom": {"bestCTAs": ["$1k bounty claim [Link]"], "reasoning": "Incentive: 20% CTR niche."}
+    },
+    "landingPageOptimization": {
+      "tierSpecificPages": "Yes: top.trapdefence.com (premium video), mid/main (quiz funnel), bottom/niche (instant audit).",
+      "personalization": "UTM? tier=Top&inf={handle}: Dynamic headline 'Like @{handle}? Dodge traps'."
+    },
+    "conversionTracking": {
+      "attribution": "UTM?inf={id}&pat={A}&lang=EN + pixel on LP. Server-side GA4 events.",
+      "roiMeasurement": "Per inf: conv * $100 - costs. Monthly: total rev / total cost.",
+      "optimization": "Pause <5% conv ER infs. Scale top 10%: double quotes."
+    }
+  },
+  "costOptimization": {
+    "grokApiCostReduction": {
+      "strategies": ["Batch 100/call", "Seed cache hits", "Lang reuse ES/PT 80%", "ER filter pre-call"],
+      "batching": "1 call/5 langs = 2 calls/week full refresh ($0.02 total).",
+      "caching": "KV reuse 70%: $1k/week → $700."
+    },
+    "kvStorageOptimization": {
+      "strategies": ["Compress JSON gzip", "Purge <30day inactive"],
+      "archiving": "Archive bottom to S3 ($0.0001/GB), hot KV top 70% only. $0.4/month."
+    },
+    "maintenanceAutomation": {
+      "automationOpportunities": ["Discovery cron", "ER calc script", "Replacement batch", "Timing scheduler", "Shadowban monitor"],
+      "manualRequirements": ["Initial alt setup", "LP tweaks", "A/B review"]
+    },
+    "roiImprovement": {
+      "strategies": ["Automate 80% maint → $400/month", "Cache → $2.8k/week save", "Top tier focus +20% conv"],
+      "projectedROI": "Current 179x → 250x ($1,500 rev - $3/inf = 499x)."
+    }
+  },
+  "abTestingStrategy": {
+    "testPriorities": ["CTAs", "Patterns A-E", "Timing ±30min", "Tier distro", "Lang ratios"],
+    "implementation": {
+      "sampleSize": "200 infs/test arm (10% pool), 80% power detect 20% lift.",
+      "duration": "14 days (2 cycles)",
+      "metrics": ["ER primary", "CTR", "Conv rate", "ROI/inf"]
+    },
+    "scalingWinners": {
+      "rolloutStrategy": "Winner to 30% pool Week3, 70% Week5, 100% Week7.",
+      "disruptionAvoidance": "Parallel test accounts, fade loser gradually."
+    }
+  },
+  "scalingStrategy": {
+    "scalingTriggers": ["Convs >12k/month", "API <50%", "Avg ER>1.5%", "ROI>200x"],
+    "scalingOptions": {
+      "moreLanguages": "Add TR/IT after 1000 (similar AR/JA).",
+      "morePerLanguage": "EN+50 to 260 first.",
+      "moreAltAccounts": "+25 alts (scale to 75)."
+    },
+    "nextMilestones": {
+      "1000": {"roi": "210x (add EN/AR)", "strategy": "+160 infs, +10 alts."},
+      "1200": {"roi": "240x (langs+)", "strategy": "+200, API 60%."}
+    }
+  },
+  "implementationRoadmap": {
+    "phase1": {
+      "steps": ["Discover/seed 840 via Grok batch", "Tier/sort/assign alts", "Build scheduler script", "Test 10% dry-run", "Launch quotes"],
+      "dependencies": ["50 alts ready", "Grok API key", "KV setup"],
+      "timeline": "Week1: setup/discover, Week2: launch."
+    },
+    "phase2": {
+      "steps": ["Activate weekly cron replace", "Metrics dashboard", "First replace Day7"],
+      "prerequisites": ["Phase1 7days data", "ER tracking live"],
+      "timeline": "Week3 start."
+    },
+    "phase3": {
+      "metrics": ["ER, Conv, ROI, Shadow flags"],
+      "priorities": ["A/B CTAs", "Timing opt", "Scale triggers"]
+    }
+  },
+  "riskMitigation": {
+    "risks": {
+      "shadowban": {"mitigation": "Dilution + monitor, cap 12q/day/acct", "contingency": "Pause 48h, rotate alts full."},
+      "rateLimit": {"mitigation": "40% API, batch", "contingency": "Fallback manual list, +proxies."},
+      "qualityDegradation": {"mitigation": "Weekly replace, ER thresh", "contingency": "Double discover budget."},
+      "costOverrun": {"mitigation": "Cache 70%, auto-pause lowROI", "contingency": "Cap $4k/week, manual review."}
+    }
+  }
+}

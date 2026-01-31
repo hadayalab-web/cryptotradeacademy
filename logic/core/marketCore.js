@@ -1,12 +1,12 @@
 // logic/core/marketCore.js
 
 // 閾値コンフィグ
-const { BASE, EVENT_FOMC } = require('../../api/config/thresholds');
+const { BASE, EVENT_FOMC } = require('../../config/thresholds');
 
 // Phase 2: 市場別プロファイル（Strategic SSOT v4.0）
 let marketProfiles = null;
 try {
-  marketProfiles = require('../../api/config/marketProfiles');
+  marketProfiles = require('../../config/marketProfiles');
 } catch (error) {
   // marketProfiles.jsがない場合は無視（デフォルト動作）
 }

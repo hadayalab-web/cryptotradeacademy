@@ -1,13 +1,8 @@
 // services/x/influencerStock.js
 // インフルエンサーストック管理（KVストレージ）
 
-let kv = null;
-try {
-  const kvModule = require('@vercel/kv');
-  kv = kvModule.kv;
-} catch (error) {
-  console.warn('[InfluencerStock] @vercel/kv not available:', error.message);
-}
+// 🚀 シームレスなKVアクセス（utils/kv.js経由）
+const { kv } = require('../../utils/kv');
 
 const { discoverInfluencersForQuoteRepost } = require('../grok/client');
 const { 
@@ -21,8 +16,8 @@ const {
 const STOCK_KEY_PREFIX = 'x:influencer_stock:';
 const STOCK_UPDATE_TIME_KEY_PREFIX = 'x:influencer_stock_update:';
 
-// ストックの有効期限（24時間）
-const STOCK_TTL = 24 * 60 * 60; // 24時間（秒）
+// ストックの有効期限（TTLなし - 永続保存）
+// const STOCK_TTL = 24 * 60 * 60; // 24時間（秒） - 削除: 自動削除を無効化
 
 /**
  * 言語別のストックキーを生成
@@ -49,14 +44,88 @@ function getUpdateTimeKey(lang) {
  * @returns {Promise<boolean>} 保存成功時true
  */
 async function saveInfluencersToStock(lang, influencers) {
+  // KV接続確認（utils/kv.js経由）
   if (!kv) {
-    console.warn('[InfluencerStock] KV not available, cannot save influencers');
+    console.error('[InfluencerStock] ❌ CRITICAL: KV not available, cannot save influencers');
+    console.error('[InfluencerStock] 💡 Check KV environment variables: KV_REST_API_URL, KV_REST_API_TOKEN');
+    return false;
+  }
+  
+  // KV接続テスト（詳細ログ付き）
+  try {
+    const testKey = `x:influencer_stock:test:${Date.now()}`;
+    console.log(`[InfluencerStock] 🔵 KV接続テスト開始: ${testKey}`);
+    
+    const testValue = { test: true, timestamp: new Date().toISOString() };
+    const testResult = await kv.set(testKey, testValue, { ex: 10 });
+    
+    console.log(`[InfluencerStock] 🔵 kv.set() 結果:`, testResult);
+    
+    if (!testResult) {
+      console.error('[InfluencerStock] ❌ KV connection test failed (set returned false)');
+      console.error('[InfluencerStock] 💡 KV環境変数を確認してください:');
+      console.error('[InfluencerStock]   - KV_REST_API_URL:', process.env.KV_REST_API_URL ? '設定済み' : '未設定');
+      console.error('[InfluencerStock]   - KV_REST_API_TOKEN:', process.env.KV_REST_API_TOKEN ? '設定済み' : '未設定');
+      console.error('[InfluencerStock]   - KV_URL:', process.env.KV_URL ? '設定済み' : '未設定');
+      return false;
+    }
+    
+    const retrievedValue = await kv.get(testKey);
+    console.log(`[InfluencerStock] 🔵 kv.get() 結果:`, retrievedValue);
+    
+    if (!retrievedValue || JSON.stringify(retrievedValue) !== JSON.stringify(testValue)) {
+      console.error('[InfluencerStock] ❌ KV接続テスト失敗: 保存した値が取得できません');
+      console.error('[InfluencerStock] 期待値:', JSON.stringify(testValue, null, 2));
+      console.error('[InfluencerStock] 実際の値:', JSON.stringify(retrievedValue, null, 2));
+      return false;
+    }
+    
+    const delResult = await kv.del(testKey);
+    console.log(`[InfluencerStock] 🔵 kv.del() 結果:`, delResult);
+    console.log('[InfluencerStock] ✅ KV connection test passed');
+  } catch (kvTestError) {
+    console.error('[InfluencerStock] ❌ KV connection test failed:', kvTestError.message);
+    console.error('[InfluencerStock] Stack:', kvTestError.stack);
+    console.error('[InfluencerStock] 💡 KV環境変数を確認してください:');
+    console.error('[InfluencerStock]   - KV_REST_API_URL:', process.env.KV_REST_API_URL ? '設定済み' : '未設定');
+    console.error('[InfluencerStock]   - KV_REST_API_TOKEN:', process.env.KV_REST_API_TOKEN ? '設定済み' : '未設定');
+    console.error('[InfluencerStock]   - KV_URL:', process.env.KV_URL ? '設定済み' : '未設定');
     return false;
   }
 
   try {
     const stockKey = getStockKey(lang);
     const updateTimeKey = getUpdateTimeKey(lang);
+    
+    // 🛡️ 保護機能1: 空配列での上書きを防ぐ
+    if (!Array.isArray(influencers) || influencers.length === 0) {
+      console.error(`[InfluencerStock] 🛡️ PROTECTION: Attempted to save empty array for ${lang} - BLOCKED`);
+      console.error(`[InfluencerStock] 🛡️ This would delete all ${lang} influencers! Operation cancelled.`);
+      
+      // 既存のストックを確認
+      const existing = await kv.get(stockKey);
+      if (existing && Array.isArray(existing) && existing.length > 0) {
+        console.error(`[InfluencerStock] 🛡️ Existing stock has ${existing.length} influencers - preserving existing data`);
+        return false; // 既存データを保護
+      }
+      
+      // 既存データがない場合でも空配列の保存は拒否
+      console.error(`[InfluencerStock] 🛡️ No existing stock found, but empty array save is still blocked for safety`);
+      return false;
+    }
+    
+    // 🛡️ 保護機能2: 既存データのバックアップ（上書き前に保存）
+    const existingStock = await kv.get(stockKey);
+    if (existingStock && Array.isArray(existingStock) && existingStock.length > 0) {
+      const backupKey = `${stockKey}:backup:${Date.now()}`;
+      try {
+        await kv.set(backupKey, existingStock);
+        console.log(`[InfluencerStock] 🛡️ Backup created: ${backupKey} (${existingStock.length} influencers)`);
+      } catch (backupError) {
+        console.warn(`[InfluencerStock] ⚠️ Failed to create backup: ${backupError.message}`);
+        // バックアップ失敗でも続行（ログのみ）
+      }
+    }
     
     // 🔒 言語整合性保証: すべてのインフルエンサーにlangフィールドを明示的に設定
     const targetLang = (lang || 'en').toLowerCase();
@@ -73,16 +142,100 @@ async function saveInfluencersToStock(lang, influencers) {
       console.warn(`[InfluencerStock] 🔧 Correcting language field to ${targetLang} for all influencers`);
     }
     
-    // インフルエンサーをストックに保存（TTL: 24時間）
-    await kv.set(stockKey, influencersWithLang, { ex: STOCK_TTL });
+    // 🛡️ 保護機能3: 最小数のチェック（10人未満の場合は警告）
+    if (influencersWithLang.length < 10) {
+      console.warn(`[InfluencerStock] ⚠️ WARNING: Only ${influencersWithLang.length} influencers to save for ${targetLang} (very low count!)`);
+    }
     
-    // 更新時刻を保存
-    await kv.set(updateTimeKey, new Date().toISOString(), { ex: STOCK_TTL });
+    // インフルエンサーをストックに保存（TTLなし - 永続保存）
+    console.log(`[InfluencerStock] 🔵 Attempting to save ${influencersWithLang.length} influencers to KV key: ${stockKey}`);
+    console.log(`[InfluencerStock] 📊 Sample influencer before save:`, JSON.stringify(influencersWithLang[0], null, 2));
     
-    console.log(`[InfluencerStock] ✅ Saved ${influencersWithLang.length} influencers to stock for ${targetLang} (all with lang field set)`);
+    try {
+      // CRITICAL: kv.setはbooleanを返すが、エラー時は例外を投げる可能性がある
+      const saveResult = await kv.set(stockKey, influencersWithLang);
+      
+      if (saveResult === false) {
+        console.error(`[InfluencerStock] ❌ kv.set returned false for ${stockKey}`);
+        console.error(`[InfluencerStock] 💡 Check KV connection and permissions`);
+        return false;
+      }
+      
+      console.log(`[InfluencerStock] ✅ kv.set succeeded for ${stockKey}`);
+      
+      // 🔍 保存後の検証（CRITICAL: 保存が確実に成功したことを確認）
+      console.log(`[InfluencerStock] 🔵 Verifying save by retrieving from KV...`);
+      const retrieved = await kv.get(stockKey);
+      
+      if (!retrieved) {
+        console.error(`[InfluencerStock] ❌ CRITICAL: Save verification failed - retrieved value is null`);
+        console.error(`[InfluencerStock] 💡 KV保存は成功したが、取得できませんでした`);
+        return false;
+      }
+      
+      if (!Array.isArray(retrieved)) {
+        console.error(`[InfluencerStock] ❌ CRITICAL: Save verification failed - retrieved value is not an array`);
+        console.error(`[InfluencerStock] 💡 Retrieved type: ${typeof retrieved}`);
+        console.error(`[InfluencerStock] 💡 Retrieved value:`, JSON.stringify(retrieved, null, 2));
+        return false;
+      }
+      
+      if (retrieved.length !== influencersWithLang.length) {
+        console.error(`[InfluencerStock] ❌ CRITICAL: Save verification failed - count mismatch`);
+        console.error(`[InfluencerStock] 💡 Expected: ${influencersWithLang.length}, Got: ${retrieved.length}`);
+        console.error(`[InfluencerStock] 💡 This indicates a partial save failure`);
+        return false;
+      }
+      
+      // サンプルデータの検証
+      const sampleRetrieved = retrieved[0];
+      const sampleOriginal = influencersWithLang[0];
+      if (sampleRetrieved.tweetId !== sampleOriginal.tweetId || 
+          sampleRetrieved.username !== sampleOriginal.username) {
+        console.error(`[InfluencerStock] ❌ CRITICAL: Save verification failed - sample data mismatch`);
+        console.error(`[InfluencerStock] 💡 Original sample:`, JSON.stringify(sampleOriginal, null, 2));
+        console.error(`[InfluencerStock] 💡 Retrieved sample:`, JSON.stringify(sampleRetrieved, null, 2));
+        return false;
+      }
+      
+      console.log(`[InfluencerStock] ✅✅✅ Save verification PASSED: ${retrieved.length} influencers confirmed in KV`);
+      console.log(`[InfluencerStock] 📊 Retrieved sample:`, JSON.stringify(sampleRetrieved, null, 2));
+      
+    } catch (setError) {
+      console.error(`[InfluencerStock] ❌ Exception during kv.set for ${stockKey}:`, setError.message);
+      console.error(`[InfluencerStock] Stack:`, setError.stack);
+      return false;
+    }
+    
+    // 更新時刻を保存（TTLなし - 永続保存）
+    try {
+      const updateTimeResult = await kv.set(updateTimeKey, new Date().toISOString());
+      if (updateTimeResult === false) {
+        console.warn(`[InfluencerStock] ⚠️ Failed to save update time, but influencers were saved`);
+      }
+    } catch (updateTimeError) {
+      console.warn(`[InfluencerStock] ⚠️ Exception saving update time (non-fatal):`, updateTimeError.message);
+    }
+    
+    console.log(`[InfluencerStock] ✅✅✅ Saved and verified ${influencersWithLang.length} influencers to stock for ${targetLang} (all with lang field set)`);
     return true;
   } catch (error) {
     console.error(`[InfluencerStock] ❌ Failed to save influencers to stock for ${lang}:`, error.message);
+    console.error(`[InfluencerStock] ❌ Error stack:`, error.stack);
+    console.error(`[InfluencerStock] ❌ Attempted to save ${influencers?.length || 0} influencers`);
+    console.error(`[InfluencerStock] ❌ KV available:`, !!kv);
+    if (kv) {
+      try {
+        // KV接続テスト
+        const testKey = `x:influencer_stock:test:${Date.now()}`;
+        await kv.set(testKey, { test: true }, { ex: 10 });
+        await kv.get(testKey);
+        await kv.del(testKey);
+        console.log(`[InfluencerStock] ✅ KV connection test passed`);
+      } catch (kvTestError) {
+        console.error(`[InfluencerStock] ❌ KV connection test failed:`, kvTestError.message);
+      }
+    }
     return false;
   }
 }
@@ -201,6 +354,9 @@ async function getStockUpdateTime(lang) {
 
 /**
  * ストックを更新（Grok APIから新しいインフルエンサーを取得してストックに保存）
+ * ⚠️ 手動実行専用 - CronJobsから自動実行されることはありません
+ * 手動実行: /api/x-update-influencer-stock?lang={lang}
+ * 
  * @param {string} lang - 言語コード
  * @param {Object} options - オプション
  * @returns {Promise<Array>} 更新されたインフルエンサー配列
@@ -223,8 +379,20 @@ async function updateInfluencerStock(lang, options = {}) {
       maxResults: candidateCount 
     });
     
+    // 🛡️ 保護機能: Grok APIから取得できなかった場合、既存のストックを保持
     if (!discoveredInfluencers || discoveredInfluencers.length === 0) {
-      console.warn(`[InfluencerStock] ⚠️ No influencers discovered for ${targetLang}`);
+      console.error(`[InfluencerStock] ❌ No influencers discovered for ${targetLang} from Grok API`);
+      console.error(`[InfluencerStock] 🛡️ PROTECTION: Returning existing stock to prevent deletion`);
+      
+      // 既存のストックを取得して返す（空配列を返さない）
+      const existingStock = await getInfluencersFromStock(targetLang);
+      if (existingStock && existingStock.length > 0) {
+        console.warn(`[InfluencerStock] ⚠️ Preserving existing stock: ${existingStock.length} influencers for ${targetLang}`);
+        return existingStock;
+      }
+      
+      // 既存のストックもない場合は空配列を返す（保存はしない）
+      console.error(`[InfluencerStock] ❌ No existing stock found for ${targetLang} - manual update required`);
       return [];
     }
     
@@ -260,13 +428,36 @@ async function updateInfluencerStock(lang, options = {}) {
       lang: targetLang, // 明示的に言語を設定
     }));
     
+    // 🛡️ 保護機能: 選択されたインフルエンサーが空の場合は既存ストックを保持
+    if (!selectedInfluencers || selectedInfluencers.length === 0) {
+      console.error(`[InfluencerStock] ❌ No influencers selected for ${targetLang}`);
+      console.error(`[InfluencerStock] 🛡️ PROTECTION: Preserving existing stock to prevent deletion`);
+      
+      // 既存のストックを取得して返す
+      const existingStock = await getInfluencersFromStock(targetLang);
+      if (existingStock && existingStock.length > 0) {
+        console.warn(`[InfluencerStock] ⚠️ Preserving existing stock: ${existingStock.length} influencers for ${targetLang}`);
+        return existingStock;
+      }
+      
+      // 既存のストックもない場合は空配列を返す（保存はしない）
+      console.error(`[InfluencerStock] ❌ No existing stock found for ${targetLang} - manual update required`);
+      return [];
+    }
+    
     // ストックに保存
     const saved = await saveInfluencersToStock(targetLang, influencersWithLang);
     
     if (saved) {
       console.log(`[InfluencerStock] ✅✅✅ Successfully updated stock for ${targetLang} with ${selectedInfluencers.length} influencers`);
     } else {
-      console.warn(`[InfluencerStock] ⚠️ Failed to save influencers to stock for ${targetLang}`);
+      console.error(`[InfluencerStock] ❌ Failed to save influencers to stock for ${targetLang}`);
+      // 保存に失敗した場合も既存ストックを返す
+      const existingStock = await getInfluencersFromStock(targetLang);
+      if (existingStock && existingStock.length > 0) {
+        console.warn(`[InfluencerStock] 🛡️ Returning existing stock after save failure: ${existingStock.length} influencers`);
+        return existingStock;
+      }
     }
     
     return selectedInfluencers;
@@ -279,6 +470,9 @@ async function updateInfluencerStock(lang, options = {}) {
 
 /**
  * すべての言語のストックを更新
+ * ⚠️ 手動実行専用 - CronJobsから自動実行されることはありません
+ * 手動実行: /api/x-update-influencer-stock?all=true
+ * 
  * @param {Array<string>} langs - 言語コード配列（省略時は全言語）
  * @param {Object} options - オプション
  * @param {number} options.timeoutMs - タイムアウト時間（ミリ秒、デフォルト: 無制限）
@@ -338,42 +532,12 @@ async function updateAllInfluencerStocks(langs = ['en', 'es', 'pt-br', 'ar', 'ja
   return results;
 }
 
-/**
- * ストックからインフルエンサーを取得（ストックが空の場合は新規取得）
- * @param {string} lang - 言語コード
- * @param {boolean} forceRefresh - 強制更新フラグ
- * @returns {Promise<Array>} インフルエンサー配列
- */
-async function getInfluencersWithFallback(lang, forceRefresh = false) {
-  const targetLang = (lang || 'en').toLowerCase();
-  
-  // 強制更新でない場合、ストックから取得を試みる
-  if (!forceRefresh) {
-    const stockInfluencers = await getInfluencersFromStock(targetLang);
-    if (stockInfluencers && stockInfluencers.length > 0) {
-      console.log(`[InfluencerStock] Using stock influencers for ${targetLang} (${stockInfluencers.length} influencers)`);
-      return stockInfluencers;
-    }
-  }
-  
-  // ストックが空または強制更新の場合、新規取得
-  console.log(`[InfluencerStock] Stock empty or force refresh, fetching new influencers for ${targetLang}...`);
-  const newInfluencers = await updateInfluencerStock(targetLang);
-  
-  if (newInfluencers && newInfluencers.length > 0) {
-    return newInfluencers;
-  }
-  
-  // 新規取得も失敗した場合、空配列を返す
-  console.warn(`[InfluencerStock] ⚠️ No influencers available for ${targetLang}`);
-  return [];
-}
-
 module.exports = {
   saveInfluencersToStock,
   getInfluencersFromStock,
   getStockUpdateTime,
+  // ⚠️ 注意: updateInfluencerStock と updateAllInfluencerStocks は手動実行専用API（/api/x-update-influencer-stock）でのみ使用
+  // CronJobsから自動実行されることはありません
   updateInfluencerStock,
   updateAllInfluencerStocks,
-  getInfluencersWithFallback,
 };

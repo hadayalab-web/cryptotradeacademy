@@ -149,11 +149,11 @@ const {
   decideSignalAdvanced
 } = require("../logic/core/marketCore");
 const { generateSignal } = require("../logic/tier1_btc/signalGen");
-const { BASE } = require("./config/thresholds");
+const { BASE } = require("../config/thresholds");
 // 市場別プロファイル（MIN_CONF_FOR_TRADE取得用）
 let marketProfiles = null;
 try {
-  marketProfiles = require("./config/marketProfiles");
+  marketProfiles = require("../config/marketProfiles");
 } catch (e) {
   // marketProfiles.jsがない場合は無視
 }
@@ -390,14 +390,13 @@ module.exports = async function handler(req, res) {
     const nowUTC = zonedTimeToUtc(now, TZ_UTC);
     const utcHour = Number(formatInTimeZone(nowUTC, TZ_UTC, "HH"));
     const utcMinute = Number(formatInTimeZone(nowUTC, TZ_UTC, "mm"));
-    // 定期配信スケジュール: 6時間ごと（0, 6, 12, 18）デフォルト、または4時間ごと（0, 4, 8, 12, 16, 18, 20）
-    // P0 FIX: JST3時（UTC 18時）の配信を確実にするため、4時間スケジュールにも18時を追加
+    // 定期配信スケジュール: UTC 6時間ごと（0, 6, 12, 18）デフォルト、または4時間ごと（0, 4, 8, 12, 16, 18, 20）
     const REGULAR_HOURS_6H = [0, 6, 12, 18];
-    const REGULAR_HOURS_4H = [0, 4, 8, 12, 16, 18, 20]; // 18時を追加（JST3時対応）
+    const REGULAR_HOURS_4H = [0, 4, 8, 12, 16, 18, 20];
     // 環境変数で切り替え可能（デフォルトは6時間ごと）
     const USE_4H_SCHEDULE = process.env.REGULAR_SCHEDULE === "4h";
     const REGULAR_HOURS = USE_4H_SCHEDULE ? REGULAR_HOURS_4H : REGULAR_HOURS_6H;
-    // P0 FIX: JST 21時（UTC 12時）の配信を確実にするため、utcMinute < 15に変更（Cronジョブの実行タイミングの誤差を考慮）
+    // Cronジョブは15分ごとに実行されるため、定期配信スロットは0-14分の間で判定（実行タイミングの誤差を考慮）
     const isRegularSlot = REGULAR_HOURS.includes(utcHour) && utcMinute < 15;
     const force = req.query?.force === "true";
 
@@ -406,7 +405,9 @@ module.exports = async function handler(req, res) {
       utcMinute,
       isRegularSlot,
       force,
-      schedule: USE_4H_SCHEDULE ? "4h" : "6h"
+      schedule: USE_4H_SCHEDULE ? "4h" : "6h",
+      regularHours: REGULAR_HOURS,
+      isInRegularHours: REGULAR_HOURS.includes(utcHour)
     });
 
     // 1. On-chain (CryptoQuant) - リトライ付き
@@ -945,9 +946,19 @@ module.exports = async function handler(req, res) {
         // イベントトリガー評価
         const trigger = await evaluateTrigger(market, currentState, lastState, cqDeep);
 
-        shouldSend = trigger.shouldSend;
-        triggerType = trigger.triggerType;
-        triggerReason = trigger.reason;
+        // P0 FIX: isRegularSlotがtrueの場合は、イベント駆動の判定に関係なく必ず配信
+        if (isRegularSlot) {
+          shouldSend = true;
+          triggerType = "REGULAR";
+          triggerReason = "Regular slot (forced)";
+          console.log(
+            `[Event-Driven] Regular slot detected, forcing shouldSend=true regardless of trigger evaluation`
+          );
+        } else {
+          shouldSend = trigger.shouldSend;
+          triggerType = trigger.triggerType;
+          triggerReason = trigger.reason;
+        }
 
         console.log(
           `[Event-Driven] Market: ${market}, Trigger: ${triggerType}, ShouldSend: ${shouldSend}, Reason: ${triggerReason}`
@@ -975,6 +986,14 @@ module.exports = async function handler(req, res) {
           console.log("[Event-Driven] Fallback: isRegularSlot=true, forcing shouldSend=true");
         }
       }
+    } else {
+      // イベント駆動が無効な場合、isRegularSlotがtrueの場合は必ず送信
+      if (isRegularSlot) {
+        shouldSend = true;
+        triggerType = "REGULAR";
+        triggerReason = "Regular slot (event-driven disabled)";
+      }
+    }
     }
     // ===== Phase 1 End =====
 
@@ -1265,21 +1284,23 @@ module.exports = async function handler(req, res) {
     }
     // ===== Phase 1 End =====
 
-    // 7-A. REGULAR（6言語すべてに配信）
+    // 7-A. REGULAR（有料版 - 6言語すべてに配信）
     // P0 FIX: 早期return条件を修正したため、isRegularSlotがtrueの場合は必ず到達する
     // 定期配信（isRegularSlot）と強制配信（force）は必ず送信
     // イベント駆動のREGULARトリガーも送信（早期returnで既にフィルタリング済み）
-    if (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && triggerType === "REGULAR")) {
-      console.log("[REGULAR] Sending REGULAR message to all languages...");
+    // 重要: isRegularSlotがtrueの場合は、イベント駆動の判定に関係なく必ず配信
+    if (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && triggerType === "REGULAR" && !isRegularSlot)) {
+      console.log("[REGULAR] ✅ Sending REGULAR message (paid version) to all languages...");
       console.log(
-        "[REGULAR] isRegularSlot:",
-        isRegularSlot,
-        "force:",
-        force,
-        "ENABLE_EVENT_DRIVEN:",
-        ENABLE_EVENT_DRIVEN,
-        "triggerType:",
-        triggerType
+        "[REGULAR] Conditions:",
+        {
+          isRegularSlot,
+          force,
+          ENABLE_EVENT_DRIVEN,
+          triggerType,
+          shouldSend,
+          willSend: ENABLE_EVENT_DRIVEN ? shouldSend : true
+        }
       );
 
       // 配信対象言語を取得（デフォルト: 6言語すべて）
@@ -1785,12 +1806,24 @@ module.exports = async function handler(req, res) {
     );
     const ENABLE_MINIMAL_VERSION = hasMinimalBotToken && hasAnyMinimalChatId;
 
+    // 7-A-MINIMAL. 無料版（Minimal Version）配信
     // P0 FIX: 無料版も定期枠（isRegularSlot）は必ず送るように修正（有料版と統一）
     // 早期return条件を修正したため、isRegularSlotがtrueの場合は必ず到達する
     // 定期配信（isRegularSlot）と強制配信（force）は必ず送信
     // イベント駆動の判定（shouldSend）は定期枠以外の場合のみ適用
-    if (ENABLE_MINIMAL_VERSION && (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && shouldSend))) {
-      console.log("[Free Version] Sending free briefing to all languages...");
+    // 重要: isRegularSlotがtrueの場合は、イベント駆動の判定に関係なく必ず配信
+    if (ENABLE_MINIMAL_VERSION && (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && shouldSend && !isRegularSlot))) {
+      console.log("[MINIMAL] ✅ Sending free briefing (Minimal Version) to all languages...");
+      console.log(
+        "[MINIMAL] Conditions:",
+        {
+          isRegularSlot,
+          force,
+          ENABLE_EVENT_DRIVEN,
+          shouldSend,
+          ENABLE_MINIMAL_VERSION
+        }
+      );
 
       // 配信対象言語を取得（デフォルト: 6言語すべて）
       const targetLangsForMinimal = getTargetLanguagesForMinimal();

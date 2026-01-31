@@ -1,7 +1,7 @@
 // scripts/backtest/autoTuner.js
 // アルゴリズム自動チューニング - パラメータ最適化
 
-const { getMarketProfile } = require('../../api/config/marketProfiles');
+const { getMarketProfile } = require('../../config/marketProfiles');
 const { decideSignal, buildMarketContext } = require('../../logic/core/marketCore');
 const { fetchKlines } = require('../../services/binance/client');
 const { getExchangeInflow, getMinerPositionIndex } = require('../../services/cryptoquant/endpoints/btc');

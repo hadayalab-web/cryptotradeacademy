@@ -126,9 +126,11 @@ async function recordEngagementMetrics(tweetId, metrics) {
 /**
  * 前日の投稿IDを取得してメトリクスを更新
  * @param {string} dateString - 日付文字列（YYYY-MM-DD）
+ * @param {number} startTime - 開始時刻（タイムアウトチェック用）
+ * @param {number} timeoutMs - タイムアウト時間（ミリ秒）
  * @returns {Promise<void>}
  */
-async function updateMetricsForDate(dateString) {
+async function updateMetricsForDate(dateString, startTime = Date.now(), timeoutMs = 55000) {
   if (!kv) {
     console.warn("[X Engagement Metrics] KV not available, skipping metrics update");
     return;
@@ -153,6 +155,13 @@ async function updateMetricsForDate(dateString) {
     const failedTweetIds = [];
 
     for (const post of posts) {
+      // タイムアウトチェック
+      const elapsed = Date.now() - startTime;
+      if (elapsed > timeoutMs) {
+        console.warn(`[X Engagement Metrics] ⏰ Timeout approaching, stopping metrics update (processed: ${successCount}/${posts.length})`);
+        break;
+      }
+      
       let retries = 3;
       let success = false;
 
@@ -531,6 +540,11 @@ async function generateEngagementDashboard(dateString) {
 const handler = async (req, res) => {
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET;
+  
+  // タイムアウト対策: 開始時刻を記録
+  const startTime = Date.now();
+  const MAX_DURATION_MS = 60_000; // 60秒
+  const TIMEOUT_MS = 55_000; // 55秒（安全マージン）
 
   console.log("[X Engagement Metrics] ========================================");
   console.log("[X Engagement Metrics] Cron job triggered at", new Date().toISOString());
@@ -540,6 +554,14 @@ const handler = async (req, res) => {
     console.error("[X Engagement Metrics] ❌ Unauthorized: Invalid CRON_SECRET");
     return res.status(401).json({ error: "Unauthorized" });
   }
+  
+  // タイムアウトチェック関数
+  const checkTimeout = () => {
+    const elapsed = Date.now() - startTime;
+    if (elapsed > TIMEOUT_MS) {
+      throw new Error(`Timeout: Execution time exceeded ${TIMEOUT_MS}ms`);
+    }
+  };
 
   try {
     // 前日のメトリクスダッシュボードを生成
@@ -549,7 +571,7 @@ const handler = async (req, res) => {
 
     // 前日の投稿IDを取得してメトリクスを更新
     console.log(`[X Engagement Metrics] Updating metrics for ${dateString}...`);
-    await updateMetricsForDate(dateString);
+    await updateMetricsForDate(dateString, startTime, TIMEOUT_MS);
 
     console.log(`[X Engagement Metrics] Generating dashboard for ${dateString}...`);
     const dashboard = await generateEngagementDashboard(dateString);
