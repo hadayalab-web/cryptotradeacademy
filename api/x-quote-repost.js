@@ -446,6 +446,15 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
       utm_content: `influencer_${influencerTweet.username}`,
     });
     
+    // P0 FIX: Whop Minimal Versionチェックアウトリンクを取得（ユーザー管理のため）
+    const minimalCheckoutUrl = getMinimalVersionCheckoutUrl(lang, {
+      source: 'x',
+      medium: 'quote_repost',
+      campaign: 'minimal_version',
+      content: `influencer_${influencerTweet.username}`,
+      influencerUsername: influencerTweet.username,
+    });
+    
     // P0 FIX: GPT-5-mini推奨 - 本番環境でのパフォーマンス最適化
     // getMinimalVersionPostUrlとgetMinimalVersionContentはオプションとして扱い、タイムアウトを避ける
     const dateString = new Date().toISOString().split('T')[0];
@@ -583,13 +592,22 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
     const minimalVersionPostUrl = await getMinimalVersionPostUrl(lang, dateString).catch(() => null);
     
     const template = QUOTE_REPOST_TEMPLATES?.[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES.en;
+    // P0 FIX: Whop Minimal Versionチェックアウトリンクを取得（ユーザー管理のため）
+    const minimalCheckoutUrl = getMinimalVersionCheckoutUrl(lang, {
+      source: 'x',
+      medium: 'quote_repost',
+      campaign: 'minimal_version',
+      content: `influencer_${influencerTweet.username}`,
+      influencerUsername: influencerTweet.username,
+    });
+    const optInLink = minimalCheckoutUrl || getTelegramDeepLinkWithSource(lang, 'x_quote', {
+      influencerUsername: influencerTweet.username,
+    }); // Whop checkout linkを優先
     const baseText = template(
       reportData?.trapScore || 25,
       reportData?.priceUsd || null,
       reportData?.change24h || null,
-      getTelegramDeepLinkWithSource(lang, 'x_quote', {
-        influencerUsername: influencerTweet.username,
-      }),
+      optInLink, // Whop checkout linkまたはTelegram Deep Link
       reportData?.exchangeNetflow || null,
       reportData?.whaleRatio || null
     );
@@ -1079,17 +1097,26 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             influencerUsername: influencer.username,
             utm_content: `influencer_${influencer.username}`,
           });
+          // P0 FIX: Whop Minimal Versionチェックアウトリンクを取得（ユーザー管理のため）
+          const minimalCheckoutUrl = getMinimalVersionCheckoutUrl(lang, {
+            source: 'x',
+            medium: 'quote_repost',
+            campaign: 'minimal_version',
+            content: `influencer_${influencer.username}`,
+            influencerUsername: influencer.username,
+          });
+          const optInLink = minimalCheckoutUrl || deepLink; // Whop checkout linkを優先
           const trapScore = reportData?.trapScore || 25;
           const priceUsd = reportData?.priceUsd || 89000;
           
           // 言語別の超シンプルなテキスト（140文字以内）
           const dryRunTexts = {
-            en: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nGet FREE analysis:\n${deepLink}\n\n#BTC #TrapDefence`,
-            ja: `🚨 トラップスコア: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\n無料分析を取得:\n${deepLink}\n\n#BTC #TrapDefence`,
-            es: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nObtén análisis GRATIS:\n${deepLink}\n\n#BTC #TrapDefence`,
-            'pt-br': `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nObtenha análise GRÁTIS:\n${deepLink}\n\n#BTC #TrapDefence`,
-            ar: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nاحصل على تحليل مجاني:\n${deepLink}\n\n#BTC #TrapDefence`,
-            ko: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\n무료 분석 받기:\n${deepLink}\n\n#BTC #TrapDefence`,
+            en: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nGet FREE analysis:\n${optInLink}\n\n#BTC #TrapDefence`,
+            ja: `🚨 トラップスコア: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\n無料分析を取得:\n${optInLink}\n\n#BTC #TrapDefence`,
+            es: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nObtén análisis GRATIS:\n${optInLink}\n\n#BTC #TrapDefence`,
+            'pt-br': `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nObtenha análise GRÁTIS:\n${optInLink}\n\n#BTC #TrapDefence`,
+            ar: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nاحصل على تحليل مجاني:\n${optInLink}\n\n#BTC #TrapDefence`,
+            ko: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\n무료 분석 받기:\n${optInLink}\n\n#BTC #TrapDefence`,
           };
           quoteText = dryRunTexts[lang] || dryRunTexts.en;
           

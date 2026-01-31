@@ -5,6 +5,7 @@ const OAuth = require("oauth-1.0a");
 const crypto = require("crypto");
 const { Blob } = require("buffer");
 const { recordRateLimit } = require("./rateLimitTracker");
+const { getXConfigStatus } = require("./config");
 
 // OAuth 1.0a認証情報
 const X_API_CONSUMER_KEY = process.env.X_API_CONSUMER_KEY;
@@ -49,12 +50,39 @@ function isRateLimitError(error) {
  * @returns {Promise<Object>} APIレスポンス
  */
 async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
+  const method = options.method || "GET";
+  
+  // P0 FIX: ドライランモード時は書き込み操作（POST）を完全にスキップ（スパム検出対策）
+  // 「試行だけして投稿しない」という異常なパターンを防ぐため、書き込み操作のリクエスト自体を送信しない
+  const xStatus = getXConfigStatus();
+  const isWriteOperation = method === 'POST' || method === 'PUT' || method === 'DELETE';
+  
+  if (xStatus.dryRun && isWriteOperation) {
+    // 書き込み操作のエンドポイントを識別（投稿、リツイート、いいねなど）
+    const isPostEndpoint = 
+      endpoint === '/tweets' ||
+      endpoint.startsWith('/tweets/') && endpoint.includes('/retweets') ||
+      endpoint.startsWith('/users/') && endpoint.includes('/retweets') ||
+      endpoint.startsWith('/users/') && endpoint.includes('/likes');
+    
+    if (isPostEndpoint) {
+      console.log(`[X API] 🧪 DRY RUN MODE - Skipping write operation (${method} ${endpoint}) to prevent spam detection`);
+      // モックレスポンスを返す（呼び出し側でエラーにならないように）
+      return {
+        data: {
+          id: `dry-run-${Date.now()}`,
+          text: '[DRY RUN] This is a mock response'
+        }
+      };
+    }
+  }
+
   // P2 FIX: 本番環境では認証情報の存在をログに出さない（情報漏えい対策）
   const isDebugMode = process.env.X_API_DEBUG === 'true' || process.env.NODE_ENV !== 'production';
   if (isDebugMode) {
     console.log('[X API] 🔵 xApiRequest called:', {
       endpoint,
-      method: options.method || 'GET',
+      method,
       hasConsumerKey: !!X_API_CONSUMER_KEY,
       hasConsumerSecret: !!X_API_CONSUMER_KEY_SECRET,
       hasAccessToken: !!X_API_ACCESS_TOKEN,
@@ -64,7 +92,7 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
   } else {
     console.log('[X API] 🔵 xApiRequest called:', {
       endpoint,
-      method: options.method || 'GET',
+      method,
       timestamp: new Date().toISOString(),
     });
   }
@@ -93,7 +121,7 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
   }
   
   const baseUrl = `${X_API_BASE_URL}${endpoint}`;
-  const method = options.method || "GET";
+  // methodは既に上で定義済み
 
   // P0 FIX: 最終的にfetchするURLを先に構築（署名対象URLと一致させる）
   let finalUrl = baseUrl;
@@ -305,7 +333,26 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
 
       return responseData;
     } catch (error) {
+      // P0 FIX: ドライランモード時はタイムアウトエラーをリトライしない（Xアカウントアラート対策）
+      // ドライラン失敗時のタイムアウトエラーによる連続リトライがX APIに不要なリクエストを送信し、
+      // スパム検出を引き起こす可能性があるため、ドライランモード時は即座にエラーをスロー
+      const xStatus = getXConfigStatus();
+      const isTimeoutError = 
+        error.name === 'AbortError' ||
+        error.message?.includes('timeout') ||
+        error.message?.includes('Timeout');
+      
+      if (isTimeoutError && xStatus.dryRun) {
+        clearTimeout(timeoutId);
+        console.error(
+          `[X API] ⚠️ Timeout error in DRY RUN mode - skipping retry to prevent spam detection (attempt ${attempt + 1}):`,
+          error.message
+        );
+        throw new Error(`X API Timeout in DRY RUN mode (no retry): ${error.message}`);
+      }
+
       // P1 FIX: リトライ対象を拡大（429以外もリトライ）
+      // P0 FIX: タイムアウトエラーのリトライ回数を削減（最大1回のみ）
       const isRetryableError = 
         isRateLimitError(error) ||
         error.name === 'AbortError' ||
@@ -314,12 +361,19 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
         error.message?.includes('network') ||
         error.message?.includes('timeout');
 
-      if (isRetryableError && attempt < maxRetries) {
+      // タイムアウトエラーの場合は最大1回のみリトライ（通常のmaxRetriesより少ない）
+      const isTimeoutRetry = isTimeoutError;
+      const maxTimeoutRetries = 1; // タイムアウトエラーは1回のみリトライ
+      const effectiveMaxRetries = isTimeoutRetry ? maxTimeoutRetries : maxRetries;
+      const shouldRetry = isRetryableError && attempt < effectiveMaxRetries;
+
+      if (shouldRetry) {
         // タイムアウトIDをクリア（リトライ前に）
         clearTimeout(timeoutId);
         const delay = Math.pow(2, attempt) * 1000; // 指数バックオフ: 1s, 2s, 4s
+        const retryType = isTimeoutRetry ? 'timeout' : 'network';
         console.warn(
-          `[X API] Retryable error (${error.name || 'unknown'}), retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries}):`,
+          `[X API] Retryable ${retryType} error (${error.name || 'unknown'}), retrying in ${delay}ms (attempt ${attempt + 1}/${effectiveMaxRetries}):`,
           error.message
         );
         await new Promise((resolve) => setTimeout(resolve, delay));

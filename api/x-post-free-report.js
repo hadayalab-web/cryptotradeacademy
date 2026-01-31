@@ -803,7 +803,15 @@ async function postFreeReportAsThread(targetLangs, reportData) {
     try {
       console.log(`[X Post Free Report] Preparing main tweet for ${lang}...`);
       const tweetTemplate = TWEET_TEMPLATES[lang] || TWEET_TEMPLATES.en;
-      let langMainTweet = tweetTemplate(trapScore, priceUsd, change24h, getTelegramDeepLinkWithSource(lang, 'x_direct'), exchangeNetflow, whaleRatio);
+      // P0 FIX: Whop Minimal Versionチェックアウトリンクを取得（ユーザー管理のため）
+      const { getMinimalVersionCheckoutUrl } = require('../services/telegram/whop-links');
+      const minimalCheckoutUrl = getMinimalVersionCheckoutUrl(lang, {
+        source: 'x',
+        medium: 'free_report',
+        campaign: 'minimal_version',
+      });
+      const optInLink = minimalCheckoutUrl || getTelegramDeepLinkWithSource(lang, 'x_direct'); // Whop checkout linkを優先
+      let langMainTweet = tweetTemplate(trapScore, priceUsd, change24h, optInLink, exchangeNetflow, whaleRatio);
       
       // Grok推奨: ハッシュタグを動的取得（最大2個）
       const { getTrendyHashtags } = require('../services/x/optimization');

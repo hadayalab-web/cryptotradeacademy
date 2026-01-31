@@ -516,11 +516,15 @@ async function generateQuoteRepostText(
   deepLink,
   minimalVersionPostUrl = null,
   minimalContent = null,
-  optimizationStrategy = null
+  optimizationStrategy = null,
+  regularBriefingWhopUrl = null,
+  minimalCheckoutUrl = null
 ) {
   if (!XAI_API_KEY) {
     // フォールバック: テンプレートを使用
-    const baseText = `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}`;
+    // P0 FIX: Whop checkout linkを優先的に使用（ユーザー管理のため）
+    const optInLink = minimalCheckoutUrl || deepLink;
+    const baseText = `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${optInLink}`;
     if (minimalVersionPostUrl) {
       return `${baseText}\n\n📊 Full analysis: ${minimalVersionPostUrl}\n\n#BTC #TrapDefence`;
     }
@@ -616,11 +620,13 @@ async function generateQuoteRepostText(
             "4. EMOJI OPTIMIZATION: Use 3-5 relevant emojis (🚀📈🔥💎) for 20-25% visual lift. Cluster at start/end, avoid overuse. High-contrast emojis for mobile scroll-stop. " +
             '5. PSYCHOLOGICAL TRIGGERS: Use Loss Aversion ("機会を逃す恐怖"), Reciprocity (先に価値を提供), Authority Bias (実績・数字), Confirmation Bias (既存の信念を肯定). ' +
             '6. COGNITIVE BIASES: Leverage Bandwagon Effect ("みんなが注目している"), Scarcity Principle ("残り枠わずか"), In-Group Bias ("勝者側への所属"). ' +
-            "CRITICAL: MUST include the Telegram Deep Link to drive opt-ins to the free Minimal Version. " +
-            'FUNNEL OPTIMIZATION: Use "Velvet Rope Strategy" - frame Telegram as exclusive "inner circle" for chosen information elites, not just a notification tool. ' +
+            "CRITICAL: MUST use Whop checkout link for Minimal Version opt-in (NOT Telegram direct link) to enable user management. " +
+            "If minimalCheckoutUrl is provided, use it as the primary CTA link. " +
+            "If minimalCheckoutUrl is NOT provided, fallback to Telegram Deep Link (but this is NOT recommended for user management). " +
+            'FUNNEL OPTIMIZATION: Use "Velvet Rope Strategy" - frame Whop checkout as exclusive "inner circle" for chosen information elites. ' +
             "If high-quality Minimal Version content is provided (hook message, Dr. Grok insight, mental note, data points), incorporate these powerful elements naturally to maximize algorithm engagement. " +
             'If a Minimal Version post URL is provided, include a reference to it (e.g., "See full analysis" or "Check detailed report") to drive cross-pollination. ' +
-            "Format: [Hook/Agreement] [Unique Value] [Question CTA] [Telegram Deep Link] [Hashtags]. " +
+            "Format: [Hook/Agreement] [Unique Value] [Question CTA] [Whop Checkout Link OR Telegram Deep Link] [Hashtags]. " +
             "TIMING: Post during peak retail FOMO windows (UTC 8-11 AM, 12-16, 20-24 for crypto volatility). Align with sentiment score >40. " +
             "Make it irresistible to click and maximize engagement rate."
         },
@@ -631,12 +637,14 @@ async function generateQuoteRepostText(
             `Original tweet: "${influencerTweet.tweetText?.substring(0, 200) || "N/A"}"\n` +
             `Trap Score: ${reportData?.trapScore || "N/A"}/100\n` +
             `BTC Price: $${reportData?.priceUsd?.toLocaleString("en-US", { maximumFractionDigits: 0 }) || "N/A"}\n` +
-            `Telegram Deep Link: ${deepLink}${minimalVersionContext}${optimizationContext}\n\n` +
+            `Whop Minimal Version Checkout Link (PRIORITY): ${minimalCheckoutUrl || "NOT PROVIDED - use Telegram Deep Link as fallback"}\n` +
+            `Telegram Deep Link (FALLBACK ONLY): ${deepLink}\n` +
+            `${minimalVersionContext}${optimizationContext}\n\n` +
             `Requirements (2026 X Algorithm + High Engagement CVR Optimization - Grok×Gemini Optimized):\n` +
             `- Maximum 140 characters (quote repost limit)\n` +
             `- Engaging and attention-grabbing\n` +
             `- PRIORITY 1: MUST include an open-ended question CTA at the end (e.g., "これ試した人いる？結果教えて！", "What do you think?", "You joining the pump? Reply Y/N") - REQUIRED for algorithm optimization. Question CTA should be 20-30% of the post, naturally placed. End 70-80% of posts with open questions to spike replies 3-5x.\n` +
-            `- PRIORITY 2: MUST include Telegram Deep Link - REQUIRED for opt-in funnel (users must be able to click to join free Minimal Version). Limit to 1 external link per post. Use shortened URLs with UTM parameters.\n` +
+            `- PRIORITY 2: MUST use Whop Minimal Version checkout link (${minimalCheckoutUrl || "NOT PROVIDED"}) for opt-in funnel to enable user management. If Whop checkout link is NOT provided, fallback to Telegram Deep Link (${deepLink}) - but Whop checkout link is STRONGLY RECOMMENDED for user management. Limit to 1 external link per post. Use shortened URLs with UTM parameters.\n` +
             `- PRIORITY 3: Use 2-3 max hashtags: 1 trending (#BTC), 1-2 niche (#TrapDefence, #CryptoFOMO). More than 3-5 hashtags risks spam detection. Front-load for mobile scans.\n` +
             `- Use 3-5 relevant emojis (🚀📈🔥💎) for 20-25% visual lift. Cluster at start/end, avoid overuse. High-contrast emojis for mobile scroll-stop.\n` +
             `- PSYCHOLOGICAL TRIGGERS: Use Loss Aversion ("機会を逃す恐怖"), Reciprocity (先に価値を提供), Authority Bias (実績・数字), Confirmation Bias (既存の信念を肯定), Scarcity Principle ("残り枠わずか").\n` +
@@ -644,8 +652,8 @@ async function generateQuoteRepostText(
             `- FUNNEL OPTIMIZATION: Use "Velvet Rope Strategy" - frame Telegram as exclusive "inner circle" for chosen information elites. Use "Risk Reversal" - present Whop as "shortcut to results" for lazy brain.\n` +
             `- If Minimal Version post URL is provided, include a reference to it (e.g., "See full analysis: [URL]" or "Check detailed report: [URL]") - OPTIONAL but recommended for cross-pollination\n` +
             `- Format: [Hook/Agreement] [Unique Value] [Question CTA] [Telegram Deep Link] [Hashtags]\n` +
-            `- Example (with Minimal Version content): "Agree! ${minimalContent?.drGrokInsight ? `"${minimalContent.drGrokInsight.substring(0, 40)}..."` : "TrapDefence detected this signal"} 🚀 これ試した人いる？結果教えて！ Free: t.me/... #BTC #TrapDefence"\n` +
-            `- Example (without Minimal Version content): "Agree! TrapDefence detected this signal 🚀 You joining the pump? Reply Y/N Free: t.me/... #BTC #TrapDefence"\n` +
+            `- Example (with Minimal Version content and Whop checkout): "Agree! ${minimalContent?.drGrokInsight ? `"${minimalContent.drGrokInsight.substring(0, 40)}..."` : "TrapDefence detected this signal"} 🚀 これ試した人いる？結果教えて！ Free: ${minimalCheckoutUrl ? minimalCheckoutUrl.substring(0, 30) + "..." : "whop.com/..."} #BTC #TrapDefence"\n` +
+            `- Example (without Minimal Version content, with Whop checkout): "Agree! TrapDefence detected this signal 🚀 You joining the pump? Reply Y/N Free: ${minimalCheckoutUrl ? minimalCheckoutUrl.substring(0, 30) + "..." : "whop.com/..."} #BTC #TrapDefence"\n` +
             `- Make it irresistible to click and maximize engagement rate (target: 0.003% → 1.0%+)\n\n` +
             `Generate the quote repost text:`
         }
@@ -660,7 +668,9 @@ async function generateQuoteRepostText(
     }
 
     // フォールバック: テンプレートを使用
-    const baseText = `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}`;
+    // P0 FIX: Whop checkout linkを優先的に使用（ユーザー管理のため）
+    const optInLink = minimalCheckoutUrl || deepLink;
+    const baseText = `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${optInLink}`;
     if (minimalVersionPostUrl) {
       return `${baseText}\n\n📊 Full analysis: ${minimalVersionPostUrl}\n\n#BTC #TrapDefence`;
     }
@@ -668,7 +678,9 @@ async function generateQuoteRepostText(
   } catch (error) {
     logCompactError("generateQuoteRepostText", error);
     // フォールバック: テンプレートを使用
-    const baseText = `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${deepLink}`;
+    // P0 FIX: Whop checkout linkを優先的に使用（ユーザー管理のため）
+    const optInLink = minimalCheckoutUrl || deepLink;
+    const baseText = `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${optInLink}`;
     let resultText = baseText;
 
     // Minimal Version URLを追加（クロスポリネーション）
