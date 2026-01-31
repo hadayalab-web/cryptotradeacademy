@@ -8,30 +8,6 @@
       "maxDuration": 60,
       "includeFiles": "config/**"
     },
-    "api/x-quote-repost-en.js": {
-      "maxDuration": 60,
-      "includeFiles": "{api/x-quote-repost.js,config/**,services/x/**,data/influencers/**,utils/**}"
-    },
-    "api/x-quote-repost-es.js": {
-      "maxDuration": 60,
-      "includeFiles": "{api/x-quote-repost.js,config/**,services/x/**,data/influencers/**,utils/**}"
-    },
-    "api/x-quote-repost-pt-br.js": {
-      "maxDuration": 60,
-      "includeFiles": "{api/x-quote-repost.js,config/**,services/x/**,data/influencers/**,utils/**}"
-    },
-    "api/x-quote-repost-ar.js": {
-      "maxDuration": 60,
-      "includeFiles": "{api/x-quote-repost.js,config/**,services/x/**,data/influencers/**,utils/**}"
-    },
-    "api/x-quote-repost-ja.js": {
-      "maxDuration": 60,
-      "includeFiles": "{api/x-quote-repost.js,config/**,services/x/**,data/influencers/**,utils/**}"
-    },
-    "api/x-quote-repost-ko.js": {
-      "maxDuration": 60,
-      "includeFiles": "{api/x-quote-repost.js,config/**,services/x/**,data/influencers/**,utils/**}"
-    },
     "api/x-engagement-metrics.js": {
       "maxDuration": 60,
       "includeFiles": "{config/**,services/x/**}"

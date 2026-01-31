@@ -1,0 +1,19 @@
+FIX: vercel.jsonからx-quote-repost-{lang}.jsの明示的定義を削除
+
+【問題】
+- vercel.jsonのfunctionsセクションでx-quote-repost-{lang}.jsを明示的に定義していたが、ビルドログにコンパイルログが表示されない
+- 404エラーが発生している
+
+【原因】
+- Vercelはapi/ディレクトリ内のファイルを自動的にサーバーレス関数として認識する
+- vsl1-postやvsl2-free-usersはfunctionsセクションに定義されていないが正常に動作している
+- 明示的な定義がVercelの自動検出を妨げている可能性がある
+
+【修正内容】
+- functionsセクションからx-quote-repost-{lang}.jsの定義を削除
+- Vercelの自動検出に任せる
+- maxDurationはデフォルト値（10秒）を使用、必要に応じて後で追加
+
+【期待される効果】
+- エンドポイントが正しく認識される
+- 404エラーの解消
