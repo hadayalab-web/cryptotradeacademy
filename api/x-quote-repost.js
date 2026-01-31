@@ -936,8 +936,8 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         
         console.log(`[Quote Repost] ✅ @${influencer.username} meets impression target: ${impressions.toLocaleString()} (target: ${impressionTarget.min.toLocaleString()}-${impressionTarget.max.toLocaleString()}) [runId: ${langRunId}, step: ${currentStep}]`);
         
-        // P0 FIX: タイムアウトチェック（残り時間が10秒未満の場合はスキップ）
-        if (deadlineMs && Date.now() >= deadlineMs - 10000) {
+        // P0 FIX: タイムアウトチェック（残り時間が5秒未満の場合はスキップ）- 10秒から5秒に短縮してより多くの処理を実行可能に
+        if (deadlineMs && Date.now() >= deadlineMs - 5000) {
           console.warn(`[Quote Repost] ⏰ Skipping quote repost for @${influencer.username} (insufficient time remaining, deadline: ${new Date(deadlineMs).toISOString()}) [runId: ${langRunId}, step: ${currentStep}]`);
           results.push({
             lang,
@@ -2055,8 +2055,12 @@ const handler = async (req, res) => {
     console.log(`[Quote Repost] ========================================`);
     
     // P1: スキップを成功に埋めない - 指標を分ける
+    // P0 FIX: dryRunも成功とみなす（dryRun=trueの場合は処理自体は成功している）
+    const dryRunCount = langResults.filter(r => r.success && r.dryRun).length;
+    const overallSuccess = metrics.posted_count > 0 || dryRunCount > 0 || metrics.processed_langs > 0;
+    
     return res.status(200).json({
-      success: metrics.posted_count > 0 || metrics.processed_langs > 0,
+      success: overallSuccess,
       langs: targetLangs,
       type,
       count,

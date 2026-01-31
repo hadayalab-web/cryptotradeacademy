@@ -1,7 +1,7 @@
 // Tier1 BTC regular briefing (JP)
 // services/telegram/messages/user/ja/regular.ja.js
 
-const { cleanTimingInfo, formatViralScore } = require('../shared/contentFilters');
+const { cleanTimingInfo, formatViralScore } = require('../../shared/contentFilters');
 
 function formatPercent(pct) {
   if (pct == null || Number.isNaN(pct)) return 'n/a';

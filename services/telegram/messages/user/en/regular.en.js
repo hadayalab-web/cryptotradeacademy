@@ -1,7 +1,7 @@
 // Tier1 BTC regular briefing (EN)
 // services/telegram/messages/user/en/regular.en.js
 
-const { hasJapanese, filterJapaneseFromArray, cleanTimingInfo, hasJapaneseInPsychologicalInsights, formatViralScore } = require('../shared/contentFilters');
+const { hasJapanese, filterJapaneseFromArray, cleanTimingInfo, hasJapaneseInPsychologicalInsights, formatViralScore } = require('../../shared/contentFilters');
 
 function formatPercent(pct) {
   if (pct == null || Number.isNaN(pct)) return 'n/a';
