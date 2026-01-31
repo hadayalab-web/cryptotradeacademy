@@ -42,7 +42,21 @@ const {
 const { applyJitter, applyLanguageWait } = require('../utils/scheduler');
 
 // P0 FIX: GPT-5-mini推奨 - p-limitによる並列処理制御
-const pLimit = require('p-limit');
+// p-limitはES Moduleのため動的インポートを使用（使用時にインポート）
+let pLimit = null;
+async function getPLimit() {
+  if (!pLimit) {
+    try {
+      const pLimitModule = await import('p-limit');
+      pLimit = pLimitModule.default || pLimitModule;
+    } catch (error) {
+      console.warn('[Quote Repost] p-limit import failed:', error.message);
+      // フォールバック: 並列処理制限なし（全件並列実行）
+      pLimit = (concurrency) => (fn) => fn;
+    }
+  }
+  return pLimit;
+}
 
 // KV廃止: ファイルシステム方式に移行
 // const { kv } = require('../utils/kv'); // KV廃止

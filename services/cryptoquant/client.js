@@ -12,46 +12,58 @@ const CRYPTOQUANT_PLAN = process.env.CRYPTOQUANT_PLAN || 'professional';
 const CONCURRENCY = CRYPTOQUANT_PLAN === 'premium' || CRYPTOQUANT_PLAN === 'enterprise' ? 2 : 1;
 
 // Phase 3: p-limitの動的インポート（ES Module対応）
-// p-limitが利用不可の場合はフォールバック実装を使用
-// P1修正: p-limit require の互換修正（default ?? mod）
-let pLimit;
-try {
-  const pLimitModule = require('p-limit');
-  pLimit = pLimitModule.default ?? pLimitModule;
-} catch (error) {
-  console.warn('[CQ Client] p-limit not available, using fallback implementation');
-  // フォールバック: シンプルなキュー実装（concurrency制御）
-  pLimit = (concurrency) => {
-    let running = 0;
-    const queue = [];
-    
-    const processQueue = async () => {
-      if (running >= concurrency || queue.length === 0) return;
-      
-      running++;
-      const { fn, resolve, reject } = queue.shift();
-      
-      try {
-        const result = await fn();
-        resolve(result);
-      } catch (error) {
-        reject(error);
-      } finally {
-        running--;
-        processQueue();
-      }
-    };
-    
-    return async (fn) => {
-      return new Promise((resolve, reject) => {
-        queue.push({ fn, resolve, reject });
-        processQueue();
-      });
-    };
-  };
+// p-limitはES Moduleのため動的インポートを使用
+let pLimit = null;
+async function getPLimit() {
+  if (!pLimit) {
+    try {
+      const pLimitModule = await import('p-limit');
+      pLimit = pLimitModule.default || pLimitModule;
+    } catch (error) {
+      console.warn('[CQ Client] p-limit import failed, using fallback implementation:', error.message);
+      // フォールバック: シンプルなキュー実装（concurrency制御）
+      pLimit = (concurrency) => {
+        let running = 0;
+        const queue = [];
+        
+        const processQueue = async () => {
+          if (running >= concurrency || queue.length === 0) return;
+          
+          running++;
+          const { fn, resolve, reject } = queue.shift();
+          
+          try {
+            const result = await fn();
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          } finally {
+            running--;
+            processQueue();
+          }
+        };
+        
+        return async (fn) => {
+          return new Promise((resolve, reject) => {
+            queue.push({ fn, resolve, reject });
+            processQueue();
+          });
+        };
+      };
+    }
+  }
+  return pLimit;
 }
 
-const rateLimitQueue = pLimit(CONCURRENCY);
+// rateLimitQueueは使用時に初期化（p-limitの動的インポート対応）
+let rateLimitQueue = null;
+async function getRateLimitQueue() {
+  if (!rateLimitQueue) {
+    const limit = await getPLimit();
+    rateLimitQueue = limit(CONCURRENCY);
+  }
+  return rateLimitQueue;
+}
 const { checkTokenBucket } = require('./rateLimiter');
 
 // Phase 3: キャッシュキー生成
@@ -158,7 +170,8 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
     Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
     // Phase 3: 分散レート制限（キュー + トークンバケットで制御）
-    const data = await rateLimitQueue(async () => {
+    const queue = await getRateLimitQueue();
+    const data = await queue(async () => {
       // トークンバケットでレート制限チェック
       const canProceed = await checkTokenBucket();
       if (!canProceed) {
