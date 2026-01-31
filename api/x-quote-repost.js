@@ -43,6 +43,14 @@ const { applyJitter, applyLanguageWait } = require('../utils/scheduler');
 
 // KV廃止: ファイルシステム方式に移行
 // const { kv } = require('../utils/kv'); // KV廃止
+// ただし、getMinimalVersionPostUrl関数でkvを使用しているため、安全に初期化
+let kv = null;
+try {
+  const kvModule = require("@vercel/kv");
+  kv = kvModule.kv;
+} catch (error) {
+  console.warn("[Quote Repost] @vercel/kv not available:", error.message);
+}
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 
