@@ -3,7 +3,12 @@
 // Grok CSO+CFO推奨: Gemini動的メッセージ生成（CTR最適化）
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+// P0 FIX: 環境変数対応とモデル最適化（GPT/Grokと同じパターン）
+// P0 FIX: 最新のgemini-3-flash-previewを使用（Proレベルの推論能力 + Flashレベルの速度）
+const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'production';
+const isDevelopment = APP_ENV === 'development';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || (isDevelopment ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview');
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 

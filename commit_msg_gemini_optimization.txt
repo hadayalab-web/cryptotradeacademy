@@ -1,0 +1,21 @@
+fix: Remove Nano Banana/Veo and optimize Gemini models
+
+P0 FIX: Remove non-functional Gemini image/video generation
+- Remove Nano Banana (image) and Veo (video) calls from api/prepare.js
+- Reason: Vercel 60s timeout limit makes these implementations impossible
+  - Veo: Polling takes up to 600s (10min) - will always timeout
+  - Nano Banana: Image generation API takes too long - high timeout risk
+- Comment out generateMarketImage and generateMarketVideo calls
+
+P0 FIX: Optimize Gemini models to latest versions
+- Update deepPsychologicalAnalyzer.js: gemini-2.0-flash-exp → gemini-3-flash-preview
+- Update messageOptimizer.js: Add env var support + gemini-3-flash-preview
+- Consistent with GPT/Grok optimization pattern (dev/prod model switching)
+- Benefits: Latest model with Pro-level reasoning + Flash-level speed
+
+Files changed:
+- api/prepare.js: Comment out Nano Banana/Veo calls
+- services/gemini/deepPsychologicalAnalyzer.js: Update to gemini-3-flash-preview
+- services/gemini/messageOptimizer.js: Add env var support + gemini-3-flash-preview
+- docs/GEMINI_NANOBANANA_VEO_REMOVAL.md: Document removal reasons
+- docs/GEMINI_MODEL_OPTIMIZATION_COMPLETE.md: Document optimization

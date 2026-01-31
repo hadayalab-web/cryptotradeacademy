@@ -10,9 +10,10 @@ if (!GEMINI_API_KEY) {
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 // P0 FIX: タイムアウト対策 - 本番環境では軽量モデルを使用（60秒制限を考慮）
+// P0 FIX: 最新のgemini-3-flash-previewを使用（Proレベルの推論能力 + Flashレベルの速度）
 const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'production';
 const isDevelopment = APP_ENV === 'development';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || (isDevelopment ? 'gemini-3-pro-preview' : 'gemini-2.0-flash-exp');
+const GEMINI_MODEL = process.env.GEMINI_MODEL || (isDevelopment ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview');
 
 // キャッシュ設定（GPTと同じパターンで一貫性を保つ）
 const GEMINI_CACHE_TTL_SECONDS = Number(process.env.GEMINI_CACHE_TTL_SECONDS || 900); // デフォルト: 15分
