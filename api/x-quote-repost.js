@@ -973,25 +973,71 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         // Grokが引用リポスト用のテキストを生成（Xアルゴリズム最適化版）
         currentStep = 'text_generation';
         
-        // P0 FIX: テキスト生成前にタイムアウトチェック（Grok API呼び出しは最大30秒かかるため、残り35秒以上必要）
-        if (deadlineMs && Date.now() >= deadlineMs - 35000) {
-          console.warn(`[Quote Repost] ⏰ Skipping text generation for @${influencer.username} (insufficient time remaining for Grok API, deadline: ${new Date(deadlineMs).toISOString()}) [runId: ${langRunId}, step: ${currentStep}]`);
-          results.push({
-            lang,
-            influencer: influencer.username,
-            tweetId: influencer.tweetId,
-            success: false,
-            actuallyPosted: false,
-            error: 'Timeout: insufficient time remaining for text generation',
-            skipped: true,
-          });
-          continue;
-        }
+        // P0 FIX: dry-runモードの場合はGrok APIを呼ばずにテンプレートを使用（タイムアウト回避）
+        const xStatusForTextGen = getXConfigStatus();
+        const isDryRun = xStatusForTextGen.dryRun;
         
         let quoteText;
-        try {
-          quoteText = await generateQuoteRepostTextWithGrok(lang, influencer, reportData);
-        } catch (error) {
+        if (isDryRun) {
+          // dry-runモード: テンプレートベースのテキストを生成（Grok APIを呼ばない）
+          console.log(`[Quote Repost] 🧪 Dry-run mode: Using template-based text for @${influencer.username} (skipping Grok API) [runId: ${langRunId}]`);
+          try {
+            const dateString = new Date().toISOString().split('T')[0];
+            const minimalVersionPostUrl = await getMinimalVersionPostUrl(lang, dateString).catch(() => null);
+            
+            const template = QUOTE_REPOST_TEMPLATES?.[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES.en;
+            const { trapScore = 25, priceUsd = null, change24h = null, exchangeNetflow = null, whaleRatio = null } = reportData || {};
+            const baseText = template(
+              trapScore,
+              priceUsd,
+              change24h,
+              getTelegramDeepLinkWithSource(lang, 'x_quote', {
+                influencerUsername: influencer.username,
+                utm_content: `influencer_${influencer.username}`,
+              }),
+              exchangeNetflow,
+              whaleRatio
+            );
+            
+            // Minimal Version URLが存在する場合は追加（クロスポリネーション）
+            if (minimalVersionPostUrl && baseText.length + minimalVersionPostUrl.length + 30 <= 280) {
+              const minimalLinkTexts = {
+                en: ` See full analysis: ${minimalVersionPostUrl}`,
+                ja: ` 詳細分析: ${minimalVersionPostUrl}`,
+                es: ` Ver análisis completo: ${minimalVersionPostUrl}`,
+                'pt-br': ` Ver análise completa: ${minimalVersionPostUrl}`,
+                ar: ` راجع التحليل الكامل: ${minimalVersionPostUrl}`,
+                ko: ` 전체 분석 보기: ${minimalVersionPostUrl}`,
+              };
+              const minimalLinkText = minimalLinkTexts[lang] || minimalLinkTexts.en;
+              quoteText = baseText + minimalLinkText;
+            } else {
+              quoteText = baseText;
+            }
+          } catch (templateError) {
+            console.warn(`[Quote Repost] ⚠️ Failed to generate template text, using fallback:`, templateError.message);
+            quoteText = `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${getTelegramDeepLinkWithSource(lang, 'x_quote', { influencerUsername: influencer.username })}`;
+          }
+        } else {
+          // 通常モード: Grok APIを使用
+          // P0 FIX: テキスト生成前にタイムアウトチェック（Grok API呼び出しは最大30秒かかるため、残り35秒以上必要）
+          if (deadlineMs && Date.now() >= deadlineMs - 35000) {
+            console.warn(`[Quote Repost] ⏰ Skipping text generation for @${influencer.username} (insufficient time remaining for Grok API, deadline: ${new Date(deadlineMs).toISOString()}) [runId: ${langRunId}, step: ${currentStep}]`);
+            results.push({
+              lang,
+              influencer: influencer.username,
+              tweetId: influencer.tweetId,
+              success: false,
+              actuallyPosted: false,
+              error: 'Timeout: insufficient time remaining for text generation',
+              skipped: true,
+            });
+            continue;
+          }
+          
+          try {
+            quoteText = await generateQuoteRepostTextWithGrok(lang, influencer, reportData);
+          } catch (error) {
           // フォールバック: Xアルゴリズム最適化版テンプレートを使用
           // 重要: Minimal Version URLも取得してフォールバックテンプレートに渡す
           const dateString = new Date().toISOString().split('T')[0];
