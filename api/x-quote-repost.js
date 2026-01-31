@@ -441,23 +441,33 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
         whaleBias: reportData?.sentimentData?.whale?.bias || 0,
       };
       
-      // GrokとGeminiの分析を統合して最適化戦略を生成（タイムアウト対策: 15秒以内）
-      // P0 FIX: タイムアウト設定を追加（Vercel Functionsの60秒制限を考慮）
+      // GrokとGeminiの分析を統合して最適化戦略を生成（タイムアウト対策: 条件付き実行）
+      // P0 FIX: タイムアウトリスクが高い場合は最適化処理をスキップ
+      const remainingTime = deadlineMs ? deadlineMs - Date.now() : Infinity;
       const OPTIMIZATION_TIMEOUT_MS = 15000; // 15秒
-      optimizationStrategy = await Promise.race([
-        optimizeContentAndFunnel({
-          currentMetrics,
-          marketData,
-          xSentiment,
-          lang,
-        }),
-        new Promise((_, reject) => {
-          setTimeout(() => reject(new Error(`Optimization timeout after ${OPTIMIZATION_TIMEOUT_MS}ms`)), OPTIMIZATION_TIMEOUT_MS);
-        })
-      ]).catch((error) => {
-        console.warn(`[Quote Repost] ⚠️ Optimization strategy generation failed or timed out for ${lang}:`, error.message);
-        return null; // 最適化失敗時はnullを返して続行（フォールバック）
-      });
+      const MIN_REMAINING_TIME_FOR_OPTIMIZATION = 20000; // 最適化を実行するための最小残り時間（20秒）
+      
+      if (remainingTime >= MIN_REMAINING_TIME_FOR_OPTIMIZATION) {
+        // 残り時間が十分な場合のみ最適化を実行
+        optimizationStrategy = await Promise.race([
+          optimizeContentAndFunnel({
+            currentMetrics,
+            marketData,
+            xSentiment,
+            lang,
+          }),
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error(`Optimization timeout after ${OPTIMIZATION_TIMEOUT_MS}ms`)), OPTIMIZATION_TIMEOUT_MS);
+          })
+        ]).catch((error) => {
+          console.warn(`[Quote Repost] ⚠️ Optimization strategy generation failed or timed out for ${lang}:`, error.message);
+          return null; // 最適化失敗時はnullを返して続行（フォールバック）
+        });
+      } else {
+        // 残り時間が不足している場合は最適化をスキップ
+        console.log(`[Quote Repost] ⏰ Skipping optimization for ${lang} (insufficient time remaining: ${Math.round(remainingTime / 1000)}s) [runId: ${langRunId}]`);
+        optimizationStrategy = null;
+      }
       
       if (optimizationStrategy) {
         console.log(`[Quote Repost] ✅ Content optimization strategy generated for ${lang}`);
@@ -936,8 +946,8 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         
         console.log(`[Quote Repost] ✅ @${influencer.username} meets impression target: ${impressions.toLocaleString()} (target: ${impressionTarget.min.toLocaleString()}-${impressionTarget.max.toLocaleString()}) [runId: ${langRunId}, step: ${currentStep}]`);
         
-        // P0 FIX: タイムアウトチェック（残り時間が5秒未満の場合はスキップ）- 10秒から5秒に短縮してより多くの処理を実行可能に
-        if (deadlineMs && Date.now() >= deadlineMs - 5000) {
+        // P0 FIX: タイムアウトチェック（残り時間が10秒未満の場合はスキップ）- 早期リターンを強化
+        if (deadlineMs && Date.now() >= deadlineMs - 10000) {
           console.warn(`[Quote Repost] ⏰ Skipping quote repost for @${influencer.username} (insufficient time remaining, deadline: ${new Date(deadlineMs).toISOString()}) [runId: ${langRunId}, step: ${currentStep}]`);
           results.push({
             lang,
@@ -1935,17 +1945,10 @@ const handler = async (req, res) => {
       timestamp: new Date().toISOString(),
     });
     
-    for (let langIndex = 0; langIndex < targetLangs.length; langIndex++) {
-      const targetLang = targetLangs[langIndex];
-      
-      // Gemini推奨: 言語間ウェイト（30-60秒の間隔）
-      // 6言語を一気に投稿すると「スパム」と判定されやすいため、言語ごとに30-60秒の間隔を空ける
-      if (langIndex > 0) {
-        const langWaitMs = (30 + Math.random() * 30) * 1000; // 30-60秒のランダム待機（ミリ秒）
-        console.log(`[Quote Repost] ⏳ Language wait: ${(langWaitMs / 1000).toFixed(1)} seconds before processing ${targetLang} [runId: ${runId}]`);
-        await new Promise(resolve => setTimeout(resolve, langWaitMs));
-      }
-      
+    // P0 FIX: 言語処理を並列化（タイムアウト対策）
+    // 順次処理による累積遅延を防止するため、言語ごとの処理を並列実行
+    // ただし、X APIへの投稿は順次実行（レート制限対策）
+    const langProcessingPromises = targetLangs.map(async (targetLang, langIndex) => {
       // タイムアウトチェック
       checkTimeout();
       
@@ -1953,6 +1956,7 @@ const handler = async (req, res) => {
       let langProcessed = false;
       let langError = null;
       let langStep = 'start';
+      const langResults = [];
       
       try {
         console.log(`[Quote Repost] 🔵 Processing language: ${targetLang} [runId: ${runId}, step: language_processing_start]`);
@@ -1972,12 +1976,8 @@ const handler = async (req, res) => {
           try {
             langStep = 'postQuoteRepostsForLang';
             // P0 FIX: deadlineMsはhandler関数で統一生成済み（GPT-5.2レビュー対応）
-            const langResults = await postQuoteRepostsForLang(targetLang, reportData, updatedDailyPostCount, runId, deadlineMs);
-            allResults.push(...langResults);
-            
-            // 投稿成功数をカウント
-            const successCount = langResults.filter(r => r.success && !r.dryRun).length;
-            metrics.posted_count += successCount;
+            const results = await postQuoteRepostsForLang(targetLang, reportData, updatedDailyPostCount, runId, deadlineMs);
+            langResults.push(...results);
             
             langProcessed = true;
           } catch (langError) {
@@ -1987,15 +1987,9 @@ const handler = async (req, res) => {
               lang: targetLang,
               iteration: i + 1,
             });
-            metrics.failed_langs.push({ lang: targetLang, step: langStep, error: langError.message });
             // 次のイテレーションに進む（1回失敗しても全体を止めない）
             continue;
           }
-          
-          // 投稿数を更新（日次と時間次）- グローバルな日次投稿数
-          updatedDailyPostCount = await getGlobalDailyPostCount(dateString);
-          updatedHourlyPostCount = await incrementHourlyPostCount(hourKey);
-          console.log(`[Quote Repost] Updated hourly post count: ${updatedHourlyPostCount}/${maxPostsPerHour} [runId: ${runId}]`);
           
           // P0 FIX: レート制限対策（同一言語内でジッター適用）- forループ内に配置
           // タイムアウト対策: 残り実行時間を考慮したジッター（ランダム遅延）
@@ -2010,9 +2004,13 @@ const handler = async (req, res) => {
           }
         }
         
-        if (langProcessed) {
-          metrics.processed_langs++;
-        }
+        return {
+          lang: targetLang,
+          langProcessed,
+          langResults,
+          langError: null,
+          langStep: null,
+        };
       } catch (error) {
         langError = error;
         langStep = 'language_loop';
@@ -2021,21 +2019,36 @@ const handler = async (req, res) => {
           stack: error.stack,
           lang: targetLang,
         });
-        metrics.failed_langs.push({ lang: targetLang, step: langStep, error: error.message });
-        // 次の言語に進む（1言語失敗しても全体を止めない）
+        return {
+          lang: targetLang,
+          langProcessed: false,
+          langResults: [],
+          langError: error.message,
+          langStep: 'language_loop',
+        };
       }
-      
-      // 言語間の待機時間（言語間ウェイト）
-      // P0 FIX: 固定待機を`applyLanguageWait`（ランダム遅延）に置き換え
-      // タイムアウト対策: 残り実行時間を考慮
-      // P0 FIX: deadlineMsはhandler関数で統一生成済み（GPT-5.2レビュー対応）
-      if (targetLang !== targetLangs[targetLangs.length - 1]) {
-        await applyLanguageWait({ 
-          label: `quote-repost ${targetLang} -> next-lang [runId: ${runId}]`, 
-          minMs: 0, 
-          maxMs: 3000, // maxDuration=60秒制約を考慮し、0-3秒に短縮（Gemini推奨30-60秒は実現困難）
-          deadlineMs: deadlineMs
-        });
+    });
+    
+    // 並列処理の結果を待機
+    const langProcessingResults = await Promise.allSettled(langProcessingPromises);
+    
+    // 結果を集約
+    for (const result of langProcessingResults) {
+      if (result.status === 'fulfilled') {
+        const { lang, langProcessed, langResults: results, langError, langStep } = result.value;
+        allResults.push(...results);
+        
+        if (langProcessed) {
+          metrics.processed_langs++;
+          const successCount = results.filter(r => r.success && !r.dryRun).length;
+          metrics.posted_count += successCount;
+        } else if (langError) {
+          metrics.failed_langs.push({ lang, step: langStep, error: langError });
+        }
+      } else {
+        // Promise.allSettledでrejectedになった場合
+        console.error(`[Quote Repost] ❌ Language processing promise rejected:`, result.reason);
+        metrics.failed_langs.push({ lang: 'unknown', step: 'promise_rejected', error: result.reason?.message || 'Unknown error' });
       }
     }
     
