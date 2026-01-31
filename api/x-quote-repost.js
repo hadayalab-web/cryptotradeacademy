@@ -963,6 +963,22 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         
         // Grokが引用リポスト用のテキストを生成（Xアルゴリズム最適化版）
         currentStep = 'text_generation';
+        
+        // P0 FIX: テキスト生成前にタイムアウトチェック（Grok API呼び出しは最大30秒かかるため、残り35秒以上必要）
+        if (deadlineMs && Date.now() >= deadlineMs - 35000) {
+          console.warn(`[Quote Repost] ⏰ Skipping text generation for @${influencer.username} (insufficient time remaining for Grok API, deadline: ${new Date(deadlineMs).toISOString()}) [runId: ${langRunId}, step: ${currentStep}]`);
+          results.push({
+            lang,
+            influencer: influencer.username,
+            tweetId: influencer.tweetId,
+            success: false,
+            actuallyPosted: false,
+            error: 'Timeout: insufficient time remaining for text generation',
+            skipped: true,
+          });
+          continue;
+        }
+        
         let quoteText;
         try {
           quoteText = await generateQuoteRepostTextWithGrok(lang, influencer, reportData);
