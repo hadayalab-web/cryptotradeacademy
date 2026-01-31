@@ -673,71 +673,94 @@ async function generateQuoteRepostText(
       }
     }
 
-    const completion = await openai.chat.completions.create({
-      model: modelToUse,
-      messages: [
-        {
-          role: "system",
-          content:
-            'You are "Dr. Grok", an expert at creating engaging quote reposts on X (Twitter) that maximize impressions and engagement rate. ' +
-            "You have integrated knowledge from Grok X Algorithm Analysis and Gemini High Engagement + High CVR Algorithm Analysis. " +
-            "Create compelling, attention-grabbing quote repost text that drives clicks to Telegram and maximizes engagement. " +
-            "Be concise, engaging, and use psychological triggers (urgency, FOMO, curiosity, social proof, scarcity). " +
-            "Maximum 140 characters (quote repost limit). Include the Telegram Deep Link. " +
-            "CRITICAL ALGORITHM OPTIMIZATION (2026 X Algorithm - Grok×Gemini Optimized): " +
-            '1. INTERACTIVE CTA/QUESTION (PRIORITY 1): MUST include an open-ended question CTA OR standard CTA at the end. Use one of these CTA types based on funnel stage:\n' +
-            '   - Funnel 1 (Free/Minimal Version): "Get access", "Sign up", "Join" (e.g., "Get access → [link]", "Sign up for free → [link]", "Join now → [link]")\n' +
-            '   - Funnel 2 (Paid/Regular Briefing): "Subscribe", "Get offer", "Purchase" (e.g., "Subscribe now → [link]", "Get offer → [link]", "Purchase → [link]")\n' +
-            '   - Engagement boost: Question CTA (e.g., "これ試した人いる？結果教えて！", "What do you think?", "How do you trade?", "You joining the pump? Reply Y/N")\n' +
-            '   CTA should be 20-30% of the post, naturally placed. End 70-80% of posts with CTAs to maximize engagement and conversions. ' +
-            "2. LINK OPTIMIZATION (PRIORITY 2): External links should be limited to 1 per post. Use shortened URLs (t.co, bit.ly) with UTM parameters. Place links in thread Post 2/3 (not first) or in poll options to avoid suppression. Deep Link priority (Telegram/Whop). " +
-            "3. HASHTAG OPTIMIZATION (PRIORITY 3): Use 2-3 max: 1 trending (#BTC), 1-2 niche (#TrapDefence, #CryptoFOMO). More than 3-5 hashtags risks spam detection. Front-load hashtags for mobile scans. " +
-            "4. EMOJI OPTIMIZATION: Use 3-5 relevant emojis (🚀📈🔥💎) for 20-25% visual lift. Cluster at start/end, avoid overuse. High-contrast emojis for mobile scroll-stop. " +
-            '5. PSYCHOLOGICAL TRIGGERS: Use Loss Aversion ("機会を逃す恐怖"), Reciprocity (先に価値を提供), Authority Bias (実績・数字), Confirmation Bias (既存の信念を肯定). ' +
-            '6. COGNITIVE BIASES: Leverage Bandwagon Effect ("みんなが注目している"), Scarcity Principle ("残り枠わずか"), In-Group Bias ("勝者側への所属"). ' +
-            "CRITICAL: MUST include the Telegram Deep Link to drive opt-ins to the free Minimal Version. " +
-            'FUNNEL OPTIMIZATION: Use "Velvet Rope Strategy" - frame Telegram as exclusive "inner circle" for chosen information elites, not just a notification tool. ' +
-            "If high-quality Minimal Version content is provided (hook message, Dr. Grok insight, mental note, data points), incorporate these powerful elements naturally to maximize algorithm engagement. " +
-            'If a Minimal Version post URL is provided, include a reference to it (e.g., "See full analysis" or "Check detailed report") to drive cross-pollination. ' +
-            "Format: [Hook/Agreement] [Unique Value] [Question CTA] [Telegram Deep Link] [Hashtags]. " +
-            "TIMING: Post during peak retail FOMO windows (UTC 8-11 AM, 12-16, 20-24 for crypto volatility). Align with sentiment score >40. " +
-            "Make it irresistible to click and maximize engagement rate."
-        },
-        {
-          role: "user",
-          content:
-            `Task: Generate a compelling quote repost text in ${targetLang} language.\n\n` +
-            `Original tweet: "${influencerTweet.tweetText?.substring(0, 200) || "N/A"}"\n` +
-            `Trap Score: ${reportData?.trapScore || "N/A"}/100\n` +
-            `BTC Price: $${reportData?.priceUsd?.toLocaleString("en-US", { maximumFractionDigits: 0 }) || "N/A"}\n` +
-            `Minimal Version Link: ${deepLink}${minimalCheckoutUrl ? ' (FREE checkout link - no payment required)' : ' (Telegram Deep Link)'}${minimalVersionContext}${regularBriefingContext}${optimizationContext}\n\n` +
-            `Requirements (2026 X Algorithm + High Engagement CVR Optimization - Grok×Gemini Optimized):\n` +
-            `- Maximum 140 characters (quote repost limit)\n` +
-            `- Engaging and attention-grabbing\n` +
-                    `- PRIORITY 1: MUST include a CTA at the end. Choose based on funnel stage:\n` +
-                    `  * Funnel 1 (Free/Minimal Version): Use "Get access", "Sign up", or "Join" (e.g., "Get access → [Telegram Deep Link]", "Sign up for free → [link]", "Join now → [link]")\n` +
-                    `  * Funnel 2 (Paid/Regular Briefing): Use "Subscribe", "Get offer", or "Purchase" (e.g., "Subscribe now → [Whop URL]", "Get offer → [Whop URL]", "Purchase → [Whop URL]")\n` +
-                    `  * Engagement boost: Use question CTA (e.g., "これ試した人いる？結果教えて！", "What do you think?", "You joining the pump? Reply Y/N")\n` +
-                    `  CTA should be 20-30% of the post, naturally placed. End 70-80% of posts with CTAs to maximize engagement and conversions.\n` +
-            `- PRIORITY 2: MUST include Minimal Version link (checkout link preferred, or Telegram Deep Link as fallback) - REQUIRED for opt-in funnel (users must be able to click to join free Minimal Version). ${minimalCheckoutUrl ? 'Use checkout link with clear "FREE" and "NO CREDIT CARD REQUIRED" messaging. ' : 'Use Telegram Deep Link. '}Limit to 1 external link per post. Use shortened URLs with UTM parameters.\n` +
-            `- PRIORITY 2.5: CRITICAL FUNNEL 2 - MUST include Regular Briefing Whop URL with 50% OFF coupon code DEFEND50 if provided. Use promotional language like "🔥 PRO 50% OFF (DEFEND50): [URL]?promo=DEFEND50" in the target language. This is for direct conversion to paid version, skipping the free version. The coupon code DEFEND50 is REQUIRED.\n` +
-            `- PRIORITY 3: Use 2-3 max hashtags: 1 trending (#BTC), 1-2 niche (#TrapDefence, #CryptoFOMO). More than 3-5 hashtags risks spam detection. Front-load for mobile scans.\n` +
-            `- Use 3-5 relevant emojis (🚀📈🔥💎) for 20-25% visual lift. Cluster at start/end, avoid overuse. High-contrast emojis for mobile scroll-stop.\n` +
-            `- PSYCHOLOGICAL TRIGGERS: Use Loss Aversion ("機会を逃す恐怖"), Reciprocity (先に価値を提供), Authority Bias (実績・数字), Confirmation Bias (既存の信念を肯定), Scarcity Principle ("残り枠わずか").\n` +
-            `- COGNITIVE BIASES: Leverage Bandwagon Effect ("みんなが注目している"), In-Group Bias ("勝者側への所属"), Immediate Gratification (即時報酬).\n` +
-            `- FUNNEL OPTIMIZATION: Use "Velvet Rope Strategy" - frame Telegram as exclusive "inner circle" for chosen information elites. Use "Risk Reversal" - present Whop as "shortcut to results" for lazy brain.\n` +
-            `- FUNNEL 2 (Direct Regular Briefing Conversion): If Regular Briefing Whop URL is provided, MUST include the 50% OFF coupon code promotion (DEFEND50) in your quote repost. This is for direct conversion to paid version, skipping the free version. Example: "🔥 PRO 50% OFF (DEFEND50): [URL]?promo=DEFEND50" in the target language.\n` +
-            `- If Minimal Version post URL is provided, include a reference to it (e.g., "See full analysis: [URL]" or "Check detailed report: [URL]") - OPTIONAL but recommended for cross-pollination\n` +
-            `- Format: [Hook/Agreement] [Unique Value] [Question CTA] [Telegram Deep Link] [Hashtags]\n` +
-            `- Example (with Minimal Version checkout link): "Agree! ${minimalContent?.drGrokInsight ? `"${minimalContent.drGrokInsight.substring(0, 40)}..."` : "TrapDefence detected this signal"} 🚀 Get free access (no card): ${minimalCheckoutUrl ? '[checkout-link]' : 't.me/...'} #BTC #TrapDefence"\n` +
-            `- Example (with Telegram Deep Link fallback): "Agree! TrapDefence detected this signal 🚀 You joining the pump? Reply Y/N Free: t.me/... #BTC #TrapDefence"\n` +
-            `- Make it irresistible to click and maximize engagement rate (target: 0.003% → 1.0%+)\n\n` +
-            `Generate the quote repost text:`
-        }
-      ],
-      max_tokens: 300,
-      temperature: 0.7
-    });
+    // P0 FIX: タイムアウト設定を追加（30秒以内）- Vercel Functionsの60秒制限を考慮
+    const GROK_TIMEOUT_MS = 30000; // 30秒（60秒制限の半分）
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), GROK_TIMEOUT_MS);
+    
+    let completion;
+    try {
+      completion = await Promise.race([
+        openai.chat.completions.create({
+          model: modelToUse,
+          messages: [
+            {
+              role: "system",
+              content:
+                'You are "Dr. Grok", an expert at creating engaging quote reposts on X (Twitter) that maximize impressions and engagement rate. ' +
+                "You have integrated knowledge from Grok X Algorithm Analysis and Gemini High Engagement + High CVR Algorithm Analysis. " +
+                "Create compelling, attention-grabbing quote repost text that drives clicks to Telegram and maximizes engagement. " +
+                "Be concise, engaging, and use psychological triggers (urgency, FOMO, curiosity, social proof, scarcity). " +
+                "Maximum 140 characters (quote repost limit). Include the Telegram Deep Link. " +
+                "CRITICAL ALGORITHM OPTIMIZATION (2026 X Algorithm - Grok×Gemini Optimized): " +
+                '1. INTERACTIVE CTA/QUESTION (PRIORITY 1): MUST include an open-ended question CTA OR standard CTA at the end. Use one of these CTA types based on funnel stage:\n' +
+                '   - Funnel 1 (Free/Minimal Version): "Get access", "Sign up", "Join" (e.g., "Get access → [link]", "Sign up for free → [link]", "Join now → [link]")\n' +
+                '   - Funnel 2 (Paid/Regular Briefing): "Subscribe", "Get offer", "Purchase" (e.g., "Subscribe now → [link]", "Get offer → [link]", "Purchase → [link]")\n' +
+                '   - Engagement boost: Question CTA (e.g., "これ試した人いる？結果教えて！", "What do you think?", "How do you trade?", "You joining the pump? Reply Y/N")\n' +
+                '   CTA should be 20-30% of the post, naturally placed. End 70-80% of posts with CTAs to maximize engagement and conversions. ' +
+                "2. LINK OPTIMIZATION (PRIORITY 2): External links should be limited to 1 per post. Use shortened URLs (t.co, bit.ly) with UTM parameters. Place links in thread Post 2/3 (not first) or in poll options to avoid suppression. Deep Link priority (Telegram/Whop). " +
+                "3. HASHTAG OPTIMIZATION (PRIORITY 3): Use 2-3 max: 1 trending (#BTC), 1-2 niche (#TrapDefence, #CryptoFOMO). More than 3-5 hashtags risks spam detection. Front-load hashtags for mobile scans. " +
+                "4. EMOJI OPTIMIZATION: Use 3-5 relevant emojis (🚀📈🔥💎) for 20-25% visual lift. Cluster at start/end, avoid overuse. High-contrast emojis for mobile scroll-stop. " +
+                '5. PSYCHOLOGICAL TRIGGERS: Use Loss Aversion ("機会を逃す恐怖"), Reciprocity (先に価値を提供), Authority Bias (実績・数字), Confirmation Bias (既存の信念を肯定). ' +
+                '6. COGNITIVE BIASES: Leverage Bandwagon Effect ("みんなが注目している"), Scarcity Principle ("残り枠わずか"), In-Group Bias ("勝者側への所属"). ' +
+                "CRITICAL: MUST include the Telegram Deep Link to drive opt-ins to the free Minimal Version. " +
+                'FUNNEL OPTIMIZATION: Use "Velvet Rope Strategy" - frame Telegram as exclusive "inner circle" for chosen information elites, not just a notification tool. ' +
+                "If high-quality Minimal Version content is provided (hook message, Dr. Grok insight, mental note, data points), incorporate these powerful elements naturally to maximize algorithm engagement. " +
+                'If a Minimal Version post URL is provided, include a reference to it (e.g., "See full analysis" or "Check detailed report") to drive cross-pollination. ' +
+                "Format: [Hook/Agreement] [Unique Value] [Question CTA] [Telegram Deep Link] [Hashtags]. " +
+                "TIMING: Post during peak retail FOMO windows (UTC 8-11 AM, 12-16, 20-24 for crypto volatility). Align with sentiment score >40. " +
+                "Make it irresistible to click and maximize engagement rate."
+            },
+            {
+              role: "user",
+              content:
+                `Task: Generate a compelling quote repost text in ${targetLang} language.\n\n` +
+                `Original tweet: "${influencerTweet.tweetText?.substring(0, 200) || "N/A"}"\n` +
+                `Trap Score: ${reportData?.trapScore || "N/A"}/100\n` +
+                `BTC Price: $${reportData?.priceUsd?.toLocaleString("en-US", { maximumFractionDigits: 0 }) || "N/A"}\n` +
+                `Minimal Version Link: ${deepLink}${minimalCheckoutUrl ? ' (FREE checkout link - no payment required)' : ' (Telegram Deep Link)'}${minimalVersionContext}${regularBriefingContext}${optimizationContext}\n\n` +
+                `Requirements (2026 X Algorithm + High Engagement CVR Optimization - Grok×Gemini Optimized):\n` +
+                `- Maximum 140 characters (quote repost limit)\n` +
+                `- Engaging and attention-grabbing\n` +
+                        `- PRIORITY 1: MUST include a CTA at the end. Choose based on funnel stage:\n` +
+                        `  * Funnel 1 (Free/Minimal Version): Use "Get access", "Sign up", or "Join" (e.g., "Get access → [Telegram Deep Link]", "Sign up for free → [link]", "Join now → [link]")\n` +
+                        `  * Funnel 2 (Paid/Regular Briefing): Use "Subscribe", "Get offer", or "Purchase" (e.g., "Subscribe now → [Whop URL]", "Get offer → [Whop URL]", "Purchase → [Whop URL]")\n` +
+                        `  * Engagement boost: Use question CTA (e.g., "これ試した人いる？結果教えて！", "What do you think?", "You joining the pump? Reply Y/N")\n` +
+                        `  CTA should be 20-30% of the post, naturally placed. End 70-80% of posts with CTAs to maximize engagement and conversions.\n` +
+                `- PRIORITY 2: MUST include Minimal Version link (checkout link preferred, or Telegram Deep Link as fallback) - REQUIRED for opt-in funnel (users must be able to click to join free Minimal Version). ${minimalCheckoutUrl ? 'Use checkout link with clear "FREE" and "NO CREDIT CARD REQUIRED" messaging. ' : 'Use Telegram Deep Link. '}Limit to 1 external link per post. Use shortened URLs with UTM parameters.\n` +
+                `- PRIORITY 2.5: CRITICAL FUNNEL 2 - MUST include Regular Briefing Whop URL with 50% OFF coupon code DEFEND50 if provided. Use promotional language like "🔥 PRO 50% OFF (DEFEND50): [URL]?promo=DEFEND50" in the target language. This is for direct conversion to paid version, skipping the free version. The coupon code DEFEND50 is REQUIRED.\n` +
+                `- PRIORITY 3: Use 2-3 max hashtags: 1 trending (#BTC), 1-2 niche (#TrapDefence, #CryptoFOMO). More than 3-5 hashtags risks spam detection. Front-load for mobile scans.\n` +
+                `- Use 3-5 relevant emojis (🚀📈🔥💎) for 20-25% visual lift. Cluster at start/end, avoid overuse. High-contrast emojis for mobile scroll-stop.\n` +
+                `- PSYCHOLOGICAL TRIGGERS: Use Loss Aversion ("機会を逃す恐怖"), Reciprocity (先に価値を提供), Authority Bias (実績・数字), Confirmation Bias (既存の信念を肯定), Scarcity Principle ("残り枠わずか").\n` +
+                `- COGNITIVE BIASES: Leverage Bandwagon Effect ("みんなが注目している"), In-Group Bias ("勝者側への所属"), Immediate Gratification (即時報酬).\n` +
+                `- FUNNEL OPTIMIZATION: Use "Velvet Rope Strategy" - frame Telegram as exclusive "inner circle" for chosen information elites. Use "Risk Reversal" - present Whop as "shortcut to results" for lazy brain.\n` +
+                `- FUNNEL 2 (Direct Regular Briefing Conversion): If Regular Briefing Whop URL is provided, MUST include the 50% OFF coupon code promotion (DEFEND50) in your quote repost. This is for direct conversion to paid version, skipping the free version. Example: "🔥 PRO 50% OFF (DEFEND50): [URL]?promo=DEFEND50" in the target language.\n` +
+                `- If Minimal Version post URL is provided, include a reference to it (e.g., "See full analysis: [URL]" or "Check detailed report: [URL]") - OPTIONAL but recommended for cross-pollination\n` +
+                `- Format: [Hook/Agreement] [Unique Value] [Question CTA] [Telegram Deep Link] [Hashtags]\n` +
+                `- Example (with Minimal Version checkout link): "Agree! ${minimalContent?.drGrokInsight ? `"${minimalContent.drGrokInsight.substring(0, 40)}..."` : "TrapDefence detected this signal"} 🚀 Get free access (no card): ${minimalCheckoutUrl ? '[checkout-link]' : 't.me/...'} #BTC #TrapDefence"\n` +
+                `- Example (with Telegram Deep Link fallback): "Agree! TrapDefence detected this signal 🚀 You joining the pump? Reply Y/N Free: t.me/... #BTC #TrapDefence"\n` +
+                `- Make it irresistible to click and maximize engagement rate (target: 0.003% → 1.0%+)\n\n` +
+                `Generate the quote repost text:`
+            }
+          ],
+          max_tokens: 300,
+          temperature: 0.7
+        }),
+        new Promise((_, reject) => {
+          controller.signal.addEventListener('abort', () => {
+            reject(new Error(`Grok API timeout after ${GROK_TIMEOUT_MS}ms`));
+          });
+        })
+      ]);
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.message?.includes('timeout')) {
+        console.warn(`[Grok] Quote repost text generation timeout after ${GROK_TIMEOUT_MS}ms, using fallback template`);
+        throw error; // フォールバック処理に委譲
+      }
+      throw error;
+    }
 
     const text = completion?.choices?.[0]?.message?.content?.trim();
     if (text && text.length <= 280) {

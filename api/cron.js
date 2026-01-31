@@ -994,7 +994,6 @@ module.exports = async function handler(req, res) {
         triggerReason = "Regular slot (event-driven disabled)";
       }
     }
-    }
     // ===== Phase 1 End =====
 
     // 6-2. 定期配信時のAI解析（GPT + Grok分離）

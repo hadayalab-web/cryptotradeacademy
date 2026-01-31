@@ -441,18 +441,31 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
         whaleBias: reportData?.sentimentData?.whale?.bias || 0,
       };
       
-      // GrokとGeminiの分析を統合して最適化戦略を生成
-      optimizationStrategy = await optimizeContentAndFunnel({
-        currentMetrics,
-        marketData,
-        xSentiment,
-        lang,
+      // GrokとGeminiの分析を統合して最適化戦略を生成（タイムアウト対策: 15秒以内）
+      // P0 FIX: タイムアウト設定を追加（Vercel Functionsの60秒制限を考慮）
+      const OPTIMIZATION_TIMEOUT_MS = 15000; // 15秒
+      optimizationStrategy = await Promise.race([
+        optimizeContentAndFunnel({
+          currentMetrics,
+          marketData,
+          xSentiment,
+          lang,
+        }),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error(`Optimization timeout after ${OPTIMIZATION_TIMEOUT_MS}ms`)), OPTIMIZATION_TIMEOUT_MS);
+        })
+      ]).catch((error) => {
+        console.warn(`[Quote Repost] ⚠️ Optimization strategy generation failed or timed out for ${lang}:`, error.message);
+        return null; // 最適化失敗時はnullを返して続行（フォールバック）
       });
       
-      console.log(`[Quote Repost] ✅ Content optimization strategy generated for ${lang}`);
+      if (optimizationStrategy) {
+        console.log(`[Quote Repost] ✅ Content optimization strategy generated for ${lang}`);
+      }
     } catch (error) {
       console.warn(`[Quote Repost] ⚠️ Failed to generate optimization strategy for ${lang}:`, error.message);
       // 最適化失敗時も続行（フォールバック）
+      optimizationStrategy = null;
     }
     
     // 最適化戦略をプロンプトに反映（generateQuoteRepostTextに渡す）
@@ -922,6 +935,21 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         }
         
         console.log(`[Quote Repost] ✅ @${influencer.username} meets impression target: ${impressions.toLocaleString()} (target: ${impressionTarget.min.toLocaleString()}-${impressionTarget.max.toLocaleString()}) [runId: ${langRunId}, step: ${currentStep}]`);
+        
+        // P0 FIX: タイムアウトチェック（残り時間が10秒未満の場合はスキップ）
+        if (deadlineMs && Date.now() >= deadlineMs - 10000) {
+          console.warn(`[Quote Repost] ⏰ Skipping quote repost for @${influencer.username} (insufficient time remaining, deadline: ${new Date(deadlineMs).toISOString()}) [runId: ${langRunId}, step: ${currentStep}]`);
+          results.push({
+            lang,
+            influencer: influencer.username,
+            tweetId: influencer.tweetId,
+            success: false,
+            actuallyPosted: false,
+            error: 'Timeout: insufficient time remaining',
+            skipped: true,
+          });
+          continue;
+        }
         
         // Grokが引用リポスト用のテキストを生成（Xアルゴリズム最適化版）
         currentStep = 'text_generation';
