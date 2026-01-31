@@ -864,12 +864,21 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     // Grok推奨: ENは4本/日、その他は2本/日（言語別インフルエンサー数に基づく）
     const maxInfluencers = targetCount; // EN: 4, その他: 2
     for (const influencer of influencers.slice(0, maxInfluencers)) {
+      // P0 FIX: 各インフルエンサー処理の開始時にタイムアウトチェック（残り35秒未満の場合は早期リターン）
+      if (deadlineMs && Date.now() >= deadlineMs - 35000) {
+        const remainingTime = Math.round((deadlineMs - Date.now()) / 1000);
+        console.warn(`[Quote Repost] ⏰ Early return: insufficient time remaining (${remainingTime}s) for remaining influencers [runId: ${langRunId}]`);
+        console.log(`[Quote Repost] 📊 Processed ${results.length} influencers before timeout [runId: ${langRunId}]`);
+        break; // ループを抜けて既存の結果を返す
+      }
+      
       // 🔍 デバッグ: 各インフルエンサーの処理開始時にログを記録
       currentStep = 'processing_influencer';
       console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: Processing influencer:`, {
         lang,
         influencer: influencer.username,
         tweetId: influencer.tweetId,
+        remainingTime: deadlineMs ? Math.round((deadlineMs - Date.now()) / 1000) : 'unlimited',
         timestamp: new Date().toISOString(),
       });
       try {
