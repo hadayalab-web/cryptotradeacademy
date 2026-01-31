@@ -50,58 +50,19 @@
     }
   ],
   "crons": [
-    // ==========================================
-    // Trap Defence BTC配信（有料版・無料版）
-    // ==========================================
-    // 無料版（Minimal Version）と有料版（Regular Briefing）の定期配信と緊急配信
     { "path": "/api/cron", "schedule": "*/15 * * * *" },
-    
-    // ==========================================
-    // X投稿関連（4件）
-    // ==========================================
-    // VSL1自動投稿（X/Twitterのみ）- 1日3回（UTC 1時、13時、21時）
     { "path": "/api/vsl1-post", "schedule": "0 1,13,21 * * *" },
-    // 無料版（Minimal Version）のX投稿 - 1日5回（UTC 0時、7時、12時、15時、23時）
     { "path": "/api/x-post-minimal-version-cron", "schedule": "0 0,7,12,15,23 * * *" },
-    // 無料版レポートX投稿（6言語対応）- 1日4回（UTC 4:30、10:30、17:30、19:30）
     { "path": "/api/x-post-free-report", "schedule": "30 4,10,17,19 * * *" },
-    // 引用リポスト自動化（6言語別、1日1000投稿 = 各言語167投稿/日）
-    // 1分ごとに6言語をローテーション → 1日1440回実行 = 1440投稿（目標1000投稿を超える）
-    { "path": "/api/x-quote-repost-en", "schedule": "*/6 * * * *" },      // 0,6,12,18,24,30,36,42,48,54分
-    { "path": "/api/x-quote-repost-es", "schedule": "1,7,13,19,25,31,37,43,49,55 * * * *" },  // 1,7,13,19,25,31,37,43,49,55分
-    { "path": "/api/x-quote-repost-pt-br", "schedule": "2,8,14,20,26,32,38,44,50,56 * * * *" }, // 2,8,14,20,26,32,38,44,50,56分
-    { "path": "/api/x-quote-repost-ar", "schedule": "3,9,15,21,27,33,39,45,51,57 * * * *" },    // 3,9,15,21,27,33,39,45,51,57分
-    { "path": "/api/x-quote-repost-ja", "schedule": "4,10,16,22,28,34,40,46,52,58 * * * *" },   // 4,10,16,22,28,34,40,46,52,58分
-    { "path": "/api/x-quote-repost-ko", "schedule": "5,11,17,23,29,35,41,47,53,59 * * * *" },   // 5,11,17,23,29,35,41,47,53,59分
-    // 旧KV方式（廃止予定）
-    // { "path": "/api/x-quote-repost", "schedule": "0 * * * *" },
-    
-    // ==========================================
-    // TG DM関連（3件）
-    // ==========================================
-    // 無料版ユーザーへのVSL2自動配信（24時間後）- 1時間ごと
+    { "path": "/api/x-quote-repost-en", "schedule": "*/6 * * * *" },
+    { "path": "/api/x-quote-repost-es", "schedule": "1,7,13,19,25,31,37,43,49,55 * * * *" },
+    { "path": "/api/x-quote-repost-pt-br", "schedule": "2,8,14,20,26,32,38,44,50,56 * * * *" },
+    { "path": "/api/x-quote-repost-ar", "schedule": "3,9,15,21,27,33,39,45,51,57 * * * *" },
+    { "path": "/api/x-quote-repost-ja", "schedule": "4,10,16,22,28,34,40,46,52,58 * * * *" },
+    { "path": "/api/x-quote-repost-ko", "schedule": "5,11,17,23,29,35,41,47,53,59 * * * *" },
     { "path": "/api/vsl2-free-users", "schedule": "0 * * * *" },
-    // 無料版ユーザーへのVSL1リマインドメッセージ（12時間後）- 12時間ごと（UTC 0時、12時）
     { "path": "/api/vsl1-reminder", "schedule": "0 */12 * * *" },
-    // 無料版ユーザーへのVSL2終了直前リマインド（21時間後）- 1時間ごと
     { "path": "/api/vsl2-last-call", "schedule": "0 * * * *" },
-    
-    // ==========================================
-    // その他（1件）
-    // ==========================================
-    // プロモコード在庫監視（VSL2に関連）- 15分ごと
     { "path": "/api/promo-stock-monitor", "schedule": "*/15 * * * *" }
-    
-    // ⚠️ 削除されたCronJobs:
-    // - /api/x-engagement-metrics (エンゲージメントメトリクス)
-    // - /api/x-quote-repost-metrics (引用リポストメトリクス)
-    // - /api/x-post-performance-analysis (投稿パフォーマンス分析)
-    // - /api/weekly-report (週次レポート)
-    // - /api/x-influencer-report (インフルエンサー効果レポート)
-    // - /api/x-algorithm-analysis (Xアルゴリズム分析)
-    // - /api/monthly-engagement-report (月次エンゲージメントレポート)
-    //
-    // ⚠️ 注意: Grokのインフルエンサーリスト検索・追加・更新に係るCronJobsは廃止されました
-    // /api/x-update-influencer-stock のCron設定は追加しないでください（手動実行専用）
   ]
 }
