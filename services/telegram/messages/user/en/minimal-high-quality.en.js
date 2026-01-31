@@ -287,6 +287,11 @@ function formatMinimalHighQualityBriefing({
   
   message += `\n\nRed candles ≠ instant trap.`;
 
+  // Grok 4.1 Fast Reasoning: なぜこのスコアか・何を見るか（密度強化）
+  if (grokReasoningMinimal && typeof grokReasoningMinimal === 'string' && grokReasoningMinimal.trim()) {
+    message += `\n\n🔍 **Dr. Grok** (why this score + what to watch):\n${grokReasoningMinimal.trim()}`;
+  }
+
   // [3/4] Psych coaching: latency anxiety (低スコア時の認知的不協和)
   message += `\n\n[3/4] 🧠 Psych Coaching
 ━━━━━━━━━━━━━━━━━━━━`;
