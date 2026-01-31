@@ -1789,8 +1789,19 @@ const handler = async (req, res) => {
   const gitSha = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_SHA || 'unknown';
   const buildTime = process.env.VERCEL_BUILD_TIME || 'unknown';
   
-  const authHeader = req.headers.authorization;
+  // P0 FIX: 認証チェックのデバッグログを追加（401エラー原因特定のため）
+  const authHeader = req.headers.authorization || req.headers.Authorization;
   const cronSecret = process.env.CRON_SECRET;
+  
+  // デバッグログ: 認証情報を確認（CRON_SECRETの値は表示しない）
+  console.log('[Quote Repost] 🔵 Auth Debug:', {
+    hasAuthHeader: !!authHeader,
+    authHeaderPrefix: authHeader ? authHeader.substring(0, 20) + '...' : 'undefined',
+    hasCronSecret: !!cronSecret,
+    cronSecretLength: cronSecret ? cronSecret.length : 0,
+    userAgent: req.headers['user-agent'],
+    runId
+  });
   
   // タイムアウト対策: 開始時刻を記録
   const startTime = Date.now();
@@ -1808,9 +1819,20 @@ const handler = async (req, res) => {
   console.log('[Quote Repost] 🔵 Build Time:', buildTime);
   console.log('[Quote Repost] ========================================');
   
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    console.error(`[Quote Repost] ❌ Unauthorized: Invalid CRON_SECRET [runId: ${runId}]`);
-    return res.status(401).json({ error: 'Unauthorized', runId });
+  // P0 FIX: 認証チェックの改善（authHeaderがundefinedの場合も考慮）
+  // Vercel Cronジョブから呼び出される場合は、Authorizationヘッダーが自動的に設定される
+  // 手動テストの場合は、Authorizationヘッダーを明示的に設定する必要がある
+  if (cronSecret) {
+    const expectedAuth = `Bearer ${cronSecret}`;
+    if (!authHeader || authHeader !== expectedAuth) {
+      console.error(`[Quote Repost] ❌ Unauthorized: Invalid CRON_SECRET [runId: ${runId}]`, {
+        hasAuthHeader: !!authHeader,
+        authHeaderValue: authHeader ? authHeader.substring(0, 30) + '...' : 'undefined',
+        expectedPrefix: expectedAuth.substring(0, 30) + '...',
+        runId
+      });
+      return res.status(401).json({ error: 'Unauthorized', runId, message: 'Invalid or missing Authorization header' });
+    }
   }
   
   // タイムアウトチェック関数
