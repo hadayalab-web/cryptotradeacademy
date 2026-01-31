@@ -135,6 +135,16 @@ function getInfluencerCountForLang(lang, currentHour = null) {
   // 時価配分を考慮
   if (currentHour !== null) {
     const hour = currentHour;
+    // 100/15min 厳守: 15分窓で100超にならないよう、多言語が重なる時間帯は人数を制限
+    if (hour === 0 && normalizedLang === 'en') return 33; // UTC0時: EN 33×3=99（ARは同窓で2回→0に）
+    if (hour === 0 && normalizedLang === 'ar') return 0;  // UTC0時: 同窓100超回避
+    if (hour === 1 && normalizedLang === 'en') return 33; // UTC1時: EN 33×3=99
+    if (hour === 1 && normalizedLang === 'ko') return 0;  // UTC1時: 同窓100超回避
+    if (hour === 2 && normalizedLang === 'en') return 33; // UTC2時: ENのみ 33×3=99
+    if (hour === 8 && normalizedLang === 'en') return 33; // UTC8時: ENのみ 33×3=99
+    if (hour === 9 && ['es', 'pt-br', 'ar', 'ja', 'ko'].includes(normalizedLang)) return 10; // UTC9時: 他5言語 各10
+    if (hour === 12 && normalizedLang === 'en') return 33; // UTC12時: ENのみ 33×3=99
+    if ([20, 21, 22].includes(hour) && normalizedLang === 'en') return 33; // UTC20-22時: ENのみ 33×3=99
     const isPeakHour = HOURLY_DISTRIBUTION.peak.hours.includes(hour);
     const isOffPeakHour = HOURLY_DISTRIBUTION.offPeak.hours.includes(hour);
     

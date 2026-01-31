@@ -281,20 +281,6 @@ async function incrementDailyPostCount(dateString, count = 1) {
 }
 
 /**
- * 1日の投稿上限をチェック
- * 🚀 数撃て作戦: X APIレート制限に基づく上限設定
- * X APIレート制限: Per User 100/15min (理論上9,600/24hrs), Per App 10,000/24hrs
- * AI推奨値（スパム判定回避）: 200-300投稿/日（grok-4-1-fast-reasoning, gemini-3-pro-preview推奨）
- * 環境変数で変更可能: X_MAX_DAILY_POSTS（デフォルト: 250 = AI推奨値の中間値）
- */
-function checkDailyPostLimit(currentPostCount, maxPosts = null) {
-  // 環境変数から取得、なければデフォルト値を使用（AI推奨値200-300の中間値250）
-  const defaultMaxPosts = parseInt(process.env.X_MAX_DAILY_POSTS || '250', 10);
-  const limit = maxPosts !== null ? maxPosts : defaultMaxPosts;
-  return currentPostCount < limit;
-}
-
-/**
  * 1時間あたりの投稿数制限をチェック
  * ⚖️ バランスアプローチ: X APIレート制限に基づく時間単位の制限
  * X APIレート制限: Per User 100/15min（= 400/時間理論上、安全のため100/時間推奨）
@@ -563,27 +549,28 @@ function getPeakMapForHour(hour) {
     return { langs: ['en', 'ja'], type: 'quote', count: 1, alsoFreeReport: ['en', 'pt-br'] };
   }
   if (hour === 20) {
-    // UTC 20:00: EN/PT-BR quote + EN minimal（ピーク時間: EN 10人、PT-BR 2人）
-    return { langs: ['en', 'pt-br'], type: 'quote', count: 2, alsoMinimal: ['en'] };
+    // 100/15min 厳守: UTC 20:00 は EN のみ（33×3=99）+ minimal
+    return { langs: ['en'], type: 'quote', count: 1, alsoMinimal: ['en'] };
   }
   
   // すべての時間帯でQuote Repostを実行（500投稿/日以上達成）
-  // countパラメータは各言語に対してpostQuoteRepostsForLangを呼び出す回数（通常は1）
-  // 実際のインフルエンサー数はgetInfluencerCountForLangによって決定される
+  // 100/15min 厳守: 8時=ENのみ(33)、9時=他5言語(各10)、20-22時=ENのみ(33)、23時=PT-BR+ES
   const peakMap = {
-    0: { langs: ['ar', 'en'], type: 'quote', count: 1 },      // UTC 0:00 - AR 8人（ピーク）、EN 32人（ピーク）= 40投稿
-    1: { langs: ['ko', 'en'], type: 'quote', count: 1 },     // UTC 1:00 - KO 5人（ピーク）、EN 32人（ピーク）= 37投稿
-    2: { langs: ['en'], type: 'quote', count: 1 },           // UTC 2:00 - EN 32人 = 32投稿
-    4: { langs: ['es'], type: 'quote', count: 1 },           // UTC 4:00 - ES 17人 = 17投稿
-    6: { langs: ['pt-br'], type: 'quote', count: 1 },        // UTC 6:00 - PT-BR 12人 = 12投稿
-    8: { langs: ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'], type: 'quote', count: 1 }, // UTC 8:00 - EN 32人 + その他各言語 = 82投稿
-    10: { langs: ['ja'], type: 'quote', count: 1 },          // UTC 10:00 - JA 8人 = 8投稿
-    12: { langs: ['en'], type: 'quote', count: 1, alsoFreeReport: ['en'] }, // UTC 12:00 - EN 32人 = 32投稿 + Free Report
-    15: { langs: ['es'], type: 'quote', count: 1, alsoFreeReport: ['es'] },  // UTC 15:00 - ES 17人 = 17投稿 + Free Report
-    16: { langs: ['ko'], type: 'quote', count: 1 },          // UTC 16:00 - KO 5人 = 5投稿
-    18: { langs: ['ar'], type: 'quote', count: 1, alsoFreeReport: ['ar'] },  // UTC 18:00 - AR 8人 = 8投稿 + Free Report
-    21: { langs: ['es', 'en'], type: 'quote', count: 1 },    // UTC 21:00 - ES 17人（ピーク）、EN 32人（ピーク）= 49投稿
-    22: { langs: ['pt-br', 'es', 'en'], type: 'quote', count: 1 }, // UTC 22:00 - PT-BR 12人（ピーク）、ES 17人（ピーク）、EN 32人（ピーク）= 61投稿
+    0: { langs: ['ar', 'en'], type: 'quote', count: 1 },      // UTC 0:00 - AR 12、EN 35 = 47
+    1: { langs: ['ko', 'en'], type: 'quote', count: 1 },     // UTC 1:00 - KO 8、EN 35 = 43
+    2: { langs: ['en'], type: 'quote', count: 1 },           // UTC 2:00 - EN 35 = 35
+    4: { langs: ['es'], type: 'quote', count: 1 },           // UTC 4:00 - ES 20 = 20
+    6: { langs: ['pt-br'], type: 'quote', count: 1 },        // UTC 6:00 - PT-BR 16 = 16
+    8: { langs: ['en'], type: 'quote', count: 1 },           // UTC 8:00 - EN のみ 33×3 = 99（100/15min 厳守）
+    9: { langs: ['es', 'pt-br', 'ar', 'ja', 'ko'], type: 'quote', count: 1 }, // UTC 9:00 - 他5言語 各10、15分窓≤100
+    10: { langs: ['ja'], type: 'quote', count: 1 },          // UTC 10:00 - JA 10 = 10
+    12: { langs: ['en'], type: 'quote', count: 1, alsoFreeReport: ['en'] }, // UTC 12:00 - EN 35 + Free Report
+    15: { langs: ['es'], type: 'quote', count: 1, alsoFreeReport: ['es'] },  // UTC 15:00 - ES 20 + Free Report
+    16: { langs: ['ko'], type: 'quote', count: 1 },          // UTC 16:00 - KO 8 = 8
+    18: { langs: ['ar'], type: 'quote', count: 1, alsoFreeReport: ['ar'] },  // UTC 18:00 - AR 12 + Free Report
+    21: { langs: ['en'], type: 'quote', count: 1 },    // UTC 21:00 - EN のみ 33×3 = 99（100/15min 厳守）
+    22: { langs: ['en'], type: 'quote', count: 1 }, // UTC 22:00 - EN のみ 33×3 = 99（100/15min 厳守）
+    23: { langs: ['pt-br', 'es'], type: 'quote', count: 1 }, // UTC 23:00 - PT-BR+ES（20/22時から移動）
   };
   
   return peakMap[hour] || { langs: [], type: null, count: 0 };
@@ -612,7 +599,6 @@ module.exports = {
   getOptimizedHashtags,
   getContentFormat,
   shouldPostQuoteRepost,
-  checkDailyPostLimit,
   getDailyPostCount,
   incrementDailyPostCount,
   generateEngagementCTA,

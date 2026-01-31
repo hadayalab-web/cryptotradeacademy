@@ -8,7 +8,6 @@ const { generateQuoteRepostText } = require('../services/grok/client');
 const {
   isPeakTimeWindow,
   shouldPostQuoteRepost,
-  checkDailyPostLimit,
   getOptimizedHashtags,
   // getDailyPostCount と incrementDailyPostCount は services/x/influencerRotation から統一実装を使用
 } = require('../services/x/optimization');
@@ -660,31 +659,32 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     }
     
     // 🚀 数撃て作戦: 引用リポストのピーク時間を拡大（UTC 0-23の全時間帯で可能に）
-    // 元のピーク時間: UTC 0,1,20,21
-    // 拡大: UTC 0-23の全時間帯で投稿可能（ただし、優先度は元のピーク時間が高い）
     currentStep = 'peak_time_check';
     const originalPeakHours = [0, 1, 20, 21]; // 元の優先ピーク時間
     const isOriginalPeakTime = originalPeakHours.includes(currentHour);
     
-    // 🚀 数撃て作戦: 全時間帯で投稿可能（ただし、日次制限内で）
-    // 🚀 チート級戦略: 日次上限を撤廃（Cronスケジュールで制御されているため不要）
-    // 制御は以下で行う:
-    // 1. Cronスケジュール（vercel.json）: 12回/日（0,2,4,6,8,10,12,14,16,18,20,22 UTC）
-    // 2. インフルエンサー1人あたりの日次上限（X_MAX_DAILY_POSTS_PER_INFLUENCER）: デフォルト4回/日
-    // 3. 1時間あたりの投稿数制限（X_MAX_HOURLY_POSTS）: デフォルト100/時間
-    // 4. X APIレート制限（技術的制約）: Per App 10,000/24hrs
-    if (!isOriginalPeakTime) {
-      console.log(`ℹ️ Posting quote reposts for ${lang} outside original peak time (${currentHour} UTC, daily count: ${dailyPostCount}) for impression maximization [runId: ${langRunId}]`);
-    }
-    
-    // 日次上限チェックを削除（Cronスケジュールで制御されているため不要）
-    // ログ出力のみ残す（モニタリング用）
-    console.log(`[Quote Repost] Daily post count: ${dailyPostCount} (no limit, controlled by Cron schedule) [runId: ${langRunId}]`);
-    
-    // 🚀 数撃て作戦: 時価配分を考慮してインフルエンサー数を取得
+    // 🚀 数撃て作戦: 時価配分を考慮してインフルエンサー数を取得（15分窓チェックで使用するため先に取得）
     currentStep = 'get_influencer_count';
     const targetCount = getInfluencerCountForLang(lang, currentHour);
     const impressionTarget = getImpressionTargetForLang(lang);
+    
+    // 100/15min 厳守: 直近15分の投稿数が100以上、または今回バッチで100超になるならスキップ
+    currentStep = 'rate_limit_15min_check';
+    const { getPostCountInLast15Min } = require('../services/x/postTracker');
+    const count15min = await getPostCountInLast15Min();
+    if (count15min >= 100) {
+      console.log(`[Quote Repost] ⏰ SKIPPED: 15min window at limit (${count15min}/100) [runId: ${langRunId}, lang: ${lang}]`);
+      return [];
+    }
+    if (count15min + targetCount > 100) {
+      console.log(`[Quote Repost] ⏰ SKIPPED: 15min would exceed (${count15min}+${targetCount}>100) [runId: ${langRunId}, lang: ${lang}]`);
+      return [];
+    }
+    
+    if (!isOriginalPeakTime) {
+      console.log(`ℹ️ Posting quote reposts for ${lang} outside original peak time (${currentHour} UTC, daily count: ${dailyPostCount}) for impression maximization [runId: ${langRunId}]`);
+    }
+    console.log(`[Quote Repost] Daily post count: ${dailyPostCount} (no limit, controlled by Cron schedule) [runId: ${langRunId}]`);
     
     console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]:`, {
       lang,
@@ -695,6 +695,7 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         max: impressionTarget.max.toLocaleString(),
       },
       isOriginalPeakTime,
+      count15min,
     });
     
     // ストックからインフルエンサーを取得（既存の70人ホットリストのみ使用）
