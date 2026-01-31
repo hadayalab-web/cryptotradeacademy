@@ -41,6 +41,9 @@ const {
 // ジッター（ランダム遅延）と言語間ウェイトのインポート（P0: 実装漏れ対応）
 const { applyJitter, applyLanguageWait } = require('../utils/scheduler');
 
+// P0 FIX: GPT-5-mini推奨 - p-limitによる並列処理制御
+const pLimit = require('p-limit');
+
 // KV廃止: ファイルシステム方式に移行
 // const { kv } = require('../utils/kv'); // KV廃止
 // ただし、getMinimalVersionPostUrl関数でkvを使用しているため、安全に初期化
@@ -53,6 +56,29 @@ try {
 }
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
+
+// P0 FIX: GPT-5-mini推奨 - withTimeout ヘルパー関数（全外部呼び出しにタイムアウトを付与）
+/**
+ * Promiseにタイムアウトを設定するヘルパー関数
+ * @param {Promise} promise - タイムアウトを設定するPromise
+ * @param {number|null} ms - タイムアウト時間（ミリ秒）。nullまたはInfinityの場合はタイムアウトなし
+ * @param {Function|null} onTimeout - タイムアウト時のコールバック関数（オプション）
+ * @returns {Promise} タイムアウト付きのPromise
+ */
+function withTimeout(promise, ms, onTimeout = null) {
+  if (ms == null || ms === Infinity) return promise;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      const timeoutId = setTimeout(() => {
+        if (onTimeout) onTimeout();
+        reject(new Error(`Timeout after ${ms}ms`));
+      }, ms);
+      // promiseが解決/拒否されたらタイマーをクリア
+      promise.finally(() => clearTimeout(timeoutId)).catch(() => {});
+    })
+  ]);
+}
 
 // P2 FIX: normalizeLangの改善（複数のアンダースコアに対応）
 // P2 FIX: 共通ユーティリティを使用
@@ -406,32 +432,46 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
       utm_content: `influencer_${influencerTweet.username}`,
     });
     
-    // P0 FIX: 本番環境でのパフォーマンス最適化 - 不要なAPI呼び出しを削減
+    // P0 FIX: GPT-5-mini推奨 - 本番環境でのパフォーマンス最適化
     // getMinimalVersionPostUrlとgetMinimalVersionContentはオプションとして扱い、タイムアウトを避ける
     const dateString = new Date().toISOString().split('T')[0];
     let minimalVersionPostUrl = null;
     let minimalContent = null;
     
-    // P0 FIX: タイムアウトリスクが高い場合はスキップ（Grok-Code-Fast-1推奨）
-    const remainingTimeForMinimal = deadlineMs ? deadlineMs - Date.now() : Infinity;
-    const MIN_REMAINING_TIME_FOR_MINIMAL_DATA = 30000; // 30秒以上残っていれば実行
+    // P0 FIX: GPT-5-mini推奨 - 環境変数フラグによる強制スキップ（本番環境で即座に有効化可能）
+    const SKIP_MINIMAL_FETCH = process.env.SKIP_MINIMAL_FETCH === '1' || false;
     
-    if (remainingTimeForMinimal >= MIN_REMAINING_TIME_FOR_MINIMAL_DATA) {
-      // 並列処理で高速化（両方ともオプションなので、エラー時はnullを返す）
+    // P0 FIX: タイムアウトリスクが高い場合はスキップ（Grok-Code-Fast-1推奨 + GPT-5-mini推奨: より短い閾値）
+    const remainingTimeForMinimal = deadlineMs ? deadlineMs - Date.now() : Infinity;
+    const MIN_REMAINING_TIME_FOR_MINIMAL_DATA = 10000; // GPT-5-mini推奨: 10秒以上残っていれば実行（30秒→10秒に短縮）
+    
+    if (!SKIP_MINIMAL_FETCH && remainingTimeForMinimal >= MIN_REMAINING_TIME_FOR_MINIMAL_DATA) {
+      // P0 FIX: GPT-5-mini推奨 - withTimeoutで各呼び出しにタイムアウトを付与
       try {
-        [minimalVersionPostUrl, minimalContent] = await Promise.allSettled([
-          getMinimalVersionPostUrl(lang, dateString).catch(() => null),
-          getMinimalVersionContent(lang, reportData).catch(() => null),
-        ]).then(results => [
-          results[0].status === 'fulfilled' ? results[0].value : null,
-          results[1].status === 'fulfilled' ? results[1].value : null,
+        const timeoutPerMinimalCall = Math.min(5000, Math.max(1000, Math.floor(remainingTimeForMinimal / 4)));
+        const results = await Promise.allSettled([
+          withTimeout(
+            getMinimalVersionPostUrl(lang, dateString).catch(() => null),
+            timeoutPerMinimalCall
+          ).catch(() => null),
+          withTimeout(
+            getMinimalVersionContent(lang, reportData).catch(() => null),
+            timeoutPerMinimalCall
+          ).catch(() => null),
         ]);
+        minimalVersionPostUrl = results[0]?.status === 'fulfilled' ? results[0].value : null;
+        minimalContent = results[1]?.status === 'fulfilled' ? results[1].value : null;
       } catch (error) {
         console.warn(`[Quote Repost] ⚠️ Failed to fetch minimal version data (non-fatal):`, error.message);
         // エラー時はnullのまま続行（フォールバック処理）
       }
     } else {
-      console.warn(`[Quote Repost] ⏰ Skipping minimal version data fetch (insufficient time remaining: ${Math.round(remainingTimeForMinimal / 1000)}s) [runId: ${langRunId}]`);
+      // 明示的にスキップ
+      if (SKIP_MINIMAL_FETCH) {
+        console.warn(`[Quote Repost] SKIP_MINIMAL_FETCH is enabled — skipping minimal version fetch [runId: ${langRunId}]`);
+      } else {
+        console.warn(`[Quote Repost] ⏰ Skipping minimal version data fetch (insufficient time remaining: ${Math.round(remainingTimeForMinimal / 1000)}s) [runId: ${langRunId}]`);
+      }
       // タイムアウトリスクが高い場合はスキップして続行
     }
     
@@ -474,18 +514,18 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
       
       if (remainingTime >= MIN_REMAINING_TIME_FOR_OPTIMIZATION) {
         // 残り時間が十分な場合のみ最適化を実行
+        // P0 FIX: GPT-5-mini推奨 - optimizeContentAndFunnelにwithTimeoutを適用（既存のPromise.raceをwithTimeoutに統一）
         try {
-          optimizationStrategy = await Promise.race([
+          optimizationStrategy = await withTimeout(
             optimizeContentAndFunnel({
               currentMetrics,
               marketData,
               xSentiment,
               lang,
             }),
-            new Promise((_, reject) => {
-              setTimeout(() => reject(new Error(`Optimization timeout after ${OPTIMIZATION_TIMEOUT_MS}ms`)), OPTIMIZATION_TIMEOUT_MS);
-            })
-          ]);
+            OPTIMIZATION_TIMEOUT_MS, // 15秒タイムアウト（既存の設定を維持）
+            () => console.warn(`[Quote Repost] ⏰ Optimization timeout after ${OPTIMIZATION_TIMEOUT_MS}ms [runId: ${langRunId}]`)
+          );
         } catch (error) {
           console.warn(`[Quote Repost] ⚠️ Optimization skipped due to timeout risk: ${error.message} [runId: ${langRunId}]`);
           // フォールバック: optimizationStrategyをnullのままにして続行
@@ -1052,7 +1092,12 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           }
           
           try {
-            quoteText = await generateQuoteRepostTextWithGrok(lang, influencer, reportData, deadlineMs, langRunId);
+            // P0 FIX: GPT-5-mini推奨 - generateQuoteRepostTextWithGrokに10秒のタイムアウトを設定
+            quoteText = await withTimeout(
+              generateQuoteRepostTextWithGrok(lang, influencer, reportData, deadlineMs, langRunId),
+              10000, // 10秒タイムアウト（GPT-5-mini推奨: テキスト生成は最大10s待つ）
+              () => console.warn(`[Quote Repost] ⏰ generateQuoteRepostTextWithGrok timeout after 10s for @${influencer.username} [runId: ${langRunId}]`)
+            );
           } catch (error) {
             // フォールバック: Xアルゴリズム最適化版テンプレートを使用
             // 重要: Minimal Version URLも取得してフォールバックテンプレートに渡す
@@ -1244,7 +1289,18 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           
           currentStep = 'x_api_call';
           console.log(`[Quote Repost] 🚀 Step: ${currentStep} [runId: ${langRunId}]: CALLING postQuoteTweet for @${influencer.username} (lang=${lang}, verified)...`);
-          result = await postQuoteTweet(quoteText, influencer.tweetId);
+          // P0 FIX: GPT-5-mini推奨 - postQuoteTweetに8秒のタイムアウトを設定
+          try {
+            result = await withTimeout(
+              postQuoteTweet(quoteText, influencer.tweetId),
+              8000, // 8秒タイムアウト（GPT-5-mini推奨）
+              () => console.warn(`[Quote Repost] ⏰ postQuoteTweet timeout after 8s for @${influencer.username} [runId: ${langRunId}]`)
+            );
+          } catch (err) {
+            console.error(`[Quote Repost] ❌ postQuoteTweet failed or timed out for @${influencer.username}:`, err.message);
+            // フォールバック戦略: エラーでも次の投稿を試みる（重要: エラーを投げて全体停止させない）
+            continue;
+          }
           
           // P1 FIX: 投稿成功後のログを完璧化（tweet IDを必ず記録）
           currentStep = 'post_success';
@@ -1525,7 +1581,12 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         // インフルエンサーのツイートのpublic_metricsを取得（正確なエンゲージメント数）
         let influencerMetrics = null;
         try {
-          const metrics = await getTweetMetrics(influencer.tweetId, false); // 他人のツイートなのでnon_public_metricsは取得不可
+          // P0 FIX: GPT-5-mini推奨 - getTweetMetricsに5秒のタイムアウトを設定
+          const metrics = await withTimeout(
+            getTweetMetrics(influencer.tweetId, false), // 他人のツイートなのでnon_public_metricsは取得不可
+            5000, // 5秒タイムアウト（GPT-5-mini推奨）
+            () => console.warn(`[Quote Repost] ⏰ getTweetMetrics timeout after 5s for influencer tweet ${influencer.tweetId} [runId: ${langRunId}]`)
+          );
           if (metrics) {
             influencerMetrics = {
               likes: metrics.publicMetrics.like_count || 0,
