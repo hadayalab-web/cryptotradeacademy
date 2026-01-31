@@ -1,0 +1,13 @@
+FIX: vercel.jsonにx-quote-repost.jsをincludeFilesに追加
+
+【問題】
+- x-quote-repost-en.jsなどがx-quote-repost.jsをrequireしているが、includeFilesに含まれていない
+- これにより404エラーが発生する可能性がある
+
+【修正内容】
+- すべてのx-quote-repost-{lang}.jsのincludeFilesにapi/x-quote-repost.jsを追加
+- utils/**も追加（utils/common.jsなどが使用されているため）
+
+【期待される効果】
+- 404エラーの解消
+- エンドポイントが正しく動作する
