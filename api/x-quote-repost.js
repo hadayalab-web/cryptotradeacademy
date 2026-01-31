@@ -392,7 +392,7 @@ async function getMinimalVersionContent(lang, reportData = null) {
  * Grokが引用リポスト用のテキストを生成（Grok APIを使用）
  * CRITICAL: GrokのXアルゴリズムハッキング × Geminiの心理ハッキングで最適化
  */
-async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData = null) {
+async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData = null, deadlineMs = null, langRunId = null) {
   // 🔒 言語整合性チェック: テキスト生成前に言語不一致を検証
   if (influencerTweet.lang && influencerTweet.lang.toLowerCase() !== lang.toLowerCase()) {
     console.error(`[Quote Repost] ⚠️⚠️⚠️ LANGUAGE MISMATCH in text generation: influencer lang (${influencerTweet.lang}) does not match post lang (${lang})`);
@@ -406,12 +406,34 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
       utm_content: `influencer_${influencerTweet.username}`,
     });
     
-    // 無料版（Minimal Version）ポストのURLを取得
+    // P0 FIX: 本番環境でのパフォーマンス最適化 - 不要なAPI呼び出しを削減
+    // getMinimalVersionPostUrlとgetMinimalVersionContentはオプションとして扱い、タイムアウトを避ける
     const dateString = new Date().toISOString().split('T')[0];
-    const minimalVersionPostUrl = await getMinimalVersionPostUrl(lang, dateString);
+    let minimalVersionPostUrl = null;
+    let minimalContent = null;
     
-    // 無料版メッセージのキーポイントを取得（引用リポスト生成用）
-    const minimalContent = await getMinimalVersionContent(lang, reportData);
+    // P0 FIX: タイムアウトリスクが高い場合はスキップ（Grok-Code-Fast-1推奨）
+    const remainingTimeForMinimal = deadlineMs ? deadlineMs - Date.now() : Infinity;
+    const MIN_REMAINING_TIME_FOR_MINIMAL_DATA = 30000; // 30秒以上残っていれば実行
+    
+    if (remainingTimeForMinimal >= MIN_REMAINING_TIME_FOR_MINIMAL_DATA) {
+      // 並列処理で高速化（両方ともオプションなので、エラー時はnullを返す）
+      try {
+        [minimalVersionPostUrl, minimalContent] = await Promise.allSettled([
+          getMinimalVersionPostUrl(lang, dateString).catch(() => null),
+          getMinimalVersionContent(lang, reportData).catch(() => null),
+        ]).then(results => [
+          results[0].status === 'fulfilled' ? results[0].value : null,
+          results[1].status === 'fulfilled' ? results[1].value : null,
+        ]);
+      } catch (error) {
+        console.warn(`[Quote Repost] ⚠️ Failed to fetch minimal version data (non-fatal):`, error.message);
+        // エラー時はnullのまま続行（フォールバック処理）
+      }
+    } else {
+      console.warn(`[Quote Repost] ⏰ Skipping minimal version data fetch (insufficient time remaining: ${Math.round(remainingTimeForMinimal / 1000)}s) [runId: ${langRunId}]`);
+      // タイムアウトリスクが高い場合はスキップして続行
+    }
     
     // CRITICAL: GrokのXアルゴリズムハッキング × Geminiの心理ハッキングで最適化
     let optimizationStrategy = null;
@@ -441,33 +463,41 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
         whaleBias: reportData?.sentimentData?.whale?.bias || 0,
       };
       
-      // GrokとGeminiの分析を統合して最適化戦略を生成（タイムアウト対策: 条件付き実行）
-      // P0 FIX: タイムアウトリスクが高い場合は最適化処理をスキップ
+      // P0 FIX: GrokとGeminiの分析を統合して最適化戦略を生成（タイムアウト対策: 条件付き実行）
+      // Grok-Code-Fast-1推奨: タイムアウトリスクが高い場合は最適化処理をスキップ（60秒→30秒に短縮）
       const remainingTime = deadlineMs ? deadlineMs - Date.now() : Infinity;
       const OPTIMIZATION_TIMEOUT_MS = 15000; // 15秒
-      const MIN_REMAINING_TIME_FOR_OPTIMIZATION = 20000; // 最適化を実行するための最小残り時間（20秒）
+      const MIN_REMAINING_TIME_FOR_OPTIMIZATION = 30000; // P0 FIX: 30秒以上残っていれば実行（Grok推奨）
+      
+      // デフォルトでnull（最適化なし）- フォールバック処理で続行
+      optimizationStrategy = null;
       
       if (remainingTime >= MIN_REMAINING_TIME_FOR_OPTIMIZATION) {
         // 残り時間が十分な場合のみ最適化を実行
-        optimizationStrategy = await Promise.race([
-          optimizeContentAndFunnel({
-            currentMetrics,
-            marketData,
-            xSentiment,
-            lang,
-          }),
-          new Promise((_, reject) => {
-            setTimeout(() => reject(new Error(`Optimization timeout after ${OPTIMIZATION_TIMEOUT_MS}ms`)), OPTIMIZATION_TIMEOUT_MS);
-          })
-        ]).catch((error) => {
-          console.warn(`[Quote Repost] ⚠️ Optimization strategy generation failed or timed out for ${lang}:`, error.message);
-          return null; // 最適化失敗時はnullを返して続行（フォールバック）
-        });
+        try {
+          optimizationStrategy = await Promise.race([
+            optimizeContentAndFunnel({
+              currentMetrics,
+              marketData,
+              xSentiment,
+              lang,
+            }),
+            new Promise((_, reject) => {
+              setTimeout(() => reject(new Error(`Optimization timeout after ${OPTIMIZATION_TIMEOUT_MS}ms`)), OPTIMIZATION_TIMEOUT_MS);
+            })
+          ]);
+        } catch (error) {
+          console.warn(`[Quote Repost] ⚠️ Optimization skipped due to timeout risk: ${error.message} [runId: ${langRunId}]`);
+          // フォールバック: optimizationStrategyをnullのままにして続行
+          optimizationStrategy = null;
+        }
       } else {
         // 残り時間が不足している場合は最適化をスキップ
-        console.log(`[Quote Repost] ⏰ Skipping optimization for ${lang} (insufficient time remaining: ${Math.round(remainingTime / 1000)}s) [runId: ${langRunId}]`);
+        console.warn(`[Quote Repost] ⏰ Skipping optimization for ${lang} (insufficient time remaining: ${Math.round(remainingTime / 1000)}s) [runId: ${langRunId}]`);
         optimizationStrategy = null;
       }
+      
+      // 以降の処理でoptimizationStrategyがnullの場合、デフォルトのテンプレートを使用（FALLBACK_QUOTE_REPOST_TEMPLATES）
       
       if (optimizationStrategy) {
         console.log(`[Quote Repost] ✅ Content optimization strategy generated for ${lang}`);
@@ -864,8 +894,8 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     // Grok推奨: ENは4本/日、その他は2本/日（言語別インフルエンサー数に基づく）
     const maxInfluencers = targetCount; // EN: 4, その他: 2
     for (const influencer of influencers.slice(0, maxInfluencers)) {
-      // P0 FIX: 各インフルエンサー処理の開始時にタイムアウトチェック（残り35秒未満の場合は早期リターン）
-      if (deadlineMs && Date.now() >= deadlineMs - 35000) {
+      // P0 FIX: 各インフルエンサー処理の開始時にタイムアウトチェック（残り25秒未満の場合は早期リターン）
+      if (deadlineMs && Date.now() >= deadlineMs - 25000) {
         const remainingTime = Math.round((deadlineMs - Date.now()) / 1000);
         console.warn(`[Quote Repost] ⏰ Early return: insufficient time remaining (${remainingTime}s) for remaining influencers [runId: ${langRunId}]`);
         console.log(`[Quote Repost] 📊 Processed ${results.length} influencers before timeout [runId: ${langRunId}]`);
@@ -979,49 +1009,35 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         
         let quoteText;
         if (isDryRun) {
-          // dry-runモード: テンプレートベースのテキストを生成（Grok APIを呼ばない）
-          console.log(`[Quote Repost] 🧪 Dry-run mode: Using template-based text for @${influencer.username} (skipping Grok API) [runId: ${langRunId}]`);
-          try {
-            const dateString = new Date().toISOString().split('T')[0];
-            const minimalVersionPostUrl = await getMinimalVersionPostUrl(lang, dateString).catch(() => null);
-            
-            const template = QUOTE_REPOST_TEMPLATES?.[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES.en;
-            const { trapScore = 25, priceUsd = null, change24h = null, exchangeNetflow = null, whaleRatio = null } = reportData || {};
-            const baseText = template(
-              trapScore,
-              priceUsd,
-              change24h,
-              getTelegramDeepLinkWithSource(lang, 'x_quote', {
-                influencerUsername: influencer.username,
-                utm_content: `influencer_${influencer.username}`,
-              }),
-              exchangeNetflow,
-              whaleRatio
-            );
-            
-            // Minimal Version URLが存在する場合は追加（クロスポリネーション）
-            if (minimalVersionPostUrl && baseText.length + minimalVersionPostUrl.length + 30 <= 280) {
-              const minimalLinkTexts = {
-                en: ` See full analysis: ${minimalVersionPostUrl}`,
-                ja: ` 詳細分析: ${minimalVersionPostUrl}`,
-                es: ` Ver análisis completo: ${minimalVersionPostUrl}`,
-                'pt-br': ` Ver análise completa: ${minimalVersionPostUrl}`,
-                ar: ` راجع التحليل الكامل: ${minimalVersionPostUrl}`,
-                ko: ` 전체 분석 보기: ${minimalVersionPostUrl}`,
-              };
-              const minimalLinkText = minimalLinkTexts[lang] || minimalLinkTexts.en;
-              quoteText = baseText + minimalLinkText;
-            } else {
-              quoteText = baseText;
-            }
-          } catch (templateError) {
-            console.warn(`[Quote Repost] ⚠️ Failed to generate template text, using fallback:`, templateError.message);
-            quoteText = `🚨 This is exactly what we predicted!\n\nOur Trap Score analysis caught this. Get the FREE report:\n\n${getTelegramDeepLinkWithSource(lang, 'x_quote', { influencerUsername: influencer.username })}`;
+          // P0 FIX: dry-runモード: 超高速フォールバックテキストを使用（すべてのAPI呼び出しをスキップ）
+          console.log(`[Quote Repost] 🧪 Dry-run mode: Using ultra-fast fallback text for @${influencer.username} (skipping all API calls) [runId: ${langRunId}]`);
+          // 最小限のテキストを生成（API呼び出しなし、KVアクセスなし）
+          const deepLink = getTelegramDeepLinkWithSource(lang, 'x_quote', {
+            influencerUsername: influencer.username,
+            utm_content: `influencer_${influencer.username}`,
+          });
+          const trapScore = reportData?.trapScore || 25;
+          const priceUsd = reportData?.priceUsd || 89000;
+          
+          // 言語別の超シンプルなテキスト（140文字以内）
+          const dryRunTexts = {
+            en: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nGet FREE analysis:\n${deepLink}\n\n#BTC #TrapDefence`,
+            ja: `🚨 トラップスコア: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\n無料分析を取得:\n${deepLink}\n\n#BTC #TrapDefence`,
+            es: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nObtén análisis GRATIS:\n${deepLink}\n\n#BTC #TrapDefence`,
+            'pt-br': `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nObtenha análise GRÁTIS:\n${deepLink}\n\n#BTC #TrapDefence`,
+            ar: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nاحصل على تحليل مجاني:\n${deepLink}\n\n#BTC #TrapDefence`,
+            ko: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\n무료 분석 받기:\n${deepLink}\n\n#BTC #TrapDefence`,
+          };
+          quoteText = dryRunTexts[lang] || dryRunTexts.en;
+          
+          // 140文字制限をチェック（引用リポスト用）
+          if (quoteText.length > 140) {
+            quoteText = quoteText.substring(0, 137) + '...';
           }
         } else {
           // 通常モード: Grok APIを使用
-          // P0 FIX: テキスト生成前にタイムアウトチェック（Grok API呼び出しは最大30秒かかるため、残り35秒以上必要）
-          if (deadlineMs && Date.now() >= deadlineMs - 35000) {
+          // P0 FIX: テキスト生成前にタイムアウトチェック（Grok API呼び出しは最大20秒かかるため、残り25秒以上必要）
+          if (deadlineMs && Date.now() >= deadlineMs - 25000) {
             console.warn(`[Quote Repost] ⏰ Skipping text generation for @${influencer.username} (insufficient time remaining for Grok API, deadline: ${new Date(deadlineMs).toISOString()}) [runId: ${langRunId}, step: ${currentStep}]`);
             results.push({
               lang,
@@ -1036,7 +1052,7 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           }
           
           try {
-            quoteText = await generateQuoteRepostTextWithGrok(lang, influencer, reportData);
+            quoteText = await generateQuoteRepostTextWithGrok(lang, influencer, reportData, deadlineMs, langRunId);
           } catch (error) {
             // フォールバック: Xアルゴリズム最適化版テンプレートを使用
             // 重要: Minimal Version URLも取得してフォールバックテンプレートに渡す
@@ -1075,37 +1091,52 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           }
         }
         
-        // Phase 1: ソーシャルプルーフを追加（インプレッション最大化）
-        try {
-          const { getSocialProofText } = require('../services/telegram/reaction-counter');
-          const socialProofText = await getSocialProofText(lang);
-          // 引用リポストは140文字以内に制限されているため、短縮版を使用
-          // 「👥 350 Saved」のような短縮版を生成
-          const shortSocialProof = socialProofText.replace(' Traders Saved Today', ' Saved');
-          const quoteWithSocialProof = `${quoteText} ${shortSocialProof}`;
+        // P0 FIX: dry-runモードではソーシャルプルーフとハッシュタグ取得をスキップ（高速化）
+        if (!isDryRun) {
+          // Phase 1: ソーシャルプルーフを追加（インプレッション最大化）
+          try {
+            const { getSocialProofText } = require('../services/telegram/reaction-counter');
+            const socialProofText = await getSocialProofText(lang);
+            // 引用リポストは140文字以内に制限されているため、短縮版を使用
+            // 「👥 350 Saved」のような短縮版を生成
+            const shortSocialProof = socialProofText.replace(' Traders Saved Today', ' Saved');
+            const quoteWithSocialProof = `${quoteText} ${shortSocialProof}`;
+            
+            // 140文字以内に制限（引用リポスト用）
+            if (quoteWithSocialProof.length <= 140) {
+              quoteText = quoteWithSocialProof;
+              console.log(`[Quote Repost] ✅ Added social proof: ${shortSocialProof}`);
+            } else {
+              // 文字数制限を超える場合は、元のテキストを短縮してソーシャルプルーフを優先
+              const maxLength = 140 - shortSocialProof.length - 1;
+              quoteText = `${quoteText.substring(0, maxLength)} ${shortSocialProof}`;
+              console.log(`[Quote Repost] ✅ Added social proof (shortened): ${shortSocialProof}`);
+            }
+            } catch (error) {
+              console.warn(`[Quote Repost] Failed to add social proof for ${lang}:`, error.message);
+              // エラー時はソーシャルプルーフなしで続行
+            }
           
-          // 140文字以内に制限（引用リポスト用）
-          if (quoteWithSocialProof.length <= 140) {
-            quoteText = quoteWithSocialProof;
-            console.log(`[Quote Repost] ✅ Added social proof: ${shortSocialProof}`);
-          } else {
-            // 文字数制限を超える場合は、元のテキストを短縮してソーシャルプルーフを優先
-            const maxLength = 140 - shortSocialProof.length - 1;
-            quoteText = `${quoteText.substring(0, maxLength)} ${shortSocialProof}`;
-            console.log(`[Quote Repost] ✅ Added social proof (shortened): ${shortSocialProof}`);
-          }
-        } catch (error) {
-          console.warn(`[Quote Repost] Failed to add social proof for ${lang}:`, error.message);
-          // エラー時はソーシャルプルーフなしで続行
-        }
-        
-        // Grok推奨: ハッシュタグを動的取得（トレンド1+ニッチ2）
-        const { getTrendyHashtags } = require('../services/x/optimization');
-        const optimizedHashtags = await getTrendyHashtags(lang, 'BTC').catch(() => getOptimizedHashtags(lang));
-        if (quoteText.includes('#BTC') || quoteText.includes('#Bitcoin')) {
-          // 動的ハッシュタグで置換
-          const hashtagStr = Array.isArray(optimizedHashtags) ? optimizedHashtags.join(' ') : optimizedHashtags;
-          quoteText = quoteText.replace(/#(?:BTC|Bitcoin).*#TrapDefence/g, hashtagStr);
+            // Grok推奨: ハッシュタグを動的取得（トレンド1+ニッチ2）
+            // P0 FIX: タイムアウト対策 - 残り時間が10秒未満の場合はスキップ
+            if (deadlineMs && Date.now() >= deadlineMs - 10000) {
+              console.warn(`[Quote Repost] ⏰ Skipping hashtag optimization (insufficient time remaining) [runId: ${langRunId}]`);
+            } else {
+              try {
+                const { getTrendyHashtags } = require('../services/x/optimization');
+                const optimizedHashtags = await getTrendyHashtags(lang, 'BTC').catch(() => getOptimizedHashtags(lang));
+                if (quoteText.includes('#BTC') || quoteText.includes('#Bitcoin')) {
+                  // 動的ハッシュタグで置換
+                  const hashtagStr = Array.isArray(optimizedHashtags) ? optimizedHashtags.join(' ') : optimizedHashtags;
+                  quoteText = quoteText.replace(/#(?:BTC|Bitcoin).*#TrapDefence/g, hashtagStr);
+                }
+              } catch (error) {
+                console.warn(`[Quote Repost] Failed to get trendy hashtags for ${lang}:`, error.message);
+                // エラー時はハッシュタグなしで続行
+              }
+            }
+        } else {
+          console.log(`[Quote Repost] 🧪 Dry-run mode: Skipping social proof and hashtag optimization for speed [runId: ${langRunId}]`);
         }
         
         // 140文字以内に制限（引用リポスト用）- ソーシャルプルーフ追加後の最終チェック
@@ -1556,14 +1587,17 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         // レート制限対策（1時間あたり3-4投稿まで）
         // P0 FIX: 固定待機をジッター（ランダム遅延）に置き換え（maxDuration=60秒制約を考慮）
         // 15分待機はmaxDuration=60秒を超えるため、3-10秒のジッターに変更
-        // 実際のレート制限はCronスケジュール（2時間ごと）で担保
-        // P0 FIX: deadlineMsを関数パラメータから取得（GPT-5.2レビュー対応）
-        await applyJitter({ 
-          label: `quote-repost ${lang} @${influencer.username} [runId: ${langRunId}]`, 
-          minMs: 3000, 
-          maxMs: 10000,
-          deadlineMs: deadlineMs
-        });
+        // P0 FIX: dry-runモードではジッターをスキップ（高速化）
+        if (!isDryRun) {
+          // 実際のレート制限はCronスケジュール（2時間ごと）で担保
+          // P0 FIX: deadlineMsを関数パラメータから取得（GPT-5.2レビュー対応）
+          await applyJitter({ 
+            label: `quote-repost ${lang} @${influencer.username} [runId: ${langRunId}]`, 
+            minMs: 3000, 
+            maxMs: 10000,
+            deadlineMs: deadlineMs
+          });
+        }
       } catch (error) {
         console.error(`[Quote Repost] ❌❌❌ FAILED TO POST quote repost for ${lang} (@${influencer.username}):`);
         console.error(`[Quote Repost]    - Error: ${error.message}`);
