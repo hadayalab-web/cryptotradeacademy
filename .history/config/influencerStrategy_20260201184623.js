@@ -5,23 +5,19 @@
 // 引用リポスト Cron は 1時間ごと（24回/日/言語）に統一。1回あたりの投稿数はストックに合わせて設定。
 // 目標: 約 240 投稿/日（en 72, es 48, pt-br 24, ar 48, ko 24, ja 24）。1人あたり最大4回/日でローテ。
 // 詳細: docs/INFLUENCER_LIST_PROGRESS_2026-02-01.md, docs/INITIAL_STOCK_PLAN_QUOTE_REPOST_2026-02-01.md
-// 初速ターボ: QUOTE_REPOST_TURBO_MODE または X_TURBO_MODE=true で 1回あたり投稿数を増加（約400/日目標）
 
-const isTurboMode = () =>
-  process.env.QUOTE_REPOST_TURBO_MODE === "true" || process.env.X_TURBO_MODE === "true";
-
-/** 通常時デフォルト（1サイクル合計10）。ターボ時デフォルト（1サイクル合計17 → 約400/日） */
-const INFLUENCER_COUNT_BY_LANG = (() => {
-  const turbo = isTurboMode();
-  return {
-    en: parseInt(process.env.INFLUENCER_COUNT_EN || (turbo ? "5" : "3"), 10),
-    es: parseInt(process.env.INFLUENCER_COUNT_ES || (turbo ? "3" : "2"), 10),
-    "pt-br": parseInt(process.env.INFLUENCER_COUNT_PT_BR || (turbo ? "2" : "1"), 10),
-    ar: parseInt(process.env.INFLUENCER_COUNT_AR || (turbo ? "3" : "2"), 10),
-    ko: parseInt(process.env.INFLUENCER_COUNT_KO || (turbo ? "2" : "1"), 10),
-    ja: parseInt(process.env.INFLUENCER_COUNT_JA || (turbo ? "2" : "1"), 10)
-  };
-})();
+/**
+ * 言語別インフルエンサー数設定（1回のCron実行あたりの投稿候補数）
+ * 初回ストック 300 に合わせて設定。ja は 11 件のみのため 1、en は 124 で 3。
+ */
+const INFLUENCER_COUNT_BY_LANG = {
+  en: parseInt(process.env.INFLUENCER_COUNT_EN || "3", 10),
+  es: parseInt(process.env.INFLUENCER_COUNT_ES || "2", 10),
+  "pt-br": parseInt(process.env.INFLUENCER_COUNT_PT_BR || "1", 10),
+  ar: parseInt(process.env.INFLUENCER_COUNT_AR || "2", 10),
+  ko: parseInt(process.env.INFLUENCER_COUNT_KO || "1", 10),
+  ja: parseInt(process.env.INFLUENCER_COUNT_JA || "1", 10)
+};
 
 /**
  * 時価配分設定（ピーク時間とオフピーク時間の投稿数比率）
