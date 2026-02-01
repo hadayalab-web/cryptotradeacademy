@@ -180,9 +180,13 @@ async function getMPIMultiTimeframe(windows = DEFAULT_WINDOWS, limit = 24, optio
  * @returns {Promise<Object>} 高解像度データ
  */
 async function getHighResolutionCQData(options = {}) {
+  // Professionalプラン: トレンド/加速度に7日分で十分。API負荷・レスポンス時間を削減
+  const defaultLimit = (process.env.CRYPTOQUANT_PLAN === 'premium' || process.env.CRYPTOQUANT_PLAN === 'enterprise')
+    ? 24
+    : 7;
   const {
     windows = DEFAULT_WINDOWS,
-    limit = 24,
+    limit = defaultLimit,
     includeWhaleRatio = true,
     includeLiquidations = true,
   } = options;

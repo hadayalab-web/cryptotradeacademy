@@ -139,21 +139,6 @@ const { getHighResolutionCQData } = require("../services/cryptoquant/highResolut
 const { initializeCapabilities } = require("../services/cryptoquant/capabilities");
 // Grok Xアルゴリズム解析 × Gemini深層心理分析統合サービス
 const { integrateGrokGeminiOptimization } = require("../services/integrated/grokGeminiOptimizer");
-// 次のフェーズ戦略: Saved Loss 保存・算出・テンプレート
-const {
-  saveLastBriefingSignal,
-  getSavedLossEstimate,
-  formatSavedLossSnippet
-} = require("../services/savedLoss");
-// 有料版: SoSoValue風記事（Gemini 3 Flash）＋ Grok 4.1 推論 / 無料版: Grok・Gemini 密度強化
-const {
-  generateSoSoValueArticle,
-  generateGrokReasoning,
-  generateMinimalGrokReasoning,
-  generateMinimalGeminiInsight,
-  generateEmergencyGrokOneLiner,
-  generateEmergencyGeminiOneLiner
-} = require("../services/briefing/sosovalueAndGrokReasoning");
 // 価格取得サービス（KO市場用）
 const { fetchBTCKRWPrice } = require("../services/upbit/client");
 const { fetchUSDKRWRate } = require("../services/exchange/rate");
@@ -399,16 +384,6 @@ module.exports = async function handler(req, res) {
   const logger = createLogger("handler");
   logger.info("Cron job started: Whale Monitor");
 
-  // 次のフェーズ戦略: 15分儀式のジッター（±2〜5分）。条件反射の揺らぎで spam 回避。
-  const CRON_JITTER_ENABLED = process.env.CRON_JITTER_ENABLED !== "false";
-  if (CRON_JITTER_ENABLED) {
-    const jitterMin = Number(process.env.CRON_JITTER_MIN_MINUTES || "2");
-    const jitterMax = Number(process.env.CRON_JITTER_MAX_MINUTES || "5");
-    const jitterMs = (jitterMin + Math.random() * Math.max(0, jitterMax - jitterMin)) * 60 * 1000;
-    await new Promise((r) => setTimeout(r, jitterMs));
-    logger.info("Cron jitter applied", { jitterMs: Math.round(jitterMs), jitterMin, jitterMax });
-  }
-
   try {
     // 0. 時間スロット判定（6時間ごとデフォルト、4時間ごとに切り替え可能）- UTC固定
     const now = new Date();
@@ -424,11 +399,6 @@ module.exports = async function handler(req, res) {
     // Cronジョブは15分ごとに実行されるため、定期配信スロットは0-14分の間で判定（実行タイミングの誤差を考慮）
     const isRegularSlot = REGULAR_HOURS.includes(utcHour) && utcMinute < 15;
     const force = req.query?.force === "true";
-
-    // 次のフェーズ戦略: 間欠的強化。非定期枠で一定確率で「緊急アラートのみ」を送り、通知ONを維持。
-    const RANDOM_EMERGENCY_PROB = Number(process.env.RANDOM_EMERGENCY_PROBABILITY || "0.08");
-    const isRandomEmergencyOnly =
-      !isRegularSlot && !force && Math.random() < RANDOM_EMERGENCY_PROB;
 
     logger.info("Slot check", {
       utcHour,
@@ -806,18 +776,10 @@ module.exports = async function handler(req, res) {
     // 最終的なEMERGENCY判定は eventTriggers.js で行う（trapScore>=60, liquidations>$500M, kimchiPremium>8%）
     // ここでは一時的な判定のみ（後方互換性のため）
     const finalNeedsEmergency = trap.isTrap && trap.confidence === "HIGH" && !isRegularSlot;
-    // 緊急配信を実際に発火させる: trapDetection.trapScore>=60 でも発火（trapDetection は後段で設定される）
-    let lateEmergencyFromTrapScore = false;
 
     // ===== Phase 1: イベント駆動配信判定（Strategic SSOT v4.0） =====
     let shouldSend = true; // デフォルト: 既存動作維持
-    let triggerType = isRegularSlot
-      ? "REGULAR"
-      : isRandomEmergencyOnly
-        ? "RANDOM_EMERGENCY"
-        : finalNeedsEmergency
-          ? "EMERGENCY"
-          : "WATCH";
+    let triggerType = isRegularSlot ? "REGULAR" : finalNeedsEmergency ? "EMERGENCY" : "WATCH";
     let triggerReason = "Legacy mode";
 
     // divergenceSignalResultを関数スコープの最初で定義（すべてのブロックで使用可能にする）
@@ -886,38 +848,41 @@ module.exports = async function handler(req, res) {
           // 常に最新データで取得（キャッシュをバイパス）
           priceOptions.skipCache = shouldSkipCacheForEmergency;
 
-          // 標準深掘りデータと高解像度データを並列取得
-          // 注意: ProfessionalプランではAPI解像度が「1日まで」のため、'day'のみを使用
-          // Premiumプラン以上の場合は環境変数CRYPTOQUANT_PLAN=premiumで複数時間窓が利用可能
-          const [deepData, highResCQ] = await Promise.allSettled([
-            getCQDeepMetrics(market, priceOptions),
-            getHighResolutionCQData({
-              // windowsはgetHighResolutionCQData内でプランに応じて自動設定される
-              limit: 24,
-              includeWhaleRatio: true,
-              includeLiquidations: true,
-              // Step 2-4: EMERGENCY判定指標のキャッシュバイパス
-              skipCache: shouldSkipCacheForEmergency
-            })
-          ]);
-
-          if (deepData.status === "fulfilled") {
-            cqDeep = { ...cqDeep, ...deepData.value };
+          // 高解像度を先に取得し、getCQDeepMetrics で再利用（同一エンドポイントの重複呼び出し回避）
+          // タイムアウト対策: 定期枠以外（15分監視）では簡易データのみ取得してスキップ
+          if (isRegularSlot || force) {
+            console.log("[CQDeep] Regular slot: fetching high-res first, then deep (reuse)...");
+            try {
+              const highResResult = await getHighResolutionCQData({
+                includeWhaleRatio: true,
+                includeLiquidations: true,
+                skipCache: shouldSkipCacheForEmergency
+              });
+              highResCQData = highResResult;
+              console.log(
+                "[High-Resolution CQ] Data fetched, bug signals:",
+                highResCQData?.bugSignals?.overallBugScore
+              );
+              const deepResult = await getCQDeepMetrics(market, {
+                ...priceOptions,
+                highResCQ: highResResult
+              });
+              cqDeep = { ...cqDeep, ...deepResult };
+            } catch (deepErr) {
+              console.warn("[Phase 2] Error in CQ fetch (highRes or deep):", deepErr?.message);
+              if (!highResCQData) highResCQData = null;
+              if (Object.keys(cqDeep).length <= 2) {
+                try {
+                  const fallbackDeep = await getCQDeepMetrics(market, priceOptions);
+                  cqDeep = { ...cqDeep, ...fallbackDeep };
+                } catch (e2) {
+                  console.warn("[Phase 2] Fallback getCQDeepMetrics failed:", e2?.message);
+                }
+              }
+            }
           } else {
-            console.warn("[Phase 2] Error fetching deep metrics:", deepData.reason?.message);
-          }
-
-          if (highResCQ.status === "fulfilled") {
-            highResCQData = highResCQ.value;
-            console.log(
-              "[High-Resolution CQ] Data fetched successfully, bug signals:",
-              highResCQData.bugSignals?.overallBugScore
-            );
-          } else {
-            console.warn(
-              "[High-Resolution CQ] Error fetching high-resolution data:",
-              highResCQ.reason?.message
-            );
+            console.log("[CQDeep] Non-regular slot (15min monitoring): skipping deep metrics for speed");
+            highResCQData = null;
           }
         } catch (error) {
           console.warn("[Phase 2] Error in data fetching, using basic data:", error.message);
@@ -1205,30 +1170,6 @@ module.exports = async function handler(req, res) {
         console.warn("[Trap Detector] Error detecting traps:", error.message);
       }
 
-      // 非定期枠で trapDetection が未実行の場合はここで実行（緊急配信を発火させるため）
-      if (!trapDetection && !isRegularSlot) {
-        try {
-          trapDetection = detectTrapDetection({
-            exchangeNetflow: inflow,
-            minerMPI: mpi,
-            whaleBias: xSentiment?.whaleBias ?? 0,
-            retailFomo: xSentiment?.retailFomo ?? 50,
-            priceChange24h: change24h,
-            highResCQ: null,
-            highResX: null
-          });
-          if (trapDetection && trapDetection.trapScore >= 60) {
-            lateEmergencyFromTrapScore = true;
-            console.log("[Trap Detector] Emergency-path: trapScore >= 60, will send emergency alert");
-          }
-        } catch (e) {
-          console.warn("[Trap Detector] Emergency-path trap detection failed:", e?.message);
-        }
-      } else if (trapDetection && !isRegularSlot && trapDetection.trapScore >= 60) {
-        lateEmergencyFromTrapScore = true;
-        console.log("[Trap Detector] Emergency-path: trapScore >= 60 (already set), will send emergency alert");
-      }
-
       // 後方互換性のため、marketBugDetectionも設定（関数スコープで既に定義済み）
       marketBugDetection = trapDetection;
 
@@ -1256,29 +1197,6 @@ module.exports = async function handler(req, res) {
       // integratedOptimizationは各言語ループ内で計算される（後で定義）
       integratedOptimization = null; // 各言語ループ内で計算される
     } else if (needsLongReport && !isRegularSlot) {
-      // 緊急配信時: 非定期枠で trapDetection を実行（緊急配信を実際に発火させる）
-      if (!trapDetection) {
-        try {
-          trapDetection = detectTrapDetection({
-            exchangeNetflow: inflow,
-            minerMPI: mpi,
-            whaleBias: xSentiment?.whaleBias ?? 0,
-            retailFomo: xSentiment?.retailFomo ?? 50,
-            priceChange24h: change24h,
-            highResCQ: null,
-            highResX: null
-          });
-          if (trapDetection && trapDetection.trapScore >= 60) {
-            lateEmergencyFromTrapScore = true;
-            console.log("[Trap Detector] Emergency-path: trapScore >= 60, will send emergency alert");
-          }
-        } catch (e) {
-          console.warn("[Trap Detector] Emergency-path trap detection failed:", e?.message);
-        }
-      } else if (trapDetection.trapScore >= 60) {
-        lateEmergencyFromTrapScore = true;
-      }
-
       // 緊急配信時: divergenceSignalResultを取得（isRegularSlotブロック外でも使用可能にする）
       if (typeof divergenceSignalResult === "undefined") {
         divergenceSignalResult = null;
@@ -1335,31 +1253,8 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // 非定期枠で trapDetection が未設定の場合のフォールバック（needsLongReport が false の 15 分枠でも緊急判定）
-    if (!isRegularSlot && !trapDetection) {
-      try {
-        trapDetection = detectTrapDetection({
-          exchangeNetflow: inflow,
-          minerMPI: mpi,
-          whaleBias: xSentiment?.whaleBias ?? 0,
-          retailFomo: xSentiment?.retailFomo ?? 50,
-          priceChange24h: change24h,
-          highResCQ: null,
-          highResX: null
-        });
-        if (trapDetection && trapDetection.trapScore >= 60) {
-          lateEmergencyFromTrapScore = true;
-          console.log("[Trap Detector] Emergency fallback: trapScore >= 60, will send emergency alert");
-        }
-      } catch (e) {
-        console.warn("[Trap Detector] Emergency fallback trap detection failed:", e?.message);
-      }
-    }
-
     // 7. Telegram send
     let sent = 0;
-    // 高品質コンテンツを切り取ってXにちょい見せ（1ツイート/回、ENABLE_X_SNIPPET_POST=true で有効）
-    let xSnippetForPost = null;
 
     // ===== Phase 1: イベント駆動配信対応 =====
     // イベント駆動有効時は、shouldSend判定を優先
@@ -1397,7 +1292,7 @@ module.exports = async function handler(req, res) {
     // イベント駆動のREGULARトリガーも送信（早期returnで既にフィルタリング済み）
     // 重要: isRegularSlotがtrueの場合は、イベント駆動の判定に関係なく必ず配信
     if (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && triggerType === "REGULAR" && !isRegularSlot)) {
-      console.log("[REGULAR] ✅ Sending REGULAR message (paid version) to all languages...");
+      console.log("[REGULAR] ✅✅✅ DELIVERY START: Sending REGULAR message (paid version) to all languages...");
       console.log(
         "[REGULAR] Conditions:",
         {
@@ -1476,45 +1371,6 @@ module.exports = async function handler(req, res) {
         } catch (error) {
           console.warn("[Phase 2] Error fetching deep metrics:", error.message);
         }
-      }
-
-      // 有料版用: SoSoValue風記事（Gemini 3 Flash）＋ Grok 4.1 推論チェーン（一度だけ生成、全言語で共有）
-      let sosovalueArticle = null;
-      let grokReasoningRegular = null;
-      try {
-        const marketContextRegular = {
-          priceUsd,
-          change24h,
-          score: snapshot.market_score,
-          signal: tradeSignal.signal,
-          sentiment: sentimentLabel,
-          trap: trapDetection
-        };
-        const firstLang = targetLangsForRegular[0];
-        console.log("[SoSoValue] Generating SoSoValue-style article (Gemini 3 Flash)...");
-        sosovalueArticle = await generateSoSoValueArticle(cqDeep, marketContextRegular, firstLang);
-        if (sosovalueArticle) console.log("[SoSoValue] Article generated.");
-        console.log("[Grok] Generating reasoning chain for Regular (Grok 4.1 Fast Reasoning)...");
-        grokReasoningRegular = await generateGrokReasoning(
-          cqDeep,
-          marketContextRegular,
-          tradeSignal.signal,
-          trapDetection,
-          xSentiment,
-          firstLang
-        );
-        if (grokReasoningRegular) console.log("[Grok] Reasoning generated for Regular.");
-      } catch (e) {
-        console.warn("[SoSoValue/Grok] Regular content generation failed:", e?.message || e);
-      }
-
-      if (sosovalueArticle || grokReasoningRegular) {
-        const firstLine = sosovalueArticle ? sosovalueArticle.split("\n").find((l) => l.trim())?.trim().slice(0, 120) : null;
-        xSnippetForPost = {
-          grokText: grokReasoningRegular,
-          geminiText: firstLine || null,
-          source: "regular"
-        };
       }
 
       // 各言語ごとに配信
@@ -1721,9 +1577,6 @@ module.exports = async function handler(req, res) {
             // ニュース番組構造用: GPTリポーターとGrok X解析を分離
             gptReporterAnalysis: gptRegularAnalysis ?? null, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
             grokXAnalysis: grokXAnalysis ?? null, // Grok X解析結果（Xセンチメント分析）
-            // 有料版価値: SoSoValue風オンチェーン記事（Gemini 3 Flash）＋ Grok 4.1 推論チェーン
-            sosovalueArticle: sosovalueArticle ?? null,
-            grokReasoning: grokReasoningRegular ?? null,
             // 高解像度データ
             highResCQ: finalHighResCQ,
             highResX: finalHighResX,
@@ -1885,13 +1738,6 @@ module.exports = async function handler(req, res) {
               telegram_message_id: telegramMessageId,
               cta_links: extractCtaLinks(regularText)
             });
-
-            // 次のフェーズ戦略: 配信後に前回価格・シグナルを保存（Saved Loss 算出用）
-            saveLastBriefingSignal(
-              priceUsd,
-              tradeSignal?.signal || "STANDBY",
-              targetLang
-            ).catch((e) => console.warn("[SavedLoss] saveLastBriefingSignal:", e.message));
           }
 
           // X Proof Post（英語版のみ）
@@ -1969,7 +1815,7 @@ module.exports = async function handler(req, res) {
     // イベント駆動の判定（shouldSend）は定期枠以外の場合のみ適用
     // 重要: isRegularSlotがtrueの場合は、イベント駆動の判定に関係なく必ず配信
     if (ENABLE_MINIMAL_VERSION && (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && shouldSend && !isRegularSlot))) {
-      console.log("[MINIMAL] ✅ Sending free briefing (Minimal Version) to all languages...");
+      console.log("[MINIMAL] ✅✅✅ DELIVERY START: Sending free briefing (Minimal Version) to all languages...");
       console.log(
         "[MINIMAL] Conditions:",
         {
@@ -2090,35 +1936,6 @@ module.exports = async function handler(req, res) {
             grokGeminiOptimizationMinimal = null; // エラー時もnullを明示的に設定
           }
 
-          // 無料版密度強化: Grok 4.1 推論（2バレット）＋ Gemini 3 Flash 心理＋1アクション
-          let grokReasoningMinimal = null;
-          let geminiInsightMinimal = null;
-          try {
-            grokReasoningMinimal = await generateMinimalGrokReasoning(
-              trapData,
-              minimalMarketData,
-              sentimentData,
-              targetLang
-            );
-            if (grokReasoningMinimal) console.log(`[MINIMAL] Grok reasoning generated for ${targetLang}`);
-            geminiInsightMinimal = await generateMinimalGeminiInsight(
-              minimalTrapScore,
-              sentimentData,
-              targetLang
-            );
-            if (geminiInsightMinimal) console.log(`[MINIMAL] Gemini insight generated for ${targetLang}`);
-          } catch (e) {
-            console.warn("[MINIMAL] Grok/Gemini content generation failed:", e?.message || e);
-          }
-
-          if (grokReasoningMinimal || geminiInsightMinimal) {
-            xSnippetForPost = {
-              grokText: grokReasoningMinimal,
-              geminiText: geminiInsightMinimal,
-              source: "minimal"
-            };
-          }
-
           // 言語別テンプレートを読み込む
           const langTemplates = loadUserTemplates(targetLang);
           const langFormatMinimalBriefing = langTemplates.formatMinimalBriefing;
@@ -2137,7 +1954,6 @@ module.exports = async function handler(req, res) {
 
           // 無料版メッセージを生成（minimal-high-quality版を使用）
           // 注意: minimal-high-quality版は4-post thread形式で、trapData, marketData, sentimentData, score, grokGeminiOptimizationパラメータを必要とします
-          // 密度強化: grokReasoningMinimal（Grok 4.1 2バレット）, geminiInsight（Gemini 3 Flash 心理＋1アクション）
           const minimalText = langFormatMinimalBriefing({
             now,
             trapScore: minimalTrapScore,
@@ -2149,10 +1965,7 @@ module.exports = async function handler(req, res) {
             lang: targetLang,
             score: snapshot.market_score, // Market Scoreを追加（状況に応じたメッセージ生成のため）
             // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
-            grokGeminiOptimization: grokGeminiOptimizationMinimal || null,
-            // 無料版密度強化: Grok 4.1 Fast Reasoning ＋ Gemini 3 Flash Preview の良さを引き出す
-            grokReasoningMinimal: grokReasoningMinimal ?? null,
-            geminiInsight: geminiInsightMinimal ?? null
+            grokGeminiOptimization: grokGeminiOptimizationMinimal || null
           });
 
           // 生成されたメッセージが4-post thread形式（[1/4], [2/4], [3/4], [4/4]を含む）であることを確認
@@ -2169,20 +1982,6 @@ module.exports = async function handler(req, res) {
             }
           }
 
-          // 次のフェーズ戦略: Saved Loss があれば無料版メッセージに追記
-          let minimalTextToSend = minimalText;
-          try {
-            const savedLoss = await getSavedLossEstimate(targetLang, priceUsd);
-            if (savedLoss && savedLoss.amountUsd > 0) {
-              minimalTextToSend =
-                minimalText +
-                "\n\n" +
-                formatSavedLossSnippet(targetLang, savedLoss.amountUsd);
-            }
-          } catch (e) {
-            console.warn("[SavedLoss] getSavedLossEstimate for minimal:", e.message);
-          }
-
           // 無料版チャンネルに送信
           if (ENABLE_TELEGRAM) {
             // 言語コードを環境変数形式に変換（en -> EN, pt-br -> PT_BR）
@@ -2195,7 +1994,7 @@ module.exports = async function handler(req, res) {
               // 言語別のボタンテキストを使用
               const socialProofButton = getSocialProofButton(targetLang);
               const minimalSendResult = await sendMessageToAsset(
-                minimalTextToSend,
+                minimalText,
                 "MINIMAL",
                 langCodeForEnv,
                 { reply_markup: socialProofButton }
@@ -2220,82 +2019,97 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      // TG直誘導（無料レポートX投稿・無料版X投稿）は廃止。Xはスニペット（ENABLE_X_SNIPPET_POST）と引用リポストに一本化。
-    }
-
-    // 7-B. EMERGENCY (Trap) - 15分ごとの緊急配信。RANDOM_EMERGENCY = 間欠的強化（Do Not Trade のみ短文化）
-    // lateEmergencyFromTrapScore: trapDetection.trapScore>=60 で発火（実際に緊急が動くように）
-    if (
-      finalNeedsEmergency ||
-      lateEmergencyFromTrapScore ||
-      (ENABLE_EVENT_DRIVEN && triggerType === "EMERGENCY") ||
-      triggerType === "RANDOM_EMERGENCY"
-    ) {
-      // Phase 2: A/Bテストバリアント識別
-      const AB_VARIANTS = ["A", "B"];
-      const variant = Math.random() < 0.5 ? "A" : "B";
-      const messageId = `msg_${Date.now()}_${LANG}_${variant}_${triggerType === "RANDOM_EMERGENCY" ? "RANDOM_EMERGENCY" : "EMERGENCY"}`;
-
-      // RANDOM_EMERGENCY: 短い「Do Not Trade」のみ（間欠的強化・パブロフの犬化）
-      const RANDOM_EMERGENCY_MESSAGES = {
-        en: "🚨 Do Not Trade. Stay on sidelines. Full briefing in next slot. #TrapDefence",
-        ja: "🚨 トレード禁止。 sidelines で待機。次枠でフルブリーフ。 #TrapDefence",
-        es: "🚨 No operes. Quédate al margen. Briefing completo en la próxima franja. #TrapDefence",
-        "pt-br": "🚨 Não opere. Fique à margem. Briefing completo no próximo slot. #TrapDefence",
-        ar: "🚨 لا تتداول. ابق على الهامش. الموجز الكامل في الفتحة التالية. #TrapDefence",
-        ko: "🚨 거래 금지. 사이드라인 대기. 다음 슬롯에서 전체 브리핑. #TrapDefence",
-      };
-      const emergencyAnalysis = gptCryptoQuantAnalysis || aiAnalysis;
-
-      // 緊急配信を面白く: Grok「今なぜ危険か」＋ Gemini「心理の罠＋1アクション」（RANDOM_EMERGENCY以外）
-      let emergencyGrokOneLiner = null;
-      let emergencyGeminiOneLiner = null;
-      if (triggerType !== "RANDOM_EMERGENCY") {
+      // Grok推奨: 無料版（Minimal Version）配信完了後、X投稿を実行（非同期、エラーは無視）
+      // Grok戦略: UTC 8:00にMV投稿、UTC 14:00に引用リポスト（6時間後）
+      // 注意: 独立したCronジョブ（api/x-post-minimal-version-cron）で実行されるため、ここでは実行しない
+      // ただし、force=trueの場合は即座に実行する
+      if (ENABLE_MINIMAL_VERSION && shouldSend && force) {
         try {
-          emergencyGrokOneLiner = await generateEmergencyGrokOneLiner(
-            trap,
-            trapDetection,
-            inflow,
-            mpi,
-            priceUsd,
-            snapshot?.change_24h ?? change24h,
-            LANG
+          const xPostMinimalModule = require("./x-post-minimal-version");
+          const postMinimalVersionToX =
+            xPostMinimalModule.postMinimalVersionToX || xPostMinimalModule;
+
+          if (typeof postMinimalVersionToX === "function") {
+            const reportData = {
+              trapScore: minimalTrapScore,
+              priceUsd,
+              change24h,
+              trapData: {
+                trapAlert: trapAlert || null,
+                exchangeNetflow: inflow,
+                whaleRatio: whaleRatioValue
+              },
+              marketData: minimalMarketData,
+              sentimentData
+            };
+
+            // Grok推奨: 非同期で実行（エラーは無視、タイミングは独立したCronジョブで制御）
+            postMinimalVersionToX(targetLangsForMinimal, reportData).catch((error) => {
+              console.warn("[MINIMAL] Failed to post minimal version to X:", error.message);
+            });
+          } else {
+            console.warn(
+              "[MINIMAL] postMinimalVersionToX function not found in x-post-minimal-version module"
+            );
+          }
+        } catch (error) {
+          // モジュールが見つからない場合は警告のみ（独立したCronジョブで実行されるため）
+          console.warn(
+            "[MINIMAL] Failed to import x-post-minimal-version (will be handled by independent cron job):",
+            error.message
           );
-          emergencyGeminiOneLiner = await generateEmergencyGeminiOneLiner(
-            trapDetection?.trapScore ?? (trap?.confidence === "HIGH" ? 80 : 50),
-            trapDetection?.trapType || trap?.type,
-            snapshot?.sentiment_label || sentimentLabel,
-            LANG
-          );
-        } catch (e) {
-          console.warn("[Emergency] Grok/Gemini one-liner failed:", e?.message || e);
         }
       }
 
-      const alertText =
-        triggerType === "RANDOM_EMERGENCY"
-          ? RANDOM_EMERGENCY_MESSAGES[LANG] || RANDOM_EMERGENCY_MESSAGES.en
-          : formatTrapAlert({
-              inflow,
-              mpi,
-              priceUsd,
-              trap,
-              aiAnalysis: emergencyAnalysis,
-              grokReasoningShort: emergencyGrokOneLiner,
-              geminiInsightShort: emergencyGeminiOneLiner,
-              trapDetection
-            });
+      // 無料版レポート配信完了後、X投稿を実行（非同期、エラーは無視）
+      // 注意: 独立したCronジョブ（api/x-post-free-report）も実行されるため、
+      // 二重実行を防ぐため、ここでは実行しない（独立したCronジョブに任せる）
+      // ただし、force=trueの場合は即座に実行する
+      if (ENABLE_MINIMAL_VERSION && shouldSend && force) {
+        try {
+          const { postFreeReportToX } = require("./x-post-free-report");
+          const reportData = {
+            trapScore: minimalTrapScore,
+            priceUsd,
+            change24h,
+            exchangeNetflow: inflow,
+            whaleRatio: whaleRatioValue
+          };
 
-      if (emergencyGrokOneLiner || emergencyGeminiOneLiner) {
-        xSnippetForPost = {
-          grokText: emergencyGrokOneLiner,
-          geminiText: emergencyGeminiOneLiner,
-          source: "emergency"
-        };
+          // 非同期で実行（エラーは無視）
+          postFreeReportToX(reportData).catch((error) => {
+            console.error("[X Post Free Report] Failed:", error.message);
+          });
+
+          console.log("[X Post Free Report] Triggered after free report delivery (force mode)");
+        } catch (error) {
+          console.error("[X Post Free Report] Failed to trigger:", error.message);
+        }
+      } else if (ENABLE_MINIMAL_VERSION && shouldSend && (isRegularSlot || force)) {
+        // 通常の定期実行時は、独立したCronジョブに任せる（二重実行防止）
+        console.log("[X Post Free Report] Skipping (will be handled by independent cron job)");
       }
+    }
 
-      // メール送信（緊急配信）。RANDOM_EMERGENCY は短文化のため Telegram のみ送信
-      if (triggerType !== "RANDOM_EMERGENCY") {
+    // 7-B. EMERGENCY (Trap) - 15分ごとの緊急配信
+    if (finalNeedsEmergency || (ENABLE_EVENT_DRIVEN && triggerType === "EMERGENCY")) {
+      // Phase 2: A/Bテストバリアント識別
+      const AB_VARIANTS = ["A", "B"];
+      const variant = Math.random() < 0.5 ? "A" : "B";
+      const messageId = `msg_${Date.now()}_${LANG}_${variant}_EMERGENCY`;
+
+      // GPT解析結果を緊急配信に反映
+      const emergencyAnalysis = gptCryptoQuantAnalysis || aiAnalysis;
+
+      const alertText = formatTrapAlert({
+        inflow,
+        mpi,
+        priceUsd,
+        trap,
+        aiAnalysis: emergencyAnalysis // GPT解析結果を優先
+      });
+
+      // メール送信（緊急配信）
       try {
         // 緊急配信用のメールHTMLを生成（簡易版、formatRegularBriefingHTMLをベースに）
         const emergencyEmailHTML = formatRegularBriefingHTML({
@@ -2377,7 +2191,6 @@ module.exports = async function handler(req, res) {
           sent_at: new Date().toISOString(),
           email_error: emailError.message
         });
-      }
       }
 
       // Telegram送信（オプション）
@@ -2653,24 +2466,6 @@ module.exports = async function handler(req, res) {
       });
 
       sent += 1;
-    }
-
-    // 高品質コンテンツを切り取ってXに1ツイート投稿（ちょい見せでインプレ・エンゲージメント）
-    if (
-      sent > 0 &&
-      xSnippetForPost &&
-      (xSnippetForPost.grokText || xSnippetForPost.geminiText) &&
-      process.env.ENABLE_X_SNIPPET_POST === "true"
-    ) {
-      try {
-        const { postSnippetToX } = require("../services/x/snippetFromBriefing");
-        const snippetResult = await postSnippetToX(xSnippetForPost);
-        if (snippetResult?.id) {
-          console.log("[X Snippet] Posted from briefing:", snippetResult.id);
-        }
-      } catch (e) {
-        console.warn("[X Snippet] Post failed:", e?.message || e);
-      }
     }
 
     return res.status(200).json({

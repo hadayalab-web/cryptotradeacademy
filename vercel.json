@@ -2,6 +2,7 @@
   "buildCommand": "npm run build",
   "functions": {
     "api/cron.js": {
+      "maxDuration": 300,
       "includeFiles": "{api/services/**,config/**,services/telegram/messages/**}"
     },
     "api/x-update-influencer-stock.js": {
@@ -52,12 +53,14 @@
   "crons": [
     { "path": "/api/cron", "schedule": "*/15 * * * *" },
     { "path": "/api/vsl1-post", "schedule": "0 1,13,21 * * *" },
-    { "path": "/api/x-quote-repost-en", "schedule": "0 8,12,16,20 * * *" },
-    { "path": "/api/x-quote-repost-es", "schedule": "15 8,12,16,20 * * *" },
-    { "path": "/api/x-quote-repost-pt-br", "schedule": "30 8,12,16,20 * * *" },
-    { "path": "/api/x-quote-repost-ar", "schedule": "45 8,12,16,20 * * *" },
-    { "path": "/api/x-quote-repost-ja", "schedule": "0 9,13,17,21 * * *" },
-    { "path": "/api/x-quote-repost-ko", "schedule": "20 9,13,17,21 * * *" },
+    { "path": "/api/x-post-minimal-version-cron", "schedule": "0 0,7,12,15,23 * * *" },
+    { "path": "/api/x-post-free-report", "schedule": "30 4,10,17,19 * * *" },
+    { "path": "/api/x-quote-repost-en", "schedule": "*/6 * * * *" },
+    { "path": "/api/x-quote-repost-es", "schedule": "1,7,13,19,25,31,37,43,49,55 * * * *" },
+    { "path": "/api/x-quote-repost-pt-br", "schedule": "2,8,14,20,26,32,38,44,50,56 * * * *" },
+    { "path": "/api/x-quote-repost-ar", "schedule": "3,9,15,21,27,33,39,45,51,57 * * * *" },
+    { "path": "/api/x-quote-repost-ja", "schedule": "4,10,16,22,28,34,40,46,52,58 * * * *" },
+    { "path": "/api/x-quote-repost-ko", "schedule": "5,11,17,23,29,35,41,47,53,59 * * * *" },
     { "path": "/api/vsl2-free-users", "schedule": "0 * * * *" },
     { "path": "/api/vsl1-reminder", "schedule": "0 */12 * * *" },
     { "path": "/api/vsl2-last-call", "schedule": "0 * * * *" },

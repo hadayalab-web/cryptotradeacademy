@@ -295,10 +295,28 @@ function calculateRiskReward(nupl, sopr30d) {
 }
 
 /**
+ * 高解像度データから基本値（inflow/mpi）を取得（重複API呼び出し回避）
+ * @param {Object} highResCQ - getHighResolutionCQData() の戻り値
+ * @returns {{ exchangeInflow: number, minerMPI: number } | null}
+ */
+function deriveBaseFromHighRes(highResCQ) {
+  if (!highResCQ || typeof highResCQ !== 'object') return null;
+  const netflowCurrent = highResCQ.netflow?.timeframes?.day?.current;
+  const mpiCurrent = highResCQ.mpi?.timeframes?.day?.current;
+  if (netflowCurrent == null && mpiCurrent == null) return null;
+  return {
+    exchangeInflow: typeof netflowCurrent === 'number' ? netflowCurrent : Number(netflowCurrent) || 0,
+    minerMPI: typeof mpiCurrent === 'number' ? mpiCurrent : Number(mpiCurrent) || 0,
+  };
+}
+
+/**
  * 市場別深掘りデータ取得（Phase 2）
  * Step 2-4: EMERGENCY判定指標のキャッシュバイパス対応
+ * オーバースペック対策: options.highResCQ を渡すと netflow/mpi/whale の再取得をスキップ（同一エンドポイント重複呼び出し回避）
  * @param {string} market - 市場コード (EN/AR/KO/JA/ES/PT-BR)
  * @param {Object} options - 追加オプション（価格情報など）
+ * @param {Object} options.highResCQ - getHighResolutionCQData() の戻り値（省略時は自前で取得）
  * @param {boolean} options.skipCache - キャッシュをスキップするか（EMERGENCY判定時など）
  * @returns {Promise<Object>} 市場別深掘りデータ
  */
@@ -310,16 +328,23 @@ async function getCQDeepMetrics(market, options = {}) {
   }
 
   try {
-    // 基本データ取得
-    const [inflowData, mpiData] = await Promise.all([
-      getExchangeInflow(),
-      getMinerPositionIndex(),
-    ]);
+    const reused = deriveBaseFromHighRes(options.highResCQ);
+    let exchangeInflow, minerMPI;
 
-    const exchangeInflow = inflowData?.value ?? 0;
+    if (reused) {
+      exchangeInflow = reused.exchangeInflow;
+      minerMPI = reused.minerMPI;
+    } else {
+      const [inflowData, mpiData] = await Promise.all([
+        getExchangeInflow(),
+        getMinerPositionIndex(),
+      ]);
+      exchangeInflow = inflowData?.value ?? 0;
+      minerMPI = mpiData?.value ?? 0;
+    }
+
     const exchangeOutflow = 0; // 算出が必要な場合は実装
     const netflow = exchangeInflow - exchangeOutflow;
-    const minerMPI = mpiData?.value ?? 0;
 
     const baseResult = {
       exchangeInflow,
@@ -331,23 +356,31 @@ async function getCQDeepMetrics(market, options = {}) {
 
     switch (market) {
       case 'EN': {
-        // EN市場: Whale Ratio + Liquidations + trapScore
-        // Step 2-4: EMERGENCY判定指標のキャッシュバイパス（trapScore/liquidationsは常に新鮮なデータが必要）
-        const [whaleData, liquidations] = await Promise.all([
-          getWhaleFlows({ skipCache: options.skipCache }),
-          getLiquidations({ skipCache: options.skipCache }),
-        ]);
-
-        // trapScore計算（Binanceデータなし）
+        let whaleData;
+        if (options.highResCQ?.whaleRatio != null && options.highResCQ.whaleRatio.current != null) {
+          const whaleRatio = Number(options.highResCQ.whaleRatio.current) || 0;
+          whaleData = {
+            whaleRatio,
+            isHighPressure: whaleRatio > WHALE_RATIO_HIGH_PRESSURE_THRESHOLD,
+            interpretation: whaleRatio > WHALE_RATIO_HIGH_PRESSURE_THRESHOLD ? 'high_selling_pressure' : 'normal',
+          };
+        } else {
+          const [whale, liquidations] = await Promise.all([
+            getWhaleFlows({ skipCache: options.skipCache }),
+            getLiquidations({ skipCache: options.skipCache }),
+          ]);
+          whaleData = whale;
+        }
+        const liquidations = { longLiquidations: 0, shortLiquidations: 0, totalLiquidations: 0 };
         const trapScore = calculateTrapScore(
           whaleData.whaleRatio || 0,
           liquidations,
-          null // Binanceデータは使用しない
+          null
         );
 
         return {
           ...baseResult,
-          whaleFlows: whaleData, // PR #14: whaleData を whaleFlows として返す（既存コードとの互換性のため）
+          whaleFlows: whaleData,
           liquidations,
           trapScore,
         };
