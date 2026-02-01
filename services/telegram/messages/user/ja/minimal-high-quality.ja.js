@@ -223,8 +223,6 @@ function formatMinimalHighQualityBriefing({
   lang = 'ja',
   score = null, // Market Score (optional, can also be in marketData.score)
   grokGeminiOptimization = null, // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
-  grokReasoningMinimal = null, // Grok 4.1 Fast Reasoning: なぜこのTrap Scoreか・何を見るか（2バレット）
-  geminiInsight = null, // Gemini 3 Flash: 心理の罠＋1アクション（1–2文）
 } = {}) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
   
@@ -292,11 +290,6 @@ function formatMinimalHighQualityBriefing({
   
   message += `\n\n赤いローソク＝即トラップ、ではありません。`;
 
-  // Grok 4.1 Fast Reasoning: なぜこのスコアか・何を見るか（密度強化）
-  if (grokReasoningMinimal && typeof grokReasoningMinimal === 'string' && grokReasoningMinimal.trim()) {
-    message += `\n\n🔍 **Dr. Grok**（このスコアの理由＋注目指標）:\n${grokReasoningMinimal.trim()}`;
-  }
-
   // [3/4] Psych coaching: latency anxiety (低スコア時の認知的不協和)
   message += `\n\n[3/4] 🧠 心理コーチング
 ━━━━━━━━━━━━━━━━━━━━`;
@@ -309,11 +302,6 @@ function formatMinimalHighQualityBriefing({
     message += `\n雰囲気は怖い。でもデータはまだ"罠"寄りじゃない。\nここでの役割：恐怖に押されて悪いクリックをしない。\n\n(それでも：寝ている間に反転したら、無料はその15分を逃す。)`;
   } else {
     message += `\n防御モード。赤いローソクと現実を混同しないで。罠は下落ではなく、衝動的な撤退です。`;
-  }
-
-  // Gemini 3 Flash: 心理の罠＋1アクション（密度強化）
-  if (geminiInsight && typeof geminiInsight === 'string' && geminiInsight.trim()) {
-    message += `\n\n💡 **今日の心理の罠＋1アクション:**\n${geminiInsight.trim()}`;
   }
   
   // [4/4] Poll + question + soft CTA (GPT設計書に完全準拠)

@@ -13,9 +13,9 @@ try {
   console.warn('[PromoMonitor] KV storage not available:', error.message);
 }
 
-// プロモコードID（環境変数から取得、またはデフォルト値）
+// プロモコードID（環境変数から取得）。例: promo_x94YP6In0f1C
 const PROMO_CODE_ID = process.env.WHOP_PROMO_CODE_ID || process.env.PROMO_CODE_ID;
-const PROMO_CODE = process.env.WHOP_PROMO_CODE || 'DEFEND50';
+const PROMO_CODE = process.env.WHOP_PROMO_CODE || 'defend50';
 
 // 自動補充設定（環境変数から取得）
 const AUTO_RESTOCK_ENABLED = process.env.WHOP_AUTO_RESTOCK_ENABLED === 'true';
@@ -31,14 +31,14 @@ const STOCK_THRESHOLDS = [
   { threshold: 1, message: 'LAST SPOT AVAILABLE!' },
 ];
 
-// 言語別Whop URLマッピング
+// 言語別Whop URLマッピング（有料版 Regular Briefing - trapdefence ストア）
 const WHOP_PRODUCT_URLS = {
-  'en': process.env.WHOP_PRODUCT_URL_EN || 'https://whop.com/aio-media-llc/trap-defence-btc-en/',
-  'es': process.env.WHOP_PRODUCT_URL_ES || 'https://whop.com/aio-media-llc/trap-defense-btc-es/',
-  'pt-br': process.env.WHOP_PRODUCT_URL_PTBR || 'https://whop.com/aio-media-llc/trap-defense-btc-ptbr/',
-  'ar': process.env.WHOP_PRODUCT_URL_AR || 'https://whop.com/aio-media-llc/tap-defense-btc-ar/',
-  'ko': process.env.WHOP_PRODUCT_URL_KO || 'https://whop.com/aio-media-llc/trap-defense-btc-ko/',
-  'ja': process.env.WHOP_PRODUCT_URL_JA || 'https://whop.com/aio-media-llc/trap-defence-btc-ja/',
+  'en': process.env.WHOP_PRODUCT_URL_EN || 'https://whop.com/trapdefence/btc-regular-en/',
+  'es': process.env.WHOP_PRODUCT_URL_ES || 'https://whop.com/trapdefence/btc-regular-es/',
+  'pt-br': process.env.WHOP_PRODUCT_URL_PTBR || 'https://whop.com/trapdefence/btc-regular-pt/',
+  'ar': process.env.WHOP_PRODUCT_URL_AR || 'https://whop.com/trapdefence/btc-regular-ar/',
+  'ko': process.env.WHOP_PRODUCT_URL_KO || 'https://whop.com/trapdefence/btc-regular-ko/',
+  'ja': process.env.WHOP_PRODUCT_URL_JA || 'https://whop.com/trapdefence/btc-regular-ja/',
 };
 
 // LANG を正規化

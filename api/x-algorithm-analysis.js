@@ -1,6 +1,8 @@
 // api/x-algorithm-analysis.js
-// Xアルゴリズム分析レポート生成API（GPTを使用）
+// Xアルゴリズム分析レポート生成API
+// アルゴリズム分析: Grok (grok-4-1-fast-reasoning) / 戦略レポート: GPT
 
+const { analyzeXAlgorithmOptimization } = require('../services/grok/xAlgorithmAnalyzer');
 const { performAlgorithmAnalysis, generateAlgorithmReport } = require('../services/openai/algorithmAnalyzer');
 const { generateWeeklyStrategyReport, formatStrategyReport } = require('../services/openai/strategyRecommender');
 
@@ -47,20 +49,30 @@ module.exports = async function handler(req, res) {
       try {
         const results = {};
         
-        // アルゴリズム分析レポート
+        // アルゴリズム分析: Grok (grok-4-1-fast-reasoning) に仕事させる
         if (reportType === 'algorithm' || reportType === 'both') {
-          console.log('[X Algorithm Analysis] Performing algorithm analysis...');
+          console.log('[X Algorithm Analysis] Performing algorithm analysis with Grok (grok-4-1-fast-reasoning)...');
           const startTime = Date.now();
-          const algorithmAnalysis = await performAlgorithmAnalysis(days);
+          const grokAnalysis = await analyzeXAlgorithmOptimization({ lang: 'en' });
           const duration = Date.now() - startTime;
-          console.log(`[X Algorithm Analysis] Algorithm analysis took ${duration}ms`);
+          console.log(`[X Algorithm Analysis] Grok algorithm analysis took ${duration}ms`);
           
-          if (algorithmAnalysis) {
-            results.algorithmAnalysis = algorithmAnalysis;
-            results.algorithmReport = generateAlgorithmReport(algorithmAnalysis);
-            console.log('[X Algorithm Analysis] ✅ Algorithm analysis completed');
+          if (grokAnalysis && !grokAnalysis.error) {
+            results.grokAlgorithmAnalysis = grokAnalysis;
+            results.algorithmAnalysis = grokAnalysis; // 互換のため同じオブジェクトを参照
+            results.algorithmReport = grokAnalysis.algorithmInsights
+              ? JSON.stringify(grokAnalysis.algorithmInsights, null, 2)
+              : JSON.stringify(grokAnalysis, null, 2);
+            console.log('[X Algorithm Analysis] ✅ Grok algorithm analysis completed');
           } else {
-            console.warn('[X Algorithm Analysis] ⚠️ Algorithm analysis returned null');
+            console.warn('[X Algorithm Analysis] ⚠️ Grok analysis returned null or error:', grokAnalysis?.error);
+            // フォールバック: GPT
+            const algorithmAnalysis = await performAlgorithmAnalysis(days);
+            if (algorithmAnalysis) {
+              results.algorithmAnalysis = algorithmAnalysis;
+              results.algorithmReport = generateAlgorithmReport(algorithmAnalysis);
+              console.log('[X Algorithm Analysis] ✅ Fallback GPT algorithm analysis completed');
+            }
           }
         }
         
@@ -85,14 +97,14 @@ module.exports = async function handler(req, res) {
         console.log('[X Algorithm Analysis] Report generation completed');
         console.log('[X Algorithm Analysis] ========================================');
         
-        // Grok推奨: GPT分析結果をKVストレージに保存してRealTimeOptimizerにフィード
+        // Grok/GPT 分析結果を KV に保存（RealTimeOptimizer 等で利用）
         try {
           const kvModule = require('@vercel/kv');
           const kv = kvModule.kv;
           if (kv) {
-            const analysisKey = 'x:gpt_analysis:latest';
+            const analysisKey = 'x:gpt_analysis:latest'; // キーは互換のため維持（中身は Grok アルゴリズム分析 + GPT 戦略）
             await kv.set(analysisKey, results, { ex: 86400 * 2 }); // 2日間保持
-            console.log('[X Algorithm Analysis] ✅ Analysis result saved to KV for RealTimeOptimizer');
+            console.log('[X Algorithm Analysis] ✅ Analysis result saved to KV (Grok algorithm + GPT strategy)');
           }
         } catch (error) {
           console.warn('[X Algorithm Analysis] Failed to save analysis to KV:', error.message);

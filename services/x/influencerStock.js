@@ -536,8 +536,8 @@ module.exports = {
   saveInfluencersToStock,
   getInfluencersFromStock,
   getStockUpdateTime,
-  // ⚠️ 注意: updateInfluencerStock と updateAllInfluencerStocks は手動実行専用API（/api/x-update-influencer-stock）でのみ使用
-  // CronJobsから自動実行されることはありません
+  // ⚠️ updateInfluencerStock / updateAllInfluencerStocks は手動専用（Grok でリスト取得するため）
+  // vercel.json の crons に /api/x-update-influencer-stock を追加しないこと
   updateInfluencerStock,
   updateAllInfluencerStocks,
 };

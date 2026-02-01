@@ -1,133 +1,137 @@
-# Vercel Dashboard ログ結果分析ガイド
+# Vercelログ解析ガイド
+**作成日**: 2026-01-30
 
-## 概要
+---
 
-Vercel Dashboardからエクスポートしたログ結果JSONファイルを分析し、14個すべてのCronJobsの実行状況を確認します。
+## 📋 ログファイルの解析方法
 
-## 実行方法
+### ファイル情報
+- **パス**: `c:\Users\chiba\Downloads\logs_result.json`
+- **形式**: JSON配列（1行にすべてのログが含まれている）
 
-### 方法1: Node.jsスクリプト（推奨）
+---
 
-```bash
-node scripts/analyze-vercel-logs.js "c:\Users\chiba\Downloads\logs_result (15).json"
+## 🔍 エラーを探す方法
+
+### 方法1: Pythonスクリプトを使用（推奨）
+
+以下のスクリプトを実行してください：
+
+```powershell
+# PowerShellで実行
+python scripts/analyze_vercel_logs.py
 ```
 
-### 方法2: ファイルパスを指定
+または、直接ファイルパスを指定：
 
-```bash
-node scripts/analyze-vercel-logs.js "パス\logs_result (15).json"
+```powershell
+python scripts/analyze_vercel_logs.py "c:\Users\chiba\Downloads\logs_result.json"
 ```
 
-## 分析内容
+### 方法2: 手動で検索
 
-スクリプトは以下の情報を分析します：
+ログファイルをテキストエディタで開き、以下を検索：
 
-1. **エンドポイント別の実行状況**
-   - リクエスト数
-   - 成功/エラー数
-   - HTTPステータスコード
-   - 実行時間（平均、最小、最大）
+1. **`/api/cron`** - cron関連のログ
+2. **`"responseStatusCode":500`** - 500エラー
+3. **`"level":"error"`** - エラーレベルのログ
+4. **`FUNCTION_INVOCATION_FAILED`** - 関数実行失敗
 
-2. **Phase別のグループ化**
-   - Phase 1: Trap Defence BTC配信
-   - Phase 2: X投稿関連（9件）
-   - Phase 3: TG DM関連（3件）
-   - Phase 4: プロモコード在庫監視
+---
 
-3. **ドライランモードの確認**
-   - X投稿関連エンドポイントでドライランモードが有効か確認
+## 📊 確認すべき項目
 
-4. **スキップ状態の確認**
-   - 時間帯チェックによりスキップされた実行を確認
+### 1. `/api/cron`関連のログ
 
-5. **エラー詳細**
-   - エラーが発生した場合、詳細情報を表示
+以下のキーを確認：
+- `"function": "/api/cron"`
+- `"requestPath": ".../api/cron"`
+- `"responseStatusCode": 500`（エラーの場合）
 
-## 期待される出力
+### 2. エラーメッセージ
 
-```
-📊 Vercel Dashboard ログ結果分析
-================================================================================
-📁 ファイル: c:\Users\chiba\Downloads\logs_result (15).json
-================================================================================
+以下のキーを確認：
+- `"message"` - エラーメッセージ
+- `"level": "error"` - エラーレベル
 
-✅ ログエントリ数: XXX件
+### 3. スタックトレース
 
-📋 Phase 1
---------------------------------------------------------------------------------
-  ✅ 成功 Trap Defence BTC配信
-     エンドポイント: /api/cron
-     リクエスト数: X件
-     成功: X件, エラー: 0件
-     ステータスコード: HTTP 200 (平均: XXXms, 最小: XXXms, 最大: XXXms)
+エラーログにスタックトレースが含まれている場合、`"message"`フィールドに含まれている可能性があります。
 
-📋 Phase 2
---------------------------------------------------------------------------------
-  ✅ 成功 VSL1自動投稿
-     エンドポイント: /api/vsl1-post
-     リクエスト数: X件
-     成功: X件, エラー: 0件
-     ステータスコード: HTTP 200 (平均: XXXms, 最小: XXXms, 最大: XXXms)
-      [🧪 ドライラン: X件]
+---
 
-...
+## 🐛 よくあるエラーパターン
 
-📊 全体サマリー
-================================================================================
+### パターン1: 環境変数不足
 
-合計リクエスト数: XXX件
-実行されたCronJobs: 14/14件
-成功率: XXX/XXX件 (100.0%)
-エラー数: 0件
-ドライランモード: XXX件
-スキップ: X件
-
-🎉 すべてのCronJobs（14個）が正常に実行されました！
-   本番環境移行の準備が整っています。
+```json
+{
+  "message": "Missing environment variable: XXX",
+  "level": "error"
+}
 ```
 
-## 確認ポイント
+### パターン2: モジュール読み込みエラー
 
-### ✅ 正常な状態
+```json
+{
+  "message": "Cannot find module 'xxx'",
+  "level": "error"
+}
+```
 
-1. **実行されたCronJobs: 14/14件** - すべてのCronJobsが実行されている
-2. **成功率: 100%** - エラーがない
-3. **HTTPステータスコード: 200** - すべてのリクエストが成功
-4. **ドライランモード: X件** - X投稿関連でドライランモードが有効
+### パターン3: KV接続エラー
 
-### ⚠️ 注意事項
+```json
+{
+  "message": "KV connection failed",
+  "level": "error"
+}
+```
 
-- **実行されていないCronJobs**: ログに記録されていないCronJobがある場合は、Vercel Dashboardで手動実行を確認
-- **エラーがある場合**: エラー詳細セクションで原因を確認
-- **スキップされた実行**: 時間帯チェックによりスキップされた場合は正常な動作
+### パターン4: タイムアウト
 
-## トラブルシューティング
+```json
+{
+  "message": "Function execution timeout",
+  "level": "error"
+}
+```
 
-### スクリプトが実行できない場合
+---
 
-1. Node.jsがインストールされているか確認: `node --version`
-2. ファイルパスが正しいか確認
-3. ファイルが存在するか確認
+## 📝 ログ解析結果の記録
 
-### ログに記録されていないCronJobがある場合
+解析結果を以下の形式で記録してください：
 
-1. Vercel Dashboardで該当のCronJobを手動実行
-2. 実行後に再度ログをエクスポート
-3. 再度分析スクリプトを実行
+```markdown
+## ログ解析結果
 
-## 次のステップ
+**解析日時**: 2026-01-30 HH:MM
+**ログファイル**: logs_result.json
 
-分析結果が正常な場合：
+### 総ログ数
+- 総数: X件
 
-1. ✅ ドライランテスト完了（ローカル）
-2. ✅ Vercel Dashboard手動テスト完了
-3. 🚀 **本番環境移行**
-   - Vercel Dashboardで `X_POSTING_DRY_RUN=false` に変更
-   - 本番環境で実行開始
-4. 📊 実行結果を監視して期待通りの成果が得られているか確認
+### /api/cron関連
+- ログ数: X件
+- 500エラー: X件
 
-## 関連ドキュメント
+### エラーログ
+- 総数: X件
+- 主要なエラー:
+  1. [エラーメッセージ1]
+  2. [エラーメッセージ2]
 
-- `docs/TEST_ALL_14_CRONJOBS.md` - 14個すべてのCronJobsテストガイド
-- `docs/X_POSTING_CRONJOBS_PRODUCTION_READINESS.md` - 本番環境移行ガイド
-- `docs/VERCEL_CRONJOBS_MANUAL_TEST_GUIDE.md` - Vercel Dashboardでの手動テストガイド
+### 発見された問題
+- [問題1の詳細]
+- [問題2の詳細]
+
+### 修正提案
+- [修正案1]
+- [修正案2]
+```
+
+---
+
+**最終更新**: 2026-01-30

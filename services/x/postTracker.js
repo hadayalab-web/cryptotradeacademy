@@ -241,46 +241,9 @@ async function getPostsByType(dateString, postType) {
   return posts.filter((post) => post.postType === postType);
 }
 
-/**
- * 直近15分間の投稿数を取得（100/15min レート制限用）
- * @returns {Promise<number>} 直近15分の投稿数
- */
-async function getPostCountInLast15Min() {
-  if (!kv) {
-    return 0;
-  }
-
-  try {
-    const now = Date.now();
-    const nowDate = new Date(now);
-    const cutoff = new Date(now - 15 * 60 * 1000).toISOString();
-    const today = nowDate.toISOString().split("T")[0];
-    const yesterday = new Date(now - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    const dateStrings = [today];
-    // 0:00–0:14 UTC は直近15分が前日を含むため昨日分も取得
-    if (nowDate.getUTCHours() === 0 && nowDate.getUTCMinutes() < 15) {
-      dateStrings.push(yesterday);
-    }
-    let count = 0;
-    for (const dateString of dateStrings) {
-      const posts = await getPostsForDate(dateString);
-      if (!Array.isArray(posts)) continue;
-      for (const post of posts) {
-        const postedAt = post && post.postedAt ? String(post.postedAt) : "";
-        if (postedAt && postedAt >= cutoff) count += 1;
-      }
-    }
-    return count;
-  } catch (error) {
-    console.warn("[X Post Tracker] Failed to get post count in last 15 min:", error.message);
-    return 0;
-  }
-}
-
 module.exports = {
   savePostId,
   getPostsForDate,
   getPostsForLastNDays,
-  getPostsByType,
-  getPostCountInLast15Min
+  getPostsByType
 };

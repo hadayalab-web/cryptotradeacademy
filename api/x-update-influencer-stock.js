@@ -1,7 +1,12 @@
 // api/x-update-influencer-stock.js
-// インフルエンサーストック更新API（手動実行用）
-// ⚠️ Cron Jobによる自動更新は廃止されました
-// リストは事前にKVに保存し、定期的に手動でリフレッシュしてください
+// インフルエンサーストック更新API（手動実行専用）
+//
+// 【重要】Cron に絶対に追加しないこと。
+// インフルエンサーリストの補充・リフレッシュは、必要に応じて手動で
+// 本API または Grok を使ったスクリプトで行う。自動取得は行わない。
+//
+// 引用リポストは KV のストックのみを参照（getInfluencersFromStock）。
+// ストックが空のときは本APIを手動で呼ぶか、discover-and-stock 等で KV に投入する。
 
 const { updateInfluencerStock, updateAllInfluencerStocks, getInfluencersFromStock, getStockUpdateTime } = require('../services/x/influencerStock');
 

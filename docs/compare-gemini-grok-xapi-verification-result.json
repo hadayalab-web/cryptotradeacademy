@@ -1,0 +1,46 @@
+{
+  "runAt": "2026-02-01T04:57:54.597Z",
+  "gemini": {
+    "model": "gemini-3-pro-preview",
+    "requested": 10,
+    "usernames": [
+      "VitalikButerin",
+      "saylor",
+      "cz_binance",
+      "APompliano",
+      "brian_armstrong",
+      "aantonop",
+      "ErikVoorhees",
+      "cobie",
+      "100trillionUSD",
+      "balajis"
+    ],
+    "userExistsCount": 10,
+    "hasTweetsCount": 10
+  },
+  "grok": {
+    "model": "grok-4-1-fast-reasoning",
+    "requested": 10,
+    "usernames": [
+      "APompliano",
+      "VitalikButerin",
+      "maxkeiser",
+      "Michael_Saylor",
+      "saifedean",
+      "PrestonPysh",
+      "RaoulGMI",
+      "100trillionUSD",
+      "woobull",
+      "LynAldenContact"
+    ],
+    "userExistsCount": 9,
+    "hasTweetsCount": 9
+  },
+  "combined": {
+    "uniqueCount": 17,
+    "overlapCount": 3,
+    "userExistsCount": 16,
+    "hasTweetsCount": 16
+  },
+  "conclusion": "併用が最適: 単独より「ツイート1件以上」の採用数が多く、リスト構築のカバレッジが最大。単独なら Gemini を優先。"
+}

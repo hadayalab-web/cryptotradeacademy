@@ -223,8 +223,6 @@ function formatMinimalHighQualityBriefing({
   lang = 'pt-br',
   score = null, // Market Score (optional, can also be in marketData.score)
   grokGeminiOptimization = null, // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
-  grokReasoningMinimal = null, // Grok 4.1 Fast Reasoning: なぜこのTrap Scoreか・何を見るか（2バレット）
-  geminiInsight = null, // Gemini 3 Flash: 心理の罠＋1アクション（1–2文）
 } = {}) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
   
@@ -291,11 +289,6 @@ Agora: calma. Respira. Nada de operar no impulso.`;
   
   message += `\n\nVela vermelha assusta, mas não é sinônimo de armadilha.`;
 
-  // Grok 4.1 Fast Reasoning: なぜこのスコアか・何を見るか（密度強化）
-  if (grokReasoningMinimal && typeof grokReasoningMinimal === 'string' && grokReasoningMinimal.trim()) {
-    message += `\n\n🔍 **Dr. Grok** (por que esse score + o que vigiar):\n${grokReasoningMinimal.trim()}`;
-  }
-
   // [3/4] Psych coaching: latency anxiety (低スコア時の認知的不協和)
   message += `\n\n[3/4] 🧠 Coaching Psicológico
 ━━━━━━━━━━━━━━━━━━━━`;
@@ -308,11 +301,6 @@ Agora: calma. Respira. Nada de operar no impulso.`;
     message += `\nO gráfico assusta… mas os dados não tão gritando "perigo".\nSua função aqui: não deixa o medo te empurrar pra um clique ruim.\n\n(Ainda assim: se virar enquanto você dorme, o grátis perde esses 15 minutos.)`;
   } else {
     message += `\nDefesa ativa. Não confunda vela vermelha com risco real. A armadilha não é o dip—é sair no impulso.`;
-  }
-
-  // Gemini 3 Flash: 心理の罠＋1アクション（密度強化）
-  if (geminiInsight && typeof geminiInsight === 'string' && geminiInsight.trim()) {
-    message += `\n\n💡 **Armadilha de hoje + uma ação:**\n${geminiInsight.trim()}`;
   }
   
   // [4/4] Poll + question + soft CTA (GPT設計書に完全準拠)

@@ -1,7 +1,11 @@
 // services/telegram/whop-links.js
 // 言語別Whopリンクの取得ユーティリティ
+// 有料版: trapdefence/btc-regular-{lang} | 無料版: checkout/plan_* (Minimal)
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
+
+/** プロモコード（ユーザー入力用）。環境変数 WHOP_PROMO_CODE で上書き可能。 */
+const DEFAULT_PROMO_CODE = process.env.WHOP_PROMO_CODE || 'defend50';
 
 function normalizeLang(rawLang) {
   if (!rawLang) return 'en';
@@ -9,13 +13,14 @@ function normalizeLang(rawLang) {
   return SUPPORTED_LANGS.includes(baseLang) ? baseLang : 'en';
 }
 
+/** 有料版（Regular Briefing）デフォルトURL - trapdefence ストア */
 const DEFAULT_WHOP_URLS = {
-  'en': 'https://whop.com/aio-media-llc/trap-defence-btc-en/',
-  'es': 'https://whop.com/aio-media-llc/trap-defense-btc-es/',
-  'pt-br': 'https://whop.com/aio-media-llc/trap-defense-btc-ptbr/',
-  'ar': 'https://whop.com/aio-media-llc/tap-defense-btc-ar/',
-  'ko': 'https://whop.com/aio-media-llc/trap-defense-btc-ko/',
-  'ja': 'https://whop.com/aio-media-llc/trap-defence-btc-ja/',
+  'en': 'https://whop.com/trapdefence/btc-regular-en/',
+  'es': 'https://whop.com/trapdefence/btc-regular-es/',
+  'pt-br': 'https://whop.com/trapdefence/btc-regular-pt/',
+  'ar': 'https://whop.com/trapdefence/btc-regular-ar/',
+  'ko': 'https://whop.com/trapdefence/btc-regular-ko/',
+  'ja': 'https://whop.com/trapdefence/btc-regular-ja/',
 };
 
 function getWhopProductUrl(lang = null) {
@@ -92,8 +97,15 @@ function getMinimalVersionCheckoutUrl(lang = null, options = {}) {
   }
 }
 
+/** プロモコードを取得（URL クエリ用）。大文字表記は DEFEND50 互換。 */
+function getPromoCode() {
+  return process.env.WHOP_PROMO_CODE || DEFAULT_PROMO_CODE;
+}
+
 module.exports = {
   getWhopProductUrl,
   getWhopUpgradeLink,
   getMinimalVersionCheckoutUrl,
+  getPromoCode,
+  DEFAULT_PROMO_CODE,
 };

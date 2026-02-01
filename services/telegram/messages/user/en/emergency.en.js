@@ -1,4 +1,4 @@
-// Tier1 BTC trap alert (EN) - 緊急配信: 面白く・刺さるコンテンツ（Grok + Gemini 1ライナー）
+// Tier1 BTC trap alert (EN)
 // services/telegram/messages/user/en/emergency.en.js
 
 function formatUsd(v) {
@@ -6,22 +6,13 @@ function formatUsd(v) {
   return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
-function formatTrapAlert({
-  inflow,
-  mpi,
-  priceUsd,
-  trap,
-  aiAnalysis,
-  grokReasoningShort = null,
-  geminiInsightShort = null,
-  trapDetection = null,
-} = {}) {
+function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
 
-  const trapLabel = trap?.label || trapDetection?.trapType || 'Whale Trap';
-  const trapScoreDisplay =
-    trapDetection?.trapScore != null ? `Trap Score *${Math.round(trapDetection.trapScore)}/100*` : '';
+  const trapLabel = trap?.label || 'Whale Trap';
+  // BUY/SELL/LONG/SHORT completely removed - only trap defense displayed
+  const trapSide = '⚠️ Trap detected';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -37,25 +28,14 @@ function formatTrapAlert({
   }
 
   const lines = [];
-  lines.push('🚨 *TRAP ALERT — This is the moment.*');
-  lines.push(`*${trapLabel}* ${trapScoreDisplay ? `| ${trapScoreDisplay}` : ''} (${trap?.confidence || 'HIGH'} confidence)`);
+  lines.push('🚨 *Dr. Grok Trap Alert*');
+  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} confidence)`);
   lines.push('');
-  lines.push(`💰 BTC: *${formatUsd(priceUsd)}* | 📊 Netflow *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI *${(mpi ?? 0).toFixed(2)}*`);
+  lines.push(`💰 BTC Price: *${formatUsd(priceUsd)}*`);
+  lines.push(`📊 Exchange Netflow: *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`);
   lines.push('');
+  lines.push(trapSide);
 
-  if (grokReasoningShort && typeof grokReasoningShort === 'string' && grokReasoningShort.trim()) {
-    lines.push('⚡ *Why now:*');
-    lines.push(grokReasoningShort.trim());
-    lines.push('');
-  }
-
-  if (geminiInsightShort && typeof geminiInsightShort === 'string' && geminiInsightShort.trim()) {
-    lines.push('🎯 *Your move:*');
-    lines.push(geminiInsightShort.trim());
-    lines.push('');
-  }
-
-  lines.push('⚠️ *Trap detected* — Do not chase. Stay on sidelines until the score confirms.');
   if (trap?.note) lines.push(`• ${trap.note}`);
   if (trap?.hint) lines.push(`• ${trap.hint}`);
 

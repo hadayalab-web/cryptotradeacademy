@@ -3,13 +3,7 @@
 // Grok CSO+CFO推奨: Gemini動的メッセージ生成（CTR最適化）
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-// RECOMMENDED: 開発環境は gemini-3-pro-preview、本番環境は gemini-3-flash
-// - 開発環境: gemini-3-pro-preview（最高品質で開発効率優先）
-// - 本番環境: gemini-3-flash（タイムアウト対策とコスト効率）
-const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'production';
-const isDevelopment = APP_ENV === 'development';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || (isDevelopment ? 'gemini-3-pro-preview' : 'gemini-3-flash');
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 
@@ -35,15 +29,10 @@ async function callGeminiTextAPI(prompt) {
           parts: [{ text: prompt }]
         }],
         generationConfig: {
-          // CRITICAL: Gemini 3では温度をデフォルト値1.0に維持することを強く推奨
-          // 1.0未満に設定すると予期しない動作が発生する可能性がある
-          // temperature: 1.0 (デフォルト、明示的に指定しない)
+          temperature: 0.7,
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 1024,
-          thinkingConfig: {
-            thinkingLevel: "low"  // タイムアウト対策のため低レベルの思考を使用
-          }
         },
       }),
     });

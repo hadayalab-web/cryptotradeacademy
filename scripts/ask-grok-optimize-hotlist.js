@@ -65,7 +65,7 @@ async function askGrokOptimization() {
 4. 実装の制約（重要）:
    - **インフルエンサー発掘機能は削除済み**: api/x-quote-repost.jsでGrok APIによる新規発掘機能（discoverInfluencersForQuoteRepost）は削除済み
    - **ストックからのみ取得**: getInfluencersFromStock()を使用し、ストックが空の場合はスキップ
-   - **ストック更新**: /api/x-update-influencer-stock?lang={lang}で各言語のストックを更新（Cron: 1日1回/言語、vercel.jsonで設定済み）
+   - **ストック更新**: /api/x-update-influencer-stock?lang={lang}で各言語のストックを更新（手動実行専用。Cronには登録しない）
    - **新規発掘は行わない**: 既存の70人ホットリスト（ストック）のみを使用
    - **getInfluencersFromStock()の実装**: 
      * 基本機能: ストックから取得
@@ -106,7 +106,7 @@ async function askGrokOptimization() {
 - インフルエンサー発掘機能は削除済み（api/x-quote-repost.jsでdiscoverInfluencersForQuoteRepostは使用不可）
 - ストック（既存の70人）からのみ取得可能
 - ストックが空の場合はスキップ（新規発掘は行わない）
-- ストック更新は1日1回/言語（Cron: /api/x-update-influencer-stock?lang={lang}）
+- ストック更新は手動のみ（/api/x-update-influencer-stock?lang={lang} または discover-and-stock-influencers-840.js。Cronでは呼ばない）
 - **X API Webhook実装済み**: /api/x-webhookでリアルタイムエンゲージメント（いいね、リツイート、リプライ）を受信可能（ポーリング不要）
 - **実装済み機能**:
   * ✅ 投稿時にツイートIDとインフルエンサーIDの関連を保存（x:post:influencer:{tweetId}）

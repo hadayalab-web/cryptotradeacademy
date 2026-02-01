@@ -10,6 +10,7 @@ const {
   getOptimizedHashtags,
   getContentFormat,
   shouldPostQuoteRepost,
+  checkDailyPostLimit,
   generateEngagementCTA,
 } = require('../services/x/optimization');
 
@@ -114,11 +115,21 @@ testCases.forEach((testCase, index) => {
 });
 console.log('✅ テスト9完了\n');
 
-// テスト10: 1日の投稿上限チェック（削除: X APIレート制限のみを守る方針）
-console.log('📊 テスト10: 1日の投稿上限チェック（削除済み）');
-console.log('  ⚠️ checkDailyPostLimit関数は削除されました（X APIレート制限のみを守る方針）');
-console.log('  ✅ X APIレート制限: Per User 100/15min, Per App 10,000/24hrs');
-console.log('✅ テスト10完了（スキップ）\n');
+// テスト10: 1日の投稿上限チェック
+console.log('📊 テスト10: 1日の投稿上限チェック');
+const limitTestCases = [
+  { count: 10, max: 25, shouldAllow: true },
+  { count: 24, max: 25, shouldAllow: true },
+  { count: 25, max: 25, shouldAllow: false },
+  { count: 30, max: 25, shouldAllow: false },
+];
+
+limitTestCases.forEach((testCase, index) => {
+  const result = checkDailyPostLimit(testCase.count, testCase.max);
+  const status = result === testCase.shouldAllow ? '✅' : '❌';
+  console.log(`  ケース${index + 1}: ${testCase.count}/${testCase.max} → ${result ? '投稿可' : '投稿不可'} ${status}`);
+});
+console.log('✅ テスト10完了\n');
 
 // テスト11: 統合テスト - 無料版レポート投稿フロー
 console.log('📊 テスト11: 統合テスト - 無料版レポート投稿フロー');
@@ -188,8 +199,8 @@ console.log('  ✅ スレッド戦略');
 console.log('  ✅ ポールオプション生成');
 console.log('  ✅ ハッシュタグ最適化');
 console.log('  ✅ コンテンツ形式決定');
-  console.log('  ✅ エンゲージメントCTA生成');
-  console.log('  ✅ 引用リポストタイミング判定');
-  console.log('  ⚠️ 1日の投稿上限チェック（削除済み）');
-  console.log('  ✅ 統合テスト - 無料版レポート投稿フロー');
+console.log('  ✅ エンゲージメントCTA生成');
+console.log('  ✅ 引用リポストタイミング判定');
+console.log('  ✅ 1日の投稿上限チェック');
+console.log('  ✅ 統合テスト - 無料版レポート投稿フロー');
 console.log('  ✅ 統合テスト - 引用リポストフロー');

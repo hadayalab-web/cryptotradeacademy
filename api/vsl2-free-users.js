@@ -17,7 +17,7 @@ if (VSL2_YOUTUBE_LINK_RAW.includes('OqvqngJOiXc')) {
   VSL2_YOUTUBE_LINK_RAW = 'https://youtu.be/fXgVsKhqDjI';
 }
 const VSL2_YOUTUBE_LINK = VSL2_YOUTUBE_LINK_RAW;
-const PROMO_CODE = 'DEFEND50';
+const { getWhopProductUrl, getPromoCode } = require('../services/telegram/whop-links');
 
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 
@@ -28,21 +28,6 @@ function normalizeLang(value) {
 }
 
 const DEFAULT_LANG = normalizeLang(process.env.LANG || 'en') || 'en';
-
-// 言語別Whop URLマッピング
-const WHOP_PRODUCT_URLS = {
-  'en': process.env.WHOP_PRODUCT_URL_EN || 'https://whop.com/aio-media-llc/trap-defence-btc-en/',
-  'es': process.env.WHOP_PRODUCT_URL_ES || 'https://whop.com/aio-media-llc/trap-defense-btc-es/',
-  'pt-br': process.env.WHOP_PRODUCT_URL_PTBR || 'https://whop.com/aio-media-llc/trap-defense-btc-ptbr/',
-  'ar': process.env.WHOP_PRODUCT_URL_AR || 'https://whop.com/aio-media-llc/tap-defense-btc-ar/',
-  'ko': process.env.WHOP_PRODUCT_URL_KO || 'https://whop.com/aio-media-llc/trap-defense-btc-ko/',
-  'ja': process.env.WHOP_PRODUCT_URL_JA || 'https://whop.com/aio-media-llc/trap-defence-btc-ja/',
-};
-
-function getWhopProductUrl(lang) {
-  const normalized = normalizeLang(lang) || DEFAULT_LANG;
-  return WHOP_PRODUCT_URLS[normalized] || WHOP_PRODUCT_URLS['en'];
-}
 
 function getUserLang(user) {
   return normalizeLang(user?.lang) || DEFAULT_LANG;
@@ -103,7 +88,7 @@ function generateVSL2InlineKeyboard(lang = DEFAULT_LANG) {
       [
         {
           text: texts.purchase,
-          url: `${whopProductUrl}?promo=${PROMO_CODE}`
+          url: `${whopProductUrl}?promo=${getPromoCode()}`
         }
       ]
     ]
@@ -150,7 +135,7 @@ async function sendVSL2ToFreeUsers() {
         const userLang = getUserLang(user);
         const userWhopUrl = getWhopProductUrl(userLang);
         const userSource = user.source || 'telegram';
-        const message = generateVSL2Message(userLang, user.userName || 'there', VSL2_YOUTUBE_LINK, userWhopUrl, PROMO_CODE, userSource);
+        const message = generateVSL2Message(userLang, user.userName || 'there', VSL2_YOUTUBE_LINK, userWhopUrl, getPromoCode(), userSource);
         
         // Gemini CMO提案: インラインボタンを追加
         const inlineKeyboard = generateVSL2InlineKeyboard(userLang);

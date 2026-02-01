@@ -54,21 +54,13 @@ node scripts/update-influencer-stock.js
 
 ---
 
-### 2. 長期的な対応（自動更新の設定）
+### 2. 長期的な対応（手動補充の運用）
 
-#### vercel.jsonにCron設定を追加
-```json
-{
-  "crons": [
-    ...
-    { "path": "/api/x-update-influencer-stock", "schedule": "0 0 * * *" }  // 毎日0時（UTC）に更新
-  ]
-}
-```
+**⚠️ ポリシー: インフルエンサーリストの自動取得は絶対にしない。**
 
-**推奨スケジュール**:
-- **毎日0時（UTC）**: `0 0 * * *` - ストックを1日1回更新
-- **または、6時間ごと**: `0 */6 * * *` - より頻繁に更新（コスト増加）
+- `vercel.json` の `crons` に **`/api/x-update-influencer-stock` を追加しないこと。**
+- ストックの補充・リフレッシュは、必要に応じて手動で行う（`/api/x-update-influencer-stock` または `scripts/discover-and-stock-influencers-840.js`）。
+- 詳細: `docs/INFLUENCER_STOCK_AND_CRON_POLICY_2026-01-31.md`
 
 ---
 

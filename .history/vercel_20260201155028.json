@@ -1,0 +1,72 @@
+{
+  "buildCommand": "npm run build",
+  "functions": {
+    "api/cron.js": {
+      "maxDuration": 300,
+      "includeFiles": "{api/services/**,config/**,services/telegram/messages/**}"
+    },
+    "api/x-update-influencer-stock.js": {
+      "maxDuration": 60,
+      "includeFiles": "config/**"
+    },
+    "api/x-engagement-metrics.js": {
+      "maxDuration": 60,
+      "includeFiles": "{config/**,services/x/**}"
+    },
+    "api/x-webhook.js": {
+      "maxDuration": 30
+    },
+    "api/whop-webhook.js": {
+      "maxDuration": 30
+    },
+    "api/x-quote-repost-en.js": {
+      "maxDuration": 60,
+      "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
+    },
+    "api/x-quote-repost-es.js": {
+      "maxDuration": 60,
+      "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
+    },
+    "api/x-quote-repost-pt-br.js": {
+      "maxDuration": 60,
+      "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
+    },
+    "api/x-quote-repost-ar.js": {
+      "maxDuration": 60,
+      "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
+    },
+    "api/x-quote-repost-ja.js": {
+      "maxDuration": 60,
+      "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
+    },
+    "api/x-quote-repost-ko.js": {
+      "maxDuration": 60,
+      "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
+    },
+    "api/x-post-regular-direct.js": {
+      "maxDuration": 60,
+      "includeFiles": "{config/**,services/**,utils/**}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/x-webhook",
+      "destination": "/api/x-webhook"
+    }
+  ],
+  "crons": [
+    { "path": "/api/cron", "schedule": "*/15 * * * *" },
+    { "path": "/api/vsl1-post", "schedule": "0 1,13,21 * * *" },
+    { "path": "/api/x-post-regular-direct", "schedule": "0 2,8,14,20 * * *" },
+    { "path": "/api/x-quote-repost-en", "schedule": "0 * * * *" },
+    { "path": "/api/x-quote-repost-es", "schedule": "5 * * * *" },
+    { "path": "/api/x-quote-repost-pt-br", "schedule": "10 * * * *" },
+    { "path": "/api/x-quote-repost-ar", "schedule": "15 * * * *" },
+    { "path": "/api/x-quote-repost-ja", "schedule": "20 * * * *" },
+    { "path": "/api/x-quote-repost-ko", "schedule": "25 * * * *" },
+    { "path": "/api/vsl2-free-users", "schedule": "0 * * * *" },
+    { "path": "/api/vsl1-reminder", "schedule": "0 */12 * * *" },
+    { "path": "/api/vsl2-last-call", "schedule": "0 * * * *" },
+    { "path": "/api/promo-stock-monitor", "schedule": "*/15 * * * *" }
+  ]
+}

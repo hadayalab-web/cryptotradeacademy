@@ -193,6 +193,28 @@ async function handlePurchaseEvent(event) {
       xPostInfo: conversionData.xPostInfo,
     });
     
+    // KPI追跡: コンバージョンを記録
+    try {
+      const { recordConversion } = require('./analytics-dashboard');
+      const dateString = new Date().toISOString().split('T')[0];
+      
+      // プランIDから無料版/有料版を判定
+      const planId = conversionData.planId || '';
+      const isMinimal = planId.includes('minimal') || planId.includes('free') || conversionData.amount === 0;
+      const conversionType = isMinimal ? 'minimal' : 'regular';
+      
+      await recordConversion(conversionType, dateString, {
+        source: utmSource || 'unknown',
+        planId: conversionData.planId,
+        amount: conversionData.amount,
+        xPostInfo: conversionData.xPostInfo,
+      });
+      
+      console.log(`[Whop Webhook] ✅ KPI conversion recorded: ${conversionType} on ${dateString}`);
+    } catch (kpiError) {
+      console.warn(`[Whop Webhook] ⚠️ Failed to record KPI conversion:`, kpiError.message);
+    }
+    
     // KVストレージに保存（コンバージョン追跡）
     if (kv) {
       try {

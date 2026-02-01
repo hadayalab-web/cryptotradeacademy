@@ -77,9 +77,6 @@ function formatRegularBriefing({
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
   // GrokとGeminiの統合最適化結果
   integratedOptimization, // Grok Xアルゴリズム解析 × Gemini深層心理解析の統合結果
-  // SoSoValue風記事 + Grok推論（有料版メインコンテンツ）
-  sosovalueArticle = null, // Gemini生成のSoSoValue風オンチェーン記事（優先表示）
-  grokReasoning = null, // Grok 4.1の推論チェーン（なぜSTANDBY/AVOIDか）
   // Phase 2: 市場別深掘りデータ
   whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
@@ -258,9 +255,9 @@ function formatRegularBriefing({
   
   // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
   
-  // メイン記事: SoSoValue風（Gemini）を優先、なければGPTリポーター分析
+  // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
   // エラーメッセージやnullの場合は、フォールバック処理
-  let gptNewsText = sosovalueArticle || gptReporterAnalysis || aiAnalysis || null;
+  let gptNewsText = gptReporterAnalysis || aiAnalysis || null;
   
   // エラーメッセージを検出（API error, unavailable, error等のキーワード）
   if (gptNewsText && typeof gptNewsText === 'string') {
@@ -485,20 +482,6 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
   if (hasGeminiContent) {
     lines.push('📊 NanoBanana 인포그래픽');
     lines.push('🎬 첨부된 미디어를 확인하세요!');
-    lines.push('');
-  }
-  
-  // 【Grok推論】Grok 4.1 Fast Reasoningの推論チェーン
-  if (grokReasoning && typeof grokReasoning === 'string' && grokReasoning.trim()) {
-    const grokReasoningLimit = 800;
-    let grokReasoningDisplay = grokReasoning.trim();
-    if (grokReasoningDisplay.length > grokReasoningLimit) {
-      grokReasoningDisplay = grokReasoningDisplay.slice(0, grokReasoningLimit) + '…';
-    }
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('🧠 Grok의 추론 (왜 이 판정인가)');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push(grokReasoningDisplay);
     lines.push('');
   }
   
@@ -756,9 +739,9 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
   lines.push('✅ NO TRADE 알림（손실이 발생하기 전에 피하기）');
   lines.push('');
   lines.push('📊 심층 인텔리전스 분석:');
-  lines.push('✅ SoSoValue 스타일 온체인 기사（데이터 + 역사적 유사 구간, 빈 신호 없음）');
-  lines.push('✅ Grok 추론 체인（왜 STANDBY/AVOID—X 알고리즘 + 온체인 괴리）');
-  lines.push('✅ CryptoQuant 전체 데이터, 트랩 감지, X 센티먼트');
+  lines.push('✅ 완전한 온체인 분석（CryptoQuant 데이터, 모든 지표）');
+  lines.push('✅ AI 기반 트랩 패턴 감지（24시간 모니터링）');
+  lines.push('✅ 실시간 X 센티먼트 분석（시장 감정 예측）');
   lines.push('');
   lines.push('💊 완전한 심리적 지원:');
   lines.push('✅ Dr. Grok의 멘탈 코칭（FOMO, 두려움, 탐욕 극복）');

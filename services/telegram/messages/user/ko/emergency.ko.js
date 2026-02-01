@@ -1,4 +1,4 @@
-// Tier1 BTC trap alert (KO) - 緊急配信: 面白く・刺さるコンテンツ（Grok + Gemini 1ライナー）
+// Tier1 BTC trap alert (KR)
 // services/telegram/messages/user/ko/emergency.ko.js
 
 function formatUsd(v) {
@@ -6,22 +6,13 @@ function formatUsd(v) {
   return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
-function formatTrapAlert({
-  inflow,
-  mpi,
-  priceUsd,
-  trap,
-  aiAnalysis,
-  grokReasoningShort = null,
-  geminiInsightShort = null,
-  trapDetection = null,
-} = {}) {
-  const flowDir = inflow >= 0 ? '유입' : '유출';
+function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
+  const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
 
-  const trapLabel = trap?.label || trapDetection?.trapType || '고래 함정';
-  const trapScoreDisplay =
-    trapDetection?.trapScore != null ? `Trap Score *${Math.round(trapDetection.trapScore)}/100*` : '';
+  const trapLabel = trap?.label || 'Whale Trap';
+  // BUY/SELL/LONG/SHORT 완전 삭제 - 트랩 감지만 표시
+  const trapSide = '⚠️ 시장에서 트랩이 감지되었습니다.';
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -29,33 +20,22 @@ function formatTrapAlert({
 
   const GROK_LIMIT = 260;
   if (!grokText) {
-    grokText = '고위험 구간입니다. 방어를 우선하고 감정적 진입은 피하세요.';
+    grokText = '고위험 구간입니다. 레버리지를 줄이고 방어를 우선하세요.';
   } else if (isOffline) {
-    grokText = 'Grok이 오프라인입니다. 이 구간을 고위험 함정 존으로 간주하세요.';
+    grokText = '현재 Grok이 오프라인 상태입니다. 이 가격 구간을 고위험 트랩 존으로 간주하세요.';
   } else if (grokText.length > GROK_LIMIT) {
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
   const lines = [];
-  lines.push('🚨 *함정 알림 — 지금이 그 순간입니다.*');
-  lines.push(`*${trapLabel}* ${trapScoreDisplay ? `| ${trapScoreDisplay}` : ''} (${trap?.confidence || 'HIGH'} 신뢰도)`);
+  lines.push('🚨 *Dr. Grok 트랩 알림*');
+  lines.push(`*${trapLabel}* (${trap?.confidence || 'UNKNOWN'} 신뢰도)`);
   lines.push('');
-  lines.push(`💰 BTC: *${formatUsd(priceUsd)}* | 📊 Netflow *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI *${(mpi ?? 0).toFixed(2)}*`);
+  lines.push(`💰 BTC 가격: *${formatUsd(priceUsd)}*`);
+  lines.push(`📊 거래소 순유입: *${flowDir}* ${flowAbs.toFixed(0)} BTC | MPI: *${(mpi ?? 0).toFixed(2)}*`);
   lines.push('');
+  lines.push(trapSide);
 
-  if (grokReasoningShort && typeof grokReasoningShort === 'string' && grokReasoningShort.trim()) {
-    lines.push('⚡ *왜 지금 위험한가:*');
-    lines.push(grokReasoningShort.trim());
-    lines.push('');
-  }
-
-  if (geminiInsightShort && typeof geminiInsightShort === 'string' && geminiInsightShort.trim()) {
-    lines.push('🎯 *지금 할 일:*');
-    lines.push(geminiInsightShort.trim());
-    lines.push('');
-  }
-
-  lines.push('⚠️ *함정 감지* — 추격하지 마세요. 스코어가 안정될 때까지 사이드라인 대기.');
   if (trap?.note) lines.push(`• ${trap.note}`);
   if (trap?.hint) lines.push(`• ${trap.hint}`);
 
