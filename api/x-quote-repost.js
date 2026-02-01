@@ -1,21 +1,20 @@
 // api/x-quote-repost.js
 // 引用リポスト自動化（Grokがインフルエンサー発掘 + 引用リポスト）
-// 約48-96投稿/日（6言語×4回/日×2-4投稿/回、TG直誘導廃止後の最適化）
+// 24投稿/日（6言語 × 2人 × 2投稿）
 
-const { postQuoteTweet, replyToTweet } = require('../services/x/client');
+const { postQuoteTweet } = require('../services/x/client');
 const { getXConfigStatus } = require('../services/x/config');
 const { generateQuoteRepostText } = require('../services/grok/client');
-const { getOneRandomHeadlineTrap } = require('../config/headlineTraps');
 const {
   isPeakTimeWindow,
   shouldPostQuoteRepost,
+  checkDailyPostLimit,
   getOptimizedHashtags,
-  getThreadStrategy,
   // getDailyPostCount と incrementDailyPostCount は services/x/influencerRotation から統一実装を使用
 } = require('../services/x/optimization');
 const { QUOTE_REPOST_TEMPLATES } = require('./x-post-free-report');
 const { getTweetMetrics } = require('../services/x/metrics');
-const { getWhopProductUrl, getMinimalVersionCheckoutUrl } = require('../services/telegram/whop-links');
+const { getWhopProductUrl, getMinimalVersionCheckoutUrl, getPromoCode } = require('../services/telegram/whop-links');
 const { optimizeContentAndFunnel } = require('../services/x/contentOptimizer');
 
 const {
@@ -23,6 +22,11 @@ const {
   getImpressionTargetForLang,
   selectInfluencersForImpressionTarget,
 } = require('../config/influencerStrategy');
+
+// Minimal/Regular 導線ローテーション（Grok×Gemini 分析統合）
+const { getNextQuoteFunnelType, recordQuoteFunnelType, TYPES: FUNNEL_TYPES } = require('../services/x/quoteFunnelRotation');
+const { getMinimalOptinQuoteTemplate, MINIMAL_OPTIN_VARIANTS } = require('../config/quoteRepostTemplatesMinimalOptin');
+const { getRegularOptinQuoteTemplate, REGULAR_OPTIN_VARIANTS } = require('../config/quoteRepostTemplatesRegularOptin');
 
 // 8時間クールダウン関連のインポート（インフルエンサー別の日次投稿数管理）
 const { 
@@ -149,71 +153,155 @@ function getTelegramDeepLinkWithSource(lang, source = 'x_quote', options = {}) {
   return deepLink;
 }
 
-// 言語別引用リポストテンプレート（魔改造: 歴史的ヘッドライン風・掴む/恐怖、140文字以内）
+// 言語別引用リポストテンプレート（Xアルゴリズム最適化版: 140文字以内）
+// x-post-free-report.jsからインポート、またはフォールバック用に定義
 const FALLBACK_QUOTE_REPOST_TEMPLATES = {
   en: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
+    const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
+    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
+    const netflowStr = exchangeNetflow ? `Inflow +${Math.abs(exchangeNetflow).toFixed(0)} BTC` : '';
     const whaleStr = whaleRatio ? `${whaleRatio}% whales = $${Math.floor((whaleRatio / 100) * 89000 * 1000)}M+ ready` : '';
-    const whopLink = `🔥 ${getWhopProductUrl('en')}?promo=DEFEND50`;
-    const headline = (getOneRandomHeadlineTrap && getOneRandomHeadlineTrap('en')) || 'They laughed. Then they cried.';
-    const hook = headline.length > 38 ? headline.slice(0, 35) + '…' : headline;
-
+    
+    // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
-      const question = 'What\'s your move? Reply!';
-      const out = `${hook} Trap 0/100 BUT ${whaleStr}. ${whopLink} ${question} #BTC #TrapDefence`;
-      return out.length > 140 ? out.slice(0, 137) + '…' : out;
+      // P1 FIX: 外部リンクを1つに制限（Whop優先、freeLinkは削除）
+      const question = '🚨 CONTRADICTION: Low risk BUT whales positioning. What\'s your move? Reply!';
+      const whopLink = `🔥 PRO 50% OFF (${getPromoCode().toUpperCase()}): ${getWhopProductUrl('en')}?promo=${getPromoCode()}`;
+      return `Agree! Trap Score 0/100 BUT ${whaleStr} to sell. ${whopLink} ${question} #BTC #TrapDefence`;
     }
-
-    const question = trapScore <= 25 ? 'Your biggest fear? Reply!' : 'Protecting or chasing? Reply!';
-    const out = `${hook} Trap ${trapScore}/100. ${whopLink} ${question} #BTC #TrapDefence`;
-    return out.length > 140 ? out.slice(0, 137) + '…' : out;
+    
+    // Grok + Gemini統合: 質問CTA必須（アルゴリズム評価UP）
+    // オープンエンド質問でリプライ誘導、投稿の20-30%を占めず自然配置
+    const question = trapScore <= 25 
+      ? '🚀 What\'s your biggest fear in this market? Reply!' 
+      : '💥 Protecting capital or chasing? Reply!';
+    
+    // P1 FIX: 外部リンクを1つに制限（Whop優先、freeLinkは削除）
+    const whopLink = `🔥 PRO 50% OFF (${getPromoCode().toUpperCase()}): ${getWhopProductUrl('en')}?promo=${getPromoCode()}`;
+    
+    // ハッシュタグ: トレンド1個+ニッチ2個（3個超はスパム判定リスク）
+    // 絵文字: 3-5個（冒頭/区切り/末尾に視覚強調）
+    return `Agree! TrapDefence detected this 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
   },
   ja: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const whaleStr = whaleRatio ? `${whaleRatio}%クジラ準備` : '';
-    const whopLink = `🔥 ${getWhopProductUrl('ja')}?promo=DEFEND50`;
-    const headline = (getOneRandomHeadlineTrap && getOneRandomHeadlineTrap('ja')) || '彼らは笑った。それから泣いた。';
-    const hook = headline.length > 30 ? headline.slice(0, 27) + '…' : headline;
-
+    const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
+    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
+    const whaleStr = whaleRatio ? `${whaleRatio}%クジラ = $${Math.floor((whaleRatio / 100) * 89000 * 1000)}M+ 準備完了` : '';
+    
+    // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
     if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
-      const question = 'どうする？リプライ！';
-      const out = `${hook} Trap 0/100 なのに${whaleStr}。${whopLink} ${question} #BTC #TrapDefence`;
-      return out.length > 140 ? out.slice(0, 137) + '…' : out;
+      // P1 FIX: 外部リンクを1つに制限（Whop優先）
+      const question = '🚨 矛盾: 低リスクなのにクジラがポジショニング中。どうする？リプライ！';
+      const whopLink = `🔥 PRO 50%OFF (${getPromoCode().toUpperCase()}): ${getWhopProductUrl('ja')}?promo=${getPromoCode()}`;
+      return `同意！Trap Score 0/100 なのに ${whaleStr} 売却準備中。${whopLink} ${question} #BTC #TrapDefence`;
     }
-
-    const question = trapScore <= 25 ? '最大の恐怖は？リプライ！' : '保護？追いかけ？リプライ！';
-    const out = `${hook} Trap ${trapScore}/100。${whopLink} ${question} #BTC #TrapDefence`;
-    return out.length > 140 ? out.slice(0, 137) + '…' : out;
+    
+    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
+    const question = trapScore <= 25 
+      ? '🚀 この市場で最も大きな恐怖は何ですか？リプライ！' 
+      : '💥 資本保護？それとも追いかけ中？リプライ！';
+    
+    // P1 FIX: 外部リンクを1つに制限（Whop優先）
+    const whopLink = `🔥 PRO 50%OFF (${getPromoCode().toUpperCase()}): ${getWhopProductUrl('ja')}?promo=${getPromoCode()}`;
+    
+    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
+    return `同意！TrapDefenceで検知済み 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
   },
   es: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const whopLink = `🔥 ${getWhopProductUrl('es')}?promo=DEFEND50`;
-    const headline = (getOneRandomHeadlineTrap && getOneRandomHeadlineTrap('es')) || 'They laughed. Then they cried.';
-    const hook = headline.length > 38 ? headline.slice(0, 35) + '…' : headline;
-    const question = trapScore <= 25 ? '¿Tu mayor miedo? ¡Responde!' : '¿Protegiendo o persiguiendo? ¡Responde!';
-    const out = `${hook} Trap ${trapScore}/100. ${whopLink} ${question} #BTC #TrapDefence`;
-    return out.length > 140 ? out.slice(0, 137) + '…' : out;
+    const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
+    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
+    const whaleStr = whaleRatio ? `${whaleRatio}% ballenas = $${Math.floor((whaleRatio / 100) * 89000 * 1000)}M+ listas` : '';
+    
+    // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
+    if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
+      // P1 FIX: 外部リンクを1つに制限（Whop優先）
+      const question = '🚨 CONTRADICCIÓN: Bajo riesgo PERO ballenas posicionándose. ¿Cuál es tu movimiento? ¡Responde!';
+      const whopLink = `🔥 PRO 50% OFF (${getPromoCode().toUpperCase()}): ${getWhopProductUrl('es')}?promo=${getPromoCode()}`;
+      return `¡De acuerdo! Trap Score 0/100 PERO ${whaleStr} para vender. ${whopLink} ${question} #BTC #TrapDefence`;
+    }
+    
+    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
+    const question = trapScore <= 25 
+      ? '🚀 ¿Cuál es tu mayor miedo en este mercado? ¡Responde!' 
+      : '💥 ¿Protegiendo capital o persiguiendo? ¡Responde!';
+    
+    // P1 FIX: 外部リンクを1つに制限（Whop優先）
+    const whopLink = `🔥 PRO 50% OFF (${getPromoCode().toUpperCase()}): ${getWhopProductUrl('es')}?promo=${getPromoCode()}`;
+    
+    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
+    return `¡De acuerdo! TrapDefence detectó esto 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
   },
   'pt-br': (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const whopLink = `🔥 ${getWhopProductUrl('pt-br')}?promo=DEFEND50`;
-    const headline = (getOneRandomHeadlineTrap && getOneRandomHeadlineTrap('pt-br')) || 'They laughed. Then they cried.';
-    const hook = headline.length > 38 ? headline.slice(0, 35) + '…' : headline;
-    const question = trapScore <= 25 ? 'Seu maior medo? Responda!' : 'Protegendo ou perseguindo? Responda!';
-    const out = `${hook} Trap ${trapScore}/100. ${whopLink} ${question} #BTC #TrapDefence`;
-    return out.length > 140 ? out.slice(0, 137) + '…' : out;
+    const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
+    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
+    const whaleStr = whaleRatio ? `${whaleRatio}% baleias = $${Math.floor((whaleRatio / 100) * 89000 * 1000)}M+ prontas` : '';
+    
+    // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
+    if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
+      // P1 FIX: 外部リンクを1つに制限（Whop優先）
+      const question = '🚨 CONTRADIÇÃO: Baixo risco MAS baleias se posicionando. Qual é sua jogada? Responda!';
+      const whopLink = `🔥 PRO 50% OFF (${getPromoCode().toUpperCase()}): ${getWhopProductUrl('pt-br')}?promo=${getPromoCode()}`;
+      return `Concordo! Trap Score 0/100 MAS ${whaleStr} para vender. ${whopLink} ${question} #BTC #TrapDefence`;
+    }
+    
+    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
+    const question = trapScore <= 25 
+      ? '🚀 Qual é o seu maior medo neste mercado? Responda!' 
+      : '💥 Protegendo capital ou perseguindo? Responda!';
+    
+    // P1 FIX: 外部リンクを1つに制限（Whop優先）
+    const whopLink = `🔥 PRO 50% OFF (${getPromoCode().toUpperCase()}): ${getWhopProductUrl('pt-br')}?promo=${getPromoCode()}`;
+    
+    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
+    return `Concordo! TrapDefence detectou isso 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
   },
   ar: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const whopLink = `🔥 ${getWhopProductUrl('ar')}?promo=DEFEND50`;
-    const headline = (getOneRandomHeadlineTrap && getOneRandomHeadlineTrap('ar')) || 'They laughed. Then they cried.';
-    const hook = headline.length > 38 ? headline.slice(0, 35) + '…' : headline;
-    const question = trapScore <= 25 ? 'أكبر خوفك؟ أجب!' : 'تحمي أم تطارد؟ أجب!';
-    const out = `${hook} Trap ${trapScore}/100. ${whopLink} ${question} #BTC #TrapDefence`;
-    return out.length > 140 ? out.slice(0, 137) + '…' : out;
+    const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
+    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
+    const whaleStr = whaleRatio ? `${whaleRatio}% حيتان = $${Math.floor((whaleRatio / 100) * 89000 * 1000)}M+ جاهزة` : '';
+    
+    // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
+    if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
+      const question = '🚨 تناقض: مخاطر منخفضة لكن الحيتان تتجهز. ما خطوتك؟ أجب!';
+      const whopLink = `🔥 PRO 50% خصم (${getPromoCode().toUpperCase()}): ${getWhopProductUrl('ar')}?promo=${getPromoCode()}`;
+      const freeLink = `(مجاني: ${deepLink})`;
+      return `موافق! Trap Score 0/100 لكن ${whaleStr} للبيع. ${whopLink} ${freeLink} ${question} #BTC #TrapDefence`;
+    }
+    
+    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
+    const question = trapScore <= 25 
+      ? '🚀 ما هو أكبر خوفك في هذا السوق؟ أجب!' 
+      : '💥 هل تحمي رأس المال أم تطارد؟ أجب!';
+    
+    // P1 FIX: 外部リンクを1つに制限（Whop優先）
+    const whopLink = `🔥 PRO 50% خصم (${getPromoCode().toUpperCase()}): ${getWhopProductUrl('ar')}?promo=${getPromoCode()}`;
+    
+    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
+    return `موافق! TrapDefence اكتشف هذا 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
   },
   ko: (trapScore, priceUsd, change24h, deepLink, exchangeNetflow = null, whaleRatio = null) => {
-    const whopLink = `🔥 ${getWhopProductUrl('ko')}?promo=DEFEND50`;
-    const headline = (getOneRandomHeadlineTrap && getOneRandomHeadlineTrap('ko')) || '그들은 웃었다. 그다음 울었다.';
-    const hook = headline.length > 30 ? headline.slice(0, 27) + '…' : headline;
-    const question = trapScore <= 25 ? '가장 큰 두려움? 답글!' : '보호? 추격? 답글!';
-    const out = `${hook} Trap ${trapScore}/100. ${whopLink} ${question} #BTC #TrapDefence`;
-    return out.length > 140 ? out.slice(0, 137) + '…' : out;
+    const priceStr = priceUsd ? `$${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '$N/A';
+    const changeStr = change24h != null ? `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%` : '';
+    const whaleStr = whaleRatio ? `${whaleRatio}% 고래 = $${Math.floor((whaleRatio / 100) * 89000 * 1000)}M+ 준비됨` : '';
+    
+    // 現在の市況を考慮: 低リスクなのに売り圧力がある矛盾を強調
+    if (trapScore <= 25 && exchangeNetflow && exchangeNetflow > 0 && whaleRatio && whaleRatio > 50) {
+      // P1 FIX: 外部リンクを1つに制限（Whop優先）
+      const question = '🚨 모순: 낮은 리스크인데 고래가 포지셔닝 중. 어떻게 하시겠습니까? 답글!';
+      const whopLink = `🔥 PRO 50% 할인 (${getPromoCode().toUpperCase()}): ${getWhopProductUrl('ko')}?promo=${getPromoCode()}`;
+      return `동의! Trap Score 0/100 인데 ${whaleStr} 매도 준비 중. ${whopLink} ${question} #BTC #TrapDefence`;
+    }
+    
+    // Grok + Gemini統合: 質問CTA必須（オープンエンド質問でリプライ誘導）
+    const question = trapScore <= 25 
+      ? '🚀 이 시장에서 가장 큰 두려움은 무엇인가요? 답글!' 
+      : '💥 자본 보호 중인가요? 추격 중인가요? 답글!';
+    
+    // P1 FIX: 外部リンクを1つに制限（Whop優先）
+    const whopLink = `🔥 PRO 50% 할인 (${getPromoCode().toUpperCase()}): ${getWhopProductUrl('ko')}?promo=${getPromoCode()}`;
+    
+    // ハッシュタグ: トレンド1個+ニッチ2個、絵文字: 3-5個
+    return `동의! TrapDefence가 이것을 감지했습니다 🚀 ${whopLink} ${question} #BTC #TrapDefence`;
   },
 };
 
@@ -363,15 +451,6 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
       utm_content: `influencer_${influencerTweet.username}`,
     });
     
-    // P0 FIX: Whop Minimal Versionチェックアウトリンクを取得（ユーザー管理のため）
-    const minimalCheckoutUrl = getMinimalVersionCheckoutUrl(lang, {
-      source: 'x',
-      medium: 'quote_repost',
-      campaign: 'minimal_version',
-      content: `influencer_${influencerTweet.username}`,
-      influencerUsername: influencerTweet.username,
-    });
-    
     // P0 FIX: GPT-5-mini推奨 - 本番環境でのパフォーマンス最適化
     // getMinimalVersionPostUrlとgetMinimalVersionContentはオプションとして扱い、タイムアウトを避ける
     const dateString = new Date().toISOString().split('T')[0];
@@ -447,7 +526,7 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
       // Grok-Code-Fast-1推奨: タイムアウトリスクが高い場合は最適化処理をスキップ（60秒→30秒に短縮）
       const remainingTime = deadlineMs ? deadlineMs - Date.now() : Infinity;
       const OPTIMIZATION_TIMEOUT_MS = 15000; // 15秒
-      const MIN_REMAINING_TIME_FOR_OPTIMIZATION = 15000; // 監査対応: 15秒以上残っていれば実行（最適化スキップ緩和）
+      const MIN_REMAINING_TIME_FOR_OPTIMIZATION = 30000; // P0 FIX: 30秒以上残っていれば実行（Grok推奨）
       
       // デフォルトでnull（最適化なし）- フォールバック処理で続行
       optimizationStrategy = null;
@@ -500,7 +579,7 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
       regularBriefingWhopUrl, // Funnel 2用: 有料版（Regular Briefing）Whop URL
       minimalCheckoutUrl // 無料版（Minimal Version）チェックアウトリンク（オプション）
     );
-    return { quoteText, optimizationStrategy };
+    return quoteText;
   } catch (error) {
     console.error(`[Quote Repost] Failed to generate text with Grok for ${lang}:`, error.message);
     // フォールバック: テンプレートを使用（FALLBACK_QUOTE_REPOST_TEMPLATESを使用）
@@ -509,22 +588,13 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
     const minimalVersionPostUrl = await getMinimalVersionPostUrl(lang, dateString).catch(() => null);
     
     const template = QUOTE_REPOST_TEMPLATES?.[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES[lang] || FALLBACK_QUOTE_REPOST_TEMPLATES.en;
-    // P0 FIX: Whop Minimal Versionチェックアウトリンクを取得（ユーザー管理のため）
-    const minimalCheckoutUrl = getMinimalVersionCheckoutUrl(lang, {
-      source: 'x',
-      medium: 'quote_repost',
-      campaign: 'minimal_version',
-      content: `influencer_${influencerTweet.username}`,
-      influencerUsername: influencerTweet.username,
-    });
-    const optInLink = minimalCheckoutUrl || getTelegramDeepLinkWithSource(lang, 'x_quote', {
-      influencerUsername: influencerTweet.username,
-    }); // Whop checkout linkを優先
     const baseText = template(
       reportData?.trapScore || 25,
       reportData?.priceUsd || null,
       reportData?.change24h || null,
-      optInLink, // Whop checkout linkまたはTelegram Deep Link
+      getTelegramDeepLinkWithSource(lang, 'x_quote', {
+        influencerUsername: influencerTweet.username,
+      }),
       reportData?.exchangeNetflow || null,
       reportData?.whaleRatio || null
     );
@@ -540,86 +610,11 @@ async function generateQuoteRepostTextWithGrok(lang, influencerTweet, reportData
         ko: ` 전체 분석 보기: ${minimalVersionPostUrl}`,
       };
       const minimalLinkText = minimalLinkTexts[lang] || minimalLinkTexts.en;
-      return { quoteText: baseText + minimalLinkText, optimizationStrategy: null };
+      return baseText + minimalLinkText;
     }
     
-    return { quoteText: baseText, optimizationStrategy: null };
+    return baseText;
   }
-}
-
-/**
- * 監査対応: 質問CTAのコード保証。投稿前に ? が末尾50文字以内にない場合はデフォルトCTAを付与
- * @param {string} quoteText - 引用リポスト本文
- * @param {string} lang - 言語コード
- * @returns {string} 質問CTAを保証した本文（140文字で切り詰める場合あり）
- */
-function ensureQuestionCTA(quoteText, lang) {
-  if (!quoteText || typeof quoteText !== 'string') return quoteText;
-  const last50 = quoteText.slice(-50);
-  if (last50.includes('?')) return quoteText;
-  const defaultCTA = {
-    en: ' What\'s your take? Reply!',
-    ja: ' どう思う？リプライ！',
-    es: ' ¿Qué opinas? ¡Responde!',
-    'pt-br': ' O que acha? Responda!',
-    ar: ' ما رأيك؟ رد!',
-    ko: ' 어떻게 생각해? 답글 달아줘!',
-  };
-  const cta = defaultCTA[normalizeLang(lang)] || defaultCTA.en;
-  let out = (quoteText.trim() + cta).trim();
-  if (out.length > 140) {
-    const linkMatch = out.match(/(https?:\/\/[^\s]+)/);
-    const linkPart = linkMatch ? linkMatch[1] : '';
-    const reserved = linkPart.length + cta.length + 5;
-    if (140 - reserved > 20) {
-      out = out.substring(0, 140 - reserved).trim() + ' ' + linkPart + cta;
-    } else {
-      out = (linkPart + cta).trim();
-    }
-    if (out.length > 140) out = out.substring(0, 137) + '...';
-  }
-  return out;
-}
-
-// 引用リポスト画像付与は廃止（NanoBanana/Veo 不安定のため）。無料版・有料版のテキスト引用のみ。
-
-/** 監査対応: スレッドリプライ用テキスト（1メイン + replyCount リプライ） */
-function getQuoteRepostThreadReplyTexts(lang, replyCount, minimalLink) {
-  const link = minimalLink || '';
-  const templates = {
-    en: [
-      `Get full report 👇 ${link}`.trim(),
-      'Part 2/4: Key levels & flow. #BTC #TrapDefence',
-      "What's your take? Reply with your level!",
-    ],
-    ja: [
-      `詳細レポートはこちら 👇 ${link}`.trim(),
-      'Part 2/4: 重要レベルとフロー。 #BTC #TrapDefence',
-      'あなたの見解は？レベルをリプライで！',
-    ],
-    es: [
-      `Reporte completo 👇 ${link}`.trim(),
-      'Parte 2/4: Niveles y flujo. #BTC #TrapDefence',
-      '¿Tu opinión? ¡Responde con tu nivel!',
-    ],
-    'pt-br': [
-      `Relatório completo 👇 ${link}`.trim(),
-      'Parte 2/4: Níveis e fluxo. #BTC #TrapDefence',
-      'Sua opinião? Responda com seu nível!',
-    ],
-    ar: [
-      `التقرير الكامل 👇 ${link}`.trim(),
-      'الجزء 2/4: المستويات والتدفق. #BTC #TrapDefence',
-      'رأيك؟ رد بمستواك!',
-    ],
-    ko: [
-      `전체 보고서 👇 ${link}`.trim(),
-      'Part 2/4: 주요 구간과 유입. #BTC #TrapDefence',
-      '의견 남겨줘! 레벨 알려줘!',
-    ],
-  };
-  const arr = templates[normalizeLang(lang)] || templates.en;
-  return arr.slice(0, Math.max(0, replyCount)).map((t, i) => (t.length > 280 ? t.substring(0, 277) + '...' : t));
 }
 
 /**
@@ -631,7 +626,7 @@ function getQuoteRepostThreadReplyTexts(lang, replyCount, minimalLink) {
 
 /**
  * インフルエンサーを発掘して引用リポスト（最適化版）
- * 最適化: 1日4回/言語・品質優先（約48-96引用リポスト/日）
+ * Grok推奨: 12投稿/日、ピーク時間のみ、投稿後15-60分以内
  */
 async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount = null, runId = null, deadlineMs = null) {
   // P0: 言語単位で例外を握りつぶさず、どのステップで落ちたかをログに残す
@@ -652,32 +647,31 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     }
     
     // 🚀 数撃て作戦: 引用リポストのピーク時間を拡大（UTC 0-23の全時間帯で可能に）
+    // 元のピーク時間: UTC 0,1,20,21
+    // 拡大: UTC 0-23の全時間帯で投稿可能（ただし、優先度は元のピーク時間が高い）
     currentStep = 'peak_time_check';
     const originalPeakHours = [0, 1, 20, 21]; // 元の優先ピーク時間
     const isOriginalPeakTime = originalPeakHours.includes(currentHour);
     
-    // 🚀 数撃て作戦: 時価配分を考慮してインフルエンサー数を取得（15分窓チェックで使用するため先に取得）
-    currentStep = 'get_influencer_count';
-    const targetCount = getInfluencerCountForLang(lang, currentHour);
-    const impressionTarget = getImpressionTargetForLang(lang);
-    
-    // 100/15min 厳守: 直近15分の投稿数が100以上、または今回バッチで100超になるならスキップ
-    currentStep = 'rate_limit_15min_check';
-    const { getPostCountInLast15Min } = require('../services/x/postTracker');
-    const count15min = await getPostCountInLast15Min();
-    if (count15min >= 100) {
-      console.log(`[Quote Repost] ⏰ SKIPPED: 15min window at limit (${count15min}/100) [runId: ${langRunId}, lang: ${lang}]`);
-      return [];
-    }
-    if (count15min + targetCount > 100) {
-      console.log(`[Quote Repost] ⏰ SKIPPED: 15min would exceed (${count15min}+${targetCount}>100) [runId: ${langRunId}, lang: ${lang}]`);
-      return [];
-    }
-    
+    // 🚀 数撃て作戦: 全時間帯で投稿可能（ただし、日次制限内で）
+    // 🚀 チート級戦略: 日次上限を撤廃（Cronスケジュールで制御されているため不要）
+    // 制御は以下で行う:
+    // 1. Cronスケジュール（vercel.json）: 12回/日（0,2,4,6,8,10,12,14,16,18,20,22 UTC）
+    // 2. インフルエンサー1人あたりの日次上限（X_MAX_DAILY_POSTS_PER_INFLUENCER）: デフォルト4回/日
+    // 3. 1時間あたりの投稿数制限（X_MAX_HOURLY_POSTS）: デフォルト100/時間
+    // 4. X APIレート制限（技術的制約）: Per App 10,000/24hrs
     if (!isOriginalPeakTime) {
       console.log(`ℹ️ Posting quote reposts for ${lang} outside original peak time (${currentHour} UTC, daily count: ${dailyPostCount}) for impression maximization [runId: ${langRunId}]`);
     }
+    
+    // 日次上限チェックを削除（Cronスケジュールで制御されているため不要）
+    // ログ出力のみ残す（モニタリング用）
     console.log(`[Quote Repost] Daily post count: ${dailyPostCount} (no limit, controlled by Cron schedule) [runId: ${langRunId}]`);
+    
+    // 🚀 数撃て作戦: 時価配分を考慮してインフルエンサー数を取得
+    currentStep = 'get_influencer_count';
+    const targetCount = getInfluencerCountForLang(lang, currentHour);
+    const impressionTarget = getImpressionTargetForLang(lang);
     
     console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]:`, {
       lang,
@@ -688,7 +682,6 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         max: impressionTarget.max.toLocaleString(),
       },
       isOriginalPeakTime,
-      count15min,
     });
     
     // ストックからインフルエンサーを取得（既存の70人ホットリストのみ使用）
@@ -696,12 +689,11 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
     currentStep = 'get_influencers_from_stock';
     console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]: Getting influencers from STOCK for ${lang}...`);
     
-    // KV廃止: ファイルシステム方式に移行
-    const { getInfluencersFromStock } = require('../services/x/influencerStockFromFile');
-    let influencers = getInfluencersFromStock(lang, {
-      activeOnly: true,
-      excludeShadowbanned: true,
-      // enableScoringは未実装のため削除（後で実装可能）
+    // インフルエンサー取得は1か所に統一: KV（influencerStock.js）
+    // influencerStockFromFile は廃止。ストックは /api/x-update-influencer-stock または discover-and-stock で補充
+    const { getInfluencersFromStock } = require('../services/x/influencerStock');
+    let influencers = await getInfluencersFromStock(lang, {
+      enableScoring: false, // 必要なら true でスコアリング有効
     });
     
     if (!influencers || influencers.length === 0) {
@@ -1081,10 +1073,24 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         // P0 FIX: dry-runモードの場合はGrok APIを呼ばずにテンプレートを使用（タイムアウト回避）
         const xStatusForTextGen = getXConfigStatus();
         const isDryRun = xStatusForTextGen.dryRun;
+        const useMinimalRegularTemplates = parseBoolean(process.env.QUOTE_REPOST_USE_MINIMAL_REGULAR_TEMPLATES, false);
         
         let quoteText;
-        let optimizationStrategyFromGen = null;
-        if (isDryRun) {
+        let funnelTypeUsed = null;
+        if (useMinimalRegularTemplates) {
+          // Minimal/Regular 交互ローテーション（Grok×Gemini 分析統合）
+          const { nextType } = await getNextQuoteFunnelType(lang, influencer.username);
+          funnelTypeUsed = nextType;
+          const variants = nextType === FUNNEL_TYPES.MINIMAL_OPTIN ? MINIMAL_OPTIN_VARIANTS : REGULAR_OPTIN_VARIANTS;
+          const variant = variants[Math.floor(Math.random() * variants.length)];
+          if (nextType === FUNNEL_TYPES.MINIMAL_OPTIN) {
+            quoteText = getMinimalOptinQuoteTemplate(lang, { variant, influencerUsername: influencer.username });
+          } else {
+            quoteText = getRegularOptinQuoteTemplate(lang, { variant, influencerUsername: influencer.username });
+          }
+          if (quoteText.length > 280) quoteText = quoteText.substring(0, 277) + '...';
+          console.log(`[Quote Repost] 📌 Minimal/Regular rotation: @${influencer.username} -> ${nextType} (variant ${variant}) [runId: ${langRunId}]`);
+        } else if (isDryRun) {
           // P0 FIX: dry-runモード: 超高速フォールバックテキストを使用（すべてのAPI呼び出しをスキップ）
           console.log(`[Quote Repost] 🧪 Dry-run mode: Using ultra-fast fallback text for @${influencer.username} (skipping all API calls) [runId: ${langRunId}]`);
           // 最小限のテキストを生成（API呼び出しなし、KVアクセスなし）
@@ -1092,26 +1098,17 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             influencerUsername: influencer.username,
             utm_content: `influencer_${influencer.username}`,
           });
-          // P0 FIX: Whop Minimal Versionチェックアウトリンクを取得（ユーザー管理のため）
-          const minimalCheckoutUrl = getMinimalVersionCheckoutUrl(lang, {
-            source: 'x',
-            medium: 'quote_repost',
-            campaign: 'minimal_version',
-            content: `influencer_${influencer.username}`,
-            influencerUsername: influencer.username,
-          });
-          const optInLink = minimalCheckoutUrl || deepLink; // Whop checkout linkを優先
           const trapScore = reportData?.trapScore || 25;
           const priceUsd = reportData?.priceUsd || 89000;
           
           // 言語別の超シンプルなテキスト（140文字以内）
           const dryRunTexts = {
-            en: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nGet FREE analysis:\n${optInLink}\n\n#BTC #TrapDefence`,
-            ja: `🚨 トラップスコア: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\n無料分析を取得:\n${optInLink}\n\n#BTC #TrapDefence`,
-            es: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nObtén análisis GRATIS:\n${optInLink}\n\n#BTC #TrapDefence`,
-            'pt-br': `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nObtenha análise GRÁTIS:\n${optInLink}\n\n#BTC #TrapDefence`,
-            ar: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nاحصل على تحليل مجاني:\n${optInLink}\n\n#BTC #TrapDefence`,
-            ko: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\n무료 분석 받기:\n${optInLink}\n\n#BTC #TrapDefence`,
+            en: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nGet FREE analysis:\n${deepLink}\n\n#BTC #TrapDefence`,
+            ja: `🚨 トラップスコア: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\n無料分析を取得:\n${deepLink}\n\n#BTC #TrapDefence`,
+            es: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nObtén análisis GRATIS:\n${deepLink}\n\n#BTC #TrapDefence`,
+            'pt-br': `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nObtenha análise GRÁTIS:\n${deepLink}\n\n#BTC #TrapDefence`,
+            ar: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\nاحصل على تحليل مجاني:\n${deepLink}\n\n#BTC #TrapDefence`,
+            ko: `🚨 Trap Score: ${trapScore}/100\n\nBTC: $${Math.floor(priceUsd).toLocaleString()}\n\n무료 분석 받기:\n${deepLink}\n\n#BTC #TrapDefence`,
           };
           quoteText = dryRunTexts[lang] || dryRunTexts.en;
           
@@ -1138,13 +1135,11 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           
           try {
             // P0 FIX: GPT-5-mini推奨 - generateQuoteRepostTextWithGrokに10秒のタイムアウトを設定
-            const grokResult = await withTimeout(
+            quoteText = await withTimeout(
               generateQuoteRepostTextWithGrok(lang, influencer, reportData, deadlineMs, langRunId),
               10000, // 10秒タイムアウト（GPT-5-mini推奨: テキスト生成は最大10s待つ）
               () => console.warn(`[Quote Repost] ⏰ generateQuoteRepostTextWithGrok timeout after 10s for @${influencer.username} [runId: ${langRunId}]`)
             );
-            quoteText = grokResult.quoteText;
-            optimizationStrategyFromGen = grokResult.optimizationStrategy || null;
           } catch (error) {
             // フォールバック: Xアルゴリズム最適化版テンプレートを使用
             // 重要: Minimal Version URLも取得してフォールバックテンプレートに渡す
@@ -1184,7 +1179,8 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         }
         
         // P0 FIX: dry-runモードではソーシャルプルーフとハッシュタグ取得をスキップ（高速化）
-        if (!isDryRun) {
+        // Minimal/Regular テンプレ使用時はソーシャルプルーフを追加しない（テンプレ本文をそのまま使用）
+        if (!isDryRun && !funnelTypeUsed) {
           // Phase 1: ソーシャルプルーフを追加（インプレッション最大化）
           try {
             const { getSocialProofText } = require('../services/telegram/reaction-counter');
@@ -1231,12 +1227,9 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           console.log(`[Quote Repost] 🧪 Dry-run mode: Skipping social proof and hashtag optimization for speed [runId: ${langRunId}]`);
         }
         
-        // 監査対応: 質問CTAのコード保証（投稿前に ? が末尾50文字以内にない場合はデフォルトCTA付与）
-        quoteText = ensureQuestionCTA(quoteText, lang);
-        
         // 140文字以内に制限（引用リポスト用）- ソーシャルプルーフ追加後の最終チェック
-        // 重要: 質問CTAとリンクを優先的に保持するため、末尾から削除
-        if (quoteText.length > 140) {
+        // Minimal/Regular テンプレ使用時は 280 まで許可（上で既に 280 にトリム済み）
+        if (quoteText.length > 140 && !funnelTypeUsed) {
           // 質問CTAとリンクを保持するため、中間部分を削除
           // パターン: [フック] [リンク] [質問CTA] [ハッシュタグ]
           // 質問CTAとリンクを保持し、フック部分を短縮
@@ -1275,9 +1268,6 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             quoteText = quoteText.substring(0, 137) + '...';
           }
         }
-        
-        // 引用リポストはテキストのみ（画像付与は廃止: NanoBanana/Veo 不安定。無料版・有料版の引用で運用）
-        const mediaIds = [];
         
         // 引用リポストを投稿
         console.log(`[Quote Repost] 🚀 ACTUALLY POSTING quote repost for @${influencer.username} (tweetId: ${influencer.tweetId})...`);
@@ -1345,7 +1335,7 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
           // P0 FIX: GPT-5-mini推奨 - postQuoteTweetに8秒のタイムアウトを設定
           try {
             result = await withTimeout(
-              postQuoteTweet(quoteText, influencer.tweetId, mediaIds),
+              postQuoteTweet(quoteText, influencer.tweetId),
               8000, // 8秒タイムアウト（GPT-5-mini推奨）
               () => console.warn(`[Quote Repost] ⏰ postQuoteTweet timeout after 8s for @${influencer.username} [runId: ${langRunId}]`)
             );
@@ -1430,32 +1420,6 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
             }
           } catch (mappingError) {
             console.warn(`[Quote Repost] ⚠️ Failed to save influencer mapping:`, mappingError.message);
-          }
-          
-          // 監査対応: スレッド戦略の接続（getThreadStrategy・リプライ投稿）
-          const threadStrategy = getThreadStrategy(lang);
-          if (threadStrategy.replyCount > 0 && result.id) {
-            const minimalLink = getMinimalVersionCheckoutUrl(lang, {
-              source: 'x',
-              medium: 'quote_repost',
-              campaign: 'minimal_version',
-              content: `influencer_${influencer.username}`,
-              influencerUsername: influencer.username,
-            }) || getTelegramDeepLinkWithSource(lang, 'x_quote', { influencerUsername: influencer.username });
-            const replyTexts = getQuoteRepostThreadReplyTexts(lang, threadStrategy.replyCount, minimalLink);
-            let lastReplyId = result.id;
-            for (let i = 0; i < replyTexts.length; i++) {
-              try {
-                const replyResult = await withTimeout(
-                  replyToTweet(replyTexts[i], lastReplyId),
-                  8000,
-                  () => console.warn(`[Quote Repost] ⏰ Thread reply ${i + 1}/${replyTexts.length} timeout for @${influencer.username}`)
-                );
-                if (replyResult && replyResult.id) lastReplyId = replyResult.id;
-              } catch (replyErr) {
-                console.warn(`[Quote Repost] Thread reply ${i + 1}/${replyTexts.length} failed:`, replyErr.message);
-              }
-            }
           }
           
           // CRITICAL: KVストレージに構造化ログを記録（確実な証拠）
@@ -1546,7 +1510,13 @@ async function postQuoteRepostsForLang(lang, reportData = null, dailyPostCount =
         const trackingSuccess = await savePostId(result.id, 'quote_repost', lang, {
           influencerUsername: influencer.username,
           influencerTweetId: influencer.tweetId,
+          funnelType: funnelTypeUsed || undefined,
         });
+        
+        // Minimal/Regular ローテーション: 使用した導線タイプを記録（次回逆を出す）
+        if (funnelTypeUsed) {
+          await recordQuoteFunnelType(lang, influencer.username, funnelTypeUsed);
+        }
         
         // グローバルな日次投稿数をインクリメント（投稿成功時）
         if (trackingSuccess) {
