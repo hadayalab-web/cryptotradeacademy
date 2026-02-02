@@ -1,0 +1,159 @@
+// config/quoteRepostTemplatesIntegrated.js
+// 引用リポスト用テンプレート: 無料版（Minimal）と有料版（Regular）導線を1投稿に統合
+// 設計: ヘッドラインで引き→無料/有料TG配信をチラ見せ（ツァイガルニク）→VSL＋Whop。目標 800〜1000 文字。
+// ペルソナ決め打ち: バリアントEは config/personaStrategy.js の CORE_PHRASES.state を参照する。
+
+const {
+  getMinimalVersionCheckoutUrl,
+  getRegularWhopLinkOnly
+} = require("../services/telegram/whop-links");
+const { CORE_PHRASES } = require("./personaStrategy");
+const { VSL_MINIMAL, VSL_REGULAR } = require("./vslLinks");
+
+const VSL_MINIMAL_URL = VSL_MINIMAL.url;
+const VSL_REGULAR_URL = VSL_REGULAR.url;
+
+/** 有料導線: Whopはリンクだけ（X投稿ポリシー・リッチプレビューを避ける） */
+function getRegularCtaLine(lang) {
+  return getRegularWhopLinkOnly(lang);
+}
+
+/**
+ * 統合テンプレート: 無料＋有料の両導線を1投稿で出す
+ * @param {string} lang - 言語コード (en, es, pt-br, ar, ko, ja)
+ * @param {Object} options - { influencerUsername, utm_content, variant: 'A'|'B'|'C'|'D'|'E' }
+ * @returns {string} 引用リポスト用テキスト
+ */
+function getIntegratedMinimalRegularQuoteTemplate(lang, options = {}) {
+  const normalizedLang = (lang || "en").toLowerCase().replace("_", "-");
+  const minimalUrl =
+    getMinimalVersionCheckoutUrl(normalizedLang, {
+      utm_content: options.influencerUsername
+        ? `influencer_${options.influencerUsername}`
+        : "integrated",
+      ...options
+    }) || getMinimalVersionCheckoutUrl("en", options);
+  const regularCta = getRegularCtaLine(normalizedLang);
+  const priceHookEn = CORE_PHRASES.price.en;
+  const priceHookJa = CORE_PHRASES.price.ja;
+
+  // バリアントA: ヘッドライン→無料/有料TGチラ見せ（ツァイガルニク）→VSL＋Whop（約1000文字）
+  const teaserEn =
+    "Today's free TG snippet: «Score 12/100. Exit map—» Rest in Telegram. Regular Briefing snippet: «Whales loading. Next trap in 48h—» Rest in Whop.";
+  const teaserJa =
+    "今日の無料TG一切れ: «スコア12/100。出口マップは—» 続きはTGで。有料ブリーフ一切れ: «クジラ積み中。次の罠は48h—» 続きはWhopで。";
+  const variantA = {
+    en: () =>
+      `Can't stop trading? Most people lose because they act without a frame. We show the trap score for free—so you know when to sit tight. The exit map? That's in Regular Briefing. ${priceHookEn}\n\n${teaserEn}\n\nWatch the free VSL. Get the score. Then level up.\n${VSL_MINIMAL_URL}\n${minimalUrl} ${regularCta}\n#BTC #TrapDefence`,
+    ja: () =>
+      `「待てない」で負けてない？多くの人が枠なしで動いて負ける。罠スコアは無料で—いつ飛び込むかがわかる。出口マップは有料ブリーフの奥に。${priceHookJa}\n\n${teaserJa}\n\n無料VSLを視聴。スコアを取ってから次へ。\n${VSL_MINIMAL_URL}\n${minimalUrl} ${regularCta}\n#BTC #TrapDefence`,
+    es: () =>
+      `¿No puedes dejar de operar? Mostramos el trap score (gratis). ¿Mapa de salida? En Regular Briefing. Hoy en TG gratis: «Score 12/100. Mapa—» Resto en Telegram. Regular Briefing: «Ballenas cargando. Siguiente trampa—» Resto en Whop. Mira: ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    "pt-br": () =>
+      `Não para de operar? Mostramos o trap score (grátis). Mapa de saída? Está no Regular Briefing. Hoje no TG grátis: «Score 12/100. Mapa—» Resto no Telegram. Regular Briefing: «Baleias carregando. Próxima armadilha—» Resto no Whop. Assista: ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    ar: () =>
+      `ما تقدر توقف التداول؟ نوري trap score (مجاني). خريطة الخروج؟ في Regular Briefing. اليوم في TG مجاني: «Score 12/100. خريطة—» الباقي في تيليجرام. Regular Briefing: «حيتان تحمّل. الفخ الجاي—» الباقي في Whop. شوف: ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    ko: () =>
+      `못 참고 매매해? 트랩 스코어는 무료. 출구 맵? Regular Briefing 안에 있어. 오늘 무료 TG 한 조각: «스코어 12/100. 출구 맵—» 나머지는 TG에서. Regular Briefing: «고래 로딩. 다음 함정—» 나머지는 Whop에서. 시청: ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapDefence`
+  };
+
+  // バリアントB: 「彼らは笑った」＋ 無料/有料TGチラ見せ（ツァイガルニク）→VSL＋Whop
+  const variantB = {
+    en: () =>
+      `They laughed when I said "wait for the trap." Then the dump came. Score + exit map: free tier & Regular Briefing. Today's free TG: «Score 12/100. Exit map—» Rest in Telegram. Regular Briefing: «Whales loading. Next trap—» Rest in Whop. Watch: ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    ja: () =>
+      `「罠を待て」と言ったら笑われた。そのあとダンプが来た。スコア＋出口は無料と有料で。今日の無料TG: «スコア12/100。出口マップ—» 続きはTGで。有料: «クジラ積み中。次の罠—» 続きはWhopで。視聴: ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    es: () =>
+      `Se rieron cuando dije "espera la trampa." Luego vino el dump. Score + mapa salida: gratis y Regular Briefing. Hoy TG gratis: «Score 12/100. Mapa—» Resto en Telegram. Regular Briefing: «Ballenas. Siguiente trampa—» Resto en Whop. Mira: ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    "pt-br": () =>
+      `Riram quando falei "espere a armadilha." Veio o dump. Score + mapa saída: grátis e Regular Briefing. Hoje TG grátis: «Score 12/100. Mapa—» Resto no Telegram. Regular Briefing: «Baleias. Próxima armadilha—» Resto no Whop. Assista: ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    ar: () =>
+      `ضحكوا لما قلت "استنى الفخ." بعدين جت الـ dump. سكور + خريطة خروج: مجاني و Regular Briefing. اليوم TG مجاني: «Score 12/100. خريطة—» الباقي في تيليجرام. Regular Briefing: «حيتان. الفخ الجاي—» الباقي في Whop. شوف: ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    ko: () =>
+      `"함정 기다려" 하니까 비웃더라. 그다음 덤프 왔음. 스코어+출구: 무료랑 Regular Briefing. 오늘 무료 TG: «스코어 12/100. 출구 맵—» 나머지는 TG. Regular Briefing: «고래. 다음 함정—» 나머지는 Whop. 시청: ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapDefence`
+  };
+
+  // バリアントC: 「90%が嵌る罠」＋ 無料でスコア・有料で全文
+  const variantC = {
+    en: () =>
+      `The trap 90% of traders fall into. Score free; "where to exit" in Regular Briefing. Watch: ${VSL_MINIMAL_URL} Free: ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    ja: () =>
+      `トレーダー90%が嵌る罠。スコアは無料。「どこで出口」は有料ブリーフで。視聴: ${VSL_MINIMAL_URL} 無料: ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    es: () =>
+      `La trampa en la que caen 90% de traders. Score gratis; "dónde salir" en Regular Briefing. Mira: ${VSL_MINIMAL_URL} Gratis: ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    "pt-br": () =>
+      `A armadilha em que 90% dos traders caem. Score grátis; "onde sair" no Regular Briefing. Assista: ${VSL_MINIMAL_URL} Grátis: ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    ar: () =>
+      `الفخ اللي 90% من المتداولين يقعوا فيه. سكور مجاني؛ "وين تخرج" في Regular Briefing. شوف: ${VSL_MINIMAL_URL} مجاني: ${minimalUrl} ${regularCta} #BTC #TrapDefence`,
+    ko: () =>
+      `트레이더 90%가 걸리는 함정. 스코어 무료. "어디서 출구"는 Regular Briefing에. 시청: ${VSL_MINIMAL_URL} 무료: ${minimalUrl} ${regularCta} #BTC #TrapDefence`
+  };
+
+  // バリアントD: ドローダウン特化＋TGチラ見せ→VSL＋Whop
+  const variantD = {
+    en: () =>
+      `Market bleeding? Don't jump in without the trap score. Free score; exit map in Regular Briefing. Today's free TG: «Score 12/100. Exit map—» Rest in Telegram. Regular Briefing: «Next trap. On-chain—» Rest in Whop. ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapScore #RiskOff #TrapDefence`,
+    ja: () =>
+      `相場が血の海のとき、スコア見ずに飛び込むな。無料スコア；出口マップは有料ブリーフで。今日の無料TG: «スコア12/100。出口マップ—» 続きはTGで。有料: «次の罠。オンチェーン—» 続きはWhopで。${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapScore #RiskOff #TrapDefence`,
+    es: () =>
+      `¿Mercado en rojo? No entres sin el trap score. Score gratis; mapa salida en Regular Briefing. Hoy TG gratis: «Score 12/100. Mapa—» Resto en Telegram. Regular Briefing: «Próxima trampa. On-chain—» Resto en Whop. ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapScore #RiskOff #TrapDefence`,
+    "pt-br": () =>
+      `Mercado sangrando? Não entre sem o trap score. Score grátis; mapa saída no Regular Briefing. Hoje TG grátis: «Score 12/100. Mapa—» Resto no Telegram. Regular Briefing: «Próxima armadilha. On-chain—» Resto no Whop. ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapScore #RiskOff #TrapDefence`,
+    ar: () =>
+      `السوق ينزف؟ لا تدخل بدون trap score. سكور مجاني؛ خريطة خروج في Regular Briefing. اليوم TG مجاني: «Score 12/100. خريطة—» الباقي في تيليجرام. Regular Briefing: «الفخ الجاي. On-chain—» الباقي في Whop. ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapScore #RiskOff #TrapDefence`,
+    ko: () =>
+      `시장 피터지는데 스코어 안 보고 들어가? 무료 스코어；출구 맵은 Regular Briefing에. 오늘 무료 TG: «스코어 12/100. 출구 맵—» 나머지는 TG. Regular Briefing: «다음 함정. On-chain—» 나머지는 Whop. ${VSL_MINIMAL_URL} ${minimalUrl} ${regularCta} #BTC #TrapScore #RiskOff #TrapDefence`
+  };
+
+  // バリアントE: ペルソナ決め打ち（personaStrategy.CORE_PHRASES.state をSSOTとして使用）
+  const stateHookEn = CORE_PHRASES.state.en;
+  const stateHookJa = CORE_PHRASES.state.ja;
+  const variantE = {
+    en: () =>
+      `${stateHookEn} Trap Score = data vs gut. Free TG: «Score 12/100. Exit map—» Rest in Telegram. Regular Briefing: «Next trap—» Rest in Whop. Free: ${minimalUrl} ${regularCta} Watch: ${VSL_MINIMAL_URL} #BTC #TrapDefence`,
+    ja: () =>
+      `${stateHookJa} Trap Scoreでdata vs gut。無料TG: «スコア12/100。出口マップ—» 続きはTGで。有料: «次の罠—» 続きはWhopで。無料: ${minimalUrl} ${regularCta} 視聴: ${VSL_MINIMAL_URL} #BTC #TrapDefence`,
+    es: () =>
+      `¿Atrapado en el bucle de "solo mirar" con pérdida no realizada? Sin reglas = cada movimiento una suposición. Trap Score = datos vs instinto. TG gratis: «Score 12/100. Mapa—» Resto en Telegram. Regular Briefing: «Próxima trampa—» Resto en Whop. Gratis: ${minimalUrl} ${regularCta} Mira: ${VSL_MINIMAL_URL} #BTC #TrapDefence`,
+    "pt-br": () =>
+      `Preso no loop de "só assistir" com perda não realizada? Sem regras = cada movimento um chute. Trap Score = dados vs gut. TG grátis: «Score 12/100. Mapa—» Resto no Telegram. Regular Briefing: «Próxima armadilha—» Resto no Whop. Grátis: ${minimalUrl} ${regularCta} Assista: ${VSL_MINIMAL_URL} #BTC #TrapDefence`,
+    ar: () =>
+      `عالق في حلقة "فقط أشاهد" مع خسارة غير محققة؟ بدون قواعد = كل خطوة تخمين. Trap Score = بيانات vs غريزة. TG مجاني: «Score 12/100. خريطة—» الباقي في تيليجرام. Regular Briefing: «الفخ الجاي—» الباقي في Whop. مجاني: ${minimalUrl} ${regularCta} شوف: ${VSL_MINIMAL_URL} #BTC #TrapDefence`,
+    ko: () =>
+      `미실현 손실로 "그냥 보기" 루프에 갇혀? 룰 없음 = 매번 추측. Trap Score = 데이터 vs 직감. 무료 TG: «스코어 12/100. 출구 맵—» 나머지는 TG. Regular Briefing: «다음 함정—» 나머지는 Whop. 무료: ${minimalUrl} ${regularCta} 시청: ${VSL_MINIMAL_URL} #BTC #TrapDefence`
+  };
+
+  const variant = options.variant || "A";
+  const map =
+    variant === "B"
+      ? variantB
+      : variant === "C"
+        ? variantC
+        : variant === "D"
+          ? variantD
+          : variant === "E"
+            ? variantE
+            : variantA;
+  const fn = map[normalizedLang] || map.en;
+  return fn();
+}
+
+/** 統合テンプレートのバリアント名（A〜E、ドローダウン時はDを加重可能） */
+const INTEGRATED_VARIANTS = ["A", "B", "C", "D", "E"];
+
+function getAllIntegratedTemplates(options = {}) {
+  const langs = ["en", "ja", "es", "pt-br", "ar", "ko"];
+  return Object.fromEntries(
+    langs.map((lang) => [lang, getIntegratedMinimalRegularQuoteTemplate(lang, options)])
+  );
+}
+
+module.exports = {
+  VSL_MINIMAL_URL,
+  VSL_REGULAR_URL,
+  INTEGRATED_VARIANTS,
+  getIntegratedMinimalRegularQuoteTemplate,
+  getAllIntegratedTemplates,
+  getRegularCtaLine,
+  getRegularWhopLinkOnly
+};
