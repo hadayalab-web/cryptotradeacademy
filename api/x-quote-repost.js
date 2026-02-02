@@ -963,9 +963,15 @@ async function postQuoteRepostsForLang(
       targetCount,
       dateString
     );
-    let selectedInfluencers = selectionResult?.selected ?? [];
+    // 新API: { selected, rotationIndex, poolSize } / 旧API: 配列 の両対応
+    const isNewApi = selectionResult && !Array.isArray(selectionResult) && selectionResult.selected;
+    let selectedInfluencers = isNewApi
+      ? (selectionResult.selected ?? [])
+      : Array.isArray(selectionResult)
+        ? selectionResult
+        : [];
     let rotationSelectionResult =
-      selectionResult?.selected?.length > 0 && selectionResult?.poolSize > 0
+      isNewApi && selectedInfluencers.length > 0 && selectionResult.poolSize > 0
         ? selectionResult
         : null;
 
