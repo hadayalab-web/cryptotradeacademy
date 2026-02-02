@@ -557,6 +557,10 @@ async function generateQuoteRepostText(
         `- Funnel Psychological Triggers: ${opt?.funnel?.psychologicalTriggers?.join(", ") || "N/A"}\n` +
         `PRIORITY ORDER: ${opt?.priorityOrder?.join(" → ") || "N/A"}\n` +
         `\nCRITICAL: Apply these optimization strategies to maximize engagement rate and CVR!\n`;
+      // ドローダウン時は統合戦略（Grok＋Gemini＋仕掛け）を追加 → 投稿が回るほど渇望・売上に直結
+      if (optimizationStrategy.drawdownPrompt) {
+        optimizationContext += `\n\n${optimizationStrategy.drawdownPrompt}\n`;
+      }
     }
 
     // 無料版メッセージのキーポイントをコンテキストに追加（Xアルゴリズム最適化用）

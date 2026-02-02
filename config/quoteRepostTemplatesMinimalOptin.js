@@ -14,7 +14,7 @@ const VSL_YOUTUBE_URL = "https://youtu.be/OqvqngJOiXc";
 /**
  * テンプレート1: Minimal オプトイン導線（6言語）
  * @param {string} lang - 言語コード (en, es, pt-br, ar, ko, ja)
- * @param {Object} options - { influencerUsername, utm_content, variant: 'A'|'B'|'C' }
+ * @param {Object} options - { influencerUsername, utm_content, variant: 'A'|'B'|'C'|'D' }
  * @returns {string} 引用リポスト用テキスト（長文ポスト時は25,000文字まで可）
  */
 function getMinimalOptinQuoteTemplate(lang, options = {}) {
@@ -75,8 +75,25 @@ function getMinimalOptinQuoteTemplate(lang, options = {}) {
       `트레이더 90%가 걸리는 함정. 스코어는 보여줌. "어디서 출구"는 무료 티어 안에. 시청: ${VSL_YOUTUBE_URL} 무료: ${whopUrl} #BTC #TrapDefence`
   };
 
+  // バリアントD: 市況悪化・ドローダウン特化（Grok #TrapScore #RiskOff でアルゴブースト、Gemini 心理原則）
+  const variantD = {
+    en: () =>
+      `Market bleeding? Don't jump in without the trap score. The next trap is the one that cleans out the rest. Free score: ${VSL_YOUTUBE_URL} Free: ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+    ja: () =>
+      `相場が血の海のとき、スコア見ずに飛び込むな。次に来るのは「戻りだと思って嵌る罠」。無料スコア: ${VSL_YOUTUBE_URL} 無料: ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+    es: () =>
+      `¿Mercado en rojo? No entres sin ver el trap score. La próxima trampa es la que limpia a los que quedan. Score gratis: ${VSL_YOUTUBE_URL} Gratis: ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+    "pt-br": () =>
+      `Mercado sangrando? Não entre sem o trap score. A próxima armadilha é a que limpa o resto. Score grátis: ${VSL_YOUTUBE_URL} Grátis: ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+    ar: () =>
+      `السوق ينزف؟ لا تدخل بدون trap score. الفخ الجاي هو اللي ينضف الباقي. سكور مجاني: ${VSL_YOUTUBE_URL} مجاني: ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+    ko: () =>
+      `시장 피터지는데 스코어 안 보고 들어가? 다음 함정이 남은 사람들 다 쓸어감. 무료 스코어: ${VSL_YOUTUBE_URL} 무료: ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`
+  };
+
   const variant = options.variant || "A";
-  const map = variant === "B" ? variantB : variant === "C" ? variantC : variantA;
+  const map =
+    variant === "B" ? variantB : variant === "C" ? variantC : variant === "D" ? variantD : variantA;
   const fn = map[normalizedLang] || map.en;
   return fn();
 }
@@ -91,8 +108,8 @@ function getAllMinimalOptinTemplates(options = {}) {
   );
 }
 
-/** Minimal オプトイン用バリアント名（A/B/C ローテーション用） */
-const MINIMAL_OPTIN_VARIANTS = ["A", "B", "C"];
+/** Minimal オプトイン用バリアント名（A/B/C/D ローテーション用。D=市況悪化・ドローダウン特化） */
+const MINIMAL_OPTIN_VARIANTS = ["A", "B", "C", "D"];
 
 module.exports = {
   VSL_YOUTUBE_URL,

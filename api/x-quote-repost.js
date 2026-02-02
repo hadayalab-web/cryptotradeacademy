@@ -41,6 +41,13 @@ const {
   getRegularOptinQuoteTemplate,
   REGULAR_OPTIN_VARIANTS
 } = require("../config/quoteRepostTemplatesRegularOptin");
+const {
+  isDrawdown,
+  getDrawdownVariantWeight,
+  pickVariantWithWeight,
+  getDrawdownHook,
+  INTEGRATED_STRATEGY_FOR_PROMPT
+} = require("../config/drawdownStrategy");
 
 // 8時間クールダウン関連のインポート（インフルエンサー別の日次投稿数管理）
 const {
@@ -697,6 +704,10 @@ async function generateQuoteRepostTextWithGrok(
 
       if (optimizationStrategy) {
         console.log(`[Quote Repost] ✅ Content optimization strategy generated for ${lang}`);
+        // ドローダウン時は Grok×Gemini×統合戦略をプロンプトに注入（投稿が回るほど渇望・売上に直結）
+        if (isDrawdown(reportData)) {
+          optimizationStrategy.drawdownPrompt = INTEGRATED_STRATEGY_FOR_PROMPT;
+        }
       }
     } catch (error) {
       console.warn(
@@ -957,23 +968,12 @@ async function postQuoteRepostsForLang(
     );
 
     const { selectInfluencersWithRotation } = require("../services/x/influencerRotation");
-    const selectionResult = await selectInfluencersWithRotation(
+    let selectedInfluencers = await selectInfluencersWithRotation(
       influencers,
       lang,
       targetCount,
       dateString
     );
-    // 新API: { selected, rotationIndex, poolSize } / 旧API: 配列 の両対応
-    const isNewApi = selectionResult && !Array.isArray(selectionResult) && selectionResult.selected;
-    let selectedInfluencers = isNewApi
-      ? (selectionResult.selected ?? [])
-      : Array.isArray(selectionResult)
-        ? selectionResult
-        : [];
-    let rotationSelectionResult =
-      isNewApi && selectedInfluencers.length > 0 && selectionResult.poolSize > 0
-        ? selectionResult
-        : null;
 
     // P1: ローテーション選択の直後で選定数をログ化
     console.log(
@@ -983,7 +983,6 @@ async function postQuoteRepostsForLang(
         selectedCount: selectedInfluencers?.length || 0,
         targetCount,
         excludedCount: influencers.length - (selectedInfluencers?.length || 0),
-        willAdvanceByActualPosts: !!rotationSelectionResult,
         timestamp: new Date().toISOString()
       }
     );
@@ -1314,20 +1313,21 @@ async function postQuoteRepostsForLang(
         );
 
         // インプレッション規模チェック（言語別の目標を考慮）
-        // 重要: impressions が 0 のときは「メトリクス未取得」とみなし投稿を許可する。0 でスキップしない。
+        // P0 FIX: impressions が 0 の場合は「メトリクス未取得」とみなし投稿を許可（KVストックが0で保存されている欠陥実装からの脱却）
         currentStep = "impression_check";
-        const impressions = Number(influencer.recentImpressions) || 0;
+        const impressions = influencer.recentImpressions || 0;
         const minImpressions = Math.max(impressionTarget.min * 0.3, 10000);
 
-        if (impressions === 0) {
-          console.log(
-            `[Quote Repost] ⚠️ @${influencer.username} has no impression data (0) - allowing post [runId: ${langRunId}]`
-          );
-        } else if (impressions < minImpressions) {
+        if (impressions > 0 && impressions < minImpressions) {
           console.log(
             `⏰ Skipping quote repost for @${influencer.username} (low impressions: ${impressions.toLocaleString()}, min: ${minImpressions.toLocaleString()}) [runId: ${langRunId}, step: ${currentStep}]`
           );
           continue;
+        }
+        if (impressions === 0) {
+          console.log(
+            `[Quote Repost] ⚠️ @${influencer.username} has no impression data (0) - allowing post [runId: ${langRunId}]`
+          );
         }
 
         console.log(
@@ -1372,7 +1372,11 @@ async function postQuoteRepostsForLang(
             nextType === FUNNEL_TYPES.MINIMAL_OPTIN
               ? MINIMAL_OPTIN_VARIANTS
               : REGULAR_OPTIN_VARIANTS;
-          const variant = variants[Math.floor(Math.random() * variants.length)];
+          // ドローダウン時は D を 50% に加重 → 投稿が回るほど防御系メッセージが増え渇望・売上に直結
+          const drawdown = isDrawdown(reportData);
+          const variant = drawdown
+            ? pickVariantWithWeight(getDrawdownVariantWeight())
+            : variants[Math.floor(Math.random() * variants.length)];
           if (nextType === FUNNEL_TYPES.MINIMAL_OPTIN) {
             quoteText = getMinimalOptinQuoteTemplate(lang, {
               variant,
@@ -1384,9 +1388,14 @@ async function postQuoteRepostsForLang(
               influencerUsername: influencer.username
             });
           }
+          // ドローダウン時は Grok 推奨のショートフックを先頭に付与（リプライ誘発→アルゴブースト）
+          if (drawdown && typeof quoteText === "string") {
+            const hook = getDrawdownHook(lang);
+            quoteText = `${hook}\n\n${quoteText}`;
+          }
           // Xプレミアム長文ポスト対応のため 280 文字トリムは廃止（最大25,000文字まで可）
           console.log(
-            `[Quote Repost] 📌 Minimal/Regular rotation: @${influencer.username} -> ${nextType} (variant ${variant}) [runId: ${langRunId}]`
+            `[Quote Repost] 📌 Minimal/Regular rotation: @${influencer.username} -> ${nextType} (variant ${variant}${drawdown ? ", drawdown weighted" : ""}) [runId: ${langRunId}]`
           );
         } else if (isDryRun) {
           // P0 FIX: dry-runモード: 超高速フォールバックテキストを使用（すべてのAPI呼び出しをスキップ）
@@ -2087,30 +2096,6 @@ async function postQuoteRepostsForLang(
           actuallyPosted: false, // 実際に投稿されなかったことを明示
           error: error.message
         });
-      }
-    }
-
-    // ローテーション: 選択数ではなく投稿成功数だけインデックスを進める
-    if (rotationSelectionResult && rotationSelectionResult.poolSize > 0) {
-      const actualPostedCount = results.filter((r) => r.success && r.actuallyPosted).length;
-      if (actualPostedCount > 0) {
-        try {
-          const { advanceRotationBy } = require("../services/x/influencerRotation");
-          await advanceRotationBy(
-            lang,
-            actualPostedCount,
-            rotationSelectionResult.poolSize,
-            dateString
-          );
-          console.log(
-            `[Quote Repost] ✅ Rotation advanced by ${actualPostedCount} (actual posts) for ${lang} [runId: ${langRunId}]`
-          );
-        } catch (advanceErr) {
-          console.warn(
-            `[Quote Repost] ⚠️ Failed to advance rotation by actual posts (non-fatal):`,
-            advanceErr.message
-          );
-        }
       }
     }
 

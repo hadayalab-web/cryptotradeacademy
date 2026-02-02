@@ -24,7 +24,7 @@ function buildRegularWhopUrl(lang, options = {}) {
 /**
  * 有料版（Regular Briefing）直導線テンプレート（6言語 × 3バリアント）
  * @param {string} lang - 言語コード (en, es, pt-br, ar, ko, ja)
- * @param {Object} options - { influencerUsername, utm_content, variant: 'A'|'B'|'C' }
+ * @param {Object} options - { influencerUsername, utm_content, variant: 'A'|'B'|'C'|'D' }
  * @returns {string} 引用リポスト用テキスト（長文ポスト時は25,000文字まで可）
  */
 function getRegularOptinQuoteTemplate(lang, options = {}) {
@@ -85,8 +85,25 @@ function getRegularOptinQuoteTemplate(lang, options = {}) {
       `트레이더 90%가 못 보는 것. 오늘 Grok 브리핑 한 조각: "고래 로딩. 스코어 12/100. 출구 맵—" 시청: ${VSL_REGULAR_YOUTUBE_URL} 50% 할인 (${promo}): ${whopUrl} #BTC #TrapDefence`
   };
 
+  // バリアントD: 市況悪化・ドローダウン特化（Grok #TrapScore #RiskOff、Gemini「また負けたくない」）
+  const variantD = {
+    en: () =>
+      `Drawdown already happened. The next trap is the one that cleans out the rest. We show the score + exit map. 50% OFF (${promo}): ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+    ja: () =>
+      `ドローダウンはもう来た。次に来るのは「戻りだと思って嵌る罠」。スコア＋出口マップはこちら。50%OFF（${promo}）: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+    es: () =>
+      `El drawdown ya pasó. La próxima trampa es la que limpia a los que quedan. Mostramos score + mapa salida. 50% OFF (${promo}): ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+    "pt-br": () =>
+      `O drawdown já veio. A próxima armadilha é a que limpa o resto. Mostramos score + mapa saída. 50% OFF (${promo}): ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+    ar: () =>
+      `الدروداون صار. الفخ الجاي هو اللي ينضف الباقي. نوري السكور + خريطة خروج. خصم 50% (${promo}): ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+    ko: () =>
+      `드로다운은 이미 왔음. 다음 함정이 남은 사람들 다 쓸어감. 스코어+출구 맵 여기. 50% 할인 (${promo}): ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`
+  };
+
   const variant = options.variant || "A";
-  const map = variant === "B" ? variantB : variant === "C" ? variantC : variantA;
+  const map =
+    variant === "B" ? variantB : variant === "C" ? variantC : variant === "D" ? variantD : variantA;
   const fn = map[normalizedLang] || map.en;
   return fn();
 }
@@ -98,7 +115,7 @@ function getAllRegularOptinTemplates(options = {}) {
   );
 }
 
-const REGULAR_OPTIN_VARIANTS = ["A", "B", "C"];
+const REGULAR_OPTIN_VARIANTS = ["A", "B", "C", "D"];
 
 module.exports = {
   VSL_REGULAR_YOUTUBE_URL,

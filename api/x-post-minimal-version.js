@@ -548,21 +548,39 @@ async function postMinimalVersionToX(targetLangs, reportData) {
 
 /**
  * Vercel Serverless Function Handler
+ * GET: Cron用（市場データを自前取得して投稿）
+ * POST: cron.js等からの呼び出し用（reportDataをbodyで受け取る）
  */
 module.exports = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (req.method === 'GET') {
+    try {
+      const { fetchLatestMarketData } = require('./x-post-free-report');
+      const reportData = await fetchLatestMarketData();
+      const targetLangs = SUPPORTED_LANGS;
+      const result = await postMinimalVersionToX(targetLangs, reportData);
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error('[X Post Minimal] GET handler error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-  
+
   try {
-    const { targetLangs = ['en'], reportData } = req.body;
-    
+    const { targetLangs = ['en'], reportData } = req.body || {};
     if (!reportData) {
       return res.status(400).json({ error: 'reportData is required' });
     }
-    
     const result = await postMinimalVersionToX(targetLangs, reportData);
-    
     return res.status(200).json(result);
   } catch (error) {
     console.error('[X Post Minimal] Handler error:', error);

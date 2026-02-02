@@ -1538,31 +1538,22 @@ const handler = async (req, res) => {
       console.log("[X Post Free Report] 🧪 DRY RUN MODE - No actual posts will be made");
     }
 
-    // Grok推奨: UTC時刻に基づいて処理する言語を決定（1日6言語すべてを時間帯別で回す）
     const currentHour = new Date().getUTCHours();
     const dateString = new Date().toISOString().split("T")[0];
 
-    // Grok推奨: peakMapから現在時刻に処理すべき言語を取得
-    const { getLanguagesForCurrentHour } = require("../services/x/optimization");
-    const { langs: targetLangs, type, count } = getLanguagesForCurrentHour(currentHour);
-
-    // 無料版レポートのピーク時間でない場合はスキップ
-    if (!targetLangs || targetLangs.length === 0 || type !== "free_report") {
-      console.log(
-        `[X Post Free Report] ⏰ Skipping free report post (not free report peak time: ${currentHour} UTC, type: ${type || "none"})`
-      );
+    // Cronで呼ばれた場合はスケジュール（30 4,10,17,19）で実行されるため、全6言語で実行
+    const targetLangs = SUPPORTED_LANGS;
+    if (!targetLangs || targetLangs.length === 0) {
       return res.status(200).json({
         success: true,
         skipped: true,
-        reason: "not_free_report_peak_time",
-        currentHour,
-        type,
+        reason: "no_target_langs",
         results: []
       });
     }
 
     console.log(
-      `[X Post Free Report] Processing ${targetLangs.join(", ")} at peak time (${currentHour}:00 UTC, type: ${type}, count: ${count})`
+      `[X Post Free Report] Processing ${targetLangs.join(", ")} (${currentHour}:00 UTC, Cron)`
     );
     console.log("[X Post Free Report] Starting postFreeReportToX...");
 

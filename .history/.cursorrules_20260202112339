@@ -1,0 +1,52 @@
+# Cursor Rules - 実装品質保証
+
+## 実装前の必須チェック
+
+実装を開始する前に、必ず以下を確認すること：
+
+1. **関数の定義を確認**
+   - `grep -n "function FUNCTION_NAME" FILE_PATH` で関数定義を確認
+   - 引数の順序と型を確認
+
+2. **定数の一貫性を確認**
+   - 同じ目的の定数は、すべてのファイルで同じ値を使用
+   - `maxDailyPosts`、`maxPostsPerHour`などの一貫性を確認
+
+3. **エラーハンドリングを確認**
+   - 重要なエラー（API呼び出しなど）は`console.error`を使用
+   - レート制限などの警告は`console.warn`を使用
+
+## 実装後の必須検証
+
+実装後、必ず以下を実行すること：
+
+```bash
+# 1. 実装検証スクリプトを実行
+npm run validate:implementation
+
+# 2. 重要な関数のテストを実行
+npm run test:critical
+```
+
+**重要**: 検証をパスしない限り、コミットしてはいけない。
+
+## 過去の「デタラメ実装」の例
+
+1. **引数順序エラー**: `replyToTweet(langMainTweetId, text)` → `replyToTweet(text, langMainTweetId)`
+2. **定数の不整合**: `maxDailyPosts = 25` vs `maxDailyPosts = 35`
+3. **エラーハンドリングの不備**: `console.warn` → `console.error`
+
+## 不具合監視・改善の運用スケジュール
+
+- **ユーザー**: 定期的に不具合を監視し、報告する（Vercelログ・挙動・エラーメッセージなど）。
+- **AI（Cursor）**: 報告を受けて修正・改善を実施し、必要に応じて `docs/` に修正内容をまとめる。
+- **ユーザー**: 改善をまとめてコミット・プッシュする。
+
+詳細: `docs/WORKFLOW_MONITORING_AND_FIX_SCHEDULE.md`
+
+## 参照
+
+- `docs/IMPLEMENTATION_QUALITY_GUIDE_2026-01-25.md`
+- `docs/WORKFLOW_MONITORING_AND_FIX_SCHEDULE.md`
+- `scripts/validate_implementation.js`
+- `scripts/test_critical_functions.js`
