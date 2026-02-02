@@ -170,9 +170,7 @@ async function incrementTweetEngagement(tweetId, type, meta = {}) {
 
   // P1修正: tweetIdのバリデーション
   if (!validateTweetId(tweetId)) {
-    console.warn(
-      `[InfluencerPerformance] ⚠️ Invalid tweetId: ${tweetId}, skipping`
-    );
+    console.warn(`[InfluencerPerformance] ⚠️ Invalid tweetId: ${tweetId}, skipping`);
     return false;
   }
 
@@ -180,13 +178,11 @@ async function incrementTweetEngagement(tweetId, type, meta = {}) {
   const FIELD_MAP = {
     like: "likes",
     retweet: "retweets",
-    reply: "replies",
+    reply: "replies"
   };
   const field = FIELD_MAP[type];
   if (!field) {
-    console.warn(
-      `[InfluencerPerformance] ⚠️ Unknown event type: ${type}, skipping`
-    );
+    console.warn(`[InfluencerPerformance] ⚠️ Unknown event type: ${type}, skipping`);
     return false;
   }
 
@@ -198,7 +194,7 @@ async function incrementTweetEngagement(tweetId, type, meta = {}) {
 
     // P0修正: 原子インクリメント（カウンタキーをSoTに）
     const newCount = await kv.incr(counterKey);
-    await kv.expire(counterKey, TWEET_ENG_TTL);
+    await kv.set(counterKey, String(newCount), { ex: TWEET_ENG_TTL });
 
     // P0修正: lastEventAtを別キーに分離してKV書込過多を防止
     const lastEventAtKey = `${baseKey}:lastEventAt`;
@@ -208,7 +204,7 @@ async function incrementTweetEngagement(tweetId, type, meta = {}) {
     // SET NX相当の動作: 既存なら取得、なければ作成
     let metaData = await kv.get(metaKey);
     const isNewMeta = !metaData;
-    
+
     if (isNewMeta) {
       // 初回のみメタ情報を作成
       metaData = {
@@ -219,7 +215,7 @@ async function incrementTweetEngagement(tweetId, type, meta = {}) {
           ? normalizeUsername(meta.influencerUsername)
           : null,
         firstSeenAt: now,
-        lastEventAt: now,
+        lastEventAt: now
       };
       await kv.set(metaKey, metaData, { ex: TWEET_ENG_TTL });
     } else {
@@ -245,8 +241,8 @@ async function incrementTweetEngagement(tweetId, type, meta = {}) {
         // lastEventAtは別キーで管理しているため、metaには含めない
         await kv.set(metaKey, metaData, { ex: TWEET_ENG_TTL });
       }
-      // TTL整合性のため、メタキーのTTLも延長（ただし更新頻度は低い）
-      await kv.expire(metaKey, TWEET_ENG_TTL);
+      // TTL整合性のため、メタキーのTTLも延長（Vercel KV は expire がないため set で ex を付与）
+      await kv.set(metaKey, metaData, { ex: TWEET_ENG_TTL });
     }
 
     // デバッグログは削減（高頻度Webhookでログ爆発を防止）
@@ -257,10 +253,7 @@ async function incrementTweetEngagement(tweetId, type, meta = {}) {
     }
     return true;
   } catch (error) {
-    console.warn(
-      `[InfluencerPerformance] ⚠️ Failed to increment tweet engagement:`,
-      error.message
-    );
+    console.warn(`[InfluencerPerformance] ⚠️ Failed to increment tweet engagement:`, error.message);
     return false;
   }
 }
@@ -283,7 +276,7 @@ async function getTweetEngagement(tweetId) {
     const baseKey = tweetEngKey(tweetId);
     const metaKey = `${baseKey}:meta`;
     const lastEventAtKey = `${baseKey}:lastEventAt`;
-    
+
     // P0修正: カウンタキーから値を取得（SoT）
     // Promise解決後にフォールバックを適用
     const [likesRaw, retweetsRaw, repliesRaw, meta, lastEventAt] = await Promise.all([
@@ -291,7 +284,7 @@ async function getTweetEngagement(tweetId) {
       kv.get(`${baseKey}:retweets`),
       kv.get(`${baseKey}:replies`),
       kv.get(metaKey),
-      kv.get(lastEventAtKey),
+      kv.get(lastEventAtKey)
     ]);
 
     // P0修正: 返却のマージ順を固定（metaを先に展開してからtweetId/webhookで上書き）
@@ -303,14 +296,11 @@ async function getTweetEngagement(tweetId) {
       webhook: {
         likes: Number(likesRaw ?? 0),
         retweets: Number(retweetsRaw ?? 0),
-        replies: Number(repliesRaw ?? 0),
-      },
+        replies: Number(repliesRaw ?? 0)
+      }
     };
   } catch (error) {
-    console.warn(
-      `[InfluencerPerformance] ⚠️ Failed to get tweet engagement:`,
-      error.message
-    );
+    console.warn(`[InfluencerPerformance] ⚠️ Failed to get tweet engagement:`, error.message);
     return null;
   }
 }
@@ -328,31 +318,29 @@ async function setInfluencerMapping(tweetId, mapping) {
 
   // P1修正: tweetIdのバリデーション
   if (!validateTweetId(tweetId)) {
-    console.warn(
-      `[InfluencerPerformance] ⚠️ Invalid tweetId for setInfluencerMapping: ${tweetId}`
-    );
+    console.warn(`[InfluencerPerformance] ⚠️ Invalid tweetId for setInfluencerMapping: ${tweetId}`);
     return false;
   }
 
   try {
     const key = tweetMapKey(tweetId);
-    
+
     // マッピングデータを正規化して保存
     const payload = {
       username: mapping.username ? normalizeUsername(mapping.username) : null,
       influencerUsername: mapping.influencerUsername
         ? normalizeUsername(mapping.influencerUsername)
         : mapping.username
-        ? normalizeUsername(mapping.username)
-        : null,
+          ? normalizeUsername(mapping.username)
+          : null,
       lang: mapping.lang || null,
       postType: mapping.postType || null,
-      postedAt: mapping.postedAt || new Date().toISOString(),
+      postedAt: mapping.postedAt || new Date().toISOString()
     };
 
     // MAP_TTL（45日）で保存
     await kv.set(key, payload, { ex: MAP_TTL });
-    
+
     if (process.env.DEBUG_WEBHOOK === "true") {
       console.log(
         `[InfluencerPerformance] ✅ Saved influencer mapping for tweet ${tweetId}:`,
@@ -361,10 +349,7 @@ async function setInfluencerMapping(tweetId, mapping) {
     }
     return true;
   } catch (error) {
-    console.warn(
-      `[InfluencerPerformance] ⚠️ Failed to set influencer mapping:`,
-      error.message
-    );
+    console.warn(`[InfluencerPerformance] ⚠️ Failed to set influencer mapping:`, error.message);
     return false;
   }
 }
@@ -388,10 +373,7 @@ async function getInfluencerMapping(tweetId) {
     const mapping = await kv.get(tweetMapKey(tweetId));
     return mapping || null;
   } catch (error) {
-    console.warn(
-      `[InfluencerPerformance] ⚠️ Failed to get influencer mapping:`,
-      error.message
-    );
+    console.warn(`[InfluencerPerformance] ⚠️ Failed to get influencer mapping:`, error.message);
     return null;
   }
 }
@@ -403,36 +385,33 @@ async function getInfluencerMapping(tweetId) {
  * @param {Function} metricsFetcher - メトリクス取得関数（tweetId）=> Promise<{impressions, engagements, replies, retweets, likes, quoteTweets}>
  * @returns {Promise<Object>} 集計結果 {influencers: number}
  */
-async function buildInfluencerDailyPerformance(
-  dateString,
-  posts,
-  metricsFetcher
-) {
+async function buildInfluencerDailyPerformance(dateString, posts, metricsFetcher) {
   // P1修正: 入力検証
   if (!kv) {
     return { influencers: 0 };
   }
-  
+
   if (!validateDateString(dateString)) {
     throw new Error(`Invalid dateString: ${dateString}. Must be YYYY-MM-DD format.`);
   }
-  
+
   if (!posts || !Array.isArray(posts) || posts.length === 0) {
     return { influencers: 0 };
   }
-  
-  if (typeof metricsFetcher !== 'function') {
-    throw new Error('metricsFetcher must be a function');
+
+  if (typeof metricsFetcher !== "function") {
+    throw new Error("metricsFetcher must be a function");
   }
-  
+
   // P0修正: postsの重複を排除（同一tweetIdの二重加算を防止）
   const uniquePosts = Array.from(
     new Map(
-      posts.filter(p => p?.tweetId && validateTweetId(String(p.tweetId)))
-        .map(p => [String(p.tweetId), { ...p, tweetId: String(p.tweetId) }])
+      posts
+        .filter((p) => p?.tweetId && validateTweetId(String(p.tweetId)))
+        .map((p) => [String(p.tweetId), { ...p, tweetId: String(p.tweetId) }])
     ).values()
   );
-  
+
   if (uniquePosts.length !== posts.length) {
     console.warn(
       `[InfluencerPerformance] ⚠️ Removed ${posts.length - uniquePosts.length} duplicate/invalid posts`
@@ -442,7 +421,7 @@ async function buildInfluencerDailyPerformance(
   // P0-4修正: 並列度制限付きで処理（X APIレート制限に合わせて10並列）
   const limit = pLimit(10);
   const agg = new Map(); // key: `${lang}:${username}`
-  
+
   // P1修正: 失敗理由別カウンタ（観測性向上）
   // P0修正: errorCountsをprocessPostの外で定義して、クロージャで共有
   const errorCounts = {
@@ -450,7 +429,7 @@ async function buildInfluencerDailyPerformance(
     invalidUsername: 0,
     missingImpressions: 0,
     invalidMetrics: 0,
-    fetchError: 0,
+    fetchError: 0
   };
 
   // 個別投稿処理関数（並列化用）
@@ -466,10 +445,9 @@ async function buildInfluencerDailyPerformance(
       if (!influencer) {
         errorCounts.noMapping++; // P0修正: エラーカウントを追加
         try {
-          // SETに追加（重複自動排除）
+          // SETに追加（重複自動排除）。Vercel KV は expire 非対応のため TTL なし
           const queueKey = "x:queue:missing-influencer-map";
           await kv.sadd(queueKey, tweetId);
-          await kv.expire(queueKey, 86400 * 7); // 7日間保持
         } catch (queueError) {
           // キュー追加失敗は警告のみ（処理は継続）
         }
@@ -492,7 +470,7 @@ async function buildInfluencerDailyPerformance(
         try {
           const retryQueueKey = "x:queue:missing-impressions";
           await kv.sadd(retryQueueKey, tweetId);
-          await kv.expire(retryQueueKey, 86400 * 7); // 7日間保持
+          // Vercel KV は expire 非対応のため Set キーに TTL なし
         } catch (retryQueueError) {
           // キュー追加失敗は警告のみ
         }
@@ -508,11 +486,7 @@ async function buildInfluencerDailyPerformance(
           (Number(m.replies) || 0) +
           (Number(m.quoteTweets) || 0);
 
-      if (
-        !Number.isFinite(impressions) ||
-        !Number.isFinite(engagements) ||
-        impressions <= 0
-      ) {
+      if (!Number.isFinite(impressions) || !Number.isFinite(engagements) || impressions <= 0) {
         errorCounts.invalidMetrics++;
         return null;
       }
@@ -523,16 +497,13 @@ async function buildInfluencerDailyPerformance(
         impressions,
         engagements,
         tweetId,
-        engagementRate: engagements / impressions,
+        engagementRate: engagements / impressions
       };
     } catch (error) {
       // P1修正: エラー理由を記録（観測性向上）
       errorCounts.fetchError++; // P0修正: エラーカウントを追加
       if (process.env.DEBUG_WEBHOOK === "true") {
-        console.warn(
-          `[InfluencerPerformance] ⚠️ Error processing post ${tweetId}:`,
-          error.message
-        );
+        console.warn(`[InfluencerPerformance] ⚠️ Error processing post ${tweetId}:`, error.message);
       }
       return null;
     }
@@ -546,29 +517,23 @@ async function buildInfluencerDailyPerformance(
   // 結果を集約
   for (const result of results) {
     if (result.status === "fulfilled" && result.value) {
-      const { lang, username, impressions, engagements, tweetId, engagementRate } =
-        result.value;
+      const { lang, username, impressions, engagements, tweetId, engagementRate } = result.value;
       const key = `${lang}:${username}`;
-      const cur =
-        agg.get(key) ||
-        {
-          date: dateString,
-          lang,
-          influencerUsername: username,
-          totalPosts: 0,
-          totalImpressions: 0,
-          totalEngagements: 0,
-          bestPost: { tweetId: null, engagementRate: null },
-        };
+      const cur = agg.get(key) || {
+        date: dateString,
+        lang,
+        influencerUsername: username,
+        totalPosts: 0,
+        totalImpressions: 0,
+        totalEngagements: 0,
+        bestPost: { tweetId: null, engagementRate: null }
+      };
 
       cur.totalPosts += 1;
       cur.totalImpressions += impressions;
       cur.totalEngagements += engagements;
 
-      if (
-        cur.bestPost.engagementRate === null ||
-        engagementRate > cur.bestPost.engagementRate
-      ) {
+      if (cur.bestPost.engagementRate === null || engagementRate > cur.bestPost.engagementRate) {
         cur.bestPost = { tweetId, engagementRate };
       }
 
@@ -581,9 +546,7 @@ async function buildInfluencerDailyPerformance(
   for (const cur of agg.values()) {
     try {
       cur.avgEngagementRate =
-        cur.totalImpressions > 0
-          ? cur.totalEngagements / cur.totalImpressions
-          : null;
+        cur.totalImpressions > 0 ? cur.totalEngagements / cur.totalImpressions : null;
       const key = dayKey(dateString, cur.lang, cur.influencerUsername);
       await kv.set(key, cur, { ex: PERF_DAY_TTL });
       savedCount++;
@@ -597,18 +560,18 @@ async function buildInfluencerDailyPerformance(
 
   // P1修正: 失敗理由別カウンタを出力（観測性向上）
   // P0修正: Promise.allSettledのrejectedも集計
-  const rejectedCount = results.filter(r => r.status === 'rejected').length;
+  const rejectedCount = results.filter((r) => r.status === "rejected").length;
   const totalProcessed = uniquePosts.length;
   // P0修正: 成功/失敗の定義を明確化（投稿単位とインフルエンサー単位を分離）
-  const successPosts = results.filter(r => r.status === 'fulfilled' && r.value).length;
+  const successPosts = results.filter((r) => r.status === "fulfilled" && r.value).length;
   const failedPosts = totalProcessed - successPosts;
   const successInfluencers = agg.size;
-  
+
   // P0修正: rejectedのエラーもfetchErrorにカウント
   if (rejectedCount > 0) {
     errorCounts.fetchError += rejectedCount;
   }
-  
+
   // P1推奨実装: 構造化ログ（JSON形式）
   const logData = {
     event: "daily_performance_built",
@@ -619,12 +582,12 @@ async function buildInfluencerDailyPerformance(
       failedPosts,
       successInfluencers,
       rejectedCount,
-      savedCount,
+      savedCount
     },
     errors: errorCounts,
-    timestamp: new Date().toISOString(),
+    timestamp: new Date().toISOString()
   };
-  
+
   console.log(
     `[InfluencerPerformance] ✅ Built daily performance for ${dateString}:`,
     JSON.stringify(logData, null, 2)
@@ -642,12 +605,7 @@ async function buildInfluencerDailyPerformance(
  * @param {string} endDateString - 終了日（YYYY-MM-DD）
  * @returns {Promise<Object>} rollingパフォーマンスデータ
  */
-async function rebuildInfluencerRolling(
-  windowDays,
-  lang,
-  username,
-  endDateString
-) {
+async function rebuildInfluencerRolling(windowDays, lang, username, endDateString) {
   if (!kv) {
     return null;
   }
@@ -691,8 +649,7 @@ async function rebuildInfluencerRolling(
       }
     }
 
-    const avgEngagementRate =
-      totalImpressions > 0 ? totalEngagements / totalImpressions : null;
+    const avgEngagementRate = totalImpressions > 0 ? totalEngagements / totalImpressions : null;
 
     const payload = {
       windowDays,
@@ -704,7 +661,7 @@ async function rebuildInfluencerRolling(
       totalEngagements,
       avgEngagementRate,
       bestPost: best,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     const key = rollKey(`${windowDays}d`, lang, normalizedUsername);
@@ -716,10 +673,7 @@ async function rebuildInfluencerRolling(
 
     return payload;
   } catch (error) {
-    console.warn(
-      `[InfluencerPerformance] ⚠️ Failed to rebuild rolling:`,
-      error.message
-    );
+    console.warn(`[InfluencerPerformance] ⚠️ Failed to rebuild rolling:`, error.message);
     return null;
   }
 }
@@ -746,10 +700,7 @@ async function getInfluencerRolling(windowDays, lang, username) {
     const data = await kv.get(key);
     return data || null;
   } catch (error) {
-    console.warn(
-      `[InfluencerPerformance] ⚠️ Failed to get rolling:`,
-      error.message
-    );
+    console.warn(`[InfluencerPerformance] ⚠️ Failed to get rolling:`, error.message);
     return null;
   }
 }
@@ -775,10 +726,7 @@ async function getInfluencerDailyPerformance(dateString, lang, username) {
     const data = await kv.get(key);
     return data || null;
   } catch (error) {
-    console.warn(
-      `[InfluencerPerformance] ⚠️ Failed to get daily performance:`,
-      error.message
-    );
+    console.warn(`[InfluencerPerformance] ⚠️ Failed to get daily performance:`, error.message);
     return null;
   }
 }
@@ -791,5 +739,5 @@ module.exports = {
   buildInfluencerDailyPerformance,
   rebuildInfluencerRolling,
   getInfluencerRolling,
-  getInfluencerDailyPerformance,
+  getInfluencerDailyPerformance
 };

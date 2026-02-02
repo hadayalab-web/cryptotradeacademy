@@ -1,17 +1,17 @@
 // services/x/influencerRotation.js
 // インフルエンサーローテーション管理（70人リストを上手にローテーション）
-// 
+//
 // タイムゾーン仕様: UTC日付で管理（P0-4対応）
 // - 日付キーは `new Date().toISOString().split('T')[0]` で生成（UTC基準）
 // - ローテーション、投稿済み判定、日次上限はすべてUTC日付で動作
 
 // 🚀 シームレスなKVアクセス（utils/kv.js経由）
-const { kv } = require('../../utils/kv');
+const { kv } = require("../../utils/kv");
 
 // KVキーのプレフィックス
-const ROTATION_KEY_PREFIX = 'x:influencer_rotation:';
-const POSTED_TODAY_KEY_PREFIX = 'x:influencer_posted_today:';
-const LAST_POSTED_KEY_PREFIX = 'x:influencer_last_posted:';
+const ROTATION_KEY_PREFIX = "x:influencer_rotation:";
+const POSTED_TODAY_KEY_PREFIX = "x:influencer_posted_today:";
+const LAST_POSTED_KEY_PREFIX = "x:influencer_last_posted:";
 
 /**
  * 言語別のローテーションキーを生成
@@ -41,22 +41,25 @@ function getPostedTodayKey(lang, dateString) {
  */
 async function getPostedInfluencersToday(lang, dateString = null) {
   if (!kv) {
-    console.warn('[InfluencerRotation] KV not available, cannot get posted influencers');
+    console.warn("[InfluencerRotation] KV not available, cannot get posted influencers");
     return new Set();
   }
 
   try {
-    const targetDate = dateString || new Date().toISOString().split('T')[0];
+    const targetDate = dateString || new Date().toISOString().split("T")[0];
     const key = getPostedTodayKey(lang, targetDate);
     const posted = await kv.get(key);
-    
+
     if (!posted || !Array.isArray(posted)) {
       return new Set();
     }
-    
+
     return new Set(posted);
   } catch (error) {
-    console.error(`[InfluencerRotation] Failed to get posted influencers for ${lang}:`, error.message);
+    console.error(
+      `[InfluencerRotation] Failed to get posted influencers for ${lang}:`,
+      error.message
+    );
     return new Set();
   }
 }
@@ -73,12 +76,12 @@ function getLockKey(lang, dateString) {
 
 /**
  * ロックを取得（SET NX EX相当）
- * 
+ *
  * 注意: Vercel KVは廃止され、Upstash Redisに移行済み
  * - `@vercel/kv`パッケージは非推奨だが、既存プロジェクトでは動作
  * - Upstash Redisは標準的なRedisコマンドをサポート
  * - `nx`オプションのサポート状況は`@vercel/kv`パッケージの実装に依存
- * 
+ *
  * @param {string} lockKey - ロックキー
  * @param {number} ttlSeconds - TTL（秒、デフォルト: 10秒）
  * @returns {Promise<boolean>} ロック取得成功時true
@@ -90,7 +93,7 @@ async function acquireLock(lockKey, ttlSeconds = 10) {
     // Vercel KV/Upstash Redisは標準的なRedisコマンドをサポート
     // @vercel/kvパッケージが`nx`オプションをサポートしているか確認
     const lockValue = Date.now().toString();
-    
+
     // まず既存のロックをチェック
     const existing = await kv.get(lockKey);
     if (existing) {
@@ -98,12 +101,12 @@ async function acquireLock(lockKey, ttlSeconds = 10) {
       // ここでは単純に失敗として扱う（デッドロック回避のため）
       return false;
     }
-    
+
     // ロックが存在しない場合、設定を試みる
     // @vercel/kvが`nx`オプションをサポートしている場合は使用、そうでない場合は代替実装
     try {
       const result = await kv.set(lockKey, lockValue, { ex: ttlSeconds, nx: true });
-      return result === 'OK' || result === true;
+      return result === "OK" || result === true;
     } catch (nxError) {
       // `nx`オプションがサポートされていない場合、再チェック方式を使用
       // これは完全に原子的ではないが、ほとんどのケースで動作する
@@ -147,47 +150,54 @@ async function releaseLock(lockKey) {
  */
 async function markInfluencerPosted(lang, username, dateString = null) {
   if (!kv) {
-    console.warn('[InfluencerRotation] KV not available, cannot mark influencer as posted');
+    console.warn("[InfluencerRotation] KV not available, cannot mark influencer as posted");
     return false;
   }
 
-  const targetDate = dateString || new Date().toISOString().split('T')[0];
+  const targetDate = dateString || new Date().toISOString().split("T")[0];
   const key = getPostedTodayKey(lang, targetDate);
   const lockKey = getLockKey(lang, targetDate);
-  
+
   // P0-2対応: ロックを取得してから更新（最大10回リトライ、100ms間隔）
   let lockAcquired = false;
   for (let attempt = 0; attempt < 10; attempt++) {
     lockAcquired = await acquireLock(lockKey, 10);
     if (lockAcquired) break;
-    await new Promise(resolve => setTimeout(resolve, 100)); // 100ms待機
+    await new Promise((resolve) => setTimeout(resolve, 100)); // 100ms待機
   }
-  
+
   if (!lockAcquired) {
-    console.warn(`[InfluencerRotation] ⚠️ Failed to acquire lock after 10 attempts, proceeding without lock (risk of race condition)`);
+    console.warn(
+      `[InfluencerRotation] ⚠️ Failed to acquire lock after 10 attempts, proceeding without lock (risk of race condition)`
+    );
     // ロック取得失敗時も処理を続行（可用性優先、ただし競合リスクあり）
   }
 
   try {
     // 既存のリストを取得
-    const posted = await kv.get(key) || [];
+    const posted = (await kv.get(key)) || [];
     const postedSet = new Set(posted);
-    
+
     // 新しいユーザー名を追加
     if (!postedSet.has(username)) {
       postedSet.add(username);
       const updatedList = Array.from(postedSet);
-      
+
       // KVに保存（TTL: 48時間、日付が変わっても安全に保持）
       await kv.set(key, updatedList, { ex: 48 * 60 * 60 });
-      
-      console.log(`[InfluencerRotation] ✅ Marked @${username} as posted for ${lang} on ${targetDate} (total: ${updatedList.length})`);
+
+      console.log(
+        `[InfluencerRotation] ✅ Marked @${username} as posted for ${lang} on ${targetDate} (total: ${updatedList.length})`
+      );
       return true;
     }
-    
+
     return true; // 既に存在する場合も成功として扱う
   } catch (error) {
-    console.error(`[InfluencerRotation] Failed to mark influencer as posted for ${lang}:`, error.message);
+    console.error(
+      `[InfluencerRotation] Failed to mark influencer as posted for ${lang}:`,
+      error.message
+    );
     return false;
   } finally {
     // ロックを解放
@@ -209,11 +219,11 @@ async function getRotationIndex(lang, dateString = null) {
   }
 
   try {
-    const targetDate = dateString || new Date().toISOString().split('T')[0];
+    const targetDate = dateString || new Date().toISOString().split("T")[0];
     const key = getRotationKey(lang, targetDate);
     const index = await kv.get(key);
-    
-    return index !== null && typeof index === 'number' ? index : 0;
+
+    return index !== null && typeof index === "number" ? index : 0;
   } catch (error) {
     console.error(`[InfluencerRotation] Failed to get rotation index for ${lang}:`, error.message);
     return 0;
@@ -233,15 +243,18 @@ async function updateRotationIndex(lang, newIndex, dateString = null) {
   }
 
   try {
-    const targetDate = dateString || new Date().toISOString().split('T')[0];
+    const targetDate = dateString || new Date().toISOString().split("T")[0];
     const key = getRotationKey(lang, targetDate);
-    
+
     // KVに保存（TTL: 48時間）
     await kv.set(key, newIndex, { ex: 48 * 60 * 60 });
-    
+
     return true;
   } catch (error) {
-    console.error(`[InfluencerRotation] Failed to update rotation index for ${lang}:`, error.message);
+    console.error(
+      `[InfluencerRotation] Failed to update rotation index for ${lang}:`,
+      error.message
+    );
     return false;
   }
 }
@@ -260,34 +273,38 @@ async function selectInfluencersWithRotation(influencers, lang, count, dateStrin
     return [];
   }
 
-  const targetDate = dateString || new Date().toISOString().split('T')[0];
-  
+  const targetDate = dateString || new Date().toISOString().split("T")[0];
+
   // 今日既に投稿したインフルエンサーを取得
   const postedToday = await getPostedInfluencersToday(lang, targetDate);
-  
+
   // 投稿済みを除外 + 言語整合性チェック
-  const availableInfluencers = influencers.filter(inf => {
+  const availableInfluencers = influencers.filter((inf) => {
     const username = inf.username || inf.userId || inf.id;
     if (!username) return false;
-    
+
     // 言語整合性チェック: langフィールドがある場合、一致しているか確認
     if (inf.lang && inf.lang.toLowerCase() !== lang.toLowerCase()) {
-      console.warn(`[InfluencerRotation] ⚠️ Skipping @${username}: lang mismatch (${inf.lang} !== ${lang})`);
+      console.warn(
+        `[InfluencerRotation] ⚠️ Skipping @${username}: lang mismatch (${inf.lang} !== ${lang})`
+      );
       return false;
     }
-    
+
     // langフィールドがない場合は警告して続行（後で設定される）
     if (!inf.lang) {
       console.warn(`[InfluencerRotation] ⚠️ @${username} has no lang field, assuming lang=${lang}`);
       inf.lang = lang; // 後続処理で使用するため設定
     }
-    
+
     return !postedToday.has(username);
   });
-  
+
   // 利用可能なインフルエンサーが不足している場合、投稿済みも含める（ローテーションをリセット）
   if (availableInfluencers.length < count) {
-    console.log(`[InfluencerRotation] ⚠️ Only ${availableInfluencers.length} available influencers for ${lang}, resetting rotation`);
+    console.log(
+      `[InfluencerRotation] ⚠️ Only ${availableInfluencers.length} available influencers for ${lang}, resetting rotation`
+    );
     // 投稿済みリストをクリア（新しい日付で自動的にリセットされるが、念のため）
     if (kv) {
       try {
@@ -299,25 +316,27 @@ async function selectInfluencersWithRotation(influencers, lang, count, dateStrin
     }
     // 全インフルエンサーを使用
     const allInfluencers = influencers;
-    
+
     // ローテーションインデックスを取得
     const rotationIndex = await getRotationIndex(lang, targetDate);
-    
+
     // ローテーション順に選択（循環）
     const selected = [];
     for (let i = 0; i < count && i < allInfluencers.length; i++) {
       const index = (rotationIndex + i) % allInfluencers.length;
       selected.push(allInfluencers[index]);
     }
-    
+
     // ローテーションインデックスを更新
     const newIndex = (rotationIndex + count) % allInfluencers.length;
     await updateRotationIndex(lang, newIndex, targetDate);
-    
-    console.log(`[InfluencerRotation] ✅ Selected ${selected.length} influencers with rotation (index: ${rotationIndex} → ${newIndex})`);
+
+    console.log(
+      `[InfluencerRotation] ✅ Selected ${selected.length} influencers with rotation (index: ${rotationIndex} → ${newIndex})`
+    );
     return selected;
   }
-  
+
   // 利用可能なインフルエンサーが十分ある場合
   // 🚀 最適化: 未使用インフルエンサーを優先的に選択
   // 1. 最終投稿時刻でソート（未使用または古い投稿を優先）
@@ -328,34 +347,38 @@ async function selectInfluencersWithRotation(influencers, lang, count, dateStrin
       return {
         influencer: inf,
         lastPosted: lastPosted || new Date(0), // 未使用の場合は1970-01-01
-        username,
+        username
       };
     })
   );
-  
+
   // 最終投稿時刻でソート（古い順 = 未使用優先）
   influencersWithLastPosted.sort((a, b) => {
     return a.lastPosted.getTime() - b.lastPosted.getTime();
   });
-  
+
   // ローテーションインデックスを取得
   const rotationIndex = await getRotationIndex(lang, targetDate);
-  
+
   // ローテーション順に選択（循環、未使用優先）
   const selected = [];
-  const sortedInfluencers = influencersWithLastPosted.map(item => item.influencer);
-  
+  const sortedInfluencers = influencersWithLastPosted.map((item) => item.influencer);
+
   for (let i = 0; i < count && i < sortedInfluencers.length; i++) {
     const index = (rotationIndex + i) % sortedInfluencers.length;
     selected.push(sortedInfluencers[index]);
   }
-  
+
   // ローテーションインデックスを更新
   const newIndex = (rotationIndex + count) % sortedInfluencers.length;
   await updateRotationIndex(lang, newIndex, targetDate);
-  
-  const unusedCount = influencersWithLastPosted.filter(item => item.lastPosted.getTime() === new Date(0).getTime()).length;
-  console.log(`[InfluencerRotation] ✅ Selected ${selected.length} influencers with rotation (available: ${availableInfluencers.length}, unused: ${unusedCount}, index: ${rotationIndex} → ${newIndex})`);
+
+  const unusedCount = influencersWithLastPosted.filter(
+    (item) => item.lastPosted.getTime() === new Date(0).getTime()
+  ).length;
+  console.log(
+    `[InfluencerRotation] ✅ Selected ${selected.length} influencers with rotation (available: ${availableInfluencers.length}, unused: ${unusedCount}, index: ${rotationIndex} → ${newIndex})`
+  );
   return selected;
 }
 
@@ -366,8 +389,8 @@ async function selectInfluencersWithRotation(influencers, lang, count, dateStrin
  * @returns {string} KVキー
  */
 function getLastPostedKey(lang, username) {
-  const l = (lang || 'en').toLowerCase();
-  const u = (username || '').replace(/^@/, '').toLowerCase();
+  const l = (lang || "en").toLowerCase();
+  const u = (username || "").replace(/^@/, "").toLowerCase();
   return `${LAST_POSTED_KEY_PREFIX}${l}:${u}`;
 }
 
@@ -390,7 +413,7 @@ async function getLastPostedAt(lang, username) {
     if (Number.isNaN(d.getTime())) return null;
     return d;
   } catch (e) {
-    console.warn('[InfluencerRotation] getLastPostedAt failed:', e.message);
+    console.warn("[InfluencerRotation] getLastPostedAt failed:", e.message);
     return null;
   }
 }
@@ -408,10 +431,12 @@ async function markLastPostedAt(lang, username, date = new Date()) {
   try {
     const key = getLastPostedKey(lang, username);
     await kv.set(key, date.toISOString(), { ex: 24 * 60 * 60 });
-    console.log(`[InfluencerRotation] ✅ Marked last posted at for @${username} (${lang}): ${date.toISOString()}`);
+    console.log(
+      `[InfluencerRotation] ✅ Marked last posted at for @${username} (${lang}): ${date.toISOString()}`
+    );
     return true;
   } catch (e) {
-    console.warn('[InfluencerRotation] markLastPostedAt failed:', e.message);
+    console.warn("[InfluencerRotation] markLastPostedAt failed:", e.message);
     return false;
   }
 }
@@ -431,16 +456,18 @@ async function isInCooldown(lang, username, cooldownHours = 8, now = new Date())
   const diffMs = now.getTime() - last.getTime();
   const diffHours = diffMs / (1000 * 60 * 60);
   const inCooldown = diffHours < cooldownHours;
-  
+
   if (inCooldown) {
-    console.log(`[InfluencerRotation] ⏰ @${username} (${lang}) is in cooldown: last posted ${diffHours.toFixed(2)}h ago (need ${cooldownHours}h)`);
+    console.log(
+      `[InfluencerRotation] ⏰ @${username} (${lang}) is in cooldown: last posted ${diffHours.toFixed(2)}h ago (need ${cooldownHours}h)`
+    );
   }
-  
+
   return inCooldown;
 }
 
 // 日次投稿数カウンターのキープレフィックス
-const DAILY_POST_COUNT_KEY_PREFIX = 'x:influencer_daily_post_count:';
+const DAILY_POST_COUNT_KEY_PREFIX = "x:influencer_daily_post_count:";
 
 /**
  * インフルエンサーの日次投稿数キーを生成
@@ -450,9 +477,9 @@ const DAILY_POST_COUNT_KEY_PREFIX = 'x:influencer_daily_post_count:';
  * @returns {string} KVキー
  */
 function getDailyPostCountKey(lang, username, dateString = null) {
-  const targetDate = dateString || new Date().toISOString().split('T')[0];
-  const l = (lang || 'en').toLowerCase();
-  const u = (username || '').replace(/^@/, '').toLowerCase();
+  const targetDate = dateString || new Date().toISOString().split("T")[0];
+  const l = (lang || "en").toLowerCase();
+  const u = (username || "").replace(/^@/, "").toLowerCase();
   return `${DAILY_POST_COUNT_KEY_PREFIX}${l}:${u}:${targetDate}`;
 }
 
@@ -468,9 +495,9 @@ async function getDailyPostCount(lang, username, dateString = null) {
   try {
     const key = getDailyPostCountKey(lang, username, dateString);
     const count = await kv.get(key);
-    return typeof count === 'number' ? count : 0;
+    return typeof count === "number" ? count : 0;
   } catch (e) {
-    console.warn('[InfluencerRotation] getDailyPostCount failed:', e.message);
+    console.warn("[InfluencerRotation] getDailyPostCount failed:", e.message);
     return 0;
   }
 }
@@ -485,19 +512,21 @@ async function getDailyPostCount(lang, username, dateString = null) {
 async function incrementDailyPostCount(lang, username, dateString = null) {
   if (!kv) return 0;
   try {
-    const targetDate = dateString || new Date().toISOString().split('T')[0];
+    const targetDate = dateString || new Date().toISOString().split("T")[0];
     const key = getDailyPostCountKey(lang, username, targetDate);
-    
+
     // INCR操作（原子性を保証）
     const newCount = await kv.incr(key);
-    
-    // TTLを設定（日付が変わっても安全に保持、48時間）
-    await kv.expire(key, 48 * 60 * 60);
-    
-    console.log(`[InfluencerRotation] ✅ Incremented daily post count for @${username} (${lang}): ${newCount}`);
+
+    // TTLを設定（Vercel KV は expire がないため set で上書きして ex を付与、48時間）
+    await kv.set(key, String(newCount), { ex: 48 * 60 * 60 });
+
+    console.log(
+      `[InfluencerRotation] ✅ Incremented daily post count for @${username} (${lang}): ${newCount}`
+    );
     return newCount;
   } catch (e) {
-    console.warn('[InfluencerRotation] incrementDailyPostCount failed:', e.message);
+    console.warn("[InfluencerRotation] incrementDailyPostCount failed:", e.message);
     return 0;
   }
 }
@@ -515,11 +544,13 @@ async function incrementDailyPostCount(lang, username, dateString = null) {
 async function hasReachedDailyLimit(lang, username, maxDailyPosts = 4, dateString = null) {
   const currentCount = await getDailyPostCount(lang, username, dateString);
   const reached = currentCount >= maxDailyPosts;
-  
+
   if (reached) {
-    console.log(`[InfluencerRotation] ⚠️ @${username} (${lang}) has reached daily limit: ${currentCount}/${maxDailyPosts} posts`);
+    console.log(
+      `[InfluencerRotation] ⚠️ @${username} (${lang}) has reached daily limit: ${currentCount}/${maxDailyPosts} posts`
+    );
   }
-  
+
   return reached;
 }
 
@@ -530,16 +561,16 @@ async function hasReachedDailyLimit(lang, username, maxDailyPosts = 4, dateStrin
  * @returns {Promise<Object>} 投稿統計 {postedCount, totalInfluencers, rotationIndex}
  */
 async function getRotationStats(lang, dateString = null) {
-  const targetDate = dateString || new Date().toISOString().split('T')[0];
-  
+  const targetDate = dateString || new Date().toISOString().split("T")[0];
+
   const postedToday = await getPostedInfluencersToday(lang, targetDate);
   const rotationIndex = await getRotationIndex(lang, targetDate);
-  
+
   return {
     postedCount: postedToday.size,
     postedInfluencers: Array.from(postedToday),
     rotationIndex,
-    date: targetDate,
+    date: targetDate
   };
 }
 
@@ -557,5 +588,5 @@ module.exports = {
   // 日次投稿数上限関連（Grok + Gemini + GPT-5.2推奨）
   getDailyPostCount,
   incrementDailyPostCount,
-  hasReachedDailyLimit,
+  hasReachedDailyLimit
 };

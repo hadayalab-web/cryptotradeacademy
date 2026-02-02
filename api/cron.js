@@ -881,7 +881,9 @@ module.exports = async function handler(req, res) {
               }
             }
           } else {
-            console.log("[CQDeep] Non-regular slot (15min monitoring): skipping deep metrics for speed");
+            console.log(
+              "[CQDeep] Non-regular slot (15min monitoring): skipping deep metrics for speed"
+            );
             highResCQData = null;
           }
         } catch (error) {
@@ -1291,26 +1293,29 @@ module.exports = async function handler(req, res) {
     // 定期配信（isRegularSlot）と強制配信（force）は必ず送信
     // イベント駆動のREGULARトリガーも送信（早期returnで既にフィルタリング済み）
     // 重要: isRegularSlotがtrueの場合は、イベント駆動の判定に関係なく必ず配信
-    if (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && triggerType === "REGULAR" && !isRegularSlot)) {
-      console.log("[REGULAR] ✅✅✅ DELIVERY START: Sending REGULAR message (paid version) to all languages...");
+    if (
+      isRegularSlot ||
+      force ||
+      (ENABLE_EVENT_DRIVEN && triggerType === "REGULAR" && !isRegularSlot)
+    ) {
       console.log(
-        "[REGULAR] Conditions:",
-        {
-          isRegularSlot,
-          force,
-          ENABLE_EVENT_DRIVEN,
-          triggerType,
-          shouldSend,
-          willSend: ENABLE_EVENT_DRIVEN ? shouldSend : true
-        }
+        "[REGULAR] ✅✅✅ DELIVERY START: Sending REGULAR message (paid version) to all languages..."
       );
+      console.log("[REGULAR] Conditions:", {
+        isRegularSlot,
+        force,
+        ENABLE_EVENT_DRIVEN,
+        triggerType,
+        shouldSend,
+        willSend: ENABLE_EVENT_DRIVEN ? shouldSend : true
+      });
 
       // 配信対象言語を取得（デフォルト: 6言語すべて）
       const targetLangsForRegular = getTargetLanguagesForRegular();
       console.log(
         `[REGULAR] Target languages: ${targetLangsForRegular.join(", ")} (${targetLangsForRegular.length} languages)`
       );
-      
+
       // P0 FIX: チャンネルIDの設定状況を確認してログに出力
       const series = "BTC";
       const missingChannelIds = [];
@@ -1323,7 +1328,9 @@ module.exports = async function handler(req, res) {
         }
       }
       if (missingChannelIds.length > 0) {
-        console.warn(`[REGULAR] ⚠️ Missing channel IDs for languages: ${missingChannelIds.join(", ")}`);
+        console.warn(
+          `[REGULAR] ⚠️ Missing channel IDs for languages: ${missingChannelIds.join(", ")}`
+        );
       } else {
         console.log(`[REGULAR] ✅ All channel IDs configured for target languages`);
       }
@@ -1396,7 +1403,10 @@ module.exports = async function handler(req, res) {
               targetLang // P0 FIX: LANGではなくtargetLangを渡す
             );
 
-            if (langPsychologicalSupport && langPsychologicalSupport.psychologicalState !== "UNKNOWN") {
+            if (
+              langPsychologicalSupport &&
+              langPsychologicalSupport.psychologicalState !== "UNKNOWN"
+            ) {
               console.log(`[Dr. Grok] Psychological diagnosis completed for ${targetLang}:`, {
                 state: langPsychologicalSupport.psychologicalState,
                 risk: langPsychologicalSupport.psychologicalRisk,
@@ -1408,7 +1418,10 @@ module.exports = async function handler(req, res) {
           } catch (error) {
             // エラーメッセージを詳細化
             const errorMsg = error.message || String(error);
-            console.warn(`[Dr. Grok] Error providing psychological support for ${targetLang}:`, errorMsg);
+            console.warn(
+              `[Dr. Grok] Error providing psychological support for ${targetLang}:`,
+              errorMsg
+            );
             langPsychologicalSupport = null; // エラー時はnullを設定
           }
 
@@ -1464,12 +1477,19 @@ module.exports = async function handler(req, res) {
               });
 
               if (langIntegratedOptimization && langIntegratedOptimization.integrated) {
-                console.log(`[GrokGeminiOptimizer] Integration completed successfully for ${targetLang}`);
+                console.log(
+                  `[GrokGeminiOptimizer] Integration completed successfully for ${targetLang}`
+                );
               } else {
-                console.warn(`[GrokGeminiOptimizer] Integration failed or returned null for ${targetLang}`);
+                console.warn(
+                  `[GrokGeminiOptimizer] Integration failed or returned null for ${targetLang}`
+                );
               }
             } catch (error) {
-              console.warn(`[GrokGeminiOptimizer] Error integrating optimization for ${targetLang}:`, error.message);
+              console.warn(
+                `[GrokGeminiOptimizer] Error integrating optimization for ${targetLang}:`,
+                error.message
+              );
               langIntegratedOptimization = null;
             }
           }
@@ -1814,33 +1834,39 @@ module.exports = async function handler(req, res) {
     // 定期配信（isRegularSlot）と強制配信（force）は必ず送信
     // イベント駆動の判定（shouldSend）は定期枠以外の場合のみ適用
     // 重要: isRegularSlotがtrueの場合は、イベント駆動の判定に関係なく必ず配信
-    if (ENABLE_MINIMAL_VERSION && (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && shouldSend && !isRegularSlot))) {
-      console.log("[MINIMAL] ✅✅✅ DELIVERY START: Sending free briefing (Minimal Version) to all languages...");
+    if (
+      ENABLE_MINIMAL_VERSION &&
+      (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && shouldSend && !isRegularSlot))
+    ) {
       console.log(
-        "[MINIMAL] Conditions:",
-        {
-          isRegularSlot,
-          force,
-          ENABLE_EVENT_DRIVEN,
-          shouldSend,
-          ENABLE_MINIMAL_VERSION
-        }
+        "[MINIMAL] ✅✅✅ DELIVERY START: Sending free briefing (Minimal Version) to all languages..."
       );
+      console.log("[MINIMAL] Conditions:", {
+        isRegularSlot,
+        force,
+        ENABLE_EVENT_DRIVEN,
+        shouldSend,
+        ENABLE_MINIMAL_VERSION
+      });
 
       // 配信対象言語を取得（デフォルト: 6言語すべて）
       const targetLangsForMinimal = getTargetLanguagesForMinimal();
       console.log(`[MINIMAL] Target languages: ${targetLangsForMinimal.join(", ")}`);
-      
+
       // P0 FIX: チャンネルIDの設定状況を確認してログに出力
       const missingMinimalChannelIds = [];
       for (const lang of targetLangsForMinimal) {
         const minimalChatId = resolveMinimalChatId(lang);
         if (!minimalChatId) {
-          missingMinimalChannelIds.push(`${lang} (TELEGRAM_CHAT_ID_MINIMAL_${lang.toUpperCase().replace("-", "_")} or TELEGRAM_CHAT_ID_MINIMAL_EN or TELEGRAM_CHAT_ID_MINIMAL)`);
+          missingMinimalChannelIds.push(
+            `${lang} (TELEGRAM_CHAT_ID_MINIMAL_${lang.toUpperCase().replace("-", "_")} or TELEGRAM_CHAT_ID_MINIMAL_EN or TELEGRAM_CHAT_ID_MINIMAL)`
+          );
         }
       }
       if (missingMinimalChannelIds.length > 0) {
-        console.warn(`[MINIMAL] ⚠️ Missing channel IDs for languages: ${missingMinimalChannelIds.join(", ")}`);
+        console.warn(
+          `[MINIMAL] ⚠️ Missing channel IDs for languages: ${missingMinimalChannelIds.join(", ")}`
+        );
       } else {
         console.log(`[MINIMAL] ✅ All channel IDs configured for target languages`);
       }
@@ -2020,6 +2046,7 @@ module.exports = async function handler(req, res) {
       }
 
       // X投稿: 引用リポストのみ（x-post-minimal-version / x-post-free-report の Cron は削除済み）
+    }
 
     // 7-B. EMERGENCY (Trap) - 15分ごとの緊急配信
     if (finalNeedsEmergency || (ENABLE_EVENT_DRIVEN && triggerType === "EMERGENCY")) {

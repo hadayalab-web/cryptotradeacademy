@@ -409,8 +409,8 @@ async function incrementHourlyPostCount(hourKey) {
   try {
     const key = `x:hourly:${hourKey}`;
     const count = await kv.incr(key);
-    // TTL: 2時間後に自動削除（1時間のバッファ）
-    await kv.expire(key, 7200);
+    // TTL: 2時間後に自動削除（Vercel KV は expire がないため set で ex を付与）
+    await kv.set(key, String(count), { ex: 7200 });
     return count;
   } catch (error) {
     console.warn("[Optimization] Failed to increment hourly post count:", error.message);
