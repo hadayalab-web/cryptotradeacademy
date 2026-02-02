@@ -260,17 +260,44 @@ async function updateRotationIndex(lang, newIndex, dateString = null) {
 }
 
 /**
+ * ローテーションインデックスを実際の投稿成功数だけ進める（選択時は更新しない）
+ * @param {string} lang - 言語コード
+ * @param {number} delta - 進める数（実際に投稿した数）
+ * @param {number} poolSize - ローテーションの母集団サイズ（influencers.length）
+ * @param {string} dateString - 日付文字列（YYYY-MM-DD、省略時は今日）
+ * @returns {Promise<boolean>} 更新成功時true
+ */
+async function advanceRotationBy(lang, delta, poolSize, dateString = null) {
+  if (!kv || delta <= 0 || poolSize <= 0) return false;
+  try {
+    const targetDate = dateString || new Date().toISOString().split("T")[0];
+    const currentIndex = await getRotationIndex(lang, targetDate);
+    const newIndex = (currentIndex + delta) % poolSize;
+    await updateRotationIndex(lang, newIndex, targetDate);
+    console.log(
+      `[InfluencerRotation] ✅ Advanced rotation by ${delta} (actual posts): index ${currentIndex} → ${newIndex} (pool: ${poolSize})`
+    );
+    return true;
+  } catch (err) {
+    console.warn("[InfluencerRotation] advanceRotationBy failed:", err.message);
+    return false;
+  }
+}
+
+/**
  * インフルエンサーリストから、ローテーションを考慮して選択
- * 今日既に投稿した人を除外し、ローテーション順に選択
+ * 今日既に投稿した人を除外し、ローテーション順に選択（選択時はインデックスを更新しない＝投稿成功数で後から進める）
  * @param {Array} influencers - インフルエンサー配列
  * @param {string} lang - 言語コード
  * @param {number} count - 選択する人数
  * @param {string} dateString - 日付文字列（YYYY-MM-DD、省略時は今日）
- * @returns {Promise<Array>} 選択されたインフルエンサー配列
+ * @returns {Promise<{ selected: Array, rotationIndex: number, poolSize: number }>} 選択結果とローテーション情報
  */
 async function selectInfluencersWithRotation(influencers, lang, count, dateString = null) {
+  const emptyResult = () => ({ selected: [], rotationIndex: 0, poolSize: 0 });
+
   if (!influencers || influencers.length === 0) {
-    return [];
+    return emptyResult();
   }
 
   const targetDate = dateString || new Date().toISOString().split("T")[0];
@@ -320,21 +347,17 @@ async function selectInfluencersWithRotation(influencers, lang, count, dateStrin
     // ローテーションインデックスを取得
     const rotationIndex = await getRotationIndex(lang, targetDate);
 
-    // ローテーション順に選択（循環）
+    // ローテーション順に選択（循環）。インデックスは更新しない（投稿成功数で後から advanceRotationBy する）
     const selected = [];
     for (let i = 0; i < count && i < allInfluencers.length; i++) {
       const index = (rotationIndex + i) % allInfluencers.length;
       selected.push(allInfluencers[index]);
     }
 
-    // ローテーションインデックスを更新
-    const newIndex = (rotationIndex + count) % allInfluencers.length;
-    await updateRotationIndex(lang, newIndex, targetDate);
-
     console.log(
-      `[InfluencerRotation] ✅ Selected ${selected.length} influencers with rotation (index: ${rotationIndex} → ${newIndex})`
+      `[InfluencerRotation] ✅ Selected ${selected.length} influencers with rotation (index: ${rotationIndex}, poolSize: ${allInfluencers.length}, will advance by actual posts)`
     );
-    return selected;
+    return { selected, rotationIndex, poolSize: allInfluencers.length };
   }
 
   // 利用可能なインフルエンサーが十分ある場合
@@ -579,6 +602,7 @@ module.exports = {
   markInfluencerPosted,
   getRotationIndex,
   updateRotationIndex,
+  advanceRotationBy,
   selectInfluencersWithRotation,
   getRotationStats,
   // 8時間クールダウン関連

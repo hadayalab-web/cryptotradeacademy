@@ -957,12 +957,17 @@ async function postQuoteRepostsForLang(
     );
 
     const { selectInfluencersWithRotation } = require("../services/x/influencerRotation");
-    let selectedInfluencers = await selectInfluencersWithRotation(
+    const selectionResult = await selectInfluencersWithRotation(
       influencers,
       lang,
       targetCount,
       dateString
     );
+    let selectedInfluencers = selectionResult?.selected ?? [];
+    let rotationSelectionResult =
+      selectionResult?.selected?.length > 0 && selectionResult?.poolSize > 0
+        ? selectionResult
+        : null;
 
     // P1: ローテーション選択の直後で選定数をログ化
     console.log(
@@ -972,6 +977,7 @@ async function postQuoteRepostsForLang(
         selectedCount: selectedInfluencers?.length || 0,
         targetCount,
         excludedCount: influencers.length - (selectedInfluencers?.length || 0),
+        willAdvanceByActualPosts: !!rotationSelectionResult,
         timestamp: new Date().toISOString()
       }
     );
@@ -2075,6 +2081,30 @@ async function postQuoteRepostsForLang(
           actuallyPosted: false, // 実際に投稿されなかったことを明示
           error: error.message
         });
+      }
+    }
+
+    // ローテーション: 選択数ではなく投稿成功数だけインデックスを進める
+    if (rotationSelectionResult && rotationSelectionResult.poolSize > 0) {
+      const actualPostedCount = results.filter((r) => r.success && r.actuallyPosted).length;
+      if (actualPostedCount > 0) {
+        try {
+          const { advanceRotationBy } = require("../services/x/influencerRotation");
+          await advanceRotationBy(
+            lang,
+            actualPostedCount,
+            rotationSelectionResult.poolSize,
+            dateString
+          );
+          console.log(
+            `[Quote Repost] ✅ Rotation advanced by ${actualPostedCount} (actual posts) for ${lang} [runId: ${langRunId}]`
+          );
+        } catch (advanceErr) {
+          console.warn(
+            `[Quote Repost] ⚠️ Failed to advance rotation by actual posts (non-fatal):`,
+            advanceErr.message
+          );
+        }
       }
     }
 
