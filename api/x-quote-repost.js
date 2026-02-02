@@ -1302,13 +1302,16 @@ async function postQuoteRepostsForLang(
         );
 
         // インプレッション規模チェック（言語別の目標を考慮）
-        // 注意: selectInfluencersForImpressionTargetで既にフィルタリングされているため、
-        // ここでのチェックは緩和（目標の30%以上、または最低10,000インプレッション）
+        // 重要: impressions が 0 のときは「メトリクス未取得」とみなし投稿を許可する。0 でスキップしない。
         currentStep = "impression_check";
-        const impressions = influencer.recentImpressions || 0;
-        const minImpressions = Math.max(impressionTarget.min * 0.3, 10000); // 目標の30%以上、または最低10,000
+        const impressions = Number(influencer.recentImpressions) || 0;
+        const minImpressions = Math.max(impressionTarget.min * 0.3, 10000);
 
-        if (impressions < minImpressions) {
+        if (impressions === 0) {
+          console.log(
+            `[Quote Repost] ⚠️ @${influencer.username} has no impression data (0) - allowing post [runId: ${langRunId}]`
+          );
+        } else if (impressions < minImpressions) {
           console.log(
             `⏰ Skipping quote repost for @${influencer.username} (low impressions: ${impressions.toLocaleString()}, min: ${minImpressions.toLocaleString()}) [runId: ${langRunId}, step: ${currentStep}]`
           );

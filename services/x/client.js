@@ -482,10 +482,22 @@ const X_LONG_POST_MAX_LENGTH = 25000;
  * @param {number} maxRetries - 最大リトライ回数（デフォルト: 3）
  * @returns {Promise<Object>} 投稿結果 {id, text}
  */
+// P0: テスト投稿・ゴミ投稿のブロック（本番での「テスト」単体投稿を防止）
+function rejectTestOrTrashPost(text, context = "post") {
+  const t = (text && typeof text === "string" ? text : "").trim();
+  if (!t) return;
+  if (/^(テスト|test)\s*$/i.test(t)) {
+    throw new Error(
+      `Blocked ${context}: test-only content is not allowed (e.g. "テスト"/"test"). Use X_POSTING_DRY_RUN for testing.`
+    );
+  }
+}
+
 async function postTweet(text, mediaIds = [], pollOptions = null, maxRetries = 3) {
   if (!text || text.trim().length === 0) {
     throw new Error("Tweet text is required");
   }
+  rejectTestOrTrashPost(text, "tweet");
 
   // 長文ポスト対応: API上限25,000文字を超える場合のみトリム（前担当者の280文字制限は廃止）
   if (text.length > X_LONG_POST_MAX_LENGTH) {
@@ -647,6 +659,7 @@ async function replyToTweet(text, inReplyToTweetId, mediaIds = []) {
   if (!text || text.trim().length === 0) {
     throw new Error("Reply text is required");
   }
+  rejectTestOrTrashPost(text, "reply");
   if (!inReplyToTweetId) {
     throw new Error("inReplyToTweetId is required");
   }
