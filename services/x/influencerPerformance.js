@@ -2,21 +2,26 @@
 // インフルエンサー別パフォーマンス分析（Webhookデータ活用）
 // GPT-5.2-2025-12-11設計に基づく実装
 
-// P0-4修正: 並列度制限用のp-limit（動的インポート）
-let pLimit = null;
-try {
-  const pLimitModule = require("p-limit");
-  pLimit = pLimitModule.default || pLimitModule;
-} catch (error) {
-  console.warn("[InfluencerPerformance] p-limit not available:", error.message);
-  // P0修正: 安全な逐次実行フォールバック（無制限並列を防止）
-  pLimit = () => {
-    let chain = Promise.resolve();
-    return (fn) => {
-      chain = chain.then(fn, fn);
-      return chain;
-    };
+// P0-4修正: 並列度制限用のp-limit（ES Moduleのため動的import、使用時に取得）
+let pLimitResolved = null;
+const pLimitFallback = () => {
+  let chain = Promise.resolve();
+  return (fn) => {
+    chain = chain.then(fn, fn);
+    return chain;
   };
+};
+async function getPLimit() {
+  if (pLimitResolved !== null) return pLimitResolved;
+  try {
+    const m = await import("p-limit");
+    pLimitResolved = m.default || m;
+    return pLimitResolved;
+  } catch (error) {
+    console.warn("[InfluencerPerformance] p-limit not available:", error.message);
+    pLimitResolved = pLimitFallback;
+    return pLimitResolved;
+  }
 }
 
 let kv = null;
@@ -419,6 +424,7 @@ async function buildInfluencerDailyPerformance(dateString, posts, metricsFetcher
   }
 
   // P0-4修正: 並列度制限付きで処理（X APIレート制限に合わせて10並列）
+  const pLimit = await getPLimit();
   const limit = pLimit(10);
   const agg = new Map(); // key: `${lang}:${username}`
 

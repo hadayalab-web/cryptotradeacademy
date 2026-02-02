@@ -1,5 +1,6 @@
 // api/prepare.js
 // 定時配信5分前にマーケット分析・サマリー作成・コンテンツ生成を実行
+require("../utils/suppressKnownWarnings");
 
 // p-retryはES Moduleのため動的インポートを使用
 let pRetry;
