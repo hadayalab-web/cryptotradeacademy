@@ -118,8 +118,7 @@ async function getTweetMetrics(tweetId, includeNonPublic = false, options = {}) 
     }
   }
 
-  // すべてのリトライが失敗した場合
-  // CRITICAL FIX: エラーメッセージの詳細化（GPT推奨）
+  // すべてのリトライが失敗した場合（ログに status/response を明示して原因切り分けしやすくする）
   const finalErrorDetails = {
     message: lastError?.message || "Unknown error",
     status: lastError?.status || lastError?.statusCode || null,
@@ -129,6 +128,11 @@ async function getTweetMetrics(tweetId, includeNonPublic = false, options = {}) 
         : JSON.stringify(lastError.response).substring(0, 200)
       : null
   };
+
+  const hint = finalErrorDetails.status === 429 ? " (rate limit)" : "";
+  console.error(
+    `[X Metrics] ❌ CRITICAL: tweet ${tweetId} after ${maxRetries + 1} attempts. status=${finalErrorDetails.status}${hint} message=${finalErrorDetails.message} response=${finalErrorDetails.response || "n/a"}`
+  );
 
   throw new Error(
     `CRITICAL: Failed to get metrics for tweet ${tweetId} after ${maxRetries + 1} attempts. Last error: ${finalErrorDetails.message}${finalErrorDetails.status ? ` (Status: ${finalErrorDetails.status})` : ""}${finalErrorDetails.response ? ` (Response: ${finalErrorDetails.response})` : ""}`

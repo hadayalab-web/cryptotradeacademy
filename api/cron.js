@@ -1,5 +1,17 @@
 // api/cron.js
 
+// 依存パッケージ由来の url.parse() DeprecationWarning (DEP0169) のみ抑制（当ファイルでは未使用）
+process.on("warning", (w) => {
+  if (
+    w.name === "DeprecationWarning" &&
+    typeof w.message === "string" &&
+    w.message.includes("url.parse()")
+  ) {
+    return; // 抑制
+  }
+  console.warn(w.name || "Warning", w.message || w);
+});
+
 // --- Imports ----------------------------------------------------
 
 // p-retryはES Moduleのため動的インポートを使用
