@@ -10,18 +10,10 @@
  *   2. API呼び出しの検証
  *   3. エラーハンドリングの検証
  *   4. 定数の一貫性チェック
- *
- * .env があれば読み込み（他スクリプトとの統一、将来の拡張用）
  */
 
-const path = require("path");
-try {
-  require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
-} catch {
-  // dotenv 未使用環境では無視
-}
-
 const fs = require("fs");
+const path = require("path");
 
 // 検証対象の関数定義（期待されるシグネチャ）
 // 注意: オプション引数は除外し、必須引数の順序のみをチェック

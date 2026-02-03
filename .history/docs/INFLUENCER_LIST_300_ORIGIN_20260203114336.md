@@ -1,0 +1,57 @@
+# インフルエンサーリスト 300 件の経緯（Grok × Gemini × X API）
+
+**作成日**: 2026-02-03  
+**目的**: KV で運用している **300 件** のリストがどう作られたかを記録する。
+
+---
+
+## 1. 手順（実際に実行した流れ）
+
+1. **Grok（grok-4-1-fast-reasoning）** と **Gemini（gemini-3-pro-preview）** で、言語別に crypto/BTC インフルエンサーの **username 候補** を抽出。
+2. 抽出した候補を **X API でフィルタリング**  
+   （user 存在確認 → 直近ツイート取得 → 実在する **tweetId** を 1 件採用）。
+3. 通過した候補を **シード JSON** に追記し、必要に応じて **KV に反映**。
+4. 上記を **何週間も繰り返し**（言語ごとに build × N 回 + rebuild × N 回）実行。
+
+**主なスクリプト**
+
+- **抽出＋X API 検証**: `scripts/build-influencer-list-per-lang.js`
+  - Grok と Gemini から username を取得 → X API で検証 → `data/influencers-seed/influencers-{lang}.json` に追記。
+- **シード → KV**: `scripts/rebuild-influencer-list-from-seed.js`
+  - シードを読み、tweetId を X API で検証してから KV に保存。
+
+**ドキュメント・ログ**
+
+- `docs/BUILD_INFLUENCER_LIST_PER_LANG_2026-02-01.md` … 手順と目標数。
+- `docs/INFLUENCER_LIST_PROGRESS_2026-02-01.md` … 実行ログ（build/rebuild の回数、X API CreditsDepleted、言語別 KV 件数、合計 300 に至る経過）。
+
+---
+
+## 2. 目標数と「300 でストップ」した理由
+
+- **当初の目標**: 824/840 人前後（ファイル確定用の目標としてドキュメントに残っている数値）。
+- **実際の結果**: 何週間も回したが **抽出数が枯れてきた**（新規候補が減り、X API 通過分も増えにくくなった）ため、**300 件でストップ**して運用を開始した。
+- したがって **824/840 は「目標だった数」**、**300 は「X API フィルタをかけたうえで現実的に確保できた数」** という経緯。
+
+---
+
+## 3. 300 件の内訳（KV 実態）
+
+`config/influencerStrategy.js` の `STOCK_COUNT_BY_LANG` と整合:
+
+| 言語     | 件数    |
+| -------- | ------- |
+| en       | 124     |
+| es       | 48      |
+| pt-br    | 35      |
+| ar       | 52      |
+| ko       | 30      |
+| ja       | 11      |
+| **合計** | **300** |
+
+---
+
+## 4. まとめ
+
+- **300 リスト** = Grok × Gemini で抽出 → **X API でフィルタ** → 何週間も回して確保した **実在 tweetId 付きのリスト**。
+- 目標は 824/840 だったが、抽出が枯れてきたので **300 でストップ**。この 300 を KV に載せて引用リポストで運用している。

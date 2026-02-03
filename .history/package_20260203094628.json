@@ -7,7 +7,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "test": "npm run validate:implementation && npm run test:critical",
+    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node scripts/monitor_process.js",
     "test:local": "node scripts/local_test.js",
     "test:email": "node scripts/test-email-delivery.js",
@@ -46,7 +46,7 @@
     "verify:syntax": "node scripts/verify-syntax.js",
     "build": "node scripts/copy-telegram-messages.js",
     "vercel-build": "npm run build",
-    "predeploy": "node -c api/cron.js && node -c api/x-quote-repost.js && node -c services/x/client.js && node -c api/x-webhook.js",
+    "predeploy": "node -c api/x-quote-repost.js && node -c services/x/client.js && node -c api/x-webhook.js",
     "vercel:logs": "node scripts/fetch-vercel-logs.js",
     "vercel:logs:safe": "node scripts/fetch-vercel-logs-safe.js",
     "vercel:analyze": "node scripts/analyze-vercel-errors.js",

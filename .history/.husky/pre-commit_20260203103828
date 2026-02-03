@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 実装検証 + 重要関数テストを自動実行（package.json precommit と統一）
+echo "🔍 実装検証・テストを実行中..."
+npm run precommit
+
+if [ $? -ne 0 ]; then
+  echo "❌ 検証に失敗しました。コミットを中止します。"
+  exit 1
+fi
+
+echo "✅ すべての検証をパスしました。"

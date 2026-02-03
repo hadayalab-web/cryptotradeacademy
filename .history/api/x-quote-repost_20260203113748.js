@@ -23,7 +23,6 @@ const {
   getImpressionTargetForLang,
   selectInfluencersForImpressionTarget
 } = require("../config/influencerStrategy");
-const { filterInvalidTweetIds, addInvalidTweetId } = require("../utils/invalidTweetIdBlocklist");
 
 // 引用リポストは Grok セールレター × 6言語のみ（キャッシュ優先、未ヒット時は Grok 生成）
 const {
@@ -599,8 +598,6 @@ async function postQuoteRepostsForLang(
     let influencers = await getInfluencersFromStock(lang, {
       enableScoring: false // 必要なら true でスコアリング有効
     });
-    // Tweet not found で記録された無効tweetIdを除外（VERCEL_ERROR_FIX 2026-02-04）
-    influencers = await filterInvalidTweetIds(influencers || [], lang);
 
     if (!influencers || influencers.length === 0) {
       console.error(
@@ -948,9 +945,9 @@ async function postQuoteRepostsForLang(
     }
 
     for (const influencer of influencers.slice(0, maxInfluencers)) {
-      // P0 FIX: 各インフルエンサー処理の開始時にタイムアウトチェック（残り10秒未満の場合は早期リターン）
-      // maxDuration=120秒に延長したため、バッファを10秒に短縮
-      if (deadlineMs && Date.now() >= deadlineMs - 10000) {
+      // P0 FIX: 各インフルエンサー処理の開始時にタイムアウトチェック（残り15秒未満の場合は早期リターン）
+      // ENの処理数が多いため、より早めにリターンしてタイムアウトを防ぐ
+      if (deadlineMs && Date.now() >= deadlineMs - 15000) {
         const remainingTime = Math.round((deadlineMs - Date.now()) / 1000);
         console.warn(
           `[Quote Repost] ⏰ Early return: insufficient time remaining (${remainingTime}s) for remaining influencers [runId: ${langRunId}]`
@@ -1070,8 +1067,8 @@ async function postQuoteRepostsForLang(
           `[Quote Repost] ✅ @${influencer.username} meets impression target: ${impressions.toLocaleString()} (target: ${impressionTarget.min.toLocaleString()}-${impressionTarget.max.toLocaleString()}) [runId: ${langRunId}, step: ${currentStep}]`
         );
 
-        // P0 FIX: タイムアウトチェック（残り時間が5秒未満の場合はスキップ）- maxDuration=120秒対応
-        if (deadlineMs && Date.now() >= deadlineMs - 5000) {
+        // P0 FIX: タイムアウトチェック（残り時間が10秒未満の場合はスキップ）- 早期リターンを強化
+        if (deadlineMs && Date.now() >= deadlineMs - 10000) {
           console.warn(
             `[Quote Repost] ⏰ Skipping quote repost for @${influencer.username} (insufficient time remaining, deadline: ${new Date(deadlineMs).toISOString()}) [runId: ${langRunId}, step: ${currentStep}]`
           );
@@ -1203,7 +1200,7 @@ async function postQuoteRepostsForLang(
 
           // Grok推奨: ハッシュタグを動的取得（トレンド1+ニッチ2）
           // P0 FIX: タイムアウト対策 - 残り時間が10秒未満の場合はスキップ
-          if (deadlineMs && Date.now() >= deadlineMs - 5000) {
+          if (deadlineMs && Date.now() >= deadlineMs - 10000) {
             console.warn(
               `[Quote Repost] ⏰ Skipping hashtag optimization (insufficient time remaining) [runId: ${langRunId}]`
             );
@@ -1330,21 +1327,6 @@ async function postQuoteRepostsForLang(
               `[Quote Repost] ❌ postQuoteTweet failed or timed out for @${influencer.username}:`,
               err.message
             );
-            // Tweet not found（削除/非公開）の場合はブロックリストに追加して次回以降スキップ（VERCEL_ERROR_FIX 2026-02-04）
-            const errMsg = (err.message || "").toLowerCase();
-            if (
-              errMsg.includes("not found") ||
-              errMsg.includes("resource-not-found") ||
-              errMsg.includes("deleted") ||
-              errMsg.includes("404")
-            ) {
-              addInvalidTweetId(lang, influencer.tweetId).catch((blockErr) =>
-                console.warn(
-                  "[Quote Repost] Failed to add invalid tweetId to blocklist:",
-                  blockErr.message
-                )
-              );
-            }
             // フォールバック戦略: エラーでも次の投稿を試みる（重要: エラーを投げて全体停止させない）
             continue;
           }
@@ -1846,7 +1828,7 @@ async function postQuoteReposts(reportData = null) {
     // 各言語ごとに引用リポスト（1時間に1言語 = 6時間で完了）
     // 実際の実装では、スケジューラーで1時間ごとに1言語ずつ実行
     // P0 FIX: deadlineMsを統一生成して渡す（GPT-5.2レビュー対応）
-    const MAX_DURATION_MS = 120_000; // maxDuration=120秒
+    const MAX_DURATION_MS = 60_000;
     const deadlineMs = Date.now() + MAX_DURATION_MS - 1500;
     for (const lang of targetLangs) {
       const langResults = await postQuoteRepostsForLang(
@@ -1904,7 +1886,7 @@ const handler = async (req, res) => {
 
   // P0 FIX: エントリポイントでdeadlineMsを統一生成（GPT-5.2レビュー対応）
   // すべての下位関数に渡すことで、タイムアウト処理を統一
-  const MAX_DURATION_MS = 120_000; // Vercel FunctionsのmaxDuration=120秒（Early return対策）
+  const MAX_DURATION_MS = 60_000; // Vercel FunctionsのmaxDuration=60秒
   const deadlineMs = Date.now() + MAX_DURATION_MS - 1500; // 1.5秒の安全マージン
 
   console.log("[Quote Repost] ========================================");
