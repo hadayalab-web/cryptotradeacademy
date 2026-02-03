@@ -2,7 +2,11 @@
 // セールスレターを GPT-5-mini / Grok-4-1-fast-reasoning / Gemini-3-flash の3者で生成（同一プロンプト）
 // ペルソナ + CQオンチェーン必須。無料版（Minimal Version）と有料版（Regular Briefing）のチラ見せプレゼンさせる。
 
-const { getPersonaPromptContext, getMonthlyPriceForLang, TONE } = require("../config/personaStrategy");
+const {
+  getPersonaPromptContext,
+  getMonthlyPriceForLang,
+  TONE
+} = require("../config/personaStrategy");
 const { VSL_MINIMAL, VSL_REGULAR } = require("../config/vslLinks");
 const {
   getMinimalVersionCheckoutUrl,
@@ -170,7 +174,7 @@ ${cq}
 OUTPUT FORMAT (output exactly this structure):
 
 1) HEADLINE
-One short line. Question, pain, or curiosity. Reference Trap Score or market if it fits. No hashtags.
+One short line. Question, pain, or curiosity. Reference Trap Score or market if it fits. Add 1 relevant emoji (e.g. 🔴) for visual emphasis where it fits naturally. No hashtags.
 
 2) PERSONA HOOK (思考停止・鷲掴み)
 One short paragraph. Grab the "mentally frozen" persona: stuck in "just watching" loop, unrealized loss, can't pull the trigger, can't walk away. Reference current market/Trap Score. Tone: empathy, no blame. "You're not alone. The way out is a framework."
@@ -180,15 +184,15 @@ One short paragraph. Grab the "mentally frozen" persona: stuck in "just watching
 - One short paragraph: PAID Regular Briefing—15min Alerts + Exit Map, $${monthlyPrice}/mo, 1-day trial, risk zero. Code defend50 for 50% off (once).
 
 4) OBJECTION HANDLING (反論処理)
-One short paragraph. Why they need this: "This intel only works in real time." / "Whether you have it or not decides tradeable edge vs pure gamble." / "1-day trial—see the report, cancel if not for you. Risk zero." Acknowledge hesitation (expensive? lose again? not now?) with empathy, then reframe.
+Exactly 2 short sentences. Be concise. Acknowledge hesitation (expensive? lose again? not now?) with empathy, then reframe. Example: "Expensive? 1-day trial, risk zero. Code defend50 for 50% off."
 
 5) HASHTAGS
-One line. Include #BTC and #TrapDefence. Add 1–2 more if they fit (e.g. #Crypto #Trading).
+One line. Use exactly 3 hashtags: #BTC #TrapDefence and 1 more (e.g. #Crypto). Do not exceed 3.
 
 STYLE (clean copy—読みやすい文章):
 - Use proper punctuation and spacing. In Japanese use 、。consistently. No cramped run-on lines.
 - Format numbers clearly: write "BTC \$97,200" or "BTC 97,200ドル" (space before numbers), not "BTC97,200".
-- One clear thought per sentence. In objection handling, avoid stuffing "expensive? lose again? not now?" into one messy line—use one or two short, clean sentences.
+- One clear thought per sentence. Objection handling must be 2 sentences max—concise, no run-on.
 - No stray spaces or double spaces. No broken mid-word line breaks. Output polished, readable copy.
 
 Output: headline, blank line, persona hook, blank line, product intro (Minimal then Regular), blank line, objection handling, blank line, hashtags. No section labels. No URLs. Tone: ${TONE}. Every sentence ends with a period (or 。 in Japanese).`;
@@ -201,37 +205,37 @@ Output: headline, blank line, persona hook, blank line, product intro (Minimal t
 const LINK_BLOCK_GROK_STYLE = {
   ja: {
     videoSecret: "▼ 無料ビデオ（全体像はこちらでご確認ください）",
-    freeSignup: "▼ 無料登録はこちら（カード不要・すぐにお試しいただけます）",
+    freeSignup: "👇【推奨】無料登録はこちら（カード不要・すぐにお試しいただけます）",
     upgradeVideo: "▼ 有料版のご案内ビデオはこちら",
     regularBriefing: "▼ Regular Briefing（コード"
   },
   en: {
     videoSecret: "▼ Free video: full story here",
-    freeSignup: "▼ Free sign-up here (no card required)",
+    freeSignup: "👇 Recommended: Free sign-up here (no card required)",
     upgradeVideo: "▼ Upgrade video: full details here",
     regularBriefing: "▼ Regular Briefing (code"
   },
   es: {
     videoSecret: "▼ Vídeo gratis: historia completa aquí",
-    freeSignup: "▼ Registro gratis aquí (sin tarjeta)",
+    freeSignup: "👇 Recomendado: Registro gratis aquí (sin tarjeta)",
     upgradeVideo: "▼ Vídeo de upgrade: detalles aquí",
     regularBriefing: "▼ Regular Briefing (código"
   },
   "pt-br": {
     videoSecret: "▼ Vídeo grátis: história completa aqui",
-    freeSignup: "▼ Cadastro grátis aqui (sem cartão)",
+    freeSignup: "👇 Recomendado: Cadastro grátis aqui (sem cartão)",
     upgradeVideo: "▼ Vídeo de upgrade: detalhes aqui",
     regularBriefing: "▼ Regular Briefing (código"
   },
   ar: {
     videoSecret: "▼ فيديو مجاني: القصة كاملة هنا",
-    freeSignup: "▼ تسجيل مجاني هنا (بدون بطاقة)",
+    freeSignup: "👇 موصى به: تسجيل مجاني هنا (بدون بطاقة)",
     upgradeVideo: "▼ فيديو الترقية: التفاصيل هنا",
     regularBriefing: "▼ Regular Briefing (كود"
   },
   ko: {
     videoSecret: "▼ 무료 영상: 전체 스토리는 여기",
-    freeSignup: "▼ 무료 가입 여기 (카드 불필요)",
+    freeSignup: "👇 추천: 무료 가입 여기 (카드 불필요)",
     upgradeVideo: "▼ 업그레이드 영상: 자세한 내용 여기",
     regularBriefing: "▼ Regular Briefing (코드"
   }
