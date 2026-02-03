@@ -46,7 +46,7 @@
     "verify:syntax": "node scripts/verify-syntax.js",
     "build": "node scripts/copy-telegram-messages.js",
     "vercel-build": "npm run build",
-    "predeploy": "node -c api/x-quote-repost.js && node -c services/x/client.js && node -c api/x-webhook.js",
+    "predeploy": "node -c api/cron.js && node -c api/x-quote-repost.js && node -c services/x/client.js && node -c api/x-webhook.js",
     "vercel:logs": "node scripts/fetch-vercel-logs.js",
     "vercel:logs:safe": "node scripts/fetch-vercel-logs-safe.js",
     "vercel:analyze": "node scripts/analyze-vercel-errors.js",
@@ -58,7 +58,8 @@
     "precommit": "npm run validate:implementation && npm run test:critical",
     "deploy": "vercel --prod",
     "inspect:kv": "node scripts/inspect-kv-data.js",
-    "subscribe:x-webhook": "node scripts/subscribe-x-webhook.js"
+    "subscribe:x-webhook": "node scripts/subscribe-x-webhook.js",
+    "review:quote-repost": "node scripts/request-quote-repost-review-from-grok-gemini.js"
   },
   "dependencies": {
     "@vercel/kv": "^0.2.1",
