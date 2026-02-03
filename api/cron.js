@@ -386,7 +386,7 @@ module.exports = async function handler(req, res) {
   logger.info("Cron job started: Whale Monitor");
 
   try {
-    return (function tryBody() {
+    return (async function tryBody() {
     // 0. 時間スロット判定（6時間ごとデフォルト、4時間ごとに切り替え可能）- UTC固定
     const now = new Date();
     const nowUTC = zonedTimeToUtc(now, TZ_UTC);
