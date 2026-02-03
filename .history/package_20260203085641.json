@@ -57,8 +57,7 @@
     "test:critical": "node scripts/test_critical_functions.js",
     "precommit": "npm run validate:implementation && npm run test:critical",
     "deploy": "vercel --prod",
-    "inspect:kv": "node scripts/inspect-kv-data.js",
-    "subscribe:x-webhook": "node scripts/subscribe-x-webhook.js"
+    "inspect:kv": "node scripts/inspect-kv-data.js"
   },
   "dependencies": {
     "@vercel/kv": "^0.2.1",

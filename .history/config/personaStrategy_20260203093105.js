@@ -148,11 +148,9 @@ function getPersonaPromptContext(lang) {
   const useLang = (lang || "en").toLowerCase().replace("_", "-");
   const framing = getPriceFramingForLang(useLang);
   const pricePhrase = getCorePricePhraseForLang(useLang);
-  const statePhrase = CORE_PHRASES.state[useLang] || CORE_PHRASES.state.en;
-  const trialPhrase = CORE_PHRASES.trial[useLang] || CORE_PHRASES.trial.en;
   return (
     `PERSONA-DRIVEN (CVR/LTV): Strategy theme: "${STRATEGY_THEME_EN}". ` +
-    `Core hooks: state="${statePhrase}"; price="${pricePhrase}"; trial="${trialPhrase}". ` +
+    `Core hooks: state="${CORE_PHRASES.state.en}"; price="${pricePhrase}"; trial="${CORE_PHRASES.trial.en}". ` +
     `Price framing: ${framing.monthly} ` +
     `Tone: ${TONE} ` +
     `Target first: ${segmentOneLiner}. ` +
