@@ -1,6 +1,0 @@
-feat: increase minimal version posting frequency and add AB test
-
-- Increase posting frequency from 2/day to 4/day (UTC 8:00, 12:00, 18:00, 20:00)
-- Add CTA AB test functionality (Whop-first vs Telegram-first, 50/50 split)
-- Add time-based optimization (Whop-first during peak hours, Telegram-first during off-peak)
-- Expected impact: 2x impressions, conversion rate optimization

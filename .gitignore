@@ -9,3 +9,11 @@ dist/
 # Vercel build artifacts
 api/config/
 api/services/
+
+# 一時ファイル・作業用ファイル（整理）
+temp_*
+commit_msg*.txt
+output*.txt
+copilot_*.txt
+copilot_*.md
+*.temp

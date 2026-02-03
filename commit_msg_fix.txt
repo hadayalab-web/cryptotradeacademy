@@ -1,5 +1,0 @@
-fix: Fix undefined variable fullOptimizationContext and update maxPostsPerHour default
-
-- Replace fullOptimizationContext with optimizationContext in generateQuoteRepostText function
-- Update maxPostsPerHour default value from 100 to 5 in x-post-free-report.js
-- Update validation script to support environment variable patterns

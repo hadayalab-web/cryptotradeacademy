@@ -1,4 +1,0 @@
-fix: Fix undefined variable fullOptimizationContext in generateQuoteRepostText
-
-- Replace fullOptimizationContext with optimizationContext in generateQuoteRepostText function
-- This ensures Grok×Gemini optimization strategy is properly passed to the prompt
