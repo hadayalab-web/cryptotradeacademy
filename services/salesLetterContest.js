@@ -49,9 +49,11 @@ function buildCqContext(reportData) {
  * あなたのプロンプト次第で3者の出来が決まる。
  */
 function buildSalesLetterPrompt({ lang, reportData }) {
-  const langName = LANG_NAMES[(lang || "en").toLowerCase().replace("_", "-")] || "English";
-  const persona = getPersonaPromptContext();
+  const normalizedLang = (lang || "en").toLowerCase().replace("_", "-");
+  const langName = LANG_NAMES[normalizedLang] || "English";
+  const persona = getPersonaPromptContext(normalizedLang);
   const cq = buildCqContext(reportData);
+  const monthlyPrice = getMonthlyPriceForLang(normalizedLang);
 
   return `You are a direct-response copywriter for Trap Defence (crypto trading education). Write a short sales letter in ${langName} that PRESENTS and TEASES two products. Use the persona and on-chain data below—they are mandatory.
 
@@ -153,17 +155,63 @@ async function runSalesLetterContest(options = {}) {
 }
 
 /**
+ * 痛みパターン（HEADLINE/HOOKの変異用）
+ * ローテーションで感覚順応を防ぎ、毎回違う角度で刺さる
+ */
+const PAIN_ANGLES = [
+  {
+    id: "loss_loop",
+    headline: "loss loop / 損失ループ（毎回同じパターンで損）",
+    hook: "stuck in the same loss pattern, repeating the mistake"
+  },
+  {
+    id: "opportunity_missed",
+    headline: "opportunity missed / 機会逃し（動けなかった好機）",
+    hook: "the moment you couldn't pull the trigger, the move you watched pass"
+  },
+  {
+    id: "fear_of_cutting",
+    headline: "fear of cutting / 損切り恐怖（切れない・伸ばせない）",
+    hook: "can't cut the loss, can't let it run—paralyzed between both"
+  },
+  {
+    id: "cant_walk_away",
+    headline: "can't walk away / 離れられない（相場から抜け出せない）",
+    hook: "stuck watching the chart, unable to leave even when you know you should"
+  },
+  {
+    id: "woke_up_gains_gone",
+    headline: "woke up gains gone / 朝起きたら含み益消失",
+    hook: "woke up to find your gains gone—that sinking feeling"
+  }
+];
+
+function getPainAngleForSeed(seed) {
+  const idx = Math.abs(seed) % PAIN_ANGLES.length;
+  return PAIN_ANGLES[idx];
+}
+
+/**
  * Grok専用: ヘッドライン → 思考停止ペルソナ鷲掴み → Minimal/Regular紹介 → 反論処理 → ハッシュタグ
  * リンク誘導は含めない（下に定型で付与）
+ * 最適化: Grok/Gemini分析を踏まえ、変異・心理トリガー・引用トーンを強化
  */
-function buildGrokOnlyPrompt({ lang, reportData }) {
+function buildGrokOnlyPrompt({ lang, reportData, painAngleSeed }) {
   const normalizedLang = (lang || "en").toLowerCase().replace("_", "-");
   const langName = LANG_NAMES[normalizedLang] || "English";
   const persona = getPersonaPromptContext(normalizedLang);
   const cq = buildCqContext(reportData);
   const monthlyPrice = getMonthlyPriceForLang(normalizedLang);
+  const angle = painAngleSeed != null ? getPainAngleForSeed(painAngleSeed) : PAIN_ANGLES[0];
 
   return `You are a direct-response copywriter for Trap Defence (crypto trading education). Write a complete X (Twitter) post in ${langName} in FIVE parts. Use the persona and on-chain data below—they are mandatory. Do NOT output any URLs or link lines; we add those below the post.
+
+CONTEXT: This will be used as a QUOTE REPOST. Frame it as a solution to the reader's pain—empathy first, then the way out. Tone: "I get it. Here's what works."
+
+THIS GENERATION—emphasize this pain angle (use it for HEADLINE and HOOK):
+- HEADLINE focus: ${angle.headline}
+- HOOK focus: ${angle.hook}
+Write in ${langName}. Make it feel specific to this angle.
 
 PERSONA (use this voice and hooks):
 ${persona}
@@ -174,72 +222,74 @@ ${cq}
 OUTPUT FORMAT (output exactly this structure):
 
 1) HEADLINE
-One short line. Question, pain, or curiosity. Reference Trap Score or market if it fits. Add 1 relevant emoji (e.g. 🔴) for visual emphasis where it fits naturally. No hashtags.
+One short line. QUESTION that hooks this pain angle. Use concrete pain words. Add 1 emoji (🔴 🛡️ ⚡) where natural. No hashtags.
 
 2) PERSONA HOOK (思考停止・鷲掴み)
-One short paragraph. Grab the "mentally frozen" persona: stuck in "just watching" loop, unrealized loss, can't pull the trigger, can't walk away. Reference current market/Trap Score. Tone: empathy, no blame. "You're not alone. The way out is a framework."
+One short paragraph. Cold-read this specific angle—name the exact moment. Empathy, no blame. End with a hook question if it fits.
 
 3) PRODUCT INTRO (Minimal + Regular)
-- One short paragraph: FREE Minimal Version—Trap Score, gut vs data, no card. What they get, why it matters.
-- One short paragraph: PAID Regular Briefing—15min Alerts + Exit Map, $${monthlyPrice}/mo, 1-day trial, risk zero. Code defend50 for 50% off (once).
+- FREE Minimal: Trap Score, gut vs data, no card. Emphasize "防衛" (defend)—stop losses before they grow.
+- PAID Regular: 15min Alerts + Exit Map, $${monthlyPrice}/mo, 1-day trial, risk zero. Code defend50 for 50% off (once). Frame as "資産を守る" (protect assets), not just "儲ける" (earn).
 
 4) OBJECTION HANDLING (反論処理)
-Exactly 2 short sentences. Be concise. Acknowledge hesitation (expensive? lose again? not now?) with empathy, then reframe. Example: "Expensive? 1-day trial, risk zero. Code defend50 for 50% off."
+Exactly 2 short sentences. Acknowledge hesitation (expensive? lose again? not now?), then reframe with social proof or risk reversal. Concise.
 
 5) HASHTAGS
-One line. Use exactly 3 hashtags: #BTC #TrapDefence and 1 more (e.g. #Crypto). Do not exceed 3.
+One line. Exactly 3: #BTC #TrapDefence and 1 more (e.g. #Crypto #Bitcoin). No more than 3.
 
 STYLE (clean copy—読みやすい文章):
-- Use proper punctuation and spacing. In Japanese use 、。consistently. No cramped run-on lines.
-- Format numbers clearly: write "BTC \$97,200" or "BTC 97,200ドル" (space before numbers), not "BTC97,200".
-- One clear thought per sentence. Objection handling must be 2 sentences max—concise, no run-on.
-- No stray spaces or double spaces. No broken mid-word line breaks. Output polished, readable copy.
+- Proper punctuation. In Japanese use 、。 consistently.
+- Format numbers: "BTC \$97,200" or "BTC 97,200ドル" (space before numbers).
+- One thought per sentence. No run-on. No stray/double spaces.
 
 Output: headline, blank line, persona hook, blank line, product intro (Minimal then Regular), blank line, objection handling, blank line, hashtags. No section labels. No URLs. Tone: ${TONE}. Every sentence ends with a period (or 。 in Japanese).`;
 }
 
 /**
- * 引用リポスト用リンク誘導の定型文（丁寧表現・仕様統一）
- * 各ラベルはリンクの直上に表示し、何のリンクかが分かるよう簡潔かつ丁寧に記載する。
+ * 引用リポスト用リンク誘導の定型文
+ * 視覚的2チャンク: メインCTA2本（無料Minimal→有料Regular）を目立たせ、VSLはサブとして控えめに配置
  */
 const LINK_BLOCK_GROK_STYLE = {
   ja: {
-    videoSecret: "▼ 無料ビデオ（全体像はこちらでご確認ください）",
-    freeSignup: "👇【推奨】無料登録はこちら（カード不要・すぐにお試しいただけます）",
-    upgradeVideo: "▼ 有料版のご案内ビデオはこちら",
-    regularBriefing: "▼ Regular Briefing（コード"
+    mainFree: "👇 まずは無料で防御力を手に入れる（カード不要）",
+    mainPaid: "▼ 本気で資産を守るなら",
+    videoSecret: "▼ 無料ビデオ（全体像）",
+    upgradeVideo: "▼ 有料版ビデオ"
   },
   en: {
-    videoSecret: "▼ Free video: full story here",
-    freeSignup: "👇 Recommended: Free sign-up here (no card required)",
-    upgradeVideo: "▼ Upgrade video: full details here",
-    regularBriefing: "▼ Regular Briefing (code"
+    mainFree: "👇 Get free defense first (no card)",
+    mainPaid: "▼ Protect your assets seriously",
+    videoSecret: "▼ Free video (full story)",
+    upgradeVideo: "▼ Upgrade video"
   },
   es: {
-    videoSecret: "▼ Vídeo gratis: historia completa aquí",
-    freeSignup: "👇 Recomendado: Registro gratis aquí (sin tarjeta)",
-    upgradeVideo: "▼ Vídeo de upgrade: detalles aquí",
-    regularBriefing: "▼ Regular Briefing (código"
+    mainFree: "👇 Empieza gratis (sin tarjeta)",
+    mainPaid: "▼ Protege tus activos en serio",
+    videoSecret: "▼ Vídeo gratis",
+    upgradeVideo: "▼ Vídeo upgrade"
   },
   "pt-br": {
-    videoSecret: "▼ Vídeo grátis: história completa aqui",
-    freeSignup: "👇 Recomendado: Cadastro grátis aqui (sem cartão)",
-    upgradeVideo: "▼ Vídeo de upgrade: detalhes aqui",
-    regularBriefing: "▼ Regular Briefing (código"
+    mainFree: "👇 Comece grátis (sem cartão)",
+    mainPaid: "▼ Proteja seus ativos de verdade",
+    videoSecret: "▼ Vídeo grátis",
+    upgradeVideo: "▼ Vídeo upgrade"
   },
   ar: {
-    videoSecret: "▼ فيديو مجاني: القصة كاملة هنا",
-    freeSignup: "👇 موصى به: تسجيل مجاني هنا (بدون بطاقة)",
-    upgradeVideo: "▼ فيديو الترقية: التفاصيل هنا",
-    regularBriefing: "▼ Regular Briefing (كود"
+    mainFree: "👇 ابدأ مجاناً (بدون بطاقة)",
+    mainPaid: "▼ احمِ أصولك بجدية",
+    videoSecret: "▼ فيديو مجاني",
+    upgradeVideo: "▼ فيديو الترقية"
   },
   ko: {
-    videoSecret: "▼ 무료 영상: 전체 스토리는 여기",
-    freeSignup: "👇 추천: 무료 가입 여기 (카드 불필요)",
-    upgradeVideo: "▼ 업그레이드 영상: 자세한 내용 여기",
-    regularBriefing: "▼ Regular Briefing (코드"
+    mainFree: "👇 무료로 먼저 시작 (카드 불필요)",
+    mainPaid: "▼ 자산 제대로 지키려면",
+    videoSecret: "▼ 무료 영상",
+    upgradeVideo: "▼ 업그레이드 영상"
   }
 };
+
+/** 区切り線（メインCTAとサブ情報を視覚分離） */
+const LINK_BLOCK_SEPARATOR = "─────";
 
 function getLinkBlockGrokStyle(lang, options = {}) {
   const normalizedLang = (lang || "en").toLowerCase().replace("_", "-");
@@ -253,56 +303,84 @@ function getLinkBlockGrokStyle(lang, options = {}) {
     }) || getMinimalVersionCheckoutUrl("en", options);
   const regularUrl = getRegularWhopLinkOnly(normalizedLang);
 
-  return [
-    labels.videoSecret,
-    VSL_MINIMAL.url,
-    labels.freeSignup,
+  const mainBlock = [
+    labels.mainFree,
     minimalUrl,
-    labels.upgradeVideo,
-    VSL_REGULAR.url,
-    `${labels.regularBriefing} ${promoCode})`,
+    `${labels.mainPaid} (${promoCode} 50% off)`,
     regularUrl
   ].join("\n");
+
+  const subBlock = [labels.videoSecret, VSL_MINIMAL.url, labels.upgradeVideo, VSL_REGULAR.url].join(
+    "\n"
+  );
+
+  return [mainBlock, LINK_BLOCK_SEPARATOR, subBlock].join("\n");
+}
+
+/** 簡易ハッシュ（username→seed用） */
+function simpleHash(str) {
+  if (!str || typeof str !== "string") return 0;
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h << 5) - h + str.charCodeAt(i);
+  return h >>> 0;
 }
 
 /**
  * Grok-4-1-fast-reasoning のみでセールスレター生成（ヘッドライン → 鷲掴み → 紹介 → 反論 → ハッシュタグ）
- * リンク誘導はGrok風定型文を直下に付与
- * @param {Object} options - { lang, reportData, influencerUsername }
- * @returns {Promise<{ prompt: string, text: string|null, fullText: string|null }>}
+ * painAngleSeed: 痛みパターンローテーション用。未指定時は influencerUsername のハッシュを使用
  */
 async function runGrokOnlySalesLetter(options = {}) {
   const lang = (options.lang || "en").toLowerCase().replace("_", "-");
   const reportData = options.reportData || null;
-  const prompt = buildGrokOnlyPrompt({ lang, reportData });
+  const painAngleSeed =
+    options.painAngleSeed != null
+      ? options.painAngleSeed
+      : simpleHash(options.influencerUsername || "") + Date.now();
+  const prompt = buildGrokOnlyPrompt({ lang, reportData, painAngleSeed });
   const text = await generateWithGrok({ lang, prompt });
   const linkBlock = getLinkBlockGrokStyle(lang, options);
   const fullText = text ? `${text}\n\n${linkBlock}` : null;
   return { prompt, text, fullText, linkBlock };
 }
 
+/** 1言語あたりの変異数（痛みパターンローテーション） */
+const VARIANTS_PER_LANG = 3;
+
 /**
  * 6言語分を1バッチで事前生成（投稿時はキャッシュから取得→XAI破綻を防ぐ）
- * 各言語でリンクが違うため6つ生成。呼び出し間に delayMs を入れてレート制限を緩和。
+ * 各言語で3変異を生成し、投稿時にランダム選択して感覚順応を防ぐ
  * @param {Object} options - { reportData, influencerUsername, delayMs }
- * @returns {Promise<Record<string, { fullText: string|null, text: string|null, linkBlock: string }>>}
+ * @returns {Promise<Record<string, { fullText: string|null, texts: string[], linkBlock: string }>>}
  */
 async function runGrokOnlySalesLetterAllLangs(options = {}) {
   const reportData = options.reportData || null;
   const influencerUsername = options.influencerUsername || null;
-  const delayMs = options.delayMs ?? 2000; // 連続呼び出しでXAIレート制限を避ける
+  const delayMs = options.delayMs ?? 2000;
 
   const out = {};
   for (const lang of SALES_LETTER_LANGS) {
-    const result = await runGrokOnlySalesLetter({
-      lang,
-      reportData,
-      influencerUsername
-    });
+    const texts = [];
+    for (let seed = 0; seed < VARIANTS_PER_LANG; seed++) {
+      const result = await runGrokOnlySalesLetter({
+        lang,
+        reportData,
+        influencerUsername,
+        painAngleSeed: seed
+      });
+      if (result.text) texts.push(result.text);
+      if (
+        delayMs > 0 &&
+        (seed < VARIANTS_PER_LANG - 1 || lang !== SALES_LETTER_LANGS[SALES_LETTER_LANGS.length - 1])
+      ) {
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+    const linkBlock = getLinkBlockGrokStyle(lang, { influencerUsername });
+    const primaryText = texts[0] || null;
     out[lang] = {
-      fullText: result.fullText,
-      text: result.text,
-      linkBlock: result.linkBlock
+      fullText: primaryText ? `${primaryText}\n\n${linkBlock}` : null,
+      texts,
+      linkBlock
     };
     if (delayMs > 0 && lang !== SALES_LETTER_LANGS[SALES_LETTER_LANGS.length - 1]) {
       await new Promise((r) => setTimeout(r, delayMs));
@@ -323,16 +401,20 @@ async function saveSalesLetterGrokCache(results, ttlSeconds = 14400) {
     return;
   }
   for (const lang of SALES_LETTER_LANGS) {
+    const texts = results[lang]?.texts;
     const text = results[lang]?.text;
-    if (text) {
-      await kv.set(`${SALES_LETTER_GROK_CACHE_PREFIX}${lang}`, text, { ex: ttlSeconds });
+    const toSave = Array.isArray(texts) && texts.length > 0 ? texts : text ? [text] : null;
+    if (toSave) {
+      await kv.set(`${SALES_LETTER_GROK_CACHE_PREFIX}${lang}`, JSON.stringify(toSave), {
+        ex: ttlSeconds
+      });
     }
   }
 }
 
 /**
  * キャッシュから言語別セールスレター本文（Grok部分のみ）を取得。未設定なら null。
- * 投稿時に getLinkBlockGrokStyle(lang, { influencerUsername }) を付与すること。
+ * 複数変異がある場合はランダムに1つ返す（感覚順応防止）。
  */
 async function getSalesLetterGrokFromCache(lang) {
   const normalized = (lang || "en").toLowerCase().replace("_", "-");
@@ -345,7 +427,19 @@ async function getSalesLetterGrokFromCache(lang) {
   } catch {
     return null;
   }
-  return (await kv.get(`${SALES_LETTER_GROK_CACHE_PREFIX}${normalized}`)) || null;
+  const raw = await kv.get(`${SALES_LETTER_GROK_CACHE_PREFIX}${normalized}`);
+  if (!raw) return null;
+  if (typeof raw === "string" && raw.startsWith("[")) {
+    try {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length > 0) {
+        return arr[Math.floor(Math.random() * arr.length)];
+      }
+    } catch {
+      return raw;
+    }
+  }
+  return typeof raw === "string" ? raw : null;
 }
 
 module.exports = {
