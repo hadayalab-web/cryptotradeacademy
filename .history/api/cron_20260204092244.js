@@ -373,8 +373,6 @@ module.exports = async function handler(req, res) {
 
   const debugBypass = req.query?.debug === "local";
   const authHeader = req.headers.authorization;
-  // 分割Cron用: minimal=無料版専用, regular=有料版専用。未指定時は15分監視のみ（定期配信は別Cronで実行）
-  const mode = (req.query?.mode || "").toLowerCase();
 
   if (
     !debugBypass &&
@@ -1325,12 +1323,11 @@ module.exports = async function handler(req, res) {
       const ENABLE_MINIMAL_VERSION = hasMinimalBotToken && hasAnyMinimalChatId;
 
       if (
-        mode === "minimal" &&
         ENABLE_MINIMAL_VERSION &&
         (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && shouldSend && !isRegularSlot))
       ) {
         console.log(
-          "[MINIMAL] ✅✅✅ DELIVERY START: Sending free briefing (Minimal Version) to all languages..."
+          "[MINIMAL] ✅✅✅ DELIVERY START (FIRST): Sending free briefing (Minimal Version) to all languages..."
         );
         const targetLangsForMinimal = getTargetLanguagesForMinimal();
         console.log(`[MINIMAL] Target languages: ${targetLangsForMinimal.join(", ")}`);
@@ -1455,12 +1452,11 @@ module.exports = async function handler(req, res) {
       }
 
       // 7-A. REGULAR（有料版 - 6言語すべてに配信）
-      // 分割Cron: mode=regular のときのみ実行（cron-regular.js から呼ばれる）
+      // P0 FIX: Minimalを先に実行済み。PT/AR/JAの定時配信を保証
       if (
-        mode === "regular" &&
-        (isRegularSlot ||
-          force ||
-          (ENABLE_EVENT_DRIVEN && triggerType === "REGULAR" && !isRegularSlot))
+        isRegularSlot ||
+        force ||
+        (ENABLE_EVENT_DRIVEN && triggerType === "REGULAR" && !isRegularSlot)
       ) {
         console.log(
           "[REGULAR] ✅✅✅ DELIVERY START: Sending REGULAR message (paid version) to all languages..."

@@ -1,37 +1,36 @@
 // services/gemini/deepPsychologicalAnalyzer.js
 // Gemini深層心理分析サービス - ユーザーの心理状態をより深く分析
 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 if (!GEMINI_API_KEY) {
-  console.warn("[Gemini Deep Psychological Analyzer] GEMINI_API_KEY is not set");
+  console.warn('[Gemini Deep Psychological Analyzer] GEMINI_API_KEY is not set');
 }
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 // P0 FIX: タイムアウト対策 - 本番環境では軽量モデルを使用（60秒制限を考慮）
-const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || "production";
-const isDevelopment = APP_ENV === "development";
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
+const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'production';
+const isDevelopment = APP_ENV === 'development';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
 
 // キャッシュ設定（GPTと同じパターンで一貫性を保つ）
 const GEMINI_CACHE_TTL_SECONDS = Number(process.env.GEMINI_CACHE_TTL_SECONDS || 900); // デフォルト: 15分
 
 // LRUCacheのインポート（GPTと同じパターン）
-const LRUCacheModule = require("lru-cache");
-const LRUCache =
-  typeof LRUCacheModule === "function"
-    ? LRUCacheModule
-    : (LRUCacheModule.default ?? LRUCacheModule.LRUCache ?? LRUCacheModule);
+const LRUCacheModule = require('lru-cache');
+const LRUCache = (typeof LRUCacheModule === 'function') 
+  ? LRUCacheModule 
+  : (LRUCacheModule.default ?? LRUCacheModule.LRUCache ?? LRUCacheModule);
 
 // メモリキャッシュ（同一実行内の重複排除）
 const memoryCache = new LRUCache({
   max: 200,
-  ttl: GEMINI_CACHE_TTL_SECONDS * 1000
+  ttl: GEMINI_CACHE_TTL_SECONDS * 1000,
 });
 
 // KVキャッシュ（GPTと同じパターン）
-const { kv } = require("../../utils/kv");
+const { kv } = require('../../utils/kv');
 
 /**
  * KVからキャッシュを取得
@@ -63,28 +62,21 @@ async function setKVCache(key, value, ttlSeconds) {
  * 言語と市場データから一意のキーを生成
  */
 function buildCacheKey(options) {
-  const {
-    marketData = {},
-    trapScore = null,
-    sentimentData = null,
-    xSentiment = null,
-    lang = "en"
-  } = options;
-
+  const { marketData = {}, trapScore = null, sentimentData = null, xSentiment = null, lang = 'en' } = options;
+  
   // キャッシュキーに含める重要なパラメータ
   const keyData = {
     trapScore: trapScore !== null ? Math.round(trapScore) : null,
     sentiment: sentimentData?.sentiment || null,
-    priceChange:
-      marketData.change24h !== undefined ? Math.round(marketData.change24h * 100) / 100 : null, // 小数点第2位まで
+    priceChange: marketData.change24h !== undefined ? Math.round(marketData.change24h * 100) / 100 : null, // 小数点第2位まで
     whaleBias: xSentiment?.whaleBias !== undefined ? Math.round(xSentiment.whaleBias) : null,
     retailFomo: xSentiment?.retailFomo !== undefined ? Math.round(xSentiment.retailFomo) : null,
-    lang: (lang || "en").toLowerCase()
+    lang: (lang || 'en').toLowerCase(),
   };
-
+  
   // Base64URLエンコードでキーを生成（GPTと同じパターン）
   const keyString = JSON.stringify(keyData);
-  return `gemini:deep-psychology:${Buffer.from(keyString).toString("base64url")}`;
+  return `gemini:deep-psychology:${Buffer.from(keyString).toString('base64url')}`;
 }
 
 /**
@@ -100,7 +92,7 @@ async function analyzeDeepPsychology(options = {}) {
     sentimentData = null,
     xSentiment = null, // Grok X解析結果
     userBehavior = null, // ユーザーの行動パターン（オプション）
-    lang = "en"
+    lang = 'en',
   } = options;
 
   if (!genAI || !GEMINI_API_KEY) {
@@ -110,11 +102,11 @@ async function analyzeDeepPsychology(options = {}) {
       emotionalPatterns: null,
       personalizedCoaching: null,
       breakthroughInsights: null,
-      error: "GEMINI_API_KEY not set"
+      error: 'GEMINI_API_KEY not set',
     };
   }
 
-  const targetLang = (lang || "en").toLowerCase();
+  const targetLang = (lang || 'en').toLowerCase();
 
   // キャッシュキーを生成
   const cacheKey = buildCacheKey(options);
@@ -122,14 +114,14 @@ async function analyzeDeepPsychology(options = {}) {
   // 1. メモリキャッシュチェック（GPTと同じパターン）
   const memHit = memoryCache.get(cacheKey);
   if (memHit) {
-    console.log("[Gemini Deep Psychological Analyzer] Memory cache hit");
+    console.log('[Gemini Deep Psychological Analyzer] Memory cache hit');
     return memHit;
   }
 
   // 2. KVキャッシュチェック（GPTと同じパターン）
   const kvHit = await getKVCache(cacheKey);
   if (kvHit) {
-    console.log("[Gemini Deep Psychological Analyzer] KV cache hit");
+    console.log('[Gemini Deep Psychological Analyzer] KV cache hit');
     memoryCache.set(cacheKey, kvHit);
     return kvHit;
   }
@@ -154,19 +146,15 @@ CRITICAL: Focus on actionable insights that are impossible for competitors to re
     const prompt = `Conduct a deep psychological analysis for a crypto trader using Trap Defence BTC.
 
 Market Context:
-- Trap Score: ${trapScore !== null ? trapScore : "N/A"}/100
-- Market Sentiment: ${sentimentData?.sentiment || "Unknown"}
-- Price Change: ${marketData.change24h || "N/A"}%
+- Trap Score: ${trapScore !== null ? trapScore : 'N/A'}/100
+- Market Sentiment: ${sentimentData?.sentiment || 'Unknown'}
+- Price Change: ${marketData.change24h || 'N/A'}%
 
 X Sentiment Analysis:
-${xSentiment ? JSON.stringify(xSentiment, null, 2) : "Not available"}
+${xSentiment ? JSON.stringify(xSentiment, null, 2) : 'Not available'}
 
-${
-  userBehavior
-    ? `User Behavior Patterns:
-${JSON.stringify(userBehavior, null, 2)}`
-    : ""
-}
+${userBehavior ? `User Behavior Patterns:
+${JSON.stringify(userBehavior, null, 2)}` : ''}
 
 Task: Provide deep psychological analysis including:
 
@@ -205,7 +193,7 @@ Focus on:
 - Understanding the "why" behind trading behaviors, not just the "what"
 
 Language: ${targetLang}
-CRITICAL: Respond ONLY in ${targetLang === "ja" ? "Japanese" : targetLang === "ko" ? "Korean" : targetLang === "es" ? "Spanish" : targetLang === "pt-br" ? "Portuguese (Brazilian)" : targetLang === "ar" ? "Arabic" : "English"}.`;
+CRITICAL: Respond ONLY in ${targetLang === 'ja' ? 'Japanese' : targetLang === 'ko' ? 'Korean' : targetLang === 'es' ? 'Spanish' : targetLang === 'pt-br' ? 'Portuguese (Brazilian)' : targetLang === 'ar' ? 'Arabic' : 'English'}.`;
 
     const apiResult = await model.generateContent(prompt);
     const response = await apiResult.response;
@@ -229,34 +217,30 @@ CRITICAL: Respond ONLY in ${targetLang === "ja" ? "Japanese" : targetLang === "k
     if (!finalResult) {
       finalResult = {
         psychologicalProfile: {
-          currentState:
-            extractSection(text, "Psychological Profile", "Mental Blocks") ||
-            text.substring(0, 300),
-          hiddenFears: extractListItems(text, "fears", "desires"),
-          motivations: extractSection(text, "motivations", "patterns")
-        },
-        mentalBlocks: {
-          blocks: extractListItems(text, "blocks", "causes"),
-          rootCauses: extractSection(text, "root causes", "manifest"),
-          manifestations: extractSection(text, "manifest", "patterns")
-        },
-        emotionalPatterns: {
-          patterns: extractListItems(text, "patterns", "cycles"),
-          cycles: extractSection(text, "cycles", "coaching")
-        },
-        personalizedCoaching: {
-          advice:
-            extractSection(text, "Coaching", "Insights") ||
-            text.substring(text.length / 2, text.length),
-          steps: extractListItems(text, "steps", "exercises"),
-          exercises: extractListItems(text, "exercises", "strategies")
-        },
-        breakthroughInsights: {
-          insights: extractListItems(text, "insights", "understanding"),
-          ahaMoments: extractSection(text, "Aha", "perspective"),
-          competitiveAdvantages: extractSection(text, "advantages", "mastery")
-        },
-        rawText: text
+        currentState: extractSection(text, 'Psychological Profile', 'Mental Blocks') || text.substring(0, 300),
+        hiddenFears: extractListItems(text, 'fears', 'desires'),
+        motivations: extractSection(text, 'motivations', 'patterns'),
+      },
+      mentalBlocks: {
+        blocks: extractListItems(text, 'blocks', 'causes'),
+        rootCauses: extractSection(text, 'root causes', 'manifest'),
+        manifestations: extractSection(text, 'manifest', 'patterns'),
+      },
+      emotionalPatterns: {
+        patterns: extractListItems(text, 'patterns', 'cycles'),
+        cycles: extractSection(text, 'cycles', 'coaching'),
+      },
+      personalizedCoaching: {
+        advice: extractSection(text, 'Coaching', 'Insights') || text.substring(text.length / 2, text.length),
+        steps: extractListItems(text, 'steps', 'exercises'),
+        exercises: extractListItems(text, 'exercises', 'strategies'),
+      },
+      breakthroughInsights: {
+        insights: extractListItems(text, 'insights', 'understanding'),
+        ahaMoments: extractSection(text, 'Aha', 'perspective'),
+        competitiveAdvantages: extractSection(text, 'advantages', 'mastery'),
+      },
+        rawText: text,
       };
     }
 
@@ -266,20 +250,20 @@ CRITICAL: Respond ONLY in ${targetLang === "ja" ? "Japanese" : targetLang === "k
       memoryCache.set(cacheKey, finalResult);
       await setKVCache(cacheKey, finalResult, GEMINI_CACHE_TTL_SECONDS).catch(() => {
         // KVキャッシュ保存失敗は警告のみ（メモリキャッシュは有効）
-        console.warn("[Gemini Deep Psychological Analyzer] Failed to save to KV cache");
+        console.warn('[Gemini Deep Psychological Analyzer] Failed to save to KV cache');
       });
     }
 
     return finalResult;
   } catch (error) {
-    console.error("[Gemini Deep Psychological Analyzer] Error:", error.message);
+    console.error('[Gemini Deep Psychological Analyzer] Error:', error.message);
     return {
       psychologicalProfile: null,
       mentalBlocks: null,
       emotionalPatterns: null,
       personalizedCoaching: null,
       breakthroughInsights: null,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -289,9 +273,7 @@ CRITICAL: Respond ONLY in ${targetLang === "ja" ? "Japanese" : targetLang === "k
  */
 function extractSection(text, startKeyword, endKeyword) {
   const startIndex = text.toLowerCase().indexOf(startKeyword.toLowerCase());
-  const endIndex = endKeyword
-    ? text.toLowerCase().indexOf(endKeyword.toLowerCase(), startIndex)
-    : text.length;
+  const endIndex = endKeyword ? text.toLowerCase().indexOf(endKeyword.toLowerCase(), startIndex) : text.length;
   if (startIndex !== -1) {
     return text.substring(startIndex, endIndex !== -1 ? endIndex : text.length).trim();
   }
@@ -304,15 +286,15 @@ function extractSection(text, startKeyword, endKeyword) {
 function extractListItems(text, keyword, nextKeyword) {
   const section = extractSection(text, keyword, nextKeyword);
   if (!section) return [];
-
+  
   // 箇条書きや番号付きリストを抽出
   const items = section.match(/(?:[-•*]|\d+\.)\s+(.+?)(?=\n|$)/g);
   if (items) {
-    return items.map((item) => item.replace(/^[-•*\d.]\s+/, "").trim());
+    return items.map(item => item.replace(/^[-•*\d.]\s+/, '').trim());
   }
   return [];
 }
 
 module.exports = {
-  analyzeDeepPsychology
+  analyzeDeepPsychology,
 };

@@ -60,8 +60,8 @@
   ],
   "crons": [
     { "path": "/api/cron", "schedule": "*/15 * * * *" },
-    { "path": "/api/cron-regular", "schedule": "0 0,6,12,18 * * *" },
-    { "path": "/api/cron-minimal", "schedule": "10 0,6,12,18 * * *" },
+    { "path": "/api/cron-minimal", "schedule": "0 0,6,12,18 * * *" },
+    { "path": "/api/cron-regular", "schedule": "10 0,6,12,18 * * *" },
     { "path": "/api/vsl1-post", "schedule": "0 1,13,21 * * *" },
     { "path": "/api/x-quote-repost-en", "schedule": "0 * * * *" },
     { "path": "/api/x-quote-repost-es", "schedule": "5 * * * *" },

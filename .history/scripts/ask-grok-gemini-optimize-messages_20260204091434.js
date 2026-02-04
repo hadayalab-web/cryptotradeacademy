@@ -3,36 +3,36 @@
  * GrokとGeminiに無料版・有料版メッセージの最適化案を聞くスクリプト
  */
 
-const path = require("path");
-const dotenv = require("dotenv");
-const OpenAI = require("openai");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const path = require('path');
+const dotenv = require('dotenv');
+const OpenAI = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // .envファイルを読み込む
-const envPath = path.join(__dirname, "..", ".env");
+const envPath = path.join(__dirname, '..', '.env');
 dotenv.config({ path: envPath });
 
 const XAI_API_KEY = process.env.XAI_API_KEY;
-const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
+const XAI_BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 if (!XAI_API_KEY) {
-  console.error("❌ XAI_API_KEY is not set");
+  console.error('❌ XAI_API_KEY is not set');
   process.exit(1);
 }
 
 if (!GEMINI_API_KEY) {
-  console.error("❌ GEMINI_API_KEY is not set");
+  console.error('❌ GEMINI_API_KEY is not set');
   process.exit(1);
 }
 
 const grokClient = new OpenAI({
   apiKey: XAI_API_KEY,
-  baseURL: XAI_BASE_URL
+  baseURL: XAI_BASE_URL,
 });
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const geminiModel = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+const geminiModel = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
 
 // サンプルメッセージ（ユーザー提供のサンプル）
 const MINIMAL_VERSION_SAMPLE = `🌤️ Trap Defence BTC - Free Report
@@ -189,7 +189,7 @@ async function askGrokForOptimization(message, version) {
   try {
     const prompt = `You are "Dr. Grok", an expert X (Twitter) algorithm analyst specializing in crypto/BTC content optimization.
 
-Analyze the following ${version === "minimal" ? "FREE VERSION (Minimal Version)" : "PAID VERSION (Regular Briefing)"} message for Trap Defence BTC and provide optimization recommendations:
+Analyze the following ${version === 'minimal' ? 'FREE VERSION (Minimal Version)' : 'PAID VERSION (Regular Briefing)'} message for Trap Defence BTC and provide optimization recommendations:
 
 ${message}
 
@@ -229,26 +229,25 @@ Focus on:
 Provide your analysis in a clear, structured format.`;
 
     const completion = await grokClient.chat.completions.create({
-      model: "grok-4-1-fast-reasoning",
+      model: 'grok-4-1-fast-reasoning',
       messages: [
         {
-          role: "system",
-          content:
-            'You are "Dr. Grok", an expert X (Twitter) algorithm analyst specializing in crypto/BTC content optimization. Provide actionable, specific recommendations.'
+          role: 'system',
+          content: 'You are "Dr. Grok", an expert X (Twitter) algorithm analyst specializing in crypto/BTC content optimization. Provide actionable, specific recommendations.',
         },
         {
-          role: "user",
-          content: prompt
-        }
+          role: 'user',
+          content: prompt,
+        },
       ],
       max_tokens: 3000,
-      temperature: 0.7
+      temperature: 0.7,
     });
 
     const text = completion?.choices?.[0]?.message?.content?.trim();
-    return text || "No response from Grok";
+    return text || 'No response from Grok';
   } catch (error) {
-    console.error("[Grok] Error:", error.message);
+    console.error('[Grok] Error:', error.message);
     return `Error: ${error.message}`;
   }
 }
@@ -260,7 +259,7 @@ async function askGeminiForOptimization(message, version) {
   try {
     const prompt = `You are "Dr. Gemini", a world-class psychological analyst specializing in trader psychology and mental coaching.
 
-Analyze the following ${version === "minimal" ? "FREE VERSION (Minimal Version)" : "PAID VERSION (Regular Briefing)"} message for Trap Defence BTC and provide deep psychological optimization recommendations:
+Analyze the following ${version === 'minimal' ? 'FREE VERSION (Minimal Version)' : 'PAID VERSION (Regular Briefing)'} message for Trap Defence BTC and provide deep psychological optimization recommendations:
 
 ${message}
 
@@ -303,9 +302,9 @@ Provide your analysis in a clear, structured format.`;
     const result = await geminiModel.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    return text || "No response from Gemini";
+    return text || 'No response from Gemini';
   } catch (error) {
-    console.error("[Gemini] Error:", error.message);
+    console.error('[Gemini] Error:', error.message);
     return `Error: ${error.message}`;
   }
 }
@@ -314,89 +313,89 @@ Provide your analysis in a clear, structured format.`;
  * メイン実行
  */
 async function main() {
-  console.log("🚀 Grok × Gemini メッセージ最適化分析スクリプト\n");
-  console.log("=".repeat(80));
-  console.log("📋 分析対象:");
-  console.log("  1. 無料版（Minimal Version）メッセージ");
-  console.log("  2. 有料版（Regular Briefing）メッセージ");
-  console.log("=".repeat(80) + "\n");
+  console.log('🚀 Grok × Gemini メッセージ最適化分析スクリプト\n');
+  console.log('='.repeat(80));
+  console.log('📋 分析対象:');
+  console.log('  1. 無料版（Minimal Version）メッセージ');
+  console.log('  2. 有料版（Regular Briefing）メッセージ');
+  console.log('='.repeat(80) + '\n');
 
   const results = {
     minimal: {
       grok: null,
-      gemini: null
+      gemini: null,
     },
     regular: {
       grok: null,
-      gemini: null
-    }
+      gemini: null,
+    },
   };
 
   // 無料版の分析
-  console.log("📱 無料版（Minimal Version）分析中...\n");
+  console.log('📱 無料版（Minimal Version）分析中...\n');
+  
+  console.log('🔍 GrokにXアルゴリズム最適化案を依頼中...');
+  results.minimal.grok = await askGrokForOptimization(MINIMAL_VERSION_SAMPLE, 'minimal');
+  console.log('✅ Grok分析完了\n');
 
-  console.log("🔍 GrokにXアルゴリズム最適化案を依頼中...");
-  results.minimal.grok = await askGrokForOptimization(MINIMAL_VERSION_SAMPLE, "minimal");
-  console.log("✅ Grok分析完了\n");
+  console.log('🔍 Geminiに深層心理分析と最適化案を依頼中...');
+  results.minimal.gemini = await askGeminiForOptimization(MINIMAL_VERSION_SAMPLE, 'minimal');
+  console.log('✅ Gemini分析完了\n');
 
-  console.log("🔍 Geminiに深層心理分析と最適化案を依頼中...");
-  results.minimal.gemini = await askGeminiForOptimization(MINIMAL_VERSION_SAMPLE, "minimal");
-  console.log("✅ Gemini分析完了\n");
-
-  console.log("=".repeat(80) + "\n");
+  console.log('='.repeat(80) + '\n');
 
   // 有料版の分析
-  console.log("💎 有料版（Regular Briefing）分析中...\n");
+  console.log('💎 有料版（Regular Briefing）分析中...\n');
+  
+  console.log('🔍 GrokにXアルゴリズム最適化案を依頼中...');
+  results.regular.grok = await askGrokForOptimization(REGULAR_BRIEFING_SAMPLE, 'regular');
+  console.log('✅ Grok分析完了\n');
 
-  console.log("🔍 GrokにXアルゴリズム最適化案を依頼中...");
-  results.regular.grok = await askGrokForOptimization(REGULAR_BRIEFING_SAMPLE, "regular");
-  console.log("✅ Grok分析完了\n");
-
-  console.log("🔍 Geminiに深層心理分析と最適化案を依頼中...");
-  results.regular.gemini = await askGeminiForOptimization(REGULAR_BRIEFING_SAMPLE, "regular");
-  console.log("✅ Gemini分析完了\n");
+  console.log('🔍 Geminiに深層心理分析と最適化案を依頼中...');
+  results.regular.gemini = await askGeminiForOptimization(REGULAR_BRIEFING_SAMPLE, 'regular');
+  console.log('✅ Gemini分析完了\n');
 
   // 結果を出力
-  console.log("\n" + "=".repeat(80));
-  console.log("📊 分析結果サマリー");
-  console.log("=".repeat(80) + "\n");
+  console.log('\n' + '='.repeat(80));
+  console.log('📊 分析結果サマリー');
+  console.log('='.repeat(80) + '\n');
 
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log("📱 無料版（Minimal Version）最適化案");
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📱 無料版（Minimal Version）最適化案');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-  console.log("🔍 Grok Xアルゴリズム最適化案:");
-  console.log("-".repeat(80));
+  console.log('🔍 Grok Xアルゴリズム最適化案:');
+  console.log('-'.repeat(80));
   console.log(results.minimal.grok);
-  console.log("\n");
+  console.log('\n');
 
-  console.log("🔍 Gemini深層心理分析と最適化案:");
-  console.log("-".repeat(80));
+  console.log('🔍 Gemini深層心理分析と最適化案:');
+  console.log('-'.repeat(80));
   console.log(results.minimal.gemini);
-  console.log("\n");
+  console.log('\n');
 
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log("💎 有料版（Regular Briefing）最適化案");
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('💎 有料版（Regular Briefing）最適化案');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-  console.log("🔍 Grok Xアルゴリズム最適化案:");
-  console.log("-".repeat(80));
+  console.log('🔍 Grok Xアルゴリズム最適化案:');
+  console.log('-'.repeat(80));
   console.log(results.regular.grok);
-  console.log("\n");
+  console.log('\n');
 
-  console.log("🔍 Gemini深層心理分析と最適化案:");
-  console.log("-".repeat(80));
+  console.log('🔍 Gemini深層心理分析と最適化案:');
+  console.log('-'.repeat(80));
   console.log(results.regular.gemini);
-  console.log("\n");
+  console.log('\n');
 
   // 結果をファイルに保存
-  const fs = require("fs");
-  const outputDir = path.join(__dirname, "..", "output");
+  const fs = require('fs');
+  const outputDir = path.join(__dirname, '..', 'output');
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const outputFile = path.join(outputDir, `grok-gemini-optimization-${timestamp}.md`);
 
   const outputContent = `# Grok × Gemini メッセージ最適化分析結果
@@ -426,16 +425,16 @@ ${results.regular.grok}
 ${results.regular.gemini}
 `;
 
-  fs.writeFileSync(outputFile, outputContent, "utf-8");
+  fs.writeFileSync(outputFile, outputContent, 'utf-8');
   console.log(`\n✅ 結果を保存しました: ${outputFile}`);
-  console.log("=".repeat(80));
+  console.log('='.repeat(80));
 }
 
 // 実行
 main().catch((error) => {
-  console.error("\n❌ 予期しないエラー:", error.message);
+  console.error('\n❌ 予期しないエラー:', error.message);
   if (error.stack) {
-    console.error("スタックトレース:", error.stack.substring(0, 500));
+    console.error('スタックトレース:', error.stack.substring(0, 500));
   }
   process.exit(1);
 });

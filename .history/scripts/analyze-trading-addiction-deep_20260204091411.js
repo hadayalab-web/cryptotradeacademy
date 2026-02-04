@@ -2,23 +2,19 @@
 // トレード依存症の深層分析（第2弾：依存関係の構築戦略）
 // 内部理解: 人間の弱みを完全にハッキングし、製品への依存関係を構築するための分析
 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 // 環境変数または直接指定（コマンドライン引数で上書き可能）
-const GEMINI_API_KEY =
-  process.env.GEMINI_API_KEY || process.argv[2] || "AIzaSyBeKmuRBImr1ZYtQMsOqpU-cqkdzQh3fig";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.argv[2] || 'AIzaSyBeKmuRBImr1ZYtQMsOqpU-cqkdzQh3fig';
 
 if (!GEMINI_API_KEY) {
-  console.error("❌ GEMINI_API_KEY is not set");
+  console.error('❌ GEMINI_API_KEY is not set');
   process.exit(1);
 }
 
-console.log(
-  "[Trading Addiction Deep Analysis] Using GEMINI_API_KEY:",
-  GEMINI_API_KEY.substring(0, 10) + "..."
-);
+console.log('[Trading Addiction Deep Analysis] Using GEMINI_API_KEY:', GEMINI_API_KEY.substring(0, 10) + '...');
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const GEMINI_MODEL = "gemini-3-flash-preview";
+const GEMINI_MODEL = 'gemini-3-flash-preview';
 
 /**
  * トレード依存症の深層分析（第2弾：依存関係の構築戦略）
@@ -114,16 +110,16 @@ Please provide a detailed, analytical response in JSON format with the following
 
 CRITICAL: Be brutally honest and analytical. This is for understanding human psychology to create effective business strategies. Focus on actionable insights that can be leveraged. Do not be moralistic; be strategic and psychological.`;
 
-    console.log("[Trading Addiction Deep Analysis] Calling Gemini-3-pro-preview...");
-    console.log("[Trading Addiction Deep Analysis] Prompt length:", prompt.length, "characters");
-
+    console.log('[Trading Addiction Deep Analysis] Calling Gemini-3-pro-preview...');
+    console.log('[Trading Addiction Deep Analysis] Prompt length:', prompt.length, 'characters');
+    
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
-    console.log("\n" + "=".repeat(80));
-    console.log("Trading Addiction Deep Analysis Results (Dependency Strategy)");
-    console.log("=".repeat(80) + "\n");
+    console.log('\n' + '='.repeat(80));
+    console.log('Trading Addiction Deep Analysis Results (Dependency Strategy)');
+    console.log('='.repeat(80) + '\n');
 
     // JSONを抽出して整形
     try {
@@ -132,30 +128,28 @@ CRITICAL: Be brutally honest and analytical. This is for understanding human psy
         const jsonText = jsonMatch[1] || jsonMatch[0];
         const parsed = JSON.parse(jsonText);
         console.log(JSON.stringify(parsed, null, 2));
-
+        
         // ファイルに保存
-        const fs = require("fs");
-        const path = require("path");
-        const outputPath = path.join(
-          __dirname,
-          "../docs/TRADING_ADDICTION_DEPENDENCY_STRATEGY_2026-01-28.json"
-        );
-        fs.writeFileSync(outputPath, JSON.stringify(parsed, null, 2), "utf-8");
-        console.log("\n✅ Analysis saved to:", outputPath);
+        const fs = require('fs');
+        const path = require('path');
+        const outputPath = path.join(__dirname, '../docs/TRADING_ADDICTION_DEPENDENCY_STRATEGY_2026-01-28.json');
+        fs.writeFileSync(outputPath, JSON.stringify(parsed, null, 2), 'utf-8');
+        console.log('\n✅ Analysis saved to:', outputPath);
       } else {
         console.log(text);
       }
     } catch (parseError) {
-      console.log("Raw response (not JSON):");
+      console.log('Raw response (not JSON):');
       console.log(text);
     }
 
-    console.log("\n" + "=".repeat(80));
-    console.log("Deep Analysis Complete");
-    console.log("=".repeat(80));
+    console.log('\n' + '='.repeat(80));
+    console.log('Deep Analysis Complete');
+    console.log('='.repeat(80));
+
   } catch (error) {
-    console.error("❌ Error analyzing trading addiction dependency strategy:", error.message);
-    console.error("Stack trace:", error.stack);
+    console.error('❌ Error analyzing trading addiction dependency strategy:', error.message);
+    console.error('Stack trace:', error.stack);
     process.exit(1);
   }
 }

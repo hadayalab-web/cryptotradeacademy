@@ -2,15 +2,15 @@
 // 🚀 チート級プロンプト: GeminiにXアルゴリズムの「抜け道」と「最適化ポイント」を引き出す
 // Geminiの分析力とデータ駆動アプローチを活用
 
-require("dotenv").config();
-const fs = require("fs");
-const path = require("path");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 if (!GEMINI_API_KEY) {
-  console.error("❌ GEMINI_API_KEY is not set");
+  console.error('❌ GEMINI_API_KEY is not set');
   process.exit(1);
 }
 
@@ -18,14 +18,14 @@ const geminiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 /**
  * 🚀 チート級プロンプト: GeminiにXアルゴリズムの「抜け道」を引き出す
- *
+ * 
  * Geminiの特性を活かしたプロンプト設計:
  * 1. データ分析とパターン認識に優れている
  * 2. 複数の視点からの分析が得意
  * 3. 実装可能性の評価が正確
  */
 async function askGeminiXAlgorithmCheatStrategy() {
-  console.log("🚀 チート級プロンプト: GeminiにXアルゴリズムの「抜け道」を引き出す\n");
+  console.log('🚀 チート級プロンプト: GeminiにXアルゴリズムの「抜け道」を引き出す\n');
 
   const prompt = `あなたはX（旧Twitter）のアルゴリズムを逆解析する専門家であり、成長ハッカーです。あなたの使命は、技術的制約内で最大限の成果を出すためのアルゴリズムの「抜け道」と「最適化ポイント」を特定することです。
 
@@ -170,14 +170,14 @@ async function askGeminiXAlgorithmCheatStrategy() {
 **重要**: 技術的制約と**最大出力**に焦点を当て、保守的な「安全圏」推奨ではなく。保守的なAIモデルが「推奨」するものではなく、**実際に可能なこと**を知りたいです。`;
 
   try {
-    console.log("🔄 Sending cheat-grade prompt to Gemini...\n");
+    console.log('🔄 Sending cheat-grade prompt to Gemini...\n');
 
     const model = geminiClient.getGenerativeModel({
-      model: "gemini-3-flash-preview",
+      model: 'gemini-3-flash-preview',
       generationConfig: {
         temperature: 0.7, // Higher temperature for more creative/aggressive responses
-        maxOutputTokens: 12000 // Longer responses for detailed analysis
-      }
+        maxOutputTokens: 12000, // Longer responses for detailed analysis
+      },
     });
 
     const result = await model.generateContent(prompt);
@@ -186,8 +186,8 @@ async function askGeminiXAlgorithmCheatStrategy() {
     const usage = response.usageMetadata || {};
 
     // 結果を保存
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const outputDir = path.join(__dirname, "..", "docs", "reports");
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const outputDir = path.join(__dirname, '..', 'docs', 'reports');
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
@@ -225,7 +225,7 @@ ${responseText}
 - **合計トークン**: ${usage.totalTokenCount || 0}
 `;
 
-    fs.writeFileSync(outputFile, outputContent, "utf-8");
+    fs.writeFileSync(outputFile, outputContent, 'utf-8');
 
     console.log(`\n✅ 解析結果を保存しました: ${outputFile}`);
     console.log(`\n📊 レスポンス長: ${responseText.length} chars`);
@@ -233,15 +233,15 @@ ${responseText}
     console.log(`  - 入力トークン: ${usage.promptTokenCount || 0}`);
     console.log(`  - 出力トークン: ${usage.candidatesTokenCount || 0}`);
     console.log(`  - 合計トークン: ${usage.totalTokenCount || 0}`);
-    console.log("\n" + "=".repeat(80));
+    console.log('\n' + '='.repeat(80));
     console.log(responseText);
-    console.log("=".repeat(80));
+    console.log('='.repeat(80));
 
     return responseText;
   } catch (error) {
-    console.error("❌ Geminiへの質問に失敗:", error.message);
+    console.error('❌ Geminiへの質問に失敗:', error.message);
     if (error.response) {
-      console.error("Response:", error.response.data);
+      console.error('Response:', error.response.data);
     }
     throw error;
   }
@@ -251,11 +251,11 @@ ${responseText}
 if (require.main === module) {
   askGeminiXAlgorithmCheatStrategy()
     .then(() => {
-      console.log("\n✅ 完了");
+      console.log('\n✅ 完了');
       process.exit(0);
     })
     .catch((error) => {
-      console.error("\n❌ エラー:", error);
+      console.error('\n❌ エラー:', error);
       process.exit(1);
     });
 }

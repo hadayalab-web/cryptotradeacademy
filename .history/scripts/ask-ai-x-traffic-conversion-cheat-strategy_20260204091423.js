@@ -2,44 +2,44 @@
 // 🚀 チート級プロンプト: X経由で大量のトラフィック獲得とコンバージョン最適化の「チート」を確立
 // Grok、Gemini、GPT-5.2を統合して、トラフィック→コンバージョンの最大化戦略を探る
 
-require("dotenv").config();
-const fs = require("fs");
-const path = require("path");
-const OpenAI = require("openai");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const OpenAI = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // API設定
 const XAI_API_KEY = process.env.XAI_API_KEY;
-const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
+const XAI_BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 if (!XAI_API_KEY || !GEMINI_API_KEY || !OPENAI_API_KEY) {
-  console.error("❌ 必要なAPIキーが設定されていません");
-  console.error("XAI_API_KEY:", XAI_API_KEY ? "✅" : "❌");
-  console.error("GEMINI_API_KEY:", GEMINI_API_KEY ? "✅" : "❌");
-  console.error("OPENAI_API_KEY:", OPENAI_API_KEY ? "✅" : "❌");
+  console.error('❌ 必要なAPIキーが設定されていません');
+  console.error('XAI_API_KEY:', XAI_API_KEY ? '✅' : '❌');
+  console.error('GEMINI_API_KEY:', GEMINI_API_KEY ? '✅' : '❌');
+  console.error('OPENAI_API_KEY:', OPENAI_API_KEY ? '✅' : '❌');
   process.exit(1);
 }
 
 const grokClient = new OpenAI({
   apiKey: XAI_API_KEY,
-  baseURL: XAI_BASE_URL
+  baseURL: XAI_BASE_URL,
 });
 
 const geminiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
 const openaiClient = new OpenAI({
-  apiKey: OPENAI_API_KEY
+  apiKey: OPENAI_API_KEY,
 });
 
 /**
  * 🚀 X経由で大量のトラフィック獲得とコンバージョン最適化の「チート」を確立
- *
+ * 
  * このスクリプトは、X（旧Twitter）経由で大量のトラフィックを獲得し、
  * それをプロダクト（Trap Defence BTC）へのコンバージョンに最適化する戦略を探ります。
  */
 async function askAITrafficConversionCheatStrategy() {
-  console.log("🚀 X経由で大量のトラフィック獲得とコンバージョン最適化の「チート」を確立...\n");
+  console.log('🚀 X経由で大量のトラフィック獲得とコンバージョン最適化の「チート」を確立...\n');
 
   const currentImplementation = `
 ## 現在の実装（Trap Defence BTC）
@@ -247,23 +247,20 @@ Provide your analysis in the following format:
   const results = await Promise.allSettled([
     askGrok(grokClient, systemPrompt, userPrompt),
     askGemini(geminiClient, systemPrompt, userPrompt),
-    askGPT(openaiClient, systemPrompt, userPrompt)
+    askGPT(openaiClient, systemPrompt, userPrompt),
   ]);
 
   // 結果を保存
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const outputDir = path.join(__dirname, "..", "docs", "reports");
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const outputDir = path.join(__dirname, '..', 'docs', 'reports');
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
   // 各AIの結果を個別に保存
-  const grokResult =
-    results[0].status === "fulfilled" ? results[0].value : { error: results[0].reason?.message };
-  const geminiResult =
-    results[1].status === "fulfilled" ? results[1].value : { error: results[1].reason?.message };
-  const gptResult =
-    results[2].status === "fulfilled" ? results[2].value : { error: results[2].reason?.message };
+  const grokResult = results[0].status === 'fulfilled' ? results[0].value : { error: results[0].reason?.message };
+  const geminiResult = results[1].status === 'fulfilled' ? results[1].value : { error: results[1].reason?.message };
+  const gptResult = results[2].status === 'fulfilled' ? results[2].value : { error: results[2].reason?.message };
 
   // 統合レポートを作成
   const integratedReport = `# X経由で大量のトラフィック獲得とコンバージョン最適化の「チート」戦略
@@ -281,19 +278,19 @@ X（旧Twitter）経由で大量のトラフィックを獲得し、それをプ
 
 ## 📊 Grok-4-1-fast-reasoningの分析
 
-${grokResult.response || grokResult.error || "N/A"}
+${grokResult.response || grokResult.error || 'N/A'}
 
 ---
 
 ## 📊 Gemini-3-pro-previewの分析
 
-${geminiResult.response || geminiResult.error || "N/A"}
+${geminiResult.response || geminiResult.error || 'N/A'}
 
 ---
 
 ## 📊 GPT-5.2-2025-12-11の分析
 
-${gptResult.response || gptResult.error || "N/A"}
+${gptResult.response || gptResult.error || 'N/A'}
 
 ---
 
@@ -329,14 +326,14 @@ ${gptResult.response || gptResult.error || "N/A"}
 `;
 
   const outputFile = path.join(outputDir, `x-traffic-conversion-cheat-strategy-${timestamp}.md`);
-  fs.writeFileSync(outputFile, integratedReport, "utf-8");
+  fs.writeFileSync(outputFile, integratedReport, 'utf-8');
 
   console.log(`\n✅ 統合レポートを保存しました: ${outputFile}`);
-  console.log("\n" + "=".repeat(80));
-  console.log("統合分析結果");
-  console.log("=".repeat(80));
+  console.log('\n' + '='.repeat(80));
+  console.log('統合分析結果');
+  console.log('='.repeat(80));
   console.log(integratedReport);
-  console.log("=".repeat(80));
+  console.log('='.repeat(80));
 
   return { grokResult, geminiResult, gptResult, integratedReport };
 }
@@ -346,22 +343,22 @@ ${gptResult.response || gptResult.error || "N/A"}
  */
 async function askGrok(client, systemPrompt, userPrompt) {
   try {
-    console.log("🔄 Grokに質問を送信中...\n");
+    console.log('🔄 Grokに質問を送信中...\n');
     const completion = await client.chat.completions.create({
-      model: "grok-4-1-fast-reasoning",
+      model: 'grok-4-1-fast-reasoning',
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 12000
+      max_tokens: 12000,
     });
     return {
       response: completion.choices[0].message.content,
-      usage: completion.usage
+      usage: completion.usage,
     };
   } catch (error) {
-    console.error("❌ Grokへの質問に失敗:", error.message);
+    console.error('❌ Grokへの質問に失敗:', error.message);
     throw error;
   }
 }
@@ -371,22 +368,22 @@ async function askGrok(client, systemPrompt, userPrompt) {
  */
 async function askGemini(client, systemPrompt, userPrompt) {
   try {
-    console.log("🔄 Geminiに質問を送信中...\n");
+    console.log('🔄 Geminiに質問を送信中...\n');
     const model = client.getGenerativeModel({
-      model: "gemini-3-flash-preview",
+      model: 'gemini-3-flash-preview',
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 12000
-      }
+        maxOutputTokens: 12000,
+      },
     });
     const result = await model.generateContent(`${systemPrompt}\n\n${userPrompt}`);
     const response = result.response;
     return {
       response: response.text(),
-      usage: response.usageMetadata || {}
+      usage: response.usageMetadata || {},
     };
   } catch (error) {
-    console.error("❌ Geminiへの質問に失敗:", error.message);
+    console.error('❌ Geminiへの質問に失敗:', error.message);
     throw error;
   }
 }
@@ -396,22 +393,22 @@ async function askGemini(client, systemPrompt, userPrompt) {
  */
 async function askGPT(client, systemPrompt, userPrompt) {
   try {
-    console.log("🔄 GPT-5.2に質問を送信中...\n");
+    console.log('🔄 GPT-5.2に質問を送信中...\n');
     const completion = await client.chat.completions.create({
-      model: "gpt-5.2-2025-12-11",
+      model: 'gpt-5.2-2025-12-11',
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 12000
+      max_tokens: 12000,
     });
     return {
       response: completion.choices[0].message.content,
-      usage: completion.usage
+      usage: completion.usage,
     };
   } catch (error) {
-    console.error("❌ GPT-5.2への質問に失敗:", error.message);
+    console.error('❌ GPT-5.2への質問に失敗:', error.message);
     throw error;
   }
 }
@@ -420,11 +417,11 @@ async function askGPT(client, systemPrompt, userPrompt) {
 if (require.main === module) {
   askAITrafficConversionCheatStrategy()
     .then(() => {
-      console.log("\n✅ 完了");
+      console.log('\n✅ 完了');
       process.exit(0);
     })
     .catch((error) => {
-      console.error("\n❌ エラー:", error);
+      console.error('\n❌ エラー:', error);
       process.exit(1);
     });
 }

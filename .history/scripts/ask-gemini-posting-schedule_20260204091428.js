@@ -1,15 +1,15 @@
 // scripts/ask-gemini-posting-schedule.js
 // Gemini-3-pro-previewによる投稿スケジュール最適化：Grok分析に基づく投稿パターンの決定
 
-require("dotenv").config();
-const fs = require("fs");
-const path = require("path");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 if (!GEMINI_API_KEY) {
-  console.error("❌ GEMINI_API_KEY is not set");
+  console.error('❌ GEMINI_API_KEY is not set');
   process.exit(1);
 }
 
@@ -19,19 +19,13 @@ const geminiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
  * Gemini-3-pro-previewに投稿スケジュールを聞く
  */
 async function askGeminiPostingSchedule() {
-  console.log("🔍 Gemini-3-pro-previewによる投稿スケジュール最適化を開始...\n");
+  console.log('🔍 Gemini-3-pro-previewによる投稿スケジュール最適化を開始...\n');
 
   // Grokの分析結果を読み込む
-  const grokAnalysisPath = path.join(
-    __dirname,
-    "..",
-    "docs",
-    "reports",
-    "grok-optimal-posts-per-influencer-2026-01-27T03-45-57-646Z.md"
-  );
-  let grokAnalysis = "";
+  const grokAnalysisPath = path.join(__dirname, '..', 'docs', 'reports', 'grok-optimal-posts-per-influencer-2026-01-27T03-45-57-646Z.md');
+  let grokAnalysis = '';
   try {
-    grokAnalysis = fs.readFileSync(grokAnalysisPath, "utf-8");
+    grokAnalysis = fs.readFileSync(grokAnalysisPath, 'utf-8');
     console.log(`✅ Grok分析結果を読み込みました: ${grokAnalysisPath}`);
   } catch (error) {
     console.warn(`⚠️ Grok分析結果の読み込みに失敗: ${error.message}`);
@@ -203,14 +197,14 @@ ${grokAnalysis}
 日本語で回答してください。`;
 
   try {
-    console.log("🔄 Gemini-3-pro-previewに質問を送信中...\n");
+    console.log('🔄 Gemini-3-pro-previewに質問を送信中...\n');
 
     const model = geminiClient.getGenerativeModel({
-      model: "gemini-3-flash-preview",
+      model: 'gemini-3-flash-preview',
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 8000
-      }
+        maxOutputTokens: 8000,
+      },
     });
 
     const result = await model.generateContent(prompt);
@@ -219,8 +213,8 @@ ${grokAnalysis}
     const usage = response.usageMetadata || {};
 
     // 結果を保存
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const outputDir = path.join(__dirname, "..", "docs", "reports");
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const outputDir = path.join(__dirname, '..', 'docs', 'reports');
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
@@ -245,7 +239,7 @@ ${responseText}
 - **合計トークン**: ${usage.totalTokenCount || 0}
 `;
 
-    fs.writeFileSync(outputFile, outputContent, "utf-8");
+    fs.writeFileSync(outputFile, outputContent, 'utf-8');
 
     console.log(`\n✅ 解析結果を保存しました: ${outputFile}`);
     console.log(`\n📊 レスポンス長: ${responseText.length} chars`);
@@ -253,15 +247,15 @@ ${responseText}
     console.log(`  - 入力トークン: ${usage.promptTokenCount || 0}`);
     console.log(`  - 出力トークン: ${usage.candidatesTokenCount || 0}`);
     console.log(`  - 合計トークン: ${usage.totalTokenCount || 0}`);
-    console.log("\n" + "=".repeat(80));
+    console.log('\n' + '='.repeat(80));
     console.log(responseText);
-    console.log("=".repeat(80));
+    console.log('='.repeat(80));
 
     return responseText;
   } catch (error) {
-    console.error("❌ Geminiへの質問に失敗:", error.message);
+    console.error('❌ Geminiへの質問に失敗:', error.message);
     if (error.response) {
-      console.error("Response:", error.response.data);
+      console.error('Response:', error.response.data);
     }
     throw error;
   }
@@ -271,11 +265,11 @@ ${responseText}
 if (require.main === module) {
   askGeminiPostingSchedule()
     .then(() => {
-      console.log("\n✅ 完了");
+      console.log('\n✅ 完了');
       process.exit(0);
     })
     .catch((error) => {
-      console.error("\n❌ エラー:", error);
+      console.error('\n❌ エラー:', error);
       process.exit(1);
     });
 }

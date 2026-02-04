@@ -1,26 +1,18 @@
 // scripts/improve-article-with-grok-feedback.js
 // Grokの改善提案をGeminiに渡して、SoSoValue風ニュース記事をブラッシュアップするスクリプト
 
-const OpenAI = require("openai");
-const {
-  fetchOnchainDataWithHistory,
-  analyzeHistoricalPatterns,
-  generateSoSoValueNews
-} = require("./generate-sosovalue-news");
-const { showArticleToGrok } = require("./show-grok-sosovalue-article");
+const OpenAI = require('openai');
+const { fetchOnchainDataWithHistory, analyzeHistoricalPatterns, generateSoSoValueNews } = require('./generate-sosovalue-news');
+const { showArticleToGrok } = require('./show-grok-sosovalue-article');
 
 // 環境変数からAPIキーを取得
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyBeKmuRBImr1ZYtQMsOqpU-cqkdzQh3fig";
-const XAI_API_KEY =
-  process.env.XAI_API_KEY ||
-  "xai-jxO7HGeeFcEguSmqMTvxUqijZHnRT3fAP50iaDQnOzRE2aY1q86bNJLfMKxD18RMclcIoue426vV6vii";
-const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
-const CRYPTOQUANT_API_KEY =
-  process.env.CRYPTOQUANT_API_KEY ||
-  "AqSfkCmyWnepP1JX3xnPvqeR3EYNQot38egiAICE2421tcYdIZAlnXcb99pyFkis08uN7Ln";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyBeKmuRBImr1ZYtQMsOqpU-cqkdzQh3fig';
+const XAI_API_KEY = process.env.XAI_API_KEY || 'xai-jxO7HGeeFcEguSmqMTvxUqijZHnRT3fAP50iaDQnOzRE2aY1q86bNJLfMKxD18RMclcIoue426vV6vii';
+const XAI_BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
+const CRYPTOQUANT_API_KEY = process.env.CRYPTOQUANT_API_KEY || 'AqSfkCmyWnepP1JX3xnPvqeR3EYNQot38egiAICE2421tcYdIZAlnXcb99pyFkis08uN7Ln';
 
 if (!GEMINI_API_KEY) {
-  console.error("❌ GEMINI_API_KEY is not set");
+  console.error('❌ GEMINI_API_KEY is not set');
   process.exit(1);
 }
 
@@ -32,18 +24,13 @@ if (CRYPTOQUANT_API_KEY) {
 // Grokクライアントを初期化
 const grokClient = new OpenAI({
   apiKey: XAI_API_KEY,
-  baseURL: XAI_BASE_URL
+  baseURL: XAI_BASE_URL,
 });
 
 /**
  * GeminiにGrokの改善提案を渡して記事をブラッシュアップ
  */
-async function improveArticleWithGrokFeedback(
-  originalArticle,
-  grokFeedback,
-  onchainData,
-  patterns
-) {
+async function improveArticleWithGrokFeedback(originalArticle, grokFeedback, onchainData, patterns) {
   try {
     const prompt = `あなたはSoSoValueやOdailyのような暗号通貨ニュースメディアのプロフェッショナルなアナリスト兼ジャーナリストです。
 
@@ -96,29 +83,27 @@ Grokの改善提案に基づいて、以下の点を改善してください：
 
 日本語で出力してください。`;
 
-    console.log("🤖 GeminiにGrokの改善提案を渡して記事をブラッシュアップ中...");
-
+    console.log('🤖 GeminiにGrokの改善提案を渡して記事をブラッシュアップ中...');
+    
     // REST APIを直接呼び出し
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;
-
+    
     const requestBody = {
-      contents: [
-        {
-          parts: [{ text: prompt }]
-        }
-      ],
+      contents: [{
+        parts: [{ text: prompt }]
+      }],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 4000 // 完全な記事生成のため
+        maxOutputTokens: 4000, // 完全な記事生成のため
       }
     };
 
     const response = await fetch(apiUrl, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json"
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -127,22 +112,22 @@ Grokの改善提案に基づいて、以下の点を改善してください：
     }
 
     const data = await response.json();
-
+    
     // レスポンスからテキストを取得
-    let text = "記事が生成できませんでした。";
-
+    let text = '記事が生成できませんでした。';
+    
     if (data.candidates && data.candidates.length > 0) {
       const candidate = data.candidates[0];
       if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
-        text = candidate.content.parts[0].text || "記事が生成できませんでした。";
+        text = candidate.content.parts[0].text || '記事が生成できませんでした。';
       }
     }
-
+    
     // エラーの場合は詳細を表示
     if (data.error) {
-      console.error("Gemini API Error:", JSON.stringify(data.error, null, 2));
+      console.error('Gemini API Error:', JSON.stringify(data.error, null, 2));
     }
-
+    
     const usage = data.usageMetadata || {};
 
     return {
@@ -155,7 +140,7 @@ Grokの改善提案に基づいて、以下の点を改善してください：
       rawResponse: data // デバッグ用
     };
   } catch (error) {
-    console.error("❌ Gemini API呼び出しエラー:", error.message);
+    console.error('❌ Gemini API呼び出しエラー:', error.message);
     throw error;
   }
 }
@@ -164,61 +149,59 @@ Grokの改善提案に基づいて、以下の点を改善してください：
  * メイン処理
  */
 async function main() {
-  console.log("🚀 Grok改善提案 × Gemini 記事ブラッシュアップスクリプト\n");
-
+  console.log('🚀 Grok改善提案 × Gemini 記事ブラッシュアップスクリプト\n');
+  
   try {
     // 1. まず記事を生成
-    console.log("📝 Step 1: SoSoValue風ニュース記事を生成中...\n");
+    console.log('📝 Step 1: SoSoValue風ニュース記事を生成中...\n');
     const onchainData = await fetchOnchainDataWithHistory();
-
+    
     if (!onchainData) {
-      console.error("❌ オンチェーンデータの取得に失敗しました");
+      console.error('❌ オンチェーンデータの取得に失敗しました');
       process.exit(1);
     }
-
+    
     const patterns = analyzeHistoricalPatterns(onchainData.current, onchainData.history);
     const articleResult = await generateSoSoValueNews(onchainData, patterns);
-
-    console.log("✅ 記事生成完了\n");
-
+    
+    console.log('✅ 記事生成完了\n');
+    
     // 2. Grokに評価と改善提案を依頼
-    console.log("📊 Step 2: Grokに評価と改善提案を依頼中...\n");
+    console.log('📊 Step 2: Grokに評価と改善提案を依頼中...\n');
     const grokResult = await showArticleToGrok(articleResult.article, onchainData, patterns);
-
-    console.log("✅ Grok評価完了\n");
-
+    
+    console.log('✅ Grok評価完了\n');
+    
     // 3. GeminiにGrokの改善提案を渡して記事をブラッシュアップ
-    console.log("✨ Step 3: GeminiにGrokの改善提案を渡して記事をブラッシュアップ中...\n");
+    console.log('✨ Step 3: GeminiにGrokの改善提案を渡して記事をブラッシュアップ中...\n');
     const improvedResult = await improveArticleWithGrokFeedback(
       articleResult.article,
       grokResult.evaluation,
       onchainData,
       patterns
     );
-
+    
     // 4. 結果を表示
-    console.log("\n" + "=".repeat(80));
-    console.log("📰 ブラッシュアップ後の記事");
-    console.log("=".repeat(80) + "\n");
+    console.log('\n' + '='.repeat(80));
+    console.log('📰 ブラッシュアップ後の記事');
+    console.log('='.repeat(80) + '\n');
     console.log(improvedResult.improvedArticle);
-    console.log("\n" + "=".repeat(80));
-    console.log("📊 トークン使用量（Gemini改善版）");
-    console.log("=".repeat(80));
+    console.log('\n' + '='.repeat(80));
+    console.log('📊 トークン使用量（Gemini改善版）');
+    console.log('='.repeat(80));
     console.log(`プロンプトトークン: ${improvedResult.usage.promptTokenCount}`);
     console.log(`レスポンストークン: ${improvedResult.usage.candidatesTokenCount}`);
     console.log(`合計トークン: ${improvedResult.usage.totalTokenCount}`);
-    console.log("=".repeat(80) + "\n");
-
+    console.log('='.repeat(80) + '\n');
+    
     // デバッグ情報（エラー時）
-    if (
-      improvedResult.improvedArticle === "記事が生成できませんでした。" &&
-      improvedResult.rawResponse
-    ) {
-      console.log("⚠️ デバッグ情報:");
+    if (improvedResult.improvedArticle === '記事が生成できませんでした。' && improvedResult.rawResponse) {
+      console.log('⚠️ デバッグ情報:');
       console.log(JSON.stringify(improvedResult.rawResponse, null, 2));
     }
+    
   } catch (error) {
-    console.error("❌ エラーが発生しました:", error);
+    console.error('❌ エラーが発生しました:', error);
     process.exit(1);
   }
 }
@@ -229,5 +212,5 @@ if (require.main === module) {
 }
 
 module.exports = {
-  improveArticleWithGrokFeedback
+  improveArticleWithGrokFeedback,
 };
