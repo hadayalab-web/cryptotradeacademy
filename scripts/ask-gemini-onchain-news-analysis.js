@@ -2,13 +2,13 @@
 // CryptoQuantのオンチェーンデータとGeminiの分析力を組み合わせて、
 // SoSoValueのようなニュース記事を生成できるかGeminiに質問するスクリプト
 
-const { fetchCryptoQuant } = require("../services/cryptoquant/client");
+const { fetchCryptoQuant } = require('../services/cryptoquant/client');
 
 // 環境変数からAPIキーを取得
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyBeKmuRBImr1ZYtQMsOqpU-cqkdzQh3fig";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyBeKmuRBImr1ZYtQMsOqpU-cqkdzQh3fig';
 
 if (!GEMINI_API_KEY) {
-  console.error("❌ GEMINI_API_KEY is not set");
+  console.error('❌ GEMINI_API_KEY is not set');
   process.exit(1);
 }
 
@@ -17,25 +17,22 @@ if (!GEMINI_API_KEY) {
  */
 async function fetchLatestOnchainData() {
   try {
-    console.log("📊 CryptoQuantからオンチェーンデータを取得中...");
-
-    const {
-      getExchangeInflow,
-      getMinerPositionIndex
-    } = require("../services/cryptoquant/endpoints/btc");
-
+    console.log('📊 CryptoQuantからオンチェーンデータを取得中...');
+    
+    const { getExchangeInflow, getMinerPositionIndex } = require('../services/cryptoquant/endpoints/btc');
+    
     // 取引所ネットフロー（Exchange Netflow）を取得
     const exchangeNetflow = await getExchangeInflow();
-
+    
     // マイナーポジションインデックス（MPI）を取得
     const mpi = await getMinerPositionIndex();
-
+    
     return {
       exchangeNetflow: exchangeNetflow || null,
-      mpi: mpi || null
+      mpi: mpi || null,
     };
   } catch (error) {
-    console.error("❌ CryptoQuantデータ取得エラー:", error.message);
+    console.error('❌ CryptoQuantデータ取得エラー:', error.message);
     return null;
   }
 }
@@ -46,21 +43,19 @@ async function fetchLatestOnchainData() {
 async function askGeminiAboutOnchainNewsAnalysis(onchainData) {
   try {
     // オンチェーンデータをフォーマット
-    const dataSummary = onchainData
-      ? `
+    const dataSummary = onchainData ? `
 ## 現在のオンチェーンデータ（CryptoQuant）
 
 ### 取引所ネットフロー（Exchange Netflow）
-- 値: ${onchainData.exchangeNetflow?.value || "N/A"} BTC
+- 値: ${onchainData.exchangeNetflow?.value || 'N/A'} BTC
 - 正の値は取引所への流入、負の値は流出を示します
 - 生データ: ${JSON.stringify(onchainData.exchangeNetflow?.raw || {})}
 
 ### マイナーポジションインデックス（MPI）
-- 値: ${onchainData.mpi?.value || "N/A"}
+- 値: ${onchainData.mpi?.value || 'N/A'}
 - MPI > 0 はマイナーが売却していることを示し、MPI < 0 は買い増しを示します
 - 生データ: ${JSON.stringify(onchainData.mpi?.raw || {})}
-`
-      : "データ取得に失敗しました。";
+` : 'データ取得に失敗しました。';
 
     const prompt = `あなたは暗号通貨市場のオンチェーン分析の専門家です。以下の質問に答えてください。
 
@@ -101,29 +96,27 @@ ${dataSummary}
 
 日本語で回答してください。`;
 
-    console.log("🤖 Geminiに質問を送信中...");
-
+    console.log('🤖 Geminiに質問を送信中...');
+    
     // REST APIを直接呼び出し
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;
-
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`;
+    
     const requestBody = {
-      contents: [
-        {
-          parts: [{ text: prompt }]
-        }
-      ],
+      contents: [{
+        parts: [{ text: prompt }]
+      }],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 4000
+        maxOutputTokens: 4000,
       }
     };
 
     const response = await fetch(apiUrl, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json"
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -132,9 +125,9 @@ ${dataSummary}
     }
 
     const data = await response.json();
-
+    
     // レスポンスからテキストを取得
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "回答が取得できませんでした。";
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '回答が取得できませんでした。';
     const usage = data.usageMetadata || {};
 
     return {
@@ -146,7 +139,7 @@ ${dataSummary}
       }
     };
   } catch (error) {
-    console.error("❌ Gemini API呼び出しエラー:", error.message);
+    console.error('❌ Gemini API呼び出しエラー:', error.message);
     throw error;
   }
 }
@@ -155,35 +148,36 @@ ${dataSummary}
  * メイン処理
  */
 async function main() {
-  console.log("🚀 CryptoQuant × Gemini ニュース分析可能性検証スクリプト\n");
-
+  console.log('🚀 CryptoQuant × Gemini ニュース分析可能性検証スクリプト\n');
+  
   try {
     // 1. CryptoQuantから最新のオンチェーンデータを取得
     const onchainData = await fetchLatestOnchainData();
-
+    
     if (onchainData) {
-      console.log("✅ オンチェーンデータ取得完了\n");
+      console.log('✅ オンチェーンデータ取得完了\n');
     } else {
-      console.log("⚠️ オンチェーンデータ取得に失敗しましたが、Geminiの分析は続行します\n");
+      console.log('⚠️ オンチェーンデータ取得に失敗しましたが、Geminiの分析は続行します\n');
     }
-
+    
     // 2. Geminiに質問
     const result = await askGeminiAboutOnchainNewsAnalysis(onchainData);
-
+    
     // 3. 結果を表示
-    console.log("\n" + "=".repeat(80));
-    console.log("📝 Geminiの回答");
-    console.log("=".repeat(80) + "\n");
+    console.log('\n' + '='.repeat(80));
+    console.log('📝 Geminiの回答');
+    console.log('='.repeat(80) + '\n');
     console.log(result.text);
-    console.log("\n" + "=".repeat(80));
-    console.log("📊 トークン使用量");
-    console.log("=".repeat(80));
+    console.log('\n' + '='.repeat(80));
+    console.log('📊 トークン使用量');
+    console.log('='.repeat(80));
     console.log(`プロンプトトークン: ${result.usage.promptTokenCount}`);
     console.log(`レスポンストークン: ${result.usage.candidatesTokenCount}`);
     console.log(`合計トークン: ${result.usage.totalTokenCount}`);
-    console.log("=".repeat(80) + "\n");
+    console.log('='.repeat(80) + '\n');
+    
   } catch (error) {
-    console.error("❌ エラーが発生しました:", error);
+    console.error('❌ エラーが発生しました:', error);
     process.exit(1);
   }
 }
@@ -195,5 +189,5 @@ if (require.main === module) {
 
 module.exports = {
   fetchLatestOnchainData,
-  askGeminiAboutOnchainNewsAnalysis
+  askGeminiAboutOnchainNewsAnalysis,
 };

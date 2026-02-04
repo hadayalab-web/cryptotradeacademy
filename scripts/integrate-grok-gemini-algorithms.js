@@ -113,7 +113,7 @@ async function analyzeXAlgorithmWithGrok() {
  * Geminiに高エンゲージメント+高CVRアルゴリズム解析を依頼
  */
 async function analyzeEngagementCVRWithGemini() {
-  const model = geminiClient.getGenerativeModel({ model: "gemini-3-flash-preview" });
+  const model = geminiClient.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
   const prompt = `あなたは高エンゲージメント率と高CVR（コンバージョン率）を実現するコンテンツ戦略の専門家です。X（Twitter）でのエンゲージメント率とCVRを最大化するためのアルゴリズムを分析してください。
 

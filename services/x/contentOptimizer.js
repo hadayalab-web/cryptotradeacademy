@@ -21,7 +21,7 @@ const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
 
 // 最上位モデルを使用
 const GROK_MODEL = "grok-4-1-fast-reasoning"; // Xアルゴリズム分析用最上位モデル
-const GEMINI_MODEL = "gemini-3-flash-preview"; // 心理分析用（統一）
+const GEMINI_MODEL = "gemini-3-pro-preview"; // 心理分析用最上位モデル（2026年最新、プレビュー版）
 
 // P0 FIX: 環境変数がない場合でもエラーを出さないように遅延初期化
 let grokClient = null;

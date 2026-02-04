@@ -332,7 +332,7 @@ async function incrementDailyPostCount(dateString, count = 1) {
  * 1日の投稿上限をチェック
  * 🚀 数撃て作戦: X APIレート制限に基づく上限設定
  * X APIレート制限: Per User 100/15min (理論上9,600/24hrs), Per App 10,000/24hrs
- * AI推奨値（スパム判定回避）: 200-300投稿/日（grok-4-1-fast-reasoning, gemini-3-flash-preview推奨）
+ * AI推奨値（スパム判定回避）: 200-300投稿/日（grok-4-1-fast-reasoning, gemini-3-pro-preview推奨）
  * 環境変数で変更可能: X_MAX_DAILY_POSTS（デフォルト: 250 = AI推奨値の中間値）
  */
 function checkDailyPostLimit(currentPostCount, maxPosts = null) {

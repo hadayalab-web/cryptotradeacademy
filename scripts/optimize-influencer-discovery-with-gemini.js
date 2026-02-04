@@ -1,11 +1,11 @@
 // scripts/optimize-influencer-discovery-with-gemini.js
 // Gemini-3-pro-previewに包括的分析を共有して最適化案を強化
 
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = "gemini-3-flash-preview";
+const MODEL = 'gemini-3-pro-preview';
 
 /**
  * Gemini APIを呼び出してテキスト生成
@@ -13,22 +13,20 @@ const MODEL = "gemini-3-flash-preview";
 async function callGeminiAPI(prompt, apiKey) {
   try {
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY not set");
+      throw new Error('GEMINI_API_KEY not set');
     }
 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
     const requestBody = {
-      contents: [
-        {
-          parts: [{ text: prompt }]
-        }
-      ],
+      contents: [{
+        parts: [{ text: prompt }]
+      }],
       generationConfig: {
         temperature: 0.7,
         topK: 40,
         topP: 0.95,
-        maxOutputTokens: 8192
+        maxOutputTokens: 8192,
       }
     };
 
@@ -36,12 +34,12 @@ async function callGeminiAPI(prompt, apiKey) {
     console.log(`[Gemini] Prompt length: ${prompt.length} chars`);
 
     const response = await fetch(apiUrl, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -54,14 +52,16 @@ async function callGeminiAPI(prompt, apiKey) {
     if (data.candidates && data.candidates.length > 0) {
       const candidate = data.candidates[0];
       if (candidate.content && candidate.content.parts) {
-        const text = candidate.content.parts.map((part) => part.text).join("");
+        const text = candidate.content.parts
+          .map(part => part.text)
+          .join('');
         return text;
       }
     }
 
-    throw new Error("No text content in Gemini response");
+    throw new Error('No text content in Gemini response');
   } catch (error) {
-    console.error("[Gemini] Error calling API:", error);
+    console.error('[Gemini] Error calling API:', error);
     throw error;
   }
 }
@@ -70,16 +70,11 @@ async function callGeminiAPI(prompt, apiKey) {
  * 包括的分析を読み込む
  */
 function loadComprehensiveAnalysis() {
-  const analysisPath = path.join(
-    __dirname,
-    "..",
-    "docs",
-    "INFLUENCER_DISCOVERY_COMPREHENSIVE_ANALYSIS_2026-01-30.md"
-  );
+  const analysisPath = path.join(__dirname, '..', 'docs', 'INFLUENCER_DISCOVERY_COMPREHENSIVE_ANALYSIS_2026-01-30.md');
   if (!fs.existsSync(analysisPath)) {
     throw new Error(`Analysis file not found: ${analysisPath}`);
   }
-  return fs.readFileSync(analysisPath, "utf-8");
+  return fs.readFileSync(analysisPath, 'utf-8');
 }
 
 /**
@@ -87,9 +82,9 @@ function loadComprehensiveAnalysis() {
  */
 async function optimizeWithGemini() {
   try {
-    console.log("====================================================================");
-    console.log("Gemini-3-pro-previewによる最適化案の強化");
-    console.log("====================================================================\n");
+    console.log('====================================================================');
+    console.log('Gemini-3-pro-previewによる最適化案の強化');
+    console.log('====================================================================\n');
 
     // 包括的分析を読み込む
     const analysis = loadComprehensiveAnalysis();
@@ -205,16 +200,11 @@ ${analysis}
 
 日本語で回答してください。`;
 
-    console.log("📤 Gemini-3-pro-previewに分析を送信中...\n");
+    console.log('📤 Gemini-3-pro-previewに分析を送信中...\n');
     const response = await callGeminiAPI(prompt, GEMINI_API_KEY);
 
     // 結果を保存
-    const outputPath = path.join(
-      __dirname,
-      "..",
-      "docs",
-      "INFLUENCER_DISCOVERY_OPTIMIZATION_ENHANCED_BY_GEMINI_2026-01-30.md"
-    );
+    const outputPath = path.join(__dirname, '..', 'docs', 'INFLUENCER_DISCOVERY_OPTIMIZATION_ENHANCED_BY_GEMINI_2026-01-30.md');
     const outputContent = `# インフルエンサー発見最適化案（Gemini-3-pro-preview強化版）
 
 **生成日時**: ${new Date().toISOString()}  
@@ -239,19 +229,19 @@ ${analysis}
 </details>
 `;
 
-    fs.writeFileSync(outputPath, outputContent, "utf-8");
+    fs.writeFileSync(outputPath, outputContent, 'utf-8');
     console.log(`\n✅ 強化された最適化案を保存しました: ${outputPath}\n`);
 
     // コンソールにも出力
-    console.log("====================================================================");
-    console.log("Gemini-3-pro-previewからの回答");
-    console.log("====================================================================\n");
+    console.log('====================================================================');
+    console.log('Gemini-3-pro-previewからの回答');
+    console.log('====================================================================\n');
     console.log(response);
-    console.log("\n====================================================================\n");
+    console.log('\n====================================================================\n');
 
     return response;
   } catch (error) {
-    console.error("❌ エラーが発生しました:", error);
+    console.error('❌ エラーが発生しました:', error);
     throw error;
   }
 }
@@ -260,11 +250,11 @@ ${analysis}
 if (require.main === module) {
   optimizeWithGemini()
     .then(() => {
-      console.log("✅ 完了しました");
+      console.log('✅ 完了しました');
       process.exit(0);
     })
     .catch((error) => {
-      console.error("❌ 失敗しました:", error);
+      console.error('❌ 失敗しました:', error);
       process.exit(1);
     });
 }

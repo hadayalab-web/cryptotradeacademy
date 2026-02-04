@@ -4,16 +4,7 @@
  *
  * 使用方法:
  *   node scripts/test_critical_functions.js
- *
- * .env があれば読み込み（ローカル: KV 初期化など。CI: なくてもテストはパス）
  */
-
-const path = require("path");
-try {
-  require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
-} catch {
-  // dotenv 未使用環境では無視
-}
 
 const { replyToTweet } = require("../services/x/client");
 

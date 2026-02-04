@@ -5,23 +5,21 @@
  * Gemini: 心理解析
  */
 
-const OpenAI = require("openai");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const OpenAI = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const XAI_API_KEY =
-  process.env.XAI_API_KEY ||
-  "xai-jxO7HGeeFcEguSmqMTvxUqijZHnRT3fAP50iaDQnOzRE2aY1q86bNJLfMKxD18RMclcIoue426vV6vii";
-const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyBeKmuRBImr1ZYtQMsOqpU-cqkdzQh3fig";
+const XAI_API_KEY = process.env.XAI_API_KEY || 'xai-jxO7HGeeFcEguSmqMTvxUqijZHnRT3fAP50iaDQnOzRE2aY1q86bNJLfMKxD18RMclcIoue426vV6vii';
+const XAI_BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyBeKmuRBImr1ZYtQMsOqpU-cqkdzQh3fig';
 
 if (!XAI_API_KEY || !GEMINI_API_KEY) {
-  console.error("❌ API keys are not set");
+  console.error('❌ API keys are not set');
   process.exit(1);
 }
 
 const grokClient = new OpenAI({
   apiKey: XAI_API_KEY,
-  baseURL: XAI_BASE_URL
+  baseURL: XAI_BASE_URL,
 });
 
 const geminiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -83,38 +81,37 @@ async function analyzeXAlgorithmWithGrok() {
 日本語で回答してください。`;
 
   try {
-    console.log("🔄 GrokでXアルゴリズム解析を実行中...");
-
+    console.log('🔄 GrokでXアルゴリズム解析を実行中...');
+    
     const response = await grokClient.chat.completions.create({
-      model: "grok-4-1-fast-reasoning",
+      model: 'grok-4-1-fast-reasoning',
       messages: [
         {
-          role: "system",
-          content:
-            "あなたはX（Twitter）アルゴリズム最適化の専門家です。データドリブンな分析と実践的な提案を行います。"
+          role: 'system',
+          content: 'あなたはX（Twitter）アルゴリズム最適化の専門家です。データドリブンな分析と実践的な提案を行います。',
         },
         {
-          role: "user",
-          content: prompt
-        }
+          role: 'user',
+          content: prompt,
+        },
       ],
       temperature: 0.7,
-      max_tokens: 4000
+      max_tokens: 4000,
     });
 
     const analysis = response.choices[0].message.content;
-    console.log("✅ Grok分析完了");
-
+    console.log('✅ Grok分析完了');
+    
     return {
       success: true,
       analysis,
-      model: "grok-4-1-fast-reasoning"
+      model: 'grok-4-1-fast-reasoning',
     };
   } catch (error) {
-    console.error("❌ Grok分析エラー:", error.message);
+    console.error('❌ Grok分析エラー:', error.message);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -176,26 +173,26 @@ async function analyzePsychologyWithGemini() {
 日本語で回答してください。`;
 
   try {
-    console.log("🔄 Geminiで心理解析を実行中...");
-
-    const model = geminiClient.getGenerativeModel({ model: "gemini-3-flash-preview" });
-
+    console.log('🔄 Geminiで心理解析を実行中...');
+    
+    const model = geminiClient.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+    
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const analysis = response.text();
-
-    console.log("✅ Gemini分析完了");
-
+    
+    console.log('✅ Gemini分析完了');
+    
     return {
       success: true,
       analysis,
-      model: "gemini-3-flash-preview"
+      model: 'gemini-3-pro-preview',
     };
   } catch (error) {
-    console.error("❌ Gemini分析エラー:", error.message);
+    console.error('❌ Gemini分析エラー:', error.message);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -239,25 +236,25 @@ ${geminiAnalysis}
 日本語で回答してください。`;
 
   try {
-    console.log("🔄 統合戦略を生成中...");
-
-    const model = geminiClient.getGenerativeModel({ model: "gemini-3-flash-preview" });
-
+    console.log('🔄 統合戦略を生成中...');
+    
+    const model = geminiClient.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+    
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const strategy = response.text();
-
-    console.log("✅ 統合戦略生成完了");
-
+    
+    console.log('✅ 統合戦略生成完了');
+    
     return {
       success: true,
-      strategy
+      strategy,
     };
   } catch (error) {
-    console.error("❌ 統合戦略生成エラー:", error.message);
+    console.error('❌ 統合戦略生成エラー:', error.message);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -266,40 +263,40 @@ ${geminiAnalysis}
  * メイン実行関数
  */
 async function main() {
-  console.log("=".repeat(80));
-  console.log("🚀 Premium Tierローンチ戦略のGrok×Gemini統合分析");
-  console.log("=".repeat(80));
-  console.log("");
+  console.log('='.repeat(80));
+  console.log('🚀 Premium Tierローンチ戦略のGrok×Gemini統合分析');
+  console.log('='.repeat(80));
+  console.log('');
 
   // 1. GrokでXアルゴリズム解析
   const grokResult = await analyzeXAlgorithmWithGrok();
-
+  
   if (!grokResult.success) {
-    console.error("❌ Grok分析に失敗しました");
+    console.error('❌ Grok分析に失敗しました');
     process.exit(1);
   }
 
-  console.log("");
-  console.log("=".repeat(80));
-  console.log("📊 Grok Xアルゴリズム解析結果");
-  console.log("=".repeat(80));
+  console.log('');
+  console.log('='.repeat(80));
+  console.log('📊 Grok Xアルゴリズム解析結果');
+  console.log('='.repeat(80));
   console.log(grokResult.analysis);
-  console.log("");
+  console.log('');
 
   // 2. Geminiで心理解析
   const geminiResult = await analyzePsychologyWithGemini();
-
+  
   if (!geminiResult.success) {
-    console.error("❌ Gemini分析に失敗しました");
+    console.error('❌ Gemini分析に失敗しました');
     process.exit(1);
   }
 
-  console.log("");
-  console.log("=".repeat(80));
-  console.log("🧠 Gemini心理解析結果");
-  console.log("=".repeat(80));
+  console.log('');
+  console.log('='.repeat(80));
+  console.log('🧠 Gemini心理解析結果');
+  console.log('='.repeat(80));
   console.log(geminiResult.analysis);
-  console.log("");
+  console.log('');
 
   // 3. 統合戦略生成
   const integratedResult = await generateIntegratedStrategy(
@@ -308,27 +305,27 @@ async function main() {
   );
 
   if (!integratedResult.success) {
-    console.error("❌ 統合戦略生成に失敗しました");
+    console.error('❌ 統合戦略生成に失敗しました');
     process.exit(1);
   }
 
-  console.log("");
-  console.log("=".repeat(80));
-  console.log("🎯 統合最適化戦略");
-  console.log("=".repeat(80));
+  console.log('');
+  console.log('='.repeat(80));
+  console.log('🎯 統合最適化戦略');
+  console.log('='.repeat(80));
   console.log(integratedResult.strategy);
-  console.log("");
+  console.log('');
 
   // 4. 結果をファイルに保存
-  const fs = require("fs");
-  const path = require("path");
-  const outputDir = path.join(__dirname, "../docs/reports");
-
+  const fs = require('fs');
+  const path = require('path');
+  const outputDir = path.join(__dirname, '../docs/reports');
+  
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const outputFile = path.join(outputDir, `premium-launch-grok-gemini-analysis-${timestamp}.md`);
 
   const output = `# Premium Tierローンチ戦略のGrok×Gemini統合分析
@@ -361,16 +358,16 @@ ${integratedResult.strategy}
 **生成日時**: ${new Date().toISOString()}
 `;
 
-  fs.writeFileSync(outputFile, output, "utf-8");
+  fs.writeFileSync(outputFile, output, 'utf-8');
   console.log(`✅ 分析結果を保存しました: ${outputFile}`);
-  console.log("");
-  console.log("=".repeat(80));
-  console.log("✅ 分析完了");
-  console.log("=".repeat(80));
+  console.log('');
+  console.log('='.repeat(80));
+  console.log('✅ 分析完了');
+  console.log('='.repeat(80));
 }
 
 // 実行
 main().catch((error) => {
-  console.error("❌ エラー:", error);
+  console.error('❌ エラー:', error);
   process.exit(1);
 });

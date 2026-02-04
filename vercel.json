@@ -5,14 +5,6 @@
       "maxDuration": 300,
       "includeFiles": "{api/services/**,config/**,services/telegram/messages/**}"
     },
-    "api/cron-minimal.js": {
-      "maxDuration": 300,
-      "includeFiles": "{api/services/**,config/**,services/telegram/messages/**}"
-    },
-    "api/cron-regular.js": {
-      "maxDuration": 300,
-      "includeFiles": "{api/services/**,config/**,services/telegram/messages/**}"
-    },
     "api/x-update-influencer-stock.js": {
       "maxDuration": 60,
       "includeFiles": "config/**"
@@ -28,27 +20,27 @@
       "maxDuration": 30
     },
     "api/x-quote-repost-en.js": {
-      "maxDuration": 120,
+      "maxDuration": 60,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     },
     "api/x-quote-repost-es.js": {
-      "maxDuration": 120,
+      "maxDuration": 60,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     },
     "api/x-quote-repost-pt-br.js": {
-      "maxDuration": 120,
+      "maxDuration": 60,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     },
     "api/x-quote-repost-ar.js": {
-      "maxDuration": 120,
+      "maxDuration": 60,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     },
     "api/x-quote-repost-ja.js": {
-      "maxDuration": 120,
+      "maxDuration": 60,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     },
     "api/x-quote-repost-ko.js": {
-      "maxDuration": 120,
+      "maxDuration": 60,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     }
   },
@@ -60,8 +52,6 @@
   ],
   "crons": [
     { "path": "/api/cron", "schedule": "*/15 * * * *" },
-    { "path": "/api/cron-regular", "schedule": "0 0,6,12,18 * * *" },
-    { "path": "/api/cron-minimal", "schedule": "10 0,6,12,18 * * *" },
     { "path": "/api/vsl1-post", "schedule": "0 1,13,21 * * *" },
     { "path": "/api/x-quote-repost-en", "schedule": "0 * * * *" },
     { "path": "/api/x-quote-repost-es", "schedule": "5 * * * *" },
@@ -69,6 +59,8 @@
     { "path": "/api/x-quote-repost-ar", "schedule": "15 * * * *" },
     { "path": "/api/x-quote-repost-ja", "schedule": "20 * * * *" },
     { "path": "/api/x-quote-repost-ko", "schedule": "25 * * * *" },
-    { "path": "/api/vsl1-reminder", "schedule": "0 */12 * * *" }
+    { "path": "/api/vsl2-free-users", "schedule": "0 * * * *" },
+    { "path": "/api/vsl1-reminder", "schedule": "0 */12 * * *" },
+    { "path": "/api/vsl2-last-call", "schedule": "0 * * * *" }
   ]
 }

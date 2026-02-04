@@ -1,37 +1,37 @@
 // scripts/gpt-grok-gemini-integration-strategy.js
 // GPTにGrok×Gemini統合戦略を聞く → Grok/Geminiから実際の分析を取得 → GPTに返して戦略強化
 
-const OpenAI = require("openai");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const fs = require("fs");
-const path = require("path");
+const OpenAI = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fs = require('fs');
+const path = require('path');
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 if (!OPENAI_API_KEY) {
-  console.error("❌ OPENAI_API_KEY is not set");
+  console.error('❌ OPENAI_API_KEY is not set');
   process.exit(1);
 }
 
 if (!XAI_API_KEY) {
-  console.error("❌ XAI_API_KEY is not set");
+  console.error('❌ XAI_API_KEY is not set');
   process.exit(1);
 }
 
 if (!GEMINI_API_KEY) {
-  console.error("❌ GEMINI_API_KEY is not set");
+  console.error('❌ GEMINI_API_KEY is not set');
   process.exit(1);
 }
 
 const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY
+  apiKey: OPENAI_API_KEY,
 });
 
 const grokClient = new OpenAI({
   apiKey: XAI_API_KEY,
-  baseURL: "https://api.x.ai/v1"
+  baseURL: 'https://api.x.ai/v1',
 });
 
 const geminiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -92,37 +92,36 @@ async function askGPTIntegrationStrategy() {
 
 上記の観点から、**GrokとGeminiを統合して最大の成果を上げる戦略**を詳細に提案してください。`;
 
-  console.log("🤖 GPTにGrok×Gemini統合戦略を依頼中...\n");
+  console.log('🤖 GPTにGrok×Gemini統合戦略を依頼中...\n');
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-5.2-2025-12-11",
+      model: 'gpt-5.2-2025-12-11',
       messages: [
         {
-          role: "system",
-          content:
-            "あなたはTrap Defence BTCのマーケティング戦略専門家です。GrokのXアルゴリズム解析とGeminiの深層心理解析を統合して、最大の成果を上げる戦略を提案します。戦略はシンプルに、成果は最大に、実装は正確に。"
+          role: 'system',
+          content: 'あなたはTrap Defence BTCのマーケティング戦略専門家です。GrokのXアルゴリズム解析とGeminiの深層心理解析を統合して、最大の成果を上げる戦略を提案します。戦略はシンプルに、成果は最大に、実装は正確に。',
         },
         {
-          role: "user",
-          content: prompt
-        }
+          role: 'user',
+          content: prompt,
+        },
       ],
       max_completion_tokens: 4000,
-      temperature: 0.7
+      temperature: 0.7,
     });
 
-    const gptStrategy = completion.choices[0]?.message?.content || "";
-    console.log("✅ GPTの統合戦略を取得しました\n");
-    console.log("=".repeat(80));
-    console.log("GPTの統合戦略:");
-    console.log("=".repeat(80));
+    const gptStrategy = completion.choices[0]?.message?.content || '';
+    console.log('✅ GPTの統合戦略を取得しました\n');
+    console.log('='.repeat(80));
+    console.log('GPTの統合戦略:');
+    console.log('='.repeat(80));
     console.log(gptStrategy);
-    console.log("=".repeat(80));
+    console.log('='.repeat(80));
 
     return gptStrategy;
   } catch (error) {
-    console.error("❌ GPT API呼び出しエラー:", error.message);
+    console.error('❌ GPT API呼び出しエラー:', error.message);
     throw error;
   }
 }
@@ -168,37 +167,36 @@ GPTの統合戦略を踏まえ、**Xアルゴリズム最適化の観点から**
 
 上記の観点から、**Xアルゴリズム最適化の具体的な提案**をしてください。`;
 
-  console.log("\n🤖 GrokにXアルゴリズム解析を依頼中...\n");
+  console.log('\n🤖 GrokにXアルゴリズム解析を依頼中...\n');
 
   try {
     const completion = await grokClient.chat.completions.create({
-      model: "grok-4-1-fast-reasoning",
+      model: 'grok-4-1-fast-reasoning',
       messages: [
         {
-          role: "system",
-          content:
-            "あなたはX（Twitter）アルゴリズムの専門家です。引用リポストのエンゲージメント率を最大化するためのXアルゴリズム最適化を提案します。"
+          role: 'system',
+          content: 'あなたはX（Twitter）アルゴリズムの専門家です。引用リポストのエンゲージメント率を最大化するためのXアルゴリズム最適化を提案します。',
         },
         {
-          role: "user",
-          content: prompt
-        }
+          role: 'user',
+          content: prompt,
+        },
       ],
       max_tokens: 4000,
-      temperature: 0.7
+      temperature: 0.7,
     });
 
-    const grokAnalysis = completion.choices[0]?.message?.content || "";
-    console.log("✅ GrokのXアルゴリズム解析を取得しました\n");
-    console.log("=".repeat(80));
-    console.log("GrokのXアルゴリズム解析:");
-    console.log("=".repeat(80));
+    const grokAnalysis = completion.choices[0]?.message?.content || '';
+    console.log('✅ GrokのXアルゴリズム解析を取得しました\n');
+    console.log('='.repeat(80));
+    console.log('GrokのXアルゴリズム解析:');
+    console.log('='.repeat(80));
     console.log(grokAnalysis);
-    console.log("=".repeat(80));
+    console.log('='.repeat(80));
 
     return grokAnalysis;
   } catch (error) {
-    console.error("❌ Grok API呼び出しエラー:", error.message);
+    console.error('❌ Grok API呼び出しエラー:', error.message);
     throw error;
   }
 }
@@ -244,29 +242,29 @@ GPTの統合戦略を踏まえ、**深層心理学の観点から**以下の点�
 
 上記の観点から、**深層心理解析の具体的な提案**をしてください。`;
 
-  console.log("\n🤖 Geminiに深層心理解析を依頼中...\n");
+  console.log('\n🤖 Geminiに深層心理解析を依頼中...\n');
 
   try {
-    const model = geminiClient.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    const model = geminiClient.getGenerativeModel({ model: 'gemini-3-pro-preview' });
     const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 4000
-      }
+        maxOutputTokens: 4000,
+      },
     });
 
     const geminiAnalysis = result.response.text();
-    console.log("✅ Geminiの深層心理解析を取得しました\n");
-    console.log("=".repeat(80));
-    console.log("Geminiの深層心理解析:");
-    console.log("=".repeat(80));
+    console.log('✅ Geminiの深層心理解析を取得しました\n');
+    console.log('='.repeat(80));
+    console.log('Geminiの深層心理解析:');
+    console.log('='.repeat(80));
     console.log(geminiAnalysis);
-    console.log("=".repeat(80));
+    console.log('='.repeat(80));
 
     return geminiAnalysis;
   } catch (error) {
-    console.error("❌ Gemini API呼び出しエラー:", error.message);
+    console.error('❌ Gemini API呼び出しエラー:', error.message);
     throw error;
   }
 }
@@ -326,37 +324,36 @@ ${geminiAnalysis}
 
 上記の観点から、**GrokとGeminiの分析を統合した強化された戦略**を、実装可能な形で詳細に提案してください。`;
 
-  console.log("\n🤖 GPTにGrokとGeminiの分析を返して戦略強化を依頼中...\n");
+  console.log('\n🤖 GPTにGrokとGeminiの分析を返して戦略強化を依頼中...\n');
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-5.2-2025-12-11",
+      model: 'gpt-5.2-2025-12-11',
       messages: [
         {
-          role: "system",
-          content:
-            "あなたはTrap Defence BTCのマーケティング戦略専門家です。GrokのXアルゴリズム解析とGeminiの深層心理解析を統合し、最大の成果を上げる強化された戦略を提案します。戦略はシンプルに、成果は最大に、実装は正確に。"
+          role: 'system',
+          content: 'あなたはTrap Defence BTCのマーケティング戦略専門家です。GrokのXアルゴリズム解析とGeminiの深層心理解析を統合し、最大の成果を上げる強化された戦略を提案します。戦略はシンプルに、成果は最大に、実装は正確に。',
         },
         {
-          role: "user",
-          content: prompt
-        }
+          role: 'user',
+          content: prompt,
+        },
       ],
       max_completion_tokens: 8000,
-      temperature: 0.7
+      temperature: 0.7,
     });
 
-    const strengthenedStrategy = completion.choices[0]?.message?.content || "";
-    console.log("✅ GPTの強化された戦略を取得しました\n");
-    console.log("=".repeat(80));
-    console.log("GPTの強化された戦略:");
-    console.log("=".repeat(80));
+    const strengthenedStrategy = completion.choices[0]?.message?.content || '';
+    console.log('✅ GPTの強化された戦略を取得しました\n');
+    console.log('='.repeat(80));
+    console.log('GPTの強化された戦略:');
+    console.log('='.repeat(80));
     console.log(strengthenedStrategy);
-    console.log("=".repeat(80));
+    console.log('='.repeat(80));
 
     return strengthenedStrategy;
   } catch (error) {
-    console.error("❌ GPT API呼び出しエラー:", error.message);
+    console.error('❌ GPT API呼び出しエラー:', error.message);
     throw error;
   }
 }
@@ -376,15 +373,11 @@ async function main() {
     const geminiAnalysis = await getGeminiAnalysis(gptStrategy);
 
     // 4. GPTにGrokとGeminiの分析を返して戦略を強化
-    const strengthenedStrategy = await strengthenStrategyWithGPT(
-      gptStrategy,
-      grokAnalysis,
-      geminiAnalysis
-    );
+    const strengthenedStrategy = await strengthenStrategyWithGPT(gptStrategy, grokAnalysis, geminiAnalysis);
 
     // 結果をファイルに保存
-    const outputDir = path.join(__dirname, "../docs");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const outputDir = path.join(__dirname, '../docs');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const outputFile = path.join(outputDir, `GPT_GROK_GEMINI_INTEGRATION_STRATEGY_${timestamp}.md`);
 
     const output = `# GPT×Grok×Gemini統合戦略（強化版）
@@ -427,19 +420,19 @@ ${strengthenedStrategy}
 `;
 
     fs.mkdirSync(outputDir, { recursive: true });
-    fs.writeFileSync(outputFile, output, "utf-8");
+    fs.writeFileSync(outputFile, output, 'utf-8');
 
     console.log(`\n📄 結果を保存しました: ${outputFile}`);
-    console.log("\n✅ 完了");
+    console.log('\n✅ 完了');
 
     return {
       gptStrategy,
       grokAnalysis,
       geminiAnalysis,
-      strengthenedStrategy
+      strengthenedStrategy,
     };
   } catch (error) {
-    console.error("❌ エラー:", error.message);
+    console.error('❌ エラー:', error.message);
     throw error;
   }
 }
@@ -451,7 +444,7 @@ if (require.main === module) {
       process.exit(0);
     })
     .catch((error) => {
-      console.error("❌ エラー:", error.message);
+      console.error('❌ エラー:', error.message);
       process.exit(1);
     });
 }

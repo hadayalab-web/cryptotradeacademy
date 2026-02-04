@@ -8,8 +8,8 @@ const path = require("path");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-// 開発用: gemini-3-flash-preview (https://ai.google.dev/gemini-api/docs/models?hl=ja#gemini-3-pro)
-const MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
+// 開発用: gemini-3-pro-preview (https://ai.google.dev/gemini-api/docs/models?hl=ja#gemini-3-pro)
+const MODEL = process.env.GEMINI_MODEL || "gemini-3-pro-preview";
 
 if (!GEMINI_API_KEY) {
   console.error("❌ GEMINI_API_KEY is not set");

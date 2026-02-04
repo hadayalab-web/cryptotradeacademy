@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ペルソナ解析を Grok (grok-4-1-fast-reasoning) と Gemini (gemini-3-flash-preview) に依頼する。
+ * ペルソナ解析を Grok (grok-4-1-fast-reasoning) と Gemini (gemini-3-pro-preview) に依頼する。
  * ペルソナ文書＋価格・無料/有料の文書を渡し、「狙い打つべきターゲット」と「備えるべき戦略・戦術」を強化する。
  *
  * 実行: node scripts/request-persona-analysis-from-grok-gemini.js
@@ -28,7 +28,7 @@ const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const GROK_MODEL = "grok-4-1-fast-reasoning";
-const GEMINI_MODEL = "gemini-3-flash-preview";
+const GEMINI_MODEL = "gemini-3-pro-preview";
 
 const PERSONA_DOC_PATH = path.join(
   __dirname,

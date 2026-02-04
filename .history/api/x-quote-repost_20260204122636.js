@@ -936,12 +936,12 @@ async function postQuoteRepostsForLang(
     // P0 FIX: タイムアウト対策 - ENの処理数を制限（35人 → 最大10人に制限）
     // これにより、処理時間を35人 × 10秒 = 350秒 → 10人 × 10秒 = 100秒に短縮
     // さらに早期リターンで実際の処理数をさらに減らす（60秒制限を考慮）
-    let maxInfluencers = targetCount;
-    if (lang.toLowerCase() === "en" && maxInfluencers > 12) {
+    let maxInfluencers = targetCount; // EN: 35, その他: 2-20
+    if (lang.toLowerCase() === "en" && maxInfluencers > 10) {
       console.warn(
-        `[Quote Repost] ⚠️ Limiting EN influencers from ${maxInfluencers} to 12 to prevent timeout [runId: ${langRunId}]`
+        `[Quote Repost] ⚠️ Limiting EN influencers from ${maxInfluencers} to 10 to prevent timeout [runId: ${langRunId}]`
       );
-      maxInfluencers = 12; // ENは最大12人（120秒枠・早期リターン5秒対応）
+      maxInfluencers = 10; // ENは最大10人に制限（タイムアウト対策）
     }
 
     for (const influencer of influencers.slice(0, maxInfluencers)) {

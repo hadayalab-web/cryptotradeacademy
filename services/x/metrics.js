@@ -44,11 +44,6 @@ async function getTweetMetrics(tweetId, includeNonPublic = false, options = {}) 
         }
       });
 
-      // resource-not-found（ツイート削除・非公開等）は null を返す（リトライ不要）
-      if (response && response._notFound) {
-        return null;
-      }
-
       if (!response || !response.data) {
         throw new Error(`X API returned no data for tweet ${tweetId}`);
       }

@@ -286,21 +286,6 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
         Array.isArray(responseData.errors) &&
         responseData.errors.length > 0
       ) {
-        // resource-not-found（ツイート削除・非公開等）は予想内なので警告ログのみ、{ data: null } を返す
-        const firstError = responseData.errors[0];
-        const isResourceNotFound =
-          /resource-not-found/i.test(firstError.type || "") ||
-          (firstError.title === "Not Found Error" && firstError.resource_type === "tweet");
-        const isTweetLookup = method === "GET" && /^\/tweets\/[^/]+$/.test(endpoint);
-
-        if (isResourceNotFound && isTweetLookup) {
-          console.warn(`[X API] ⚠️ Tweet not found (deleted/private): ${endpoint}`, {
-            tweetId: endpoint.replace("/tweets/", ""),
-            detail: firstError.detail
-          });
-          return { data: null, _notFound: true };
-        }
-
         const errorMessages = responseData.errors.map((e) => `${e.code}: ${e.message}`).join(", ");
         console.error(
           `[X API] ❌ Response contains errors field (but status was ${response.status}):`,

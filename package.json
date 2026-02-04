@@ -7,7 +7,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "test": "npm run validate:implementation && npm run test:critical",
+    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node scripts/monitor_process.js",
     "test:local": "node scripts/local_test.js",
     "test:email": "node scripts/test-email-delivery.js",

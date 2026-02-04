@@ -78,7 +78,7 @@ export async function callGemini3Pro(
     thinkingLevel?: "low" | "high";
     temperature?: number;
     maxOutputTokens?: number;
-    model?: "gemini-3-flash-preview";
+    model?: "gemini-3-pro-preview" | "gemini-3-flash-preview";
   } = {}
 ) {
   if (!geminiClient) {
@@ -91,9 +91,11 @@ export async function callGemini3Pro(
       maxOutputTokens: options.maxOutputTokens ?? 4000
     };
 
-    // モデル名を指定または環境変数から取得、デフォルトはgemini-3-flash-preview
+    // モデル名を指定または環境変数から取得、デフォルトはgemini-3-pro-preview
+    // 参考: https://ai.google.dev/gemini-api/docs/models?hl=ja#gemini-3-pro-preview
+    // gemini-3-pro-preview: 高品質推論（レビューなど）
     // gemini-3-flash-preview: 高速・低コスト（軽量タスク）
-    const modelName = options.model || process.env.GEMINI_MODEL || "gemini-3-flash-preview";
+    const modelName = options.model || process.env.GEMINI_MODEL || "gemini-3-pro-preview";
 
     const model = geminiClient.getGenerativeModel({
       model: modelName,

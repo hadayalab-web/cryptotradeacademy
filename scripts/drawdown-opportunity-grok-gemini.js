@@ -2,7 +2,7 @@
 /**
  * 現在の市況（ドローダウン）を共有し、
  * - Grok (grok-4-1-fast-reasoning): Xセンチメント／アルゴリズム解析
- * - Gemini (gemini-3-flash-preview): 深層心理解析
+ * - Gemini (gemini-3-pro-preview): 深層心理解析
  * を行い、結果を docs/ai-analysis-results に保存する（OSにインストール）。
  *
  * 実行: node scripts/drawdown-opportunity-grok-gemini.js
@@ -29,7 +29,7 @@ const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const GROK_MODEL = "grok-4-1-fast-reasoning";
-const GEMINI_MODEL = "gemini-3-flash-preview";
+const GEMINI_MODEL = "gemini-3-pro-preview";
 
 // 現在の市況（ユーザー共有の SoSoValue スクリーンショット準拠・2026年2月初旬）
 const MARKET_CONTEXT = `

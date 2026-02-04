@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 市況を共有し、Gemini (gemini-3-flash-preview) に深層心理解析を再度依頼する。
+ * 市況を共有し、Gemini (gemini-3-pro-preview) に深層心理解析を再度依頼する。
  * 前回回答が途中で切れたため、maxOutputTokens を増やして完全な回答を取得。
  *
  * 実行: node scripts/drawdown-opportunity-gemini-only.js
@@ -18,7 +18,7 @@ if (!loaded || loaded.error) {
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = "gemini-3-flash-preview";
+const GEMINI_MODEL = "gemini-3-pro-preview";
 
 const MARKET_CONTEXT = `
 ## 現在の Crypto 市況（共有データ）
@@ -82,7 +82,7 @@ function ensureDir(dir) {
 }
 
 async function main() {
-  console.log("🔄 Gemini (gemini-3-flash-preview) に深層心理解析を再度依頼します...\n");
+  console.log("🔄 Gemini (gemini-3-pro-preview) に深層心理解析を再度依頼します...\n");
   console.log("ENV loaded from:", envPath);
   console.log("GEMINI_API_KEY:", GEMINI_API_KEY ? `${GEMINI_API_KEY.slice(0, 8)}...` : "not set\n");
 
