@@ -821,11 +821,10 @@ async function postQuoteRepostsForLang(
       }
     );
 
-    // Grok推奨: ENは4本/日、その他は2本/日（言語別インフルエンサー数に基づく）
-    // P0 FIX: タイムアウト対策 - 60秒枠で確実に完了するよう1回あたり最大8人に制限（起動〜KV取得で約15s消費のため実質45sで8人）
+    // Grok推奨: ENは4本/日、その他は2本/日。運用: 60s枠でVercelタイムアウト・X API 500を防ぐため1回5人に制限。
     let maxInfluencers = targetCount;
     if (deadlineMs) {
-      const safeCap = 8;
+      const safeCap = 5;
       if (maxInfluencers > safeCap) {
         console.warn(
           `[Quote Repost] ⚠️ Limiting influencers from ${maxInfluencers} to ${safeCap} to prevent "insufficient time remaining" [runId: ${langRunId}]`
@@ -1219,23 +1218,48 @@ async function postQuoteRepostsForLang(
           console.log(
             `[Quote Repost] 🚀 Step: ${currentStep} [runId: ${langRunId}]: CALLING postQuoteTweet for @${influencer.username} (lang=${lang}, verified)...`
           );
-          // P0 FIX: GPT-5-mini推奨 - postQuoteTweetに8秒のタイムアウトを設定
+          // 運用: X API 500 / AbortError 対策。15秒タイムアウト、1回だけリトライ（2秒待機）
+          const POST_QUOTE_TIMEOUT_MS = 15000;
           try {
             result = await withTimeout(
               postQuoteTweet(quoteText, influencer.tweetId),
-              8000, // 8秒タイムアウト（GPT-5-mini推奨）
+              POST_QUOTE_TIMEOUT_MS,
               () =>
                 console.warn(
-                  `[Quote Repost] ⏰ postQuoteTweet timeout after 8s for @${influencer.username} [runId: ${langRunId}]`
+                  `[Quote Repost] ⏰ postQuoteTweet timeout after ${POST_QUOTE_TIMEOUT_MS / 1000}s for @${influencer.username} [runId: ${langRunId}]`
                 )
             );
           } catch (err) {
-            console.error(
-              `[Quote Repost] ❌ postQuoteTweet failed or timed out for @${influencer.username}:`,
-              err.message
-            );
-            // フォールバック戦略: エラーでも次の投稿を試みる（重要: エラーを投げて全体停止させない）
-            continue;
+            const isRetryable =
+              err?.name === "AbortError" ||
+              err?.message?.includes("500") ||
+              err?.message?.includes("timeout") ||
+              err?.message?.includes("aborted");
+            if (isRetryable) {
+              await new Promise((r) => setTimeout(r, 2000));
+              try {
+                result = await withTimeout(
+                  postQuoteTweet(quoteText, influencer.tweetId),
+                  POST_QUOTE_TIMEOUT_MS,
+                  () =>
+                    console.warn(
+                      `[Quote Repost] ⏰ postQuoteTweet retry timeout for @${influencer.username} [runId: ${langRunId}]`
+                    )
+                );
+              } catch (retryErr) {
+                console.error(
+                  `[Quote Repost] ❌ postQuoteTweet failed after retry for @${influencer.username}:`,
+                  retryErr.message
+                );
+                continue;
+              }
+            } else {
+              console.error(
+                `[Quote Repost] ❌ postQuoteTweet failed for @${influencer.username}:`,
+                err.message
+              );
+              continue;
+            }
           }
 
           // P1 FIX: 投稿成功後のログを完璧化（tweet IDを必ず記録）

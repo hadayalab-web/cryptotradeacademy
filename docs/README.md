@@ -3,6 +3,10 @@
 **作成日時**: 2026-01-17 14:07:03  
 **作成日**: 2026-01-17  
 
+## 運用で管理する配信（この3つだけ）
+**→ [MANAGED_DELIVERIES.md](./MANAGED_DELIVERIES.md)**  
+無料版TG・有料版TG・Grok引用リポストのみ。Cron・コードの参照先を一元化している。
+
 ## Overview
 Automated BTC signal bot that combines on-chain whale data (CryptoQuant) and AI analysis (Grok) to generate high-conviction trading signals and trap alerts.[file:91][file:113]  
 Signals are evaluated every 15 minutes on Vercel Cron and delivered via Telegram in regular briefings and emergency alerts.[file:91][file:109]

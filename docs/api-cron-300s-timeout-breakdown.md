@@ -94,6 +94,8 @@
 
 ## 4. 改善の方向性（参考）
 
+- **実行時刻の分散（時間ずらし）**  
+  → 有効な Cron のみ実行分をずらしている。詳細は [timeout-avoidance-schedule.md](./timeout-avoidance-schedule.md)（無料版TG・有料版TG・引用リポストのみ）。
 - **無料版（Minimal Version）**  
   → すでに **専用 Cron（`/api/x-post-minimal-version`）** で 1 日 1 回・120 秒枠に分離済み。cron が 504 でも Minimal は配信される。
 - **cron の 504 を減らす**  

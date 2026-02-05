@@ -55,17 +55,13 @@
     }
   ],
   "crons": [
-    { "path": "/api/cron", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron", "schedule": "7,22,37,52 * * * *" },
     { "path": "/api/x-post-minimal-version", "schedule": "0 8 * * *" },
-    { "path": "/api/vsl1-post", "schedule": "0 1,13,21 * * *" },
-    { "path": "/api/x-quote-repost-en", "schedule": "0 * * * *" },
-    { "path": "/api/x-quote-repost-es", "schedule": "5 * * * *" },
-    { "path": "/api/x-quote-repost-pt-br", "schedule": "10 * * * *" },
-    { "path": "/api/x-quote-repost-ar", "schedule": "15 * * * *" },
-    { "path": "/api/x-quote-repost-ja", "schedule": "20 * * * *" },
-    { "path": "/api/x-quote-repost-ko", "schedule": "25 * * * *" },
-    { "path": "/api/vsl2-free-users", "schedule": "0 * * * *" },
-    { "path": "/api/vsl1-reminder", "schedule": "0 */12 * * *" },
-    { "path": "/api/vsl2-last-call", "schedule": "0 * * * *" }
+    { "path": "/api/x-quote-repost-en", "schedule": "4 * * * *" },
+    { "path": "/api/x-quote-repost-es", "schedule": "9 * * * *" },
+    { "path": "/api/x-quote-repost-pt-br", "schedule": "14 * * * *" },
+    { "path": "/api/x-quote-repost-ar", "schedule": "19 * * * *" },
+    { "path": "/api/x-quote-repost-ja", "schedule": "24 * * * *" },
+    { "path": "/api/x-quote-repost-ko", "schedule": "29 * * * *" }
   ]
 }

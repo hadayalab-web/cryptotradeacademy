@@ -29,25 +29,12 @@ try {
     process.exit(1);
 }
 
-// Cron Jobsのパス定義
+// 運用で管理する配信3種のみ（docs/MANAGED_DELIVERIES.md に合わせる）
 const cronPaths = [
     '/api/cron',
-    '/api/weekly-report',
-    '/api/vsl1-post',
-    '/api/vsl2-free-users',
-    '/api/vsl1-reminder',
-    '/api/vsl2-last-call',
-    '/api/promo-stock-monitor',
-    '/api/monthly-engagement-report',
-    '/api/x-post-minimal-version-cron',
-    '/api/x-post-free-report',
-    '/api/x-quote-repost',
-    '/api/x-quote-repost-metrics',
-    '/api/x-engagement-metrics',
-    '/api/x-post-performance-analysis',
-    '/api/x-influencer-report',
-    '/api/x-algorithm-analysis',
-    '/api/x-update-influencer-stock'
+    '/api/x-post-minimal-version',
+    '/api/x-quote-repost-en', '/api/x-quote-repost-es', '/api/x-quote-repost-pt-br',
+    '/api/x-quote-repost-ar', '/api/x-quote-repost-ja', '/api/x-quote-repost-ko'
 ];
 
 // 分析結果

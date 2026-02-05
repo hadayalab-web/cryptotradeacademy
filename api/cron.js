@@ -511,7 +511,7 @@ module.exports = async function handler(req, res) {
           });
         }
       } catch (error) {
-        // エラータイプ別の処理
+        // 運用: GPT失敗時もcronは継続。gptCryptoQuantAnalysisはnullのまま、後段で emergencyAnalysis = gptCryptoQuantAnalysis || aiAnalysis により aiAnalysis にフォールバック。
         if (error?.status === 429) {
           logger.warn("Rate limit hit, will retry on next run", {
             error: error?.message
@@ -527,7 +527,6 @@ module.exports = async function handler(req, res) {
             stack: error?.stack?.substring(0, 200)
           });
         }
-        // GPT解析エラー時は既存ロジックにフォールバック
       }
     } else if (!isRegularSlot) {
       logger.info("Skipping GPT call (thresholds not met)", {
@@ -1787,7 +1786,7 @@ module.exports = async function handler(req, res) {
     // 注意: UTC 21時（JST 6時）は定期配信スロットではないため、無料版も配信されない
     // ただし、force=trueの場合は強制配信
     // 6言語すべてに配信（デフォルト: MINIMAL_MULTI_LANG=true）
-    // 無料版チャンネルIDの解決関数（vsl2-post.jsと同様のロジック）
+    // 無料版チャンネルIDの解決（言語別 TELEGRAM_CHAT_ID_MINIMAL_* 参照）
     function resolveMinimalChatId(lang) {
       const normalizedLangCode = lang.toUpperCase().replace("-", "_");
       const variants = [normalizedLangCode];
