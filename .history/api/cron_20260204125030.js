@@ -1,5 +1,4 @@
 // api/cron.js
-require("../utils/suppressKnownWarnings");
 
 // --- Imports ----------------------------------------------------
 

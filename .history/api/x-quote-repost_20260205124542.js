@@ -1,7 +1,6 @@
 // api/x-quote-repost.js
 // 引用リポスト自動化（Grokがインフルエンサー発掘 + 引用リポスト）
 // 24投稿/日（6言語 × 2人 × 2投稿）
-require("../utils/suppressKnownWarnings");
 
 const { postQuoteTweet } = require("../services/x/client");
 const { getXConfigStatus } = require("../services/x/config");

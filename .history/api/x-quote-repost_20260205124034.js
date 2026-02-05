@@ -1,7 +1,6 @@
 // api/x-quote-repost.js
 // 引用リポスト自動化（Grokがインフルエンサー発掘 + 引用リポスト）
 // 24投稿/日（6言語 × 2人 × 2投稿）
-require("../utils/suppressKnownWarnings");
 
 const { postQuoteTweet } = require("../services/x/client");
 const { getXConfigStatus } = require("../services/x/config");
@@ -1051,15 +1050,8 @@ async function postQuoteRepostsForLang(
             }
           }
           if (!quoteText) {
-            const stateEn =
-              (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state.en) ||
-              "Stuck in the 'just watching' loop with unrealized loss? Many are. The way out is a framework.";
             const fallback =
-              (CORE_PHRASES &&
-                CORE_PHRASES.state &&
-                (lang === "ja" ? CORE_PHRASES.state.ja : null)) ||
-              (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state[lang]) ||
-              stateEn;
+              (lang === "ja" ? CORE_PHRASES.state.ja : null) || CORE_PHRASES.state.en;
             quoteText =
               fallback +
               "\n\n" +
@@ -1069,15 +1061,7 @@ async function postQuoteRepostsForLang(
             );
           }
         } else {
-          const stateEn =
-            (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state.en) ||
-            "Stuck in the 'just watching' loop with unrealized loss? Many are. The way out is a framework.";
-          const fallback =
-            (CORE_PHRASES &&
-              CORE_PHRASES.state &&
-              (lang === "ja" ? CORE_PHRASES.state.ja : null)) ||
-            (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state[lang]) ||
-            stateEn;
+          const fallback = (lang === "ja" ? CORE_PHRASES.state.ja : null) || CORE_PHRASES.state.en;
           quoteText =
             fallback +
             "\n\n" +
