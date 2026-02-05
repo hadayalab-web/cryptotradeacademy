@@ -4,15 +4,11 @@
 // 無料版・有料版の実際の配信をチラ見させて VSL→Whop の導線を表現する（目標 800～1,200 文字）。
 // 1. 有名ヘッドライン風フック（トレード依存症・深層心理を揺さぶる）
 // 2. ツァイガルニク効果（Regular Briefing の Grok/Gemini 記事切り抜きチラ見せ→未完で気になる）
-// 3. VSL: config/vslLinks.js の VSL_REGULAR（Upgrade Trap Defence: 50% Off — Code DEFEND50 | Next 50 Only）
-// 動画に EN/JA/ES/PT-BR/AR/KO の字幕を埋め込み済み。表記で「字幕あり」等は使わない（スマホで二重表示のため）。
+// VSLリンクはGrokセールスレターのみで使用。RegularオプトインではWhop導線のみ。
 // ポリシー: X投稿ではWhopはリンクだけ（リッチプレビュー・長いCTA文を避ける）。URLのみ挿入。
 // 最適文字数: docs/ai-analysis-results/OPTIMAL_LONG_POST_LENGTH_INTEGRATED.md 参照。
 
 const { getWhopProductUrl, getPromoCode } = require("../services/telegram/whop-links");
-const { VSL_REGULAR } = require("./vslLinks");
-
-const VSL_REGULAR_YOUTUBE_URL = VSL_REGULAR.url;
 
 function buildRegularWhopUrl(lang, options = {}) {
   const base = getWhopProductUrl(lang);
@@ -42,65 +38,65 @@ function getRegularOptinQuoteTemplate(lang, options = {}) {
   // バリアントA: 「負け続けた男」風 ＋ Regular 記事の一行チラ見せ（Whopはリンクだけ）
   const variantA = {
     en: () =>
-      `I lost 6 times in a row. Then I read one line from their briefing. Watch: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `I lost 6 times in a row. Then I read one line from their briefing. ${whopUrl} #BTC #TrapDefence`,
     ja: () =>
-      `6連敗した。そのあと彼らのブリーフの「一行」を読んだ。視聴: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `6連敗した。そのあと彼らのブリーフの「一行」を読んだ。${whopUrl} #BTC #TrapDefence`,
     es: () =>
-      `Perdí 6 veces seguidas. Luego leí una línea de su briefing. Mira: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `Perdí 6 veces seguidas. Luego leí una línea de su briefing. ${whopUrl} #BTC #TrapDefence`,
     "pt-br": () =>
-      `Perdi 6 vezes seguidas. Depois li uma linha do briefing deles. Assista: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `Perdi 6 vezes seguidas. Depois li uma linha do briefing deles. ${whopUrl} #BTC #TrapDefence`,
     ar: () =>
-      `خسرت 6 مرات متتالية. بعدين قرأت سطر واحد من البريفينغ. شوف: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `خسرت 6 مرات متتالية. بعدين قرأت سطر واحد من البريفينغ. ${whopUrl} #BTC #TrapDefence`,
     ko: () =>
-      `6연패했음. 그다음 브리핑 '한 줄' 봤음. 시청: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`
+      `6연패했음. 그다음 브리핑 '한 줄' 봤음. ${whopUrl} #BTC #TrapDefence`
   };
 
   // バリアントB: 「彼らは知っていた」風 ＋ Grok/Gemini 記事の冒頭チラ見せ（Whopはリンクだけ）
   const variantB = {
     en: () =>
-      `They knew where the trap was. We don't show the full article—just the hook. Watch: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `They knew where the trap was. We don't show the full article—just the hook. ${whopUrl} #BTC #TrapDefence`,
     ja: () =>
-      `彼らは罠の場所を知っていた。記事の全文は見せない—フックだけ。視聴: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `彼らは罠の場所を知っていた。記事の全文は見せない—フックだけ。${whopUrl} #BTC #TrapDefence`,
     es: () =>
-      `Sabían dónde estaba la trampa. No mostramos el artículo completo—solo el gancho. Mira: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `Sabían dónde estaba la trampa. No mostramos el artículo completo—solo el gancho. ${whopUrl} #BTC #TrapDefence`,
     "pt-br": () =>
-      `Eles sabiam onde estava a armadilha. Não mostramos o artigo inteiro—só o gancho. Assista: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `Eles sabiam onde estava a armadilha. Não mostramos o artigo inteiro—só o gancho. ${whopUrl} #BTC #TrapDefence`,
     ar: () =>
-      `كانوا عارفين وين الفخ. ما نوري المقال كامل—الغانش بس. شوف: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `كانوا عارفين وين الفخ. ما نوري المقال كامل—الغانش بس. ${whopUrl} #BTC #TrapDefence`,
     ko: () =>
-      `그들은 함정 위치를 알았음. 전문은 안 보여줌—훅만. 시청: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`
+      `그들은 함정 위치를 알았음. 전문은 안 보여줌—훅만. ${whopUrl} #BTC #TrapDefence`
   };
 
   // バリアントC: 「90%は知らない」風 ＋ Regular の「途中で切る」チラ見せ（Whopはリンクだけ）
   const variantC = {
     en: () =>
-      `What 90% of traders never see. Snippet from today's Grok briefing: "Whales loading. Score 12/100. Exit map—" Watch: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `What 90% of traders never see. Snippet from today's Grok briefing: "Whales loading. Score 12/100. Exit map—" ${whopUrl} #BTC #TrapDefence`,
     ja: () =>
-      `トレーダー90%が知らないこと。本日のGrokブリーフ一切れ:「クジラ積み中。スコア12/100。出口マップ—」視聴: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `トレーダー90%が知らないこと。本日のGrokブリーフ一切れ:「クジラ積み中。スコア12/100。出口マップ—」${whopUrl} #BTC #TrapDefence`,
     es: () =>
-      `Lo que 90% de traders nunca ve. Fragmento del briefing Grok de hoy: "Ballenas cargando. Score 12/100. Mapa salida—" Mira: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `Lo que 90% de traders nunca ve. Fragmento del briefing Grok de hoy: "Ballenas cargando. Score 12/100. Mapa salida—" ${whopUrl} #BTC #TrapDefence`,
     "pt-br": () =>
-      `O que 90% dos traders nunca veem. Trecho do briefing Grok de hoje: "Baleias carregando. Score 12/100. Mapa saída—" Assista: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `O que 90% dos traders nunca veem. Trecho do briefing Grok de hoje: "Baleias carregando. Score 12/100. Mapa saída—" ${whopUrl} #BTC #TrapDefence`,
     ar: () =>
-      `اللي 90% من المتداولين ما يشوفوه. مقتطف من بريفينغ Grok اليوم: "حيتان تحمّل. Score 12/100. خريطة خروج—" شوف: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`,
+      `اللي 90% من المتداولين ما يشوفوه. مقتطف من بريفينغ Grok اليوم: "حيتان تحمّل. Score 12/100. خريطة خروج—" ${whopUrl} #BTC #TrapDefence`,
     ko: () =>
-      `트레이더 90%가 못 보는 것. 오늘 Grok 브리핑 한 조각: "고래 로딩. 스코어 12/100. 출구 맵—" 시청: ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapDefence`
+      `트레이더 90%가 못 보는 것. 오늘 Grok 브리핑 한 조각: "고래 로딩. 스코어 12/100. 출구 맵—" ${whopUrl} #BTC #TrapDefence`
   };
 
   // バリアントD: 市況悪化・ドローダウン特化（Whopはリンクだけ）
   const variantD = {
     en: () =>
-      `Drawdown already happened. The next trap is the one that cleans out the rest. We show the score + exit map. ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+      `Drawdown already happened. The next trap is the one that cleans out the rest. We show the score + exit map. ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
     ja: () =>
-      `ドローダウンはもう来た。次に来るのは「戻りだと思って嵌る罠」。スコア＋出口マップはこちら。${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+      `ドローダウンはもう来た。次に来るのは「戻りだと思って嵌る罠」。スコア＋出口マップはこちら。${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
     es: () =>
-      `El drawdown ya pasó. La próxima trampa es la que limpia a los que quedan. Mostramos score + mapa salida. ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+      `El drawdown ya pasó. La próxima trampa es la que limpia a los que quedan. Mostramos score + mapa salida. ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
     "pt-br": () =>
-      `O drawdown já veio. A próxima armadilha é a que limpa o resto. Mostramos score + mapa saída. ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+      `O drawdown já veio. A próxima armadilha é a que limpa o resto. Mostramos score + mapa saída. ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
     ar: () =>
-      `الدروداون صار. الفخ الجاي هو اللي ينضف الباقي. نوري السكور + خريطة خروج. ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
+      `الدروداون صار. الفخ الجاي هو اللي ينضف الباقي. نوري السكور + خريطة خروج. ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`,
     ko: () =>
-      `드로다운은 이미 왔음. 다음 함정이 남은 사람들 다 쓸어감. 스코어+출구 맵 여기. ${VSL_REGULAR_YOUTUBE_URL} ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`
+      `드로다운은 이미 왔음. 다음 함정이 남은 사람들 다 쓸어감. 스코어+출구 맵 여기. ${whopUrl} #BTC #TrapScore #RiskOff #TrapDefence`
   };
 
   const variant = options.variant || "A";
@@ -120,7 +116,6 @@ function getAllRegularOptinTemplates(options = {}) {
 const REGULAR_OPTIN_VARIANTS = ["A", "B", "C", "D"];
 
 module.exports = {
-  VSL_REGULAR_YOUTUBE_URL,
   REGULAR_OPTIN_VARIANTS,
   buildRegularWhopUrl,
   getRegularOptinQuoteTemplate,

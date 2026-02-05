@@ -6,15 +6,15 @@ const { sendMessageToAsset, sendPhotoToAsset } = require("../services/telegram/b
 const fs = require("fs");
 const path = require("path");
 
-// VSL2リンク: config/vslLinks.js の VSL_REGULAR（Upgrade Trap Defence: 50% Off — Code DEFEND50）
-const { VSL_REGULAR, VSL_MINIMAL } = require("../config/vslLinks");
+// VSL2リンク: 環境変数優先。未設定時は有料版VSL（Grokセールスレターと同じURLは salesLetterContest のみで参照）
+const VSL2_REGULAR_FALLBACK = "https://youtu.be/fXgVsKhqDjI";
 let VSL2_YOUTUBE_LINK_RAW =
-  process.env.VSL2_YOUTUBE_LINK || process.env.VSL_YOUTUBE_LINK || VSL_REGULAR.url;
-if (VSL2_YOUTUBE_LINK_RAW === VSL_MINIMAL.url || VSL2_YOUTUBE_LINK_RAW.includes("OqvqngJOiXc")) {
+  process.env.VSL2_YOUTUBE_LINK || process.env.VSL_YOUTUBE_LINK || VSL2_REGULAR_FALLBACK;
+if (VSL2_YOUTUBE_LINK_RAW.includes("OqvqngJOiXc")) {
   console.error(
-    "❌ CRITICAL ERROR: VSL2_YOUTUBE_LINK is set to VSL1 link! Using correct VSL2 link."
+    "❌ CRITICAL ERROR: VSL2_YOUTUBE_LINK is set to VSL1 (minimal) link! Using correct VSL2 link."
   );
-  VSL2_YOUTUBE_LINK_RAW = VSL_REGULAR.url;
+  VSL2_YOUTUBE_LINK_RAW = VSL2_REGULAR_FALLBACK;
 }
 const VSL2_YOUTUBE_LINK = VSL2_YOUTUBE_LINK_RAW;
 const { getWhopProductUrl, getPromoCode } = require("../services/telegram/whop-links");

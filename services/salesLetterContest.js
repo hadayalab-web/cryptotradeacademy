@@ -7,7 +7,17 @@ const {
   getMonthlyPriceForLang,
   TONE
 } = require("../config/personaStrategy");
-const { VSL_MINIMAL, VSL_REGULAR } = require("../config/vslLinks");
+const vslLinks = require("../config/vslLinks");
+const VSL_MINIMAL =
+  vslLinks.VSL_MINIMAL || {
+    url: "https://youtu.be/OqvqngJOiXc",
+    titleEn: "Stop Being the Prey — Free Trap Score | Trap Defence BTC"
+  };
+const VSL_REGULAR =
+  vslLinks.VSL_REGULAR || {
+    url: "https://youtu.be/fXgVsKhqDjI",
+    titleEn: "Upgrade Trap Defence: 50% Off — Code DEFEND50 | Next 50 Only"
+  };
 const {
   getMinimalVersionCheckoutUrl,
   getRegularWhopLinkOnly,
