@@ -2100,7 +2100,8 @@ module.exports = async function handler(req, res) {
             priceUsd,
             change24h,
             exchangeNetflow: inflow,
-            whaleRatio: whaleRatioValue
+            whaleRatio: whaleRatioValue,
+            mpi
           };
 
           // 非同期で実行（エラーは無視）

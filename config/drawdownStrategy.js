@@ -19,6 +19,15 @@ function isDrawdown(reportData = {}) {
   return false;
 }
 
+/** 70k 支持線テストとみなすか（セールストークの緊急フレーム用） */
+const SUPPORT_70K_THRESHOLD_USD = 72500;
+
+function isSupportTest70k(reportData = {}) {
+  if (!reportData || reportData.priceUsd == null) return false;
+  const priceUsd = Number(reportData.priceUsd);
+  return priceUsd <= SUPPORT_70K_THRESHOLD_USD;
+}
+
 /**
  * ドローダウン時のバリアント重み（D を 50% にし、回るほど防御系メッセージが増える）
  * @returns {{ weights: Record<string, number>, ordered: string[] }}
@@ -134,14 +143,26 @@ const INTEGRATED_STRATEGY_FOR_PROMPT = `
 - **仕掛け**: 投稿が回るほど「罠スコア／出口マップ／トラップスタンバイ」への渇望が増す。FUD過熱で防御論のコントラリアン需要が爆増。毎回の投稿で上記3原則のいずれかをCTAに織り込み、回数を重ねるごとに売上に直結させる。
 `;
 
+/** BTCが$70k支持線付近のときのセールスレター用プロンプト（ドローダウン未満だが緊急性あり） */
+const SUPPORT_70K_PROMPT = `
+## 市場コンテキスト: BTC が $70k 支持線をテスト中
+
+- 価格が重要支持（$70k付近）を試している。ここで感情売りや「ナイフ拾い」が増える。
+- トーン: 緊急性を出しつつ「底値は誰にも分からない。Trap Score のシグナルだけを待て」「ナイフに飛びつくな。枠組み（フレームワーク）があって初めて入る」と訴求。
+- CTA: 無料 Trap Score で「今は待つべきか」を判断→有料で出口マップと15分アラート。defend50 で50%オフ。
+`;
+
 module.exports = {
   SUPPORTED_LANGS,
   isDrawdown,
+  isSupportTest70k,
+  SUPPORT_70K_THRESHOLD_USD,
   getDrawdownVariantWeight,
   getDefaultVariantOrder,
   pickVariantWithWeight,
   getDrawdownHook,
   getDrawdownCTA,
   DRAWDOWN_HASHTAGS,
-  INTEGRATED_STRATEGY_FOR_PROMPT
+  INTEGRATED_STRATEGY_FOR_PROMPT,
+  SUPPORT_70K_PROMPT
 };

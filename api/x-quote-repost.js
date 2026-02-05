@@ -1986,7 +1986,8 @@ const handler = async (req, res) => {
               priceUsd: snapshot.price_usd_raw || 0,
               change24h: snapshot.change_24h || 0,
               exchangeNetflow: snapshot.exchange_netflow || snapshot.inflow || null,
-              whaleRatio: snapshot.whale_ratio || snapshot.whaleRatio || null
+              whaleRatio: snapshot.whale_ratio || snapshot.whaleRatio || null,
+              mpi: snapshot.mpi != null ? snapshot.mpi : null
             };
             console.log("[Quote Repost] Using fallback market data from marketSnapshotService");
           } else {
@@ -2015,7 +2016,8 @@ const handler = async (req, res) => {
               priceUsd: snapshot.price_usd_raw || 0,
               change24h: snapshot.change_24h || 0,
               exchangeNetflow: snapshot.exchange_netflow || snapshot.inflow || null,
-              whaleRatio: snapshot.whale_ratio || snapshot.whaleRatio || null
+              whaleRatio: snapshot.whale_ratio || snapshot.whaleRatio || null,
+              mpi: snapshot.mpi != null ? snapshot.mpi : null
             };
             console.log("[Quote Repost] Using fallback market data from marketSnapshotService");
           } else {

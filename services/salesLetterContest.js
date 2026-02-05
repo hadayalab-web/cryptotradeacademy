@@ -7,6 +7,12 @@ const {
   getMonthlyPriceForLang,
   TONE
 } = require("../config/personaStrategy");
+const {
+  isDrawdown,
+  isSupportTest70k,
+  INTEGRATED_STRATEGY_FOR_PROMPT,
+  SUPPORT_70K_PROMPT
+} = require("../config/drawdownStrategy");
 const vslLinks = require("../config/vslLinks");
 const VSL_MINIMAL =
   vslLinks.VSL_MINIMAL || {
@@ -58,12 +64,21 @@ function buildCqContext(reportData) {
  * 共通プロンプト組み立て: ペルソナ + CQ必須。無料版・有料版のチラ見せプレゼンさせる。
  * あなたのプロンプト次第で3者の出来が決まる。
  */
+/** 市況に応じた追加プロンプト（ドローダウン or 70k支持線テスト時のみ） */
+function getMarketContextForPrompt(reportData) {
+  if (!reportData) return "";
+  if (isDrawdown(reportData)) return INTEGRATED_STRATEGY_FOR_PROMPT;
+  if (isSupportTest70k(reportData)) return SUPPORT_70K_PROMPT;
+  return "";
+}
+
 function buildSalesLetterPrompt({ lang, reportData }) {
   const normalizedLang = (lang || "en").toLowerCase().replace("_", "-");
   const langName = LANG_NAMES[normalizedLang] || "English";
   const persona = getPersonaPromptContext(normalizedLang);
   const cq = buildCqContext(reportData);
   const monthlyPrice = getMonthlyPriceForLang(normalizedLang);
+  const marketContext = getMarketContextForPrompt(reportData);
 
   return `You are a direct-response copywriter for Trap Defence (crypto trading education). Write a short sales letter in ${langName} that PRESENTS and TEASES two products. Use the persona and on-chain data below—they are mandatory.
 
@@ -72,6 +87,9 @@ ${persona}
 
 ON-CHAIN / MARKET DATA (use to ground the copy; reference Trap Score or market where it fits):
 ${cq}
+${marketContext ? `\nMARKET CONTEXT (use for tone and urgency—follow this framing):\n${marketContext}` : ""}
+
+X ALGORITHM — ON-CHAIN DATA SUPPLY: Weave 2–3 concrete numbers from the data above into the copy (Trap Score, Exchange Netflow, Whale Ratio, MPI, 24h%). Use them in sentences. This boosts X reach and topic relevance.
 
 PRODUCTS TO PRESENT (teaser style—hint at value, create desire; do not output URLs):
 
@@ -213,6 +231,7 @@ function buildGrokOnlyPrompt({ lang, reportData, painAngleSeed }) {
   const cq = buildCqContext(reportData);
   const monthlyPrice = getMonthlyPriceForLang(normalizedLang);
   const angle = painAngleSeed != null ? getPainAngleForSeed(painAngleSeed) : PAIN_ANGLES[0];
+  const marketContext = getMarketContextForPrompt(reportData);
 
   return `You are a direct-response copywriter for Trap Defence (crypto trading education). Write a complete X (Twitter) post in ${langName} in FIVE parts. Use the persona and on-chain data below—they are mandatory. Do NOT output any URLs or link lines; we add those below the post.
 
@@ -228,6 +247,10 @@ ${persona}
 
 ON-CHAIN / MARKET DATA (use to ground the copy):
 ${cq}
+${marketContext ? `\nMARKET CONTEXT (use for tone and urgency—follow this framing):\n${marketContext}` : ""}
+
+X ALGORITHM — ON-CHAIN DATA SUPPLY (mandatory for reach):
+X's algorithm favors concrete numbers and BTC/on-chain topic relevance. Weave 2–3 specific numbers from the data above into your copy (e.g. Trap Score 28, Exchange Netflow -40k, Whale Ratio 0.82, MPI, 24h%). Use them in a sentence, not as a dry list. This boosts engagement and topic relevance.
 
 OUTPUT FORMAT (output exactly this structure):
 
