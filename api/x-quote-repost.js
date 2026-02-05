@@ -822,23 +822,26 @@ async function postQuoteRepostsForLang(
     );
 
     // Grok推奨: ENは4本/日、その他は2本/日（言語別インフルエンサー数に基づく）
-    // P0 FIX: タイムアウト対策 - ENの処理数を制限（35人 → 最大10人に制限）
-    // これにより、処理時間を35人 × 10秒 = 350秒 → 10人 × 10秒 = 100秒に短縮
-    // さらに早期リターンで実際の処理数をさらに減らす（60秒制限を考慮）
+    // P0 FIX: タイムアウト対策 - 60秒枠で確実に完了するよう1回あたり最大8人に制限（起動〜KV取得で約15s消費のため実質45sで8人）
     let maxInfluencers = targetCount;
-    if (lang.toLowerCase() === "en" && maxInfluencers > 12) {
-      console.warn(
-        `[Quote Repost] ⚠️ Limiting EN influencers from ${maxInfluencers} to 12 to prevent timeout [runId: ${langRunId}]`
-      );
-      maxInfluencers = 12; // ENは最大12人（120秒枠・早期リターン5秒対応）
+    if (deadlineMs) {
+      const safeCap = 8;
+      if (maxInfluencers > safeCap) {
+        console.warn(
+          `[Quote Repost] ⚠️ Limiting influencers from ${maxInfluencers} to ${safeCap} to prevent "insufficient time remaining" [runId: ${langRunId}]`
+        );
+        maxInfluencers = safeCap;
+      }
+    } else if (lang.toLowerCase() === "en" && maxInfluencers > 12) {
+      maxInfluencers = 12;
     }
 
     for (const influencer of influencers.slice(0, maxInfluencers)) {
-      // P0 FIX: 各インフルエンサー処理の開始時にタイムアウトチェック（残り5秒未満で早期リターン）
-      if (deadlineMs && Date.now() >= deadlineMs - 5000) {
+      // P0 FIX: 各インフルエンサー処理の開始時にタイムアウトチェック（残り3秒未満で早期リターン）
+      if (deadlineMs && Date.now() >= deadlineMs - 3000) {
         const remainingTime = Math.round((deadlineMs - Date.now()) / 1000);
         console.warn(
-          `[Quote Repost] ⏰ Early return: insufficient time remaining (${remainingTime}s) for remaining influencers [runId: ${langRunId}]`
+          `[Quote Repost] ⏰ Early return: insufficient time remaining (${remainingTime}s) for remaining influencers; processed ${results.length} [runId: ${langRunId}]`
         );
         console.log(
           `[Quote Repost] 📊 Processed ${results.length} influencers before timeout [runId: ${langRunId}]`

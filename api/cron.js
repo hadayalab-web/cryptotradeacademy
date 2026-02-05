@@ -134,8 +134,7 @@ const {
 } = require("../services/cryptoquant/endpoints/btc");
 // Phase 2: 市場別深掘りデータ
 const { getCQDeepMetrics } = require("../services/cryptoquant/deepMetrics");
-// 高解像度CryptoQuantデータ取得
-const { getHighResolutionCQData } = require("../services/cryptoquant/highResolution");
+// 設計: 3本パイプラインは inflow/mpi/whaleRatio のみ。getHighResolutionCQData はオーバースペックのため cron では使用しない。
 // Phase 3: CryptoQuant capabilities初期化
 const { initializeCapabilities } = require("../services/cryptoquant/capabilities");
 // Grok Xアルゴリズム解析 × Gemini深層心理分析統合サービス
@@ -849,29 +848,21 @@ module.exports = async function handler(req, res) {
           // 常に最新データで取得（キャッシュをバイパス）
           priceOptions.skipCache = shouldSkipCacheForEmergency;
 
-          // 高解像度を先に取得し、getCQDeepMetrics で再利用（同一エンドポイントの重複呼び出し回避）
-          // タイムアウト対策: 定期枠以外（15分監視）では簡易データのみ取得してスキップ
+          // 設計: 3本パイプライン（GPT/Grok/Gemini）に必要なCQは inflow, mpi, whaleRatio のみ。高解像度はオーバースペックのため取得しない。
+          // 定期枠: getCQDeepMetrics のみ（highResCQ なし）→ trapScore / whaleRatio を取得。20〜60秒短縮で300秒タイムアウト余裕確保。
+          // 15分監視枠: 深掘りもスキップして高速化。
           if (isRegularSlot || force) {
-            console.log("[CQDeep] Regular slot: fetching high-res first, then deep (reuse)...");
+            console.log("[CQDeep] Regular slot: fetching deep metrics only (no high-res, design: minimal CQ).");
+            highResCQData = null;
             try {
-              const highResResult = await getHighResolutionCQData({
-                includeWhaleRatio: true,
-                includeLiquidations: true,
-                skipCache: shouldSkipCacheForEmergency
-              });
-              highResCQData = highResResult;
-              console.log(
-                "[High-Resolution CQ] Data fetched, bug signals:",
-                highResCQData?.bugSignals?.overallBugScore
-              );
-              const deepResult = await getCQDeepMetrics(market, {
-                ...priceOptions,
-                highResCQ: highResResult
-              });
+              const deepResult = await getCQDeepMetrics(market, priceOptions);
               cqDeep = { ...cqDeep, ...deepResult };
+              console.log("[CQDeep] Deep metrics fetched:", {
+                trapScore: deepResult?.trapScore,
+                whaleRatio: deepResult?.whaleFlows?.whaleRatio
+              });
             } catch (deepErr) {
-              console.warn("[Phase 2] Error in CQ fetch (highRes or deep):", deepErr?.message);
-              if (!highResCQData) highResCQData = null;
+              console.warn("[Phase 2] Error in getCQDeepMetrics:", deepErr?.message);
               if (Object.keys(cqDeep).length <= 2) {
                 try {
                   const fallbackDeep = await getCQDeepMetrics(market, priceOptions);
