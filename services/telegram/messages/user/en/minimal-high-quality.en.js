@@ -250,7 +250,7 @@ function formatMinimalHighQualityBriefing({
     (sentimentLabelRaw && typeof sentimentLabelRaw === 'string') ? sentimentLabelRaw : 'Neutral';
   // trapScoreRoundedは上で既に定義済み
   
-  // [1/4] Hook: Fear vs Trap Score contradiction + immediate action
+  // [1/4] Hook: Fear vs Trap Score contradiction + 1-line reason + gut vs data
   let message = `[1/4] 🚨 Hook
 ━━━━━━━━━━━━━━━━━━━━`;
   
@@ -258,17 +258,19 @@ function formatMinimalHighQualityBriefing({
     message += `\n🚨 BTC looks ugly (${change24hFormatted}%), sentiment is **${sentimentLabel}**…
 …but Trap Score is still printing. Don't front-run it.`;
   } else {
+    const trapReasonLine = (trapData?.exchangeNetflow > 0 || marketData?.mpi > 2) 
+      ? ` Netflow + MPI + sentiment = Trap Defence reads this as Standby Mode.`
+      : ``;
     message += `\n🚨 BTC looks ugly (${change24hFormatted}%), sentiment is **${sentimentLabel}**…
-…but Trap Score is **${scoreDisplay}/100** (yes, really).`;
+…but Trap Score is **${scoreDisplay}/100** (yes, really).${trapReasonLine}`;
   }
   
-  message += `\n\nRight now: don't revenge-trade. Wait for the score to confirm.\n\nThis is the "gut vs data" moment.`;
+  message += `\n\nDon't revenge-trade. Wait for confirmation. Gut vs data—data wins.`;
 
-  // [2/4] Quick reads (2 bullets max, trader interpretation)
+  // [2/4] Quick reads (Netflow+MPI set interpretation + Trap Defence take)
   message += `\n\n[2/4] 📊 Quick Reads (No Fluff)
 ━━━━━━━━━━━━━━━━━━━━`;
   
-  // Exchange netflow (ネイティブ調な表現)
   if (trapData?.exchangeNetflow !== undefined && trapData.exchangeNetflow !== null) {
     const netflow = trapData.exchangeNetflow;
     const absValue = Math.abs(netflow);
@@ -279,40 +281,34 @@ function formatMinimalHighQualityBriefing({
     }
   }
   
-  // MPI
   if (marketData?.mpi !== undefined && marketData.mpi !== null) {
     const mpi = marketData.mpi;
     message += `\n• MPI: **${mpi.toFixed(2)}** → miners aren't rushing to sell`;
   }
   
-  message += `\n\nRed candles ≠ instant trap.`;
+  message += `\n\nNetflow + MPI together: Trap Defence reads this combo before the candle. Red candles ≠ instant trap.`;
 
-  // [3/4] Psych coaching: latency anxiety (低スコア時の認知的不協和)
-  message += `\n\n[3/4] 🧠 Psych Coaching
+  // [3/4] Psych coaching: short, punchy, Dr. Grok world view
+  message += `\n\n[3/4] 🧠 Psych Coaching (Dr. Grok)
 ━━━━━━━━━━━━━━━━━━━━`;
   
   if (trapScoreRounded == null) {
-    message += `\nScore is still calculating. Until it prints, don't front-run a trade.`;
+    message += `\nScore calculating. Don't front-run.`;
   } else if (trapScoreRounded < 30) {
-    message += `\nThe part nobody talks about: **${trapScoreRounded}/100 can make you complacent.**\nBig traps get built in the quiet.\n\nIf the score spikes while you're asleep, a free recap won't save that 15-minute window.`;
+    message += `\n${trapScoreRounded}/100 = complacency risk. Big traps build in the quiet. Stay alert.`;
   } else if (trapScoreRounded < 50) {
-    message += `\nChart looks scary. Data isn't screaming "trap."\nYour job here is simple: don't let fear force a bad click.\n\n(Still: if it flips while you sleep, free updates miss that 15-minute gap.)`;
+    message += `\nChart scary, data not screaming trap. Don't let fear click for you.`;
   } else {
-    message += `\nDefense mode. Candles are loud; risk isn't (yet).`;
+    message += `\nDefense mode. Candles loud; risk isn't yet. Standby Mode.`;
   }
   
-  // [4/4] Poll + question + soft CTA (GPT設計書に完全準拠)
-  message += `\n\n[4/4] 🗳️ Poll + Question + CTA
+  // [4/4] Poll + simple CTA (返信負荷を軽減・1分で読める)
+  message += `\n\n[4/4] 🗳️ Poll + CTA
 ━━━━━━━━━━━━━━━━━━━━
 Poll: Trap Score ${scoreDisplay === 'N/A' ? '*(calculating)*' : `**${scoreDisplay}/100**`} — what are you doing?
-A) Hold
-B) Buy dip
-C) Sell / de-risk
-D) Waiting for confirmation
+A) Hold  B) Buy dip  C) Sell / de-risk  D) Waiting for confirmation
 
-Reply A/B/C/D + your timeframe (scalp / swing).
-
-Want real-time Trap Alerts? Reply **TRAP** and I'll DM the link. #BTC #Bitcoin #TrapDefence`;
+Want real-time Trap Alerts before the next dump? Reply **TRAP** for the link. One missed alert = lost capital. #BTC #Bitcoin #TrapDefence`;
 
   return message.trim();
 }

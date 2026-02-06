@@ -254,7 +254,7 @@ function formatMinimalHighQualityBriefing({
     sentimentRaw === 'Neutral' ? '중립' : '중립';
   // trapScoreRoundedは上で既に定義済み
   
-  // [1/4] Hook: Fear vs Trap Score contradiction + immediate action
+  // [1/4] Hook: Trap Score理由1行 + gut vs data
   let message = `[1/4] 🚨 Hook
 ━━━━━━━━━━━━━━━━━━━━`;
   
@@ -262,11 +262,14 @@ function formatMinimalHighQualityBriefing({
     message += `\n🚨 BTC ${change24hFormatted}%, 심리는 **${sentimentLabelKo}**…
 근데 Trap Score는 계산 중이에요. 먼저 들어가진 마요.`;
   } else {
+    const trapReasonLine = (trapData?.exchangeNetflow > 0 || marketData?.mpi > 2)
+      ? ` Netflow + MPI + 센티먼트 = Trap Defence는 Standby Mode로 읽음.`
+      : ``;
     message += `\n🚨 BTC ${change24hFormatted}%, 심리는 **${sentimentLabelKo}**…
-근데 Trap Score는 **${scoreDisplay}/100**입니다.`;
+근데 Trap Score는 **${scoreDisplay}/100**입니다.${trapReasonLine}`;
   }
   
-  message += `\n\n지금은 "느낌"이랑 "데이터"가 싸우는 구간이에요. 짧게 정리합니다.`;
+  message += `\n\n복수 매매 금지. 확인 대기. 직감 vs 데이터—데이터 승.`;
 
   // [2/4] Quick reads (2 bullets max, trader interpretation)
   message += `\n\n[2/4] 📊 핵심만
@@ -289,34 +292,29 @@ function formatMinimalHighQualityBriefing({
     message += `\n• MPI: **${mpi.toFixed(2)}** → 채굴자 매도 압박 낮음`;
   }
   
-  message += `\n\n빨간 캔들 = 바로 함정, 이건 아니에요.`;
+  message += `\n\nNetflow + MPI 합쳐서: Trap Defence는 캔들보다 먼저 읽어요. 빨간 캔들 ≠ 즉시 함정.`;
 
-  // [3/4] Psych coaching: latency anxiety (低スコア時の認知的不協和)
-  message += `\n\n[3/4] 🧠 심리 코칭
+  // [3/4] Psych coaching: 短く・刺さる・Dr. Grok世界観
+  message += `\n\n[3/4] 🧠 심리 코칭 (Dr. Grok)
 ━━━━━━━━━━━━━━━━━━━━`;
   
   if (trapScoreRounded == null) {
-    message += `\n스코어 계산 중. 나올 때까지 먼저 들어가지 마세요.`;
+    message += `\n스코어 계산 중. 먼저 들어가지 마세요.`;
   } else if (trapScoreRounded < 30) {
-    message += `\n다만 조심: **${trapScoreRounded}/100이 제일 방심하기 쉬워요.**\n큰 함정은 조용할 때 설계됩니다.\n\n자다가 점수 튀면, 무료 리포트로는 "그 15분"을 못 잡아요.`;
+    message += `\n${trapScoreRounded}/100 = 방심 리스크. 큰 함정은 고요할 때 만들어져요. 경계 유지.`;
   } else if (trapScoreRounded < 50) {
-    message += `\n차트는 무서운데, 데이터는 아직 "함정" 쪽이 아니에요.\n여기서 할 일: 공포 때문에 클릭하지 않기.\n\n(그래도: 자는 동안 반전되면, 무료는 그 15분을 놓쳐요.)`;
+    message += `\n차트 무서운데 데이터는 아직 함정 아님. 공포가 대신 클릭하게 두지 마.`;
   } else {
-    message += `\n방어 모드. 빨간 캔들이랑 현실을 헷갈리지 마요. 함정은 하락이 아니라 '충동 청산'입니다.`;
+    message += `\n방어 모드. 캔들 시끄럽고 리스크는 아직. Standby Mode.`;
   }
   
-  // [4/4] Poll + question + soft CTA (GPT設計書に完全準拠)
-  message += `\n\n[4/4] 🗳️ 투표 + 질문 + CTA
+  // [4/4] Poll + シンプルCTA（返信負荷軽減）
+  message += `\n\n[4/4] 🗳️ 투표 + CTA
 ━━━━━━━━━━━━━━━━━━━━
 투표: Trap Score ${scoreDisplay === 'N/A' ? '(계산 중)' : `**${scoreDisplay}/100**`} — 오늘 선택은?
-A) 홀드
-B) 눌림 매수
-C) 비중 축소/매도
-D) 확인 후 진입
+A) 홀드  B) 눌림 매수  C) 비중 축소/매도  D) 확인 후 진입
 
-A/B/C/D + 시간프레임(스캘핑/스윙). 이유는 한 줄이면 충분.
-
-실시간 알림 원하면 답장으로 **TRAP** 보내주세요. DM으로 링크 드릴게요. #BTC #Bitcoin #TrapDefence`;
+다음 덤프 전에 실시간 알림 받고 싶어? **TRAP** 답장하면 링크 드려요. 하나 놓치면 자본 감소. #BTC #Bitcoin #TrapDefence`;
 
   return message.trim();
 }

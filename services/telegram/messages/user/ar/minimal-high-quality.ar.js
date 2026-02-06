@@ -257,7 +257,7 @@ function formatMinimalHighQualityBriefing({
     sentimentRaw === 'Neutral' ? 'محايد' : 'محايد';
   // trapScoreRoundedは上で既に定義済み
   
-  // [1/4] Hook: Fear vs Trap Score contradiction + immediate action
+  // [1/4] Hook: Trap Score理由1行 + gut vs data
   let message = `[1/4] 🚨 Hook
 ━━━━━━━━━━━━━━━━━━━━`;
   
@@ -265,11 +265,14 @@ function formatMinimalHighQualityBriefing({
     message += `\n🚨 BTC نازل (${change24hFormatted}%) والناس على **${sentimentLabelAr}**…
 لكن Trap Score جاري حسابه… خلّك هادي. لا تستعجل.`;
   } else {
+    const trapReasonLine = (trapData?.exchangeNetflow > 0 || marketData?.mpi > 2)
+      ? ` Netflow + MPI + المشاعر = Trap Defence يقرأها Standby Mode.`
+      : ``;
     message += `\n🚨 BTC نازل (${change24hFormatted}%) والناس على **${sentimentLabelAr}**…
-لكن Trap Score عندنا **${scoreDisplay}/100**.`;
+لكن Trap Score عندنا **${scoreDisplay}/100**.${trapReasonLine}`;
   }
   
-  message += `\n\nهذي لحظة "الإحساس ضد البيانات". خلّنا نفصلها بسرعة.`;
+  message += `\n\nلا تتداول انتقاماً. انتظر التأكيد. إحساس vs بيانات—البيانات تربح.`;
 
   // [2/4] Quick reads (2 bullets max, trader interpretation)
   message += `\n\n[2/4] 📊 مختصر ومفيد
@@ -292,34 +295,29 @@ function formatMinimalHighQualityBriefing({
     message += `\n• مؤشر المعدّنين (MPI): **${mpi.toFixed(2)}** → المعدّنون مو مستعجلين على البيع`;
   }
   
-  message += `\n\nالشموع الحمراء تخوّف… بس مو دايم يعني فخ.`;
+  message += `\n\nNetflow + MPI مع بعض: Trap Defence يقرأ قبل الشمعة. الشموع الحمراء ≠ فخ فوري.`;
 
-  // [3/4] Psych coaching: latency anxiety (低スコア時の認知的不協和)
-  message += `\n\n[3/4] 🧠 توجيه نفسي
+  // [3/4] Psych coaching: 短く・刺さる・Dr. Grok世界観
+  message += `\n\n[3/4] 🧠 توجيه نفسي (Dr. Grok)
 ━━━━━━━━━━━━━━━━━━━━`;
   
   if (trapScoreRounded == null) {
-    message += `\nالسكور جاري حسابه. لين يطلع، لا تستعجل.`;
+    message += `\nالسكور جاري حسابه. لا تستعجل.`;
   } else if (trapScoreRounded < 30) {
-    message += `\nالجزء اللي ما أحد يتكلم عنه: **${trapScoreRounded}/100 (مثل 0/100) ممكن يخلّيك ترتاح زيادة.**\nكثير من الفخاخ تنبني وقت الهدوء.\n\nولو قفز Trap Score وأنت نايم، النسخة المجانية ما تلحق **نافذة الـ15 دقيقة**—هذي النافذة ممكن تقلب القرار.`;
+    message += `\n${trapScoreRounded}/100 = خطر الارتياح. الفخاخ الكبيرة تُبنى في الهدوء. خليك متنبّه.`;
   } else if (trapScoreRounded < 50) {
-    message += `\nالشموع تخوّف… بس البيانات ما تقول "خطر".\nوظيفتك هنا: لا تخلط الخوف مع الإشارة.\n\n(مع ذلك: لو انقلب وأنت نايم، المجاني يفوّت عليك نافذة الـ15 دقيقة.)`;
+    message += `\nالشموع تخوّف، البيانات ما تقول فخ. لا تخلّي الخوف يضغط لك.`;
   } else {
-    message += `\nدفاع نشط. لا تخلط بين الشموع الحمراء والواقع. الفخ مو النزول—الفخ هو الخروج المتسرّع.`;
+    message += `\nوضع دفاعي. الشموع صاخبة؛ الخطر لسه ما جاء. Standby Mode.`;
   }
   
-  // [4/4] Poll + question + soft CTA (GPT設計書に完全準拠)
-  message += `\n\n[4/4] 🗳️ تصويت + سؤال + CTA
+  // [4/4] Poll + シンプルCTA（返信負荷軽減）
+  message += `\n\n[4/4] 🗳️ تصويت + CTA
 ━━━━━━━━━━━━━━━━━━━━
 تصويت: Trap Score ${scoreDisplay === 'N/A' ? '(جاري الحساب)' : `**${scoreDisplay}/100**`} — ما خطتك؟
-A) احتفاظ
-B) شراء هبوط
-C) تخفيف/بيع
-D) انتظار تأكيد
+A) احتفاظ  B) شراء هبوط  C) تخفيف/بيع  D) انتظار تأكيد
 
-اكتب لنا: سكالب ولا سوينغ؟
-
-إذا تبغى تنبيهات لحظية؟ رد بكلمة **TRAP** وبرسل لك الرابط على الخاص. #BTC #Bitcoin #TrapDefence`;
+تبغى تنبيهات لحظية قبل الهبوط الجاي؟ رد **TRAP** بالرابط. تنبيه واحد فات = رأس مال ناقص. #BTC #Bitcoin #TrapDefence`;
 
   return message.trim();
 }

@@ -254,7 +254,7 @@ function formatMinimalHighQualityBriefing({
     sentimentRaw === 'Neutral' ? '中立' : '中立';
   // trapScoreRoundedは上で既に定義済み
   
-  // [1/4] Hook: Fear vs Trap Score contradiction + immediate action
+  // [1/4] Hook: Trap Score理由1行 + gut vs data
   let message = `[1/4] 🚨 Hook
 ━━━━━━━━━━━━━━━━━━━━`;
   
@@ -262,19 +262,19 @@ function formatMinimalHighQualityBriefing({
     message += `\n🚨 BTCは${change24hFormatted}%、センチメントは「${sentimentLabelJa}」。
 でもTrap Scoreは計算中。先回りで入らない。`;
   } else {
+    const trapReasonLine = (trapData?.exchangeNetflow > 0 || marketData?.mpi > 2)
+      ? ` Netflow＋MPI＋センチメント＝Trap Defence的にはStandby Mode。`
+      : ``;
     message += `\n🚨 BTCは${change24hFormatted}%、センチメントは「${sentimentLabelJa}」。
-でもTrap Scoreは **${scoreDisplay}/100**。
-
-いまやること：**焦って触らない。**`;
+でもTrap Scoreは **${scoreDisplay}/100**。${trapReasonLine}`;
   }
   
-  message += `\n\n"怖い"と"安全寄り"が同居してる局面です。短くまとめます。`;
+  message += `\n\n焦って触らない。確認待ち。直感 vs データ—データが勝つ。`;
 
-  // [2/4] Quick reads (2 bullets max, trader interpretation)
+  // [2/4] Quick reads (Netflow+MPIセット意味づけ + Trap Defence的解釈)
   message += `\n\n[2/4] 📊 要点だけ
 ━━━━━━━━━━━━━━━━━━━━`;
   
-  // Exchange netflow（ネイティブ調）
   if (trapData?.exchangeNetflow !== undefined && trapData.exchangeNetflow !== null) {
     const netflow = trapData.exchangeNetflow;
     const absValue = Math.abs(netflow);
@@ -285,40 +285,34 @@ function formatMinimalHighQualityBriefing({
     }
   }
   
-  // MPI
   if (marketData?.mpi !== undefined && marketData.mpi !== null) {
     const mpi = marketData.mpi;
     message += `\n・MPI：**${mpi.toFixed(2)}**＝マイナーは投げ売りしていない`;
   }
   
-  message += `\n\n赤いローソク＝即トラップ、ではありません。`;
+  message += `\n\nNetflow＋MPIを合わせると、Trap Defenceはローソクより先に読む。赤いローソク≠即トラップ。`;
 
-  // [3/4] Psych coaching: latency anxiety (低スコア時の認知的不協和)
-  message += `\n\n[3/4] 🧠 心理コーチング
+  // [3/4] Psych coaching: 短く・刺さる・Dr. Grok世界観
+  message += `\n\n[3/4] 🧠 心理コーチング（Dr. Grok）
 ━━━━━━━━━━━━━━━━━━━━`;
   
   if (trapScoreRounded == null) {
-    message += `\nスコアは計算中。出るまで先回りで入らない。`;
+    message += `\nスコア計算中。先回りするな。`;
   } else if (trapScoreRounded < 30) {
-    message += `\n注意：**${trapScoreRounded}/100は油断を生みます。**\n大きい罠は「静かな時間」に仕込まれがち。\n\n寝ている間にスコアが跳ねたら、無料の定期更新だと、その15分に間に合いません。`;
+    message += `\n${trapScoreRounded}/100＝油断リスク。大きい罠は静かな時間に仕込まれる。警戒維持。`;
   } else if (trapScoreRounded < 50) {
-    message += `\n雰囲気は怖い。でもデータはまだ"罠"寄りじゃない。\nここでの役割：恐怖に押されて悪いクリックをしない。\n\n(それでも：寝ている間に反転したら、無料はその15分を逃す。)`;
+    message += `\n雰囲気は怖い。データはまだ"罠"寄りじゃない。恐怖にクリックさせるな。`;
   } else {
-    message += `\n防御モード。赤いローソクと現実を混同しないで。罠は下落ではなく、衝動的な撤退です。`;
+    message += `\n防御モード。ローソクは騒いでる。リスクはまだ。Standby Mode。`;
   }
   
-  // [4/4] Poll + question + soft CTA (GPT設計書に完全準拠)
-  message += `\n\n[4/4] 🗳️ 投票 + 質問 + CTA
+  // [4/4] Poll + シンプルCTA（返信負荷軽減・1分で読める）
+  message += `\n\n[4/4] 🗳️ 投票 + CTA
 ━━━━━━━━━━━━━━━━━━━━
 投票：Trap Score ${scoreDisplay === 'N/A' ? '（計算中）' : `**${scoreDisplay}/100**`}、今どうする？
-A) ホールド
-B) 押し目買い
-C) リスク落とす
-D) 確認待ち
+A) ホールド  B) 押し目買い  C) リスク落とす  D) 確認待ち
 
-A〜D と、時間軸（短期/スイング）を返信ください。
-
-リアルタイム警告が欲しい人は **TRAP** と返信してくれたら、DMで案内します。 #BTC #Bitcoin #TrapDefence`;
+リアルタイム警告が欲しい？次に落ちる前に知りたい？ **TRAP** と返信でリンク送る。1つの見逃し＝資本減少。 #BTC #Bitcoin #TrapDefence`;
 
   return message.trim();
 }

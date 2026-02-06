@@ -253,7 +253,7 @@ function formatMinimalHighQualityBriefing({
     sentimentRaw === 'Neutral' ? 'Neutral' : 'Neutral';
   // trapScoreRoundedは上で既に定義済み
   
-  // [1/4] Hook: Fear vs Trap Score contradiction + immediate action
+  // [1/4] Hook: Trap Score理由1行 + gut vs data
   let message = `[1/4] 🚨 Hook
 ━━━━━━━━━━━━━━━━━━━━`;
   
@@ -261,13 +261,14 @@ function formatMinimalHighQualityBriefing({
     message += `\n🚨 BTC caindo (${change24hFormatted}%) e o sentimento em **${sentimentLabelPt}**…
 mas o Trap Score ainda tá calculando. Não se adianta.`;
   } else {
+    const trapReasonLine = (trapData?.exchangeNetflow > 0 || marketData?.mpi > 2)
+      ? ` Netflow + MPI + sentimento = Trap Defence lê como Standby Mode.`
+      : ``;
     message += `\n🚨 BTC caindo (${change24hFormatted}%) e o sentimento em **${sentimentLabelPt}**…
-mas o Trap Score tá **${scoreDisplay}/100**.`;
+mas o Trap Score tá **${scoreDisplay}/100**.${trapReasonLine}`;
   }
   
-  message += `\n\nÉ aquela hora em que o estômago grita e os dados falam o contrário.
-
-Agora: calma. Respira. Nada de operar no impulso.`;
+  message += `\n\nNão opere por vingança. Espere confirmação. Instinto vs dados—dados ganham.`;
 
   // [2/4] Quick reads (2 bullets max, trader interpretation)
   message += `\n\n[2/4] 📊 Rápido e Direto
@@ -290,34 +291,29 @@ Agora: calma. Respira. Nada de operar no impulso.`;
     message += `\n• MPI: **${mpi.toFixed(2)}** → mineradores não estão vendendo com pressa`;
   }
   
-  message += `\n\nVela vermelha assusta, mas não é sinônimo de armadilha.`;
+  message += `\n\nNetflow + MPI juntos: Trap Defence lê antes da vela. Vela vermelha ≠ armadilha instantânea.`;
 
-  // [3/4] Psych coaching: latency anxiety (低スコア時の認知的不協和)
-  message += `\n\n[3/4] 🧠 Coaching Psicológico
+  // [3/4] Psych coaching: 短く・刺さる・Dr. Grok世界観
+  message += `\n\n[3/4] 🧠 Coaching Psicológico (Dr. Grok)
 ━━━━━━━━━━━━━━━━━━━━`;
   
   if (trapScoreRounded == null) {
-    message += `\nO score ainda tá calculando. Até sair, não se adianta.`;
+    message += `\nScore calculando. Não se adiante.`;
   } else if (trapScoreRounded < 30) {
-    message += `\nSó um alerta: **${trapScoreRounded}/100 dá uma falsa calma.**\nMuita armadilha nasce no silêncio.\n\nSe o score virar enquanto você dorme, o "grátis" não cobre aquela janela de 15 minutos.`;
+    message += `\n${trapScoreRounded}/100 = risco de complacência. Armadilhas grandes nascem no silêncio. Fique alerta.`;
   } else if (trapScoreRounded < 50) {
-    message += `\nO gráfico assusta… mas os dados não tão gritando "perigo".\nSua função aqui: não deixa o medo te empurrar pra um clique ruim.\n\n(Ainda assim: se virar enquanto você dorme, o grátis perde esses 15 minutos.)`;
+    message += `\nGráfico assusta, dados não gritam armadilha. Não deixe o medo clicar por você.`;
   } else {
-    message += `\nDefesa ativa. Não confunda vela vermelha com risco real. A armadilha não é o dip—é sair no impulso.`;
+    message += `\nModo defesa. Velas barulhentas; risco ainda não. Standby Mode.`;
   }
   
-  // [4/4] Poll + question + soft CTA (GPT設計書に完全準拠)
-  message += `\n\n[4/4] 🗳️ Enquete + Pergunta + CTA
+  // [4/4] Poll + シンプルCTA（返信負荷軽減）
+  message += `\n\n[4/4] 🗳️ Enquete + CTA
 ━━━━━━━━━━━━━━━━━━━━
 Enquete: Trap Score ${scoreDisplay === 'N/A' ? '*(calculando)*' : `**${scoreDisplay}/100**`} — você vai:
-A) Segurar
-B) Comprar o dip
-C) Vender / reduzir
-D) Esperar confirmação
+A) Segurar  B) Comprar dip  C) Vender/reduzir  D) Esperar confirmação
 
-Responde A/B/C/D + teu timeframe (scalp/swing).
-
-Quer alerta em tempo real? Responde **TRAP** que eu te mando o link no DM. #BTC #Bitcoin #TrapDefence`;
+Quer alertas em tempo real antes do próximo dump? Responde **TRAP** pelo link. Uma alerta perdida = capital perdido. #BTC #Bitcoin #TrapDefence`;
 
   return message.trim();
 }

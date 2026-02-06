@@ -258,7 +258,7 @@ function formatMinimalHighQualityBriefing({
     (sentimentRaw && typeof sentimentRaw === 'string') ? sentimentRaw : 'Neutral';
   // trapScoreRoundedは上で既に定義済み
   
-  // [1/4] Hook: Fear vs Trap Score contradiction + immediate action
+  // [1/4] Hook: Trap Score理由1行 + gut vs data
   let message = `[1/4] 🚨 Hook
 ━━━━━━━━━━━━━━━━━━━━`;
   
@@ -266,17 +266,19 @@ function formatMinimalHighQualityBriefing({
     message += `\n🚨 BTC rojo (${change24hFormatted}%) y el mercado en **${sentimentLabelEs}**…
 pero el Trap Score está calculando. No te lances.`;
   } else {
+    const trapReasonLine = (trapData?.exchangeNetflow > 0 || marketData?.mpi > 2)
+      ? ` Netflow + MPI + sentimiento = Trap Defence lo interpreta como Standby Mode.`
+      : ``;
     message += `\n🚨 BTC rojo (${change24hFormatted}%) y el mercado en **${sentimentLabelEs}**…
-pero el Trap Score está en **${scoreDisplay}/100**.`;
+pero el Trap Score está en **${scoreDisplay}/100**.${trapReasonLine}`;
   }
   
-  message += `\n\nSí, suena raro. Ahora mismo: nada de operar por desquite. Justo ahí es donde la mano te pica… y te cobra.`;
+  message += `\n\nNo operes por desquite. Espera confirmación. Instinto vs datos—ganan los datos.`;
 
-  // [2/4] Quick reads (2 bullets max, trader interpretation)
+  // [2/4] Quick reads (Netflow+MPIセット意味づけ)
   message += `\n\n[2/4] 📊 En Corto, Sin Humo
 ━━━━━━━━━━━━━━━━━━━━`;
   
-  // Exchange netflow（ネイティブ調）
   if (trapData?.exchangeNetflow !== undefined && trapData.exchangeNetflow !== null) {
     const netflow = trapData.exchangeNetflow;
     const absValue = Math.abs(netflow);
@@ -287,40 +289,34 @@ pero el Trap Score está en **${scoreDisplay}/100**.`;
     }
   }
   
-  // MPI
   if (marketData?.mpi !== undefined && marketData.mpi !== null) {
     const mpi = marketData.mpi;
     message += `\n• MPI: **${mpi.toFixed(2)}** → los mineros no están vendiendo a lo loco`;
   }
   
-  message += `\n\nLa vela roja asusta… pero no siempre es trampa.`;
+  message += `\n\nNetflow + MPI juntos: Trap Defence lee esto antes que la vela. Vela roja ≠ trampa al instante.`;
 
-  // [3/4] Psych coaching: latency anxiety (低スコア時の認知的不協和)
-  message += `\n\n[3/4] 🧠 Coaching Psicológico
+  // [3/4] Psych coaching: 短く・刺さる・Dr. Grok世界観
+  message += `\n\n[3/4] 🧠 Coaching Psicológico (Dr. Grok)
 ━━━━━━━━━━━━━━━━━━━━`;
   
   if (trapScoreRounded == null) {
-    message += `\nEl score está calculando. Hasta que salga, no te adelantes.`;
+    message += `\nScore calculando. No te adelantes.`;
   } else if (trapScoreRounded < 30) {
-    message += `\nOjo: un **${trapScoreRounded}/100** también puede ser peligroso… por confianza.\nLas trampas grandes se arman cuando "no pasa nada".\n\nY si el score se dispara mientras duermes, el reporte gratis llega tarde. Y esos 15 minutos te cambian la jugada.`;
+    message += `\n${trapScoreRounded}/100 = riesgo de complacencia. Las trampas grandes se arman en lo tranquilo. Mantente alerta.`;
   } else if (trapScoreRounded < 50) {
-    message += `\nEl mercado se ve feo… pero los datos no gritan "peligro".\nTu trabajo aquí: no dejes que el miedo te empuje a una entrada fea.\n\n(Igual ojo: si se da vuelta mientras duermes, el gratis se come esos 15 minutos.)`;
+    message += `\nMercado feo, datos no gritan trampa. No dejes que el miedo haga click por ti.`;
   } else {
-    message += `\nDefensa activa. No confundas velas rojas con riesgo real. La trampa no es la caída—es salir por impulso.`;
+    message += `\nModo defensa. Velas ruidosas; el riesgo aún no. Standby Mode.`;
   }
   
-  // [4/4] Poll + question + soft CTA (GPT設計書に完全準拠)
-  message += `\n\n[4/4] 🗳️ Encuesta + Pregunta + CTA
+  // [4/4] Poll + シンプルCTA（返信負荷軽減）
+  message += `\n\n[4/4] 🗳️ Encuesta + CTA
 ━━━━━━━━━━━━━━━━━━━━
 Encuesta: Trap Score ${scoreDisplay === 'N/A' ? '*(calculando)*' : `**${scoreDisplay}/100**`} — ¿tu jugada?
-A) Aguanto
-B) Compro el dip
-C) Vendo / reduzco
-D) Espero confirmación
+A) Aguanto  B) Compro dip  C) Vendo / reduzco  D) Espero confirmación
 
-Responde A/B/C/D + tu timeframe (scalp/swing).
-
-Si quieres alertas en tiempo real, comenta **TRAP** y te paso el enlace por DM. #BTC #Bitcoin #TrapDefence`;
+¿Quieres alertas en tiempo real antes del próximo dump? Responde **TRAP** por el enlace. Una alerta perdida = capital perdido. #BTC #Bitcoin #TrapDefence`;
 
   return message.trim();
 }
