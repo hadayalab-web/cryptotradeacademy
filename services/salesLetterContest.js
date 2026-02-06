@@ -169,7 +169,7 @@ ${marketContext ? `\nMARKET CONTEXT (use for tone and urgency—follow this fram
 PERSONA TESTIMONIALS (ハッタリ戦法 — もっと大げさに。Use ONE in OBJECTION HANDLING or right after Product Intro. Tone: dramatic, over-the-top, "I'm Safe (Trap Avoided)" energy. Short, punchy, outcome = saved / avoided / didn't get rekt.):
 ${testimonialBlock}
 
-SOCIAL PROOF: We will append a line like "🔥 X,XXX+ Trap Avoided This Week (6 langs, worldwide) 👥 I'm Safe" after your post. In objection handling use a CONCRETE number (e.g. 3,200+ or 4,500+) for "avoided the trap this week"—do NOT write "XXX+". Reference "traders in 6 languages", "worldwide". Scale = real. Go big.
+SOCIAL PROOF: We will append a line like "🔥 12,000+ Trap Avoided This Week (6 langs, worldwide) 👥 I'm Safe" after your post. In objection handling use a BIG concrete number (e.g. 8,000+ or 14,000+) for "avoided the trap this week worldwide"—do NOT write "XXX+". Reference "traders in 6 languages", "worldwide". ガンガン盛れ。
 
 X ALGORITHM — ON-CHAIN DATA SUPPLY (mandatory for reach):
 X's algorithm favors concrete numbers and BTC/on-chain topic relevance. Weave 2–3 specific numbers from the data above into your copy (e.g. Trap Score 28, Exchange Netflow -40k, Whale Ratio 0.82, MPI, 24h%). Use them in a sentence, not as a dry list. This boosts engagement and topic relevance.

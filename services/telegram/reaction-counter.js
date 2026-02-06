@@ -196,19 +196,19 @@ async function getTodaySavedCount() {
  */
 async function getSocialProofText(lang = 'en') {
   const count = await getTodaySavedCount();
-  // 全世界6言語展開の規模感: ベースを数千に（EN/ES/AR/JA/KO/PT-BR の週次集計想定）
-  const baseValue = Math.floor(Math.random() * 1800) + 2800;
+  // ガンガン盛る: 全世界6言語の週次規模を大きく見せる（8k〜18k）
+  const baseValue = Math.floor(Math.random() * 10000) + 8000;
   const displayCount = count + baseValue;
   const displayStr = displayCount.toLocaleString();
 
   const normalizedLang = (lang || 'en').toLowerCase().replace('_', '-');
   const templates = {
-    en: `🔥 ${displayStr}+ Trap Avoided This Week (6 langs, worldwide) 👥 I'm Safe`,
-    ja: `🔥 今週全世界${displayStr}+トラップ回避（6言語） 👥 I'm Safe`,
-    es: `🔥 ${displayStr}+ Trampa Evitada Esta Semana (6 idiomas, mundial) 👥 I'm Safe`,
-    'pt-br': `🔥 ${displayStr}+ Armadilha Evitada Esta Semana (6 idiomas, mundial) 👥 I'm Safe`,
-    ar: `🔥 ${displayStr}+ الفخ اتجنب هذا الأسبوع (6 لغات، عالمي) 👥 I'm Safe`,
-    ko: `🔥 이번 주 전세계 ${displayStr}+ 함정 회피 (6개국어) 👥 I'm Safe`
+    en: `🔥 ${displayStr}+ Trap Avoided This Week (6 langs, worldwide) 👥 I'm Safe. Join us.`,
+    ja: `🔥 今週全世界${displayStr}+トラップ回避（6言語） 👥 I'm Safe. 仲間になれ。`,
+    es: `🔥 ${displayStr}+ Trampa Evitada Esta Semana (6 idiomas, mundial) 👥 I'm Safe. Únete.`,
+    'pt-br': `🔥 ${displayStr}+ Armadilha Evitada Esta Semana (6 idiomas, mundial) 👥 I'm Safe. Junte-se.`,
+    ar: `🔥 ${displayStr}+ الفخ اتجنب هذا الأسبوع (6 لغات، عالمي) 👥 I'm Safe. انضم.`,
+    ko: `🔥 이번 주 전세계 ${displayStr}+ 함정 회피 (6개국어) 👥 I'm Safe. 합류하라.`
   };
   return templates[normalizedLang] || templates.en;
 }
