@@ -135,7 +135,7 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
     comments.push(lowRiskMessages[Math.floor(Math.random() * lowRiskMessages.length)]);
   } else if (score >= 70) {
     comments.push('"No es día de velocidad. Protege capital. Modo defensa activo."');
-  } else if (trapScore >= 50) {
+  } else if (score >= 50) {
     comments.push('"Mantén la disciplina. El mercado está probando tu paciencia. Defensa primero. Espera señales claras."');
   } else {
     comments.push('"Buena disciplina. Sigue esperando oportunidades claras. El riesgo bajo no significa bajar la guardia."');
@@ -145,7 +145,7 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
   if (sentimentData) {
     if (sentimentData.sentiment === 'FOMO' || sentimentData.sentiment === 'GREED') {
       comments.push('"El sentimiento del mercado es emocional. Es cuando ocurren las trampas. Mantén la calma."');
-    } else if (sentimentData.sentiment === 'FEAR') {
+    } else if (sentimentData.sentiment === 'FEAR' || sentimentData.sentiment === 'Fear') {
       comments.push('"El miedo es natural. Pero las decisiones basadas en datos te protegen."');
     }
   }
@@ -250,10 +250,12 @@ function formatMinimalHighQualityBriefing({
   const sentimentRaw = sentimentData?.sentiment;
   const sentimentLabelEs =
     sentimentRaw === 'Extreme Fear' ? 'Miedo Extremo' :
+    sentimentRaw === 'Extreme Greed' ? 'Codicia Extrema' :
     (sentimentRaw === 'Fear' || sentimentRaw === 'FEAR') ? 'Miedo' :
     (sentimentRaw === 'Greed' || sentimentRaw === 'GREED') ? 'Codicia' :
     sentimentRaw === 'FOMO' ? 'FOMO' :
-    'Miedo Extremo';
+    sentimentRaw === 'Neutral' ? 'Neutral' :
+    (sentimentRaw && typeof sentimentRaw === 'string') ? sentimentRaw : 'Neutral';
   // trapScoreRoundedは上で既に定義済み
   
   // [1/4] Hook: Fear vs Trap Score contradiction + immediate action

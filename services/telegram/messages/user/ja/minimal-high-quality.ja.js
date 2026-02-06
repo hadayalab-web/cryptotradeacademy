@@ -46,10 +46,10 @@ function generateWhatToAvoid(trapScore, trapData = null) {
 
   // デフォルトの回避行動（ネイティブ調）
   if (avoidItems.length === 0) {
-    if (trapScore >= 70) {
+    if (score >= 70) {
       avoidItems.push('ロング/ショートは無理に作らない — 防御モード');
       avoidItems.push('サイズ落として、損切りライン先に決める');
-    } else if (trapScore >= 50) {
+    } else if (score >= 50) {
       avoidItems.push('待つのもポジション — 確認待ち');
       avoidItems.push('混合ゾーン。無理にエントリーしない');
     }
@@ -129,9 +129,9 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
       '"誰も言わないこと：0/100は油断を生む。大きい罠は静かな時間に仕込まれる。"',
     ];
     comments.push(lowRiskMessages[Math.floor(Math.random() * lowRiskMessages.length)]);
-  } else if (trapScore >= 70) {
+  } else if (score >= 70) {
     comments.push('"FOMOが今高い。貪欲が防御戦略を上回らないように。待とう。今が最も危険な時だ。"');
-  } else if (trapScore >= 50) {
+  } else if (score >= 50) {
     comments.push('"規律を保とう。市場はあなたの忍耐を試している。防御第一。明確なシグナルを待て。"');
   } else {
     comments.push('"良い規律だ。明確な機会を待ち続けよう。低リスクでも警戒を怠るな。"');
@@ -141,7 +141,7 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
   if (sentimentData) {
     if (sentimentData.sentiment === 'FOMO' || sentimentData.sentiment === 'GREED') {
       comments.push('"市場のセンチメントは感情的だ。これがトラップが発生する時だ。冷静さを保とう。"');
-    } else if (sentimentData.sentiment === 'FEAR') {
+    } else if (sentimentData.sentiment === 'FEAR' || sentimentData.sentiment === 'Fear') {
       comments.push('"恐怖は自然な感情だ。しかし、データに基づいた判断があなたを守る。"');
     }
   }
@@ -244,11 +244,14 @@ function formatMinimalHighQualityBriefing({
 
   // GPT設計書に完全準拠: 4-post thread形式（Telegram用に1メッセージに統合）
   const change24hFormatted = change24h != null ? (change24h >= 0 ? `+${change24h.toFixed(2)}` : change24h.toFixed(2)) : 'N/A';
-  const sentimentLabel = sentimentData?.sentiment || '極度の恐怖';
-  const sentimentLabelJa = sentimentLabel === 'Extreme Fear' ? '極度の恐怖' :
-                           sentimentLabel === 'Fear' ? '恐怖' :
-                           sentimentLabel === 'Greed' ? '強欲' :
-                           sentimentLabel === 'FOMO' ? 'FOMO' : '中立';
+  const sentimentRaw = sentimentData?.sentiment;
+  const sentimentLabelJa =
+    sentimentRaw === 'Extreme Fear' ? '極度の恐怖' :
+    sentimentRaw === 'Extreme Greed' ? '極度の強欲' :
+    (sentimentRaw === 'Fear' || sentimentRaw === 'FEAR') ? '恐怖' :
+    (sentimentRaw === 'Greed' || sentimentRaw === 'GREED') ? '強欲' :
+    sentimentRaw === 'FOMO' ? 'FOMO' :
+    sentimentRaw === 'Neutral' ? '中立' : '中立';
   // trapScoreRoundedは上で既に定義済み
   
   // [1/4] Hook: Fear vs Trap Score contradiction + immediate action

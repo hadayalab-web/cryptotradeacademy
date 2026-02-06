@@ -129,9 +129,9 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
       '"A parte que ninguém fala: 0/100 pode te deixar confiante demais. As armadilhas grandes se montam quando \'não tá acontecendo nada\'."',
     ];
     comments.push(lowRiskMessages[Math.floor(Math.random() * lowRiskMessages.length)]);
-  } else if (trapScore >= 70) {
+  } else if (score >= 70) {
     comments.push('"Não opera rápido. Protege capital. Modo defesa ativo. Esse é o momento mais perigoso."');
-  } else if (trapScore >= 50) {
+  } else if (score >= 50) {
     comments.push('"Zona mista. Espera confirmação. Defesa primeiro. Não se apressa."');
   } else {
     comments.push('"Parece feio, os dados dizem limpo (por enquanto). Não confunde ansiedade com realidade do mercado."');
@@ -141,7 +141,7 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
   if (sentimentData) {
     if (sentimentData.sentiment === 'FOMO' || sentimentData.sentiment === 'GREED') {
       comments.push('"O sentimento do mercado está emocional. É quando as armadilhas ocorrem. Mantenha a calma."');
-    } else if (sentimentData.sentiment === 'FEAR') {
+    } else if (sentimentData.sentiment === 'FEAR' || sentimentData.sentiment === 'Fear') {
       comments.push('"O medo é natural. Mas decisões baseadas em dados te protegem."');
     }
   }
@@ -243,11 +243,14 @@ function formatMinimalHighQualityBriefing({
 
   // GPT設計書に完全準拠: 4-post thread形式（Telegram用に1メッセージに統合）
   const change24hFormatted = change24h != null ? (change24h >= 0 ? `+${change24h.toFixed(2)}` : change24h.toFixed(2)) : 'N/A';
-  const sentimentLabel = sentimentData?.sentiment || 'Medo Extremo';
-  const sentimentLabelPt = sentimentLabel === 'Extreme Fear' ? 'Medo Extremo' :
-                           sentimentLabel === 'Fear' ? 'Medo' :
-                           sentimentLabel === 'Greed' ? 'Ganância' :
-                           sentimentLabel === 'FOMO' ? 'FOMO' : 'Neutral';
+  const sentimentRaw = sentimentData?.sentiment;
+  const sentimentLabelPt =
+    sentimentRaw === 'Extreme Fear' ? 'Medo Extremo' :
+    sentimentRaw === 'Extreme Greed' ? 'Ganância Extrema' :
+    (sentimentRaw === 'Fear' || sentimentRaw === 'FEAR') ? 'Medo' :
+    (sentimentRaw === 'Greed' || sentimentRaw === 'GREED') ? 'Ganância' :
+    sentimentRaw === 'FOMO' ? 'FOMO' :
+    sentimentRaw === 'Neutral' ? 'Neutral' : 'Neutral';
   // trapScoreRoundedは上で既に定義済み
   
   // [1/4] Hook: Fear vs Trap Score contradiction + immediate action

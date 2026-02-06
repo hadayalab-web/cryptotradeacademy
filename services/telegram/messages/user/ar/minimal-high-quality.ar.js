@@ -50,10 +50,10 @@ function generateWhatToAvoid(trapScore, trapData = null) {
 
   // الإجراءات الافتراضية التي يجب تجنبها（ネイティブ調）
   if (avoidItems.length === 0) {
-    if (trapScore >= 70) {
+    if (score >= 70) {
       avoidItems.push('لا تتداول بسرعة — احم رأس المال');
       avoidItems.push('انتظر إشارات أوضح');
-    } else if (trapScore >= 50) {
+    } else if (score >= 50) {
       avoidItems.push('منطقة مختلطة — انتظر التأكيد');
       avoidItems.push('فرص دخول أفضل قادمة');
     }
@@ -133,9 +133,9 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
       '"الجزء اللي ما أحد يتكلم عنه: 0/100 ممكن يخليك واثق زيادة. الفخاخ الكبيرة تبنى في الهدوء."',
     ];
     comments.push(lowRiskMessages[Math.floor(Math.random() * lowRiskMessages.length)]);
-  } else if (trapScore >= 70) {
+  } else if (score >= 70) {
     comments.push('"لا تتداول بسرعة. احم رأس المال. وضع الدفاع نشط. هذا هو الوقت الأكثر خطورة."');
-  } else if (trapScore >= 50) {
+  } else if (score >= 50) {
     comments.push('"منطقة مختلطة. انتظر التأكيد. الدفاع أولاً. لا تستعجل."');
   } else {
     comments.push('"يبدو مخيف، البيانات تقول نظيف (لحد الآن). لا تخلط القلق مع واقع السوق."');
@@ -145,7 +145,7 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
   if (sentimentData) {
     if (sentimentData.sentiment === 'FOMO' || sentimentData.sentiment === 'GREED') {
       comments.push('"السوق يبدو عاطفي. هنا تحدث الفخاخ. النقد أيضاً موقف."');
-    } else if (sentimentData.sentiment === 'FEAR') {
+    } else if (sentimentData.sentiment === 'FEAR' || sentimentData.sentiment === 'Fear') {
       comments.push('"الخوف طبيعي. لكن لا تخلط الشموع الحمراء مع الخطر الحقيقي."');
     }
   }
@@ -247,11 +247,14 @@ function formatMinimalHighQualityBriefing({
 
   // GPT設計書に完全準拠: 4-post thread形式（Telegram用に1メッセージに統合）
   const change24hFormatted = change24h != null ? (change24h >= 0 ? `+${change24h.toFixed(2)}` : change24h.toFixed(2)) : 'N/A';
-  const sentimentLabel = sentimentData?.sentiment || 'خوف شديد';
-  const sentimentLabelAr = sentimentLabel === 'Extreme Fear' ? 'خوف شديد' :
-                           sentimentLabel === 'Fear' ? 'خوف' :
-                           sentimentLabel === 'Greed' ? 'جشع' :
-                           sentimentLabel === 'FOMO' ? 'FOMO' : 'محايد';
+  const sentimentRaw = sentimentData?.sentiment;
+  const sentimentLabelAr =
+    sentimentRaw === 'Extreme Fear' ? 'خوف شديد' :
+    sentimentRaw === 'Extreme Greed' ? 'جشع شديد' :
+    (sentimentRaw === 'Fear' || sentimentRaw === 'FEAR') ? 'خوف' :
+    (sentimentRaw === 'Greed' || sentimentRaw === 'GREED') ? 'جشع' :
+    sentimentRaw === 'FOMO' ? 'FOMO' :
+    sentimentRaw === 'Neutral' ? 'محايد' : 'محايد';
   // trapScoreRoundedは上で既に定義済み
   
   // [1/4] Hook: Fear vs Trap Score contradiction + immediate action

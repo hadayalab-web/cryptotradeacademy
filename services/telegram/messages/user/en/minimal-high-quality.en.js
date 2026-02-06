@@ -135,7 +135,7 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
     comments.push(lowRiskMessages[Math.floor(Math.random() * lowRiskMessages.length)]);
   } else if (trapScoreNum >= 70) {
     comments.push('"Do not trade fast. Protect capital. Defense mode active. This is the most dangerous time."');
-  } else if (trapScore >= 50) {
+  } else if (trapScoreNum >= 50) {
     comments.push('"Mixed zone. Wait for confirmation. Defense first. Don\'t rush."');
   } else {
     comments.push('"Looks scary, data says clean (for now). Don\'t confuse anxiety with market reality."');
@@ -145,7 +145,7 @@ function generateDrGrokComment(trapScore, sentimentData = null) {
   if (sentimentData) {
     if (sentimentData.sentiment === 'FOMO' || sentimentData.sentiment === 'GREED') {
       comments.push('"Market feels emotional. This is when traps happen. Cash is a position."');
-    } else if (sentimentData.sentiment === 'FEAR') {
+    } else if (sentimentData.sentiment === 'FEAR' || sentimentData.sentiment === 'Fear') {
       comments.push('"Fear is natural. But don\'t confuse red candles with real risk."');
     }
   }
@@ -242,10 +242,12 @@ function formatMinimalHighQualityBriefing({
   const sentimentLabelRaw = sentimentData?.sentiment;
   const sentimentLabel =
     sentimentLabelRaw === 'Extreme Fear' ? 'Extreme Fear' :
+    sentimentLabelRaw === 'Extreme Greed' ? 'Extreme Greed' :
     sentimentLabelRaw === 'FEAR' || sentimentLabelRaw === 'Fear' ? 'Fear' :
     sentimentLabelRaw === 'FOMO' ? 'FOMO' :
     sentimentLabelRaw === 'GREED' || sentimentLabelRaw === 'Greed' ? 'Greed' :
-    'Extreme Fear';
+    sentimentLabelRaw === 'Neutral' ? 'Neutral' :
+    (sentimentLabelRaw && typeof sentimentLabelRaw === 'string') ? sentimentLabelRaw : 'Neutral';
   // trapScoreRoundedは上で既に定義済み
   
   // [1/4] Hook: Fear vs Trap Score contradiction + immediate action
