@@ -8,21 +8,21 @@
 
 /**
  * 言語別インフルエンサー数設定（1回のCron実行あたりの投稿候補数）
- * 300人ローテーション強化: ストックをフル活用して投稿数を増加。
- * 目標: 約 480 投稿/日（en 144, es 72, pt-br 48, ar 72, ko 48, ja 48）
+ * 即効性・収益最大化: 1回あたり投稿数を増やし露出を約2倍に（約800投稿/日）。
+ * 環境変数で上書き可能: INFLUENCER_COUNT_EN, INFLUENCER_COUNT_ES など。
  */
 const INFLUENCER_COUNT_BY_LANG = {
-  en: parseInt(process.env.INFLUENCER_COUNT_EN || "6", 10),
-  es: parseInt(process.env.INFLUENCER_COUNT_ES || "3", 10),
-  "pt-br": parseInt(process.env.INFLUENCER_COUNT_PT_BR || "2", 10),
-  ar: parseInt(process.env.INFLUENCER_COUNT_AR || "3", 10),
-  ko: parseInt(process.env.INFLUENCER_COUNT_KO || "2", 10),
-  ja: parseInt(process.env.INFLUENCER_COUNT_JA || "2", 10)
+  en: parseInt(process.env.INFLUENCER_COUNT_EN || "12", 10),
+  es: parseInt(process.env.INFLUENCER_COUNT_ES || "6", 10),
+  "pt-br": parseInt(process.env.INFLUENCER_COUNT_PT_BR || "4", 10),
+  ar: parseInt(process.env.INFLUENCER_COUNT_AR || "6", 10),
+  ko: parseInt(process.env.INFLUENCER_COUNT_KO || "4", 10),
+  ja: parseInt(process.env.INFLUENCER_COUNT_JA || "4", 10)
 };
 
 /**
  * 時価配分設定（ピーク時間とオフピーク時間の投稿数比率）
- * 初回ストック運用: オフピーク（UTC 13,14）は少し控えめに。
+ * 即効性最大化: 全時間帯フル配分（オフピーク制限を撤廃）。
  */
 const HOURLY_DISTRIBUTION = {
   peak: {
@@ -31,7 +31,7 @@ const HOURLY_DISTRIBUTION = {
   },
   offPeak: {
     hours: [13, 14],
-    multiplier: 0.5 // 通常の50%（en 3→1, es 2→1 など）
+    multiplier: 1.0 // 全時間帯フル配分（即効性・露出最大化）
   }
 };
 
