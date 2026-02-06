@@ -146,6 +146,13 @@ function formatRegularBriefing({
   }
 
   const isPositioningWindow = isLowTrapRisk && !hasActiveTrapAlert;
+  const entryPrice = priceUsd;
+  const tpPrice = tradeSignal?.tp;
+  const slPrice = tradeSignal?.sl;
+  const isNoTradeZone = !isPositioningWindow && (
+    (tpPrice == null && slPrice == null) ||
+    (entryPrice === tpPrice && entryPrice === slPrice)
+  );
   const entryLine = isPositioningWindow
     ? `• الدخول: فكّر في صفقات نوعية عندما تكون الأفضلية واضحة (مرجع ${formatUsd(priceUsd)})`
     : (!isLowTrapRisk && !hasActiveTrapAlert
@@ -188,11 +195,15 @@ function formatRegularBriefing({
   // ===== 【最重要】Trade Verdict（最上部に配置） =====
   lines.push('🎯 حكم التداول');
   lines.push(`${dirEmoji} الإشارة: ${dirLabel}`);
-  lines.push(entryLine);
-  if (modeLine) lines.push(modeLine);
-  if (tpLine) lines.push(tpLine);
-  if (slLine) lines.push(slLine);
-  if (rrLine) lines.push(rrLine);
+  if (isNoTradeZone) {
+    lines.push(`• No Trade Zone — الدخول/TP/SL غير محدد. انتظر أفضلية واضحة.`);
+  } else {
+    lines.push(entryLine);
+    if (modeLine) lines.push(modeLine);
+    if (tpLine) lines.push(tpLine);
+    if (slLine) lines.push(slLine);
+    if (rrLine) lines.push(rrLine);
+  }
   lines.push('');
 
   let actionPreview = '';
@@ -219,6 +230,8 @@ function formatRegularBriefing({
     lines.push(`المشاعر: ${sentimentLabel}`);
     lines.push('');
     lines.push(contextNote);
+    const contextInterpretation = 'Netflow + MPI + المشاعر معاً: Trap Defence يفسر هذه المجموعة كمخاطر فخ مرتفعة — خوف التجزئة + تدفق للبورصات + سلوك المعدّنين.';
+    lines.push(`💡 ${contextInterpretation}`);
     lines.push('');
   }
 
@@ -226,8 +239,11 @@ function formatRegularBriefing({
   lines.push('✨ أبرز اليوم');
   lines.push('');
   const trapData = trapDetection || marketBug;
+  const unifiedTrapScore = effectiveTrapScore != null ? Math.round(effectiveTrapScore) : (trapData?.trapScore != null ? Math.round(trapData.trapScore) : null);
+  const trapTypeRaw = (trapData?.trapType || trapData?.bugType || 'شذوذ').replace(/_/g, ' ');
+  const multiLayerNote = /MULTI\s*LAYER|MULTI_LAYER/i.test(trapTypeRaw) ? ' (شذوذات متعددة مكتشفة في نفس الوقت)' : '';
   const trapOneLine = trapData && (trapData.trapDetected || trapData.bugDetected)
-    ? `🛡️ الفخ: ${(trapData.trapType || trapData.bugType || 'شذوذ').replace(/_/g, ' ')} (${Math.round(trapData.trapScore || trapData.bugScore || 0)}/100)`
+    ? `🛡️ الفخ: ${trapTypeRaw} (${unifiedTrapScore ?? Math.round(trapData.trapScore || trapData.bugScore || 0)}/100)${multiLayerNote}`
     : '🛡️ الفخ: لا فخ مكتشف';
   const trapRiskLabel = isLowTrapRisk ? 'منخفض' : (effectiveTrapScore != null && effectiveTrapScore >= 50 ? 'عالي' : 'متوسط');
   const cqOneLine = inflow >= 0
@@ -396,6 +412,9 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
       if (isHighTrap) {
         lines.push(`🎯 درجة الفخ: ${trapScoreRounded}/100 → مخاطر فخ كبيرة`);
         if (trapTypeForEvidence) lines.push(`⚠️ تم اكتشاف ${(trapTypeForEvidence || '').replace(/_/g, ' ')}`);
+        lines.push(`• ارتفاع صافي التدفق → العرض يتحرك للبورصات`);
+        lines.push(`• ارتفاع MPI المعدّنين → ضغط التوزيع`);
+        lines.push(`• خوف شديد + تباعد السعر → إعداد فخ كلاسيكي`);
         lines.push(`💡 انتظار. الدخول الآن قد يعرضك لفخاخ.`);
       } else if (isLowTrap) {
         lines.push(`✅ درجة الفخ: ${trapScoreRounded}/100 → مخاطر فخ منخفضة`);
@@ -617,7 +636,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
     }
   }
   
-  // Dr. Grokの心理的サポート（癒し系コメンテーターとして）- 統合最適化がない場合のフォールバック
+  // Dr. Grok（2ブロック: 心理1行＋行動の盲点1行＋Mental Note短く・断言）
   if (psychologicalSupport && psychologicalSupport.psychologicalState !== 'UNKNOWN') {
     const stateEmoji = psychologicalSupport.psychologicalState === 'FOMO' ? '😰' :
                        psychologicalSupport.psychologicalState === 'FEAR' ? '😨' :
@@ -629,40 +648,34 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
                       psychologicalSupport.psychologicalRisk === 'HIGH' ? '⚠️' :
                       psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
     lines.push(`💚 الحالة النفسية: ${stateEmoji} ${psychologicalSupport.psychologicalState} (المخاطرة: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
-    if (psychologicalSupport.psychologicalAdvice) {
-      const advice = psychologicalSupport.psychologicalAdvice;
-      // 日本語が含まれている場合はアラビア語フォールバックを使用
-      if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(advice)) {
-        const fallbackAdvice = getArabicPsychologicalAdvice(
-          psychologicalSupport.psychologicalState,
-          psychologicalSupport.psychologicalRisk
-        );
-        lines.push(`   💡 ${fallbackAdvice}`);
-      } else {
-        lines.push(`   💡 ${advice}`);
-      }
+    const rawAdvice = psychologicalSupport.psychologicalAdvice || '';
+    const hasJapaneseInAdvice = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(rawAdvice);
+    const arabicAdvice = getArabicPsychologicalAdvice(psychologicalSupport.psychologicalState, psychologicalSupport.psychologicalRisk);
+    const adviceLine = hasJapaneseInAdvice ? arabicAdvice : (rawAdvice ? rawAdvice.slice(0, 120) + (rawAdvice.length > 120 ? '…' : '') : arabicAdvice);
+    lines.push(`   💡 ${adviceLine}`);
+    let mentalNote = '';
+    if (psychologicalSupport.psychologicalState === 'FOMO' && psychologicalSupport.psychologicalRisk === 'CRITICAL') {
+      mentalNote = 'الدوبامين يطلق = الفخ. 3 أنفاس. الرغبة بالمطاردة = كيمياء، ليست بصيرة. انتظر التراجع.';
+    } else if (psychologicalSupport.psychologicalState === 'FEAR') {
+      mentalNote = 'الخوف يحمي لكن يشلّ. راجع البيانات، ليس المشاعر.';
+    } else if (psychologicalSupport.psychologicalState === 'GREED') {
+      mentalNote = 'النشوة = فخ. حمِّ رأس المال أولاً.';
+    } else if (psychologicalSupport.psychologicalState === 'PANIC') {
+      mentalNote = 'توقف. تنفس. البيانات تقول مؤقت. لا قرارات في الذعر.';
+    } else if (psychologicalSupport.psychologicalState === 'NEUTRAL' && psychologicalSupport.psychologicalRisk === 'CRITICAL') {
+      mentalNote = 'تحمل الملل > الرافعة. أغلق الشاشة اليوم.';
+    } else if (psychologicalSupport.psychologicalState === 'EUPHORIA') {
+      mentalNote = 'الاحتفال = الفخاخ تُمدّ. حافظ على الانضباط.';
+    } else if (psychologicalSupport.psychologicalState === 'CONFUSION') {
+      mentalNote = 'لا تجبر صفقة. عند الشك، انتظر.';
+    } else {
+      mentalNote = 'الصبر = قوة استراتيجية. أفضل المتداولين يعرفون متى لا يتداولون.';
     }
-    
-    lines.push('');
-    
-    if (psychologicalSupport.mentalNote) {
-      if (!hasJapanese(psychologicalSupport.mentalNote)) {
-        lines.push(`💊 ملاحظة Dr. Grok العقلية:`);
-        lines.push(`"${psychologicalSupport.mentalNote}"`);
-      } else {
-        const fallbackNote = 'الصبر ليس ضعفاً—بل قوة استراتيجية. أفضل المتداولين يعرفون متى لا يتداولون.';
-        lines.push(`💊 ملاحظة Dr. Grok العقلية:`);
-        lines.push(`"${fallbackNote}"`);
-      }
-    }
+    lines.push(`💊 ملاحظة Dr. Grok العقلية: "${mentalNote}"`);
   } else if (!integratedOptimization || !integratedOptimization.integrated) {
-    // Fallback: توفير رسالة قيمة حتى عندما لا تكون البيانات متاحة
     lines.push('💚 الحالة النفسية: 😐 NEUTRAL (المخاطرة: 💡 منخفضة)');
-    lines.push('');
-    lines.push('   💡 البيانات نظيفة، لكن لا تثق كثيراً. حافظ على الانضباط');
-    lines.push('');
-    lines.push('💊 ملاحظة Dr. Grok العقلية:');
-    lines.push('"الصبر ليس ضعفاً—إنه قوة استراتيجية. أفضل المتداولين يعرفون متى لا يتداولون."');
+    lines.push('   💡 ظروف السوق مستقرة نسبياً. حافظ على الانضباط.');
+    lines.push('💊 ملاحظة Dr. Grok العقلية: "الصبر = قوة استراتيجية. أفضل المتداولين يعرفون متى لا يتداولون."');
   }
   
   lines.push('');
@@ -679,97 +692,20 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
   lines.push('🛡️ إشارة واحدة مفقودة = رأس مال مفقود.');
   lines.push('');
 
-  // ===== 基本市場データ（スキャンしやすい1ブロック） =====
+  // ===== Snapshot（5項目に絞る: Price, Netflow, MPI, Sentiment, Trap Score） =====
   lines.push('📋 لقطة');
   lines.push(priceLine);
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
-  lines.push(scoreLine);
-  lines.push('');
-
-  // Trap Score表示（ENと同一）
-  let displayTrapScore = null;
-  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore >= 0) {
-    displayTrapScore = trapDetection.trapScore;
-  } else if (trapScore != null && trapScore >= 0) {
-    displayTrapScore = trapScore;
-  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore >= 0) {
-    displayTrapScore = trapRisk.trapRiskScore;
-  }
+  const displayTrapScore = trapDetection?.trapScore ?? trapScore ?? trapRisk?.trapRiskScore;
   if (displayTrapScore != null && displayTrapScore >= 0) {
     const trapScoreRounded = Math.round(displayTrapScore);
     const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 مخاطر عالية' : displayTrapScore >= 40 ? '⚠️ متوسطة' : '✅ منخفضة';
     lines.push(`🎯 درجة الفخ: ${trapScoreRounded}/100 ${trapScoreEmoji}`);
-    lines.push('');
   }
+  lines.push('');
 
-  // Whale Ratio情報（ENと同一）
-  if (whaleFlows && whaleFlows.whaleRatio != null) {
-    // whaleRatioは0-1の範囲の数値として返される（deepMetrics.js参照）
-    // パーセンテージに変換（0.56 -> 56%）
-    const whaleRatioValue = typeof whaleFlows.whaleRatio === 'number' 
-      ? whaleFlows.whaleRatio * 100 
-      : parseFloat(whaleFlows.whaleRatio) * 100 || 0;
-    const isHighPressure = whaleFlows.isHighPressure === true || whaleRatioValue >= 80;
-    const whaleLine = `🐋 نسبة الحيتان: ${whaleRatioValue.toFixed(1)}% ${isHighPressure ? '(ضغط عالي)' : '(عادي)'}`;
-    lines.push(whaleLine);
-  } else if (whaleFlows) {
-    console.warn('[Regular AR] whaleFlows exists but whaleRatio is null:', whaleFlows);
-  }
-
-  // 24h清算（ENと同一）
-  const totalLiquidations = typeof liquidations === 'number'
-    ? liquidations
-    : (liquidations?.totalLiquidations ?? 0);
-  if (totalLiquidations > 0) {
-    if (typeof liquidations === 'object' && liquidations.longLiquidations != null && liquidations.shortLiquidations != null) {
-      const liqLine = `💥 تصفية 24س: ${formatUsd(totalLiquidations)} (طويل: ${formatUsd(liquidations.longLiquidations)}، قصير: ${formatUsd(liquidations.shortLiquidations)})`;
-      lines.push(liqLine);
-    } else {
-      lines.push(`💥 تصفية 24س: ${formatUsd(totalLiquidations)}`);
-    }
-  }
-
-  lines.push(trapLine);
-  
-  // Phase1-Product: Trap Riskスコア表示
-  if (trapRisk && trapRisk.trapRiskScore != null) {
-    const riskEmoji = trapRisk.riskLevel === 'CRITICAL' ? '🚨' : 
-                      trapRisk.riskLevel === 'HIGH' ? '⚠️' : 
-                      trapRisk.riskLevel === 'MEDIUM' ? '⚡' : '✅';
-    const trapRiskLine = `${riskEmoji} درجة مخاطر الفخ: ${trapRisk.trapRiskScore}/100 (${trapRisk.riskLevel})`;
-    lines.push(trapRiskLine);
-    
-    // 主要なリスク要因を表示（最大3つ）
-    if (trapRisk.riskFactors && trapRisk.riskFactors.length > 0) {
-      const topRisks = trapRisk.riskFactors.slice(0, 3);
-      topRisks.forEach(risk => {
-        if (risk.score >= 20) {
-          lines.push(`   • ${risk.factor}: ${risk.description.substring(0, 60)}...`);
-        }
-      });
-    }
-  }
-  
-  // Phase1-Product: NO TRADEアラート表示
-  if (noTradeAlert && noTradeAlert.shouldNoTrade) {
-    const noTradeEmoji = noTradeAlert.confidence === 'HIGH' ? '🚫' : 
-                         noTradeAlert.confidence === 'MEDIUM' ? '⚠️' : '⏸️';
-    const noTradeLine = `${noTradeEmoji} تنبيه عدم التداول (${noTradeAlert.confidence} ثقة، درجة المخاطرة: ${noTradeAlert.riskScore}/100)`;
-    lines.push(noTradeLine);
-    
-    // 主要な理由を表示（最大3つ）
-    if (noTradeAlert.reasons && noTradeAlert.reasons.length > 0) {
-      const topReasons = noTradeAlert.reasons.slice(0, 3);
-      topReasons.forEach(reason => {
-        lines.push(`   • ${reason}`);
-      });
-    }
-    
-    lines.push(`   💡 ${noTradeAlert.recommendation}`);
-  }
-  
   // Phase1-Product: Exit Map表示（簡略化：最大8行）
   if (exitMap && exitMap.hasActivePosition) {
     lines.push('');

@@ -146,6 +146,13 @@ function formatRegularBriefing({
   }
 
   const isPositioningWindow = isLowTrapRisk && !hasActiveTrapAlert;
+  const entryPrice = priceUsd;
+  const tpPrice = tradeSignal?.tp;
+  const slPrice = tradeSignal?.sl;
+  const isNoTradeZone = !isPositioningWindow && (
+    (tpPrice == null && slPrice == null) ||
+    (entryPrice === tpPrice && entryPrice === slPrice)
+  );
   const entryLine = isPositioningWindow
     ? `• Entrada: Considere setups de qualidade quando a vantagem for clara (ref. ${formatUsd(priceUsd)})`
     : (!isLowTrapRisk && !hasActiveTrapAlert
@@ -187,11 +194,15 @@ function formatRegularBriefing({
 
   lines.push('🎯 Veredito de trade');
   lines.push(`${dirEmoji} Sinal: ${dirLabel}`);
-  lines.push(entryLine);
-  if (modeLine) lines.push(modeLine);
-  if (tpLine) lines.push(tpLine);
-  if (slLine) lines.push(slLine);
-  if (rrLine) lines.push(rrLine);
+  if (isNoTradeZone) {
+    lines.push(`• No Trade Zone — Entry/TP/SL indefinidos. Aguarde vantagem clara.`);
+  } else {
+    lines.push(entryLine);
+    if (modeLine) lines.push(modeLine);
+    if (tpLine) lines.push(tpLine);
+    if (slLine) lines.push(slLine);
+    if (rrLine) lines.push(rrLine);
+  }
   lines.push('');
 
   let actionPreview = '';
@@ -217,14 +228,19 @@ function formatRegularBriefing({
     lines.push(`Sentimento: ${sentimentLabel}`);
     lines.push('');
     lines.push(contextNote);
+    const contextInterpretation = 'Netflow + MPI + Sentimento juntos: Trap Defence interpreta esta combinação como maior risco de armadilha — medo varejista + entrada em exchanges + comportamento de mineradores.';
+    lines.push(`💡 ${contextInterpretation}`);
     lines.push('');
   }
 
   lines.push('✨ Destaques de hoje');
   lines.push('');
   const trapData = trapDetection || marketBug;
+  const unifiedTrapScore = effectiveTrapScore != null ? Math.round(effectiveTrapScore) : (trapData?.trapScore != null ? Math.round(trapData.trapScore) : null);
+  const trapTypeRaw = (trapData?.trapType || trapData?.bugType || 'Anomalia').replace(/_/g, ' ');
+  const multiLayerNote = /MULTI\s*LAYER|MULTI_LAYER/i.test(trapTypeRaw) ? ' (múltiplas anomalias detectadas simultaneamente)' : '';
   const trapOneLine = trapData && (trapData.trapDetected || trapData.bugDetected)
-    ? `🛡️ Armadilha: ${(trapData.trapType || trapData.bugType || 'Anomalia').replace(/_/g, ' ')} (${Math.round(trapData.trapScore || trapData.bugScore || 0)}/100)`
+    ? `🛡️ Armadilha: ${trapTypeRaw} (${unifiedTrapScore ?? Math.round(trapData.trapScore || trapData.bugScore || 0)}/100)${multiLayerNote}`
     : '🛡️ Armadilha: Nenhuma detectada';
   const trapRiskLabel = isLowTrapRisk ? 'baixo' : (effectiveTrapScore != null && effectiveTrapScore >= 50 ? 'alto' : 'moderado');
   const cqOneLine = inflow >= 0
@@ -394,6 +410,9 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADIÇÃO: Pontuação de baixo risco 
       if (isHighTrap) {
         lines.push(`🎯 Pontuação de Armadilha ${tr}/100 → risco significativo`);
         if (trapTypeForEvidence) lines.push(`⚠️ ${(trapTypeForEvidence || '').replace(/_/g, ' ')} detectado`);
+        lines.push(`• Pico de netflow → oferta indo para exchanges`);
+        lines.push(`• MPI de mineradores elevado → pressão de distribuição`);
+        lines.push(`• Medo extremo + divergência de preço → setup clássico de armadilha`);
         lines.push(`💡 Modo espera. Entrar agora pode expor você a armadilhas.`);
       } else if (isLowTrap) {
         lines.push(`✅ Pontuação de Armadilha ${tr}/100 → baixo risco`);
@@ -613,7 +632,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADIÇÃO: Pontuação de baixo risco 
     }
   }
   
-  // Dr. Grokの心理的サポート（癒し系コメンテーターとして）- 統合最適化がない場合のフォールバック
+  // Dr. Grok（2ブロック: 心理1行＋行動の盲点1行＋Mental Note短く・断言）
   if (psychologicalSupport && psychologicalSupport.psychologicalState !== 'UNKNOWN') {
     const stateEmoji = psychologicalSupport.psychologicalState === 'FOMO' ? '😰' :
                        psychologicalSupport.psychologicalState === 'FEAR' ? '😨' :
@@ -625,40 +644,34 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADIÇÃO: Pontuação de baixo risco 
                       psychologicalSupport.psychologicalRisk === 'HIGH' ? '⚠️' :
                       psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
     lines.push(`💚 Estado Psicológico: ${stateEmoji} ${psychologicalSupport.psychologicalState} (Risco: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
-    if (psychologicalSupport.psychologicalAdvice) {
-      const advice = psychologicalSupport.psychologicalAdvice;
-      // 日本語が含まれている場合はポルトガル語フォールバックを使用
-      if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(advice)) {
-        const fallbackAdvice = getPortuguesePsychologicalAdvice(
-          psychologicalSupport.psychologicalState,
-          psychologicalSupport.psychologicalRisk
-        );
-        lines.push(`   💡 ${fallbackAdvice}`);
-      } else {
-        lines.push(`   💡 ${advice}`);
-      }
+    const rawAdvice = psychologicalSupport.psychologicalAdvice || '';
+    const hasJapaneseInAdvice = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(rawAdvice);
+    const portugueseAdvice = getPortuguesePsychologicalAdvice(psychologicalSupport.psychologicalState, psychologicalSupport.psychologicalRisk);
+    const adviceLine = hasJapaneseInAdvice ? portugueseAdvice : (rawAdvice ? rawAdvice.slice(0, 120) + (rawAdvice.length > 120 ? '…' : '') : portugueseAdvice);
+    lines.push(`   💡 ${adviceLine}`);
+    let mentalNote = '';
+    if (psychologicalSupport.psychologicalState === 'FOMO' && psychologicalSupport.psychologicalRisk === 'CRITICAL') {
+      mentalNote = 'Dopamina disparando = a armadilha. 3 respirações. Impulso de perseguir = química, não insight. Espere o pullback.';
+    } else if (psychologicalSupport.psychologicalState === 'FEAR') {
+      mentalNote = 'O medo protege mas paralisa. Verifique dados, não emoções.';
+    } else if (psychologicalSupport.psychologicalState === 'GREED') {
+      mentalNote = 'Euforia = armadilha. Proteja o capital primeiro.';
+    } else if (psychologicalSupport.psychologicalState === 'PANIC') {
+      mentalNote = 'Pare. Respire. Dados dizem temporário. Sem decisões em pânico.';
+    } else if (psychologicalSupport.psychologicalState === 'NEUTRAL' && psychologicalSupport.psychologicalRisk === 'CRITICAL') {
+      mentalNote = 'Tolerância ao tédio > alavancagem. Feche a tela hoje.';
+    } else if (psychologicalSupport.psychologicalState === 'EUPHORIA') {
+      mentalNote = 'Celebração = armadilhas sendo armadas. Mantenha disciplina.';
+    } else if (psychologicalSupport.psychologicalState === 'CONFUSION') {
+      mentalNote = 'Não force uma operação. Em dúvida, espere.';
+    } else {
+      mentalNote = 'Paciência = força estratégica. Os melhores traders sabem quando NÃO operar.';
     }
-    
-    lines.push('');
-    
-    if (psychologicalSupport.mentalNote) {
-      if (!hasJapanese(psychologicalSupport.mentalNote)) {
-        lines.push(`💊 Nota Mental de Dr. Grok:`);
-        lines.push(`"${psychologicalSupport.mentalNote}"`);
-      } else {
-        const fallbackNote = 'A paciência não é fraqueza—é força estratégica. Os melhores traders sabem quando não negociar.';
-        lines.push(`💊 Nota Mental de Dr. Grok:`);
-        lines.push(`"${fallbackNote}"`);
-      }
-    }
+    lines.push(`💊 Nota Mental de Dr. Grok: "${mentalNote}"`);
   } else if (!integratedOptimization || !integratedOptimization.integrated) {
-    // Fallback: Fornecer uma mensagem valiosa mesmo quando os dados não estão disponíveis
     lines.push('💚 Estado Psicológico: 😐 NEUTRAL (Risco: 💡 BAIXO)');
-    lines.push('');
-    lines.push('   💡 Os dados estão limpos, mas não se confie demais. Mantenha a disciplina');
-    lines.push('');
-    lines.push('💊 Nota Mental de Dr. Grok:');
-    lines.push('"A paciência não é fraqueza—é força estratégica. Os melhores traders sabem quando não operar."');
+    lines.push('   💡 Condições do mercado relativamente estáveis. Mantenha disciplina.');
+    lines.push('💊 Nota Mental de Dr. Grok: "Paciência = força estratégica. Os melhores traders sabem quando NÃO operar."');
   }
   
   lines.push('');
@@ -675,96 +688,19 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADIÇÃO: Pontuação de baixo risco 
   lines.push('🛡️ Um sinal perdido = Capital perdido.');
   lines.push('');
 
-  // ===== 基本市場データ（スキャンしやすい1ブロック） =====
+  // ===== Snapshot（5項目に絞る: Price, Netflow, MPI, Sentiment, Trap Score） =====
   lines.push('📋 Snapshot');
   lines.push(priceLine);
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
-  lines.push(scoreLine);
-  lines.push('');
-
-  // Trap Score表示（ENと同一）
-  let displayTrapScore = null;
-  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore >= 0) {
-    displayTrapScore = trapDetection.trapScore;
-  } else if (trapScore != null && trapScore >= 0) {
-    displayTrapScore = trapScore;
-  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore >= 0) {
-    displayTrapScore = trapRisk.trapRiskScore;
-  }
+  const displayTrapScore = trapDetection?.trapScore ?? trapScore ?? trapRisk?.trapRiskScore;
   if (displayTrapScore != null && displayTrapScore >= 0) {
     const trapScoreRounded = Math.round(displayTrapScore);
     const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 ALTO RISCO' : displayTrapScore >= 40 ? '⚠️ MODERADO' : '✅ BAIXO';
     lines.push(`🎯 Pontuação de Armadilha: ${trapScoreRounded}/100 ${trapScoreEmoji}`);
-    lines.push('');
   }
-
-  // Whale Ratio情報（ENと同一）
-  if (whaleFlows && whaleFlows.whaleRatio != null) {
-    // whaleRatioは0-1の範囲の数値として返される（deepMetrics.js参照）
-    // パーセンテージに変換（0.56 -> 56%）
-    const whaleRatioValue = typeof whaleFlows.whaleRatio === 'number' 
-      ? whaleFlows.whaleRatio * 100 
-      : parseFloat(whaleFlows.whaleRatio) * 100 || 0;
-    const isHighPressure = whaleFlows.isHighPressure === true || whaleRatioValue >= 80;
-    const whaleLine = `🐋 Ratio de Baleias: ${whaleRatioValue.toFixed(1)}% ${isHighPressure ? '(Alta Pressão)' : '(Normal)'}`;
-    lines.push(whaleLine);
-  } else if (whaleFlows) {
-    console.warn('[Regular PT-BR] whaleFlows exists but whaleRatio is null:', whaleFlows);
-  }
-
-  // 24h清算（ENと同一）
-  const totalLiquidations = typeof liquidations === 'number'
-    ? liquidations
-    : (liquidations?.totalLiquidations ?? 0);
-  if (totalLiquidations > 0) {
-    if (typeof liquidations === 'object' && liquidations.longLiquidations != null && liquidations.shortLiquidations != null) {
-      const liqLine = `💥 Liquidações 24h: ${formatUsd(totalLiquidations)} (Longo: ${formatUsd(liquidations.longLiquidations)}, Curto: ${formatUsd(liquidations.shortLiquidations)})`;
-      lines.push(liqLine);
-    } else {
-      lines.push(`💥 Liquidações 24h: ${formatUsd(totalLiquidations)}`);
-    }
-  }
-
-  lines.push(trapLine);
-  
-  // Phase1-Product: Trap Riskスコア表示
-  if (trapRisk && trapRisk.trapRiskScore != null) {
-    const riskEmoji = trapRisk.riskLevel === 'CRITICAL' ? '🚨' : 
-                      trapRisk.riskLevel === 'HIGH' ? '⚠️' : 
-                      trapRisk.riskLevel === 'MEDIUM' ? '⚡' : '✅';
-    const trapRiskLine = `${riskEmoji} Pontuação de Risco de Armadilha: ${trapRisk.trapRiskScore}/100 (${trapRisk.riskLevel})`;
-    lines.push(trapRiskLine);
-    
-    // 主要なリスク要因を表示（最大3つ）
-    if (trapRisk.riskFactors && trapRisk.riskFactors.length > 0) {
-      const topRisks = trapRisk.riskFactors.slice(0, 3);
-      topRisks.forEach(risk => {
-        if (risk.score >= 20) {
-          lines.push(`   • ${risk.factor}: ${risk.description.substring(0, 60)}...`);
-        }
-      });
-    }
-  }
-  
-  // Phase1-Product: NO TRADEアラート表示
-  if (noTradeAlert && noTradeAlert.shouldNoTrade) {
-    const noTradeEmoji = noTradeAlert.confidence === 'HIGH' ? '🚫' : 
-                         noTradeAlert.confidence === 'MEDIUM' ? '⚠️' : '⏸️';
-    const noTradeLine = `${noTradeEmoji} Alerta NO TRADE (${noTradeAlert.confidence} confiança, Pontuação de Risco: ${noTradeAlert.riskScore}/100)`;
-    lines.push(noTradeLine);
-    
-    // 主要な理由を表示（最大3つ）
-    if (noTradeAlert.reasons && noTradeAlert.reasons.length > 0) {
-      const topReasons = noTradeAlert.reasons.slice(0, 3);
-      topReasons.forEach(reason => {
-        lines.push(`   • ${reason}`);
-      });
-    }
-    
-    lines.push(`   💡 ${noTradeAlert.recommendation}`);
-  }
+  lines.push('');
   
   // Phase1-Product: Exit Map表示（簡略化：最大8行）
   if (exitMap && exitMap.hasActivePosition) {
