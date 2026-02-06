@@ -137,8 +137,6 @@ const { getCQDeepMetrics } = require("../services/cryptoquant/deepMetrics");
 // 設計: 3本パイプラインは inflow/mpi/whaleRatio のみ。getHighResolutionCQData はオーバースペックのため cron では使用しない。
 // Phase 3: CryptoQuant capabilities初期化
 const { initializeCapabilities } = require("../services/cryptoquant/capabilities");
-// Grok Xアルゴリズム解析 × Gemini深層心理分析統合サービス
-const { integrateGrokGeminiOptimization } = require("../services/integrated/grokGeminiOptimizer");
 // 価格取得サービス（KO市場用）
 const { fetchBTCKRWPrice } = require("../services/upbit/client");
 const { fetchUSDKRWRate } = require("../services/exchange/rate");
@@ -194,10 +192,10 @@ const { getSocialProofText } = require("../services/telegram/reaction-counter");
 // Resend Email送信サービス
 const { sendBatchEmails } = require("../services/email/resendClient");
 const { postProofToX } = require("../services/x/proof-post");
-// Gemini番組プロデューサー（ストーリーブランド戦略2.0）- 簡素化版
-const { produceShow } = require("../services/gemini/showProducer");
 // コンテンツ保存サービス（定時配信用）
 const { getContent } = require("../services/core/contentStorage");
+// Gemini: CQ最新+過去比較でSoSoValue風記事
+const { generateSosovalueStyleArticle } = require("../services/gemini/sosovalueArticle");
 // 信頼度スコアベースの統一品質ゲート（全方位対応）
 // 見逃した機会計算ユーティリティ
 const {
@@ -390,14 +388,23 @@ module.exports = async function handler(req, res) {
     const nowUTC = zonedTimeToUtc(now, TZ_UTC);
     const utcHour = Number(formatInTimeZone(nowUTC, TZ_UTC, "HH"));
     const utcMinute = Number(formatInTimeZone(nowUTC, TZ_UTC, "mm"));
-    // 定期配信スケジュール: UTC 6時間ごと（0, 6, 12, 18）デフォルト、または4時間ごと（0, 4, 8, 12, 16, 18, 20）
+    // 定期配信スケジュール: UTC で最適化。デフォルト 0,6,12,18 時の :00。REGULAR_DELIVERY_HOURS_UTC / REGULAR_DELIVERY_MINUTE で上書き可
     const REGULAR_HOURS_6H = [0, 6, 12, 18];
     const REGULAR_HOURS_4H = [0, 4, 8, 12, 16, 18, 20];
-    // 環境変数で切り替え可能（デフォルトは6時間ごと）
-    const USE_4H_SCHEDULE = process.env.REGULAR_SCHEDULE === "4h";
-    const REGULAR_HOURS = USE_4H_SCHEDULE ? REGULAR_HOURS_4H : REGULAR_HOURS_6H;
-    // Cronジョブは15分ごとに実行されるため、定期配信スロットは0-14分の間で判定（実行タイミングの誤差を考慮）
-    const isRegularSlot = REGULAR_HOURS.includes(utcHour) && utcMinute < 15;
+    let REGULAR_HOURS = REGULAR_HOURS_6H;
+    const customHours = process.env.REGULAR_DELIVERY_HOURS_UTC;
+    if (customHours && /^[\d,]+$/.test(customHours)) {
+      REGULAR_HOURS = customHours.split(",").map((h) => parseInt(h, 10)).filter((h) => h >= 0 && h <= 23).sort((a, b) => a - b);
+      if (REGULAR_HOURS.length === 0) REGULAR_HOURS = REGULAR_HOURS_6H;
+    } else if (process.env.REGULAR_SCHEDULE === "4h") {
+      REGULAR_HOURS = REGULAR_HOURS_4H;
+    }
+    let REGULAR_DELIVERY_MINUTE = parseInt(process.env.REGULAR_DELIVERY_MINUTE, 10);
+    if (Number.isNaN(REGULAR_DELIVERY_MINUTE) || REGULAR_DELIVERY_MINUTE < 0 || REGULAR_DELIVERY_MINUTE > 59) {
+      REGULAR_DELIVERY_MINUTE = 0;
+    }
+    // 定期配信は「指定時」の「指定分」のみ（デフォルト :00）。Cron にその分を含めること（例: 0,7,22,37,52）
+    const isRegularSlot = REGULAR_HOURS.includes(utcHour) && utcMinute === REGULAR_DELIVERY_MINUTE;
     const force = req.query?.force === "true";
 
     logger.info("Slot check", {
@@ -405,8 +412,9 @@ module.exports = async function handler(req, res) {
       utcMinute,
       isRegularSlot,
       force,
-      schedule: USE_4H_SCHEDULE ? "4h" : "6h",
+      schedule: process.env.REGULAR_SCHEDULE === "4h" ? "4h" : "6h",
       regularHours: REGULAR_HOURS,
+      regularDeliveryMinute: REGULAR_DELIVERY_MINUTE,
       isInRegularHours: REGULAR_HOURS.includes(utcHour)
     });
 
@@ -1279,6 +1287,64 @@ module.exports = async function handler(req, res) {
     }
     // ===== Phase 1 End =====
 
+    // 無料版（Minimal）は同じタイミングで実行しない → 別 Cron /api/minimal-tg-delivery で別時刻に配信。ここでは payload を KV に書き出すだけ。
+    if (isRegularSlot || force) {
+      let minimalTrapScore = null;
+      if (trapDetection && trapDetection.trapScore != null) {
+        minimalTrapScore = trapDetection.trapScore;
+      } else if (cqDeep && cqDeep.trapScore != null) {
+        minimalTrapScore = cqDeep.trapScore;
+      } else if (trap && trap.isTrap) {
+        minimalTrapScore = trap.confidence === "HIGH" ? 80 : trap.confidence === "MEDIUM" ? 50 : 30;
+      } else if (trap && !trap.isTrap) {
+        minimalTrapScore = 15;
+      }
+      let whaleRatioValue = null;
+      if (cqDeep?.whaleFlows?.whaleRatio != null) {
+        whaleRatioValue = cqDeep.whaleFlows.whaleRatio;
+      } else if (highResCQData?.whaleRatio != null) {
+        whaleRatioValue = highResCQData.whaleRatio;
+      } else if (cqDeep?.whaleRatio != null) {
+        whaleRatioValue = cqDeep.whaleRatio;
+      }
+      const minimalPayload = {
+        now: now.toISOString ? now.toISOString() : new Date().toISOString(),
+        minimalTrapScore,
+        priceUsd,
+        change24h,
+        trapData: {
+          trapAlert: trapAlert || null,
+          exchangeNetflow: inflow,
+          whaleRatio: whaleRatioValue
+        },
+        minimalMarketData: {
+          mpi,
+          priceUsd,
+          change24h,
+          score: snapshot?.market_score
+        },
+        sentimentData: grokXAnalysis
+          ? {
+              sentiment: grokXAnalysis.sentiment || sentimentLabel,
+              risk: grokXAnalysis.risk || null
+            }
+          : { sentiment: sentimentLabel },
+        market_score: snapshot?.market_score,
+        grokXAnalysis: grokXAnalysis || null,
+        sentimentLabel
+      };
+      try {
+        const { getKV } = require("../utils/kv");
+        const kv = getKV();
+        if (kv) {
+          await kv.set("minimal:payload:latest", minimalPayload, { ex: 600 });
+          console.log("[MINIMAL] Wrote payload to KV (minimal:payload:latest, TTL 600s). Delivery by /api/minimal-tg-delivery at separate time.");
+        }
+      } catch (kvErr) {
+        console.warn("[MINIMAL] KV write failed:", kvErr.message);
+      }
+    }
+
     // 7-A. REGULAR（有料版 - 6言語すべてに配信）
     // P0 FIX: 早期return条件を修正したため、isRegularSlotがtrueの場合は必ず到達する
     // 定期配信（isRegularSlot）と強制配信（force）は必ず送信
@@ -1371,6 +1437,28 @@ module.exports = async function handler(req, res) {
         }
       }
 
+      // Gemini: CQ最新データでSoSoValue風記事を1本生成（全言語で共通利用）
+      let sosovalueArticle = null;
+      try {
+        const firstLang = targetLangsForRegular[0] || "en";
+        console.log(`[Gemini SoSoValue] Generating SoSoValue-style article (lang: ${firstLang})...`);
+        sosovalueArticle = await generateSosovalueStyleArticle({
+          cqData: {
+            priceUsd,
+            change24h,
+            inflow,
+            mpi,
+            trapScore: cqDeep?.trapScore
+          },
+          lang: firstLang
+        });
+        if (sosovalueArticle) {
+          console.log("[Gemini SoSoValue] Article generated, length:", sosovalueArticle.length);
+        }
+      } catch (e) {
+        console.warn("[Gemini SoSoValue] Skip:", e.message);
+      }
+
       // 各言語ごとに配信
       for (const targetLang of targetLangsForRegular) {
         try {
@@ -1438,51 +1526,6 @@ module.exports = async function handler(req, res) {
               whaleFlows: cqDeep?.whaleFlows,
               liquidations: cqDeep?.liquidations
             });
-          }
-
-          // P0 FIX: GrokとGeminiの統合最適化（各言語ごとに実行）
-          let langIntegratedOptimization = null;
-          if (isRegularSlot && grokXAnalysis && langPsychologicalSupport) {
-            try {
-              console.log(
-                `[GrokGeminiOptimizer] Integrating Grok X algorithm analysis and Gemini deep psychology analysis for ${targetLang}...`
-              );
-              langIntegratedOptimization = await integrateGrokGeminiOptimization({
-                marketData: {
-                  priceUsd,
-                  change24h,
-                  score: coreDecision.score,
-                  signal: tradeSignal.signal,
-                  sentiment: sentimentLabel
-                },
-                trapScore: cqDeep?.trapScore || trapDetection?.trapScore || null,
-                sentimentData: {
-                  sentiment: sentimentLabel,
-                  whaleBias: xSentiment?.whaleBias || 0,
-                  retailFomo: xSentiment?.retailFomo || 50
-                },
-                xSentiment,
-                trapDetection,
-                psychologicalSupport: langPsychologicalSupport, // P0 FIX: 言語ごとのpsychologicalSupportを使用
-                lang: targetLang // P0 FIX: LANGではなくtargetLangを渡す
-              });
-
-              if (langIntegratedOptimization && langIntegratedOptimization.integrated) {
-                console.log(
-                  `[GrokGeminiOptimizer] Integration completed successfully for ${targetLang}`
-                );
-              } else {
-                console.warn(
-                  `[GrokGeminiOptimizer] Integration failed or returned null for ${targetLang}`
-                );
-              }
-            } catch (error) {
-              console.warn(
-                `[GrokGeminiOptimizer] Error integrating optimization for ${targetLang}:`,
-                error.message
-              );
-              langIntegratedOptimization = null;
-            }
           }
 
           // Phase 2: A/Bテストバリアント識別（50/50分割）
@@ -1598,104 +1641,12 @@ module.exports = async function handler(req, res) {
             trapAlert: trapAlert || null,
             // USP3: Dr. Grokの心理的サポート（言語ごとに計算）
             psychologicalSupport: langPsychologicalSupport || null, // P0 FIX: 言語ごとのpsychologicalSupportを使用
-            // GrokとGeminiの統合最適化結果（言語ごとに計算）
-            integratedOptimization: langIntegratedOptimization || null, // P0 FIX: 言語ごとのintegratedOptimizationを使用
-            showContent: null // 後でproduceShowの結果で更新される
+            // 統合最適化は廃止（GPT=CQ/Trap、Grok=X/トレーダーサポート、Gemini=SoSoValue記事に役割限定）
+            integratedOptimization: null,
+            showContent: null,
+            // Gemini: CQ+過去比較で生成したSoSoValue風記事
+            sosovalueArticle: sosovalueArticle || null
           });
-
-          // 保存されたサマリーがあれば使用（より詳細な分析）
-          // 注: savedContentは既にループの外で取得済み
-
-          // ===== Gemini番組プロデューサー: ストーリーブランド戦略2.0 =====
-          let showContent = undefined; // produceShowが実行されたかどうかを判断するため、undefinedで初期化
-          try {
-            console.log(
-              `[Gemini Show Producer] Producing show with StoryBrand 2.0 framework for ${targetLang}...`
-            );
-            showContent = await produceShow({
-              marketData: {
-                price_usd_display: snapshot.price_usd_display,
-                change_24h: snapshot.change_24h,
-                market_score: snapshot.market_score,
-                sentiment_label: snapshot.sentiment_label,
-                inflow: snapshot.inflow,
-                mpi: snapshot.mpi
-              },
-              cryptoQuantData: cqDeep,
-              trapDetection: trapDetection,
-              psychologicalSupport: langPsychologicalSupport || null, // P0 FIX: 言語ごとのpsychologicalSupportを使用
-              gptMentalTrainerAnalysis: gptRegularAnalysis,
-              lang: targetLang
-            });
-
-            if (showContent) {
-              console.log(
-                `[Gemini Show Producer] Show produced successfully for ${targetLang} (text-only version)`
-              );
-              // 削除: 画像・動画生成は不要（簡素化版）
-              // 番組プロデューサーはテキストベースのみ
-            } else {
-              console.log(`[Gemini Show Producer] Show production returned null for ${targetLang}`);
-            }
-          } catch (error) {
-            console.warn(
-              `[Gemini Show Producer] Error producing show for ${targetLang}:`,
-              error.message
-            );
-            console.warn(`[Gemini Show Producer] Error stack:`, error.stack);
-            showContent = null; // エラー時もnullを明示的に設定
-          }
-
-          // showContent（テキストベース）がある場合にメッセージを再生成
-          // 注意: showContentがnullでも、メッセージを再生成してshowContent: nullを明示的に渡す
-          if (showContent || true) {
-            // 常に再生成してshowContentを反映
-            // メッセージを再生成（USP2の表示を更新）
-            const regularTextUpdated = langFormatRegularBriefing({
-              snapshot,
-              now,
-              inflow: snapshot.inflow,
-              mpi: snapshot.mpi,
-              sentimentLabel: snapshot.sentiment_label,
-              priceUsd: snapshot.price_usd_display,
-              change24h: snapshot.change_24h,
-              score: snapshot.market_score,
-              tradeSignal,
-              trap,
-              aiAnalysis: finalAnalysis, // 後方互換性のため残す
-              stats: null,
-              lang: targetLang,
-              variant,
-              messageId,
-              trapScore: cqDeep?.trapScore,
-              whaleFlows: cqDeep?.whaleFlows,
-              liquidations: cqDeep?.liquidations,
-              kimchiPremium: cqDeep?.kimchiPremium,
-              upbitPrice: cqDeep?.upbitPrice ?? snapshot.price_usd_display,
-              riskReward: cqDeep?.riskReward,
-              nupl: cqDeep?.longTerm?.nupl,
-              sopr30d: cqDeep?.longTerm?.sopr30d,
-              noTradeAlert: null,
-              trapRisk: null,
-              exitMap: null,
-              nonUserImpactReport: langNonUserImpactReport,
-              missedOpportunities: langMissedOpportunitiesFormatted,
-              // ニュース番組構造用: GPTリポーターとGrok X解析を分離
-              gptReporterAnalysis: gptRegularAnalysis || null, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
-              grokXAnalysis: grokXAnalysis || null, // Grok X解析結果（Xセンチメント分析）
-              // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
-              integratedOptimization: integratedOptimization || null,
-              highResCQ: finalHighResCQ,
-              highResX: finalHighResX,
-              divergenceSignal: divergenceSignalResult,
-              trapDetection: trapDetection || null,
-              marketBug: marketBugDetection || null, // 後方互換性
-              trapAlert: trapAlert || null,
-              psychologicalSupport: psychologicalSupport || null,
-              showContent: showContent || null // テキストベースのGeminiコンテンツ
-            });
-            regularText = regularTextUpdated;
-          }
 
           // Phase 4: メッセージ送信とログ記録
           // メール送信は廃止（Telegramのみ配信）
@@ -1775,333 +1726,6 @@ module.exports = async function handler(req, res) {
           console.error(`[REGULAR] ❌ Error processing language ${targetLang}:`, langError.message);
           console.error(`[REGULAR] ❌ Stack trace for ${targetLang}:`, langError.stack);
           // エラーが発生しても他の言語の配信を続行
-        }
-      }
-    }
-
-    // 7-A-MINIMAL. 無料版リードマグネット配信（Trap Score + 簡易分析 + Dr. Grokコメント）
-    // 環境変数が設定されている場合のみ実行
-    // 注意: TELEGRAM_BOT_TOKEN_MINIMALがなくても、TELEGRAM_BOT_TOKENとTELEGRAM_CHAT_ID_MINIMALがあれば動作
-    // 無料版は有料版と同じスケジュールで配信（isRegularSlotがtrueの場合のみ、またはforce=trueの場合）
-    // 注意: UTC 21時（JST 6時）は定期配信スロットではないため、無料版も配信されない
-    // ただし、force=trueの場合は強制配信
-    // 6言語すべてに配信（デフォルト: MINIMAL_MULTI_LANG=true）
-    // 無料版チャンネルIDの解決（言語別 TELEGRAM_CHAT_ID_MINIMAL_* 参照）
-    function resolveMinimalChatId(lang) {
-      const normalizedLangCode = lang.toUpperCase().replace("-", "_");
-      const variants = [normalizedLangCode];
-      if (normalizedLangCode === "PT_BR") variants.push("PTBR");
-      if (normalizedLangCode === "JA") variants.push("JP");
-      if (normalizedLangCode === "KO") variants.push("KR");
-
-      // 1. 言語別チャンネルIDを優先
-      for (const variant of variants) {
-        const envVarName = `TELEGRAM_CHAT_ID_MINIMAL_${variant}`;
-        const resolvedChatId = process.env[envVarName];
-        if (resolvedChatId) return resolvedChatId;
-      }
-
-      // 2. ENチャンネルにフォールバック
-      const enChatId = process.env.TELEGRAM_CHAT_ID_MINIMAL_EN;
-      if (enChatId) return enChatId;
-
-      // 3. デフォルトチャンネルにフォールバック
-      return process.env.TELEGRAM_CHAT_ID_MINIMAL || null;
-    }
-
-    const hasMinimalBotToken = !!(
-      process.env.TELEGRAM_BOT_TOKEN_MINIMAL || process.env.TELEGRAM_BOT_TOKEN
-    );
-    // 配信対象言語のいずれかにチャンネルIDがあれば有効化
-    const targetLangsForMinimal = getTargetLanguagesForMinimal();
-    const hasAnyMinimalChatId = targetLangsForMinimal.some(
-      (lang) => resolveMinimalChatId(lang) !== null
-    );
-    const ENABLE_MINIMAL_VERSION = hasMinimalBotToken && hasAnyMinimalChatId;
-
-    // 7-A-MINIMAL. 無料版（Minimal Version）配信
-    // P0 FIX: 無料版も定期枠（isRegularSlot）は必ず送るように修正（有料版と統一）
-    // 早期return条件を修正したため、isRegularSlotがtrueの場合は必ず到達する
-    // 定期配信（isRegularSlot）と強制配信（force）は必ず送信
-    // イベント駆動の判定（shouldSend）は定期枠以外の場合のみ適用
-    // 重要: isRegularSlotがtrueの場合は、イベント駆動の判定に関係なく必ず配信
-    if (
-      ENABLE_MINIMAL_VERSION &&
-      (isRegularSlot || force || (ENABLE_EVENT_DRIVEN && shouldSend && !isRegularSlot))
-    ) {
-      console.log(
-        "[MINIMAL] ✅✅✅ DELIVERY START: Sending free briefing (Minimal Version) to all languages..."
-      );
-      console.log("[MINIMAL] Conditions:", {
-        isRegularSlot,
-        force,
-        ENABLE_EVENT_DRIVEN,
-        shouldSend,
-        ENABLE_MINIMAL_VERSION
-      });
-
-      // 配信対象言語を取得（デフォルト: 6言語すべて）
-      const targetLangsForMinimal = getTargetLanguagesForMinimal();
-      console.log(`[MINIMAL] Target languages: ${targetLangsForMinimal.join(", ")}`);
-
-      // P0 FIX: チャンネルIDの設定状況を確認してログに出力
-      const missingMinimalChannelIds = [];
-      for (const lang of targetLangsForMinimal) {
-        const minimalChatId = resolveMinimalChatId(lang);
-        if (!minimalChatId) {
-          missingMinimalChannelIds.push(
-            `${lang} (TELEGRAM_CHAT_ID_MINIMAL_${lang.toUpperCase().replace("-", "_")} or TELEGRAM_CHAT_ID_MINIMAL_EN or TELEGRAM_CHAT_ID_MINIMAL)`
-          );
-        }
-      }
-      if (missingMinimalChannelIds.length > 0) {
-        console.warn(
-          `[MINIMAL] ⚠️ Missing channel IDs for languages: ${missingMinimalChannelIds.join(", ")}`
-        );
-      } else {
-        console.log(`[MINIMAL] ✅ All channel IDs configured for target languages`);
-      }
-
-      // Trap Scoreを取得（複数のソースから優先順位で取得）
-      let minimalTrapScore = null;
-      if (trapDetection && trapDetection.trapScore != null) {
-        minimalTrapScore = trapDetection.trapScore;
-      } else if (cqDeep && cqDeep.trapScore != null) {
-        minimalTrapScore = cqDeep.trapScore;
-      } else if (trap && trap.isTrap) {
-        // フォールバック: trapオブジェクトから推定
-        minimalTrapScore = trap.confidence === "HIGH" ? 80 : trap.confidence === "MEDIUM" ? 50 : 30;
-      } else if (trap && !trap.isTrap) {
-        // トラップが検出されていない場合、低リスクスコアを設定
-        minimalTrapScore = 15; // 低リスクのデフォルト値
-      }
-
-      // Whale Ratioを取得（複数のソースから優先順位で取得）
-      let whaleRatioValue = null;
-      if (cqDeep?.whaleFlows?.whaleRatio != null) {
-        whaleRatioValue = cqDeep.whaleFlows.whaleRatio;
-      } else if (highResCQData?.whaleRatio != null) {
-        whaleRatioValue = highResCQData.whaleRatio;
-      } else if (cqDeep?.whaleRatio != null) {
-        whaleRatioValue = cqDeep.whaleRatio;
-      }
-
-      // Trap Dataを準備（minimal-high-quality版用）
-      const trapData = {
-        trapAlert: trapAlert || null,
-        exchangeNetflow: inflow,
-        whaleRatio: whaleRatioValue
-      };
-
-      // Market Dataを準備
-      const minimalMarketData = {
-        mpi: mpi,
-        priceUsd: priceUsd,
-        change24h: change24h,
-        score: snapshot.market_score // Market Scoreを追加（状況に応じたメッセージ生成のため）
-      };
-
-      // Sentiment Dataを準備（Grok X解析結果から）
-      const sentimentData = grokXAnalysis
-        ? {
-            sentiment: grokXAnalysis.sentiment || sentimentLabel,
-            risk: grokXAnalysis.risk || null
-          }
-        : {
-            sentiment: sentimentLabel
-          };
-
-      // 各言語ごとに配信
-      for (const targetLang of targetLangsForMinimal) {
-        try {
-          console.log(`[MINIMAL] Processing language: ${targetLang}`);
-
-          // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化（無料版）
-          let grokGeminiOptimizationMinimal = null;
-          try {
-            console.log(
-              `[Grok+Gemini Optimizer] Starting optimization for MINIMAL version (lang: ${targetLang})...`
-            );
-            grokGeminiOptimizationMinimal = await integrateGrokGeminiOptimization({
-              marketData: {
-                priceUsd,
-                change24h,
-                score: snapshot.market_score,
-                signal: "NONE", // MINIMALバージョンではシグナルなし
-                sentiment: sentimentLabel
-              },
-              trapScore: minimalTrapScore,
-              sentimentData,
-              xSentiment: grokXAnalysis,
-              trapDetection: null, // MINIMALバージョンではトラップ検出なし
-              psychologicalSupport: null, // MINIMALバージョンでは心理的サポートなし
-              lang: targetLang
-            });
-
-            if (grokGeminiOptimizationMinimal) {
-              console.log(
-                `[Grok+Gemini Optimizer] Optimization completed for MINIMAL version (lang: ${targetLang})`
-              );
-            } else {
-              console.log(`[Grok+Gemini Optimizer] Optimization returned null for ${targetLang}`);
-            }
-          } catch (error) {
-            console.warn(
-              `[Grok+Gemini Optimizer] Error optimizing MINIMAL for ${targetLang}:`,
-              error.message
-            );
-            grokGeminiOptimizationMinimal = null; // エラー時もnullを明示的に設定
-          }
-
-          // 言語別テンプレートを読み込む
-          const langTemplates = loadUserTemplates(targetLang);
-          const langFormatMinimalBriefing = langTemplates.formatMinimalBriefing;
-          if (!langFormatMinimalBriefing) {
-            console.warn(`[MINIMAL] Template not found for ${targetLang}, skipping`);
-            continue;
-          }
-
-          // minimal-high-quality版が読み込まれていることを確認
-          if (typeof langFormatMinimalBriefing !== "function") {
-            console.error(
-              `[MINIMAL] formatMinimalBriefing is not a function for ${targetLang}, skipping`
-            );
-            continue;
-          }
-
-          // 無料版メッセージを生成（minimal-high-quality版を使用）
-          // 注意: minimal-high-quality版は4-post thread形式で、trapData, marketData, sentimentData, score, grokGeminiOptimizationパラメータを必要とします
-          const minimalText = langFormatMinimalBriefing({
-            now,
-            trapScore: minimalTrapScore,
-            priceUsd,
-            change24h,
-            trapData,
-            marketData: minimalMarketData,
-            sentimentData,
-            lang: targetLang,
-            score: snapshot.market_score, // Market Scoreを追加（状況に応じたメッセージ生成のため）
-            // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
-            grokGeminiOptimization: grokGeminiOptimizationMinimal || null
-          });
-
-          // 生成されたメッセージが4-post thread形式（[1/4], [2/4], [3/4], [4/4]を含む）であることを確認
-          if (minimalText && typeof minimalText === "string") {
-            const isHighQualityFormat = /\[1\/4\]|\[2\/4\]|\[3\/4\]|\[4\/4\]/.test(minimalText);
-            if (!isHighQualityFormat) {
-              console.warn(
-                `[MINIMAL] Generated message for ${targetLang} does not appear to be in high-quality format (4-post thread). Message preview: ${minimalText.substring(0, 100)}...`
-              );
-            } else {
-              console.log(
-                `[MINIMAL] Successfully generated high-quality format message for ${targetLang}`
-              );
-            }
-          }
-
-          // 無料版チャンネルに送信
-          if (ENABLE_TELEGRAM) {
-            // 言語コードを環境変数形式に変換（en -> EN, pt-br -> PT_BR）
-            const langCodeForEnv = targetLang.toUpperCase().replace("-", "_");
-
-            // 無料版チャンネルIDを解決
-            const minimalChatId = resolveMinimalChatId(targetLang);
-
-            if (minimalChatId) {
-              // 言語別のボタンテキストを使用
-              const socialProofButton = getSocialProofButton(targetLang);
-              const minimalSendResult = await sendMessageToAsset(
-                minimalText,
-                "MINIMAL",
-                langCodeForEnv,
-                { reply_markup: socialProofButton }
-              );
-              console.log(
-                `[Free Version] Sent successfully to ${targetLang} (${langCodeForEnv}):`,
-                minimalSendResult?.message_id || "N/A"
-              );
-            } else {
-              console.error(
-                `[Free Version] ❌ CRITICAL: No chat ID found for ${targetLang}, skipping free version delivery. Check TELEGRAM_CHAT_ID_MINIMAL_${targetLang.toUpperCase().replace("-", "_")} or TELEGRAM_CHAT_ID_MINIMAL_EN or TELEGRAM_CHAT_ID_MINIMAL`
-              );
-              // エラーを記録して続行（他の言語の配信を継続）
-            }
-          }
-
-          console.log(`[MINIMAL] ✅ Successfully sent to ${targetLang}`);
-        } catch (langError) {
-          console.error(`[MINIMAL] ❌ Error processing language ${targetLang}:`, langError.message);
-          console.error(`[MINIMAL] ❌ Stack trace for ${targetLang}:`, langError.stack);
-          // エラーが発生しても他の言語の配信を続行
-        }
-      }
-
-      // Grok推奨: 無料版（Minimal Version）配信完了後、X投稿を実行（非同期、エラーは無視）
-      // Grok戦略: UTC 8:00にMV投稿、UTC 14:00に引用リポスト（6時間後）
-      // 注意: 独立したCronジョブ（api/x-post-minimal-version-cron）で実行されるため、ここでは実行しない
-      // ただし、force=trueの場合は即座に実行する
-      if (ENABLE_MINIMAL_VERSION && shouldSend && force) {
-        try {
-          const xPostMinimalModule = require("./x-post-minimal-version");
-          const postMinimalVersionToX =
-            xPostMinimalModule.postMinimalVersionToX || xPostMinimalModule;
-
-          if (typeof postMinimalVersionToX === "function") {
-            const reportData = {
-              trapScore: minimalTrapScore,
-              priceUsd,
-              change24h,
-              trapData: {
-                trapAlert: trapAlert || null,
-                exchangeNetflow: inflow,
-                whaleRatio: whaleRatioValue
-              },
-              marketData: minimalMarketData,
-              sentimentData
-            };
-
-            // Grok推奨: 非同期で実行（エラーは無視、タイミングは独立したCronジョブで制御）
-            postMinimalVersionToX(targetLangsForMinimal, reportData).catch((error) => {
-              console.warn("[MINIMAL] Failed to post minimal version to X:", error.message);
-            });
-          } else {
-            console.warn(
-              "[MINIMAL] postMinimalVersionToX function not found in x-post-minimal-version module"
-            );
-          }
-        } catch (error) {
-          // モジュールが見つからない場合は警告のみ（独立したCronジョブで実行されるため）
-          console.warn(
-            "[MINIMAL] Failed to import x-post-minimal-version (will be handled by independent cron job):",
-            error.message
-          );
-        }
-      }
-
-      // 無料版レポート配信完了後、X投稿を実行（非同期、エラーは無視）
-      // 注意: 独立したCronジョブ（api/x-post-free-report）も実行されるため、
-      // 二重実行を防ぐため、ここでは実行しない（独立したCronジョブに任せる）
-      // ただし、force=trueの場合は即座に実行する
-      if (ENABLE_MINIMAL_VERSION && shouldSend && force) {
-        try {
-          const { postFreeReportToX } = require("./x-post-free-report");
-          const reportData = {
-            trapScore: minimalTrapScore,
-            priceUsd,
-            change24h,
-            exchangeNetflow: inflow,
-            whaleRatio: whaleRatioValue,
-            mpi
-          };
-
-          // 非同期で実行（エラーは無視）
-          postFreeReportToX(reportData).catch((error) => {
-            console.error("[X Post Free Report] Failed:", error.message);
-          });
-
-          console.log("[X Post Free Report] Triggered after free report delivery (force mode)");
-        } catch (error) {
-          console.error("[X Post Free Report] Failed to trigger:", error.message);
         }
       }
     }

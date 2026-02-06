@@ -64,7 +64,7 @@ const GPT_MODEL_GATE = process.env.GPT_MODEL_GATE || "gpt-5.2-2025-12-11"; // �
 // 後方互換性のため、GPT_MODELも残す（デフォルトはSUMMARY）
 const GPT_MODEL = process.env.GPT_MODEL || process.env.OPENAI_MODEL || GPT_MODEL_SUMMARY;
 
-// 引用リポスト 反論処理: フックと同じCQデータを渡してペルソナに効く反論を生成（gpt-5-mini-2025-08-07）
+// 引用リポスト 反論処理用。本番で変更する場合は環境変数で上書き
 const GPT_MODEL_QUOTE_REPOST_OBJECTION =
   process.env.GPT_MODEL_QUOTE_REPOST_OBJECTION || "gpt-5-mini-2025-08-07";
 
@@ -1248,52 +1248,12 @@ Task: Write exactly 2 or 3 short sentences in ${langName}. Sentence 1: acknowled
   }
 }
 
-/**
- * セールスレター本文を1本生成（gpt-5-mini-2025-08-07、失敗時は gpt-4o-mini）。コンテスト用。
- * @param {Object} options - { prompt }
- * @returns {Promise<string|null>}
- */
-async function generateSalesLetterBody(options = {}) {
-  const prompt = options.prompt;
-  if (!OPENAI_API_KEY || !openai) {
-    console.warn("[GPT Client] OPENAI_API_KEY not set, generateSalesLetterBody unavailable");
-    return null;
-  }
-  const models = [
-    process.env.GPT_MODEL_SALES_LETTER || GPT_MODEL_QUOTE_REPOST_OBJECTION,
-    "gpt-4o-mini"
-  ];
-  for (const model of models) {
-    try {
-      const completion = await openai.chat.completions.create({
-        model,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You write short sales letters. Output only the requested text, no meta or explanations."
-          },
-          { role: "user", content: prompt }
-        ],
-        max_completion_tokens: 800,
-        temperature: 1
-      });
-      const text = completion?.choices?.[0]?.message?.content?.trim() || null;
-      if (text) return text;
-    } catch (error) {
-      console.warn(`[GPT Client] generateSalesLetterBody (${model}) failed:`, error.message);
-    }
-  }
-  return null;
-}
-
 module.exports = {
   analyzeCryptoQuantData,
   generateCryptoQuantAnalysis,
   generateNonUserImpactReport,
   generateText,
   generateQuoteRepostObjection,
-  generateSalesLetterBody,
   escapeForPrompt,
   GPT_MODEL_SUMMARY,
   GPT_MODEL_ANALYSIS,

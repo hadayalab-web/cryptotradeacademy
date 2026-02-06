@@ -3,9 +3,9 @@
 **作成日時**: 2026-01-17 14:07:03  
 **作成日**: 2026-01-17  
 
-## 運用で管理する配信（この3つだけ）
+## 運用で管理する配信（2系統だけ）
 **→ [MANAGED_DELIVERIES.md](./MANAGED_DELIVERIES.md)**  
-無料版TG・有料版TG・Grok引用リポストのみ。Cron・コードの参照先を一元化している。
+(1) 無料版・有料版のTG配信ライン (2) Grok引用リポストライン。この2系統のみ。
 
 ## Overview
 Automated BTC signal bot that combines on-chain whale data (CryptoQuant) and AI analysis (Grok) to generate high-conviction trading signals and trap alerts.[file:91][file:113]  

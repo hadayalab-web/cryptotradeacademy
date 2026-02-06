@@ -45,8 +45,8 @@ function formatRegularBriefing({
   // ニュース番組構造用パラメータ
   gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
-  // GrokとGeminiの統合最適化結果
-  integratedOptimization, // Grok Xアルゴリズム解析 × Gemini深層心理解析の統合結果
+  sosovalueArticle = null, // Gemini: CQ+過去比較SoSoValue風記事
+  integratedOptimization = null, // 廃止
   // Phase 2: 市場別深掘りデータ
   whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
@@ -455,10 +455,18 @@ ${sentimentLabel.toLowerCase()}センチメントは、${sentimentLabel === 'Neu
   // 必要に応じて追加の解説セクションをここに追加可能
   
   // 【コメンテーター】Dr. Grok癒し系コメンテーター（固定コーナー）
-  // 安住紳一郎スタイル：落ち着いた解説トーンで、データに基づいた信頼感のある見立て
   lines.push('💊 Dr. Grokのクイックインサイト');
   
-  // ===== GrokとGeminiの統合最適化結果を表示 =====
+  // Gemini: SoSoValue風記事（CQ最新+過去比較）
+  if (sosovalueArticle) {
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📰 オンチェーン示唆（CQ＋過去コンテキスト）');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push(sosovalueArticle);
+    lines.push('');
+  }
+  
+  // ===== 統合最適化は廃止（integratedOptimization は常に null） =====
   if (integratedOptimization && integratedOptimization.integrated && integratedOptimization.optimization) {
     const opt = integratedOptimization.optimization;
     

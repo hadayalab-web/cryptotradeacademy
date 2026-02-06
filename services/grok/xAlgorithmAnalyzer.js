@@ -23,7 +23,7 @@ try {
   console.warn('[Grok X Algorithm Analyzer] Failed to initialize Grok client:', error.message);
 }
 
-const GROK_MODEL_X_LIVE = 'grok-4-1-fast-reasoning';
+const GROK_MODEL_X_LIVE = process.env.GROK_MODEL_X_LIVE || 'grok-4-1-fast-reasoning';
 
 /**
  * Xアルゴリズム最適化のための深層分析

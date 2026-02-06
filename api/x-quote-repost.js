@@ -821,10 +821,10 @@ async function postQuoteRepostsForLang(
       }
     );
 
-    // Grok推奨: ENは4本/日、その他は2本/日。運用: 60s枠でVercelタイムアウト・X API 500を防ぐため1回5人に制限。
+    // 運用: 60s枠でVercel 504を防ぐため1回3人に制限（5人×15sで溢れるため）。X API 500/503はリトライ対象。
     let maxInfluencers = targetCount;
     if (deadlineMs) {
-      const safeCap = 5;
+      const safeCap = 3;
       if (maxInfluencers > safeCap) {
         console.warn(
           `[Quote Repost] ⚠️ Limiting influencers from ${maxInfluencers} to ${safeCap} to prevent "insufficient time remaining" [runId: ${langRunId}]`
@@ -1233,8 +1233,10 @@ async function postQuoteRepostsForLang(
             const isRetryable =
               err?.name === "AbortError" ||
               err?.message?.includes("500") ||
+              err?.message?.includes("503") ||
               err?.message?.includes("timeout") ||
-              err?.message?.includes("aborted");
+              err?.message?.includes("aborted") ||
+              err?.message?.includes("Service Unavailable");
             if (isRetryable) {
               await new Promise((r) => setTimeout(r, 2000));
               try {

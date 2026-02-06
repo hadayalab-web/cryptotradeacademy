@@ -43,9 +43,9 @@
       "maxDuration": 60,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     },
-    "api/x-post-minimal-version.js": {
+    "api/minimal-tg-delivery.js": {
       "maxDuration": 120,
-      "includeFiles": "{config/**,services/**,utils/**}"
+      "includeFiles": "{config/**,services/telegram/**,services/integrated/**,utils/**}"
     }
   },
   "rewrites": [
@@ -55,8 +55,8 @@
     }
   ],
   "crons": [
-    { "path": "/api/cron", "schedule": "7,22,37,52 * * * *" },
-    { "path": "/api/x-post-minimal-version", "schedule": "0 8 * * *" },
+    { "path": "/api/cron", "schedule": "0,7,22,37,52 * * * *" },
+    { "path": "/api/minimal-tg-delivery", "schedule": "10 0,6,12,18 * * *" },
     { "path": "/api/x-quote-repost-en", "schedule": "4 * * * *" },
     { "path": "/api/x-quote-repost-es", "schedule": "9 * * * *" },
     { "path": "/api/x-quote-repost-pt-br", "schedule": "14 * * * *" },

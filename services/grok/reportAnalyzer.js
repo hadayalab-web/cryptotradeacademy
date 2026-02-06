@@ -7,6 +7,7 @@ const OpenAI = require('openai');
 
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
+const GROK_MODEL = process.env.GROK_MODEL_HIGH_RES || process.env.GROK_MODEL_X_LIVE || 'grok-4-1-fast-reasoning';
 
 const openai = XAI_API_KEY ? new OpenAI({
   apiKey: XAI_API_KEY,
@@ -114,7 +115,7 @@ ${reportText}
 上記のレポートを分析し、システム最適化のための具体的な改善提案をJSON形式で出力してください。`;
 
     const completion = await openai.chat.completions.create({
-      model: 'grok-4-1-fast-reasoning',
+      model: GROK_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },

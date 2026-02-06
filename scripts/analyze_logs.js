@@ -29,10 +29,10 @@ try {
     process.exit(1);
 }
 
-// 運用で管理する配信3種のみ（docs/MANAGED_DELIVERIES.md に合わせる）
+// 運用で管理する配信2系統のみ（docs/MANAGED_DELIVERIES.md）。Minimal と Regular は別時刻。
 const cronPaths = [
     '/api/cron',
-    '/api/x-post-minimal-version',
+    '/api/minimal-tg-delivery',
     '/api/x-quote-repost-en', '/api/x-quote-repost-es', '/api/x-quote-repost-pt-br',
     '/api/x-quote-repost-ar', '/api/x-quote-repost-ja', '/api/x-quote-repost-ko'
 ];

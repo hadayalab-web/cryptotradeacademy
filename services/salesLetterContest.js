@@ -1,6 +1,5 @@
 // services/salesLetterContest.js
-// セールスレターを GPT-5-mini / Grok-4-1-fast-reasoning / Gemini-3-flash の3者で生成（同一プロンプト）
-// ペルソナ + CQオンチェーン必須。無料版（Minimal Version）と有料版（Regular Briefing）のチラ見せプレゼンさせる。
+// Grok セールスレター（引用リポスト用）。Grok-4-1-fast-reasoning で生成。ペルソナ + CQオンチェーン必須。
 
 const {
   getPersonaPromptContext,
@@ -60,63 +59,12 @@ function buildCqContext(reportData) {
   return parts.length ? parts.join(". ") : "No market data provided.";
 }
 
-/**
- * 共通プロンプト組み立て: ペルソナ + CQ必須。無料版・有料版のチラ見せプレゼンさせる。
- * あなたのプロンプト次第で3者の出来が決まる。
- */
 /** 市況に応じた追加プロンプト（ドローダウン or 70k支持線テスト時のみ） */
 function getMarketContextForPrompt(reportData) {
   if (!reportData) return "";
   if (isDrawdown(reportData)) return INTEGRATED_STRATEGY_FOR_PROMPT;
   if (isSupportTest70k(reportData)) return SUPPORT_70K_PROMPT;
   return "";
-}
-
-function buildSalesLetterPrompt({ lang, reportData }) {
-  const normalizedLang = (lang || "en").toLowerCase().replace("_", "-");
-  const langName = LANG_NAMES[normalizedLang] || "English";
-  const persona = getPersonaPromptContext(normalizedLang);
-  const cq = buildCqContext(reportData);
-  const monthlyPrice = getMonthlyPriceForLang(normalizedLang);
-  const marketContext = getMarketContextForPrompt(reportData);
-
-  return `You are a direct-response copywriter for Trap Defence (crypto trading education). Write a short sales letter in ${langName} that PRESENTS and TEASES two products. Use the persona and on-chain data below—they are mandatory.
-
-PERSONA (use this voice and hooks):
-${persona}
-
-ON-CHAIN / MARKET DATA (use to ground the copy; reference Trap Score or market where it fits):
-${cq}
-${marketContext ? `\nMARKET CONTEXT (use for tone and urgency—follow this framing):\n${marketContext}` : ""}
-
-X ALGORITHM — ON-CHAIN DATA SUPPLY: Weave 2–3 concrete numbers from the data above into the copy (Trap Score, Exchange Netflow, Whale Ratio, MPI, 24h%). Use them in sentences. This boosts X reach and topic relevance.
-
-PRODUCTS TO PRESENT (teaser style—hint at value, create desire; do not output URLs):
-
-1) FREE: Minimal Version
-- Free Trap Score; "gut vs data" frame; no card signup. Tease: what they see, why it matters, what they’re missing if they don’t try.
-
-2) PAID: Regular Briefing
-- 15min Alerts + Exit Map; $${monthlyPrice}/mo, 1-day trial, risk zero. Tease: what serious traders get, why real-time intel beats gut, code defend50 for 50% off (mention once).
-
-RULES:
-- Output ONLY the sales letter body. No URLs, no hashtags (we add links below).
-- Write exactly 3–5 short paragraphs. Do NOT stop after one sentence. Paragraph 1: hook (persona + market). 2: tease Minimal. 3: tease Regular. 4–5: soft close.
-- Tone: ${TONE}
-- Every sentence must end with a period (or 。 in Japanese).`;
-}
-
-/**
- * GPT-5-mini-2025-08-07 でセールスレター本文を1本生成
- */
-async function generateWithGpt({ lang, prompt }) {
-  try {
-    const { generateSalesLetterBody } = require("./gpt/client");
-    return await generateSalesLetterBody({ prompt });
-  } catch (err) {
-    console.error("[SalesLetterContest] GPT failed:", err.message);
-    return null;
-  }
 }
 
 /**
@@ -143,43 +91,6 @@ async function generateWithGrok({ lang, prompt }) {
     console.error("[SalesLetterContest] Grok failed:", err.message);
     return null;
   }
-}
-
-/**
- * Gemini-3-flash-preview でセールスレター本文を1本生成
- */
-async function generateWithGemini({ lang, prompt }) {
-  const { callGeminiForQuoteRepost } = require("./gemini/quoteRepostCopy");
-  // Gemini は1文で止まりがちなので、末尾に段落数の指示を追加
-  const geminiPrompt =
-    prompt +
-    "\n\n[Critical] You MUST output 3–5 complete paragraphs. Do not stop after one sentence. Write the full sales letter.";
-  try {
-    const text = await callGeminiForQuoteRepost(geminiPrompt, 800);
-    return text || null;
-  } catch (err) {
-    console.error("[SalesLetterContest] Gemini failed:", err.message);
-    return null;
-  }
-}
-
-/**
- * 3者でセールスレターを生成。同一プロンプト（ペルソナ + CQ必須、無料/有料チラ見せ）。
- * @param {Object} options - { lang, reportData }
- * @returns {Promise<{ prompt: string, gpt: string|null, grok: string|null, gemini: string|null }>}
- */
-async function runSalesLetterContest(options = {}) {
-  const lang = (options.lang || "en").toLowerCase().replace("_", "-");
-  const reportData = options.reportData || null;
-  const prompt = buildSalesLetterPrompt({ lang, reportData });
-
-  const [gpt, grok, gemini] = await Promise.all([
-    generateWithGpt({ lang, prompt }),
-    generateWithGrok({ lang, prompt }),
-    generateWithGemini({ lang, prompt })
-  ]);
-
-  return { prompt, gpt, grok, gemini };
 }
 
 /**
@@ -477,17 +388,13 @@ async function getSalesLetterGrokFromCache(lang) {
 
 module.exports = {
   SALES_LETTER_LANGS,
-  buildSalesLetterPrompt,
   buildGrokOnlyPrompt,
   buildCqContext,
   getLinkBlockGrokStyle,
-  runSalesLetterContest,
   runGrokOnlySalesLetter,
   runGrokOnlySalesLetterAllLangs,
   saveSalesLetterGrokCache,
   getSalesLetterGrokFromCache,
   SALES_LETTER_GROK_CACHE_PREFIX,
-  generateWithGpt,
-  generateWithGrok,
-  generateWithGemini
+  generateWithGrok
 };

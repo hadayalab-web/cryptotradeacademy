@@ -74,7 +74,8 @@ function formatRegularBriefing({
   gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
   grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
   // GrokとGeminiの統合最適化結果
-  integratedOptimization, // Grok Xアルゴリズム解析 × Gemini深層心理解析の統合結果
+  sosovalueArticle = null, // Gemini: CQ+過去比較SoSoValue風記事
+  integratedOptimization = null, // 廃止
   // Phase 2: 市場別深掘りデータ
   whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
 }) {
@@ -455,7 +456,14 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICCIÓN: Puntuación de bajo riesgo
   // 【コメンテーター】Dr. Grokメンタルコーチ（固定コーナー）
   lines.push('💊 Insight Rápido de Dr. Grok');
   
-  // ===== Mostrar resultados de optimización integrada de Grok y Gemini =====
+  if (sosovalueArticle) {
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📰 Insight on-chain (CQ + contexto pasado)');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push(sosovalueArticle);
+    lines.push('');
+  }
+  
   if (integratedOptimization && integratedOptimization.integrated && integratedOptimization.optimization) {
     const opt = integratedOptimization.optimization;
     

@@ -73,12 +73,11 @@ function formatRegularBriefing({
   psychologicalSupport, // 心理的サポート診断結果
   // USP2: Geminiコンテンツ生成
   hasGeminiContent = false, // Gemini画像・動画が生成されたかどうか（後方互換性）
-  showContent = null, // Gemini番組プロデューサーの結果（テキストベース）
-  // ニュース番組構造用パラメータ
-  gptReporterAnalysis, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
-  grokXAnalysis, // Grok X解析結果（Xセンチメント分析）
-  // GrokとGeminiの統合最適化結果
-  integratedOptimization, // Grok Xアルゴリズム解析 × Gemini深層心理解析の統合結果
+  showContent = null, // 廃止（Gemini=SoSoValue記事に役割限定）
+  sosovalueArticle = null, // Gemini: CQ最新+過去比較でSoSoValue風記事
+  gptReporterAnalysis, // GPT: CQ総合分析→Trapアラート
+  grokXAnalysis, // Grok: Xセンチメント→トレード依存症サポート
+  integratedOptimization = null, // 廃止
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -505,8 +504,18 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
     lines.push('━━━━━━━━━━━━━━━━━━━━');
     lines.push('🎬 Check attached image/video!');
     lines.push('');
-  } else {
-    // showContentがない場合でも証拠セクションと戦略的インサイトセクションを表示
+  }
+  // Gemini: SoSoValue風記事（CQ最新+過去比較「過去はこんな相場になった」）
+  if (sosovalueArticle) {
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📰 On-chain insight (CQ + past context)');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push(sosovalueArticle);
+    lines.push('');
+  }
+
+  if (!showContent) {
+    // showContentがない場合: 証拠セクションと戦略的インサイトセクションを表示
     // Trap RiskスコアまたはTrap Detectionスコアから証拠を生成
     // 優先順位: trapDetection.trapScore > trapScoreパラメータ > trapRisk.trapRiskScore
     let trapScoreForEvidence = null;

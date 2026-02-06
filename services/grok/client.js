@@ -18,19 +18,13 @@ const XAI_API_KEY = process.env.XAI_API_KEY;
 const BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
 
 // Phase 2: 用途別モデル環境変数の分割（SSOT準拠）
-const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || "production";
-
-// 開発環境: すべてハイエンドモデルを使用（Composer最優先）
-// 本番環境: 用途別モデルを使用（コスト最適化）
-const isDevelopment = APP_ENV === "development";
-
-// 用途別モデル定義
-const GROK_MODEL_MARKET =
-  process.env.GROK_MODEL_MARKET || (isDevelopment ? "grok-4-1-fast-reasoning" : "grok-4-0709");
+// 用途別モデル定義（本番で変更する場合は環境変数で上書き）
+const GROK_MODEL_DEFAULT = "grok-4-1-fast-reasoning";
+const GROK_MODEL_MARKET = process.env.GROK_MODEL_MARKET || GROK_MODEL_DEFAULT;
 const GROK_MODEL_MARKET_EMERGENCY =
-  process.env.GROK_MODEL_MARKET_EMERGENCY || "grok-4-1-fast-reasoning";
-const GROK_MODEL_X_LIVE = process.env.GROK_MODEL_X_LIVE || "grok-4-1-fast-reasoning";
-const GROK_MODEL_HIGH_RES = process.env.GROK_MODEL_HIGH_RES || "grok-4-1-fast-reasoning";
+  process.env.GROK_MODEL_MARKET_EMERGENCY || GROK_MODEL_DEFAULT;
+const GROK_MODEL_X_LIVE = process.env.GROK_MODEL_X_LIVE || GROK_MODEL_DEFAULT;
+const GROK_MODEL_HIGH_RES = process.env.GROK_MODEL_HIGH_RES || GROK_MODEL_DEFAULT;
 
 // 後方互換性のため、GROK_MODEL_REASONINGとGROK_MODEL_LIVEも残す
 const GROK_MODEL_REASONING = process.env.GROK_MODEL_REASONING || GROK_MODEL_MARKET;
