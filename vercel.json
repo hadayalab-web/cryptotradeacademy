@@ -6,11 +6,11 @@
       "includeFiles": "{api/services/**,config/**,services/telegram/messages/**}"
     },
     "api/x-update-influencer-stock.js": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "includeFiles": "config/**"
     },
     "api/x-engagement-metrics.js": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "includeFiles": "{config/**,services/x/**}"
     },
     "api/x-webhook.js": {
@@ -20,27 +20,27 @@
       "maxDuration": 30
     },
     "api/x-quote-repost-en.js": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     },
     "api/x-quote-repost-es.js": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     },
     "api/x-quote-repost-pt-br.js": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     },
     "api/x-quote-repost-ar.js": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     },
     "api/x-quote-repost-ja.js": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     },
     "api/x-quote-repost-ko.js": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "includeFiles": "{config/**,services/**,api/x-quote-repost.js,utils/**}"
     },
     "api/minimal-tg-delivery.js": {
