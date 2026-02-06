@@ -1,13 +1,13 @@
 // services/gemini/sosovalueArticle.js
-// Gemini: CQの最新データと過去の類似データを比較し「過去はこんな相場になった」SoSoValue風の記事を作成
+// Gemini役割: 「次のアクションを指示してくれる記事」を書く（SoSoValue風・トレーダー向け）
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_SOSOVALUE_MODEL =
   process.env.GEMINI_SOSOVALUE_MODEL || process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 
 /**
- * CQ最新データ（と任意で過去比較メモ）からSoSoValue風の短い記事を1本生成
- * @param {Object} options - { cqData: { priceUsd, change24h, inflow, mpi, trapScore?, ... }, pastSummary?: string, lang?: string }
+ * 次のアクションを指示する記事を1本生成（Gemini役割: 記事で「何をすべきか」を明示）
+ * @param {Object} options - { cqData, pastSummary?, lang? }
  * @returns {Promise<string|null>}
  */
 async function generateSosovalueStyleArticle(options = {}) {
@@ -40,12 +40,16 @@ ${pastSummary ? `\n## 過去類似データ\n${pastSummary}` : ""}
         ? "Output in English."
         : "Output in the same language as the user.";
 
-  const prompt = `あなたはSoSoValueやOdailyのような暗号通貨ニュースメディアのアナリストです。
-以下のオンチェーンデータに基づき、「過去はこんな相場になった」または「現在のCQから読み取れる示唆」を簡潔なSoSoValue風の記事（400〜800文字程度）にまとめてください。
+  const prompt = `あなたはSoSoValueやOdailyのような暗号通貨メディアのアナリストです。
+役割: **「次のアクションを指示してくれる記事」**を書くこと。読んだトレーダーが「今、何をすべきか」がはっきり分かるようにしてください。
+
+以下のオンチェーンデータに基づき、記事（400〜800文字程度）を作成してください。
 ${dataSummary}
 
-要件:
-- 見出し1行 + 本文2〜4段落。データを織り交ぜ、トレーダーが役に立つ示唆を1つ含める。
+必須要件:
+- 見出し1行 + 本文2〜4段落。
+- **推奨アクションを明示する**: 「今すべきこと」「避けるべきこと」「注目すべき水準」のいずれかまたは複数を、具体的に1〜3文で書く。
+- データ（価格・ネットフロー・MPI・Trap Scoreなど）を織り交ぜ、その根拠を示してからアクションを指示する。
 - URL・ハッシュタグは出さない。
 ${langNote}`;
 

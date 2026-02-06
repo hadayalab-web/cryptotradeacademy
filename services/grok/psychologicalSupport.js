@@ -1,6 +1,5 @@
 // services/grok/psychologicalSupport.js
-// Dr. Grokの心理分析サポート機能
-// USP3: X解析からユーザーのリアルタイムセンチメントを予測し診断、心理分析によるサポートを提供
+// Grok役割: Xのセンチメント/アルゴリズム解析 → Dr. Grok心理サポート（X解析からユーザーセンチメント診断）
 
 const { analyzeXSentimentLive } = require('./client');
 const { analyzeXSentimentHighResolutionCompat } = require('./highResolution');

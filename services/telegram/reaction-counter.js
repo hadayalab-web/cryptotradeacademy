@@ -189,27 +189,28 @@ async function getTodaySavedCount() {
 }
 
 /**
- * 表示用のフォーマットされたテキストを取得
- * 例: "👥 350 Traders Saved Today"
- * @param {string} lang - 言語コード（オプション、Phase 1では総計のみ使用）
+ * 表示用のフォーマットされたテキストを取得（全世界6言語規模・ハッタリ戦法）
+ * 6言語展開なので「今週」の数字は全世界集計規模で表示する。
+ * @param {string} lang - 言語コード
  * @returns {Promise<string>}
  */
 async function getSocialProofText(lang = 'en') {
   const count = await getTodaySavedCount();
-  // 演出用: 実際のカウントが少ない場合でも、ベース値（例: 120）を足して「人気感」を出す（マーケティング演出）
-  // ※実際の運用では正直な数字を使うか、ベース値を設定するかはポリシー次第
-  // 今回はテストなのでそのままの数字 + ランダムなベース値で演出
-  
-  // ベース値: 150〜300のランダム
-  const baseValue = Math.floor(Math.random() * 150) + 150;
+  // 全世界6言語展開の規模感: ベースを数千に（EN/ES/AR/JA/KO/PT-BR の週次集計想定）
+  const baseValue = Math.floor(Math.random() * 1800) + 2800;
   const displayCount = count + baseValue;
-  
-  // Phase 1: 総計のみ使用（言語別対応はPhase 2で実装）
-  // Phase 2以降で言語別テキストを追加予定
-  const normalizedLang = (lang || 'en').toLowerCase();
-  
-  // Phase 1: 英語のみ（総計）
-  return `👥 ${displayCount} Traders Saved Today`;
+  const displayStr = displayCount.toLocaleString();
+
+  const normalizedLang = (lang || 'en').toLowerCase().replace('_', '-');
+  const templates = {
+    en: `🔥 ${displayStr}+ Trap Avoided This Week (6 langs, worldwide) 👥 I'm Safe`,
+    ja: `🔥 今週全世界${displayStr}+トラップ回避（6言語） 👥 I'm Safe`,
+    es: `🔥 ${displayStr}+ Trampa Evitada Esta Semana (6 idiomas, mundial) 👥 I'm Safe`,
+    'pt-br': `🔥 ${displayStr}+ Armadilha Evitada Esta Semana (6 idiomas, mundial) 👥 I'm Safe`,
+    ar: `🔥 ${displayStr}+ الفخ اتجنب هذا الأسبوع (6 لغات، عالمي) 👥 I'm Safe`,
+    ko: `🔥 이번 주 전세계 ${displayStr}+ 함정 회피 (6개국어) 👥 I'm Safe`
+  };
+  return templates[normalizedLang] || templates.en;
 }
 
 module.exports = {

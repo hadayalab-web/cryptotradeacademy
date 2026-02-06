@@ -1,5 +1,5 @@
 // services/grok/client.js
-// ペルソナ決め打ち: 引用リポスト生成時に personaStrategy をプロンプトに注入（CVR・LTV 最大化）
+// Grok役割: Xのセンチメント/アルゴリズム解析（引用リポスト・Regular配信のX解析・Dr. Grok心理サポート）
 
 const OpenAI = require("openai");
 const { getMarketProfile } = require("../../api/config/marketProfiles");

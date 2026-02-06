@@ -1,5 +1,5 @@
 // services/gpt/client.js
-// GPT APIを使用したCryptoQuantデータ解析サービス（最適化版）
+// GPT API: CQデータを基に「次に何が起こるか」を解析する（Trapアラート・市況予測）
 
 const OpenAI = require("openai");
 // p-retryはES Moduleのため動的インポートを使用
@@ -253,11 +253,11 @@ const MarketContextSchema = z
   .passthrough();
 
 /**
- * CryptoQuantデータをGPTで解析（15分ごとの緊急配信用）
+ * CQデータを基に「次に何が起こるか」を解析（GPT役割: 15分緊急配信用・Trapシグナル）
  * @param {Object} cryptoQuantData - CryptoQuantデータ（inflow, mpi, nupl, sopr等）
  * @param {Object} marketContext - 市場コンテキスト（price, change24h, score等）
  * @param {string} lang - 言語コード
- * @returns {Promise<Object>} GPT解析結果 {signal, confidence, reasoning, urgency}
+ * @returns {Promise<Object>} {signal, confidence, reasoning, urgency}
  */
 async function analyzeCryptoQuantData(cryptoQuantData, marketContext, lang = "en") {
   // p-retryを動的インポート（ES Module対応）
@@ -546,11 +546,11 @@ If data is missing or insufficient, set signal to "STANDBY" and urgency to "low"
 }
 
 /**
- * CryptoQuantデータをGPTで詳細解析（定期配信用）
+ * CQデータを基に「次に何が起こるか」を解析（GPT役割: 定期配信用）
  * @param {Object} cryptoQuantData - CryptoQuantデータ
  * @param {Object} marketContext - 市場コンテキスト
  * @param {string} lang - 言語コード
- * @returns {Promise<string>} GPTによる詳細分析テキスト
+ * @returns {Promise<string>} 次に起こりうることの分析＋メンタルトレーニング
  */
 async function generateCryptoQuantAnalysis(cryptoQuantData, marketContext, lang = "en") {
   // p-retryを動的インポート（ES Module対応）
@@ -589,14 +589,14 @@ async function generateCryptoQuantAnalysis(cryptoQuantData, marketContext, lang 
   const safeCQData = escapeForPrompt(JSON.stringify(validatedCQ.data, null, 2));
   const safeMCData = escapeForPrompt(JSON.stringify(validatedMC.data, null, 2));
 
-  const systemPrompt = `You are a Mental Trainer for Crypto Traders, specializing in Trap Defence philosophy.
-Your mission: "Don't fall into traps!" - Guide traders to avoid emotional trading mistakes.
+  const systemPrompt = `You are a CryptoQuant analyst and Mental Trainer for Trap Defence.
+Your role: **Analyze what is likely to happen next** based on CQ on-chain data (price direction, trap risk, key levels), then connect that to trader psychology.
 
 Your expertise:
-1. Interpreting CryptoQuant on-chain data from a psychological perspective
-2. Explaining how market data relates to trader emotions (FOMO, FEAR, GREED, PANIC)
-3. Teaching Trap Defence discipline: "70% of the time, do nothing. Defend until clear advantage emerges."
-4. Providing actionable mental training advice based on on-chain metrics
+1. **Forward-looking analysis**: From the given CQ data, infer "what will happen next" (e.g. selling pressure, reversal risk, accumulation) and state it clearly.
+2. Interpreting CryptoQuant on-chain data and how it relates to near-term market moves.
+3. Explaining how that outlook relates to trader emotions (FOMO, FEAR, GREED) and Trap Defence: "70% of the time, do nothing. Defend until clear advantage emerges."
+4. Providing mental training advice that matches the "what happens next" scenario
 
 Your style: 
 - Empathetic but firm guidance
@@ -612,7 +612,7 @@ CRITICAL: You MUST respond ONLY in ${targetLang === "ja" ? "Japanese" : targetLa
 DO NOT mix languages. DO NOT use Japanese characters if targetLang is 'en'. 
 If you detect any Japanese characters in your response when targetLang is 'en', regenerate the response in English only.`;
 
-  const userContent = `As a Mental Trainer, analyze the following CryptoQuant data and provide psychological guidance:
+  const userContent = `Analyze the following CryptoQuant data to infer **what will happen next** in the market, then give psychological guidance.
 
 CryptoQuant Data:
 ${safeCQData}
@@ -620,21 +620,19 @@ ${safeCQData}
 Market Context:
 ${safeMCData}
 
-Provide:
-1. Psychological interpretation of on-chain metrics (How does this data relate to trader emotions?)
-2. Trap patterns detected and why they are dangerous
-3. Mental training advice: What should traders do/avoid based on this data?
-4. Trap Defence discipline: Why waiting is important right now
-5. Actionable guidance: Specific steps to avoid falling into traps
+Provide in this order:
+1. **What is likely to happen next**: Based on CQ data (netflow, MPI, price, etc.), state the most plausible near-term scenario (e.g. trap risk, reversal, range, breakout) in 1–3 clear sentences.
+2. Trap patterns detected and why they are dangerous (if any).
+3. Psychological interpretation: How this "what happens next" relates to trader emotions (FOMO, FEAR, GREED).
+4. Mental training advice: What traders should do or avoid given that scenario.
+5. Trap Defence discipline: Why waiting or acting is important right now.
 
 Focus on:
-- "Don't fall into traps!" message
-- Teaching the importance of "70% standby" strategy
-- Connecting data to trader psychology (FOMO, FEAR, GREED, etc.)
-- Providing clear, actionable mental training advice
+- CQ-based "what will happen next" first, then psychology and actions.
+- "Don't fall into traps!" and "70% standby" when the data suggests high trap risk.
+- Clear, actionable guidance.
 
-Keep the analysis empathetic but firm (400-600 words).
-If data is missing or insufficient, state that clearly and provide general Trap Defence wisdom.`;
+Keep the analysis 400-600 words. If data is missing or insufficient, say so and give general Trap Defence wisdom.`;
 
   // Phase 2: 用途別モデルを使用（ANALYSIS: 統合推論）
   const modelToUse = GPT_MODEL_ANALYSIS;

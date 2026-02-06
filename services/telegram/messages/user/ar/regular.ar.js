@@ -57,6 +57,7 @@ function formatRegularBriefing({
   trap,
   aiAnalysis,
   stats,
+  trapScore, // Phase 2: トラップスコア（ENと同様）
   // Phase1-Product: 新機能データ
   noTradeAlert, // NO TRADEアラート結果
   trapRisk, // Trap Riskスコア結果
@@ -77,7 +78,8 @@ function formatRegularBriefing({
   sosovalueArticle = null, // Gemini: CQ+過去比較SoSoValue風記事
   integratedOptimization = null, // 廃止
   // Phase 2: 市場別深掘りデータ
-  whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
+  whaleFlows, // Whale Flows（ENと同様）
+  liquidations = null, // ENと同様（24h清算）
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -103,14 +105,28 @@ function formatRegularBriefing({
     scoreInterpretation = ' (هابط جداً)';
   }
   const scoreLine = `📈 درجة السوق: ${marketScore}/100${scoreInterpretation}`;
-  const trapLine = trap?.isTrap
-    ? `🧨 كاشف الفخاخ: ${trap.label || 'فخ محتمل'} (${trap.confidence} مستوى ثقة)`
-    : '✅ كاشف الفخاخ: لا توجد فخاخ حرجة مكتشفة';
+
+  const LOW_TRAP_RISK_THRESHOLD = 35;
+  const effectiveTrapScore = trapDetection?.trapScore ?? trapScore ?? trapRisk?.trapRiskScore ?? null;
+  const isLowTrapRisk = effectiveTrapScore != null && effectiveTrapScore < LOW_TRAP_RISK_THRESHOLD;
+  const hasActiveTrapAlert = trapAlert && trapAlert.alert;
+
+  let trapLine = '✅ كاشف الفخاخ: لا توجد فخاخ حرجة مكتشفة';
+  if (trapDetection && trapDetection.trapDetected) {
+    const trapSev = trapDetection.trapSeverity || 'NONE';
+    const trapSc = trapDetection.trapScore || 0;
+    if (trapSev !== 'NONE' && trapSc > 0) {
+      const trapEmoji = trapSev === 'CRITICAL' ? '🚨' : trapSev === 'HIGH' ? '⚠️' : trapSev === 'MEDIUM' ? '⚡' : '💡';
+      const trapTypeLabel = (trapDetection.trapType || 'فخ').replace(/_/g, ' ');
+      trapLine = `${trapEmoji} كاشف الفخاخ: ${trapTypeLabel} (الشدة: ${trapSev}, النقاط: ${trapSc}/100)`;
+    }
+  } else if (trap?.isTrap) {
+    trapLine = `🧨 كاشف الفخاخ: ${trap.label || 'فخ محتمل'} (${trap.confidence} مستوى ثقة)`;
+  }
 
   let dirEmoji;
   let dirLabel;
-  // تنبيهات الفخ فقط (تم حذف BUY/SELL/LONG/SHORT بالكامل)
-  if (trapAlert && trapAlert.alert) {
+  if (hasActiveTrapAlert) {
     dirEmoji = trapAlert.severity === 'CRITICAL' ? '🚨' :
                trapAlert.severity === 'HIGH' ? '⚠️' :
                trapAlert.severity === 'MEDIUM' ? '⚡' : '🛡️';
@@ -121,25 +137,30 @@ function formatRegularBriefing({
     } else {
       dirLabel = '🛡️ تنبيه الفخ: انتظار';
     }
+  } else if (isLowTrapRisk) {
+    dirEmoji = '📐';
+    dirLabel = 'انخفاض مخاطر الفخ — نافذة وضع المراكز';
   } else {
     dirEmoji = '🛡️';
     dirLabel = 'TRAP STANDBY (Defense Active)';
   }
 
-  const isNoTrade = true; // وضع الانتظار دائماً (تم حذف إشارات BUY/SELL بالكامل)
-  const entryLine = isNoTrade
-    ? '• الدخول: الاستعداد للنصر — انتظار محفز واضح'
-    : `• سعر الدخول (مرجع سبوت): ${formatUsd(priceUsd)}`;
-  const tpLine = isNoTrade
-    ? '• Take Profit: TBD (سيتم تحديده)'
-    : (tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: n/a');
-  const slLine = isNoTrade
-    ? '• Stop Loss: TBD (سيتم تحديده)'
-    : (tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: n/a');
-  const rrLine = isNoTrade
-    ? '• نسبة المخاطرة إلى العائد (RR): انتظار'
-    : (tradeSignal?.rr != null ? `• نسبة المخاطرة إلى العائد (RR): ${tradeSignal.rr.toFixed(2)}` : '');
-  const modeLine = isNoTrade ? '• الوضع: Trap Standby — انتظر أفضلية واضحة. أولوية للدفاع' : '';
+  const isPositioningWindow = isLowTrapRisk && !hasActiveTrapAlert;
+  const entryLine = isPositioningWindow
+    ? `• الدخول: فكّر في صفقات نوعية عندما تكون الأفضلية واضحة (مرجع ${formatUsd(priceUsd)})`
+    : (!isLowTrapRisk && !hasActiveTrapAlert
+      ? '• الدخول: الاستعداد للنصر — انتظار محفز واضح'
+      : `• سعر الدخول (مرجع سبوت): ${formatUsd(priceUsd)}`);
+  const tpLine = isPositioningWindow
+    ? '• Take Profit: حدد مستواك (قبل الدخول)'
+    : (tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: TBD (سيتم تحديده)');
+  const slLine = isPositioningWindow
+    ? '• Stop Loss: حدد قبل الدخول'
+    : (tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: TBD (سيتم تحديده)');
+  const rrLine = tradeSignal?.rr != null ? `• نسبة المخاطرة إلى العائد (RR): ${tradeSignal.rr.toFixed(2)}` : (isPositioningWindow ? '• نسبة المخاطرة إلى العائد (RR): حدد حسب الصفقة' : '• نسبة المخاطرة إلى العائد (RR): انتظار');
+  const modeLine = isPositioningWindow
+    ? '• الوضع: انخفاض مخاطر الفخ — يمكن وضع مراكز long/short مع مخاطرة محددة. الرافعة فقط عندما تكون الأفضلية واضحة.'
+    : (!isLowTrapRisk ? '• الوضع: Trap Standby — انتظر أفضلية واضحة. أولوية للدفاع' : '');
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -152,11 +173,15 @@ function formatRegularBriefing({
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
+  const trapSeverityForHeader = trapDetection?.trapSeverity || trapAlert?.severity || 'LOW';
+  const isHighTrapForHeader = trapSeverityForHeader === 'CRITICAL' || trapSeverityForHeader === 'HIGH';
+
   const lines = [];
-  lines.push('🌤️ Trap Defence BTC - تقرير مدفوع');
-  // COO最適化: 緊急感強化
-  const urgencyLevel = (score <= 25 && inflow > 0 && sentimentLabel.toLowerCase().includes('fear')) ? 'عاجل' : 'مهم';
-  lines.push(`🚨 تنبيه ${urgencyLevel}: بريفينغ دفاع الفخ — الوقت يدق!`);
+  if (isHighTrapForHeader) {
+    lines.push(`🚨 تنبيه دفاع الفخ — مخاطر فخ ${trapSeverityForHeader}`);
+  } else {
+    lines.push('📋 بريفينغ دفاع الفخ');
+  }
   lines.push(`📅 ${ts}`);
   lines.push('');
 
@@ -170,80 +195,49 @@ function formatRegularBriefing({
   if (rrLine) lines.push(rrLine);
   lines.push('');
 
-  // COO最適化: 矛盾の提示（低リスクなのに売り圧力）
+  let actionPreview = '';
+  if (sosovalueArticle && typeof sosovalueArticle === 'string' && sosovalueArticle.trim()) {
+    const firstSentence = sosovalueArticle.split(/[.!?\n]/)[0]?.trim() || sosovalueArticle.trim();
+    actionPreview = firstSentence.length > 120 ? firstSentence.slice(0, 117) + '…' : firstSentence;
+    if (actionPreview) {
+      lines.push('📌 حركتك: ' + actionPreview);
+      lines.push('');
+    }
+  }
+
+  // Context（クジラは数値出さない）
   if (score <= 25 && inflow > 0 && sentimentLabel.toLowerCase().includes('fear')) {
-    const whaleRatioEstimate = Math.min(100, Math.max(0, (inflow / 1000) * 10 + 40)); // 推定クジラ比率
-    const whaleDollarValue = Math.floor((whaleRatioEstimate / 100) * priceUsd * 1000); // 推定ドル価値
+    const whaleRatioEstimate = Math.min(100, Math.max(0, (inflow / 1000) * 10 + 40));
+    const contextNote = whaleRatioEstimate >= 80
+      ? 'جزء كبير من التدفق قد يتحول إلى ضغط بيع. يجدر مراقبته لإدارة المخاطر.'
+      : 'جزء كبير من التدفق قد يكون مرتبطاً بالحيتان. يجدر مراقبته لإدارة المخاطر.';
     lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('🤔 تنبيه التناقض');
+    lines.push('📊 السياق');
     lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push(`درجة السوق: ${Math.round(score)}/100 (محايد/مستقر)`);
-    lines.push(`لكن صافي تدفق البورصات: +${Math.abs(inflow).toFixed(0)} BTC داخل`);
-    lines.push(`والمشاعر: ${sentimentLabel}`);
+    lines.push(`درجة السوق: ${Math.round(score)}/100${scoreInterpretation}`);
+    lines.push(`صافي تدفق البورصات: +${Math.abs(inflow).toFixed(0)} BTC داخل`);
+    lines.push(`المشاعر: ${sentimentLabel}`);
     lines.push('');
-    lines.push(`⚠️ هذا التناقض يشير إلى: مخاطر منخفضة لكن ضغط بيع يتزايد.`);
-    lines.push(`   نسبة الحيتان المقدرة ${whaleRatioEstimate.toFixed(0)}% = $${whaleDollarValue}M+ جاهزة للبيع.`);
-    lines.push(`   ماذا يعني هذا لرأس مالك؟`);
+    lines.push(contextNote);
     lines.push('');
   }
 
-  // ===== 【コア機能ハイライト】3つの強み =====
-  lines.push('✨ أبرز اليوم (3 ميزات أساسية)');
+  // ===== 【ハイライト】Trap / CQ / Action の3項目に整理 =====
+  lines.push('✨ أبرز اليوم');
   lines.push('');
-  
-  // Core Feature 1: Trap Defense (prioritize trapDetection, fallback to marketBug for backward compatibility)
   const trapData = trapDetection || marketBug;
-  if (trapData && (trapData.trapDetected || trapData.bugDetected)) {
-    const trapEmoji = trapData.trapSeverity === 'CRITICAL' || trapData.bugSeverity === 'CRITICAL' ? '🚨' :
-                     trapData.trapSeverity === 'HIGH' || trapData.bugSeverity === 'HIGH' ? '⚠️' :
-                     trapData.trapSeverity === 'MEDIUM' || trapData.bugSeverity === 'MEDIUM' ? '⚡' : '💡';
-    const trapType = trapData.trapType || trapData.bugType || 'شذوذ';
-    const trapTypeText = trapType.replace(/_/g, ' ');
-    const trapScore = trapData.trapScore || trapData.bugScore || 0;
-    lines.push(`🛡️ الميزة الأساسية 1: دفاع الفخ - ${trapEmoji} ${trapTypeText} (الدرجة: ${trapScore.toFixed(0)}/100)`);
-    
-    // Display score calculation components (transparency)
-    if (trapData.details) {
-      const components = [];
-      if (trapData.details.multipleDivergences >= 3) {
-        components.push(`انحرافات متعددة (${trapData.details.multipleDivergences})`);
-      } else if (trapData.details.multipleDivergences >= 2) {
-        components.push(`انحرافات متعددة (${trapData.details.multipleDivergences})`);
-      }
-      if (trapData.details.anomalyDetected) {
-        components.push('شذوذ عالي الدقة');
-      }
-      if (trapData.details.accelerationDetected) {
-        components.push('تسارع الاتجاه');
-      }
-      if (Math.abs(trapData.details.onchainSocialDivergence || 0) > 40) {
-        components.push('انحراف الحوت/التجزئة');
-      }
-      if (trapData.details.priceOnchainDivergence) {
-        components.push('انحراف السعر/Onchain');
-      }
-      if (trapData.details.priceSocialDivergence) {
-        components.push('انحراف السعر/المشاعر');
-      }
-      if (components.length > 0) {
-        lines.push(`   📊 المكونات: ${components.join(' + ')}`);
-      }
-    }
-    
-    // Display trap alert details if available
-    if (trapAlert && trapAlert.alert) {
-      const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
-      const recommendationText = trapAlert.recommendation ? trapAlert.recommendation.replace(/_/g, '-') : 'UNKNOWN';
-      lines.push(`   🚨 نوع التنبيه: ${alertTypeText} (الشدة: ${trapAlert.severity})`);
-      lines.push(`   💡 التوصية: ${recommendationText}`);
-      if (trapAlert.confidence) {
-        lines.push(`   📊 الثقة: ${(trapAlert.confidence * 100).toFixed(0)}%`);
-      }
-    }
-  } else {
-    lines.push('🛡️ الميزة الأساسية 1: دفاع الفخ - لا توجد فخاخ مكتشفة حالياً');
-  }
-  
+  const trapOneLine = trapData && (trapData.trapDetected || trapData.bugDetected)
+    ? `🛡️ الفخ: ${(trapData.trapType || trapData.bugType || 'شذوذ').replace(/_/g, ' ')} (${Math.round(trapData.trapScore || trapData.bugScore || 0)}/100)`
+    : '🛡️ الفخ: لا فخ مكتشف';
+  const trapRiskLabel = isLowTrapRisk ? 'منخفض' : (effectiveTrapScore != null && effectiveTrapScore >= 50 ? 'عالي' : 'متوسط');
+  const cqOneLine = inflow >= 0
+    ? `📊 CQ: صافي التدفق +${Math.abs(inflow).toFixed(0)} BTC؛ مخاطر الفخ ${trapRiskLabel}.`
+    : `📊 CQ: صافي التدفق −${Math.abs(inflow).toFixed(0)} BTC؛ مخاطر الفخ ${trapRiskLabel}.`;
+  lines.push(trapOneLine);
+  lines.push(cqOneLine);
+  lines.push(`📌 الحركة: ${actionPreview || 'انتظر أفضلية واضحة.'}`);
+  lines.push('');
+
   // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
   // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
   // エラーメッセージやnullの場合は、フォールバック処理
@@ -306,8 +300,8 @@ function formatRegularBriefing({
 ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفضة لكن ضغط بيع عالي. هذا بالضبط عندما تتشكل الفخاخ. كن حذراً.' : 'السوق في وضع انتظار، حيث يراقب المتداولون الظروف بعناية.'}`;
   }
   
-  // 文字数制限を緩和して、重要な情報が切れないようにする（600文字まで）
-  const gptNewsLimit = 600;
+  // 要約1行＋短めの本文で全体長を抑える（420文字まで、ENと統一）
+  const gptNewsLimit = 420;
   // Telegram互換性: Markdown見出し（###）を削除してTelegramネイティブな形式に変換（先に実行）
   let gptNewsDisplay = gptNewsText
     .replace(/^###\s+/gm, '') // ###見出しを削除
@@ -365,96 +359,15 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
     lines.push(`📰 ${gptNewsDisplay}`);
     lines.push('');
   }
-  
-  // データに基づく理由セクション（常に表示して価値を提供）
-  // 優先順位: trapDetection.trapScore > trapRisk.trapRiskScore（値が0の場合は次のソースをチェック）
-  let trapScoreForEvidence = null;
-  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
-    trapScoreForEvidence = trapDetection.trapScore;
-  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
-    trapScoreForEvidence = trapRisk.trapRiskScore;
-  }
-  const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
-  
-  if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
-    lines.push('📊 أسباب مبنية على البيانات');
-    
-    if (trapScoreForEvidence !== null) {
-      const trapScoreRounded = Math.round(trapScoreForEvidence);
-      if (trapScoreRounded >= 50) {
-        lines.push(`🎯 درجة الفخ: ${trapScoreRounded}/100 تشير إلى مخاطر فخ كبيرة`);
-        if (trapTypeForEvidence) {
-          const trapTypeDisplay = trapTypeForEvidence.replace(/_/g, ' ');
-          lines.push(`⚠️ نوع الفخ: تم اكتشاف ${trapTypeDisplay}`);
-        }
-        lines.push(`💡 الدليل: تشير الانحرافات المتعددة والانحرافات on-chain إلى أن وضع "انتظار" حكيم`);
-        lines.push(`📈 لماذا الانتظار؟ تُظهر البيانات ${trapScoreRounded >= 70 ? 'قوية' : 'معتدلة'} إشارات أن الدخول الآن قد يعرضك لفخاخ السوق`);
-      } else {
-        lines.push(`✅ درجة الفخ: ${trapScoreRounded}/100 تشير إلى مخاطر فخ منخفضة`);
-        lines.push(`💡 الدليل: Trap Score عند ${trapScoreRounded}/100—نظيف بقدر ما يمكن. لكن الجزء اللي ما أحد يتكلم عنه: الفخاخ تُبنى في الصمت`);
-      }
-    } else if (trapDetection || trapAlert) {
-      // フォールバック: trapDetectionやtrapAlertから証拠を生成
-      if (trapDetection && trapDetection.trapDetected) {
-        const trapTypeText = (trapDetection.trapType || 'شذوذ').replace(/_/g, ' ');
-        lines.push(`🎯 اكتشاف الفخ: ${trapTypeText} (الدرجة: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
-        lines.push(`💡 الدليل: تم اكتشاف انحرافات متعددة on-chain بناءً على البيانات`);
-      } else if (trapAlert && trapAlert.alert) {
-        const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
-        lines.push(`🚨 تنبيه الفخ: ${alertTypeText} (الشدة: ${trapAlert.severity})`);
-        lines.push(`💡 الدليل: تم اكتشاف مخاطر فخ السوق بناءً على بيانات on-chain وتحليل المشاعر`);
-      }
-    }
-    
-    // 戦略的インサイトセクションを追加
-    if (trapScoreForEvidence !== null) {
-      const trapScoreRounded = Math.round(trapScoreForEvidence);
-      const marketScore = Math.round(score ?? 0);
-      const isBullish = marketScore >= 50;
-      const isLowTrapRisk = trapScoreRounded < 30;
-      
-      lines.push('');
-      lines.push(`💡 رؤى استراتيجية`);
-      if (trapScoreRounded >= 70) {
-        lines.push(`  🚨 درجة الفخ ${trapScoreRounded}/100: إشارات قوية تشير إلى فخاخ سوق محتملة`);
-        lines.push(`  📊 تُظهر البيانات انحرافات متعددة وانحرافات on-chain`);
-        lines.push(`  🛡️ الاستعداد الاستراتيجي ليس ضعفاً—إنه استعداد للنصر. خلّك هادي. لا تخلي العاطفة تسوقك`);
-      } else if (trapScoreRounded >= 50) {
-        lines.push(`  ⚡ درجة الفخ ${trapScoreRounded}/100: تم اكتشاف مؤشرات فخ معتدلة`);
-        lines.push(`  📊 بعض الانحرافات تشير إلى الحذر`);
-        lines.push(`  🛡️ مارس الحذر. راقب ظروف السوق عن كثب قبل اتخاذ إجراء`);
-      } else {
-        // مخاطر منخفضة: رسالة حسب ظروف السوق
-        if (isLowTrapRisk && isBullish) {
-          // مخاطر منخفضة وصاعدة: رسالة أكثر نشاطاً
-          lines.push(`  ✅ درجة الفخ ${trapScoreRounded}/100: تم اكتشاف مخاطر فخ منخفضة`);
-          lines.push(`  📈 النقاط ${marketScore}/100—الظروف تبدو جيدة. لكن النقد موقف أيضاً. انتظر إعدادات الجودة`);
-          lines.push(`  💡 مخاطر منخفضة + زخم صاعد = ظروف مواتية. ابق متيقظاً لإعدادات الجودة`);
-        } else if (isLowTrapRisk) {
-          // مخاطر منخفضة لكن محايدة/هابطة: رسالة دفاع قياسية
-          lines.push(`  ✅ درجة الفخ ${trapScoreRounded}/100: مخاطر فخ منخفضة حالياً`);
-          lines.push(`  🛡️ البيانات نظيفة، لكن الانضباط يهزم FOMO. انتظر إعدادات الجودة`);
-          lines.push(`  💡 الصبر يؤتي ثماره. إعدادات الجودة تتطلب مخاطر منخفضة واتجاه سوق واضح`);
-        } else {
-          // Fallback (إذا لم يتم الحصول على النقاط)
-          lines.push(`  ✅ درجة الفخ ${trapScoreRounded}/100: مخاطر فخ منخفضة حالياً، لكن الأسواق تتغير دائماً`);
-          lines.push(`  🛡️ حافظ على الانضباط. راقب الظروف وانتظر إشارات واضحة`);
-        }
-      }
-    }
-    lines.push('');
-  }
-  
-  // USP2: Geminiコンテンツ生成（データ提示セクション）
+
+  // ===== EN版と同一構成: hasGeminiContent → sosovalueArticle → Data-Backed =====
   if (hasGeminiContent) {
-    lines.push('📊 رسم بياني NanoBanana');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📊 【Data Presentation】رسم بياني NanoBanana');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
     lines.push('🎬 تحقق من الوسائط المرفقة!');
     lines.push('');
   }
-  
-  // 【コメンテーター】Dr. Grokメンタルコーチ（固定コーナー）
-  lines.push('💊 رؤية سريعة من Dr. Grok');
-  
   if (sosovalueArticle) {
     lines.push('━━━━━━━━━━━━━━━━━━━━');
     lines.push('📰 رؤية on-chain (CQ + سياق سابق)');
@@ -462,6 +375,51 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
     lines.push(sosovalueArticle);
     lines.push('');
   }
+  // Data-Backed Reasons（ENと同一ロジック）
+  let trapScoreForEvidence = null;
+  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
+    trapScoreForEvidence = trapDetection.trapScore;
+  } else if (trapScore != null && trapScore > 0) {
+    trapScoreForEvidence = trapScore;
+  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
+    trapScoreForEvidence = trapRisk.trapRiskScore;
+  }
+  const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
+  if (trapScoreForEvidence != null || trapDetection || trapAlert) {
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📊 أسباب مبنية على البيانات');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    const trapScoreRounded = trapScoreForEvidence != null ? Math.round(trapScoreForEvidence) : (trapDetection?.trapScore != null ? Math.round(trapDetection.trapScore) : 0);
+    const isLowTrap = trapScoreRounded < 30;
+    const isHighTrap = trapScoreRounded >= 50;
+    if (trapScoreForEvidence != null) {
+      if (isHighTrap) {
+        lines.push(`🎯 درجة الفخ: ${trapScoreRounded}/100 → مخاطر فخ كبيرة`);
+        if (trapTypeForEvidence) lines.push(`⚠️ تم اكتشاف ${(trapTypeForEvidence || '').replace(/_/g, ' ')}`);
+        lines.push(`💡 انتظار. الدخول الآن قد يعرضك لفخاخ.`);
+      } else if (isLowTrap) {
+        lines.push(`✅ درجة الفخ: ${trapScoreRounded}/100 → مخاطر فخ منخفضة`);
+        lines.push(`📐 نافذة وضع المراكز — يمكن التفكير في long/short أو رافعة مع مخاطرة محددة عندما تكون الأفضلية واضحة.`);
+      } else {
+        lines.push(`⚡ درجة الفخ: ${trapScoreRounded}/100 → حذر معتدل`);
+        lines.push(`💡 انتظر التأكيد قبل الدخول.`);
+      }
+    } else if (trapDetection?.trapDetected) {
+      const trapTypeText = (trapDetection.trapType || 'شذوذ').replace(/_/g, ' ');
+      lines.push(`🎯 ${trapTypeText} (الدرجة: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
+      lines.push(`💡 انحرافات on-chain تشير إلى انتظار.`);
+    } else if (trapAlert?.alert) {
+      const alertTypeText = (trapAlert.type || 'UNKNOWN').replace(/_/g, '-');
+      lines.push(`🚨 ${alertTypeText} (الشدة: ${trapAlert.severity})`);
+      lines.push(`💡 حافظ على الدفاع حتى تظهر أفضلية واضحة.`);
+    }
+    lines.push('');
+  }
+  
+  // 【コメンテーター】Dr. Grok（ENと同一: 区切り線）
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('💊 رؤية سريعة من Dr. Grok');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
   
   if (integratedOptimization && integratedOptimization.integrated && integratedOptimization.optimization) {
     const opt = integratedOptimization.optimization;
@@ -709,44 +667,44 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
   
   lines.push('');
 
-  // COO最適化: FOMO強化（有料版の価値を明確化）
-  // تحسين بناءً على تقييم GPT: توضيح القيمة في 3 فئات
+  // 有料版の価値（簡潔に）
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('💎 هذا هو سبب دفعك لهذا التقرير');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
-  lines.push('بينما يرى المستخدمون المجانيون النقاط فقط، أنت تحصل على:');
+  lines.push('🎯 إشارات العمل (AVOID-LONG/SHORT، STANDBY) + خريطة الخروج + تنبيهات NO TRADE');
+  lines.push('📊 تحليل CQ كامل + اكتشاف الفخاخ + مشاعر X (Dr. Grok)');
+  lines.push('💊 التدريب العقلي وتشخيص الحالة النفسية');
   lines.push('');
-  lines.push('🎯 إشارات العمل في الوقت الفعلي:');
-  lines.push('✅ تنبيهات AVOID-LONG / AVOID-SHORT / STANDBY (إشعارات فورية)');
-  lines.push('✅ دليل خريطة الخروج (معرفة متى تخرج بالضبط)');
-  lines.push('✅ تنبيهات NO TRADE (تجنب الخسائر قبل حدوثها)');
-  lines.push('');
-  lines.push('📊 تحليل الاستخبارات العميق:');
-  lines.push('✅ تحليل on-chain كامل (بيانات CryptoQuant، جميع المؤشرات)');
-  lines.push('✅ اكتشاف أنماط الفخاخ المدعوم بالذكاء الاصطناعي (مراقبة على مدار الساعة)');
-  lines.push('✅ تحليل مشاعر X في الوقت الفعلي (توقع مشاعر السوق)');
-  lines.push('');
-  lines.push('💊 الدعم النفسي الكامل:');
-  lines.push('✅ التدريب النفسي من Dr. Grok (التغلب على FOMO، الخوف، الجشع)');
-  lines.push('✅ دليل التدريب العقلي المخصص');
-  lines.push('✅ تشخيص الحالة النفسية وحل العوائق');
-  lines.push('');
-  lines.push('🛡️ إشارة واحدة مفقودة = رأس مال مفقود. هذا هو سبب دفعك لهذا التقرير.');
+  lines.push('🛡️ إشارة واحدة مفقودة = رأس مال مفقود.');
   lines.push('');
 
-  // ===== 基本市場データ（補足情報として後半に配置） =====
+  // ===== 基本市場データ（スキャンしやすい1ブロック） =====
+  lines.push('📋 لقطة');
   lines.push(priceLine);
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
+  lines.push(scoreLine);
   lines.push('');
 
-  lines.push(scoreLine);
-  
-  // Whale Ratio情報（EN市場専用だが、他の言語でも表示可能）
-  // PR #14: whaleFlows の構造が { whaleRatio, isHighPressure, interpretation } に変更
-  // 重要: whaleFlowsが存在し、whaleRatioがnullでない場合に表示
+  // Trap Score表示（ENと同一）
+  let displayTrapScore = null;
+  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore >= 0) {
+    displayTrapScore = trapDetection.trapScore;
+  } else if (trapScore != null && trapScore >= 0) {
+    displayTrapScore = trapScore;
+  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore >= 0) {
+    displayTrapScore = trapRisk.trapRiskScore;
+  }
+  if (displayTrapScore != null && displayTrapScore >= 0) {
+    const trapScoreRounded = Math.round(displayTrapScore);
+    const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 مخاطر عالية' : displayTrapScore >= 40 ? '⚠️ متوسطة' : '✅ منخفضة';
+    lines.push(`🎯 درجة الفخ: ${trapScoreRounded}/100 ${trapScoreEmoji}`);
+    lines.push('');
+  }
+
+  // Whale Ratio情報（ENと同一）
   if (whaleFlows && whaleFlows.whaleRatio != null) {
     // whaleRatioは0-1の範囲の数値として返される（deepMetrics.js参照）
     // パーセンテージに変換（0.56 -> 56%）
@@ -757,9 +715,23 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
     const whaleLine = `🐋 نسبة الحيتان: ${whaleRatioValue.toFixed(1)}% ${isHighPressure ? '(ضغط عالي)' : '(عادي)'}`;
     lines.push(whaleLine);
   } else if (whaleFlows) {
-    // デバッグ用: whaleFlowsは存在するがwhaleRatioがnullの場合
     console.warn('[Regular AR] whaleFlows exists but whaleRatio is null:', whaleFlows);
   }
+
+  // 24h清算（ENと同一）
+  const totalLiquidations = typeof liquidations === 'number'
+    ? liquidations
+    : (liquidations?.totalLiquidations ?? 0);
+  if (totalLiquidations > 0) {
+    if (typeof liquidations === 'object' && liquidations.longLiquidations != null && liquidations.shortLiquidations != null) {
+      const liqLine = `💥 تصفية 24س: ${formatUsd(totalLiquidations)} (طويل: ${formatUsd(liquidations.longLiquidations)}، قصير: ${formatUsd(liquidations.shortLiquidations)})`;
+      lines.push(liqLine);
+    } else {
+      lines.push(`💥 تصفية 24س: ${formatUsd(totalLiquidations)}`);
+    }
+  }
+
+  lines.push(trapLine);
   
   // Phase1-Product: Trap Riskスコア表示
   if (trapRisk && trapRisk.trapRiskScore != null) {
@@ -797,8 +769,6 @@ ${score <= 25 && inflow > 0 ? '⚠️ تناقض: درجة مخاطر منخفض
     
     lines.push(`   💡 ${noTradeAlert.recommendation}`);
   }
-  
-  lines.push(trapLine);
   
   // Phase1-Product: Exit Map表示（簡略化：最大8行）
   if (exitMap && exitMap.hasActivePosition) {

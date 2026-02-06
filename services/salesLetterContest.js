@@ -12,6 +12,7 @@ const {
   INTEGRATED_STRATEGY_FOR_PROMPT,
   SUPPORT_70K_PROMPT
 } = require("../config/drawdownStrategy");
+const { getTestimonialsForPrompt } = require("../config/personaTestimonials");
 const vslLinks = require("../config/vslLinks");
 const VSL_MINIMAL =
   vslLinks.VSL_MINIMAL || {
@@ -143,10 +144,15 @@ function buildGrokOnlyPrompt({ lang, reportData, painAngleSeed }) {
   const monthlyPrice = getMonthlyPriceForLang(normalizedLang);
   const angle = painAngleSeed != null ? getPainAngleForSeed(painAngleSeed) : PAIN_ANGLES[0];
   const marketContext = getMarketContextForPrompt(reportData);
+  const testimonials = getTestimonialsForPrompt(normalizedLang, painAngleSeed);
+  const testimonialBlock =
+    testimonials.length > 0
+      ? testimonials.map((t) => `- "${t}"`).join("\n")
+      : "- (use a short outcome-focused quote in the persona voice)";
 
   return `You are a direct-response copywriter for Trap Defence (crypto trading education). Write a complete X (Twitter) post in ${langName} in FIVE parts. Use the persona and on-chain data below—they are mandatory. Do NOT output any URLs or link lines; we add those below the post.
 
-CONTEXT: This will be used as a QUOTE REPOST. Frame it as a solution to the reader's pain—empathy first, then the way out. Tone: "I get it. Here's what works."
+CONTEXT: This will be used as a QUOTE REPOST. We run in 6 languages worldwide (EN, JA, ES, PT-BR, AR, KO)—so the scale is real. Frame it as a solution to the reader's pain—empathy first, then the way out. Tone: "I get it. Here's what works."
 
 THIS GENERATION—emphasize this pain angle (use it for HEADLINE and HOOK):
 - HEADLINE focus: ${angle.headline}
@@ -159,6 +165,11 @@ ${persona}
 ON-CHAIN / MARKET DATA (use to ground the copy):
 ${cq}
 ${marketContext ? `\nMARKET CONTEXT (use for tone and urgency—follow this framing):\n${marketContext}` : ""}
+
+PERSONA TESTIMONIALS (ハッタリ戦法 — もっと大げさに。Use ONE in OBJECTION HANDLING or right after Product Intro. Tone: dramatic, over-the-top, "I'm Safe (Trap Avoided)" energy. Short, punchy, outcome = saved / avoided / didn't get rekt.):
+${testimonialBlock}
+
+SOCIAL PROOF: We will append a line like "🔥 X,XXX+ Trap Avoided This Week (6 langs, worldwide) 👥 I'm Safe" after your post. In objection handling use a CONCRETE number (e.g. 3,200+ or 4,500+) for "avoided the trap this week"—do NOT write "XXX+". Reference "traders in 6 languages", "worldwide". Scale = real. Go big.
 
 X ALGORITHM — ON-CHAIN DATA SUPPLY (mandatory for reach):
 X's algorithm favors concrete numbers and BTC/on-chain topic relevance. Weave 2–3 specific numbers from the data above into your copy (e.g. Trap Score 28, Exchange Netflow -40k, Whale Ratio 0.82, MPI, 24h%). Use them in a sentence, not as a dry list. This boosts engagement and topic relevance.
@@ -174,9 +185,10 @@ One short paragraph. Cold-read this specific angle—name the exact moment. Empa
 3) PRODUCT INTRO (Minimal + Regular)
 - FREE Minimal: Trap Score, gut vs data, no card. Emphasize "防衛" (defend)—stop losses before they grow.
 - PAID Regular: 15min Alerts + Exit Map, $${monthlyPrice}/mo, 1-day trial, risk zero. Code defend50 for 50% off (once). Frame as "資産を守る" (protect assets), not just "儲ける" (earn).
+- Optional: add ONE testimonial quote from the list above after this block (one line). Use "🔥 I'm Safe" / "Trap Avoided" style. もっと大げさに。
 
 4) OBJECTION HANDLING (反論処理)
-Exactly 2 short sentences. Acknowledge hesitation (expensive? lose again? not now?), then reframe with social proof or risk reversal. Concise.
+Exactly 2 short sentences. Acknowledge hesitation, then reframe with dramatic social proof. Use ONE testimonial from the list above if you didn't use it in Product Intro—or "XXX+ Trap Avoided This Week", "I'm Safe". Tone: over-the-top, confident, "we're the ones who didn't get rekt". Concise but punchy.
 
 5) HASHTAGS
 One line. Exactly 3: #BTC #TrapDefence and 1 more (e.g. #Crypto #Bitcoin). No more than 3.
@@ -186,7 +198,7 @@ STYLE (clean copy—読みやすい文章):
 - Format numbers: "BTC \$97,200" or "BTC 97,200ドル" (space before numbers).
 - One thought per sentence. No run-on. No stray/double spaces.
 
-Output: headline, blank line, persona hook, blank line, product intro (Minimal then Regular), blank line, objection handling, blank line, hashtags. No section labels. No URLs. Tone: ${TONE}. Every sentence ends with a period (or 。 in Japanese).`;
+Output: headline, blank line, persona hook, blank line, product intro (Minimal then Regular; optional testimonial), blank line, objection handling (with testimonial or social proof), blank line, hashtags. No section labels. No URLs. Tone: ${TONE}. Every sentence ends with a period (or 。 in Japanese).`;
 }
 
 /**

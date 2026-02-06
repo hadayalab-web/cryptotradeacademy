@@ -1,6 +1,5 @@
 // services/grok/highResolution.js
-// 高解像度X（Twitter）解析: 複数クエリ並列実行、より詳細な構造化出力
-// 大口とリテールの両方を対象とした高精度センチメント分析
+// Grok役割: Xのセンチメント/アルゴリズム解析（高解像度＝複数クエリ並列・大口/リテール分析）
 
 const { analyzeXSentimentLive } = require('./client');
 

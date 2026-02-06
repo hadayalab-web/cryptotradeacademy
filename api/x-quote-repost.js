@@ -1090,20 +1090,22 @@ async function postQuoteRepostsForLang(
         }
 
         // P0 FIX: dry-runモードではソーシャルプルーフとハッシュタグ取得をスキップ（高速化）
-        // Minimal/Regular テンプレ使用時はソーシャルプルーフを追加しない（テンプレ本文をそのまま使用）
-        if (!isDryRun && !funnelTypeUsed) {
-          // Phase 1: ソーシャルプルーフを追加（インプレッション最大化）
+        // ソーシャルプルーフ: Grok セールスレター・フォールバック両方に付与（ハッタリ戦法）
+        if (!isDryRun) {
           try {
             const { getSocialProofText } = require("../services/telegram/reaction-counter");
             const socialProofText = await getSocialProofText(lang);
-            const shortSocialProof = socialProofText.replace(" Traders Saved Today", " Saved");
-            quoteText = `${quoteText} ${shortSocialProof}`;
-            console.log(`[Quote Repost] ✅ Added social proof: ${shortSocialProof}`);
+            quoteText = `${quoteText}\n\n${socialProofText}`;
+            console.log(
+              `[Quote Repost] ✅ Added social proof: ${socialProofText}${funnelTypeUsed ? " (Grok sales letter)" : ""}`
+            );
           } catch (error) {
             console.warn(`[Quote Repost] Failed to add social proof for ${lang}:`, error.message);
-            // エラー時はソーシャルプルーフなしで続行
           }
+        }
 
+        // Grok推奨: ハッシュタグを動的取得（フォールバック時のみ；Grok は既にハッシュタグ出力済み）
+        if (!isDryRun && !funnelTypeUsed) {
           // Grok推奨: ハッシュタグを動的取得（トレンド1+ニッチ2）
           // P0 FIX: タイムアウト対策 - 残り時間が10秒未満の場合はスキップ
           if (deadlineMs && Date.now() >= deadlineMs - 3000) {
@@ -1131,7 +1133,8 @@ async function postQuoteRepostsForLang(
               // エラー時はハッシュタグなしで続行
             }
           }
-        } else {
+        }
+        if (isDryRun) {
           console.log(
             `[Quote Repost] 🧪 Dry-run mode: Skipping social proof and hashtag optimization for speed [runId: ${langRunId}]`
           );
