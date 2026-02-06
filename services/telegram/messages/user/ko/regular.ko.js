@@ -57,6 +57,7 @@ function formatRegularBriefing({
   trap,
   aiAnalysis,
   stats,
+  trapScore, // Phase 2: トラップスコア（ENと同様）
   kimchiPremium, // Phase 2: KO市場専用
   upbitPrice, // Phase 2: KO市場専用
   // Phase1-Product: 新機能データ
@@ -79,7 +80,8 @@ function formatRegularBriefing({
   sosovalueArticle = null, // Gemini: CQ+過去比較SoSoValue風記事
   integratedOptimization = null, // 廃止
   // Phase 2: 市場別深掘りデータ
-  whaleFlows, // Whale Flows（EN市場専用だが、他の言語でも表示可能）
+  whaleFlows, // Whale Flows（ENと同様）
+  liquidations = null, // ENと同様（24h清算）
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -108,14 +110,28 @@ function formatRegularBriefing({
     scoreInterpretation = ' (매우 하락세)';
   }
   const scoreLine = `📈 시장 점수: ${marketScore}/100${scoreInterpretation}`;
-  const trapLine = trap?.isTrap
-    ? `🧨 트랩 감지기: ${trap.label || '잠재적 트랩'} (${trap.confidence} 신뢰도)`
-    : '✅ 트랩 감지기: 치명적인 트랩은 감지되지 않았습니다.';
+
+  const LOW_TRAP_RISK_THRESHOLD = 35;
+  const effectiveTrapScore = trapDetection?.trapScore ?? trapScore ?? trapRisk?.trapRiskScore ?? null;
+  const isLowTrapRisk = effectiveTrapScore != null && effectiveTrapScore < LOW_TRAP_RISK_THRESHOLD;
+  const hasActiveTrapAlert = trapAlert && trapAlert.alert;
+
+  let trapLine = '✅ 트랩 감지기: 치명적인 트랩은 감지되지 않았습니다.';
+  if (trapDetection && trapDetection.trapDetected) {
+    const trapSev = trapDetection.trapSeverity || 'NONE';
+    const trapSc = trapDetection.trapScore || 0;
+    if (trapSev !== 'NONE' && trapSc > 0) {
+      const trapEmoji = trapSev === 'CRITICAL' ? '🚨' : trapSev === 'HIGH' ? '⚠️' : trapSev === 'MEDIUM' ? '⚡' : '💡';
+      const trapTypeLabel = (trapDetection.trapType || '트랩').replace(/_/g, ' ');
+      trapLine = `${trapEmoji} 트랩 감지기: ${trapTypeLabel} (심각도: ${trapSev}, 점수: ${trapSc}/100)`;
+    }
+  } else if (trap?.isTrap) {
+    trapLine = `🧨 트랩 감지기: ${trap.label || '잠재적 트랩'} (${trap.confidence} 신뢰도)`;
+  }
 
   let dirEmoji;
   let dirLabel;
-  // 트랩 알림만 표시 (BUY/SELL/LONG/SHORT 완전 삭제)
-  if (trapAlert && trapAlert.alert) {
+  if (hasActiveTrapAlert) {
     dirEmoji = trapAlert.severity === 'CRITICAL' ? '🚨' :
                trapAlert.severity === 'HIGH' ? '⚠️' :
                trapAlert.severity === 'MEDIUM' ? '⚡' : '🛡️';
@@ -126,30 +142,30 @@ function formatRegularBriefing({
     } else {
       dirLabel = '🛡️ 트랩 알림: 대기 권장';
     }
+  } else if (isLowTrapRisk) {
+    dirEmoji = '📐';
+    dirLabel = '낮은 트랩 리스크 — 포지셔닝 윈도우';
   } else {
     dirEmoji = '🛡️';
     dirLabel = 'TRAP STANDBY (Defense Active)';
   }
 
-  const isNoTrade = true; // 항상 대기 모드 (BUY/SELL 시그널 완전 삭제)
-  
-  // Trade Verdictの表記最適化: Standby状態の時は「TBD」と表記
-  const entryLine = isNoTrade
-    ? '• 진입가: 승리 준비 중 — 명확한 트리거 대기'
-    : `• 진입가 (스팟 기준): ${formatUsd(priceUsd)}`;
-  const tpLine = isNoTrade
-    ? '• Take Profit: TBD (결정 대기 중)'
-    : (tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: n/a');
-  const slLine = isNoTrade
-    ? '• Stop Loss: TBD (결정 대기 중)'
-    : (tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: n/a');
-  const rrLine = isNoTrade
-    ? '• 손익비 (RR): 대기 중'
-    : (tradeSignal?.rr != null ? `• 손익비 (RR): ${tradeSignal.rr.toFixed(2)}` : '');
-
-  const modeLine = isNoTrade
-    ? '• 모드: Trap Standby — 명확한 에지까지 승리 준비. 방어 우선.'
-    : '';
+  const isPositioningWindow = isLowTrapRisk && !hasActiveTrapAlert;
+  const entryLine = isPositioningWindow
+    ? `• 진입가: 에지가 명확할 때 질적 진입 검토 (기준 ${formatUsd(priceUsd)})`
+    : (!isLowTrapRisk && !hasActiveTrapAlert
+      ? '• 진입가: 승리 준비 중 — 명확한 트리거 대기'
+      : `• 진입가 (스팟 기준): ${formatUsd(priceUsd)}`);
+  const tpLine = isPositioningWindow
+    ? '• Take Profit: 진입 전에 설정'
+    : (tradeSignal?.tp != null ? `• Take Profit: ${formatUsd(tradeSignal.tp)}` : '• Take Profit: TBD (결정 대기 중)');
+  const slLine = isPositioningWindow
+    ? '• Stop Loss: 진입 전에 설정'
+    : (tradeSignal?.sl != null ? `• Stop Loss: ${formatUsd(tradeSignal.sl)}` : '• Stop Loss: TBD (결정 대기 중)');
+  const rrLine = tradeSignal?.rr != null ? `• 손익비 (RR): ${tradeSignal.rr.toFixed(2)}` : (isPositioningWindow ? '• 손익비 (RR): 포지션에 따라 설정' : '• 손익비 (RR): 대기 중');
+  const modeLine = isPositioningWindow
+    ? '• 모드: 낮은 트랩 리스크 — long/short 포지션 검토 가능(리스크 한정). 에지가 명확할 때만 레버리지.'
+    : (!isLowTrapRisk ? '• 모드: Trap Standby — 명확한 에지까지 대기. 방어 우선.' : '');
 
   const raw = typeof aiAnalysis === 'string' ? aiAnalysis.trim() : '';
   const isOffline = !raw || /grok offline/i.test(raw) || /Live Search unavailable/i.test(raw);
@@ -162,11 +178,15 @@ function formatRegularBriefing({
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
+  const trapSeverityForHeader = trapDetection?.trapSeverity || trapAlert?.severity || 'LOW';
+  const isHighTrapForHeader = trapSeverityForHeader === 'CRITICAL' || trapSeverityForHeader === 'HIGH';
+
   const lines = [];
-  lines.push('🌤️ Trap Defence BTC - 유료 리포트');
-  // COO最適化: 緊急感強化
-  const urgencyLevel = (score <= 25 && inflow > 0 && sentimentLabel.toLowerCase().includes('fear')) ? '긴급' : '중요';
-  lines.push(`🚨 ${urgencyLevel} 경보: Trap Defence 브리핑! 지금 즉시 행동을 취할 시간입니다!`);
+  if (isHighTrapForHeader) {
+    lines.push(`🚨 Trap Defence 알림 — ${trapSeverityForHeader} 트랩 리스크`);
+  } else {
+    lines.push('📋 Trap Defence 브리핑');
+  }
   lines.push(`📅 ${ts}`);
   lines.push('');
 
@@ -180,80 +200,49 @@ function formatRegularBriefing({
   if (rrLine) lines.push(rrLine);
   lines.push('');
 
-  // COO最適化: 矛盾の提示（低リスクなのに売り圧力）
+  let actionPreview = '';
+  if (sosovalueArticle && typeof sosovalueArticle === 'string' && sosovalueArticle.trim()) {
+    const firstSentence = sosovalueArticle.split(/[.!?\n]/)[0]?.trim() || sosovalueArticle.trim();
+    actionPreview = firstSentence.length > 120 ? firstSentence.slice(0, 117) + '…' : firstSentence;
+    if (actionPreview) {
+      lines.push('📌 당신의 행동: ' + actionPreview);
+      lines.push('');
+    }
+  }
+
+  // Context（クジラは数値出さない）
   if (score <= 25 && inflow > 0 && sentimentLabel.toLowerCase().includes('fear')) {
-    const whaleRatioEstimate = Math.min(100, Math.max(0, (inflow / 1000) * 10 + 40)); // 推定クジラ比率
-    const whaleDollarValue = Math.floor((whaleRatioEstimate / 100) * priceUsd * 1000); // 推定ドル価値
+    const whaleRatioEstimate = Math.min(100, Math.max(0, (inflow / 1000) * 10 + 40));
+    const contextNote = whaleRatioEstimate >= 80
+      ? '유입의 상당 부분이 매도 압력으로 전환될 수 있습니다. 리스크 관리 차원에서 모니터링할 가치가 있습니다.'
+      : '유입의 상당 부분이 고래와 연관되었을 수 있습니다. 리스크 관리 차원에서 모니터링할 가치가 있습니다.';
     lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('🤔 모순 경보');
+    lines.push('📊 컨텍스트');
     lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push(`시장 점수: ${Math.round(score)}/100 (중립/안정)`);
-    lines.push(`하지만 거래소 순유입: +${Math.abs(inflow).toFixed(0)} BTC 유입`);
-    lines.push(`그리고 센티먼트: ${sentimentLabel}`);
+    lines.push(`시장 점수: ${Math.round(score)}/100${scoreInterpretation}`);
+    lines.push(`거래소 순유입: +${Math.abs(inflow).toFixed(0)} BTC 유입`);
+    lines.push(`센티먼트: ${sentimentLabel}`);
     lines.push('');
-    lines.push(`⚠️ 이 모순이 시사하는 것: 낮은 위험인데 매도 압력이 축적 중.`);
-    lines.push(`   추정 ${whaleRatioEstimate.toFixed(0)}% 고래 비율 = $${whaleDollarValue}M+ 매도 준비 완료.`);
-    lines.push(`   이것이 당신의 자본에 의미하는 것은?`);
+    lines.push(contextNote);
     lines.push('');
   }
 
-  // ===== 【コア機能ハイライト】3つの強み =====
-  lines.push('✨ 오늘의 하이라이트 (3가지 핵심 기능)');
+  // ===== 【ハイライト】Trap / CQ / Action の3項目に整理 =====
+  lines.push('✨ 오늘의 하이라이트');
   lines.push('');
-  
-  // Core Feature 1: Trap Defense (prioritize trapDetection, fallback to marketBug for backward compatibility)
   const trapData = trapDetection || marketBug;
-  if (trapData && (trapData.trapDetected || trapData.bugDetected)) {
-    const trapEmoji = trapData.trapSeverity === 'CRITICAL' || trapData.bugSeverity === 'CRITICAL' ? '🚨' :
-                     trapData.trapSeverity === 'HIGH' || trapData.bugSeverity === 'HIGH' ? '⚠️' :
-                     trapData.trapSeverity === 'MEDIUM' || trapData.bugSeverity === 'MEDIUM' ? '⚡' : '💡';
-    const trapType = trapData.trapType || trapData.bugType || '이상';
-    const trapTypeText = trapType.replace(/_/g, ' ');
-    const trapScore = trapData.trapScore || trapData.bugScore || 0;
-    lines.push(`🛡️ 핵심 기능 1: 트랩 방어 - ${trapEmoji} ${trapTypeText} (점수: ${trapScore.toFixed(0)}/100)`);
-    
-    // Display score calculation components (transparency)
-    if (trapData.details) {
-      const components = [];
-      if (trapData.details.multipleDivergences >= 3) {
-        components.push(`다중 다이버전스 (${trapData.details.multipleDivergences}건)`);
-      } else if (trapData.details.multipleDivergences >= 2) {
-        components.push(`다중 다이버전스 (${trapData.details.multipleDivergences}건)`);
-      }
-      if (trapData.details.anomalyDetected) {
-        components.push('고해상도 이상');
-      }
-      if (trapData.details.accelerationDetected) {
-        components.push('트렌드 가속');
-      }
-      if (Math.abs(trapData.details.onchainSocialDivergence || 0) > 40) {
-        components.push('고래/소매 다이버전스');
-      }
-      if (trapData.details.priceOnchainDivergence) {
-        components.push('가격/온체인 다이버전스');
-      }
-      if (trapData.details.priceSocialDivergence) {
-        components.push('가격/센티먼트 다이버전스');
-      }
-      if (components.length > 0) {
-        lines.push(`   📊 구성 요소: ${components.join(' + ')}`);
-      }
-    }
-    
-    // Display trap alert details if available
-    if (trapAlert && trapAlert.alert) {
-      const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
-      const recommendationText = trapAlert.recommendation ? trapAlert.recommendation.replace(/_/g, '-') : 'UNKNOWN';
-      lines.push(`   🚨 알림 유형: ${alertTypeText} (심각도: ${trapAlert.severity})`);
-      lines.push(`   💡 권장사항: ${recommendationText}`);
-      if (trapAlert.confidence) {
-        lines.push(`   📊 신뢰도: ${(trapAlert.confidence * 100).toFixed(0)}%`);
-      }
-    }
-  } else {
-    lines.push('🛡️ 핵심 기능 1: 트랩 방어 - 현재 감지된 트랩 없음');
-  }
-  
+  const trapOneLine = trapData && (trapData.trapDetected || trapData.bugDetected)
+    ? `🛡️ 트랩: ${(trapData.trapType || trapData.bugType || '이상').replace(/_/g, ' ')} (${Math.round(trapData.trapScore || trapData.bugScore || 0)}/100)`
+    : '🛡️ 트랩: 감지된 트랩 없음';
+  const trapRiskLabel = isLowTrapRisk ? '낮음' : (effectiveTrapScore != null && effectiveTrapScore >= 50 ? '높음' : '보통');
+  const cqOneLine = inflow >= 0
+    ? `📊 CQ: 순유입 +${Math.abs(inflow).toFixed(0)} BTC; 트랩 리스크 ${trapRiskLabel}.`
+    : `📊 CQ: 순유출 −${Math.abs(inflow).toFixed(0)} BTC; 트랩 리스크 ${trapRiskLabel}.`;
+  lines.push(trapOneLine);
+  lines.push(cqOneLine);
+  lines.push(`📌 행동: ${actionPreview || '명확한 에지까지 대기.'}`);
+  lines.push('');
+
   // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
   
   // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
@@ -327,8 +316,8 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
     .replace(/^Psychological Interpretation of On-Chain Metrics$/gm, '💡 온체인 지표의 심리적 해석')
     .replace(/^온체인 지표의 심리적 해석$/gm, '💡 온체인 지표의 심리적 해석'); // 韓国語見出しにも絵文字を追加
   
-  // 文字数制限を緩和して、重要な情報が切れないようにする（600文字まで）
-  const gptNewsLimit = 600;
+  // 要約1行＋短めの本文で全体長を抑える（420文字まで、EN/JAと統一）
+  const gptNewsLimit = 420;
   if (gptNewsDisplay.length > gptNewsLimit) {
     // 文の終わりで切るようにする（最後の文の終わりを探す）
     const truncated = gptNewsDisplay.slice(0, gptNewsLimit);
@@ -384,111 +373,14 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
   lines.push(`📰 ${gptNewsDisplayFinal}`);
   lines.push('');
   
-  // 【改善1: Evidenceセクションの独立】証拠（Evidence）セクションを独立させて明確に表示
-  // Trap RiskスコアまたはTrap Detectionスコアから証拠を生成（KO版はデータ重視）
-  // 優先順位: trapDetection.trapScore > trapRisk.trapRiskScore（値が0の場合は次のソースをチェック）
-  let trapScoreForEvidence = null;
-  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
-    trapScoreForEvidence = trapDetection.trapScore;
-  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
-    trapScoreForEvidence = trapRisk.trapRiskScore;
-  }
-  const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
-  
-  if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
-    lines.push('📊 왜 기다려야 하는가? 데이터 기반 이유');
-    
-    if (trapScoreForEvidence !== null) {
-      const trapScoreRounded = Math.round(trapScoreForEvidence);
-      if (trapScoreRounded >= 50) {
-        lines.push(`🎯 트랩 점수: ${trapScoreRounded}/100은 상당한 트랩 위험을 나타냅니다.`);
-        if (trapTypeForEvidence) {
-          const trapTypeDisplay = trapTypeForEvidence.replace(/_/g, ' ');
-          lines.push(`⚠️ 트랩 유형: ${trapTypeDisplay} 감지됨.`);
-        }
-        // KO版はデータ重視のため、より詳細なデータ説明を追加
-        lines.push(`💡 증거: 다중 다이버전스와 온체인 이상 징후가 "관망 모드"가 신중함을 시사합니다.`);
-        lines.push(`📈 상세 데이터:`);
-        if (trapDetection?.details) {
-          const details = trapDetection.details;
-          if (details.multipleDivergences >= 2) {
-            lines.push(`   • 다중 다이버전스: ${details.multipleDivergences}건`);
-          }
-          if (details.anomalyDetected) {
-            lines.push(`   • 고해상도 이상 감지: 확인됨`);
-          }
-          if (Math.abs(details.onchainSocialDivergence || 0) > 40) {
-            lines.push(`   • 온체인/소셜 다이버전스: ${Math.abs(details.onchainSocialDivergence).toFixed(1)}%`);
-          }
-        }
-        lines.push(`📈 왜 기다려야 하는가? 데이터는 ${trapScoreRounded >= 70 ? '강한' : '중간 정도의'} 신호를 보여주며, 지금 진입하면 시장 트랩에 노출될 수 있습니다.`);
-      } else {
-        lines.push(`✅ 트랩 점수: ${trapScoreRounded}/100은 낮은 트랩 위험을 나타냅니다.`);
-        lines.push(`💡 증거: 트랩 점수는 ${trapScoreRounded}/100—가능한 한 깨끗해요. 하지만 지금 제일 위험한 건 '손이 근질근질한 거'예요. 큰 함정은 조용히 만들어집니다`);
-      }
-    } else if (trapDetection || trapAlert) {
-      // フォールバック: trapDetectionやtrapAlertから証拠を生成
-      if (trapDetection && trapDetection.trapDetected) {
-        const trapTypeText = (trapDetection.trapType || '이상 감지').replace(/_/g, ' ');
-        lines.push(`🎯 트랩 감지: ${trapTypeText} (점수: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
-        lines.push(`💡 증거: 온체인 데이터 기반 다중 이상이 감지되었습니다.`);
-      } else if (trapAlert && trapAlert.alert) {
-        const alertTypeText = trapAlert.type ? trapAlert.type.replace(/_/g, '-') : 'UNKNOWN';
-        lines.push(`🚨 트랩 알림: ${alertTypeText} (심각도: ${trapAlert.severity})`);
-        lines.push(`💡 증거: 온체인 데이터와 센티먼트 분석에 의해 시장 트랩 위험이 감지되었습니다.`);
-      }
-    }
-    
-    // 【改善2: 「70%待機戦略」の証拠ベース説明の統合】
-    // 戦略的インサイトセクションを追加
-    if (trapScoreForEvidence !== null) {
-      const trapScoreRounded = Math.round(trapScoreForEvidence);
-      const marketScore = Math.round(score ?? 0);
-      const isBullish = marketScore >= 50;
-      const isLowTrapRisk = trapScoreRounded < 30;
-      
-      lines.push('');
-      lines.push(`💡 전략적 인사이트`);
-      if (trapScoreRounded >= 70) {
-        lines.push(`  🚨 트랩 점수 ${trapScoreRounded}/100: 강한 신호가 잠재적인 시장 트랩을 나타냅니다.`);
-        lines.push(`  📊 데이터는 다중 다이버전스와 온체인 이상을 보여줍니다.`);
-        lines.push(`  🛡️ 전략적 준비는 약점이 아닙니다—승리 준비입니다. 극도의 주의를 기울이세요.`);
-      } else if (trapScoreRounded >= 50) {
-        lines.push(`  ⚡ 트랩 점수 ${trapScoreRounded}/100: 중간 정도의 트랩 지표가 감지되었습니다.`);
-        lines.push(`  📊 일부 다이버전스가 주의를 촉구합니다.`);
-        lines.push(`  🛡️ 지금은 '방어 모드'가 이기는 자리. 확인을 기다린 후 들어가세요`);
-      } else {
-        // 낮은 리스크: 시장 상황에 따른 메시지
-        if (isLowTrapRisk && isBullish) {
-          // 낮은 리스크 및 강세: 더 적극적인 메시지
-          lines.push(`  ✅ 트랩 점수 ${trapScoreRounded}/100: 낮은 트랩 리스크가 감지되었습니다.`);
-          lines.push(`  📈 시장 상황이 유리해 보입니다 (점수: ${marketScore}/100). 명확한 진입 기회를 모니터링하세요.`);
-          lines.push(`  💡 낮은 리스크 + 강세 모멘텀 = 유리한 조건. 품질 있는 설정에 주의를 기울이세요.`);
-        } else if (isLowTrapRisk) {
-          // 낮은 리스크이지만 중립/약세: 표준 방어 메시지
-          lines.push(`  ✅ 트랩 점수 ${trapScoreRounded}/100: 현재 낮은 트랩 위험`);
-          lines.push(`  🛡️ 데이터는 깨끗하지만, 규율이 FOMO를 이겨요. 품질 있는 설정을 기다리세요`);
-          lines.push(`  💡 인내는 보상받습니다. 품질 있는 설정은 낮은 리스크와 명확한 시장 방향 모두가 필요합니다.`);
-        } else {
-          // Fallback (점수를 얻을 수 없는 경우)
-          lines.push(`  ✅ 트랩 점수 ${trapScoreRounded}/100: 현재 낮은 트랩 위험이지만 시장은 항상 변합니다.`);
-          lines.push(`  🛡️ 규율을 유지하세요. 상황을 지켜보고 명확한 신호를 기다리세요.`);
-        }
-      }
-    }
-    lines.push('');
-  }
-  
-  // USP2: Geminiコンテンツ生成（データ提示セクション）
+  // ===== Data-Backed / Gemini（全言語共通構成） =====
   if (hasGeminiContent) {
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
     lines.push('📊 NanoBanana 인포그래픽');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
     lines.push('🎬 첨부된 미디어를 확인하세요!');
     lines.push('');
   }
-  
-  // 【コメンテーター】Dr. Grok癒し系コメンテーター（固定コーナー）
-  lines.push('💊 Dr. Grok의 의견');
-  
   if (sosovalueArticle) {
     lines.push('━━━━━━━━━━━━━━━━━━━━');
     lines.push('📰 온체인 인사이트 (CQ + 과거 맥락)');
@@ -496,6 +388,51 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
     lines.push(sosovalueArticle);
     lines.push('');
   }
+  // Data-Backed Reasons（EN準拠: null なら 3 段階 if に入れない）
+  let trapScoreForEvidence = null;
+  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
+    trapScoreForEvidence = trapDetection.trapScore;
+  } else if (trapScore != null && trapScore > 0) {
+    trapScoreForEvidence = trapScore;
+  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
+    trapScoreForEvidence = trapRisk.trapRiskScore;
+  }
+  const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
+  if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    lines.push('📊 데이터 기반 이유');
+    lines.push('━━━━━━━━━━━━━━━━━━━━');
+    const trapScoreRounded = trapScoreForEvidence != null ? Math.round(trapScoreForEvidence) : (trapDetection?.trapScore != null ? Math.round(trapDetection.trapScore) : 0);
+    const isLowTrap = trapScoreRounded < 30;
+    const isHighTrap = trapScoreRounded >= 50;
+    if (trapScoreForEvidence !== null) {
+      if (isHighTrap) {
+        lines.push(`🎯 트랩 점수: ${trapScoreRounded}/100 → 상당한 트랩 위험`);
+        if (trapTypeForEvidence) lines.push(`⚠️ ${(trapTypeForEvidence || '').replace(/_/g, ' ')} 감지됨`);
+        lines.push(`💡 관망. 지금 진입하면 트랩에 노출될 수 있습니다.`);
+      } else if (isLowTrap) {
+        lines.push(`✅ 트랩 점수: ${trapScoreRounded}/100 → 낮은 트랩 위험`);
+        lines.push(`📐 포지셔닝 윈도우 — 에지가 명확할 때 long/short 또는 한정 리스크로 레버리지 검토 가능.`);
+      } else {
+        lines.push(`⚡ 트랩 점수: ${trapScoreRounded}/100 → 보통 수준 주의`);
+        lines.push(`💡 진입 전 확인을 기다리세요.`);
+      }
+    } else if (trapDetection?.trapDetected) {
+      const trapTypeText = (trapDetection.trapType || '이상').replace(/_/g, ' ');
+      lines.push(`🎯 ${trapTypeText} (점수: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
+      lines.push(`💡 온체인 이상 징후로 관망 권장.`);
+    } else if (trapAlert?.alert) {
+      const alertTypeText = (trapAlert.type || 'UNKNOWN').replace(/_/g, '-');
+      lines.push(`🚨 ${alertTypeText} (심각도: ${trapAlert.severity})`);
+      lines.push(`💡 명확한 에지가 나올 때까지 방어 유지.`);
+    }
+    lines.push('');
+  }
+  
+  // 【コメンテーター】Dr. Grok（固定コーナー、全言語共通）
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('💊 Dr. Grok의 의견');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
   
   if (integratedOptimization && integratedOptimization.integrated && integratedOptimization.optimization) {
     const opt = integratedOptimization.optimization;
@@ -733,44 +670,44 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
   
   lines.push('');
 
-  // COO最適化: FOMO強化（有料版の価値を明確化）
-  // GPT 평가 기반 개선: 3개 카테고리로 가치 명확화
+  // 有料版の価値（簡潔に）
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('💎 이것이 유료 리포트를 선택한 이유');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
-  lines.push('무료 사용자는 점수만 볼 수 있지만, 당신은 다음을 얻습니다:');
+  lines.push('🎯 액션 신호 (AVOID-LONG/SHORT, STANDBY) + 출구 지도 + NO TRADE 알림');
+  lines.push('📊 전체 CQ 분석 + 트랩 감지 + X 센티먼트 (Dr. Grok)');
+  lines.push('💊 멘탈 코칭 및 심리 상태 진단');
   lines.push('');
-  lines.push('🎯 실시간 액션 신호:');
-  lines.push('✅ AVOID-LONG / AVOID-SHORT / STANDBY 알림（즉시 알림）');
-  lines.push('✅ 출구 지도 가이드（정확히 언제 나갈지 알기）');
-  lines.push('✅ NO TRADE 알림（손실이 발생하기 전에 피하기）');
-  lines.push('');
-  lines.push('📊 심층 인텔리전스 분석:');
-  lines.push('✅ 완전한 온체인 분석（CryptoQuant 데이터, 모든 지표）');
-  lines.push('✅ AI 기반 트랩 패턴 감지（24시간 모니터링）');
-  lines.push('✅ 실시간 X 센티먼트 분석（시장 감정 예측）');
-  lines.push('');
-  lines.push('💊 완전한 심리적 지원:');
-  lines.push('✅ Dr. Grok의 멘탈 코칭（FOMO, 두려움, 탐욕 극복）');
-  lines.push('✅ 맞춤형 멘탈 트레이닝 가이드');
-  lines.push('✅ 심리 상태 진단 및 블록 해결');
-  lines.push('');
-  lines.push('🛡️ 하나의 신호를 놓치면 = 자본 손실. 이것이 유료 리포트를 선택한 이유입니다.');
+  lines.push('🛡️ 하나의 신호를 놓치면 = 자본 손실.');
   lines.push('');
 
-  // ===== 基本市場データ（補足情報として後半に配置） =====
+  // ===== 基本市場データ（スキャンしやすい1ブロック） =====
+  lines.push('📋 스냅샷');
   lines.push(priceLine);
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
+  lines.push(scoreLine);
   lines.push('');
 
-  lines.push(scoreLine);
-  
-  // Whale Ratio情報（EN市場専用だが、他の言語でも表示可能）
-  // PR #14: whaleFlows の構造が { whaleRatio, isHighPressure, interpretation } に変更
-  // 重要: whaleFlowsが存在し、whaleRatioがnullでない場合に表示
+  // Trap Score表示（EN과 동일）
+  let displayTrapScore = null;
+  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore >= 0) {
+    displayTrapScore = trapDetection.trapScore;
+  } else if (trapScore != null && trapScore >= 0) {
+    displayTrapScore = trapScore;
+  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore >= 0) {
+    displayTrapScore = trapRisk.trapRiskScore;
+  }
+  if (displayTrapScore != null && displayTrapScore >= 0) {
+    const trapScoreRounded = Math.round(displayTrapScore);
+    const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 고위험' : displayTrapScore >= 40 ? '⚠️ 중간' : '✅ 낮음';
+    lines.push(`🎯 트랩 점수: ${trapScoreRounded}/100 ${trapScoreEmoji}`);
+    lines.push('');
+  }
+
+  // Whale Ratio정보（EN과 동일）
   if (whaleFlows && whaleFlows.whaleRatio != null) {
     // whaleRatioは0-1の範囲の数値として返される（deepMetrics.js参照）
     // パーセンテージに変換（0.56 -> 56%）
@@ -781,9 +718,23 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
     const whaleLine = `🐋 고래 비율: ${whaleRatioValue.toFixed(1)}% ${isHighPressure ? '(높은 압력)' : '(정상)'}`;
     lines.push(whaleLine);
   } else if (whaleFlows) {
-    // デバッグ用: whaleFlowsは存在するがwhaleRatioがnullの場合
     console.warn('[Regular KO] whaleFlows exists but whaleRatio is null:', whaleFlows);
   }
+
+  // 24h 청산（EN과 동일）
+  const totalLiquidations = typeof liquidations === 'number'
+    ? liquidations
+    : (liquidations?.totalLiquidations ?? 0);
+  if (totalLiquidations > 0) {
+    if (typeof liquidations === 'object' && liquidations.longLiquidations != null && liquidations.shortLiquidations != null) {
+      const liqLine = `💥 24h 청산: ${formatUsd(totalLiquidations)} (롱: ${formatUsd(liquidations.longLiquidations)}, 숏: ${formatUsd(liquidations.shortLiquidations)})`;
+      lines.push(liqLine);
+    } else {
+      lines.push(`💥 24h 청산: ${formatUsd(totalLiquidations)}`);
+    }
+  }
+
+  lines.push(trapLine);
 
   // Phase 2: Kimchi Premium表示（KO市場専用）
   if (kimchiPremium != null) {
@@ -829,8 +780,6 @@ ${score <= 25 && inflow > 0 ? '⚠️ 모순: 낮은 위험 점수인데 높은 
     
     lines.push(`   💡 ${noTradeAlert.recommendation}`);
   }
-  
-  lines.push(trapLine);
   
   // Phase1-Product: Exit Map表示（簡略化：最大8行）
   if (exitMap && exitMap.hasActivePosition) {
