@@ -1760,8 +1760,8 @@ async function postQuoteReposts(reportData = null) {
 
     // 各言語ごとに引用リポスト（1時間に1言語 = 6時間で完了）
     // 実際の実装では、スケジューラーで1時間ごとに1言語ずつ実行
-    // P0 FIX: deadlineMsを統一生成して渡す（GPT-5.2レビュー対応）
-    const MAX_DURATION_MS = 60_000;
+    // P0 FIX: deadlineMsを統一生成して渡す（maxDuration=300に合わせて290s）
+    const MAX_DURATION_MS = 290_000;
     const deadlineMs = Date.now() + MAX_DURATION_MS - 1500;
     for (const lang of targetLangs) {
       const langResults = await postQuoteRepostsForLang(
@@ -1819,7 +1819,7 @@ const handler = async (req, res) => {
 
   // P0 FIX: エントリポイントでdeadlineMsを統一生成（GPT-5.2レビュー対応）
   // すべての下位関数に渡すことで、タイムアウト処理を統一
-  const MAX_DURATION_MS = 60_000; // Vercel FunctionsのmaxDuration=60秒
+  const MAX_DURATION_MS = 290_000; // Vercel FunctionsのmaxDuration=300秒
   const deadlineMs = Date.now() + MAX_DURATION_MS - 1500; // 1.5秒の安全マージン
 
   console.log("[Quote Repost] ========================================");

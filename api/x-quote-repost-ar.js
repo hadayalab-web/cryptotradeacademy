@@ -72,8 +72,8 @@ module.exports = async (req, res) => {
     const { getDailyPostCount: getGlobalDailyPostCount } = require("../services/x/optimization");
     const dailyPostCount = await getGlobalDailyPostCount(dateString);
 
-    // P0 FIX: deadlineMsを設定（Vercel 60秒制限。起動〜KV取得で約15s消費するため実質45sで8人まで処理）
-    const MAX_DURATION_MS = 55_000; // 55秒（5秒マージン）
+    // P0 FIX: deadlineMsを設定（Vercel maxDuration=300。起動〜KV取得で約15s消費するため実質285sで処理）
+    const MAX_DURATION_MS = 290_000; // 290秒（10秒マージン）
     const deadlineMs = Date.now() + MAX_DURATION_MS - 2000;
 
     // 完全版のpostQuoteRepostsForLangを呼び出し

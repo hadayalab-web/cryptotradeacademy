@@ -17,6 +17,15 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID; // BTC用チャンネルI
 const TELEGRAM_BOT_TOKEN_MINIMAL = process.env.TELEGRAM_BOT_TOKEN_MINIMAL;
 const TELEGRAM_CHAT_ID_MINIMAL = process.env.TELEGRAM_CHAT_ID_MINIMAL; // 無料版チャンネルID
 
+/** Telegram sendMessage の上限（文字数）。超えた場合は切り詰める */
+const TELEGRAM_MAX_MESSAGE_LENGTH = 4096;
+
+function truncateMessage(text, maxLen = TELEGRAM_MAX_MESSAGE_LENGTH) {
+  if (!text || typeof text !== "string") return text || "";
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen - 3) + "...";
+}
+
 /**
  * MINIMALチャンネルのChat IDを言語に応じて解決
  * 互換性: JP/KR/PTBR の別名も許可
@@ -68,9 +77,10 @@ async function sendMessage(text, options = {}) {
   }
 
   const url = new URL(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`);
+  const safeText = truncateMessage(text);
   const body = {
     chat_id: TELEGRAM_CHAT_ID,
-    text,
+    text: safeText,
     parse_mode: options.parse_mode || "Markdown",
     ...options
   };
@@ -84,6 +94,25 @@ async function sendMessage(text, options = {}) {
 
     if (!response.ok) {
       const errText = await response.text();
+      const isParseOrLengthError =
+        response.status === 400 &&
+        (errText.includes("parse") ||
+          errText.includes("entities") ||
+          errText.includes("too long") ||
+          errText.includes("Bad Request"));
+      if (isParseOrLengthError && body.parse_mode) {
+        const fallbackBody = { ...body, text: safeText, parse_mode: undefined };
+        const retryRes = await fetch(url.toString(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(fallbackBody)
+        });
+        if (retryRes.ok) {
+          const data = await retryRes.json();
+          console.log("📨 Telegram sent (fallback without parse_mode):", data.ok);
+          return data;
+        }
+      }
       throw new Error(`Telegram API Error: ${response.status} ${response.statusText} - ${errText}`);
     }
 
@@ -412,9 +441,10 @@ async function sendMessageToAsset(text, asset = "BTC", langCode = null, options 
   }
 
   const url = new URL(`https://api.telegram.org/bot${botToken}/sendMessage`);
+  const safeText = truncateMessage(text);
   const body = {
     chat_id: chatId,
-    text,
+    text: safeText,
     parse_mode: options.parse_mode || "Markdown",
     ...options
   };
@@ -428,6 +458,26 @@ async function sendMessageToAsset(text, asset = "BTC", langCode = null, options 
 
     if (!response.ok) {
       const errText = await response.text();
+      const isParseOrLengthError =
+        response.status === 400 &&
+        (errText.includes("parse") ||
+          errText.includes("entities") ||
+          errText.includes("too long") ||
+          errText.includes("Bad Request"));
+      if (isParseOrLengthError && body.parse_mode) {
+        const fallbackBody = { ...body, text: safeText, parse_mode: undefined };
+        const retryRes = await fetch(url.toString(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(fallbackBody)
+        });
+        if (retryRes.ok) {
+          const data = await retryRes.json();
+          const assetLabel = langCode ? `${asset}/${langCode}` : asset;
+          console.log(`📨 Telegram sent to ${assetLabel} (fallback without parse_mode):`, data.ok);
+          return data;
+        }
+      }
       throw new Error(`Telegram API Error: ${response.status} ${response.statusText} - ${errText}`);
     }
 
@@ -615,9 +665,10 @@ async function sendMessageToChannel(text, series = "BTC", marketCode = "EN", opt
   }
 
   const url = new URL(`https://api.telegram.org/bot${botToken}/sendMessage`);
+  const safeText = truncateMessage(text);
   const body = {
     chat_id: chatId,
-    text,
+    text: safeText,
     parse_mode: options.parse_mode || "Markdown",
     ...options
   };
@@ -631,6 +682,25 @@ async function sendMessageToChannel(text, series = "BTC", marketCode = "EN", opt
 
     if (!response.ok) {
       const errText = await response.text();
+      const isParseOrLengthError =
+        response.status === 400 &&
+        (errText.includes("parse") ||
+          errText.includes("entities") ||
+          errText.includes("too long") ||
+          errText.includes("Bad Request"));
+      if (isParseOrLengthError && body.parse_mode) {
+        const fallbackBody = { ...body, text: safeText, parse_mode: undefined };
+        const retryRes = await fetch(url.toString(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(fallbackBody)
+        });
+        if (retryRes.ok) {
+          const data = await retryRes.json();
+          console.log(`📨 Telegram sent to ${series}/${marketCode} (fallback without parse_mode):`, data.ok);
+          return data;
+        }
+      }
       throw new Error(`Telegram API Error: ${response.status} ${response.statusText} - ${errText}`);
     }
 

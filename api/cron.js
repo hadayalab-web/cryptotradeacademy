@@ -1653,6 +1653,7 @@ module.exports = async function handler(req, res) {
           // メール送信コードは削除されました - Telegram配信のみ
 
           // Telegram送信（オプション、環境変数で有効化）
+          let regularActuallySent = false;
           if (ENABLE_TELEGRAM) {
             // 市場コードとシリーズを取得して適切なチャンネルに送信
             const marketCode = getMarketCode(targetLang); // 'EN', 'AR', 'KO', etc.
@@ -1689,17 +1690,20 @@ module.exports = async function handler(req, res) {
             }
             const telegramMessageId =
               regularSendResult?.message_id || regularSendResult?.raw?.result?.message_id;
+            regularActuallySent = Boolean(telegramMessageId || (regularSendResult && regularSendResult.ok));
 
-            messageLogger.logMessage({
-              message_id: messageId,
-              snapshot_id: snapshot.snapshot_id,
-              lang: targetLang,
-              variant,
-              message_type: "REGULAR",
-              sent_at: new Date().toISOString(),
-              telegram_message_id: telegramMessageId,
-              cta_links: extractCtaLinks(regularText)
-            });
+            if (regularActuallySent) {
+              messageLogger.logMessage({
+                message_id: messageId,
+                snapshot_id: snapshot.snapshot_id,
+                lang: targetLang,
+                variant,
+                message_type: "REGULAR",
+                sent_at: new Date().toISOString(),
+                telegram_message_id: telegramMessageId,
+                cta_links: extractCtaLinks(regularText)
+              });
+            }
           }
 
           // X Proof Post（英語版のみ）
@@ -1720,8 +1724,12 @@ module.exports = async function handler(req, res) {
             }
           }
 
-          sent += 1;
-          console.log(`[REGULAR] ✅ Successfully sent to ${targetLang}`);
+          if (regularActuallySent) {
+            sent += 1;
+            console.log(`[REGULAR] ✅ Successfully sent to ${targetLang}`);
+          } else if (ENABLE_TELEGRAM) {
+            console.warn(`[REGULAR] ⚠️ Skipped (not delivered) for ${targetLang}`);
+          }
         } catch (langError) {
           console.error(`[REGULAR] ❌ Error processing language ${targetLang}:`, langError.message);
           console.error(`[REGULAR] ❌ Stack trace for ${targetLang}:`, langError.stack);
