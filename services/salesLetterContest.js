@@ -177,15 +177,16 @@ X's algorithm favors concrete numbers and BTC/on-chain topic relevance. Weave 2�
 OUTPUT FORMAT (output exactly this structure):
 
 1) HEADLINE
-One short line. QUESTION that hooks this pain angle. Use concrete pain words. Add 1 emoji (🔴 🛡️ ⚡) where natural. No hashtags.
+First 7–10 words must stab the emotional pressure point—short = higher CTR on quote reposts. One short line. QUESTION or declarative that hooks this pain angle. Examples: "BTC pumped to \$97,200. You froze." / "You watched \$50k evaporate in silence." Use concrete pain words. Add 1 emoji (🔴 🛡️ ⚡) where natural. No hashtags.
 
 2) PERSONA HOOK (思考停止・鷲掴み)
 One short paragraph. Cold-read this specific angle—name the exact moment. Empathy, no blame. End with a hook question if it fits.
 
-3) PRODUCT INTRO (Minimal + Regular)
+3) PRODUCT INTRO (Minimal → one line of fear → Regular)
 - FREE Minimal: Trap Score, gut vs data, no card. Emphasize "防衛" (defend)—stop losses before they grow.
+- Then ONE line of fear to boost CVR (e.g. "One hesitation last week cost traders \$10k–\$80k."). Keep it one sentence.
 - PAID Regular: 15min Alerts + Exit Map, $${monthlyPrice}/mo, 1-day trial, risk zero. Code defend50 for 50% off (once). Frame as "資産を守る" (protect assets), not just "儲ける" (earn).
-- Optional: add ONE testimonial quote from the list above after this block (one line). Use "🔥 I'm Safe" / "Trap Avoided" style. もっと大げさに。
+- Optional: add ONE testimonial quote from the list above after this block (one line). Prefer "number × emotion × action" (e.g. "Trap Score 28 saved me from a \$52,400 loss. I didn't even click buy."). Use "🔥 I'm Safe" / "Trap Avoided" style. もっと大げさに。
 
 4) OBJECTION HANDLING (反論処理)
 Exactly 2 short sentences. Acknowledge hesitation, then reframe with dramatic social proof. Use ONE testimonial from the list above if you didn't use it in Product Intro—or "XXX+ Trap Avoided This Week", "I'm Safe". Tone: over-the-top, confident, "we're the ones who didn't get rekt". Concise but punchy.
@@ -203,7 +204,7 @@ Output: headline, blank line, persona hook, blank line, product intro (Minimal t
 
 /**
  * 引用リポスト用リンク誘導の定型文
- * 視覚的2チャンク: メインCTA2本（無料Minimal→有料Regular）を目立たせ、VSLはサブとして控えめに配置
+ * CTAはFREEとPAIDの2本のみ（選択肢が多いとCTR低下）。VSLはコメント欄用でここには出さない。
  */
 const LINK_BLOCK_GROK_STYLE = {
   ja: {
@@ -244,9 +245,6 @@ const LINK_BLOCK_GROK_STYLE = {
   }
 };
 
-/** 区切り線（メインCTAとサブ情報を視覚分離） */
-const LINK_BLOCK_SEPARATOR = "─────";
-
 function getLinkBlockGrokStyle(lang, options = {}) {
   const normalizedLang = (lang || "en").toLowerCase().replace("_", "-");
   const labels = LINK_BLOCK_GROK_STYLE[normalizedLang] || LINK_BLOCK_GROK_STYLE.en;
@@ -259,18 +257,17 @@ function getLinkBlockGrokStyle(lang, options = {}) {
     }) || getMinimalVersionCheckoutUrl("en", options);
   const regularUrl = getRegularWhopLinkOnly(normalizedLang);
 
-  const mainBlock = [
-    labels.mainFree,
-    minimalUrl,
-    `${labels.mainPaid} (${promoCode} 50% off)`,
-    regularUrl
-  ].join("\n");
-
-  const subBlock = [labels.videoSecret, VSL_MINIMAL.url, labels.upgradeVideo, VSL_REGULAR.url].join(
+  // 引用リポストは「CTA2本だけ」が最強。YouTube/VSLはコメント欄で配布。
+  return [labels.mainFree, minimalUrl, `${labels.mainPaid} (${promoCode} 50% off)`, regularUrl].join(
     "\n"
   );
+}
 
-  return [mainBlock, LINK_BLOCK_SEPARATOR, subBlock].join("\n");
+/** コメント欄用: VSLリンク（投稿本文には含めない） */
+function getVslLinksForComment(lang) {
+  const normalizedLang = (lang || "en").toLowerCase().replace("_", "-");
+  const labels = LINK_BLOCK_GROK_STYLE[normalizedLang] || LINK_BLOCK_GROK_STYLE.en;
+  return [labels.videoSecret, VSL_MINIMAL.url, labels.upgradeVideo, VSL_REGULAR.url].join("\n");
 }
 
 /** 簡易ハッシュ（username→seed用） */
@@ -403,6 +400,7 @@ module.exports = {
   buildGrokOnlyPrompt,
   buildCqContext,
   getLinkBlockGrokStyle,
+  getVslLinksForComment,
   runGrokOnlySalesLetter,
   runGrokOnlySalesLetterAllLangs,
   saveSalesLetterGrokCache,
