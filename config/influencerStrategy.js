@@ -1,23 +1,26 @@
 // config/influencerStrategy.js
 // 言語別インフルエンサー戦略設定
 //
-// 【初回ストック 300件でスタート】KV 実態: en 124, pt-br 35, ko 30, es 48, ja 11, ar 52。
-// 引用リポスト Cron は 1時間ごと（24回/日/言語）に統一。1回あたりの投稿数はストックに合わせて設定。
-// 目標: 約 240 投稿/日（en 72, es 48, pt-br 24, ar 48, ko 24, ja 24）。1人あたり最大4回/日でローテ。
+// 【マスト】インフルエンサー300人×2回 = 600投稿/日は最低ライン。引用リポストなのでスパム判定されにくくガンガン突っ込む。
+// 【初回ストック 300件】KV 実態: en 124, pt-br 35, ko 30, es 48, ja 11, ar 52。
+// Cron: 1時間ごと×6言語 = 24回/日/言語。1回あたりの投稿数は下記で設定。
 // 詳細: docs/INFLUENCER_LIST_PROGRESS_2026-02-01.md, docs/INITIAL_STOCK_PLAN_QUOTE_REPOST_2026-02-01.md
+
+/** 目標: 600/日マスト、それ以上も積極的に（24×合計で算出） */
+const DAILY_POST_TARGET_MIN = 600; // 300人×2回
 
 /**
  * 言語別インフルエンサー数設定（1回のCron実行あたりの投稿候補数）
- * 即効性・収益最大化: 1回あたり投稿数を増やし露出を約2倍に（約800投稿/日）。
+ * 合計〜600/日（X API 浪費を抑える）。24回/日×合計≒600 → 1回あたり合計25前後。
  * 環境変数で上書き可能: INFLUENCER_COUNT_EN, INFLUENCER_COUNT_ES など。
  */
 const INFLUENCER_COUNT_BY_LANG = {
-  en: parseInt(process.env.INFLUENCER_COUNT_EN || "12", 10),
-  es: parseInt(process.env.INFLUENCER_COUNT_ES || "6", 10),
-  "pt-br": parseInt(process.env.INFLUENCER_COUNT_PT_BR || "4", 10),
-  ar: parseInt(process.env.INFLUENCER_COUNT_AR || "6", 10),
-  ko: parseInt(process.env.INFLUENCER_COUNT_KO || "4", 10),
-  ja: parseInt(process.env.INFLUENCER_COUNT_JA || "4", 10)
+  en: parseInt(process.env.INFLUENCER_COUNT_EN || "8", 10),
+  es: parseInt(process.env.INFLUENCER_COUNT_ES || "5", 10),
+  "pt-br": parseInt(process.env.INFLUENCER_COUNT_PT_BR || "3", 10),
+  ar: parseInt(process.env.INFLUENCER_COUNT_AR || "4", 10),
+  ko: parseInt(process.env.INFLUENCER_COUNT_KO || "3", 10),
+  ja: parseInt(process.env.INFLUENCER_COUNT_JA || "3", 10)
 };
 
 /**
@@ -331,6 +334,7 @@ function selectInfluencersForHighEngagement(influencers, lang) {
 }
 
 module.exports = {
+  DAILY_POST_TARGET_MIN,
   INFLUENCER_COUNT_BY_LANG,
   STOCK_COUNT_BY_LANG,
   IMPRESSION_TARGET_BY_LANG,

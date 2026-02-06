@@ -907,8 +907,9 @@ function formatRegularBriefingHTML({
     </div>
   ` : '';
 
-  // GPT Reporter分析
-  const gptNewsText = gptReporterAnalysis || aiAnalysis || 'Analyzing data...';
+  // GPT Reporter分析（API等でオブジェクトが渡る場合に備え文字列に正規化）
+  const gptNewsRaw = gptReporterAnalysis || aiAnalysis || 'Analyzing data...';
+  const gptNewsText = typeof gptNewsRaw === 'string' ? gptNewsRaw : String(gptNewsRaw ?? '');
   const gptNewsLimit = 2000; // Eメールでは制限を緩和
   const gptNewsDisplay = gptNewsText.length > gptNewsLimit 
     ? `${gptNewsText.slice(0, gptNewsLimit)}…` 
@@ -1270,9 +1271,10 @@ function formatRegularBriefingHTML({
               <strong>🛡️ Trap Defence Philosophy:</strong> 70% of the time, do nothing. Defend until clear advantage emerges.
             </div>
             <div style="margin-top: 20px;">
-              ${showContent && showContent.analysis && showContent.analysis.gptMentalTrainer 
-                ? showContent.analysis.gptMentalTrainer.replace(/\n/g, '<br>')
-                : gptNewsDisplay.replace(/\n/g, '<br>')}
+              ${(() => {
+                const raw = showContent?.analysis?.gptMentalTrainer ?? gptNewsDisplay;
+                return (typeof raw === 'string' ? raw : String(raw || '')).replace(/\n/g, '<br>');
+              })()}
             </div>
           </div>
           <div class="synergy-note">

@@ -72,7 +72,7 @@ if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
  */
 async function sendMessage(text, options = {}) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    console.error("❌ Telegram credentials are missing. Skipping sendMessage.");
+    console.warn("⚠️ Telegram credentials are missing. Skipping sendMessage.");
     return;
   }
 
@@ -139,7 +139,7 @@ async function sendPhoto(photoUrl, caption = "", chatId = null, botToken = null,
   const targetChatId = chatId || TELEGRAM_CHAT_ID;
 
   if (!token || !targetChatId) {
-    console.error("❌ Telegram credentials are missing. Skipping sendPhoto.");
+    console.warn("⚠️ Telegram credentials are missing. Skipping sendPhoto.");
     return;
   }
 
@@ -293,7 +293,7 @@ async function sendPhoto(photoUrl, caption = "", chatId = null, botToken = null,
  */
 async function sendVideo(videoUrl, caption = "") {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    console.error("❌ Telegram credentials are missing. Skipping sendVideo.");
+    console.warn("⚠️ Telegram credentials are missing. Skipping sendVideo.");
     return;
   }
 

@@ -821,19 +821,22 @@ async function postQuoteRepostsForLang(
       }
     );
 
-    // 運用: 60s枠でVercel 504を防ぐため1回3人に制限（5人×15sで溢れるため）。X API 500/503はリトライ対象。
+    // 運用: deadline 内で完了するよう残り時間ベースでキャップ（1投稿≒15s + バッファ）。約800投稿/日目標に対応。
+    const POST_TIME_ESTIMATE_MS = 15000; // postQuoteTweet タイムアウトと同程度
+    const DEADLINE_BUFFER_MS = 30000;    // 終了・ハッシュタグ等の余裕
     let maxInfluencers = targetCount;
     if (deadlineMs) {
-      const safeCap = 3;
+      const remainingMs = Math.max(0, deadlineMs - Date.now() - DEADLINE_BUFFER_MS);
+      const timeBasedCap = Math.max(1, Math.floor(remainingMs / POST_TIME_ESTIMATE_MS));
+      const safeCap = Math.min(targetCount, timeBasedCap);
       if (maxInfluencers > safeCap) {
-        console.warn(
-          `[Quote Repost] ⚠️ Limiting influencers from ${maxInfluencers} to ${safeCap} to prevent "insufficient time remaining" [runId: ${langRunId}]`
+        console.log(
+          `[Quote Repost] Limiting influencers from ${maxInfluencers} to ${safeCap} (remaining ~${Math.round(remainingMs / 1000)}s) [runId: ${langRunId}]`
         );
         maxInfluencers = safeCap;
       }
-    } else if (lang.toLowerCase() === "en" && maxInfluencers > 12) {
-      maxInfluencers = 12;
     }
+    // 言語別上限は config/influencerStrategy の targetCount に一本化（en の 12 固定キャップは廃止）
 
     for (const influencer of influencers.slice(0, maxInfluencers)) {
       // P0 FIX: 各インフルエンサー処理の開始時にタイムアウトチェック（残り3秒未満で早期リターン）
