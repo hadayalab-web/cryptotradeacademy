@@ -268,19 +268,17 @@ function formatRegularBriefing({
     if (isError) {
       gptNewsText = null; // エラーメッセージの場合はnullに設定してフォールバック
     } else {
-      // AR市場用: アラビア語以外の言語が混入している場合を検出
-      // エラーでない場合のみ言語チェックを実行
-      // アラビア文字が含まれていない場合は英文と判断
-      const hasArabicChars = /[\u0600-\u06FF]/.test(gptNewsText);
-      // 日本語・英語・その他の言語が混入している場合を検出
+      // AR市場用: アラビア語以外の言語が混入している場合を検出（Extended-A・Supplement含む）
+      const hasArabicChars = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(gptNewsText);
       const hasJapaneseChars = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(gptNewsText);
       const hasEnglishOnly = !hasArabicChars && !hasJapaneseChars && gptNewsText.length > 50;
+      const longEnoughToWarn = gptNewsText.length > 80;
       if (hasJapaneseChars || (hasEnglishOnly && !hasArabicChars)) {
-        // 日本語または英語のみが含まれている場合はnullに設定してアラビア語フォールバックを使用
-        console.warn('[Regular AR] Non-Arabic language detected in GPT analysis, using fallback');
         gptNewsText = null;
+        if (longEnoughToWarn) {
+          console.log('[Regular AR] Using Arabic fallback (GPT analysis was not in Arabic).');
+        }
       } else if (!hasArabicChars && gptNewsText.length > 50) {
-        // アラビア語が含まれていない場合はnullに設定してアラビア語フォールバックを使用
         gptNewsText = null;
       }
     }

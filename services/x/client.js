@@ -280,25 +280,39 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
       // P0 FIX: response.okがtrueでも、X API v2のerrorsフィールドが含まれている場合はエラーとして扱う
       const responseData = await response.json();
 
-      // X API v2のエラーレスポンス形式: { errors: [{ code: number, message: string }] }
+      // X API v2のエラーレスポンス形式: { errors: [{ code, message }] または { detail, title, resource_type }] }
       if (
         responseData.errors &&
         Array.isArray(responseData.errors) &&
         responseData.errors.length > 0
       ) {
-        const errorMessages = responseData.errors.map((e) => `${e.code}: ${e.message}`).join(", ");
-        console.error(
-          `[X API] ❌ Response contains errors field (but status was ${response.status}):`,
-          {
-            endpoint,
-            method,
-            errors: responseData.errors,
-            fullResponse: responseData,
-            url
-          }
-        );
+        const first = responseData.errors[0];
+        const isTweetNotFound =
+          first.resource_type === "tweet" &&
+          (first.title === "Not Found Error" || (first.type && /resource-not-found/i.test(first.type)));
+
+        if (isTweetNotFound) {
+          console.warn(
+            `[X API] ⚠️ Tweet not found: ${first.resource_id || endpoint} (deleted or private).`
+          );
+        } else {
+          console.error(
+            `[X API] ❌ Response contains errors field (but status was ${response.status}):`,
+            {
+              endpoint,
+              method,
+              errors: responseData.errors,
+              fullResponse: responseData,
+              url
+            }
+          );
+        }
+
+        const errorMessages = responseData.errors
+          .map((e) => e.detail || e.message || `${e.code}: ${e.message}`)
+          .join(", ");
         throw new Error(
-          `X API Response Errors: ${errorMessages} - ${JSON.stringify(responseData)}`
+          `X API Response Errors: ${errorMessages || "unknown"} - ${JSON.stringify(responseData)}`
         );
       }
 

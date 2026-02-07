@@ -9,6 +9,17 @@ const { xApiRequest } = require("./client");
  * @param {boolean} includeNonPublic - non_public_metricsを含めるか（自分のツイートのみ）
  * @returns {Promise<Object>} メトリクスデータ
  */
+/** ツイート未検出（削除・非公開・ID誤り）かどうか */
+function isTweetNotFoundError(error) {
+  if (!error || !error.message) return false;
+  const msg = error.message;
+  return (
+    /Could not find tweet with id/i.test(msg) ||
+    /resource-not-found/i.test(msg) ||
+    (msg.includes("Not Found Error") && msg.includes("tweet"))
+  );
+}
+
 /**
  * ツイートのメトリクスを取得
  * @param {string} tweetId - ツイートID
@@ -100,6 +111,14 @@ async function getTweetMetrics(tweetId, includeNonPublic = false, options = {}) 
       return metrics;
     } catch (error) {
       lastError = error;
+
+      // ツイート未検出（削除・非公開・ID誤り）はリトライしない・CRITICALにしない
+      if (isTweetNotFoundError(error)) {
+        console.warn(
+          `[X Metrics] ⚠️ Tweet not found (deleted or private): ${tweetId}. Skipping retries.`
+        );
+        throw new Error(`Tweet not found: ${tweetId} (deleted or private)`);
+      }
 
       // レート制限エラーの場合は待機時間を長くする
       const isRateLimit = error.message?.includes("429") || error.message?.includes("rate limit");
