@@ -181,26 +181,25 @@ ${testimonialBlock}
 
 SOCIAL PROOF: We append "🔥 N+ traders across 6 languages avoided this exact setup this week" after your post. In objection handling, reference "traders in your same situation" + "6 languages" + BIG concrete number (8,000+ or 14,000+). Do NOT write "XXX+".
 
-DATA—EXPLAIN THE DANGER IN ONE LINE:
-Trap Score + Whale Ratio + Netflow must be framed as a SET with meaning. Example: "Trap Score 28/100 + Whale Ratio 0.42 + negative netflow = classic distribution pattern." Give the reader ONE line explaining WHY the data screams danger.
+DATA—EXPLAIN THE DANGER (3指標をセットで意味づけ):
+Format as: "Trap Score X/100 + Whale Ratio Y + netflow = a classic distribution setup before a move down." Then: "Don't trust instinct—trust the Score. Pure data, zero emotion."
 
-OUTPUT FORMAT (output exactly this structure):
+OUTPUT FORMAT (最終版テンプレ—ad-friendly, 6言語耐性):
 
-1) HEADLINE (7 words max, Trap Defence world view)
-First 7 words must stab + include Trap Defence framing. Examples: "Woke up—Trap already sprung." / "You slept. The trap didn't." / "Gains gone. Trap Score warned you." Add 1 emoji (🔴 🛡️ ⚡). No hashtags.
+1) HEADLINE (Trap Scoreの先読み性を明示)
+Trap Score's predictive quality. Examples: "Missed exit? Trap Score warned before the drop." / "Woke up—Trap Score had warned you." Add 1 emoji (🔴 🛡️ ⚡). No hashtags. ~10 words max.
 
-2) PERSONA HOOK (痛点 → 共感)
-One short paragraph. Cold-read this angle—name the exact moment. Add ONE line of empathy before the fear: "You know that hesitation. Everyone does." (or equivalent in ${langName}). Empathy, no blame.
+2) PERSONA HOOK (痛点 → 身体感覚＋映像化 → 共感)
+One short paragraph. Body sensation (freeze) + visualization (screen flashing red, BTC price, % move). End with: "You know that hesitation. Everyone does." Empathy, no blame. Ad-safe wording.
 
-3) PRODUCT INTRO (Minimal → empathy+fear → Regular)
-- FREE Minimal: Trap Score, gut vs data, no card, no risk. Emphasize "防衛" (defend)—psychological safety first.
-- Then ONE line of empathy before fear: "You know that hesitation. Everyone does."
-- Then ONE line of fear: "One hesitation last week cost traders \$10k–\$80k." (or equivalent)
-- PAID Regular—order strictly: VALUE → PRICE → RISK ZERO. Value: 15min Alerts + Exit Map. Price: $${monthlyPrice}/mo. Risk zero: 1-day trial, cancel anytime. Code defend50 for 50% off. Frame as "資産を守る" (protect assets), loss avoidance × urgency.
-- Optional: ONE testimonial from the list above (one line).
+3) PRODUCT INTRO (データ意味づけ → 恐怖 → Regular)
+- Data block: "Trap Score X + Whale Ratio Y + netflow = classic distribution setup before move down. Don't trust instinct—trust the Score. Pure data, zero emotion." (FREE Trap Score is implied; CTA has it.)
+- Fear line: "One hesitation last week cost traders \$10k–\$80k. Hesitation always costs more than alerts."
+- Regular offer—strict order: VALUE → PRICE → RISK ZERO → DISCOUNT. "Regular: 15‑min alerts + Exit Map. \$${monthlyPrice}/mo (0.2% of a \$50k loss). 1‑day trial, cancel anytime. Code DEFEND50 — 50% off."
+- Optional: ONE testimonial (e.g. "Exit Map saved my account. I'm Safe. —D").
 
 4) OBJECTION HANDLING (反論処理)
-Exactly 2 short sentences. Acknowledge hesitation, then reframe with "traders in your same situation" + social proof. Use ONE testimonial if not used in Product Intro. Tone: confident, "we're the ones who didn't get rekt" (or local equivalent for JA/KO). Concise but punchy.
+"Still watching while traders in your exact position across 6 languages avoided this setup." + ONE short testimonial if not used above. Confident, ad-safe. No aggressive slang.
 
 5) HASHTAGS
 One line. Exactly 3: #BTC #TrapDefence and 1 more. No more than 3.
@@ -211,7 +210,7 @@ STYLE:
 - One thought per sentence. No run-on. No stray spaces.
 - Trap Defence world view throughout.
 
-Output: headline, blank line, persona hook, blank line, product intro (Minimal → empathy+fear → Regular; optional testimonial), blank line, objection handling, blank line, hashtags. No section labels. No URLs. Tone: ${TONE}. Every sentence ends with a period (or 。).`;
+Output: headline, blank line, persona hook, blank line, product intro (data block → fear line → Regular offer; optional testimonial), blank line, objection handling, blank line, hashtags. No section labels. No URLs. Ad-safe. Tone: ${TONE}. Every sentence ends with a period (or 。).`;
 }
 
 /**
