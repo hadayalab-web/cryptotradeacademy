@@ -150,9 +150,19 @@ function buildGrokOnlyPrompt({ lang, reportData, painAngleSeed }) {
       ? testimonials.map((t) => `- "${t}"`).join("\n")
       : "- (use a short outcome-focused quote in the persona voice)";
 
+  const isAsia = ["ja", "ko"].includes(normalizedLang);
+  const langNote = isAsia
+    ? "JA/KO: Avoid 'rekt'—use local equivalent (e.g. 'would've been crushed', 'account wiped'). Avoid 'gut punch'—use 'sick feeling' or similar. Use 'Be safe with us' for CTA-closing energy."
+    : "EN/ES/PT-BR/AR: 'rekt' and 'gut punch' OK. Non-Asia: 'Join us' for CTA-closing.";
+
   return `You are a direct-response copywriter for Trap Defence (crypto trading education). Write a complete X (Twitter) post in ${langName} in FIVE parts. Use the persona and on-chain data below—they are mandatory. Do NOT output any URLs or link lines; we add those below the post.
 
-CONTEXT: This will be used as a QUOTE REPOST. We run in 6 languages worldwide (EN, JA, ES, PT-BR, AR, KO)—so the scale is real. Frame it as a solution to the reader's pain—empathy first, then the way out. Tone: "I get it. Here's what works."
+STRUCTURE (strict order—痛点 → データ → 危険 → 解決 → 社会的証明 → CTA):
+痛点 (pain) → データ (data + why it's dangerous) → 危険 (danger line) → 解決 (offer) → 社会的証明 → CTA. This flow maximizes CTR × CVR.
+
+CONTEXT: This will be used as a QUOTE REPOST. We run in 6 languages worldwide (EN, JA, ES, PT-BR, AR, KO)—so the scale is real. Frame it as a solution to the reader's pain—empathy first, then the way out. Tone: "I get it. Here's what works." Unify tone with Trap Defence world view (trap = distribution before dump; Score = defense).
+
+6-LANGUAGE NOTE: ${langNote}
 
 THIS GENERATION—emphasize this pain angle (use it for HEADLINE and HOOK):
 - HEADLINE focus: ${angle.headline}
@@ -166,40 +176,42 @@ ON-CHAIN / MARKET DATA (use to ground the copy):
 ${cq}
 ${marketContext ? `\nMARKET CONTEXT (use for tone and urgency—follow this framing):\n${marketContext}` : ""}
 
-PERSONA TESTIMONIALS (ハッタリ戦法 — もっと大げさに。Use ONE in OBJECTION HANDLING or right after Product Intro. Tone: dramatic, over-the-top, "I'm Safe (Trap Avoided)" energy. Short, punchy, outcome = saved / avoided / didn't get rekt.):
+PERSONA TESTIMONIALS (use ONE in Product Intro or Objection Handling. Prefer "number × emotion × action". Avoid "rekt" in JA/KO—use local equivalent.):
 ${testimonialBlock}
 
-SOCIAL PROOF: We will append a line like "🔥 12,000+ Trap Avoided This Week (6 langs, worldwide) 👥 I'm Safe" after your post. In objection handling use a BIG concrete number (e.g. 8,000+ or 14,000+) for "avoided the trap this week worldwide"—do NOT write "XXX+". Reference "traders in 6 languages", "worldwide". ガンガン盛れ。
+SOCIAL PROOF: We append "🔥 N+ traders across 6 languages avoided this exact setup this week" after your post. In objection handling, reference "traders in your same situation" + "6 languages" + BIG concrete number (8,000+ or 14,000+). Do NOT write "XXX+".
 
-X ALGORITHM — ON-CHAIN DATA SUPPLY (mandatory for reach):
-X's algorithm favors concrete numbers and BTC/on-chain topic relevance. Weave 2–3 specific numbers from the data above into your copy (e.g. Trap Score 28, Exchange Netflow -40k, Whale Ratio 0.82, MPI, 24h%). Use them in a sentence, not as a dry list. This boosts engagement and topic relevance.
+DATA—EXPLAIN THE DANGER IN ONE LINE:
+Trap Score + Whale Ratio + Netflow must be framed as a SET with meaning. Example: "Trap Score 28/100 + Whale Ratio 0.42 + negative netflow = classic distribution pattern." Give the reader ONE line explaining WHY the data screams danger.
 
 OUTPUT FORMAT (output exactly this structure):
 
-1) HEADLINE
-First 7–10 words must stab the emotional pressure point—short = higher CTR on quote reposts. One short line. QUESTION or declarative that hooks this pain angle. Examples: "BTC pumped to \$97,200. You froze." / "You watched \$50k evaporate in silence." Use concrete pain words. Add 1 emoji (🔴 🛡️ ⚡) where natural. No hashtags.
+1) HEADLINE (7 words max, Trap Defence world view)
+First 7 words must stab + include Trap Defence framing. Examples: "Woke up—Trap already sprung." / "You slept. The trap didn't." / "Gains gone. Trap Score warned you." Add 1 emoji (🔴 🛡️ ⚡). No hashtags.
 
-2) PERSONA HOOK (思考停止・鷲掴み)
-One short paragraph. Cold-read this specific angle—name the exact moment. Empathy, no blame. End with a hook question if it fits.
+2) PERSONA HOOK (痛点 → 共感)
+One short paragraph. Cold-read this angle—name the exact moment. Add ONE line of empathy before the fear: "You know that hesitation. Everyone does." (or equivalent in ${langName}). Empathy, no blame.
 
-3) PRODUCT INTRO (Minimal → one line of fear → Regular)
-- FREE Minimal: Trap Score, gut vs data, no card. Emphasize "防衛" (defend)—stop losses before they grow.
-- Then ONE line of fear to boost CVR (e.g. "One hesitation last week cost traders \$10k–\$80k."). Keep it one sentence.
-- PAID Regular: 15min Alerts + Exit Map, $${monthlyPrice}/mo, 1-day trial, risk zero. Code defend50 for 50% off (once). Frame as "資産を守る" (protect assets), not just "儲ける" (earn).
-- Optional: add ONE testimonial quote from the list above after this block (one line). Prefer "number × emotion × action" (e.g. "Trap Score 28 saved me from a \$52,400 loss. I didn't even click buy."). Use "🔥 I'm Safe" / "Trap Avoided" style. もっと大げさに。
+3) PRODUCT INTRO (Minimal → empathy+fear → Regular)
+- FREE Minimal: Trap Score, gut vs data, no card, no risk. Emphasize "防衛" (defend)—psychological safety first.
+- Then ONE line of empathy before fear: "You know that hesitation. Everyone does."
+- Then ONE line of fear: "One hesitation last week cost traders \$10k–\$80k." (or equivalent)
+- PAID Regular—order strictly: VALUE → PRICE → RISK ZERO. Value: 15min Alerts + Exit Map. Price: $${monthlyPrice}/mo. Risk zero: 1-day trial, cancel anytime. Code defend50 for 50% off. Frame as "資産を守る" (protect assets), loss avoidance × urgency.
+- Optional: ONE testimonial from the list above (one line).
 
 4) OBJECTION HANDLING (反論処理)
-Exactly 2 short sentences. Acknowledge hesitation, then reframe with dramatic social proof. Use ONE testimonial from the list above if you didn't use it in Product Intro—or "XXX+ Trap Avoided This Week", "I'm Safe". Tone: over-the-top, confident, "we're the ones who didn't get rekt". Concise but punchy.
+Exactly 2 short sentences. Acknowledge hesitation, then reframe with "traders in your same situation" + social proof. Use ONE testimonial if not used in Product Intro. Tone: confident, "we're the ones who didn't get rekt" (or local equivalent for JA/KO). Concise but punchy.
 
 5) HASHTAGS
-One line. Exactly 3: #BTC #TrapDefence and 1 more (e.g. #Crypto #Bitcoin). No more than 3.
+One line. Exactly 3: #BTC #TrapDefence and 1 more. No more than 3.
 
-STYLE (clean copy—読みやすい文章):
-- Proper punctuation. In Japanese use 、。 consistently.
-- Format numbers: "BTC \$97,200" or "BTC 97,200ドル" (space before numbers).
-- One thought per sentence. No run-on. No stray/double spaces.
+STYLE:
+- Proper punctuation. Japanese: 、。 consistently.
+- Format numbers: "BTC \$97,200" or "BTC 97,200ドル".
+- One thought per sentence. No run-on. No stray spaces.
+- Trap Defence world view throughout.
 
-Output: headline, blank line, persona hook, blank line, product intro (Minimal then Regular; optional testimonial), blank line, objection handling (with testimonial or social proof), blank line, hashtags. No section labels. No URLs. Tone: ${TONE}. Every sentence ends with a period (or 。 in Japanese).`;
+Output: headline, blank line, persona hook, blank line, product intro (Minimal → empathy+fear → Regular; optional testimonial), blank line, objection handling, blank line, hashtags. No section labels. No URLs. Tone: ${TONE}. Every sentence ends with a period (or 。).`;
 }
 
 /**
@@ -208,38 +220,38 @@ Output: headline, blank line, persona hook, blank line, product intro (Minimal t
  */
 const LINK_BLOCK_GROK_STYLE = {
   ja: {
-    mainFree: "👇 まずは無料で防御力を手に入れる（カード不要）",
-    mainPaid: "▼ 本気で資産を守るなら",
+    mainFree: "👇 まずは無料で防御力を手に入れる（カード不要・リスクゼロ）",
+    mainPaid: "▼ 本気で資産を守るなら — DEFEND50",
     videoSecret: "▼ 無料ビデオ（全体像）",
     upgradeVideo: "▼ 有料版ビデオ"
   },
   en: {
-    mainFree: "👇 Get free defense first (no card)",
-    mainPaid: "▼ Protect your assets seriously",
+    mainFree: "👇 Get free defense first (no card, no risk)",
+    mainPaid: "▼ Protect your assets seriously — DEFEND50",
     videoSecret: "▼ Free video (full story)",
     upgradeVideo: "▼ Upgrade video"
   },
   es: {
-    mainFree: "👇 Empieza gratis (sin tarjeta)",
-    mainPaid: "▼ Protege tus activos en serio",
+    mainFree: "👇 Empieza gratis (sin tarjeta, sin riesgo)",
+    mainPaid: "▼ Protege tus activos en serio — DEFEND50",
     videoSecret: "▼ Vídeo gratis",
     upgradeVideo: "▼ Vídeo upgrade"
   },
   "pt-br": {
-    mainFree: "👇 Comece grátis (sem cartão)",
-    mainPaid: "▼ Proteja seus ativos de verdade",
+    mainFree: "👇 Comece grátis (sem cartão, sem risco)",
+    mainPaid: "▼ Proteja seus ativos de verdade — DEFEND50",
     videoSecret: "▼ Vídeo grátis",
     upgradeVideo: "▼ Vídeo upgrade"
   },
   ar: {
-    mainFree: "👇 ابدأ مجاناً (بدون بطاقة)",
-    mainPaid: "▼ احمِ أصولك بجدية",
+    mainFree: "👇 ابدأ مجاناً (بدون بطاقة، بدون مخاطرة)",
+    mainPaid: "▼ احمِ أصولك بجدية — DEFEND50",
     videoSecret: "▼ فيديو مجاني",
     upgradeVideo: "▼ فيديو الترقية"
   },
   ko: {
-    mainFree: "👇 무료로 먼저 시작 (카드 불필요)",
-    mainPaid: "▼ 자산 제대로 지키려면",
+    mainFree: "👇 무료로 먼저 시작 (카드 불필요, 위험 없음)",
+    mainPaid: "▼ 자산 제대로 지키려면 — DEFEND50",
     videoSecret: "▼ 무료 영상",
     upgradeVideo: "▼ 업그레이드 영상"
   }
@@ -258,9 +270,7 @@ function getLinkBlockGrokStyle(lang, options = {}) {
   const regularUrl = getRegularWhopLinkOnly(normalizedLang);
 
   // 引用リポストは「CTA2本だけ」が最強。YouTube/VSLはコメント欄で配布。
-  return [labels.mainFree, minimalUrl, `${labels.mainPaid} (${promoCode} 50% off)`, regularUrl].join(
-    "\n"
-  );
+  return [labels.mainFree, minimalUrl, `${labels.mainPaid} (50% off)`, regularUrl].join("\n");
 }
 
 /** コメント欄用: VSLリンク（投稿本文には含めない） */

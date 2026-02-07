@@ -202,13 +202,14 @@ async function getSocialProofText(lang = 'en') {
   const displayStr = displayCount.toLocaleString();
 
   const normalizedLang = (lang || 'en').toLowerCase().replace('_', '-');
+  // 「あなたと同じ状況の人」+ "this exact setup" + 6言語。Asia(ja,ko)は "Be safe with us" で刺さる
   const templates = {
-    en: `🔥 ${displayStr}+ Trap Avoided This Week (6 langs, worldwide) 👥 I'm Safe. Join us.`,
-    ja: `🔥 今週全世界${displayStr}+トラップ回避（6言語） 👥 I'm Safe. 仲間になれ。`,
-    es: `🔥 ${displayStr}+ Trampa Evitada Esta Semana (6 idiomas, mundial) 👥 I'm Safe. Únete.`,
-    'pt-br': `🔥 ${displayStr}+ Armadilha Evitada Esta Semana (6 idiomas, mundial) 👥 I'm Safe. Junte-se.`,
-    ar: `🔥 ${displayStr}+ الفخ اتجنب هذا الأسبوع (6 لغات، عالمي) 👥 I'm Safe. انضم.`,
-    ko: `🔥 이번 주 전세계 ${displayStr}+ 함정 회피 (6개국어) 👥 I'm Safe. 합류하라.`
+    en: `🔥 ${displayStr}+ traders across 6 languages avoided this exact setup this week. 👥 I'm Safe. Join us.`,
+    ja: `🔥 今週、6言語${displayStr}+人が同じセットアップを回避。👥 I'm Safe. 一緒に守ろう。`,
+    es: `🔥 ${displayStr}+ traders en 6 idiomas evitaron este setup exacto esta semana. 👥 I'm Safe. Únete.`,
+    'pt-br': `🔥 ${displayStr}+ traders em 6 idiomas evitaram este setup exato esta semana. 👥 I'm Safe. Junte-se.`,
+    ar: `🔥 ${displayStr}+ متداولين في 6 لغات تجنبوا نفس الإعداد هذا الأسبوع. 👥 I'm Safe. انضم.`,
+    ko: `🔥 6개국어 ${displayStr}+명이 이번 주 이 세팅 회피. 👥 I'm Safe. 함께 지키자.`
   };
   return templates[normalizedLang] || templates.en;
 }

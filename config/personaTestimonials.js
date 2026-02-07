@@ -34,7 +34,7 @@ const TESTIMONIALS = {
     "Divergencia ballena-retail = no FOMO. Cayó -15%. I'm Safe. — K",
     "Exit Map de Regular me salvó la cuenta. 🔥 Trampa evitada. — D",
     "6 idiomas en vivo. Llegó la alerta. Trampa evitada. Escala brutal. — S",
-    "Sin el Score me rekt 3 veces este mes. 🔥 I'm Safe. — T",
+    "Sin el Score me hubiera destruido 3 veces este mes. 🔥 I'm Safe. — T",
     "Score 18/100 = no toqué. Trampa evitada. Sigo con mi stack. — V"
   ],
   "pt-br": [
@@ -45,7 +45,7 @@ const TESTIMONIALS = {
     "Divergência baleia-retail = não FOMO. Caiu -15%. I'm Safe. — K",
     "Exit Map do Regular salvou minha conta. 🔥 Armadilha evitada. — D",
     "6 idiomas ao vivo. Recebi o alerta. Armadilha evitada. Escala absurda. — S",
-    "Sem o Score teria rekt 3x este mês. 🔥 I'm Safe. — T",
+    "Sem o Score teria perdido tudo 3x este mês. 🔥 I'm Safe. — T",
     "Score 18/100 = não mexi. Armadilha evitada. Stack intacto. — V"
   ],
   ar: [
@@ -56,7 +56,7 @@ const TESTIMONIALS = {
     "تباعد الحوت = ما دخلتش FOMO. نزل -15%. I'm Safe. — K",
     "Exit Map من Regular انقذ الحساب. 🔥 الفخ اتجنب. — D",
     "6 لغات مباشر. وصل التنبيه. الفخ اتجنب. الحجم مجنون. — S",
-    "بدون الScore كنت rekt 3 مرات الشهر. 🔥 I'm Safe. — T",
+    "بدون الScore كنت هخسر كل شي 3 مرات الشهر. 🔥 I'm Safe. — T",
     "Score 18/100 = ما لمسته. الفخ اتجنب. الstack لسه معايا. — V"
   ],
   ko: [
