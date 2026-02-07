@@ -33,19 +33,35 @@ const CORE_PHRASES = {
   },
   price: {
     en: "0.2% of a $50k loss = your defense framework. One miss = $10k. $99 = defense.",
-    ja: "$50k損の0.2%で判断枠組み。1回のミス=$10k損失 vs $99防御。"
+    ja: "$50k損の0.2%で判断枠組み。1回のミス=$10k損失 vs $99防御。",
+    es: "0.2% de una pérdida de $50k = tu marco de defensa. Un fallo = $10k. $99 = defensa.",
+    "pt-br": "0.2% de uma perda de $50k = seu marco de defesa. Um erro = $10k. $99 = defesa.",
+    ar: "0.2% من خسارة $50k = إطار دفاعك. خطأ واحد = $10k. $99 = دفاع.",
+    ko: "$50k 손실의 0.2% = 방어 프레임워크. 한 번 실수 = $10k. $99 = 방어."
   },
   minimalToRegular: {
     en: "Got gut vs data from Minimal? Regular = 15min Alerts + Exit Map. No more missed windows.",
-    ja: "Minimalでgut vs data知った？Regularで15分Alert+Exit Map=見逃しゼロ。"
+    ja: "Minimalでgut vs data知った？Regularで15分Alert+Exit Map=見逃しゼロ。",
+    es: "¿Tienes gut vs data de Minimal? Regular = Alertas 15min + Exit Map. Sin ventanas perdidas.",
+    "pt-br": "Tem gut vs data do Minimal? Regular = Alertas 15min + Exit Map. Sem janelas perdidas.",
+    ar: "لديك gut vs data من Minimal؟ Regular = تنبيهات 15 دقيقة + Exit Map. لا مزيد من الفرص الضائعة.",
+    ko: "Minimal에서 gut vs data 얻었어? Regular = 15분 알림 + Exit Map. 놓친 기회 없음."
   },
   psych: {
     en: "Score 25/100? Wait. Don't revenge-trade.",
-    ja: "スコア25/100で待て。復讐トレードの罠を避けろ。"
+    ja: "スコア25/100で待て。復讐トレードの罠を避けろ。",
+    es: "¿Score 25/100? Espera. No hagas revenge-trade.",
+    "pt-br": "Score 25/100? Espere. Não faça revenge-trade.",
+    ar: "Score 25/100؟ انتظر. لا تنتقم بالتداول.",
+    ko: "스코어 25/100? 기다려. 복수 트레이딩 금지."
   },
   trial: {
     en: "1-day trial. See the report. Cancel if it's not for you. Risk zero.",
-    ja: "1日トライアル。レポートを見て、合わなければ即解約。リスクゼロ。"
+    ja: "1日トライアル。レポートを見て、合わなければ即解約。リスクゼロ。",
+    es: "Prueba de 1 día. Ve el informe. Cancela si no es para ti. Riesgo cero.",
+    "pt-br": "Teste de 1 dia. Veja o relatório. Cancele se não for para você. Risco zero.",
+    ar: "تجربة يوم واحد. شاهد التقرير. ألغِ إن لم يناسبك. مخاطرة صفر.",
+    ko: "1일 체험. 레포트 확인. 맞지 않으면 즉 해지. 위험 제로."
   }
 };
 

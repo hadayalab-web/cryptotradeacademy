@@ -26,8 +26,7 @@ const VSL_REGULAR =
   };
 const {
   getMinimalVersionCheckoutUrl,
-  getRegularWhopLinkOnly,
-  getPromoCode
+  getRegularWhopLinkOnly
 } = require("../services/telegram/whop-links");
 
 const LANG_NAMES = {
@@ -155,111 +154,94 @@ function buildGrokOnlyPrompt({ lang, reportData, painAngleSeed }) {
     ? "JA/KO: Avoid 'rekt'—use local equivalent (e.g. 'would've been crushed', 'account wiped'). Avoid 'gut punch'—use 'sick feeling' or similar. Use 'Be safe with us' for CTA-closing energy."
     : "EN/ES/PT-BR/AR: 'rekt' and 'gut punch' OK. Non-Asia: 'Join us' for CTA-closing.";
 
-  return `You are a direct-response copywriter for Trap Defence (crypto trading education). Write a complete X (Twitter) post in ${langName} in FIVE parts. Use the persona and on-chain data below—they are mandatory. Do NOT output any URLs or link lines; we add those below the post.
+  return `You are a direct-response copywriter for Trap Defence (crypto trading education). Write a complete X (Twitter) post in ${langName}. Do NOT output any URLs or link lines; we add those below the post.
 
-STRUCTURE (strict order—痛点 → データ → 危険 → 解決 → 社会的証明 → CTA):
-痛点 (pain) → データ (data + why it's dangerous) → 危険 (danger line) → 解決 (offer) → 社会的証明 → CTA. This flow maximizes CTR × CVR.
+6-LANGUAGE QUOTE REPOST TEMPLATE (structure identical in all languages—X algorithm learns faster):
 
-CONTEXT: This will be used as a QUOTE REPOST. We run in 6 languages worldwide (EN, JA, ES, PT-BR, AR, KO)—so the scale is real. Frame it as a solution to the reader's pain—empathy first, then the way out. Tone: "I get it. Here's what works." Unify tone with Trap Defence world view (trap = distribution before dump; Score = defense).
+RULES:
+- Short paragraphs. Fact over emotion. No hype, no \$10k–\$80k loss figures.
+- Freeze → Data → Pattern. Same structure in ${langName}.
+- Hashtags: exactly 3. Links: we add 2 VSLs + 2 CTAs below.
 
+CONTEXT: QUOTE REPOST, 6 languages (EN, JA, ES, PT-BR, AR, KO). Trap Defence = distribution before dump; Score = defense.
 6-LANGUAGE NOTE: ${langNote}
 
-THIS GENERATION—emphasize this pain angle (use it for HEADLINE and HOOK):
-- HEADLINE focus: ${angle.headline}
-- HOOK focus: ${angle.hook}
-Write in ${langName}. Make it feel specific to this angle.
+PERSONA: ${persona}
+ON-CHAIN DATA: ${cq}
+${marketContext ? `\nMARKET CONTEXT:\n${marketContext}` : ""}
+TESTIMONIALS (optional, use ONE only if you add a single short line): ${testimonialBlock}
 
-PERSONA (use this voice and hooks):
-${persona}
+OUTPUT FORMAT (4 blocks + hashtags—match this structure in ${langName}):
 
-ON-CHAIN / MARKET DATA (use to ground the copy):
-${cq}
-${marketContext ? `\nMARKET CONTEXT (use for tone and urgency—follow this framing):\n${marketContext}` : ""}
+1) HEADLINE
+"Trap Score X/100 is the pattern you already know." (Use actual Trap Score from data. No emoji in headline.)
 
-PERSONA TESTIMONIALS (use ONE in Product Intro or Objection Handling. Prefer "number × emotion × action". Avoid "rekt" in JA/KO—use local equivalent.):
-${testimonialBlock}
+2) FREEZE (2–3 short sentences)
+That moment when BTC slips, the screen turns red, and hesitation hits. Everyone has lived that loop. Write in ${langName}. No dollar amounts.
 
-SOCIAL PROOF: We append "🔥 N+ traders across 6 languages avoided this exact setup this week" after your post. In objection handling, reference "traders in your same situation" + "6 languages" + BIG concrete number (8,000+ or 14,000+). Do NOT write "XXX+".
+3) DATA BLOCK
+"X/100 + Whale Ratio Y + negative netflow" then line break. "A classic distribution setup. Not instinct — data." Use actual numbers from ON-CHAIN DATA.
 
-DATA—EXPLAIN THE DANGER (3指標をセットで意味づけ):
-Format as: "Trap Score X/100 + Whale Ratio Y + netflow = a classic distribution setup before a move down." Then: "Don't trust instinct—trust the Score. Pure data, zero emotion."
-
-OUTPUT FORMAT (最終版テンプレ—ad-friendly, 6言語耐性):
-
-1) HEADLINE (Trap Scoreの先読み性を明示)
-Trap Score's predictive quality. Examples: "Missed exit? Trap Score warned before the drop." / "Woke up—Trap Score had warned you." Add 1 emoji (🔴 🛡️ ⚡). No hashtags. ~10 words max.
-
-2) PERSONA HOOK (痛点 → 身体感覚＋映像化 → 共感)
-One short paragraph. Body sensation (freeze) + visualization (screen flashing red, BTC price, % move). End with: "You know that hesitation. Everyone does." Empathy, no blame. Ad-safe wording.
-
-3) PRODUCT INTRO (データ意味づけ → 恐怖 → Regular)
-- Data block: "Trap Score X + Whale Ratio Y + netflow = classic distribution setup before move down. Don't trust instinct—trust the Score. Pure data, zero emotion." (FREE Trap Score is implied; CTA has it.)
-- Fear line: "One hesitation last week cost traders \$10k–\$80k. Hesitation always costs more than alerts."
-- Regular offer—strict order: VALUE → PRICE → RISK ZERO → DISCOUNT. "Regular: 15‑min alerts + Exit Map. \$${monthlyPrice}/mo (0.2% of a \$50k loss). 1‑day trial, cancel anytime. Code DEFEND50 — 50% off."
-- Optional: ONE testimonial (e.g. "Exit Map saved my account. I'm Safe. —D").
-
-4) OBJECTION HANDLING (反論処理)
-"Still watching while traders in your exact position across 6 languages avoided this setup." + ONE short testimonial if not used above. Confident, ad-safe. No aggressive slang.
+4) REGULAR OFFER (1–2 short sentences)
+"Regular gives you 15‑min alerts + Exit Map. Use DEFEND50 for reduced access." (Or equivalent in ${langName}. No price in body.)
 
 5) HASHTAGS
-One line. Exactly 3: #BTC #TrapDefence and 1 more. No more than 3.
+Exactly 3, one line: #BTC #TrapDefence #TrapScore
 
-STYLE:
-- Proper punctuation. Japanese: 、。 consistently.
-- Format numbers: "BTC \$97,200" or "BTC 97,200ドル".
-- One thought per sentence. No run-on. No stray spaces.
-- Trap Defence world view throughout.
+STYLE: Short sentences. Same structure in every language. Ad-safe. No section labels. No URLs.
 
-Output: headline, blank line, persona hook, blank line, product intro (data block → fear line → Regular offer; optional testimonial), blank line, objection handling, blank line, hashtags. No section labels. No URLs. Ad-safe. Tone: ${TONE}. Every sentence ends with a period (or 。).`;
+Output: (1) headline, blank line, (2) freeze, blank line, (3) data block, blank line, (4) Regular offer, blank line, (5) hashtags.`;
 }
 
 /**
- * 引用リポスト用リンク誘導の定型文
- * CTAはFREEとPAIDの2本のみ（選択肢が多いとCTR低下）。VSLはコメント欄用でここには出さない。
+ * 6言語引用リポスト最適化テンプレ（完全統一構造）
+ * 短い段落 / Freeze→Data→Pattern / VSL下部2本 / CTA2本のみ / ハッシュタグ3つ
  */
 const LINK_BLOCK_GROK_STYLE = {
-  ja: {
-    mainFree: "👇 まずは無料で防御力を手に入れる（カード不要・リスクゼロ）",
-    mainPaid: "▼ 本気で資産を守るなら — DEFEND50",
-    videoSecret: "▼ 無料ビデオ（全体像）",
-    upgradeVideo: "▼ 有料版ビデオ"
-  },
   en: {
-    mainFree: "👇 Get free defense first (no card, no risk)",
-    mainPaid: "▼ Protect your assets seriously — DEFEND50",
-    videoSecret: "▼ Free video (full story)",
-    upgradeVideo: "▼ Upgrade video"
+    mainFree: "👇 Free defense (no card)",
+    mainPaid: "▼ Upgrade — DEFEND50",
+    vslMinimal: "▶ Minimal VSL",
+    vslUpgrade: "▶ Full Protocol VSL"
   },
-  es: {
-    mainFree: "👇 Empieza gratis (sin tarjeta, sin riesgo)",
-    mainPaid: "▼ Protege tus activos en serio — DEFEND50",
-    videoSecret: "▼ Vídeo gratis",
-    upgradeVideo: "▼ Vídeo upgrade"
-  },
-  "pt-br": {
-    mainFree: "👇 Comece grátis (sem cartão, sem risco)",
-    mainPaid: "▼ Proteja seus ativos de verdade — DEFEND50",
-    videoSecret: "▼ Vídeo grátis",
-    upgradeVideo: "▼ Vídeo upgrade"
-  },
-  ar: {
-    mainFree: "👇 ابدأ مجاناً (بدون بطاقة، بدون مخاطرة)",
-    mainPaid: "▼ احمِ أصولك بجدية — DEFEND50",
-    videoSecret: "▼ فيديو مجاني",
-    upgradeVideo: "▼ فيديو الترقية"
+  ja: {
+    mainFree: "👇 無料ディフェンス（カード不要）",
+    mainPaid: "▼ アップグレード — DEFEND50",
+    vslMinimal: "▶ ミニマル版VSL",
+    vslUpgrade: "▶ フルプロトコルVSL"
   },
   ko: {
-    mainFree: "👇 무료로 먼저 시작 (카드 불필요, 위험 없음)",
-    mainPaid: "▼ 자산 제대로 지키려면 — DEFEND50",
-    videoSecret: "▼ 무료 영상",
-    upgradeVideo: "▼ 업그레이드 영상"
+    mainFree: "👇 무료 디펜스",
+    mainPaid: "▼ 업그레이드 — DEFEND50",
+    vslMinimal: "▶ 미니멀 VSL",
+    vslUpgrade: "▶ 풀 프로토콜 VSL"
+  },
+  es: {
+    mainFree: "👇 Defensa gratis",
+    mainPaid: "▼ Actualizar — DEFEND50",
+    vslMinimal: "▶ VSL Minimal",
+    vslUpgrade: "▶ VSL Full Protocol"
+  },
+  "pt-br": {
+    mainFree: "👇 Defesa gratuita",
+    mainPaid: "▼ Upgrade — DEFEND50",
+    vslMinimal: "▶ VSL Minimal",
+    vslUpgrade: "▶ VSL Full Protocol"
+  },
+  ar: {
+    mainFree: "👇 دفاع مجاني",
+    mainPaid: "▼ ترقية — DEFEND50",
+    vslMinimal: "▶ فيديو النسخة المصغرة",
+    vslUpgrade: "▶ فيديو البروتوكول الكامل"
   }
 };
+
+/** 区切り線（VSLとCTAを視覚分離） */
+const LINK_SEPARATOR = "─────";
 
 function getLinkBlockGrokStyle(lang, options = {}) {
   const normalizedLang = (lang || "en").toLowerCase().replace("_", "-");
   const labels = LINK_BLOCK_GROK_STYLE[normalizedLang] || LINK_BLOCK_GROK_STYLE.en;
-  const promoCode = (getPromoCode && getPromoCode() ? getPromoCode() : "defend50").toUpperCase();
   const minimalUrl =
     getMinimalVersionCheckoutUrl(normalizedLang, {
       utm_content: options.influencerUsername
@@ -268,15 +250,23 @@ function getLinkBlockGrokStyle(lang, options = {}) {
     }) || getMinimalVersionCheckoutUrl("en", options);
   const regularUrl = getRegularWhopLinkOnly(normalizedLang);
 
-  // 引用リポストは「CTA2本だけ」が最強。YouTube/VSLはコメント欄で配布。
-  return [labels.mainFree, minimalUrl, `${labels.mainPaid} (50% off)`, regularUrl].join("\n");
+  const vslBlock = [
+    labels.vslMinimal,
+    VSL_MINIMAL.url,
+    labels.vslUpgrade,
+    VSL_REGULAR.url
+  ].join("\n");
+
+  const ctaBlock = [labels.mainFree, minimalUrl, labels.mainPaid, regularUrl].join("\n");
+
+  return [vslBlock, LINK_SEPARATOR, ctaBlock].join("\n\n");
 }
 
-/** コメント欄用: VSLリンク（投稿本文には含めない） */
+/** コメント欄用: VSLリンク（投稿本文にVSLを含める場合は getLinkBlockGrokStyle を使用） */
 function getVslLinksForComment(lang) {
   const normalizedLang = (lang || "en").toLowerCase().replace("_", "-");
   const labels = LINK_BLOCK_GROK_STYLE[normalizedLang] || LINK_BLOCK_GROK_STYLE.en;
-  return [labels.videoSecret, VSL_MINIMAL.url, labels.upgradeVideo, VSL_REGULAR.url].join("\n");
+  return [labels.vslMinimal, VSL_MINIMAL.url, labels.vslUpgrade, VSL_REGULAR.url].join("\n");
 }
 
 /** 簡易ハッシュ（username→seed用） */
