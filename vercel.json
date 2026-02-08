@@ -57,11 +57,11 @@
   "crons": [
     { "path": "/api/cron", "schedule": "0,7,22,37,52 * * * *" },
     { "path": "/api/minimal-tg-delivery", "schedule": "10 0,6,12,18 * * *" },
-    { "path": "/api/x-quote-repost-en", "schedule": "4 * * * *" },
-    { "path": "/api/x-quote-repost-es", "schedule": "9 * * * *" },
-    { "path": "/api/x-quote-repost-pt-br", "schedule": "14 * * * *" },
-    { "path": "/api/x-quote-repost-ar", "schedule": "19 * * * *" },
-    { "path": "/api/x-quote-repost-ja", "schedule": "24 * * * *" },
-    { "path": "/api/x-quote-repost-ko", "schedule": "29 * * * *" }
+    { "path": "/api/x-quote-repost-en", "schedule": "0 * * * *" },
+    { "path": "/api/x-quote-repost-es", "schedule": "2 * * * *" },
+    { "path": "/api/x-quote-repost-pt-br", "schedule": "4 * * * *" },
+    { "path": "/api/x-quote-repost-ar", "schedule": "6 * * * *" },
+    { "path": "/api/x-quote-repost-ko", "schedule": "8 * * * *" },
+    { "path": "/api/x-quote-repost-ja", "schedule": "10 0,1,2,3,4,5,6,7,8,12,13,14,15,16 * * *" }
   ]
 }

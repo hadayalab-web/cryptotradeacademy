@@ -23,6 +23,9 @@ const { getMinimalContentForLang } = require("../services/content/minimalContent
 const {
   getInfluencerCountForLang,
   getImpressionTargetForLang,
+  getRunsPerDayForLang,
+  getTargetCountForRun,
+  POSTS_PER_INFLUENCER_PER_DAY,
   selectInfluencersForImpressionTarget
 } = require("../config/influencerStrategy");
 
@@ -32,8 +35,11 @@ const {
   getLinkBlockGrokStyle,
   runGrokOnlySalesLetter,
   saveSalesLetterGrokCache,
+  buildQuoteForYouTubeOgp,
+  useYouTubeOgpOptimized,
   SALES_LETTER_LANGS
 } = require("../services/salesLetterContest");
+const { pickRandomTrapDefenceQuoteYoutubeUrl } = require("../config/vslLinks");
 const { CORE_PHRASES } = require("../config/personaStrategy");
 
 // 8時間クールダウン関連のインポート（インフルエンサー別の日次投稿数管理）
@@ -42,7 +48,8 @@ const {
   markLastPostedAt,
   getDailyPostCount: getDailyPostCountForInfluencer,
   incrementDailyPostCount: incrementDailyPostCountForInfluencer,
-  hasReachedDailyLimit
+  hasReachedDailyLimit,
+  getAndIncrementRunIndex
 } = require("../services/x/influencerRotation");
 
 // グローバルな日次投稿数管理（optimization.js）
@@ -458,15 +465,10 @@ async function postQuoteRepostsForLang(
       `[Quote Repost] Daily post count: ${dailyPostCount} (no limit, controlled by Cron schedule) [runId: ${langRunId}]`
     );
 
-    // 🚀 数撃て作戦: 時価配分を考慮してインフルエンサー数を取得
-    currentStep = "get_influencer_count";
-    const targetCount = getInfluencerCountForLang(lang, currentHour);
     const impressionTarget = getImpressionTargetForLang(lang);
-
-    console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]:`, {
+    console.log(`[Quote Repost] 🔵 Step: peak_time_check [runId: ${langRunId}]:`, {
       lang,
       currentHour,
-      targetCount,
       impressionTarget: {
         min: impressionTarget.min.toLocaleString(),
         max: impressionTarget.max.toLocaleString()
@@ -474,7 +476,7 @@ async function postQuoteRepostsForLang(
       isOriginalPeakTime
     });
 
-    // ストックからインフルエンサーを取得（既存の70人ホットリストのみ使用）
+    // ストックからインフルエンサーを取得（1人2投稿/日・時間帯配分は後で targetCount に反映）
     // 🔥 改善: スコアリング機能を有効にして、Webhookデータからエンゲージメント統計を取得
     currentStep = "get_influencers_from_stock";
     console.log(
@@ -542,6 +544,20 @@ async function postQuoteRepostsForLang(
     // 検証済みインフルエンサーを使用
     influencers = validInfluencers;
 
+    // 1人2投稿/日: 今日の実行回インデックスと今回の targetCount を算出
+    currentStep = "get_influencer_count";
+    const runIndex = await getAndIncrementRunIndex(lang, dateString);
+    const runsPerDay = getRunsPerDayForLang(lang);
+    const targetCount = getTargetCountForRun(lang, influencers.length, runIndex, runsPerDay);
+    console.log(`[Quote Repost] 🔵 Step: ${currentStep} [runId: ${langRunId}]:`, {
+      lang,
+      runIndex,
+      runsPerDay,
+      stockCount: influencers.length,
+      targetCount,
+      postsPerInfluencerPerDay: POSTS_PER_INFLUENCER_PER_DAY
+    });
+
     // 🔒 追加の言語整合性チェック: ストックから取得したインフルエンサーの言語を検証
     const langMismatched = influencers.filter(
       (inf) => inf.lang && inf.lang.toLowerCase() !== lang.toLowerCase()
@@ -597,7 +613,8 @@ async function postQuoteRepostsForLang(
       influencers,
       lang,
       targetCount,
-      dateString
+      dateString,
+      { maxDailyPosts: POSTS_PER_INFLUENCER_PER_DAY }
     );
 
     // P1: ローテーション選択の直後で選定数をログ化
@@ -1019,14 +1036,21 @@ async function postQuoteRepostsForLang(
             );
           }
           if (grokText) {
-            quoteText =
-              grokText +
-              "\n\n" +
-              getLinkBlockGrokStyle(lang, { influencerUsername: influencer.username });
+            if (useYouTubeOgpOptimized()) {
+              quoteText = buildQuoteForYouTubeOgp(grokText, pickRandomTrapDefenceQuoteYoutubeUrl(), { maxTextLines: 2 });
+              console.log(
+                `[Quote Repost] 📌 Grok sales letter (cached, YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
+              );
+            } else {
+              quoteText =
+                grokText +
+                "\n\n" +
+                getLinkBlockGrokStyle(lang, { influencerUsername: influencer.username });
+              console.log(
+                `[Quote Repost] 📌 Grok sales letter (cached) @${influencer.username} [runId: ${langRunId}]`
+              );
+            }
             funnelTypeUsed = "grok_sales_letter";
-            console.log(
-              `[Quote Repost] 📌 Grok sales letter (cached) @${influencer.username} [runId: ${langRunId}]`
-            );
           } else {
             const apiTimeoutMs = deadlineMs
               ? Math.min(20000, Math.max(5000, deadlineMs - Date.now() - 5000))
@@ -1040,17 +1064,26 @@ async function postQuoteRepostsForLang(
                 }),
                 apiTimeoutMs
               );
-              if (result?.fullText) {
-                quoteText = result.fullText;
+              if (result?.fullText || result?.text) {
+                if (useYouTubeOgpOptimized() && result.text) {
+                  quoteText = buildQuoteForYouTubeOgp(result.text, pickRandomTrapDefenceQuoteYoutubeUrl(), {
+                    maxTextLines: 2
+                  });
+                  console.log(
+                    `[Quote Repost] 📌 Grok sales letter (generated, YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
+                  );
+                } else {
+                  quoteText = result.fullText || result.text;
+                  console.log(
+                    `[Quote Repost] 📌 Grok sales letter (generated) @${influencer.username} [runId: ${langRunId}]`
+                  );
+                }
                 funnelTypeUsed = "grok_sales_letter";
                 if (result.text) {
                   saveSalesLetterGrokCache({ [lang]: { text: result.text } }, 14400).catch(
                     () => {}
                   );
                 }
-                console.log(
-                  `[Quote Repost] 📌 Grok sales letter (generated) @${influencer.username} [runId: ${langRunId}]`
-                );
               }
             } catch (err) {
               console.warn(
@@ -1068,13 +1101,20 @@ async function postQuoteRepostsForLang(
                 (lang === "ja" ? CORE_PHRASES.state.ja : null)) ||
               (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state[lang]) ||
               stateEn;
-            quoteText =
-              fallback +
-              "\n\n" +
-              getLinkBlockGrokStyle(lang, { influencerUsername: influencer.username });
-            console.log(
-              `[Quote Repost] 📌 Fallback (CORE_PHRASES + link block) @${influencer.username} [runId: ${langRunId}]`
-            );
+            if (useYouTubeOgpOptimized()) {
+              quoteText = buildQuoteForYouTubeOgp(fallback, pickRandomTrapDefenceQuoteYoutubeUrl(), { maxTextLines: 2 });
+              console.log(
+                `[Quote Repost] 📌 Fallback (CORE_PHRASES + YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
+              );
+            } else {
+              quoteText =
+                fallback +
+                "\n\n" +
+                getLinkBlockGrokStyle(lang, { influencerUsername: influencer.username });
+              console.log(
+                `[Quote Repost] 📌 Fallback (CORE_PHRASES + link block) @${influencer.username} [runId: ${langRunId}]`
+              );
+            }
           }
         } else {
           const stateEn =
@@ -1086,18 +1126,25 @@ async function postQuoteRepostsForLang(
               (lang === "ja" ? CORE_PHRASES.state.ja : null)) ||
             (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state[lang]) ||
             stateEn;
-          quoteText =
-            fallback +
-            "\n\n" +
-            getLinkBlockGrokStyle(lang, { influencerUsername: influencer.username });
-          console.log(
-            `[Quote Repost] 📌 Lang not in SALES_LETTER_LANGS, fallback @${influencer.username} [runId: ${langRunId}]`
-          );
+          if (useYouTubeOgpOptimized()) {
+            quoteText = buildQuoteForYouTubeOgp(fallback, pickRandomTrapDefenceQuoteYoutubeUrl(), { maxTextLines: 2 });
+            console.log(
+              `[Quote Repost] 📌 Lang not in SALES_LETTER_LANGS, fallback (YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
+            );
+          } else {
+            quoteText =
+              fallback +
+              "\n\n" +
+              getLinkBlockGrokStyle(lang, { influencerUsername: influencer.username });
+            console.log(
+              `[Quote Repost] 📌 Lang not in SALES_LETTER_LANGS, fallback @${influencer.username} [runId: ${langRunId}]`
+            );
+          }
         }
 
         // P0 FIX: dry-runモードではソーシャルプルーフとハッシュタグ取得をスキップ（高速化）
-        // ソーシャルプルーフ: Grok セールスレター・フォールバック両方に付与（ハッタリ戦法）
-        if (!isDryRun) {
+        // YouTube OGP 最適化時は投稿に他リンク・社会的証明を載せない（サムネ確実表示のため）
+        if (!isDryRun && !useYouTubeOgpOptimized()) {
           try {
             const { getSocialProofText } = require("../services/telegram/reaction-counter");
             const socialProofText = await getSocialProofText(lang);

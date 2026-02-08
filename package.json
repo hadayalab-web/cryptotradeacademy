@@ -60,7 +60,10 @@
     "inspect:kv": "node scripts/inspect-kv-data.js",
     "subscribe:x-webhook": "node scripts/subscribe-x-webhook.js",
     "review:quote-repost": "node scripts/request-quote-repost-review-from-grok-gemini.js",
-    "thumbnail:vsl": "node scripts/generate-vsl-thumbnail-nanobanana.js"
+    "thumbnail:vsl": "node scripts/generate-vsl-thumbnail-nanobanana.js",
+    "thumbnail:trap-score": "node scripts/generate-thumbnail-trap-score.js",
+    "thumbnail:market-trap": "node scripts/generate-thumbnail-market-trap.js",
+    "compress:thumbnails": "node scripts/compress-thumbnails.js"
   },
   "dependencies": {
     "@google/genai": "^1.40.0",
@@ -77,6 +80,7 @@
     "p-retry": "^6.0.0",
     "raw-body": "^2.5.2",
     "resend": "^6.7.0",
+    "sharp": "^0.34.5",
     "zod": "^3.25.76"
   },
   "author": "CryptoTrade Academy Team",

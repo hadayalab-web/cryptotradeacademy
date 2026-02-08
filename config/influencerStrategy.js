@@ -3,24 +3,53 @@
 //
 // 【マスト】インフルエンサー300人×2回 = 600投稿/日は最低ライン。引用リポストなのでスパム判定されにくくガンガン突っ込む。
 // 【初回ストック 300件】KV 実態: en 124, pt-br 35, ko 30, es 48, ja 11, ar 52。
-// Cron: 1時間ごと×6言語 = 24回/日/言語。1回あたりの投稿数は下記で設定。
+// Cron・1回あたり投稿数はストック数に比例（en 多め / ja 少なめ）。一律は避ける。
 // 詳細: docs/INFLUENCER_LIST_PROGRESS_2026-02-01.md, docs/INITIAL_STOCK_PLAN_QUOTE_REPOST_2026-02-01.md
 
 /** 目標: 600/日マスト、それ以上も積極的に（24×合計で算出） */
 const DAILY_POST_TARGET_MIN = 600; // 300人×2回
 
+/** 1ストックインフルエンサーあたり1日の投稿数（必ずこの回数にする） */
+const POSTS_PER_INFLUENCER_PER_DAY = 2;
+
+/**
+ * 言語別・1日あたりのCron実行回数（時間帯配分に合わせる）
+ * 各言語のアクティブ時間帯にのみ実行し、合計がこの回数になるよう vercel.json と一致させる。
+ */
+const RUNS_PER_DAY_BY_LANG = {
+  en: parseInt(process.env.RUNS_PER_DAY_EN || "24", 10),
+  es: parseInt(process.env.RUNS_PER_DAY_ES || "24", 10),
+  "pt-br": parseInt(process.env.RUNS_PER_DAY_PT_BR || "24", 10),
+  ar: parseInt(process.env.RUNS_PER_DAY_AR || "24", 10),
+  ko: parseInt(process.env.RUNS_PER_DAY_KO || "24", 10),
+  ja: parseInt(process.env.RUNS_PER_DAY_JA || "14", 10)
+};
+
+/**
+ * 言語別・配信してよいUTC時間帯（時間帯も大事＝各言語のピークに合わせる）
+ * 参照用。vercel.json の cron はこの時間帯に合わせて設定すること。
+ */
+const ACTIVE_HOURS_UTC_BY_LANG = {
+  en: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+  es: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+  "pt-br": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+  ar: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+  ko: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+  ja: [0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 15, 16]
+};
+
 /**
  * 言語別インフルエンサー数設定（1回のCron実行あたりの投稿候補数）
- * 合計〜600/日（X API 浪費を抑える）。24回/日×合計≒600 → 1回あたり合計25前後。
+ * ストック数（STOCK_COUNT_BY_LANG）に比例させる。一律は避け、偏りを反映。
  * 環境変数で上書き可能: INFLUENCER_COUNT_EN, INFLUENCER_COUNT_ES など。
  */
 const INFLUENCER_COUNT_BY_LANG = {
-  en: parseInt(process.env.INFLUENCER_COUNT_EN || "8", 10),
-  es: parseInt(process.env.INFLUENCER_COUNT_ES || "5", 10),
+  en: parseInt(process.env.INFLUENCER_COUNT_EN || "11", 10),
+  es: parseInt(process.env.INFLUENCER_COUNT_ES || "4", 10),
   "pt-br": parseInt(process.env.INFLUENCER_COUNT_PT_BR || "3", 10),
-  ar: parseInt(process.env.INFLUENCER_COUNT_AR || "4", 10),
+  ar: parseInt(process.env.INFLUENCER_COUNT_AR || "5", 10),
   ko: parseInt(process.env.INFLUENCER_COUNT_KO || "3", 10),
-  ja: parseInt(process.env.INFLUENCER_COUNT_JA || "3", 10)
+  ja: parseInt(process.env.INFLUENCER_COUNT_JA || "1", 10)
 };
 
 /**
@@ -125,6 +154,33 @@ function getInfluencerCountForLang(lang, currentHour = null) {
 function getStockCountForLang(lang) {
   const normalizedLang = normalizeLang(lang);
   return STOCK_COUNT_BY_LANG[normalizedLang] || 10;
+}
+
+/**
+ * 言語別・1日あたりのCron実行回数を返す（時間帯配分と一致させる）
+ */
+function getRunsPerDayForLang(lang) {
+  const normalizedLang = normalizeLang(lang);
+  return RUNS_PER_DAY_BY_LANG[normalizedLang] ?? 24;
+}
+
+/**
+ * 1人2投稿/日を満たす「今回の実行で投稿する人数」を算出
+ * 合計 = stockCount * POSTS_PER_INFLUENCER_PER_DAY になるよう runIndex で均等に割り振る。
+ * @param {string} lang - 言語コード
+ * @param {number} stockCount - 現在のストック数（valid な人数）
+ * @param {number} runIndex - 今日の何回目の実行か（0始まり）
+ * @param {number} [runsPerDay] - 省略時は getRunsPerDayForLang(lang)
+ * @returns {number} 今回の実行で選ぶ人数
+ */
+function getTargetCountForRun(lang, stockCount, runIndex, runsPerDay = null) {
+  const runs = runsPerDay ?? getRunsPerDayForLang(lang);
+  const totalPosts = stockCount * POSTS_PER_INFLUENCER_PER_DAY;
+  if (runs <= 0 || totalPosts <= 0) return Math.min(1, stockCount);
+  const base = Math.floor(totalPosts / runs);
+  const extra = totalPosts - base * runs;
+  const countThisRun = runIndex < extra ? base + 1 : base;
+  return Math.min(Math.max(0, countThisRun), stockCount);
 }
 
 /**
@@ -335,12 +391,17 @@ function selectInfluencersForHighEngagement(influencers, lang) {
 
 module.exports = {
   DAILY_POST_TARGET_MIN,
+  POSTS_PER_INFLUENCER_PER_DAY,
+  RUNS_PER_DAY_BY_LANG,
+  ACTIVE_HOURS_UTC_BY_LANG,
   INFLUENCER_COUNT_BY_LANG,
   STOCK_COUNT_BY_LANG,
   IMPRESSION_TARGET_BY_LANG,
   HOURLY_DISTRIBUTION,
   getInfluencerCountForLang,
   getStockCountForLang,
+  getRunsPerDayForLang,
+  getTargetCountForRun,
   getImpressionTargetForLang,
   filterInfluencersByImpressionTarget,
   selectInfluencersForImpressionTarget,

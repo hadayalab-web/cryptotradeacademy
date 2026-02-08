@@ -468,6 +468,38 @@ async function getSalesLetterGrokFromCache(lang) {
   return typeof raw === "string" ? raw : null;
 }
 
+/**
+ * YouTube サムネ表示最適化（X引用リポスト用）
+ * 投稿 = 本文1〜4行（リンクなし）＋空行＋YouTube URL のみ。OGP競合を防ぎサムネを確実表示。
+ * @param {string} bodyText - Grok本文（複数行可）
+ * @param {string} youtubeUrl - 単独で最終行に置くURL（https://youtu.be/xxx 形式、UTM付与しない）
+ * @param {{ maxTextLines?: number }} options - maxTextLines: 本文の最大行数（デフォルト 2）
+ * @returns {string} 1〜4行テキスト + 空行 + YouTube URL
+ */
+function buildQuoteForYouTubeOgp(bodyText, youtubeUrl, options = {}) {
+  const maxTextLines = options.maxTextLines ?? 2;
+  const url = (youtubeUrl || "").trim().replace(/\s+$/g, "");
+  if (!url || !/^https:\/\/youtu\.be\/\S+$/i.test(url)) {
+    return (bodyText || "").trim();
+  }
+  if (!bodyText || typeof bodyText !== "string") {
+    return url;
+  }
+  const lines = bodyText.split(/\r?\n/).map((s) => s.trim());
+  const noUrlLines = lines.filter((line) => line && !/https?:\/\//i.test(line));
+  const taken = noUrlLines.slice(0, maxTextLines);
+  const body = taken.join("\n").trim();
+  if (!body) {
+    return url;
+  }
+  return `${body}\n\n${url}`;
+}
+
+/** 環境変数で YouTube OGP 最適化を無効化（QUOTE_REPOST_FULL_LINKS=1 で従来のリンクブロック＋社会的証明） */
+function useYouTubeOgpOptimized() {
+  return process.env.QUOTE_REPOST_FULL_LINKS !== "1" && process.env.QUOTE_REPOST_FULL_LINKS !== "true";
+}
+
 module.exports = {
   SALES_LETTER_LANGS,
   buildGrokOnlyPrompt,
@@ -479,5 +511,7 @@ module.exports = {
   saveSalesLetterGrokCache,
   getSalesLetterGrokFromCache,
   SALES_LETTER_GROK_CACHE_PREFIX,
-  generateWithGrok
+  generateWithGrok,
+  buildQuoteForYouTubeOgp,
+  useYouTubeOgpOptimized
 };

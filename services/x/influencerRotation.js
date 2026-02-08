@@ -12,6 +12,7 @@ const { kv } = require("../../utils/kv");
 const ROTATION_KEY_PREFIX = "x:influencer_rotation:";
 const POSTED_TODAY_KEY_PREFIX = "x:influencer_posted_today:";
 const LAST_POSTED_KEY_PREFIX = "x:influencer_last_posted:";
+const RUN_INDEX_KEY_PREFIX = "x:quote_repost:run_index:";
 
 /**
  * 言語別のローテーションキーを生成
@@ -260,53 +261,80 @@ async function updateRotationIndex(lang, newIndex, dateString = null) {
 }
 
 /**
+ * 今日の「何回目の実行か」を取得して1進める（1日2投稿/人用の割り振りに使用）
+ * @param {string} lang - 言語コード
+ * @param {string} dateString - 日付文字列（YYYY-MM-DD、省略時は今日）
+ * @returns {Promise<number>} 今回の実行の0始まりインデックス（同じ日に次回は+1）
+ */
+async function getAndIncrementRunIndex(lang, dateString = null) {
+  if (!kv) return 0;
+  const targetDate = dateString || new Date().toISOString().split("T")[0];
+  const key = `${RUN_INDEX_KEY_PREFIX}${lang.toLowerCase()}:${targetDate}`;
+  try {
+    const value = await kv.incr(key);
+    if (value === 1) await kv.expire(key, 48 * 60 * 60);
+    return value - 1;
+  } catch (e) {
+    console.warn("[InfluencerRotation] getAndIncrementRunIndex failed:", e.message);
+    return 0;
+  }
+}
+
+/**
  * インフルエンサーリストから、ローテーションを考慮して選択
- * 今日既に投稿した人を除外し、ローテーション順に選択
+ * maxDailyPosts 指定時は「今日の投稿数が maxDailyPosts 未満」の人だけ候補（1人2投稿/日を保証）。
  * @param {Array} influencers - インフルエンサー配列
  * @param {string} lang - 言語コード
  * @param {number} count - 選択する人数
  * @param {string} dateString - 日付文字列（YYYY-MM-DD、省略時は今日）
+ * @param {{ maxDailyPosts?: number }} options - maxDailyPosts: 日次上限（指定時はこの回数未満のみ候補、省略時は投稿済み1回でも除外）
  * @returns {Promise<Array>} 選択されたインフルエンサー配列
  */
-async function selectInfluencersWithRotation(influencers, lang, count, dateString = null) {
+async function selectInfluencersWithRotation(influencers, lang, count, dateString = null, options = {}) {
   if (!influencers || influencers.length === 0) {
     return [];
   }
 
   const targetDate = dateString || new Date().toISOString().split("T")[0];
+  const maxDailyPosts = options.maxDailyPosts;
 
-  // 今日既に投稿したインフルエンサーを取得
-  const postedToday = await getPostedInfluencersToday(lang, targetDate);
+  let availableInfluencers;
 
-  // 投稿済みを除外 + 言語整合性チェック
-  const availableInfluencers = influencers.filter((inf) => {
-    const username = inf.username || inf.userId || inf.id;
-    if (!username) return false;
+  if (maxDailyPosts != null && maxDailyPosts > 0) {
+    // 1人あたり日次上限あり: 今日の投稿数が maxDailyPosts 未満の人だけ候補
+    const withCount = await Promise.all(
+      influencers.map(async (inf) => {
+        const username = inf.username || inf.userId || inf.id;
+        if (!username) return { inf, count: 999 };
+        if (inf.lang && inf.lang.toLowerCase() !== lang.toLowerCase()) return null;
+        if (!inf.lang) inf.lang = lang;
+        const c = await getDailyPostCount(lang, username, targetDate);
+        return { inf, count: c };
+      })
+    );
+    availableInfluencers = withCount
+      .filter((x) => x != null && x.count < maxDailyPosts)
+      .map((x) => x.inf);
+  } else {
+    // 従来: 今日1回でも投稿した人は除外
+    const postedToday = await getPostedInfluencersToday(lang, targetDate);
+    availableInfluencers = influencers.filter((inf) => {
+      const username = inf.username || inf.userId || inf.id;
+      if (!username) return false;
+      if (inf.lang && inf.lang.toLowerCase() !== lang.toLowerCase()) return false;
+      if (!inf.lang) {
+        inf.lang = lang;
+      }
+      return !postedToday.has(username);
+    });
+  }
 
-    // 言語整合性チェック: langフィールドがある場合、一致しているか確認
-    if (inf.lang && inf.lang.toLowerCase() !== lang.toLowerCase()) {
-      console.warn(
-        `[InfluencerRotation] ⚠️ Skipping @${username}: lang mismatch (${inf.lang} !== ${lang})`
-      );
-      return false;
-    }
-
-    // langフィールドがない場合は警告して続行（後で設定される）
-    if (!inf.lang) {
-      console.warn(`[InfluencerRotation] ⚠️ @${username} has no lang field, assuming lang=${lang}`);
-      inf.lang = lang; // 後続処理で使用するため設定
-    }
-
-    return !postedToday.has(username);
-  });
-
-  // 利用可能なインフルエンサーが不足している場合、投稿済みも含める（ローテーションをリセット）
+  // 利用可能なインフルエンサーが不足している場合、投稿済みも含めてローテーションで選ぶ
   if (availableInfluencers.length < count) {
     console.log(
-      `[InfluencerRotation] ⚠️ Only ${availableInfluencers.length} available influencers for ${lang}, resetting rotation`
+      `[InfluencerRotation] ⚠️ Only ${availableInfluencers.length} available for ${lang} (need ${count}), using full rotation`
     );
-    // 投稿済みリストをクリア（新しい日付で自動的にリセットされるが、念のため）
-    if (kv) {
+    if (maxDailyPosts != null && maxDailyPosts > 0 && kv) {
       try {
         const key = getPostedTodayKey(lang, targetDate);
         await kv.del(key);
@@ -314,7 +342,6 @@ async function selectInfluencersWithRotation(influencers, lang, count, dateStrin
         console.warn(`[InfluencerRotation] Failed to reset posted list:`, error.message);
       }
     }
-    // 全インフルエンサーを使用
     const allInfluencers = influencers;
 
     // ローテーションインデックスを取得
@@ -579,6 +606,7 @@ module.exports = {
   markInfluencerPosted,
   getRotationIndex,
   updateRotationIndex,
+  getAndIncrementRunIndex,
   selectInfluencersWithRotation,
   getRotationStats,
   // 8時間クールダウン関連

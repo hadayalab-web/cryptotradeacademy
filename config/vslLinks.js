@@ -14,7 +14,24 @@ const VSL_REGULAR = {
   titleEn: "Upgrade Trap Defence: 50% Off — Code DEFEND50 | Next 50 Only"
 };
 
+/**
+ * 引用リポスト用：Trap Defence の YouTube URL 候補（ランダム表示でサムネ多様化）
+ * 追加・削除はこの配列の編集のみで可。必ず https://youtu.be/xxxx 形式で記載すること。
+ */
+const TRAP_DEFENCE_QUOTE_YOUTUBE_URLS = [
+  VSL_MINIMAL.url,
+  VSL_REGULAR.url
+];
+
+/** 上記配列からランダムに1件を返す（投稿生成時に毎回呼ぶ） */
+function pickRandomTrapDefenceQuoteYoutubeUrl() {
+  if (!TRAP_DEFENCE_QUOTE_YOUTUBE_URLS.length) return VSL_MINIMAL.url;
+  return TRAP_DEFENCE_QUOTE_YOUTUBE_URLS[Math.floor(Math.random() * TRAP_DEFENCE_QUOTE_YOUTUBE_URLS.length)];
+}
+
 module.exports = {
   VSL_MINIMAL,
-  VSL_REGULAR
+  VSL_REGULAR,
+  TRAP_DEFENCE_QUOTE_YOUTUBE_URLS,
+  pickRandomTrapDefenceQuoteYoutubeUrl
 };
