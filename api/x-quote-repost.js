@@ -39,7 +39,7 @@ const {
   useYouTubeOgpOptimized,
   SALES_LETTER_LANGS
 } = require("../services/salesLetterContest");
-const { pickRandomTrapDefenceQuoteYoutubeUrl } = require("../config/vslLinks");
+const { getRandomYoutubeUrl } = require("../services/x/youtubeRandomizer");
 const { CORE_PHRASES } = require("../config/personaStrategy");
 
 // 8時間クールダウン関連のインポート（インフルエンサー別の日次投稿数管理）
@@ -1037,7 +1037,7 @@ async function postQuoteRepostsForLang(
           }
           if (grokText) {
             if (useYouTubeOgpOptimized()) {
-              quoteText = buildQuoteForYouTubeOgp(grokText, pickRandomTrapDefenceQuoteYoutubeUrl(), { maxTextLines: 2 });
+              quoteText = buildQuoteForYouTubeOgp(grokText, getRandomYoutubeUrl(), { maxTextLines: 2 });
               console.log(
                 `[Quote Repost] 📌 Grok sales letter (cached, YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
               );
@@ -1066,7 +1066,7 @@ async function postQuoteRepostsForLang(
               );
               if (result?.fullText || result?.text) {
                 if (useYouTubeOgpOptimized() && result.text) {
-                  quoteText = buildQuoteForYouTubeOgp(result.text, pickRandomTrapDefenceQuoteYoutubeUrl(), {
+                  quoteText = buildQuoteForYouTubeOgp(result.text, getRandomYoutubeUrl(), {
                     maxTextLines: 2
                   });
                   console.log(
@@ -1102,7 +1102,7 @@ async function postQuoteRepostsForLang(
               (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state[lang]) ||
               stateEn;
             if (useYouTubeOgpOptimized()) {
-              quoteText = buildQuoteForYouTubeOgp(fallback, pickRandomTrapDefenceQuoteYoutubeUrl(), { maxTextLines: 2 });
+              quoteText = buildQuoteForYouTubeOgp(fallback, getRandomYoutubeUrl(), { maxTextLines: 2 });
               console.log(
                 `[Quote Repost] 📌 Fallback (CORE_PHRASES + YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
               );
@@ -1127,7 +1127,7 @@ async function postQuoteRepostsForLang(
             (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state[lang]) ||
             stateEn;
           if (useYouTubeOgpOptimized()) {
-            quoteText = buildQuoteForYouTubeOgp(fallback, pickRandomTrapDefenceQuoteYoutubeUrl(), { maxTextLines: 2 });
+            quoteText = buildQuoteForYouTubeOgp(fallback, getRandomYoutubeUrl(), { maxTextLines: 2 });
             console.log(
               `[Quote Repost] 📌 Lang not in SALES_LETTER_LANGS, fallback (YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
             );
