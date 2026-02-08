@@ -589,19 +589,13 @@ async function getTrendyHashtags(lang, topic = "BTC") {
 
 /**
  * 時間帯別のピークマップを取得
- * Grok推奨: 各時間帯に処理すべき言語と投稿タイプを定義
+ * 本番の引用リポスト実行は vercel.json の per-lang Cron で制御（EN :00, ES :10, PT-BR :20, AR :30, KO :40, JA :50）。
+ * このマップは統一ハンドラー呼び出し時などの参照用。Cryptoピーク（Asia 0-4, EU 8-12, US 14-22 UTC）を考慮。
  * @param {number} hour - UTC時刻（0-23）
  * @returns {Object} { langs: Array<string>, type: 'quote'|'free_report'|'minimal', count: number }
  */
 function getPeakMapForHour(hour) {
-  // 🚀 数撃て作戦: 1日500投稿以上を達成するため、すべての時間帯でQuote Repostを実行
-  // Cron設定: UTC 0,2,4,6,8,10,12,14,16,18,20,22（1日12回）
-  // 目標: EN 約200投稿/日、その他5言語 合計約300投稿/日 = 合計500投稿/日以上
-  // ピーク時間（UTC 0,1,20,21,22）: EN 32人、その他言語も増加
-  // オフピーク時間（UTC 13,14）: EN 12人、その他言語も動的に調整
-  // その他の時間: EN 32人、その他言語も増加
-
-  // UTC 13:00と14:00、20:00は特別処理（自アカウント投稿 free_report/minimal は廃止・quote のみ）
+  // 特別スロット（重み付け用・統一ハンドラー用）
   if (hour === 13) {
     return { langs: ["ko", "ja"], type: "quote", count: 1 };
   }
@@ -612,23 +606,28 @@ function getPeakMapForHour(hour) {
     return { langs: ["en", "pt-br"], type: "quote", count: 2 };
   }
 
-  // すべての時間帯でQuote Repostを実行（500投稿/日以上達成）
-  // countパラメータは各言語に対してpostQuoteRepostsForLangを呼び出す回数（通常は1）
-  // 実際のインフルエンサー数はgetInfluencerCountForLangによって決定される
   const peakMap = {
-    0: { langs: ["ar", "en"], type: "quote", count: 1 }, // UTC 0:00 - AR 8人（ピーク）、EN 32人（ピーク）= 40投稿
-    1: { langs: ["ko", "en"], type: "quote", count: 1 }, // UTC 1:00 - KO 5人（ピーク）、EN 32人（ピーク）= 37投稿
-    2: { langs: ["en"], type: "quote", count: 1 }, // UTC 2:00 - EN 32人 = 32投稿
-    4: { langs: ["es"], type: "quote", count: 1 }, // UTC 4:00 - ES 17人 = 17投稿
-    6: { langs: ["pt-br"], type: "quote", count: 1 }, // UTC 6:00 - PT-BR 12人 = 12投稿
-    8: { langs: ["en", "es", "pt-br", "ar", "ja", "ko"], type: "quote", count: 1 }, // UTC 8:00 - EN 32人 + その他各言語 = 82投稿
-    10: { langs: ["ja"], type: "quote", count: 1 }, // UTC 10:00 - JA 8人 = 8投稿
-    12: { langs: ["en"], type: "quote", count: 1 }, // UTC 12:00 - EN 32人
-    15: { langs: ["es"], type: "quote", count: 1 }, // UTC 15:00 - ES 17人
-    16: { langs: ["ko"], type: "quote", count: 1 }, // UTC 16:00 - KO 5人 = 5投稿
-    18: { langs: ["ar"], type: "quote", count: 1 }, // UTC 18:00 - AR 8人
-    21: { langs: ["es", "en"], type: "quote", count: 1 }, // UTC 21:00 - ES 17人（ピーク）、EN 32人（ピーク）= 49投稿
-    22: { langs: ["pt-br", "es", "en"], type: "quote", count: 1 } // UTC 22:00 - PT-BR 12人（ピーク）、ES 17人（ピーク）、EN 32人（ピーク）= 61投稿
+    0: { langs: ["ar", "en"], type: "quote", count: 1 },
+    1: { langs: ["ko", "en"], type: "quote", count: 1 },
+    2: { langs: ["en"], type: "quote", count: 1 },
+    3: { langs: ["es", "en"], type: "quote", count: 1 },
+    4: { langs: ["es"], type: "quote", count: 1 },
+    5: { langs: ["pt-br", "en"], type: "quote", count: 1 },
+    6: { langs: ["pt-br"], type: "quote", count: 1 },
+    7: { langs: ["ar", "en"], type: "quote", count: 1 },
+    8: { langs: ["en", "es", "pt-br", "ar", "ja", "ko"], type: "quote", count: 1 },
+    9: { langs: ["en", "es"], type: "quote", count: 1 },
+    10: { langs: ["ja", "en"], type: "quote", count: 1 },
+    11: { langs: ["en", "ko"], type: "quote", count: 1 },
+    12: { langs: ["en"], type: "quote", count: 1 },
+    15: { langs: ["es", "en"], type: "quote", count: 1 },
+    16: { langs: ["ko", "ja"], type: "quote", count: 1 },
+    17: { langs: ["ar", "en"], type: "quote", count: 1 },
+    18: { langs: ["ar"], type: "quote", count: 1 },
+    19: { langs: ["pt-br", "en"], type: "quote", count: 1 },
+    21: { langs: ["es", "en"], type: "quote", count: 1 },
+    22: { langs: ["pt-br", "es", "en"], type: "quote", count: 1 },
+    23: { langs: ["en"], type: "quote", count: 1 }
   };
 
   return peakMap[hour] || { langs: [], type: null, count: 0 };
