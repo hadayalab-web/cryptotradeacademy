@@ -42,7 +42,7 @@ const {
 const { getRandomYoutubeUrl } = require("../services/x/youtubeRandomizer");
 const { sanitizeQuoteBody, sanitizeUrl } = require("../services/x/textSanitizer");
 const { pickSecondaryTarget, markPosted } = require("../services/x/secondaryRotation");
-const { CORE_PHRASES } = require("../config/personaStrategy");
+const { getQuoteBodyTemplate } = require("../config/quoteRepostBodyTemplates");
 
 // 8時間クールダウン関連のインポート（インフルエンサー別の日次投稿数管理）
 const {
@@ -451,9 +451,7 @@ async function postQuoteRepostsForLang(
               // ignore
             }
             if (!body) {
-              body =
-                (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state.en) ||
-                "Stuck in the 'just watching' loop with unrealized loss? Many are. The way out is a framework.";
+              body = getQuoteBodyTemplate("en");
             }
             const cleanBody = sanitizeQuoteBody(body);
             const cleanUrl = sanitizeUrl(getRandomYoutubeUrl());
@@ -548,7 +546,8 @@ async function postQuoteRepostsForLang(
       removeInfluencerFromStockByTweetId
     } = require("../services/x/influencerStock");
     let influencers = await getInfluencersFromStock(lang, {
-      enableScoring: false // 必要なら true でスコアリング有効
+      enableScoring: false, // 必要なら true でスコアリング有効
+      prioritizeOfficial: true // 公式 88 件を先頭に（統合ローテーション）
     });
 
     if (!influencers || influencers.length === 0) {
@@ -1154,21 +1153,13 @@ async function postQuoteRepostsForLang(
             }
           }
           if (!quoteText) {
-            const stateEn =
-              (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state.en) ||
-              "Stuck in the 'just watching' loop with unrealized loss? Many are. The way out is a framework.";
-            const fallback =
-              (CORE_PHRASES &&
-                CORE_PHRASES.state &&
-                (lang === "ja" ? CORE_PHRASES.state.ja : null)) ||
-              (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state[lang]) ||
-              stateEn;
+            const fallback = getQuoteBodyTemplate(lang);
             const cleanFallback = sanitizeQuoteBody(fallback);
             if (useYouTubeOgpOptimized()) {
               const cleanUrl = sanitizeUrl(getRandomYoutubeUrl());
               quoteText = buildQuoteForYouTubeOgp(cleanFallback, cleanUrl, { maxTextLines: 2 });
               console.log(
-                `[Quote Repost] 📌 Fallback (CORE_PHRASES + YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
+                `[Quote Repost] 📌 Fallback (2-line template + YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
               );
             } else {
               quoteText =
@@ -1176,26 +1167,18 @@ async function postQuoteRepostsForLang(
                 "\n\n" +
                 getLinkBlockGrokStyle(lang, { influencerUsername: influencer.username });
               console.log(
-                `[Quote Repost] 📌 Fallback (CORE_PHRASES + link block) @${influencer.username} [runId: ${langRunId}]`
+                `[Quote Repost] 📌 Fallback (2-line template + link block) @${influencer.username} [runId: ${langRunId}]`
               );
             }
           }
         } else {
-          const stateEn =
-            (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state.en) ||
-            "Stuck in the 'just watching' loop with unrealized loss? Many are. The way out is a framework.";
-          const fallback =
-            (CORE_PHRASES &&
-              CORE_PHRASES.state &&
-              (lang === "ja" ? CORE_PHRASES.state.ja : null)) ||
-            (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state[lang]) ||
-            stateEn;
+          const fallback = getQuoteBodyTemplate(lang);
           const cleanFallback = sanitizeQuoteBody(fallback);
           if (useYouTubeOgpOptimized()) {
             const cleanUrl = sanitizeUrl(getRandomYoutubeUrl());
             quoteText = buildQuoteForYouTubeOgp(cleanFallback, cleanUrl, { maxTextLines: 2 });
             console.log(
-              `[Quote Repost] 📌 Lang not in SALES_LETTER_LANGS, fallback (YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
+              `[Quote Repost] 📌 Lang not in SALES_LETTER_LANGS, fallback (2-line template + YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
             );
           } else {
             quoteText =
@@ -1203,7 +1186,7 @@ async function postQuoteRepostsForLang(
               "\n\n" +
               getLinkBlockGrokStyle(lang, { influencerUsername: influencer.username });
             console.log(
-              `[Quote Repost] 📌 Lang not in SALES_LETTER_LANGS, fallback @${influencer.username} [runId: ${langRunId}]`
+              `[Quote Repost] 📌 Lang not in SALES_LETTER_LANGS, fallback (2-line template) @${influencer.username} [runId: ${langRunId}]`
             );
           }
         }

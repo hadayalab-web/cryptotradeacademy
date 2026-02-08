@@ -282,6 +282,16 @@ async function getInfluencersFromStock(lang, options = {}) {
       lang: inf.lang || lang, // langフィールドがない場合は現在の言語を設定
     }));
 
+    // 公式 88 件を優先: official → discovered → legacy の順でソート（統合ローテーション）
+    if (options.prioritizeOfficial) {
+      const sourceOrder = { official: 0, discovered: 1, legacy: 2 };
+      influencers.sort((a, b) => (sourceOrder[a.source] ?? 2) - (sourceOrder[b.source] ?? 2));
+      const officialCount = influencers.filter((inf) => inf.source === "official").length;
+      if (officialCount > 0) {
+        console.log(`[InfluencerStock] ✅ Prioritized: ${officialCount} official, order official→discovered→legacy`);
+      }
+    }
+
     // 🔥 改善: スコアリング機能が有効な場合、Webhookデータからエンゲージメント統計を取得してスコアを計算
     if (options.enableScoring) {
       const influencersWithScores = await Promise.all(
@@ -422,10 +432,11 @@ async function updateInfluencerStock(lang, options = {}) {
       console.log(`[InfluencerStock] 📊 Average impressions: ${avgImpressions.toLocaleString()}`);
     }
     
-    // 🔒 言語整合性保証: すべてのインフルエンサーにlangフィールドを設定
+    // 🔒 言語整合性保証: すべてのインフルエンサーにlangフィールドを設定（Grok 由来は source: legacy）
     const influencersWithLang = selectedInfluencers.map(inf => ({
       ...inf,
-      lang: targetLang, // 明示的に言語を設定
+      lang: targetLang,
+      source: inf.source || "legacy",
     }));
     
     // 🛡️ 保護機能: 選択されたインフルエンサーが空の場合は既存ストックを保持

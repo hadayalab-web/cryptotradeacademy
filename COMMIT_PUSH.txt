@@ -1,0 +1,23 @@
+# コミット＆プッシュ＆自動デプロイ用コマンド（PowerShell）
+
+# 1. リポジトリへ移動
+cd c:\Users\chiba\hadayalab-automation-platform\cryptotradeacademy
+
+# 2. 変更をすべてステージ
+git add -A
+
+# 3. 状態確認（任意）
+git status
+
+# 4. コミット（公式88統合 + 多言語2行テンプレ）
+git commit -m "feat: 公式88件ローテーション統合 + 多言語2行テンプレ
+
+- source: official/discovered/legacy 付与と prioritizeOfficial
+- discoverAndStockFromTargets: 保存時ソート
+- getInfluencersFromStock(prioritizeOfficial: true)
+- quoteRepostBodyTemplates + getQuoteBodyTemplate(lang)
+- x-quote-repost fallback を 2行テンプレ優先に統一
+- docs: CURSOR_INSTRUCTION_OFFICIAL_88_ROTATION, MULTILANG_QUOTE_TEMPLATES"
+
+# 5. プッシュ（main に push で Vercel 等が自動デプロイ）
+git push origin main

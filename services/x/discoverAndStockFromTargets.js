@@ -217,8 +217,9 @@ async function discoverAndStockFromTargets(lang, options = {}) {
   for (const username of allUsernames) {
     const inf = await verifyAndBuildInfluencer(username, targetLang);
     if (inf) {
-      verified.push(inf);
-      if (officialSet.has((username || "").toLowerCase())) officialVerified++;
+      const isOfficial = officialSet.has((username || "").toLowerCase());
+      verified.push({ ...inf, source: isOfficial ? "official" : "discovered" });
+      if (isOfficial) officialVerified++;
     }
   }
   console.log(`[DiscoverFromTargets] X API verified: ${verified.length}/${allUsernames.length} (official: ${officialVerified})`);
@@ -232,9 +233,13 @@ async function discoverAndStockFromTargets(lang, options = {}) {
     const existing = await getInfluencersFromStock(targetLang);
     const existingUsernames = new Set((existing || []).map((e) => (e.username || "").toLowerCase()));
     const newOnly = verified.filter((v) => !existingUsernames.has((v.username || "").toLowerCase()));
-    toSave = [...(existing || []), ...newOnly];
+    const existingWithSource = (existing || []).map((e) => ({ ...e, source: e.source || "legacy" }));
+    toSave = [...existingWithSource, ...newOnly];
     console.log(`[DiscoverFromTargets] Merged: existing ${(existing || []).length}, new ${newOnly.length}, total to save: ${toSave.length}`);
   }
+  // 公式を先頭にソート（official → discovered → legacy）
+  const sourceOrder = { official: 0, discovered: 1, legacy: 2 };
+  toSave.sort((a, b) => (sourceOrder[a.source] ?? 2) - (sourceOrder[b.source] ?? 2));
 
   const saved = await saveInfluencersToStock(targetLang, toSave);
   return {
