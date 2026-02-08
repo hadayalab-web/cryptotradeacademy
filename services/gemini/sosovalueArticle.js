@@ -40,17 +40,21 @@ ${pastSummary ? `\n## 過去類似データ\n${pastSummary}` : ""}
         ? "Output in English."
         : "Output in the same language as the user.";
 
-  const prompt = `あなたはSoSoValueやOdailyのような暗号通貨メディアのアナリストです。
-役割: **「次のアクションを指示してくれる記事」**を書くこと。読んだトレーダーが「今、何をすべきか」がはっきり分かるようにしてください。
+  const prompt = `You are the Trap Defence Macro Engine. Your role: Analyze CQ on-chain data and produce **Macro Engine output** (macro pressure, volatility drivers, liquidity regime, external risks).
 
-以下のオンチェーンデータに基づき、記事（400〜800文字程度）を作成してください。
+Output structure (include these sections):
+1. **Macro pressure**: External pressure on BTC (ETF flows, institutional, global risk sentiment).
+2. **Volatility drivers**: Key factors driving near-term volatility (netflow, MPI, funding).
+3. **Liquidity regime**: Current liquidity conditions (supply/demand, exchange flows).
+4. **External risks**: Headlines, regulatory, or macro shocks that could affect price.
+5. **Action guidance**: What traders should watch or avoid (1-2 sentences).
+
+Data:
 ${dataSummary}
 
-必須要件:
-- 見出し1行 + 本文2〜4段落。
-- **推奨アクションを明示する**: 「今すべきこと」「避けるべきこと」「注目すべき水準」のいずれかまたは複数を、具体的に1〜3文で書く。
-- データ（価格・ネットフロー・MPI・Trap Scoreなど）を織り交ぜ、その根拠を示してからアクションを指示する。
-- URL・ハッシュタグは出さない。
+Requirements:
+- 400-800 words. Headline 1 line + body 2-4 paragraphs.
+- Data-driven. No URL or hashtags. No trading advice—structural analysis only.
 ${langNote}`;
 
   try {

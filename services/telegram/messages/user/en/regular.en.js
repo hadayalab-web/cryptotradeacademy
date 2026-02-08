@@ -185,9 +185,17 @@ function formatRegularBriefing({
     grokText = `${grokText.slice(0, GROK_LIMIT)}…`;
   }
 
+  // Grok X Engine: v2.1 (for Market State Radar and Psychological Insight)
+  let grokDisplaySource = grokXAnalysis;
+  if (grokXAnalysis && typeof grokXAnalysis === 'object') {
+    grokDisplaySource = grokXAnalysis.xEngineReport || grokXAnalysis.summary || null;
+  }
+  const hasGrokData = grokDisplaySource && typeof grokDisplaySource === 'string' && grokDisplaySource.trim();
+  const isGrokOffline = !hasGrokData || /grok offline|live search unavailable|data unavailable/i.test(grokDisplaySource || '');
+
   const lines = [];
-  lines.push('🌤️ Trap Defence BTC - Paid Report');
-  // 冷静なガイド: 本当にトラップが高い時だけ Alert、通常は Briefing
+  // ----- 0. Header (Trap Defence OS v2.4 — 行動示唆ゼロ・部分生成禁止) -----
+  lines.push('🌤️ Trap Defence BTC - Regular Briefing');
   const trapSeverityForHeader = trapDetection?.trapSeverity || trapAlert?.severity || 'LOW';
   const isHighTrapForHeader = trapSeverityForHeader === 'CRITICAL' || trapSeverityForHeader === 'HIGH';
   if (isHighTrapForHeader) {
@@ -196,75 +204,49 @@ function formatRegularBriefing({
     lines.push('📋 Trap Defence Briefing');
   }
   lines.push(`📅 ${ts}`);
+  lines.push('CQ × X × 3AI — Behind-the-Scenes Structure Report');
   lines.push('');
 
-  // ===== 【最重要】Trade Verdict（3行以内・簡潔 / No Trade Zone明記） =====
-  lines.push('🎯 Trade Verdict');
-  lines.push(`${dirEmoji} Signal: ${dirLabel}`);
-  if (isNoTradeZone) {
-    lines.push(`• No Trade Zone — Entry/TP/SL undefined. Wait for clear edge.`);
-  } else {
-    lines.push(entryLine);
-    if (modeLine) lines.push(modeLine);
-    if (tpLine) lines.push(tpLine);
-    if (slLine) lines.push(slLine);
-    if (rrLine) lines.push(rrLine);
-  }
+  // ----- 1. Market State Radar (v2.1) -----
+  const trapScoreRadar = effectiveTrapScore != null ? Math.round(effectiveTrapScore) : null;
+  const trapRiskLabel = trapScoreRadar != null
+    ? (trapScoreRadar < 30 ? 'low risk' : trapScoreRadar >= 50 ? 'high risk' : 'moderate')
+    : 'N/A';
+  const cqRiskText = inflow >= 0
+    ? `High exchange inflow → supply returning to market, short-term selling pressure`
+    : `Outflow ${Math.abs(inflow || 0).toFixed(0)} BTC → holders securing assets`;
+  const sentimentLabelLower = (sentimentLabel || '').toLowerCase();
+  const volatilityMode = sentimentLabelLower.includes('fear') || sentimentLabelLower.includes('panic')
+    ? 'expansion phase (panic-driven volatility)'
+    : sentimentLabelLower.includes('greed') ? 'expansion phase (euphoria-driven)' : 'consolidation';
+  const liquidityRegimeText = inflow >= 0
+    ? `Thick sell-side liquidity below price; thin above`
+    : `Thick buy-side accumulation; liquidity rebalancing`;
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('📡 Market State Radar');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push(`• Trap Score: ${trapScoreRadar != null ? trapScoreRadar + '/100 (' + trapRiskLabel + ')' : 'N/A'}`);
+  lines.push(`• CQ Risk: ${cqRiskText}`);
+  lines.push(`• X Sentiment: ${hasGrokData && !isGrokOffline ? 'Available' : 'Data missing → interpret as "sentiment silence" (elevated uncertainty)'}`);
+  lines.push(`• Macro Pressure: Risk-off dominant`);
+  lines.push(`• Liquidity Regime: ${liquidityRegimeText}`);
+  lines.push(`• Volatility Mode: ${volatilityMode}`);
+  lines.push('');
+  // v2.8: Key Metrics MUST use ### Key Metrics (Markdown hierarchy — 見出し強制の最終最終版)
+  lines.push('### Key Metrics');
+  lines.push(`• BTC Price: ${formatUsd(priceUsd)}`);
+  lines.push(`• Netflow: ${inflow >= 0 ? '+' : ''}${(inflow || 0).toFixed(0)} BTC`);
+  lines.push(`• MPI: ${(mpi ?? 0).toFixed(2)}`);
+  lines.push(`• Sentiment: ${sentimentLabel || 'Unknown'}`);
   lines.push('');
 
-  // Gemini役割: 「次のアクションを指示」→ 記事があれば冒頭に1行で要約（3項目ハイライトでも再利用）
-  let actionPreview = '';
-  if (sosovalueArticle && typeof sosovalueArticle === 'string' && sosovalueArticle.trim()) {
-    const firstSentence = sosovalueArticle.trim().split(/[.\n]/)[0].trim();
-    actionPreview = firstSentence.length > 120 ? firstSentence.slice(0, 117) + '…' : firstSentence;
-    if (actionPreview) {
-      lines.push('📌 Your move: ' + actionPreview);
-      lines.push('');
-    }
-  }
-
-  // 矛盾の提示（低スコアなのに売り圧力）— 3指標をセットで意味づけ
-  if (score <= 25 && inflow > 0 && sentimentLabel.toLowerCase().includes('fear')) {
-    const whaleRatioEstimate = Math.min(100, Math.max(0, (inflow / 1000) * 10 + 40));
-    const contextNote = whaleRatioEstimate >= 80
-      ? 'Much of the inflow could turn into selling pressure. Worth monitoring for your risk management.'
-      : 'A significant portion of inflow may be whale-related. Worth monitoring for your risk management.';
-    const contextInterpretation = 'Netflow + MPI + Sentiment together: Trap Defence interprets this combo as elevated trap risk—retail fear + exchange inflow + miner behavior.';
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 Context');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push(`Market Score: ${Math.round(score)}/100${scoreInterpretation}`);
-    lines.push(`Exchange Netflow: +${Math.abs(inflow).toFixed(0)} BTC IN`);
-    lines.push(`Sentiment: ${sentimentLabel}`);
-    lines.push('');
-    lines.push(contextNote);
-    lines.push(`💡 ${contextInterpretation}`);
-    lines.push('');
-  }
-
-  // ===== 【ハイライト】Trap / CQ / Action（Trap Score統一・MULTI LAYER ANOMALY説明） =====
-  lines.push('✨ Today\'s Highlights');
-  lines.push('');
-  const trapData = trapDetection || marketBug;
-  const unifiedTrapScore = effectiveTrapScore != null ? Math.round(effectiveTrapScore) : (trapData?.trapScore != null ? Math.round(trapData.trapScore) : null);
-  const trapTypeRaw = (trapData?.trapType || trapData?.bugType || 'Anomaly').replace(/_/g, ' ');
-  const multiLayerNote = /MULTI\s*LAYER|MULTI_LAYER/i.test(trapTypeRaw) ? ' (multiple anomalies detected simultaneously)' : '';
-  const trapOneLine = trapData && (trapData.trapDetected || trapData.bugDetected)
-    ? `🛡️ Trap: ${trapTypeRaw} (${unifiedTrapScore ?? Math.round(trapData.trapScore || trapData.bugScore || 0)}/100)${multiLayerNote}`
-    : '🛡️ Trap: No trap detected';
-  const trapRiskLabel = isLowTrapRisk ? 'low' : (effectiveTrapScore != null && effectiveTrapScore >= 50 ? 'high' : 'moderate');
-  const cqOneLine = inflow >= 0
-    ? `📊 CQ: Netflow +${Math.abs(inflow).toFixed(0)} BTC; trap risk ${trapRiskLabel}.`
-    : `📊 CQ: Netflow −${Math.abs(inflow).toFixed(0)} BTC; trap risk ${trapRiskLabel}.`;
-  lines.push(trapOneLine);
-  lines.push(cqOneLine);
-  lines.push(`📌 Action: ${actionPreview || 'Wait for clear edge.'}`);
+  // ----- 2. Behind-the-Scenes Structure (v2.4 — NO Summary, NO "…" placeholders, ALL FOUR full paragraphs) -----
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('🔬 Behind-the-Scenes Structure');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
-  // ===== 【ニュース番組構造】データ → 解説 → コメンテーター =====
-  
-  // GPTリポーター: CryptoQuantデータ解析に基づくトラップニュース
-  // エラーメッセージやnullの場合は、フォールバック処理
+  // GPT CQ Engine: CryptoQuant解析 → Whale Intent, Algo Behavior, Retail Psych Distortion, Liquidity Map
   let gptNewsText = gptReporterAnalysis || aiAnalysis || null;
   
   // エラーメッセージを検出（API error, unavailable, error等のキーワード）
@@ -287,35 +269,34 @@ function formatRegularBriefing({
     }
   }
   
-  // フォールバック: GPT分析が利用できない場合の代替メッセージ
+  // v2.2 フォールバック: 構造のみ、行動示唆ゼロ
+  // v2.5: Behind-the-Scenes 4要素のみ、## 階層統一
   if (!gptNewsText || gptNewsText.trim() === '') {
-    // CryptoQuantデータから基本的な分析を生成
     const inflowDisplay = inflow >= 0 ? `Inflow ${Math.abs(inflow).toFixed(0)} BTC` : `Outflow ${Math.abs(inflow).toFixed(0)} BTC`;
     const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
-    const priceChangeDisplay = change24h >= 0 ? `+${change24h.toFixed(2)}%` : `${change24h.toFixed(2)}%`;
-    
-    // COO最適化: ストーリーテリング改善
-    gptNewsText = `📖 THE STORY BEHIND THE DATA
+    gptNewsText = `## 2-1. Whale Intent (structural inference)
+${inflow >= 0 ? 'Whale flows indicate controlled absorption or distribution. The inflow spike suggests supply moving to exchanges—either absorption during volatility flush or distribution pressure.' : 'Whale flows suggest holders securing assets. Outflow indicates accumulation or rebalancing.'}
 
-While you sleep, whales are positioning. Here's what's happening RIGHT NOW:
+## 2-2. Algo Behavior Patterns
+Algos exploit thin liquidity zones created by emotional selling. Patterns show synchronized liquidity hunts followed by mean reversion—automated systems harvesting liquidity before resetting price.
 
-1. 🏦 Exchanges flooded: ${inflowDisplay}
-   → ${inflow >= 0 ? 'Sellers are loading up. This is NOT normal.' : 'Holders are securing assets. This is BULLISH.'}
+## 2-3. Retail Psychological Distortion
+Retail sentiment dominated by ${sentimentLabel || 'neutral'}. If X data is missing, "sentiment silence" is meaningful: retail disengagement often precedes volatility expansion.
 
-2. ⛏️ Miners ${mpi >= 0 ? 'selling' : 'holding'}: MPI ${mpiDisplay}
-   → ${mpi >= 0 ? 'Miners are selling. This is BEARISH short-term.' : 'Miners are NOT selling. This is BULLISH long-term.'}
-
-3. 🧠 ${sentimentLabel} sentiment
-   → ${sentimentLabel.toLowerCase().includes('fear') ? 'Retail panic. This is OPPORTUNITY for smart money.' : sentimentLabel.toLowerCase().includes('greed') ? 'Retail euphoria. This is RISK for late buyers.' : 'Neutral conditions. Stay alert.'}
-
-💡 Psychological Interpretation:
-
-The CryptoQuant data shows ${inflowDisplay}, a Miners' Position Index (MPI) of ${mpiDisplay}, and ${sentimentLabel.toLowerCase()} sentiment, while the price has changed ${priceChangeDisplay} over 24 hours.
-
-From a psychological perspective, these metrics suggest a ${sentimentLabel.toLowerCase()} market environment. The ${inflow >= 0 ? 'inflow' : 'outflow'} indicates ${inflow >= 0 ? 'more cryptocurrency entering exchanges' : 'more cryptocurrency leaving exchanges'}, which often signals ${inflow >= 0 ? 'potential selling pressure' : 'holders securing their assets off-exchange'}.
-
-${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high selling pressure. This is EXACTLY when traps form. Stay alert.' : 'The market is in a wait-and-see mode, where traders are monitoring conditions carefully.'}`;
+## 2-4. Liquidity Map
+${inflow >= 0 ? 'Sell-side liquidity dense below price from forced selling and miner distribution (MPI ' + mpiDisplay + '). Above price, liquidity thin—upward move could accelerate if inflows reverse.' : 'Buy-side accumulation visible. Liquidity rebalancing in progress.'}`;
   }
+
+  // v2.5: Scenario Map 重複禁止 — GPT出力内の Scenario Map / Trap Defence Value を除去（テンプレートで表示）
+  gptNewsText = gptNewsText.replace(/(\*\*Scenario Map\*\*|## Scenario Map|Scenario Map\s*\().*$/s, '').trim();
+  gptNewsText = gptNewsText.replace(/\*\*Trap Defence Value\*\*.*$/s, '').trim();
+
+  // v2.8: 太字見出し禁止 — **Whale Intent** 等を ## 2-X. に正規化（GPTが**で逃げる余地を潰す）
+  gptNewsText = gptNewsText.replace(/\*\*Whale Intent \(structural inference( only)?\)\*\*/g, '## 2-1. Whale Intent (structural inference only)');
+  gptNewsText = gptNewsText.replace(/\*\*Whale Intent\*\*(?!\s*\()/g, '## 2-1. Whale Intent');
+  gptNewsText = gptNewsText.replace(/\*\*Algo Behavior Patterns\*\*/g, '## 2-2. Algo Behavior Patterns');
+  gptNewsText = gptNewsText.replace(/\*\*Retail Psychological Distortion\*\*/g, '## 2-3. Retail Psychological Distortion');
+  gptNewsText = gptNewsText.replace(/\*\*Liquidity Map\*\*/g, '## 2-4. Liquidity Map');
   
   // Telegram互換性: Markdown見出し（###）を削除してTelegramネイティブな形式に変換（先に実行）
   let gptNewsDisplay = gptNewsText
@@ -325,8 +306,8 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
   // プレーンテキストの見出しも改善（「Psychological Interpretation of On-Chain Metrics」など）
   gptNewsDisplay = gptNewsDisplay.replace(/^Psychological Interpretation of On-Chain Metrics$/gm, '💡 Psychological Interpretation of On-Chain Metrics');
   
-  // 要約1行＋短めの本文で全体長を抑える（420文字まで）
-  const gptNewsLimit = 420;
+  // v2.5: Behind-the-Scenes 4要素のみ（Scenario Map は別セクション）— 1400文字まで表示（部分生成禁止）
+  const gptNewsLimit = 1400;
   if (gptNewsDisplay.length > gptNewsLimit) {
     // 文の終わりで切るようにする（最後の文の終わりを探す）
     const truncated = gptNewsDisplay.slice(0, gptNewsLimit);
@@ -355,29 +336,54 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
     }
   }
   
-  // モバイル最適化: 冒頭に1行の要約を追加（100点満点への最後の仕上げ）
-  // トラップ検出状況に基づいて要約を生成
-  const trapDataForSummary = trapDetection || marketBug;
-  const hasTrapForSummary = trapDataForSummary && (trapDataForSummary.trapDetected || trapDataForSummary.bugDetected);
-  const trapTypeForSummary = trapDataForSummary?.trapType || trapDataForSummary?.bugType || '';
-  const trapSeverityForSummary = trapDataForSummary?.trapSeverity || trapDataForSummary?.bugSeverity || 'NONE';
-  
-  let summaryLine = '';
-  if (hasTrapForSummary && trapSeverityForSummary !== 'NONE') {
-    const trapTypeDisplay = trapTypeForSummary.replace(/_/g, ' ');
-    // Telegram Markdownでは [text] がリンクとして解釈されるため、[Summary]ではなく Summary: を使用
-    summaryLine = `📰 Summary: On-chain metrics show a "Wait-and-See" mode. ${trapTypeDisplay} suggests a hidden trap despite stable prices.`;
-  } else {
-    summaryLine = `📰 Summary: On-chain metrics show a "Wait-and-See" mode. The data's clean, but don't let your guard down`;
-  }
-  lines.push(summaryLine);
-  lines.push('');
-  
-  // 詳細な分析を表示
-  lines.push(`📰 ${gptNewsDisplay}`);
+  // v2.2: NO Summary before Behind-the-Scenes — structure only, zero action suggestions
+  lines.push(gptNewsDisplay);
   lines.push('');
 
-  // ===== Data-Backed / Gemini（全言語共通構成） =====
+  // ----- 3. Current BTC Structure (v2.1 — structural meaning only) -----
+  const currentStructureNote = inflow >= 0 && sentimentLabelLower.includes('fear')
+    ? 'BTC is in a "panic-driven supply release phase". This is not a trend reversal—it is liquidity reconfiguration.'
+    : inflow >= 0
+      ? 'Supply returning to exchanges. Structure suggests distribution or absorption phase.'
+      : 'Holders securing assets. Structure suggests accumulation or consolidation.';
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('📐 Current BTC Structure');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push(`• Price: ${formatUsd(priceUsd)} (${formatPercent(change24h)} / 24h)`);
+  lines.push(`• Structural meaning: ${currentStructureNote}`);
+  const keyLevelsNote = inflow >= 0
+    ? `• Netflow: +${Math.abs(inflow).toFixed(0)} BTC → supply moving to exchanges`
+    : `• Netflow: −${Math.abs(inflow).toFixed(0)} BTC → holders securing assets`;
+  lines.push(keyLevelsNote);
+  lines.push('');
+
+  // ----- 4. Scenario Map (MANDATORY: 3–5 structural scenarios, NOT trade setups) -----
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  lines.push('🗺️ Scenario Map');
+  lines.push('━━━━━━━━━━━━━━━━━━━━');
+  const scenarioBullets = [];
+  if (inflow > 0) {
+    scenarioBullets.push(`• Supply shock continuation — ${Math.abs(inflow).toFixed(0)} BTC inflow to exchanges may sustain selling pressure`);
+  }
+  if (mpi != null && mpi > 0.5) {
+    scenarioBullets.push(`• Miner pressure increase — MPI ${mpi.toFixed(2)} suggests miner distribution, near-term volatility risk`);
+  }
+  const sentimentLower = (sentimentLabel || '').toLowerCase();
+  if (sentimentLower.includes('fear') || sentimentLower.includes('panic')) {
+    scenarioBullets.push(`• Retail panic — ${sentimentLabel} sentiment may drive capitulation or forced selling`);
+  }
+  if (sentimentLower.includes('greed') || sentimentLower.includes('euphoria')) {
+    scenarioBullets.push(`• Retail euphoria — ${sentimentLabel} sentiment may precede distribution traps`);
+  }
+  if (trapDetection?.trapDetected || hasActiveTrapAlert) {
+    scenarioBullets.push(`• Algo-driven volatility — trap conditions (${trapDetection?.trapType || 'anomaly'}) may trigger liquidity hunts`);
+  }
+  scenarioBullets.push('• Macro regime — ETF flows, rate policy, or external shocks can shift structure');
+  const scenariosToShow = scenarioBullets.slice(0, 5);
+  scenariosToShow.forEach(b => lines.push(b));
+  lines.push('');
+
+  // ----- 5. Data-Backed Evidence / Gemini -----
   if (hasGeminiContent) {
     lines.push('━━━━━━━━━━━━━━━━━━━━');
     lines.push('📊 【Data Presentation】NanoBanana Infographic');
@@ -385,13 +391,8 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
     lines.push('🎬 Check attached image/video!');
     lines.push('');
   }
-  if (sosovalueArticle) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📰 On-chain insight (CQ + past context)');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push(sosovalueArticle);
-    lines.push('');
-  }
+  // v2.2: On-chain insight — omit from report (行動示唆ゼロ; Gemini output often contains action suggestions)
+  // sosovalueArticle kept for future structural-only Macro Engine output
   // Data-Backed Reasons（1ブロック、全言語共通ロジック）
   let trapScoreForEvidence = null;
   if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
@@ -404,7 +405,7 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
   const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
   if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
     lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 Data-Backed Reasons');
+    lines.push('📊 Data-Backed Evidence');
     lines.push('━━━━━━━━━━━━━━━━━━━━');
     const trapScoreRounded = trapScoreForEvidence != null ? Math.round(trapScoreForEvidence) : (trapDetection?.trapScore != null ? Math.round(trapDetection.trapScore) : 0);
     const isLowTrap = trapScoreRounded < 30;
@@ -415,39 +416,38 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
         if (trapTypeForEvidence) lines.push(`⚠️ ${(trapTypeForEvidence || '').replace(/_/g, ' ')} detected`);
         lines.push(`• Netflow spike → supply moving to exchanges`);
         lines.push(`• Miner MPI elevated → distribution pressure`);
-        lines.push(`• Extreme Fear + price divergence → classic trap setup`);
-        lines.push(`💡 Wait-and-see. Entering now could expose you to traps.`);
+        lines.push(`• Extreme Fear + price divergence → structural trap setup`);
       } else if (isLowTrap) {
         lines.push(`✅ Trap Score ${trapScoreRounded}/100 → low trap risk`);
-        lines.push(`📐 Positioning window — consider long/short or leverage with defined risk when edge is clear.`);
+        lines.push(`• Structure suggests reduced liquidity-hunt pressure`);
       } else {
-        lines.push(`⚡ Trap Score ${trapScoreRounded}/100 → moderate caution`);
-        lines.push(`💡 Wait for confirmation before jumping in.`);
+        lines.push(`⚡ Trap Score ${trapScoreRounded}/100 → moderate trap risk`);
+        lines.push(`• Structure mixed — liquidity conditions unclear`);
       }
     } else if (trapDetection?.trapDetected) {
       const trapTypeText = (trapDetection.trapType || 'Anomaly').replace(/_/g, ' ');
       lines.push(`🎯 ${trapTypeText} (Score: ${(trapDetection.trapScore || 0).toFixed(0)}/100)`);
-      lines.push(`💡 On-chain anomalies suggest wait-and-see.`);
+      lines.push(`• On-chain anomalies detected — structure suggests elevated trap conditions`);
     } else if (trapAlert?.alert) {
       const alertTypeText = (trapAlert.type || 'UNKNOWN').replace(/_/g, '-');
       lines.push(`🚨 ${alertTypeText} (Severity: ${trapAlert.severity})`);
-      lines.push(`💡 Stay defensive until clear edge.`);
+      lines.push(`• Structure suggests elevated trap risk`);
     }
     lines.push('');
   }
 
-  // 【コメンテーター】Dr. Grok（固定コーナー、全言語共通）
+  // ----- 6. Psychological Insight (Dr. Grok) -----
   lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('💊 Dr. Grok\'s Quick Insight');
+  lines.push('💊 Psychological Insight (Dr. Grok)');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   
-  // Grok X analysis fallback (X sentiment analysis)
-  if (grokXAnalysis && typeof grokXAnalysis === 'string' && grokXAnalysis.trim()) {
-    if (!hasJapanese(grokXAnalysis)) {
+  // Grok X Engine: v2.1 (grokDisplaySource, hasGrokData, isGrokOffline defined earlier)
+  if (hasGrokData && !isGrokOffline) {
+    if (!hasJapanese(grokDisplaySource)) {
       const grokXLimit = 600;
-      let grokXDisplay = grokXAnalysis;
-      if (grokXAnalysis.length > grokXLimit) {
-        const truncated = grokXAnalysis.slice(0, grokXLimit);
+      let grokXDisplay = grokDisplaySource;
+      if (grokDisplaySource.length > grokXLimit) {
+        const truncated = grokDisplaySource.slice(0, grokXLimit);
         const lastSentenceEnd = Math.max(
           truncated.lastIndexOf('.'),
           truncated.lastIndexOf('!'),
@@ -460,13 +460,18 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
           grokXDisplay = truncated + '…';
         }
       }
-      lines.push(`📱 X Sentiment Analysis: ${grokXDisplay}`);
+      lines.push(`📱 X Sentiment (Dr. Grok): ${grokXDisplay}`);
       lines.push('');
     } else {
       console.warn('[Regular EN] Japanese characters detected in grokXAnalysis, skipping');
     }
   }
-  
+  if (!hasGrokData || isGrokOffline) {
+    // v2.1 Grok null fallback: "sentiment silence" with structural meaning
+    lines.push('📱 X Sentiment: "Sentiment silence" — Data missing is meaningful. When retail freezes from fear, posting drops. Market enters psychological vacuum—conditions where algos move most freely.');
+    lines.push('');
+  }
+
   // Dr. Grok（2ブロック: 心理状態1行 + 行動の盲点1行 + Mental Note短く・断言）
   if (psychologicalSupport && psychologicalSupport.psychologicalState !== 'UNKNOWN') {
     const stateEmoji = psychologicalSupport.psychologicalState === 'FOMO' ? '😰' :
@@ -514,16 +519,14 @@ ${score <= 25 && inflow > 0 ? '⚠️ CONTRADICTION: Low risk score BUT high sel
   
   lines.push('');
 
-  // 有料版の価値（簡潔に）
+  // ----- 7. Trap Defence Value (v2.1 — structural only, no trading) -----
   lines.push('━━━━━━━━━━━━━━━━━━━━');
-  lines.push('💎 THIS IS WHY YOU PAID FOR THIS REPORT');
+  lines.push('💎 Trap Defence Value');
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
-  lines.push('🎯 Action signals (AVOID-LONG/SHORT, STANDBY) + Exit Map + NO TRADE alerts');
-  lines.push('📊 Full CQ analysis + trap detection + X sentiment (Dr. Grok)');
-  lines.push('💊 Mental coaching & psychological state diagnosis');
-  lines.push('');
-  lines.push('🛡️ One missed signal = Lost capital.');
+  lines.push('• Structural clarity — behind-the-scenes visibility (Whale / Algo / Retail / Liquidity)');
+  lines.push('• Psychological insight — retail psychology diagnosis');
+  lines.push('• CQ × X × 3AI integration — unified analysis of market mechanics');
   lines.push('');
 
   // ===== Snapshot（5項目に絞る: Price, Netflow, MPI, Sentiment, Trap Score） =====

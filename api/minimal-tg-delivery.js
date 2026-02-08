@@ -51,10 +51,10 @@ function getSocialProofButton(lang = "en") {
 function loadMinimalFormatter(lang) {
   try {
     const mod = require(`../services/telegram/messages/user/${lang}/minimal-high-quality.${lang}`);
-    return mod.formatMinimalHighQualityBriefing || mod.formatMinimalBriefing || null;
+    return mod.formatMinimalBriefingOSv26 || mod.formatMinimalBriefing || null;
   } catch (e) {
     const en = require("../services/telegram/messages/user/en/minimal-high-quality.en");
-    return en.formatMinimalHighQualityBriefing || en.formatMinimalBriefing || null;
+    return en.formatMinimalBriefingOSv26 || en.formatMinimalBriefing || null;
   }
 }
 
@@ -114,7 +114,6 @@ module.exports = async function handler(req, res) {
 
   for (const targetLang of targetLangs) {
     try {
-      // 統合最適化は廃止（GPT=CQ/Trap、Grok=X/トレーダーサポート、Gemini=SoSoValue記事に役割限定）
       const formatMinimal = loadMinimalFormatter(targetLang);
       if (!formatMinimal || typeof formatMinimal !== "function") {
         results.errors.push({ lang: targetLang, error: "No formatter" });

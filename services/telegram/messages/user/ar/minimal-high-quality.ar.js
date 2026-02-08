@@ -1,222 +1,26 @@
-// دالة تنسيق النص لتوزيع Telegram الإصدار الأدنى المجاني عالي الجودة
+// 無料版（Minimal Version）Telegram配信用
 // services/telegram/messages/user/ar/minimal-high-quality.ar.js
-// Trap Score + تحليل مبسط + تعليق مبسط من Dr. Grok + Mental Note
+// Trap Defence Minimal Engine v1.5（Zeigarnik Edition 完全体）— アラビア語版
+// Minimal High Quality（4-post）は廃止。Zeigarnik Edition のみ。
 
 /**
- * الحصول على hook Trap Score（ネイティブ調、ドバイ/湾岸系）
+ * X Sentiment を無料版用に軽量化（心理の空気だけ。深度を出さない）
+ * v1.4: Market Snapshot の X Sentiment は "Extreme Fear" → "Fear-dominant" 等に変換
+ * AR: アラビア語ラベル
  */
-function getTrapScoreHook(trapScore) {
-  if (trapScore == null || trapScore === undefined) {
-    return 'جاري حساب Trap Score… انتظر شوي.';
-  }
-  
-  const score = Number(trapScore);
-  if (isNaN(score)) {
-    return 'جاري حساب Trap Score… انتظر شوي.';
-  }
-
-  if (score >= 70) {
-    return 'لا تتداول بسرعة. احم رأس المال. وضع الدفاع نشط.';
-  } else if (score >= 50) {
-    return 'منطقة مختلطة. انتظر التأكيد قبل الدخول.';
-  } else if (score >= 30) {
-    return 'الشموع تخوّف… بس البيانات ما تقول "خطر".';
-  } else {
-    return 'شكله مخيف… بس البيانات ما تعطيك "فخ واضح" (لحد الآن). خلّك هادي.';
-  }
+function toSurfaceSentiment(raw) {
+  if (!raw || typeof raw !== 'string') return 'صمت المشاعر';
+  const s = raw.toLowerCase();
+  if (s.includes('extreme fear') || s.includes('fear') || s.includes('panic') || /خوف|ذعر|فزع/.test(s)) return 'الخوف مهيمن';
+  if (s.includes('extreme greed') || s.includes('greed') || s.includes('fomo') || s.includes('euphoria') || /جشع|نشوة/.test(s)) return 'الجشع مهيمن';
+  if (s.includes('neutral') || /محايد/.test(s)) return 'محايد';
+  return 'صمت المشاعر';
 }
 
 /**
- * إنشاء What to Avoid（الإجراءات التي يجب تجنبها）
+ * Trap Defence Minimal Engine v1.5（Zeigarnik Edition 完全体）— アラビア語版
  */
-function generateWhatToAvoid(trapScore, trapData = null) {
-  const score = trapScore == null ? null : Number(trapScore);
-  if (score == null || Number.isNaN(score) || score < 50) {
-    return null;
-  }
-
-  const avoidItems = [];
-  
-  // استخراج الإجراءات التي يجب تجنبها من Trap Data
-  if (trapData) {
-    if (trapData.trapAlert) {
-      if (trapData.trapAlert.type === 'AVOID_LONG') {
-        avoidItems.push('تجنب LONG — وضع الدفاع نشط');
-      } else if (trapData.trapAlert.type === 'AVOID_SHORT') {
-        avoidItems.push('تجنب SHORT — وضع الدفاع نشط');
-      }
-    }
-  }
-
-  // الإجراءات الافتراضية التي يجب تجنبها（ネイティブ調）
-  if (avoidItems.length === 0) {
-    if (score >= 70) {
-      avoidItems.push('لا تتداول بسرعة — احم رأس المال');
-      avoidItems.push('انتظر إشارات أوضح');
-    } else if (score >= 50) {
-      avoidItems.push('منطقة مختلطة — انتظر التأكيد');
-      avoidItems.push('فرص دخول أفضل قادمة');
-    }
-  }
-
-  return avoidItems;
-}
-
-/**
- * إنشاء Evidence（الدليل）
- */
-function generateEvidence(trapData = null, marketData = null) {
-  const evidenceItems = [];
-
-  // استخراج الدليل من Trap Data
-  if (trapData) {
-    if (trapData.exchangeNetflow !== undefined && trapData.exchangeNetflow !== null) {
-      const netflow = trapData.exchangeNetflow; // بوحدات BTC
-      const absValue = Math.abs(netflow);
-      if (netflow < 0) {
-        // التدفق الخارجي: ネイティブ調な表現
-        evidenceItems.push(`Netflow: **${absValue.toFixed(0)} BTC خروج** → أقل ضغط بيع فوري`);
-      } else if (netflow > 0) {
-        // التدفق الداخلي: ネイティブ調な表現
-        evidenceItems.push(`Netflow: **+${absValue.toFixed(0)} BTC دخول** → ضغط بيع محتمل`);
-      } else {
-        evidenceItems.push(`Netflow: متوازن`);
-      }
-    }
-
-    if (trapData.whaleRatio !== undefined && trapData.whaleRatio !== null) {
-      const whaleRatio = trapData.whaleRatio * 100;
-      if (whaleRatio >= 80) {
-        evidenceItems.push(`Whale ratio: **${whaleRatio.toFixed(0)}%** → راقب، لكن لا تدخل في ذعر`);
-      } else if (whaleRatio >= 50) {
-        evidenceItems.push(`Whale ratio: **${whaleRatio.toFixed(0)}%** → ضغط معتدل`);
-      } else {
-        evidenceItems.push(`Whale ratio: **${whaleRatio.toFixed(0)}%** → نطاق طبيعي`);
-      }
-    }
-  }
-
-  // استخراج الدليل من Market Data
-  if (marketData) {
-    if (marketData.mpi !== undefined && marketData.mpi !== null) {
-      const mpi = marketData.mpi;
-      if (mpi > 2.0) {
-        evidenceItems.push(`مؤشر مراكز المعدّنين: ${mpi.toFixed(2)} — المعدّنون يبيعون (الحذر مطلوب)`);
-      } else if (mpi < 0.5) {
-        evidenceItems.push(`مؤشر مراكز المعدّنين: ${mpi.toFixed(2)} — المعدّنون يحتفظون (إشارة إيجابية)`);
-      } else {
-        evidenceItems.push(`مؤشر مراكز المعدّنين: ${mpi.toFixed(2)} — النطاق الطبيعي`);
-      }
-    }
-  }
-
-  // الدليل الافتراضي (إذا لم تكن هناك بيانات, ネイティブ調)
-  if (evidenceItems.length === 0) {
-    evidenceItems.push('في on-chain ما في فخ قوي');
-  }
-
-  return evidenceItems.slice(0, 2); // الحد الأقصى 2
-}
-
-/**
- * إنشاء تعليق مبسط من Dr. Grok
- */
-function generateDrGrokComment(trapScore, sentimentData = null) {
-  const comments = [];
-
-  const score = trapScore == null ? null : Number(trapScore);
-  if (score == null || Number.isNaN(score) || score < 30) {
-    // Trap Score منخفض: 認知的不協和と油断の警告（ネイティブ調、ドバイ/湾岸系）
-    const lowRiskMessages = [
-      '"رأسك يريد البيع عشان يوقف الانزعاج من الشموع الحمراء. لا تخلط القلق مع الواقع. الفخ مو الهبوط: هو الخروج بالاندفاع."',
-      '"الشموع تخوّف… بس البيانات ما تقول "خطر". السكور ممكن يقفز بسرعة—خصوصاً وأنت نايم."',
-      '"الجزء اللي ما أحد يتكلم عنه: 0/100 ممكن يخليك واثق زيادة. الفخاخ الكبيرة تبنى في الهدوء."',
-    ];
-    comments.push(lowRiskMessages[Math.floor(Math.random() * lowRiskMessages.length)]);
-  } else if (score >= 70) {
-    comments.push('"لا تتداول بسرعة. احم رأس المال. وضع الدفاع نشط. هذا هو الوقت الأكثر خطورة."');
-  } else if (score >= 50) {
-    comments.push('"منطقة مختلطة. انتظر التأكيد. الدفاع أولاً. لا تستعجل."');
-  } else {
-    comments.push('"يبدو مخيف، البيانات تقول نظيف (لحد الآن). لا تخلط القلق مع واقع السوق."');
-  }
-
-  // تعليق إضافي من Sentiment Data（ネイティブ調）
-  if (sentimentData) {
-    if (sentimentData.sentiment === 'FOMO' || sentimentData.sentiment === 'GREED') {
-      comments.push('"السوق يبدو عاطفي. هنا تحدث الفخاخ. النقد أيضاً موقف."');
-    } else if (sentimentData.sentiment === 'FEAR' || sentimentData.sentiment === 'Fear') {
-      comments.push('"الخوف طبيعي. لكن لا تخلط الشموع الحمراء مع الخطر الحقيقي."');
-    }
-  }
-
-  return comments[0] || null;
-}
-
-/**
- * إنشاء Mental Note
- */
-function generateMentalNote(trapScore = null, avoidProTraderMessage = false, drGrokComment = null) {
-  const allMentalNotes = [
-    '"النقد أيضاً موقف."',
-    '"لا تخلط الشموع الحمراء مع الخطر الحقيقي."',
-    '"الصبر يؤتي ثماره. أفضل الفرص تأتي عندما يكون الخطر منخفضاً والاتجاه واضحاً."',
-    '"الدفاع هو أعلى شكل من أشكال الهجوم. حماية رأس المال هي حيث يبدأ كل شيء."',
-    '"معظم حركات السوق ضوضاء. تفاعل فقط مع الإشارات الواضحة."',
-    '"الملل أيضاً موقف. حفظ رأس المال قيد التنفيذ."',
-  ];
-  
-  // إذا تم استخدام "المتداولون المحترفون يعطون الأولوية لوقت الانتظار" في الرؤى الاستراتيجية، تجنبها في Mental Note
-  let availableNotes = allMentalNotes;
-  if (avoidProTraderMessage) {
-    availableNotes = availableNotes.filter(note => !note.includes('المتداولين المحترفين'));
-  }
-  
-  // تجنب التكرار مع تعليق Dr. Grok
-  if (drGrokComment) {
-    // إذا كان التعليق يحتوي على "70% من الوقت"، تجنب نفس العبارة في Mental Note
-    if (drGrokComment.includes('70% من الوقت') || drGrokComment.includes('70%')) {
-      availableNotes = availableNotes.filter(note => !note.includes('70% من الوقت') && !note.includes('70%'));
-    }
-    // إذا كان التعليق يحتوي على "الدفاع ليس ضعفاً"، تجنب نفس العبارة في Mental Note
-    if (drGrokComment.includes('الدفاع ليس ضعفاً')) {
-      availableNotes = availableNotes.filter(note => !note.includes('الدفاع ليس ضعفاً'));
-    }
-    // إذا كان التعليق يحتوي على "ليس ضعفاً"، تجنب نفس العبارة في Mental Note
-    if (drGrokComment.includes('ليس ضعفاً')) {
-      availableNotes = availableNotes.filter(note => !note.includes('ليس ضعفاً'));
-    }
-    // إذا كان التعليق يحتوي على "أقوى استراتيجية"، تجنب نفس العبارة في Mental Note
-    if (drGrokComment.includes('أقوى استراتيجية')) {
-      availableNotes = availableNotes.filter(note => !note.includes('أقوى استراتيجية'));
-    }
-  }
-  
-  // إذا لم تكن هناك رسائل متاحة، اختر من الكل
-  if (availableNotes.length === 0) {
-    availableNotes = allMentalNotes;
-  }
-  
-  const selectedNote = availableNotes[Math.floor(Math.random() * availableNotes.length)];
-  return selectedNote;
-}
-
-/**
- * إنشاء رسالة Telegram للإصدار الأدنى المجاني عالي الجودة
- * Trap Score + تحليل مبسط + تعليق مبسط من Dr. Grok + Mental Note
- * 
- * @param {Object} options - خيارات إنشاء الرسالة
- * @param {Date} options.now - الوقت الحالي
- * @param {number|null} options.trapScore - Trap Score (0-100)
- * @param {number|null} options.priceUsd - سعر BTC (USD)
- * @param {number|null} options.change24h - معدل التغيير لمدة 24 ساعة (%)
- * @param {Object} options.trapData - Trap Data (اختياري)
- * @param {Object} options.marketData - Market Data (اختياري)
- * @param {Object} options.sentimentData - Sentiment Data (اختياري)
- * @param {string} options.lang - رمز اللغة (الافتراضي: 'ar')
- * @returns {string} سلسلة رسالة Telegram
- */
-function formatMinimalHighQualityBriefing({
+function formatMinimalBriefingOSv26({
   now = new Date(),
   trapScore = null,
   priceUsd = null,
@@ -225,101 +29,55 @@ function formatMinimalHighQualityBriefing({
   marketData = null,
   sentimentData = null,
   lang = 'ar',
-  score = null, // Market Score (optional, can also be in marketData.score)
-  grokGeminiOptimization = null, // Grok Xアルゴリズム解析 × Gemini深層心理分析統合最適化結果
 } = {}) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
-  
-  const scoreDisplay = trapScore != null ? Math.round(Number(trapScore)) : 'N/A';
-  
-  const priceLine = priceUsd != null && change24h != null
-    ? `💰 سعر BTC: $${priceUsd.toLocaleString('en-US', { maximumFractionDigits: 0 })} (${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}% / 24h)`
-    : '💰 سعر BTC: جاري الجلب...';
+  const trapScoreDisplay = trapScore != null ? Math.round(Number(trapScore)) : 'N/A';
+  const sentimentLabel = sentimentData?.sentiment || 'غير معروف';
+  const netflow = trapData?.exchangeNetflow ?? 0;
+  const netflowStr = netflow >= 0 ? `+${netflow.toFixed(0)} BTC` : `${netflow.toFixed(0)} BTC`;
+  const mpi = marketData?.mpi ?? 0;
+  const priceStr = priceUsd != null ? `$${priceUsd.toLocaleString('ar-SA', { maximumFractionDigits: 0 })}` : 'N/A';
+  const cqBase = netflow >= 0
+    ? 'تدفق داخلي مرتفع للبورصات → ضغط بيع قصير المدى'
+    : 'تدفق خارجي → الحائزون يؤمنون الأصول';
+  const cqSummary = `${cqBase} (رؤية سطحية)`;
+  const xSummary = toSurfaceSentiment(sentimentData?.sentiment);
+  const macroSummary = 'Risk-off مهيمن؛ ظروف سيولة ضيقة';
+  const insight = trapScore != null && trapScore < 30
+    ? 'الهيكل السطحي يُظهر سيولة تتحرك تحت ضغط الخوف؛ ديناميكا الحيتان-الخوارزمية الأعمق تُكشف فقط في البريفينغ الكامل.'
+    : trapScore != null && trapScore >= 50
+      ? 'التدفقات الظاهرة تشير إلى إعادة تكوين؛ المحركات الهيكلية الكامنة تبقى خارج هذه اللقطة الدنيا.'
+      : 'تحولات السيولة المدفوعة بالخوف واضحة؛ خريطة الهيكل الكاملة متاحة فقط في البريفينغ المنتظم.';
 
-  const whatToAvoid = generateWhatToAvoid(trapScore, trapData);
-  const evidence = generateEvidence(trapData, marketData);
-  const drGrokComment = generateDrGrokComment(trapScore, sentimentData);
-  
-  // إذا كان هناك احتمال استخدام "المتداولون المحترفون يعطون الأولوية لوقت الانتظار" في الرؤى الاستراتيجية، تجنبها في Mental Note
-  const trapScoreRounded = trapScore !== null ? Math.round(trapScore) : null;
-  const useProTraderMessageInInsight = trapScoreRounded !== null && trapScoreRounded < 50 && trapScoreRounded >= 0;
-  const mentalNote = generateMentalNote(trapScore, useProTraderMessageInInsight, drGrokComment);
+  return `🌤️ Trap Defence BTC — بريفينغ أدنى
+📅 ${ts}
 
-  // GPT設計書に完全準拠: 4-post thread形式（Telegram用に1メッセージに統合）
-  const change24hFormatted = change24h != null ? (change24h >= 0 ? `+${change24h.toFixed(2)}` : change24h.toFixed(2)) : 'N/A';
-  const sentimentRaw = sentimentData?.sentiment;
-  const sentimentLabelAr =
-    sentimentRaw === 'Extreme Fear' ? 'خوف شديد' :
-    sentimentRaw === 'Extreme Greed' ? 'جشع شديد' :
-    (sentimentRaw === 'Fear' || sentimentRaw === 'FEAR') ? 'خوف' :
-    (sentimentRaw === 'Greed' || sentimentRaw === 'GREED') ? 'جشع' :
-    sentimentRaw === 'FOMO' ? 'FOMO' :
-    sentimentRaw === 'Neutral' ? 'محايد' : 'محايد';
-  // trapScoreRoundedは上で既に定義済み
-  
-  // [1/4] Hook: Trap Score理由1行 + gut vs data
-  let message = `[1/4] 🚨 Hook
-━━━━━━━━━━━━━━━━━━━━`;
-  
-  if (scoreDisplay === 'N/A') {
-    message += `\n🚨 BTC نازل (${change24hFormatted}%) والناس على **${sentimentLabelAr}**…
-لكن Trap Score جاري حسابه… خلّك هادي. لا تستعجل.`;
-  } else {
-    const trapReasonLine = (trapData?.exchangeNetflow > 0 || marketData?.mpi > 2)
-      ? ` Netflow + MPI + المشاعر = Trap Defence يقرأها Standby Mode.`
-      : ``;
-    message += `\n🚨 BTC نازل (${change24hFormatted}%) والناس على **${sentimentLabelAr}**…
-لكن Trap Score عندنا **${scoreDisplay}/100**.${trapReasonLine}`;
-  }
-  
-  message += `\n\nلا تتداول انتقاماً. انتظر التأكيد. إحساس vs بيانات—البيانات تربح.`;
-
-  // [2/4] Quick reads (2 bullets max, trader interpretation)
-  message += `\n\n[2/4] 📊 مختصر ومفيد
-━━━━━━━━━━━━━━━━━━━━`;
-  
-  // Exchange netflow（ネイティブ調）
-  if (trapData?.exchangeNetflow !== undefined && trapData.exchangeNetflow !== null) {
-    const netflow = trapData.exchangeNetflow;
-    const absValue = Math.abs(netflow);
-    if (netflow < 0) {
-      message += `\n• صافي التدفق: **${absValue.toFixed(0)} BTC خروج** → عملات تطلع من المنصات`;
-    } else if (netflow > 0) {
-      message += `\n• صافي التدفق: **+${absValue.toFixed(0)} BTC دخول** → ضغط بيع محتمل`;
-    }
-  }
-  
-  // MPI
-  if (marketData?.mpi !== undefined && marketData.mpi !== null) {
-    const mpi = marketData.mpi;
-    message += `\n• مؤشر المعدّنين (MPI): **${mpi.toFixed(2)}** → المعدّنون مو مستعجلين على البيع`;
-  }
-  
-  message += `\n\nNetflow + MPI مع بعض: Trap Defence يقرأ قبل الشمعة. الشموع الحمراء ≠ فخ فوري.`;
-
-  // [3/4] Psych coaching: 短く・刺さる・Dr. Grok世界観
-  message += `\n\n[3/4] 🧠 توجيه نفسي (Dr. Grok)
-━━━━━━━━━━━━━━━━━━━━`;
-  
-  if (trapScoreRounded == null) {
-    message += `\nالسكور جاري حسابه. لا تستعجل.`;
-  } else if (trapScoreRounded < 30) {
-    message += `\n${trapScoreRounded}/100 = خطر الارتياح. الفخاخ الكبيرة تُبنى في الهدوء. خليك متنبّه.`;
-  } else if (trapScoreRounded < 50) {
-    message += `\nالشموع تخوّف، البيانات ما تقول فخ. لا تخلّي الخوف يضغط لك.`;
-  } else {
-    message += `\nوضع دفاعي. الشموع صاخبة؛ الخطر لسه ما جاء. Standby Mode.`;
-  }
-  
-  // [4/4] Poll + シンプルCTA（返信負荷軽減）
-  message += `\n\n[4/4] 🗳️ تصويت + CTA
 ━━━━━━━━━━━━━━━━━━━━
-تصويت: Trap Score ${scoreDisplay === 'N/A' ? '(جاري الحساب)' : `**${scoreDisplay}/100**`} — ما خطتك؟
-A) احتفاظ  B) شراء هبوط  C) تخفيف/بيع  D) انتظار تأكيد
+📡 Market Snapshot
+━━━━━━━━━━━━━━━━━━━━
+• Trap Score: ${trapScoreDisplay}/100
+• CQ Summary: ${cqSummary}
+• X Sentiment: ${xSummary}
+• Macro Summary: ${macroSummary}
 
-تبغى تنبيهات لحظية قبل الهبوط الجاي؟ رد **TRAP** بالرابط. تنبيه واحد فات = رأس مال ناقص. #BTC #Bitcoin #TrapDefence`;
+━━━━━━━━━━━━━━━━━━━━
+📊 مقاييس رئيسية
+━━━━━━━━━━━━━━━━━━━━
+• السعر: ${priceStr}
+• Netflow: ${netflowStr}
+• MPI: ${mpi.toFixed(2)}
+• المشاعر: ${sentimentLabel}
 
-  return message.trim();
+━━━━━━━━━━━━━━━━━━━━
+🧠 Insight
+━━━━━━━━━━━━━━━━━━━━
+${insight}
+
+لأغراض تعليمية فقط.
+*(هذه اللقطة غير مكتملة عمداً؛ التفصيل الهيكلي الكامل متاح في البريفينغ المنتظم.)*`.trim();
 }
 
-module.exports = { formatMinimalHighQualityBriefing };
+const formatMinimalBriefing = formatMinimalBriefingOSv26;
+const formatMinimalHighQualityBriefing = formatMinimalBriefingOSv26;
+
+module.exports = { formatMinimalBriefingOSv26, formatMinimalBriefing, formatMinimalHighQualityBriefing };

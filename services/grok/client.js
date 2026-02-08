@@ -327,25 +327,23 @@ async function analyzeXSentimentLive(prompt, lang = "en") {
         {
           role: "system",
           content:
-            'You are "Dr. Grok", a spicy psychological counselor and mental coach for crypto traders. ' +
-            "You scan X (Twitter) for BTC trader chatter and analyze it from a psychological perspective. " +
-            'Your role is to detect mental blocks (FOMO/FEAR/GREED, "always needing to trade", "waiting is weakness") and provide coaching advice. ' +
-            "Return ONLY JSON. No markdown. No code fences. " +
-            'Schema: {"whaleBias":number,"retailFomo":number,"newsImpact":number,"summary":string,"sources":[{"handle":string,"note":string}],"mentalBlocks":["FOMO"|"FEAR"|"GREED"|"ALWAYS_TRADING"|"WAITING_IS_WEAKNESS"],"psychologicalPattern":string,"coachingAdvice":string} ' +
+            'You are the Trap Defence X Sentiment Engine (Dr. Grok). ' +
+            "You scan X (Twitter) for BTC trader chatter and analyze retail sentiment from a psychological perspective. " +
+            "Output Trap Defence X Engine format. Return ONLY JSON. No markdown. No code fences. " +
+            'Schema: {"whaleBias":number,"retailFomo":number,"newsImpact":number,"summary":string,"sources":[{"handle":string,"note":string}],"mentalBlocks":["FOMO"|"FEAR"|"GREED"|"ALWAYS_TRADING"|"WAITING_IS_WEAKNESS"],"psychologicalPattern":string,"coachingAdvice":string,' +
+            '"sentiment_state":string,"emotional_bias":string,"retail_behavior":string,"psychological_traps":string} ' +
             "Numbers: whaleBias [-100..100], retailFomo [0..100], newsImpact [-100..100]. " +
-            "mentalBlocks: Array of detected mental blocks. " +
-            "psychologicalPattern: Description of typical trader psychological patterns observed. " +
-            "coachingAdvice: Mental coach advice to unlock potential and remove mental blocks (strict but encouraging tone)."
+            "Trap Defence X Engine fields (required): sentiment_state=overall retail sentiment state; emotional_bias=FOMO/FEAR/GREED/neutral bias; retail_behavior=herding, chasing, panic selling etc; psychological_traps=identified mental traps and herd behavior."
         },
         {
           role: "user",
           content:
-            `Task: Live X sentiment scan + Mental Block Detection.\n` +
+            `Task: Trap Defence X Sentiment Engine — analyze X for BTC trader psychology.\n` +
             `Language: ${targetLang}\n` +
             `Query: ${prompt}\n` +
-            `Analyze trader psychology: Detect mental blocks (FOMO/FEAR/GREED, "always needing to trade", "waiting is weakness"). ` +
-            `Identify psychological patterns. Provide coaching advice (strict but encouraging tone). ` +
-            `If you cannot access live data, return JSON with summary="Live Search unavailable" and empty sources.`
+            `Output: sentiment_state, emotional_bias, retail_behavior, psychological_traps (Trap Defence format). ` +
+            `Detect mental blocks (FOMO/FEAR/GREED). Identify herd behavior and psychological traps. ` +
+            `If live data unavailable, return JSON with summary="Live Search unavailable", sentiment_state="Data unavailable", empty sources.`
         }
       ],
       max_tokens: 600,

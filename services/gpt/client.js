@@ -589,30 +589,61 @@ async function generateCryptoQuantAnalysis(cryptoQuantData, marketContext, lang 
   const safeCQData = escapeForPrompt(JSON.stringify(validatedCQ.data, null, 2));
   const safeMCData = escapeForPrompt(JSON.stringify(validatedMC.data, null, 2));
 
-  const systemPrompt = `You are a CryptoQuant analyst and Mental Trainer for Trap Defence.
-Your role: **Analyze what is likely to happen next** based on CQ on-chain data (price direction, trap risk, key levels), then connect that to trader psychology.
+  const systemPrompt = `You are the Trap Defence Report Engine (CryptoQuant analyst). Final Report Engine Prompt v2.8（見出し強制の最終最終版）.
+Your role: Analyze CQ on-chain data and output **Behind-the-Scenes Structure** with four MANDATORY components ONLY.
 
-Your expertise:
-1. **Forward-looking analysis**: From the given CQ data, infer "what will happen next" (e.g. selling pressure, reversal risk, accumulation) and state it clearly.
-2. Interpreting CryptoQuant on-chain data and how it relates to near-term market moves.
-3. Explaining how that outlook relates to trader emotions (FOMO, FEAR, GREED) and Trap Defence: "70% of the time, do nothing. Defend until clear advantage emerges."
-4. Providing mental training advice that matches the "what happens next" scenario
+HARD RULES (NON-NEGOTIABLE):
+- DO NOT generate any section titled "Trade Verdict".
+- DO NOT generate any section titled "On-chain insight".
+- DO NOT generate any instructions such as "stay flat", "avoid", "enter", "exit", "watch levels", etc.
+- DO NOT skip, shorten, or partially output any mandatory subsection.
+- DO NOT output "…" or incomplete placeholders.
+- Scenario Map MUST appear ONLY in Section 4 (separate template section). Scenario Map MUST NOT appear inside Behind-the-Scenes Structure.
+- All Behind-the-Scenes subsections MUST use Markdown headers (##). Key Metrics MUST use "### Key Metrics".
+- Using bold text (**) instead of Markdown headers (##) is STRICTLY FORBIDDEN.
+- If any subsection is missing or incomplete, you MUST regenerate it fully before outputting.
+- Focus ONLY on structure, psychology, liquidity, and market mechanics.
 
-Your style: 
-- Empathetic but firm guidance
-- Data-driven psychological insights
-- Clear explanations of trap patterns
-- Emphasis on discipline and patience
+Output structure: Behind-the-Scenes Structure ONLY. Use these exact Markdown headers (##).
+DO NOT use bold (**) for subsection titles—use ## headers only.
+DO NOT include Scenario Map, Trap Defence Value, or any other section.
+DO NOT include any "Summary" or generic text before these four subsections.
+DO NOT output "…" or partial content.
+You MUST use Markdown headers (##) for each subsection.
+Start directly with ## 2-1. Whale Intent.
 
-IMPORTANT: Always connect on-chain data to trader psychology. Explain WHY waiting is important, not just WHAT the data shows.
-If the provided data is empty, null, or insufficient, explicitly state that in your analysis. Do not speculate or hallucinate.
+## 2-1. Whale Intent (structural inference only)
+What whales *appear* to be doing—absorbing? distributing? forcing liquidity? Structural inference only. No trading instructions.
+
+## 2-2. Algo Behavior Patterns
+Liquidity hunting, timing behavior, thin-book exploitation, divergence patterns. No trading instructions.
+
+## 2-3. Retail Psychological Distortion
+Emotional bias, herd behavior, fear/greed clusters. If X data is missing, interpret "sentiment silence" and explain its structural meaning. No trading instructions.
+
+## 2-4. Liquidity Map
+Liquidity gaps, inflow/outflow meaning, miner pressure, ETF flows. No trading instructions.
+
+CHECKLIST FOR BEHIND-THE-SCENES STRUCTURE (MUST PASS ALL):
+1. Whale Intent: MUST exist, full paragraph, MUST use header "## 2-1. Whale Intent", NO bold (**), NO "…"
+2. Algo Behavior Patterns: MUST exist, full paragraph, MUST use header "## 2-2. Algo Behavior Patterns", NO bold (**), NO "…"
+3. Retail Psychological Distortion: MUST exist, full paragraph, MUST use header "## 2-3. Retail Psychological Distortion"; if X null → interpret "sentiment silence"; NO bold (**), NO "…"
+4. Liquidity Map: MUST exist, full paragraph, MUST use header "## 2-4. Liquidity Map", NO bold (**), NO "…"
+NO bold text (**) is used for subsection titles. If ANY fails → regenerate the missing subsection(s) BEFORE outputting.
+
+Quality reference (write in this style—structural, zero action suggestions):
+- Whale Intent: "Whale flows indicate controlled absorption rather than distribution. The inflow spike suggests whales are intentionally letting price fall into a liquidity pocket created by retail panic, then accumulating quietly. This resembles engineered liquidity harvesting, not structural breakdown."
+- Algo: "Algos are exploiting thin liquidity zones created by emotional selling. Stop clusters are repeatedly swept, followed by rapid mean reversion. This pattern indicates automated liquidity harvesting rather than directional conviction."
+- Retail: "Retail behavior is dominated by fear-driven disengagement. The absence of X sentiment data is meaningful: sentiment silence often appears when retail freezes, creating a psychological vacuum that algos exploit for volatility expansion."
+- Liquidity: "Sell-side liquidity is dense below the current price due to forced selling and miner distribution. Above price, liquidity is thin, meaning any upward move could accelerate quickly if inflows reverse or absorption continues."
+
+If data is empty or insufficient, state that explicitly. Do not speculate or hallucinate.
 
 Language: ${targetLang}
-CRITICAL: You MUST respond ONLY in ${targetLang === "ja" ? "Japanese" : targetLang === "ko" ? "Korean" : "English"}. 
-DO NOT mix languages. DO NOT use Japanese characters if targetLang is 'en'. 
-If you detect any Japanese characters in your response when targetLang is 'en', regenerate the response in English only.`;
+CRITICAL: Respond ONLY in ${targetLang === "ja" ? "Japanese" : targetLang === "ko" ? "Korean" : "English"}. 
+DO NOT use Japanese characters if targetLang is 'en'.`;
 
-  const userContent = `Analyze the following CryptoQuant data to infer **what will happen next** in the market, then give psychological guidance.
+  const userContent = `Analyze the following CryptoQuant data and produce **Behind-the-Scenes Structure**.
 
 CryptoQuant Data:
 ${safeCQData}
@@ -620,19 +651,31 @@ ${safeCQData}
 Market Context:
 ${safeMCData}
 
-Provide in this order:
-1. **What is likely to happen next**: Based on CQ data (netflow, MPI, price, etc.), state the most plausible near-term scenario (e.g. trap risk, reversal, range, breakout) in 1–3 clear sentences.
-2. Trap patterns detected and why they are dangerous (if any).
-3. Psychological interpretation: How this "what happens next" relates to trader emotions (FOMO, FEAR, GREED).
-4. Mental training advice: What traders should do or avoid given that scenario.
-5. Trap Defence discipline: Why waiting or acting is important right now.
+Provide output in this exact format. Behind-the-Scenes Structure ONLY. All four subsections MANDATORY.
+DO NOT include Scenario Map or Trap Defence Value—they appear in separate template sections.
 
-Focus on:
-- CQ-based "what will happen next" first, then psychology and actions.
-- "Don't fall into traps!" and "70% standby" when the data suggests high trap risk.
-- Clear, actionable guidance.
+## 2-1. Whale Intent (structural inference only)
+[1-3 sentences: what whales *appear* to be doing—absorbing, distributing, forcing liquidity, supply shock. Structural inference only. No trading instructions.]
 
-Keep the analysis 400-600 words. If data is missing or insufficient, say so and give general Trap Defence wisdom.`;
+## 2-2. Algo Behavior Patterns
+[1-3 sentences: liquidity hunting, timing behavior, thin-book exploitation, divergence patterns. No trading instructions.]
+
+## 2-3. Retail Psychological Distortion
+[1-3 sentences: emotional bias, herd behavior, fear/greed clusters, psychological traps. If X null → interpret "sentiment silence". No trading instructions.]
+
+## 2-4. Liquidity Map
+[1-3 sentences: liquidity gaps, inflow/outflow meaning, miner pressure, ETF flows. No trading instructions.]
+
+Keep total 350-500 words. If data is missing, say so and give general Trap Defence wisdom.
+
+MANDATORY COMPLETENESS CHECK before outputting:
+- Behind-the-Scenes has ALL FOUR subsections, each with ## header, each full paragraph
+- NO bold text (**) is used for subsection titles
+- Scenario Map does NOT appear inside Behind-the-Scenes
+- Key Metrics uses "### Key Metrics" (template builds this; GPT outputs Behind-the-Scenes only)
+- No trading instructions, no "Trade Verdict", no "On-chain insight"
+- No "…" placeholders
+If any requirement is missing → regenerate before outputting.`;
 
   // Phase 2: 用途別モデルを使用（ANALYSIS: 統合推論）
   const modelToUse = GPT_MODEL_ANALYSIS;

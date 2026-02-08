@@ -41,13 +41,26 @@ const sample = {
     psychologicalRisk: "LOW",
     psychologicalAdvice: "Market conditions are relatively stable. Maintain discipline.",
   },
-  gptReporterAnalysis: `What is likely to happen next: The combination of high exchange inflow (9170 BTC), Extreme Fear sentiment, and a -15% 24h drop suggests continued selling pressure in the short term. Trap risk is low (25/100), but the whale/retail divergence means smart money may be accumulating while retail panics.
+  gptReporterAnalysis: `**Whale Intent (structural inference)**
+Whales appear to be absorbing distressed supply rather than distributing. The 9170 BTC inflow suggests they are intentionally letting price fall into a liquidity pocket created by retail panic, then accumulating quietly. This resembles engineered liquidity harvesting, not a structural breakdown.
 
-Trap patterns: WHALE RETAIL DIVERGENCE detected at low severity—whales and retail are positioned differently. This can precede a reversal once fear subsides.
+**Algo Behavior Patterns**
+Algos are exploiting thin liquidity zones created by emotional selling. Stop clusters are repeatedly swept, followed by rapid mean reversion. This pattern indicates automated liquidity harvesting rather than directional conviction, reflecting opportunistic volatility extraction.
 
-Psychological interpretation: Extreme Fear drives panic selling. The data says "wait": let the flush complete before looking for entries. Trap Defence discipline: 70% of the time, do nothing. Right now, defending capital beats chasing.`,
+**Retail Psychological Distortion**
+Retail sentiment is dominated by fear-driven disengagement. The absence of X sentiment data is meaningful: "sentiment silence" often appears when retail freezes, creating a psychological vacuum that algos exploit for volatility expansion. This silence is structurally consistent with capitulation phases.
+
+**Liquidity Map**
+Sell-side liquidity is dense below the current price due to forced selling and miner distribution. Above price, liquidity is thin, meaning any upward move could accelerate quickly if inflows reverse or absorption continues. ETF flows remain neutral, but macro pressure keeps liquidity asymmetric.
+
+**Scenario Map** (3-5 structural scenarios)
+1. Supply shock continuation — panic supply absorbed, liquidity depleted, rebound-prone
+2. Miner pressure increase — MPI rise sustains short-term supply pressure
+3. Retail capitulation — fear peak may trigger final flush
+4. Algo-driven volatility expansion — thin-book stop sweeps continue
+5. Macro regime shift — ETF flows or rate events could shift liquidity`,
   grokXAnalysis: null,
-  sosovalueArticle: `Stay flat and watch key levels. With 9170 BTC inflow and Extreme Fear, avoid adding long exposure until netflow turns negative or price holds above $62,000. No need to hedge if you are in cash—patience is the edge.`,
+  sosovalueArticle: null, // v2.2: omitted (行動示唆ゼロ)
 };
 
 const text = formatRegularBriefing(sample);

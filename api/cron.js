@@ -47,39 +47,31 @@ function loadUserTemplates(lang) {
     const { formatTrapAlert } = require(
       `../services/telegram/messages/user/${lang}/emergency.${lang}`
     );
-    // 無料版テンプレート（minimal-high-quality版を優先、なければminimal版）
+    // 無料版テンプレート（Zeigarnik Edition v1.5 のみ。4-post は廃止）
     let formatMinimalBriefing = null;
     try {
-      const { formatMinimalHighQualityBriefing } = require(
+      const mod = require(
         `../services/telegram/messages/user/${lang}/minimal-high-quality.${lang}`
       );
-      if (
-        formatMinimalHighQualityBriefing &&
-        typeof formatMinimalHighQualityBriefing === "function"
-      ) {
-        formatMinimalBriefing = formatMinimalHighQualityBriefing;
-        console.log(`[TEMPLATE] Loaded minimal-high-quality template for ${lang}`);
+      const fn = mod.formatMinimalBriefingOSv26 || mod.formatMinimalBriefing;
+      if (fn && typeof fn === "function") {
+        formatMinimalBriefing = fn;
+        console.log(`[TEMPLATE] Loaded minimal Zeigarnik template for ${lang}`);
       } else {
-        throw new Error(`formatMinimalHighQualityBriefing is not a function for ${lang}`);
+        throw new Error(`formatMinimalBriefingOSv26 is not a function for ${lang}`);
       }
     } catch (e) {
       console.warn(
-        `[TEMPLATE] Failed to load minimal-high-quality template for ${lang}: ${e.message}`
+        `[TEMPLATE] Failed to load minimal template for ${lang}: ${e.message}, using EN fallback`
       );
       try {
-        const { formatMinimalBriefing: minimalFn } = require(
-          `../services/telegram/messages/user/${lang}/minimal.${lang}`
-        );
-        if (minimalFn && typeof minimalFn === "function") {
-          formatMinimalBriefing = minimalFn;
-          console.warn(`[TEMPLATE] Fallback to minimal template for ${lang}`);
-        } else {
-          throw new Error(`formatMinimalBriefing is not a function for ${lang}`);
+        const en = require("../services/telegram/messages/user/en/minimal-high-quality.en");
+        const fn = en.formatMinimalBriefingOSv26 || en.formatMinimalBriefing;
+        if (fn && typeof fn === "function") {
+          formatMinimalBriefing = fn;
         }
       } catch (e2) {
-        console.warn(
-          `[TEMPLATE] Minimal template not found for ${lang}, will use EN fallback: ${e2.message}`
-        );
+        console.warn(`[TEMPLATE] Minimal EN fallback failed: ${e2.message}`);
       }
     }
     return { formatRegularBriefing, formatTrapAlert, formatMinimalBriefing };
@@ -87,38 +79,17 @@ function loadUserTemplates(lang) {
     console.warn(`Fallback to EN templates. lang=${lang} error=${e.message}`);
     const { formatRegularBriefing } = require("../services/telegram/messages/user/en/regular.en");
     const { formatTrapAlert } = require("../services/telegram/messages/user/en/emergency.en");
-    // 無料版テンプレート（EN版をフォールバック）
+    // 無料版テンプレート（EN Zeigarnik Edition）
     let formatMinimalBriefing = null;
     try {
-      const {
-        formatMinimalHighQualityBriefing
-      } = require("../services/telegram/messages/user/en/minimal-high-quality.en");
-      if (
-        formatMinimalHighQualityBriefing &&
-        typeof formatMinimalHighQualityBriefing === "function"
-      ) {
-        formatMinimalBriefing = formatMinimalHighQualityBriefing;
-        console.log("[TEMPLATE] Loaded minimal-high-quality template for EN fallback");
-      } else {
-        throw new Error("formatMinimalHighQualityBriefing is not a function for EN");
+      const en = require("../services/telegram/messages/user/en/minimal-high-quality.en");
+      const fn = en.formatMinimalBriefingOSv26 || en.formatMinimalBriefing;
+      if (fn && typeof fn === "function") {
+        formatMinimalBriefing = fn;
+        console.log("[TEMPLATE] Loaded minimal Zeigarnik template for EN fallback");
       }
     } catch (e2) {
-      console.warn(
-        `[TEMPLATE] Failed to load minimal-high-quality template for EN fallback: ${e2.message}`
-      );
-      try {
-        const {
-          formatMinimalBriefing: minimalFn
-        } = require("../services/telegram/messages/user/en/minimal.en");
-        if (minimalFn && typeof minimalFn === "function") {
-          formatMinimalBriefing = minimalFn;
-          console.warn("[TEMPLATE] Fallback to minimal template for EN");
-        } else {
-          throw new Error("formatMinimalBriefing is not a function for EN");
-        }
-      } catch (e3) {
-        console.warn(`[TEMPLATE] Minimal template not found even in EN fallback: ${e3.message}`);
-      }
+      console.warn(`[TEMPLATE] Minimal EN fallback failed: ${e2.message}`);
     }
     return { formatRegularBriefing, formatTrapAlert, formatMinimalBriefing };
   }

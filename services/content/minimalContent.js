@@ -15,9 +15,9 @@ function normalizeLangCode(lang) {
 }
 
 /**
- * 無料版メッセージ用テンプレートを読み込む（フォルダ名は pt-br などそのまま）
+ * 無料版メッセージ用テンプレートを読み込む（Zeigarnik Edition v1.5 のみ）
  * @param {string} lang - 言語コード（en, es, pt-br, ar, ja, ko）
- * @returns {object} formatMinimalHighQualityBriefing 等を持つオブジェクト
+ * @returns {object} formatMinimalBriefingOSv26 等を持つオブジェクト
  */
 function loadMinimalTemplates(lang) {
   const pathLang = normalizeLangCode(lang);
@@ -38,7 +38,7 @@ async function getMinimalContentForLang(lang, reportData = null) {
   try {
     const langTemplates = loadMinimalTemplates(lang);
     const formatMinimalBriefing =
-      langTemplates.formatMinimalHighQualityBriefing || langTemplates.formatMinimalBriefing;
+      langTemplates.formatMinimalBriefingOSv26 || langTemplates.formatMinimalBriefing;
     if (!formatMinimalBriefing) return null;
 
     const trapData = reportData?.trapData || {

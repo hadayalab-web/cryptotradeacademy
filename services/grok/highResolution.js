@@ -313,26 +313,70 @@ function detectWhaleRetailDivergence(sentimentData) {
 }
 
 /**
+ * Trap Defence X Engine フォーマットで表示用テキストを生成
+ * @param {Object} highResData - 高解像度解析結果
+ * @returns {string}
+ */
+function buildXEngineReport(highResData) {
+  const { integratedSentiment, sentimentData, divergence } = highResData;
+  const whaleBias = integratedSentiment?.whaleBias ?? 0;
+  const retailFomo = integratedSentiment?.retailFomo ?? 50;
+  const newsImpact = integratedSentiment?.newsImpact ?? 0;
+
+  // sentiment_state
+  let sentimentState = 'Neutral';
+  if (retailFomo >= 70) sentimentState = 'Retail FOMO elevated';
+  else if (retailFomo <= 30) sentimentState = 'Retail fear dominant';
+  else if (whaleBias < -50) sentimentState = 'Whale selling bias';
+  else if (whaleBias > 50) sentimentState = 'Whale accumulation bias';
+
+  // emotional_bias
+  const emotionalBias = retailFomo >= 60 ? 'FOMO' : retailFomo <= 40 ? 'FEAR' : Math.abs(newsImpact) > 50 ? 'News-driven' : 'Neutral';
+
+  // retail_behavior
+  const retailSummary = sentimentData?.retail?.summary || sentimentData?.whale?.summary || '';
+  const retailBehavior = retailSummary || (retailFomo >= 60 ? 'Chasing price, herd buying' : retailFomo <= 40 ? 'Panic selling, capitulation' : 'Wait-and-see, low conviction');
+
+  // psychological_traps
+  let psychologicalTraps = '';
+  if (divergence?.isSignificant) {
+    psychologicalTraps = `Whale-retail divergence: ${divergence.type}. Classic trap setup—retail often wrong at extremes.`;
+  } else if (retailFomo >= 70) {
+    psychologicalTraps = 'FOMO trap: Retail chasing while whales may distribute. Herd behavior detected.';
+  } else if (retailFomo <= 30) {
+    psychologicalTraps = 'Fear trap: Capitulation often marks bottoms. Avoid panic selling.';
+  } else {
+    psychologicalTraps = 'Low conviction. Patience recommended—no clear psychological trap.';
+  }
+
+  return `Sentiment state: ${sentimentState}. Emotional bias: ${emotionalBias}. Retail behavior: ${retailBehavior}. Psychological traps: ${psychologicalTraps}`;
+}
+
+/**
  * 後方互換性のための統合関数
  * 既存のanalyzeXSentimentLiveのインターフェースと互換性を保ちつつ、高解像度解析を実行
+ * Trap Defence OS: xEngineReport（表示用テキスト）を追加
  * @param {string} prompt - 基本プロンプト（オプション、使用されない場合もある）
  * @param {string} lang - 言語コード
- * @returns {Promise<Object>} 統合センチメント（既存フォーマット + 高解像度データ）
+ * @returns {Promise<Object>} 統合センチメント（既存フォーマット + Trap Defence xEngineReport）
  */
 async function analyzeXSentimentHighResolutionCompat(prompt, lang = 'en') {
   const highResData = await analyzeXSentimentHighResolution({ lang });
-  
-  // 既存フォーマットとの互換性を保つ
+
+  // Trap Defence X Engine フォーマットで表示用テキストを生成
+  const xEngineReport = buildXEngineReport(highResData);
+
+  // 既存フォーマットとの互換性を保つ + xEngineReport（Regular Briefing表示用）
   return {
     whaleBias: highResData.integratedSentiment.whaleBias,
     retailFomo: highResData.integratedSentiment.retailFomo,
     newsImpact: highResData.integratedSentiment.newsImpact,
     summary: `High-resolution X analysis completed. ${highResData.queriesSuccessful}/${highResData.queriesExecuted} queries successful.`,
+    xEngineReport, // Trap Defence OS: Regular Briefing 表示用
     sources: [
       ...highResData.sentimentData.whale.sources,
       ...highResData.sentimentData.retail.sources,
     ],
-    // 高解像度データを拡張フィールドとして追加
     _highResolution: {
       sentimentData: highResData.sentimentData,
       divergence: highResData.divergence,
