@@ -40,6 +40,8 @@ const {
   SALES_LETTER_LANGS
 } = require("../services/salesLetterContest");
 const { getRandomYoutubeUrl } = require("../services/x/youtubeRandomizer");
+const { sanitizeQuoteBody, sanitizeUrl } = require("../services/x/textSanitizer");
+const { pickSecondaryTarget, markPosted } = require("../services/x/secondaryRotation");
 const { CORE_PHRASES } = require("../config/personaStrategy");
 
 // 8時間クールダウン関連のインポート（インフルエンサー別の日次投稿数管理）
@@ -433,6 +435,62 @@ async function postQuoteRepostsForLang(
     const currentHour = new Date().getUTCHours();
     const dateString = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
 
+    // セカンダリーターゲット（イーロン等）を 1日1回だけ優先投稿（EN 固定・インフルエンサーとは別枠）
+    const earlyResults = [];
+    if (lang === "en") {
+      try {
+        const secondary = await pickSecondaryTarget(dateString);
+        if (secondary) {
+          const { verifyAndBuildInfluencer } = require("../services/x/discoverAndStockFromTargets");
+          const inf = await verifyAndBuildInfluencer(secondary, "en");
+          if (inf && inf.tweetId) {
+            let body = null;
+            try {
+              body = await getSalesLetterGrokFromCache("en");
+            } catch (e) {
+              // ignore
+            }
+            if (!body) {
+              body =
+                (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state.en) ||
+                "Stuck in the 'just watching' loop with unrealized loss? Many are. The way out is a framework.";
+            }
+            const cleanBody = sanitizeQuoteBody(body);
+            const cleanUrl = sanitizeUrl(getRandomYoutubeUrl());
+            const quoteText = buildQuoteForYouTubeOgp(cleanBody, cleanUrl, { maxTextLines: 2 });
+            const { postQuoteTweet } = require("../services/x/client");
+            const { getXConfigStatus } = require("../services/x/config");
+            const xStatus = getXConfigStatus();
+            if (!xStatus.postingEnabled || xStatus.dryRun) {
+              console.log(
+                `[Quote Repost] 📌 Secondary target @${secondary} skipped (dryRun or posting disabled) [runId: ${langRunId}]`
+              );
+            } else {
+              const postResult = await postQuoteTweet(quoteText, inf.tweetId);
+              if (postResult && postResult.id) {
+                await markPosted(secondary, dateString);
+                earlyResults.push({
+                  success: true,
+                  dryRun: false,
+                  lang: "en",
+                  influencer: secondary,
+                  tweetId: inf.tweetId,
+                  type: "secondary"
+                });
+                console.log(
+                  `[Quote Repost] ✅ Secondary target @${secondary} posted (tweetId: ${inf.tweetId}) [runId: ${langRunId}]`
+                );
+              }
+            }
+          }
+        }
+      } catch (secondaryErr) {
+        console.warn(
+          `[Quote Repost] ⚠️ Secondary target flow failed (non-fatal): ${secondaryErr.message} [runId: ${langRunId}]`
+        );
+      }
+    }
+
     // 1日の投稿数を取得（Vercel KV）- グローバルな日次投稿数
     currentStep = "get_daily_post_count";
     if (dailyPostCount === null) {
@@ -500,7 +558,7 @@ async function postQuoteRepostsForLang(
       console.error(
         `[Quote Repost] 💡 ACTION REQUIRED: Run /api/x-update-influencer-stock?lang=${lang} or execute discover-and-stock-influencers-840.js`
       );
-      return [];
+      return [...earlyResults];
     }
 
     // CRITICAL: tweetIdの検証（引用リポストに必須）
@@ -528,7 +586,7 @@ async function postQuoteRepostsForLang(
       console.error(
         `[Quote Repost] 💡 ACTION REQUIRED: Rebuild stock with valid tweetIds using discover-and-stock-influencers-840.js`
       );
-      return [];
+      return [...earlyResults];
     }
 
     if (validInfluencers.length < influencers.length) {
@@ -782,7 +840,7 @@ async function postQuoteRepostsForLang(
       console.log(
         `[Quote Repost] ⏰ All influencers for ${lang} are in cooldown, skipping [runId: ${langRunId}]`
       );
-      return []; // continueはループ内でのみ使用可能。関数内ではreturnを使用
+      return [...earlyResults]; // セカンダリー投稿があれば返す
     }
 
     // フィルタ後のインフルエンサーを使用
@@ -804,7 +862,7 @@ async function postQuoteRepostsForLang(
       // }
     }
 
-    const results = [];
+    const results = [...earlyResults];
 
     // P1 FIX: 重複投稿防止の最適化（言語処理の最初に1回だけ取得）
     currentStep = "duplicate_check_prep";
@@ -1036,14 +1094,16 @@ async function postQuoteRepostsForLang(
             );
           }
           if (grokText) {
+            const cleanBody = sanitizeQuoteBody(grokText);
             if (useYouTubeOgpOptimized()) {
-              quoteText = buildQuoteForYouTubeOgp(grokText, getRandomYoutubeUrl(), { maxTextLines: 2 });
+              const cleanUrl = sanitizeUrl(getRandomYoutubeUrl());
+              quoteText = buildQuoteForYouTubeOgp(cleanBody, cleanUrl, { maxTextLines: 2 });
               console.log(
                 `[Quote Repost] 📌 Grok sales letter (cached, YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
               );
             } else {
               quoteText =
-                grokText +
+                cleanBody +
                 "\n\n" +
                 getLinkBlockGrokStyle(lang, { influencerUsername: influencer.username });
               console.log(
@@ -1065,22 +1125,24 @@ async function postQuoteRepostsForLang(
                 apiTimeoutMs
               );
               if (result?.fullText || result?.text) {
+                const cleanBody = sanitizeQuoteBody(result.text || result.fullText || "");
                 if (useYouTubeOgpOptimized() && result.text) {
-                  quoteText = buildQuoteForYouTubeOgp(result.text, getRandomYoutubeUrl(), {
+                  const cleanUrl = sanitizeUrl(getRandomYoutubeUrl());
+                  quoteText = buildQuoteForYouTubeOgp(cleanBody, cleanUrl, {
                     maxTextLines: 2
                   });
                   console.log(
                     `[Quote Repost] 📌 Grok sales letter (generated, YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
                   );
                 } else {
-                  quoteText = result.fullText || result.text;
+                  quoteText = cleanBody || result.fullText || result.text;
                   console.log(
                     `[Quote Repost] 📌 Grok sales letter (generated) @${influencer.username} [runId: ${langRunId}]`
                   );
                 }
                 funnelTypeUsed = "grok_sales_letter";
                 if (result.text) {
-                  saveSalesLetterGrokCache({ [lang]: { text: result.text } }, 14400).catch(
+                  saveSalesLetterGrokCache({ [lang]: { text: cleanBody } }, 14400).catch(
                     () => {}
                   );
                 }
@@ -1101,14 +1163,16 @@ async function postQuoteRepostsForLang(
                 (lang === "ja" ? CORE_PHRASES.state.ja : null)) ||
               (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state[lang]) ||
               stateEn;
+            const cleanFallback = sanitizeQuoteBody(fallback);
             if (useYouTubeOgpOptimized()) {
-              quoteText = buildQuoteForYouTubeOgp(fallback, getRandomYoutubeUrl(), { maxTextLines: 2 });
+              const cleanUrl = sanitizeUrl(getRandomYoutubeUrl());
+              quoteText = buildQuoteForYouTubeOgp(cleanFallback, cleanUrl, { maxTextLines: 2 });
               console.log(
                 `[Quote Repost] 📌 Fallback (CORE_PHRASES + YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
               );
             } else {
               quoteText =
-                fallback +
+                cleanFallback +
                 "\n\n" +
                 getLinkBlockGrokStyle(lang, { influencerUsername: influencer.username });
               console.log(
@@ -1126,14 +1190,16 @@ async function postQuoteRepostsForLang(
               (lang === "ja" ? CORE_PHRASES.state.ja : null)) ||
             (CORE_PHRASES && CORE_PHRASES.state && CORE_PHRASES.state[lang]) ||
             stateEn;
+          const cleanFallback = sanitizeQuoteBody(fallback);
           if (useYouTubeOgpOptimized()) {
-            quoteText = buildQuoteForYouTubeOgp(fallback, getRandomYoutubeUrl(), { maxTextLines: 2 });
+            const cleanUrl = sanitizeUrl(getRandomYoutubeUrl());
+            quoteText = buildQuoteForYouTubeOgp(cleanFallback, cleanUrl, { maxTextLines: 2 });
             console.log(
               `[Quote Repost] 📌 Lang not in SALES_LETTER_LANGS, fallback (YouTube OGP) @${influencer.username} [runId: ${langRunId}]`
             );
           } else {
             quoteText =
-              fallback +
+              cleanFallback +
               "\n\n" +
               getLinkBlockGrokStyle(lang, { influencerUsername: influencer.username });
             console.log(
