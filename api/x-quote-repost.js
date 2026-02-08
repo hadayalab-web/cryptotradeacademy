@@ -483,7 +483,10 @@ async function postQuoteRepostsForLang(
 
     // インフルエンサー取得は1か所に統一: KV（influencerStock.js）
     // influencerStockFromFile は廃止。ストックは /api/x-update-influencer-stock または discover-and-stock で補充
-    const { getInfluencersFromStock } = require("../services/x/influencerStock");
+    const {
+      getInfluencersFromStock,
+      removeInfluencerFromStockByTweetId
+    } = require("../services/x/influencerStock");
     let influencers = await getInfluencersFromStock(lang, {
       enableScoring: false // 必要なら true でスコアリング有効
     });
@@ -1236,6 +1239,28 @@ async function postQuoteRepostsForLang(
                 )
             );
           } catch (err) {
+            const isTweetNotFound =
+              /Could not find tweet with id/i.test(err?.message || "") ||
+              /resource-not-found/i.test(err?.message || "") ||
+              /Not Found Error/i.test(err?.message || "");
+            if (isTweetNotFound) {
+              console.warn(
+                `[Quote Repost] ⚠️ Tweet not found (removing from stock): @${influencer.username} tweetId=${influencer.tweetId} [runId: ${langRunId}]`
+              );
+              try {
+                await removeInfluencerFromStockByTweetId(
+                  lang,
+                  influencer.tweetId,
+                  influencer.username
+                );
+              } catch (removeErr) {
+                console.warn(
+                  `[Quote Repost] ⚠️ Failed to remove dead tweet from stock (non-fatal):`,
+                  removeErr.message
+                );
+              }
+              continue;
+            }
             const isRetryable =
               err?.name === "AbortError" ||
               err?.message?.includes("500") ||
@@ -1255,6 +1280,24 @@ async function postQuoteRepostsForLang(
                     )
                 );
               } catch (retryErr) {
+                const isRetryTweetNotFound =
+                  /Could not find tweet with id/i.test(retryErr?.message || "") ||
+                  /resource-not-found/i.test(retryErr?.message || "") ||
+                  /Not Found Error/i.test(retryErr?.message || "");
+                if (isRetryTweetNotFound) {
+                  try {
+                    await removeInfluencerFromStockByTweetId(
+                      lang,
+                      influencer.tweetId,
+                      influencer.username
+                    );
+                  } catch (removeErr) {
+                    console.warn(
+                      `[Quote Repost] ⚠️ Failed to remove dead tweet from stock (non-fatal):`,
+                      removeErr.message
+                    );
+                  }
+                }
                 console.error(
                   `[Quote Repost] ❌ postQuoteTweet failed after retry for @${influencer.username}:`,
                   retryErr.message

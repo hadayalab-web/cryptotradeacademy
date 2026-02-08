@@ -131,66 +131,140 @@ function getPainAngleForSeed(seed) {
 }
 
 /**
- * Grok専用: ヘッドライン → 思考停止ペルソナ鷲掴み → Minimal/Regular紹介 → 反論処理 → ハッシュタグ
- * リンク誘導は含めない（下に定型で付与）
- * 最適化: Grok/Gemini分析を踏まえ、変異・心理トリガー・引用トーンを強化
+ * Grok × X広告 × Trap Defence 引用リポスト生成エンジン（完全版）
+ * Cursor 指示書準拠: Grok文体・広告構造・心理誘導・必須フレーズ・品質ルールを強制。
+ * リンク・VSL・Whop・社会的証明はコード側で付与するため、Grok は本文ブロック 1–5 のみ出力。
  */
 function buildGrokOnlyPrompt({ lang, reportData, painAngleSeed }) {
   const normalizedLang = (lang || "en").toLowerCase().replace("_", "-");
   const langName = LANG_NAMES[normalizedLang] || "English";
   const persona = getPersonaPromptContext(normalizedLang);
   const cq = buildCqContext(reportData);
-  const monthlyPrice = getMonthlyPriceForLang(normalizedLang);
-  const angle = painAngleSeed != null ? getPainAngleForSeed(painAngleSeed) : PAIN_ANGLES[0];
   const marketContext = getMarketContextForPrompt(reportData);
   const testimonials = getTestimonialsForPrompt(normalizedLang, painAngleSeed);
   const testimonialBlock =
     testimonials.length > 0
       ? testimonials.map((t) => `- "${t}"`).join("\n")
-      : "- (use a short outcome-focused quote in the persona voice)";
+      : "- (optional: one short outcome-focused line in persona voice)";
 
   const isAsia = ["ja", "ko"].includes(normalizedLang);
   const langNote = isAsia
-    ? "JA/KO: Avoid 'rekt'—use local equivalent (e.g. 'would've been crushed', 'account wiped'). Avoid 'gut punch'—use 'sick feeling' or similar. Use 'Be safe with us' for CTA-closing energy."
-    : "EN/ES/PT-BR/AR: 'rekt' and 'gut punch' OK. Non-Asia: 'Join us' for CTA-closing.";
+    ? "JA/KO: Avoid 'rekt'—use local equivalent. Avoid 'gut punch'—use 'sick feeling' or similar. CTA: 'Be safe with us' energy."
+    : "EN/ES/PT-BR/AR: 'Join us' for CTA-closing.";
 
-  return `You are a direct-response copywriter for Trap Defence (crypto trading education). Write a complete X (Twitter) post in ${langName}. Do NOT output any URLs or link lines; we add those below the post.
+  const discountCode = "DEFEND50";
 
-6-LANGUAGE QUOTE REPOST TEMPLATE (structure identical in all languages—X algorithm learns faster):
+  const ES_EQUIVALENTS =
+    normalizedLang === "es"
+      ? `
+## Spanish (es) — use these equivalents (same structure, same punch)
+- Opener: "Trap Score X/100 — el número que dice que la estabilidad es un disfraz." or "expone la estabilidad como disfraz"
+- Block 2: "Atrapado en el bucle de 'solo mirar', esperando una confirmación que nunca llega." (never leave the loop line alone)
+- Block 3: "El mercado observa tu duda." (use "duda" not "hesitación" — more natural and ad-effective in Spanish). Then data: "X/100 + Whale Ratio Y + flujo negativo — la firma de distribución que solo ves después de la caída." or "que solo reconoces tarde." (short, sharp; avoid long "visible solo en retrospectiva")
+- Block 4: "Regular. Alertas cada 15 min. Exit Map. DEFEND50 te da acceso. Decide antes de que el mercado decida por ti." (use "cada" for natural rhythm)
+- Mandatory in ES: "No intuición — datos." / "el mercado observa tu duda" / "decide antes de que el mercado decida por ti"`
+      : "";
 
-RULES:
-- Short paragraphs. Fact over emotion. No hype, no \$10k–\$80k loss figures.
-- Freeze → Data → Pattern. Same structure in ${langName}.
-- Hashtags: exactly 3. Links: we add 2 VSLs + 2 CTAs below.
+  const PT_BR_EQUIVALENTS =
+    normalizedLang === "pt-br"
+      ? `
+## Portuguese (pt-br) — use these equivalents (same structure, same punch)
+- Opener: "Trap Score X/100 — o número que diz que a estabilidade é um disfarce." or "expõe a estabilidade como disfarce"
+- Block 2: "Preso no loop de 'só assistir', esperando uma confirmação que nunca vem." (never leave the loop line alone)
+- Block 3: "O mercado observa sua dúvida." (use "dúvida" — natural and ad-effective in PT-BR). Then data: "X/100 + Whale Ratio Y + fluxo negativo — a assinatura de distribuição que você só reconhece depois da queda." or "visível apenas depois da queda." (short, sharp; avoid long "visível só em retrospecto")
+- Block 4: "Regular. Alertas a cada 15 min. + Exit Map. DEFEND50 te dá acesso. Decida antes que o mercado decida por você." (use "+" before Exit Map for ad rhythm)
+- Mandatory in PT-BR: "Não intuição — dados." / "o mercado observa sua dúvida" / "decida antes que o mercado decida por você"`
+      : "";
 
-CONTEXT: QUOTE REPOST, 6 languages (EN, JA, ES, PT-BR, AR, KO). Trap Defence = distribution before dump; Score = defense.
-6-LANGUAGE NOTE: ${langNote}
+  const AR_EQUIVALENTS =
+    normalizedLang === "ar"
+      ? `
+## Arabic (ar) — use these equivalents (same structure, same punch). Output in Arabic script (RTL).
+- Opener: "Trap Score X/100 — الرقم الذي يكشف أن الاستقرار مجرد قناع." or "الرقم الذي يكشف أن الاستقرار تمويه." (short, cold, sharp — avoid literary "الاستقرار قناعًا")
+- Block 2: "حبيس حلقة «المشاهدة فقط»، بانتظار تأكيد لا يأتي أبدًا." (never leave the loop line alone)
+- Block 3: "السوق يراقب ترددك." Then data: "X/100 + Whale Ratio Y + تدفق سلبي — توقيع التوزيع الذي لا تلاحظه إلا بعد الهبوط." or "الذي لا يظهر إلا بعد الهبوط. ليست حدسًا — بيانات." (short, sharp; avoid long "الذي لا يُرى إلا بعد الهبوط")
+- Block 4: "ريجولار. تنبيهات كل 15 دقيقة. + Exit Map. DEFEND50 يفتح لك الباب. قرر قبل أن يقرر السوق عنك." (use "+" before Exit Map for ad rhythm)
+- Mandatory in AR: "ليست حدسًا — بيانات." / "السوق يراقب ترددك" / "قرر قبل أن يقرر السوق عنك"`
+      : "";
 
-PERSONA: ${persona}
+  const KO_EQUIVALENTS =
+    normalizedLang === "ko"
+      ? `
+## Korean (ko) — use these equivalents (same structure, same punch). JA/KO: avoid "rekt"; use calm, sharp tone.
+- Opener: Use contrast that works in KO ads. Prefer "트랩 스코어 X/100 — '안정'이 사실은 위장된 분배라는 신호." or "안정처럼 보이지만 분배를 숨기는 숫자." (avoid stiff "안정이 분배를 위장한 숫자"; "보이지만 / 사실은" contrast is punchy)
+- Block 2: Avoid mechanical "루프에 갇혀". Prefer "'그냥 보기'만 반복하며, 오지 않을 확인만 기다리는 사이." or "'지켜보기'만 하며 멈춰 있는 사이" — "반복 / 멈춤 / 지켜보기" punch.
+- Block 3: "시장은 당신의 망설임을 지켜본다." Then data: "X/100 + Whale Ratio Y + 순유입 마이너스 — 항상 뒤늦게만 보이는 분배 신호." or "하락하고 나서야 보이는 분배 신호. 직감이 아니다 — 데이터." (short, sharp; "항상 뒤늦게만" is ad-punchy)
+- Block 4: "레귤러. 15분 알림. + Exit Map. DEFEND50으로 진입하세요. 시장이 결정하기 전에 당신이 결정하라." (use "진입하세요" or "바로 접근 가능" — more action than "시작하세요")
+- Mandatory in KO: "직감이 아니다 — 데이터." / "시장은 당신의 망설임을 지켜본다" / "시장이 결정하기 전에 당신이 결정하라"`
+      : "";
+
+  const JA_EQUIVALENTS =
+    normalizedLang === "ja"
+      ? `
+## Japanese (ja) — use these equivalents (same structure, same punch). JA/KO: avoid "rekt"; use calm, sharp tone.
+- Opener: Avoid explanatory "安定を装った分配のサイン". Use contrast. Prefer "トラップスコア X/100 — 「安定」が実は分配の仮面だというサイン." or "安定に見えて実は「分配」を隠す数字." ("見えて / 実は" contrast is punchy in JA ads)
+- Block 2: Avoid mechanical "ループに陥り". Prefer "「見てるだけ」を繰り返し、来ない確認を待ち続ける." or "「見てるだけ」のまま固まり、来ない確認を待つ." ("固まる" is psychologically punchy)
+- Block 3: "市場はあなたの躊躇を観察している." Then data: "X/100 + Whale Ratio Y + 純流入マイナス — いつも後になって気づく分配サイン." or "下落して初めて見える分配サイン. 直感ではない — データ." (short, sharp; avoid long "下落後しか見えない分配のサイン")
+- Block 4: "レギュラー. 15分アラート. + Exit Map. DEFEND50で即アクセス. 市場が決める前にあなたが決めろ." (use "即アクセス" or "アクセス可能" — stronger than "参加")
+- Mandatory in JA: "直感ではない — データ." / "市場はあなたの躊躇を観察している" / "市場が決める前にあなたが決めろ"`
+      : "";
+
+  const LANG_SPECIFIC =
+    ES_EQUIVALENTS || PT_BR_EQUIVALENTS || AR_EQUIVALENTS || KO_EQUIVALENTS || JA_EQUIVALENTS;
+
+  return `## Mission
+Generate ONE quote-repost body for X (Twitter) in ${langName}. Grok-style tone. X Ads structure. Data-driven persuasion. Trap Defence brand. Output ONLY the tweet body (blocks 1–5). No URLs, no explanations, no markdown. We add VSL/Whop/social proof below.
+
+## Tone Rules (MANDATORY)
+- Calm, factual, slightly sarcastic. No hype. No exclamation marks.
+- Short, sharp sentences. "Data > emotion" framing.
+- Use contrast: hesitation vs. data. Use inversion: "the market observes you."
+- Grok-style understatement. Never motivational. Never emotional.
+- No emojis in the body (social proof line is added by us).
+Examples of tone: "The number that says what people don't want to admit." / "Still observing the market while the market observes your hesitation." / "Not intuition. Not vibes. Data." / "Predictable behavior. Predictable outcome."
+Language note: ${langNote}
+
+## X Ads Structure (EXACT ORDER — output only blocks 1–5)
+
+Golden rule: number → meaning → psychological implication. Never "explain"; make the reader's brain stop, then read, then act.
+
+1. Red-flag opener (1–2 lines)
+   - Golden rule: number → meaning → implication (心理的暗示). The opener must stop the reader's brain and make them think "what does that mean?" then read on.
+   - Pattern: "Trap Score X/100 — the number that says \"[short implication].\"" or "the number that exposes [X] as [Y]." Use a short, punchy implication — not a long explanation. Prefer: "stability is a disguise", "stability pretending to be safety", "stability masking distribution". Avoid long phrases like "distribution disguised as stability". No emoji.
+
+2. Human behavior pattern (short, 1–2 sentences — never a single standalone line)
+   - The "just watching" loop PLUS a second punch that touches the reader's pain without stating it. Do not leave "Stuck in the 'just watching' loop." alone. Add a comma or dash and a short Grok-style line: e.g. "— telling yourself it's 'not the top.'" or ", waiting for confirmation that never comes." Let the reader feel the pain themselves. Calm, sarcastic, factual. Do NOT put "the market observes your hesitation" here.
+
+3. Psychological inversion + Data block
+   - First line: "The market observes your hesitation." (or equivalent in ${langName}) — must come AFTER block 2.
+   - Then: data line. Use 28/100 (or actual score) ONCE with Whale Ratio and Netflow — do NOT repeat "Trap Score X/100" (already in block 1). Format: "X/100 + Whale Ratio Y + negative netflow — [meaning line]. Not intuition — data."
+   - Meaning line: short, sharp, cold Grok tone. Prefer "visible only in hindsight" or "noticed only after the drop" (or equivalent). Avoid longer forms like "you only notice after the drop" or "everyone recognizes too late".
+
+4. Solution block (order: value → offer → psych; rhythm: short sentences)
+   - First line: "Regular. 15‑min alerts. Exit Map." (or equivalent — short beats, comma or period between items). Second: "${discountCode} gets you in. Decide before the market decides for you."
+   - Do NOT put "Join us." in the body — we add it in social proof below.
+
+5. Hashtags (exactly one line)
+   #BTC #TrapDefence #TrapScore
+
+## Mandatory phrasing (include at least 2–3 in the body)
+- "Not intuition — data." (or local equivalent)
+- "distribution signature" — short, sharp, cold: "visible only in hindsight" or "noticed only after the drop" (avoid "you only notice after the drop" or "everyone recognizes too late")
+- "the 'just watching' loop" (or equivalent)
+- "the market observes your hesitation" (or equivalent) — block 3 only, after block 2
+- "decide before the market decides for you" (or equivalent)
+
+## Variables (use actual values from ON-CHAIN DATA)
 ON-CHAIN DATA: ${cq}
 ${marketContext ? `\nMARKET CONTEXT:\n${marketContext}` : ""}
-TESTIMONIALS (optional, use ONE only if you add a single short line): ${testimonialBlock}
+PERSONA: ${persona}
+TESTIMONIALS (optional, at most one short line): ${testimonialBlock}
+${LANG_SPECIFIC}
 
-OUTPUT FORMAT (4 blocks + hashtags—match this structure in ${langName}):
-
-1) HEADLINE
-"Trap Score X/100 is the pattern you already know." (Use actual Trap Score from data. No emoji in headline.)
-
-2) FREEZE (2–3 short sentences)
-That moment when BTC slips, the screen turns red, and hesitation hits. Everyone has lived that loop. Write in ${langName}. No dollar amounts.
-
-3) DATA BLOCK
-"X/100 + Whale Ratio Y + negative netflow" then line break. "A classic distribution setup. Not instinct — data." Use actual numbers from ON-CHAIN DATA.
-
-4) REGULAR OFFER (1–2 short sentences)
-"Regular gives you 15‑min alerts + Exit Map. Use DEFEND50 for reduced access." (Or equivalent in ${langName}. No price in body.)
-
-5) HASHTAGS
-Exactly 3, one line: #BTC #TrapDefence #TrapScore
-
-STYLE: Short sentences. Same structure in every language. Ad-safe. No section labels. No URLs.
-
-Output: (1) headline, blank line, (2) freeze, blank line, (3) data block, blank line, (4) Regular offer, blank line, (5) hashtags.`;
+## Quality rules (self-check before output)
+- Grok tone consistent. No hype. No emojis in body. No long paragraphs.
+- No more than ~12 lines total for blocks 1–5. All five blocks present. Discount code ${discountCode} in block 4.
+- Output: (1) red-flag opener, blank line, (2) behavior pattern (reader infers pain), blank line, (3) "The market observes your hesitation" then data (score once) + meaning line, blank line, (4) solution ending with "Decide before the market decides for you." (no "Join us." in body), blank line, (5) hashtags. Nothing else.`;
 }
 
 /**

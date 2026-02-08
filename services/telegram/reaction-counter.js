@@ -207,8 +207,8 @@ async function getSocialProofText(lang = 'en') {
     en: `🔥 ${displayStr}+ traders across 6 languages are already defending. 👥 I'm Safe. Join us.`,
     ja: `🔥 ${displayStr}+人が6言語で防御中。👥 I'm Safe. 一緒に守ろう。`,
     es: `🔥 ${displayStr}+ traders en 6 idiomas ya se están defendiendo. 👥 I'm Safe. Únete.`,
-    'pt-br': `🔥 ${displayStr}+ traders em 6 idiomas já estão se defendendo. 👥 I'm Safe. Junte-se.`,
-    ar: `🔥 ${displayStr}+ متداولين في 6 لغات يدافعون بالفعل. 👥 I'm Safe. انضم.`,
+    'pt-br': `🔥 ${displayStr}+ traders em 6 idiomas já estão se defendendo. 👥 I'm Safe. Junte-se a nós.`,
+    ar: `🔥 ${displayStr}+ متداولين في 6 لغات يدافعون بالفعل. 👥 I'm Safe. انضم إلينا.`,
     ko: `🔥 ${displayStr}+명이 6개국어로 방어 중. 👥 I'm Safe. 함께 지키자.`
   };
   return templates[normalizedLang] || templates.en;

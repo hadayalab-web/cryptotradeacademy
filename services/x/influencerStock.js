@@ -532,10 +532,60 @@ async function updateAllInfluencerStocks(langs = ['en', 'es', 'pt-br', 'ar', 'ja
   return results;
 }
 
+/**
+ * ストックから指定 tweetId のインフルエンサーを1件削除（X API "Could not find tweet" 対策）
+ * 引用元ツイートが削除・非公開になった場合、当該エントリを除去して次回から再試行しないようにする。
+ * @param {string} lang - 言語コード
+ * @param {string|number} tweetId - 除去するツイートID
+ * @param {string} [username] - ログ用のインフルエンサー名（任意）
+ * @returns {Promise<boolean>} 削除して保存した場合 true、何もしなかった場合 false
+ */
+async function removeInfluencerFromStockByTweetId(lang, tweetId, username = null) {
+  if (!kv || !lang || tweetId == null) return false;
+  const targetLang = (lang || "").toLowerCase();
+  const targetId = String(tweetId).trim();
+  if (!targetId) return false;
+
+  try {
+    const stockKey = getStockKey(targetLang);
+    const influencers = await kv.get(stockKey);
+    if (!Array.isArray(influencers) || influencers.length === 0) return false;
+
+    const before = influencers.length;
+    const filtered = influencers.filter(
+      (inf) => String(inf.tweetId || "").trim() !== targetId
+    );
+    const removed = before - filtered.length;
+    if (removed === 0) return false;
+
+    if (filtered.length === 0) {
+      console.warn(
+        `[InfluencerStock] ⚠️ Would empty stock for ${targetLang} (tweetId=${targetId} @${username || "?"}); not saving to avoid empty stock`
+      );
+      return false;
+    }
+
+    const saved = await saveInfluencersToStock(targetLang, filtered);
+    if (saved) {
+      console.log(
+        `[InfluencerStock] 🗑️ Removed 1 entry from stock for ${targetLang} (tweetId=${targetId} @${username || "?"}); remaining ${filtered.length}`
+      );
+    }
+    return saved;
+  } catch (error) {
+    console.error(
+      `[InfluencerStock] ❌ removeInfluencerFromStockByTweetId failed for ${targetLang} tweetId=${targetId}:`,
+      error.message
+    );
+    return false;
+  }
+}
+
 module.exports = {
   saveInfluencersToStock,
   getInfluencersFromStock,
   getStockUpdateTime,
+  removeInfluencerFromStockByTweetId,
   // ⚠️ updateInfluencerStock / updateAllInfluencerStocks は手動専用（Grok でリスト取得するため）
   // vercel.json の crons に /api/x-update-influencer-stock を追加しないこと
   updateInfluencerStock,
