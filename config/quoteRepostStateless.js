@@ -185,6 +185,12 @@ function buildBody(lang, index, tier = "mixed") {
   return tpl.replace("{link}", pickVidalyticsLink(lang, tier));
 }
 
+/** 本文とリンクの間にスペースを保証（"wordhttps://" → "word https://"） */
+function ensureSpaceBeforeLink(text) {
+  if (!text || typeof text !== "string") return text;
+  return text.replace(/([a-zA-Z0-9])(https?:\/\/)/g, "$1 $2");
+}
+
 /**
  * mode=template → テンプレのみ（link を {link} に差し込み）
  * mode=grok → Grokプールのみ（空ならテンプレ）。Grok文に link が含まれていなければ付加
@@ -203,7 +209,8 @@ function buildBodyWithMode(lang, index, tier, mode, grokPool = []) {
   const grokText = grokPool[index] && String(grokPool[index]).trim();
   if (grokText) {
     const hasLink = grokText.includes("vidalytics") || grokText.includes(link);
-    return hasLink ? grokText : `${grokText} → ${link}`;
+    const body = hasLink ? grokText : `${grokText} → ${link}`;
+    return ensureSpaceBeforeLink(body);
   }
   return templateFallback();
 }
