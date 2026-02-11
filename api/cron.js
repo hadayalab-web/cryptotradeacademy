@@ -422,6 +422,33 @@ module.exports = async function handler(req, res) {
     const rawSentiment = fng.label ?? fng.value;
     const sentimentLabel = normalizeSentiment(rawSentiment);
 
+    // 無料版（Minimal）早期 payload 書き込み: Regular slot 時、基本データ取得直後に KV へ書き出し。
+    // 後続の AI 解析が失敗しても Minimal 配信は実行できるようにする（15:00/21:00 JST = 06:00/12:00 UTC 配信の確実化）
+    if (isRegularSlot || force) {
+      const earlyMinimalPayload = {
+        now: new Date().toISOString(),
+        minimalTrapScore: 50,
+        priceUsd,
+        change24h,
+        trapData: { trapAlert: null, exchangeNetflow: inflow, whaleRatio: null },
+        minimalMarketData: { mpi, priceUsd, change24h, score: null },
+        sentimentData: { sentiment: sentimentLabel, risk: null },
+        market_score: null,
+        grokXAnalysis: null,
+        sentimentLabel
+      };
+      try {
+        const { getKV } = require("../utils/kv");
+        const kvEarly = getKV();
+        if (kvEarly) {
+          await kvEarly.set("minimal:btc:latest", earlyMinimalPayload, { ex: 1200 });
+          console.log("[MINIMAL] Early payload written to minimal:btc:latest (basic data, TTL 1200s). Will be overwritten with full data later if available.");
+        }
+      } catch (kvErr) {
+        console.warn("[MINIMAL] Early KV write failed:", kvErr.message);
+      }
+    }
+
     // 3. Base context (X Sentiment defaults)
     let xSentiment = { whaleBias: 0, retailFomo: 50, newsImpact: 0 };
 
@@ -1308,8 +1335,8 @@ module.exports = async function handler(req, res) {
         const { getKV } = require("../utils/kv");
         const kv = getKV();
         if (kv) {
-          await kv.set("minimal:payload:latest", minimalPayload, { ex: 600 });
-          console.log("[MINIMAL] Wrote payload to KV (minimal:payload:latest, TTL 600s). Delivery by /api/minimal-tg-delivery at separate time.");
+          await kv.set("minimal:btc:latest", minimalPayload, { ex: 1200 });
+          console.log("[MINIMAL] Wrote full payload to minimal:btc:latest (TTL 1200s). Delivery by /api/minimal-tg-delivery at 06:08/12:08 UTC (15:08/21:08 JST).");
         }
       } catch (kvErr) {
         console.warn("[MINIMAL] KV write failed:", kvErr.message);

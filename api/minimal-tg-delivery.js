@@ -1,6 +1,6 @@
 // api/minimal-tg-delivery.js
 // 無料版（Minimal Version）TG配信専用。Regular と同時刻にしないため、別 Cron で別時刻に実行する。
-// cron が KV に書き出す minimal:payload:latest を読んで 6 言語配信する。
+// cron が KV に書き出す minimal:btc:latest を読んで 6 言語配信する。
 
 const { getKV } = require("../utils/kv");
 const { sendMessageToAsset } = require("../services/telegram/bot");
@@ -74,10 +74,10 @@ module.exports = async function handler(req, res) {
     return res.status(503).json({ error: "KV not available" });
   }
 
-  const payload = await kv.get("minimal:payload:latest");
+  const payload = await kv.get("minimal:btc:latest");
   if (!payload || !payload.now) {
     return res.status(503).json({
-      error: "No minimal payload in KV. Run /api/cron first (it writes payload on regular slot)."
+      error: "No minimal payload in KV (minimal:btc:latest). Run /api/cron first (it writes payload on regular slot)."
     });
   }
 
