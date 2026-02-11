@@ -117,10 +117,58 @@ async function insertTweetMetrics(row) {
   }
 }
 
+/**
+ * 過去30日以内に引用済みの tweet_id 一覧を取得
+ * @param {string[]} tweetIds - チェック対象の tweet_id 配列
+ * @returns {Promise<Set<string>>} 除外すべき tweet_id の Set
+ */
+async function getQuotedTweetIdsInLast30Days(tweetIds) {
+  const sb = getSupabase();
+  if (!sb || !tweetIds || tweetIds.length === 0) return new Set();
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await sb
+      .from("quoted_tweets")
+      .select("tweet_id")
+      .in("tweet_id", tweetIds.map(String))
+      .gte("quoted_at", thirtyDaysAgo);
+    if (error) throw error;
+    return new Set((data || []).map((r) => String(r.tweet_id)));
+  } catch (e) {
+    console.warn("[Supabase] getQuotedTweetIdsInLast30Days error:", e.message);
+    return new Set();
+  }
+}
+
+/**
+ * 引用リポスト後に quoted_tweets に insert（upsert）
+ * @param {Array<{tweet_id: string, lang: string}>} rows
+ */
+async function insertQuotedTweets(rows) {
+  const sb = getSupabase();
+  if (!sb || !rows || rows.length === 0) return { ok: false };
+  try {
+    const now = new Date().toISOString();
+    const toInsert = rows.map((r) => ({
+      tweet_id: String(r.tweet_id),
+      lang: r.lang || null,
+      quoted_at: now
+    }));
+    const { error } = await sb.from("quoted_tweets").upsert(toInsert, { onConflict: "tweet_id" });
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    console.warn("[Supabase] insertQuotedTweets error:", e.message);
+    return { ok: false };
+  }
+}
+
 module.exports = {
   getSupabase,
   insertTweetQueue,
   fetchUnprocessedQueue,
   markQueueProcessed,
-  insertTweetMetrics
+  insertTweetMetrics,
+  getQuotedTweetIdsInLast30Days,
+  insertQuotedTweets
 };

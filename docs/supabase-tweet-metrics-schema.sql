@@ -36,3 +36,12 @@ CREATE TABLE IF NOT EXISTS tweet_metrics (
 CREATE INDEX IF NOT EXISTS idx_tweet_metrics_tweet_id ON tweet_metrics(tweet_id);
 CREATE INDEX IF NOT EXISTS idx_tweet_metrics_created_at ON tweet_metrics(created_at);
 CREATE INDEX IF NOT EXISTS idx_tweet_metrics_lang ON tweet_metrics(lang);
+
+-- 3. quoted_tweets: 引用リポスト永続重複除外用
+CREATE TABLE IF NOT EXISTS quoted_tweets (
+  tweet_id TEXT PRIMARY KEY,
+  lang TEXT,
+  quoted_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_quoted_tweets_quoted_at ON quoted_tweets(quoted_at);

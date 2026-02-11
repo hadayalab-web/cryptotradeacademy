@@ -216,11 +216,8 @@ function buildBodyWithMode(lang, index, tier, mode, grokPool = []) {
 }
 
 // ========================================
-// スコアリング（CVR 最大化・利益最大化モード）
+// スコアリング（CTR/CVR 最大化・本番仕様）
 // ========================================
-const MIN_FOLLOWERS = 3000;  // 5000→3000: 候補数増加、0.7x のみ適用
-const AGE_DECAY_MINUTES = 60; // 45→60: 伸び始めの投稿を拾いやすく
-
 function getFollowersCount(tweet, includes = {}) {
   const users = includes.users || [];
   const user = users.find((u) => u.id === tweet.author_id);
@@ -229,21 +226,31 @@ function getFollowersCount(tweet, includes = {}) {
 }
 
 function scoreTweet(t, includes = {}) {
-  const m = t.public_metrics ?? { like_count: 0, retweet_count: 0, reply_count: 0, quote_count: 0 };
-  const ageMinutes = (Date.now() - new Date(t.created_at || 0).getTime()) / 60000;
+  const m = t.public_metrics ?? {};
+  const followers = getFollowersCount(t, includes) || 0;
+  const text = t.text || "";
+  const ageMinutes =
+    (Date.now() - new Date(t.created_at || 0).getTime()) / 60000;
 
-  let score =
-    (m.like_count ?? 0) * 1.2 +
-    (m.retweet_count ?? 0) * 2.5 +
-    (m.quote_count ?? 0) * 1.5 +
-    (m.reply_count ?? 0) * 0.8;
+  let score = 1;
 
-  score = score / (1 + ageMinutes / AGE_DECAY_MINUTES);
+  // 1. 時間減衰（古い投稿は自然に下げる）
+  // 120分で 0.37、240分で 0.14
+  const timeDecay = Math.exp(-ageMinutes / 120);
+  score *= timeDecay;
 
-  const followers = getFollowersCount(t, includes);
-  if (followers > 0 && followers < MIN_FOLLOWERS) {
-    score *= 0.7; // 0.5→0.7: 緩和
-  }
+  // 2. エンゲージメント（対数スケール）
+  score += Math.log(1 + (m.like_count ?? 0)) * 1.2;
+  score += Math.log(1 + (m.retweet_count ?? 0)) * 1.5;
+  score += Math.log(1 + (m.reply_count ?? 0)) * 0.8;
+
+  // 3. フォロワー数補正
+  if (followers < 3000) score *= 0.7;       // 小さすぎる
+  if (followers > 200000) score *= 0.8;    // 大きすぎる（CTR が落ちる）
+
+  // 4. テキスト長補正（短文は CTR が高い）
+  if (text.length < 80) score *= 1.1;
+
   return score;
 }
 
@@ -283,6 +290,9 @@ function getSpamAuthorIds(tweets) {
   return excluded;
 }
 
+// スコア上位 CANDIDATE_POOL 件を候補にし、その中からランダムに N 件選ぶ（パターン検知・スパム判定リスク低減）
+const CANDIDATE_POOL = 20;
+
 function pickTopN(tweets, count, includes = {}) {
   const seenTweet = new Set();
   const seenAuthor = new Set();
@@ -294,19 +304,28 @@ function pickTopN(tweets, count, includes = {}) {
     .map((t) => ({ t, s: scoreTweet(t, includes) }))
     .sort((a, b) => b.s - a.s);
 
-  const out = [];
-  const outScores = [];
+  const candidates = [];
   for (const { t, s } of scored) {
-    if (out.length >= count) break;
+    if (candidates.length >= CANDIDATE_POOL) break;
     if (seenTweet.has(t.id)) continue;
     if (seenAuthor.has(t.author_id)) continue;
     if (!passesQuality(t)) continue;
     seenTweet.add(t.id);
     seenAuthor.add(t.author_id);
-    out.push(t);
-    outScores.push(s);
+    candidates.push({ t, s });
   }
-  return { tweets: out, scores: outScores };
+
+  // ランダムシャッフルしてから先頭 N 件を選択（スコア × ランダム性のハイブリッド）
+  const shuffled = candidates.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const picked = shuffled.slice(0, count);
+  return {
+    tweets: picked.map((x) => x.t),
+    scores: picked.map((x) => x.s)
+  };
 }
 
 module.exports = {

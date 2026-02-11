@@ -13,6 +13,10 @@ const {
 const { getXConfigStatus } = require("./config");
 const { tryGenerateGrokPool } = require("./grokPoolStateless");
 const {
+  getQuotedTweetIdsInLast30Days,
+  insertQuotedTweets
+} = require("../../utils/supabase");
+const {
   buildQuery,
   buildBodyWithMode,
   pickTopN,
@@ -71,8 +75,22 @@ async function runStatelessQuoteRepost(lang, tier = "mixed", dryRun = false, cou
       return { ok: true, posted: 0, results: [] };
     }
 
-    // 2. Pick（score + 重複排除）
-    const { tweets: picked, scores: pickScores } = pickTopN(rawTweets, count, includes);
+    // 1b. 永続的重複除外（過去30日以内に引用済みの tweet_id を除外）
+    const tweetIds = rawTweets.map((t) => String(t.id));
+    const quotedInLast30 = await getQuotedTweetIdsInLast30Days(tweetIds);
+    const filteredByQuoted = rawTweets.filter((t) => !quotedInLast30.has(String(t.id)));
+    if (quotedInLast30.size > 0) {
+      console.log(
+        `[QuoteRepostStateless] Persistent filter excluded ${quotedInLast30.size} already-quoted [runId: ${runId}]`
+      );
+    }
+
+    if (!filteredByQuoted.length) {
+      return { ok: true, posted: 0, results: [] };
+    }
+
+    // 2. Pick（score + ランダム + 同一Run重複排除）
+    const { tweets: picked, scores: pickScores } = pickTopN(filteredByQuoted, count, includes);
     const pickedIds = picked.map((t) => t.id);
     const topScores = pickScores.slice(0, 3).map((s) => s.toFixed(2));
 
@@ -148,6 +166,14 @@ async function runStatelessQuoteRepost(lang, tier = "mixed", dryRun = false, cou
           console.warn(`[QuoteRepostStateless] Skip tweet ${t.id}: ${e.message} [runId: ${runId}]`);
         }
       }
+    }
+
+    // 5. 引用後に quoted_tweets へ永続保存
+    const toInsert = results
+      .filter((r) => r.ok && r.postedId && r.tweetId)
+      .map((r) => ({ tweet_id: String(r.tweetId), lang }));
+    if (toInsert.length > 0) {
+      await insertQuotedTweets(toInsert);
     }
 
     return { ok: true, posted, results };
