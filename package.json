@@ -46,7 +46,7 @@
     "verify:syntax": "node scripts/verify-syntax.js",
     "build": "node scripts/copy-telegram-messages.js",
     "vercel-build": "npm run build",
-    "predeploy": "node -c api/cron.js && node -c api/x-quote-repost.js && node -c services/x/client.js && node -c api/x-webhook.js",
+    "predeploy": "node -c api/cron.js && node -c api/x-quote-repost.js && node -c services/x/client.js && node -c api/x-webhook.js && node -c api/x-quote-repost-batch.js",
     "vercel:logs": "node scripts/fetch-vercel-logs.js",
     "vercel:logs:safe": "node scripts/fetch-vercel-logs-safe.js",
     "vercel:analyze": "node scripts/analyze-vercel-errors.js",
@@ -85,5 +85,8 @@
     "zod": "^3.25.76"
   },
   "author": "CryptoTrade Academy Team",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "pg": "^8.18.0"
+  }
 }

@@ -45,8 +45,8 @@ function pickVidalyticsLink(lang, tier = "mixed") {
 
   if (tier === "regular") return getReg();
   if (tier === "minimal") return getMin();
-  // tier=mixed: 90% regular / 10% minimal（LTV 最大化）
-  return Math.floor(Math.random() * 100) < 90 ? getReg() : getMin();
+  // tier=mixed: 70% regular / 30% minimal（CVR 最大化・黄金比率）
+  return Math.floor(Math.random() * 100) < 70 ? getReg() : getMin();
 }
 
 function getLinkKind(lang, link) {
