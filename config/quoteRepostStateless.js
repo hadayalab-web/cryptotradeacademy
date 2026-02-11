@@ -71,51 +71,47 @@ const SEARCH_CONFIG = {
   ar: { minFaves: 30, minRt: 5 },
 };
 
+// Note: min_faves/min_retweets not supported by /2/tweets/search/recent; use buildQuery for crypto.
 function buildSearchQuery(lang) {
   const normalLang = lang === "pt-br" ? "pt" : lang;
-  const cfg = SEARCH_CONFIG[normalLang] ?? SEARCH_CONFIG.en;
-  return `lang:${normalLang} -is:reply -is:quote -is:retweet min_faves:${cfg.minFaves} min_retweets:${cfg.minRt}`;
+  return `lang:${normalLang} -is:reply -is:quote -is:retweet`;
 }
 
 // ========================================
 // buildQuery（利益最大化モード・インプレッション最大化）
 // ========================================
+// Note: min_faves/min_retweets are NOT supported by /2/tweets/search/recent.
+// Engagement filtering is done client-side in pickTopN/scoreTweet via public_metrics.
 const CRYPTO_QUERIES = {
   en: [
     "(lang:en)",
     "(btc OR bitcoin OR crypto OR market OR macro OR \"ETF\" OR \"liquidation\")",
-    "-is:retweet -is:reply -is:quote",
-    "(min_faves:300 OR min_retweets:50)"
+    "-is:retweet -is:reply -is:quote"
   ],
   es: [
     "(lang:es)",
     "(btc OR bitcoin OR crypto OR \"criptomonedas\" OR \"Bitcoin\" OR \"ETF\")",
-    "-is:retweet -is:reply -is:quote",
-    "(min_faves:150 OR min_retweets:30)"
+    "-is:retweet -is:reply -is:quote"
   ],
   pt: [
     "(lang:pt)",
     "(btc OR bitcoin OR crypto OR \"criptomoedas\" OR \"ETF\")",
-    "-is:retweet -is:reply -is:quote",
-    "(min_faves:120 OR min_retweets:20)"
+    "-is:retweet -is:reply -is:quote"
   ],
   ja: [
     "(lang:ja)",
     "(btc OR bitcoin OR ビットコイン OR 仮想通貨 OR クリプト OR ETF OR 清算)",
-    "-is:retweet -is:reply -is:quote",
-    "(min_faves:80 OR min_retweets:10)"
+    "-is:retweet -is:reply -is:quote"
   ],
   ko: [
     "(lang:ko)",
     "(btc OR bitcoin OR 비트코인 OR 크립토 OR 암호화폐 OR ETF)",
-    "-is:retweet -is:reply -is:quote",
-    "(min_faves:60 OR min_retweets:10)"
+    "-is:retweet -is:reply -is:quote"
   ],
   ar: [
     "(lang:ar)",
     "(btc OR bitcoin OR \"بيتكوين\" OR \"كريبتو\" OR \"عملة رقمية\" OR ETF)",
-    "-is:retweet -is:reply -is:quote",
-    "(min_faves:40 OR min_retweets:5)"
+    "-is:retweet -is:reply -is:quote"
   ]
 };
 
