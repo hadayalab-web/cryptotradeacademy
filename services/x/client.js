@@ -11,6 +11,7 @@ const X_API_CONSUMER_KEY = process.env.X_API_CONSUMER_KEY;
 const X_API_CONSUMER_KEY_SECRET = process.env.X_API_CONSUMER_KEY_SECRET;
 const X_API_ACCESS_TOKEN = process.env.X_API_ACCESS_TOKEN;
 const X_API_ACCESS_TOKEN_SECRET = process.env.X_API_ACCESS_TOKEN_SECRET;
+const X_API_BEARER_TOKEN = process.env.X_API_BEARER_TOKEN;
 // P1 FIX: X_API_BASE_URLのデフォルトをapi.twitter.comに変更（互換性向上）
 const X_API_BASE_URL = process.env.X_API_BASE_URL || "https://api.twitter.com/2";
 const X_UPLOAD_URL = "https://upload.x.com/1.1/media/upload.json";
@@ -591,24 +592,30 @@ async function getMe() {
 
 /**
  * ツイートを検索（X API v2）
+ * Bearer 専用 — OAuth 分岐なし。401 ならプラン制限 or Token 無効。
  * @param {string} query - 検索クエリ（Twitter検索構文）
  * @param {Object} options - 検索オプション
- * @param {number} options.maxResults - 最大結果数（10-100、デフォルト: 10）
- * @param {string} options.startTime - 開始時刻（ISO 8601形式、例: "2023-01-01T00:00:00Z"）
+ * @param {number} options.maxResults - 最大結果数（10-100、デフォルト: 30）
+ * @param {string} options.startTime - 開始時刻（ISO 8601形式）
  * @param {string} options.endTime - 終了時刻（ISO 8601形式）
  * @param {string} options.sinceId - このID以降のツイートを取得
  * @param {string} options.untilId - このID以前のツイートを取得
  * @param {string} options.nextToken - ページネーショントークン
- * @param {string} options.sortOrder - ソート順（"relevancy" | "recency"、デフォルト: "relevancy"）
- * @returns {Promise<Object>} 検索結果 {data, meta}
+ * @param {string} options.sortOrder - ソート順（"relevancy" | "recency"）
+ * @returns {Promise<Object>} 検索結果 {data, includes, meta}
  */
 async function searchTweets(query, options = {}) {
   if (!query || query.trim().length === 0) {
     throw new Error("Search query is required");
   }
+  if (!X_API_BEARER_TOKEN) {
+    throw new Error(
+      "X_API_BEARER_TOKEN is required for Search API. Set it in Vercel env vars."
+    );
+  }
 
   const {
-    maxResults = 10,
+    maxResults = 30,
     startTime,
     endTime,
     sinceId,
@@ -617,37 +624,60 @@ async function searchTweets(query, options = {}) {
     sortOrder = "relevancy"
   } = options;
 
-  // P0 FIX: OAuth署名にクエリを含めるため、paramsをオブジェクトとして渡す
-  const paramsObj = {
+  const params = new URLSearchParams({
     query: query.trim(),
-    max_results: Math.min(Math.max(10, maxResults), 100).toString(),
+    max_results: String(Math.min(Math.max(10, maxResults), 100)),
     "tweet.fields": "id,text,author_id,created_at,public_metrics,lang",
     "user.fields": "id,name,username,public_metrics",
     expansions: "author_id",
     sort_order: sortOrder
-  };
+  });
+  if (startTime) params.set("start_time", startTime);
+  if (endTime) params.set("end_time", endTime);
+  if (sinceId) params.set("since_id", sinceId);
+  if (untilId) params.set("until_id", untilId);
+  if (nextToken) params.set("next_token", nextToken);
 
-  if (startTime) paramsObj.start_time = startTime;
-  if (endTime) paramsObj.end_time = endTime;
-  if (sinceId) paramsObj.since_id = sinceId;
-  if (untilId) paramsObj.until_id = untilId;
-  if (nextToken) paramsObj.next_token = nextToken;
+  const url = `${X_API_BASE_URL}/tweets/search/recent?${params.toString()}`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${X_API_BEARER_TOKEN}`,
+      "Content-Type": "application/json"
+    }
+  });
 
-  try {
-    // P0 FIX: endpointはパスのみ、クエリはoptions.paramsに統一
-    const response = await xApiRequest("/tweets/search/recent", {
-      method: "GET",
-      params: paramsObj
-    });
-    return {
-      data: response.data || [],
-      includes: response.includes || {},
-      meta: response.meta || {}
-    };
-  } catch (error) {
-    console.error("[X API] Failed to search tweets:", error.message);
-    throw error;
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`X API Error: ${res.status} - ${errorText}`);
   }
+
+  const json = await res.json();
+  return {
+    data: json.data || [],
+    includes: json.includes || {},
+    meta: json.meta || {}
+  };
+}
+
+/**
+ * 400/403/404 など、そのツイートに対する投稿が不能なエラーか
+ */
+function isFatalTweetError(error) {
+  if (!error) return false;
+  const m = error.message?.match(/X API Error: (\d+)/);
+  const status = m ? parseInt(m[1], 10) : null;
+  return [400, 403, 404].includes(status);
+}
+
+/**
+ * 500/502/503/504 など、リトライ可能なサーバーエラーか
+ */
+function isRetryableError(error) {
+  if (!error) return false;
+  const m = error.message?.match(/X API Error: (\d+)/);
+  const status = m ? parseInt(m[1], 10) : null;
+  return [500, 502, 503, 504].includes(status);
 }
 
 /**
@@ -902,5 +932,7 @@ module.exports = {
   searchTweets,
   getTrends,
   isRateLimitError,
+  isFatalTweetError,
+  isRetryableError,
   checkXApiCredits
 };

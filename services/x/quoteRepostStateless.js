@@ -3,72 +3,157 @@
  * KV 禁止・完全 stateless
  */
 
-const { searchTweets, postQuoteTweet, isRateLimitError } = require("./client");
-const { getXConfigStatus } = require("./config");
 const {
-  buildSearchQuery,
-  buildBody,
+  searchTweets,
+  postQuoteTweet,
+  isRateLimitError,
+  isFatalTweetError,
+  isRetryableError
+} = require("./client");
+const { getXConfigStatus } = require("./config");
+const { tryGenerateGrokPool } = require("./grokPoolStateless");
+const {
+  buildQuery,
+  buildBodyWithMode,
   pickTopN,
+  pickVidalyticsLink,
+  getLinkKind
 } = require("../../config/quoteRepostStateless");
+
+function isoNowMinusMinutes(m) {
+  return new Date(Date.now() - m * 60 * 1000).toISOString();
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 /**
  * Stateless 引用リポスト実行
  * @param {string} lang - en | es | pt | pt-br | ja | ko | ar
  * @param {string} tier - "regular" | "minimal" | "mixed"
- * @returns {Promise<{ok: boolean, posted: number, error?: string}>}
+ * @param {boolean} dryRun - true なら投稿しない
+ * @param {number} count - 1Run あたり最大投稿数（デフォルト: 3）
+ * @param {string} mode - "template" | "grok" | "hybrid"（デフォルト: hybrid）
+ * @returns {Promise<{ok: boolean, posted: number, results: Array, error?: string}>}
  */
-async function runStatelessQuoteRepost(lang, tier = "mixed") {
+async function runStatelessQuoteRepost(lang, tier = "mixed", dryRun = false, count = 3, mode = "hybrid") {
   const runId = `qr-${lang}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+  console.log(
+    `[QuoteRepostStateless] Start lang=${lang} count=${count} mode=${mode} tier=${tier} dryRun=${dryRun} [runId: ${runId}]`
+  );
 
   try {
     const xStatus = getXConfigStatus();
     if (!xStatus.configured) {
       console.warn(`[QuoteRepostStateless] X API not configured (runId: ${runId})`);
-      return { ok: false, posted: 0, error: "X API not configured" };
+      return { ok: false, posted: 0, results: [], error: "X API not configured" };
     }
-    if (!xStatus.postingEnabled) {
+    if (!dryRun && !xStatus.postingEnabled) {
       console.warn(`[QuoteRepostStateless] Posting disabled (runId: ${runId})`);
-      return { ok: false, posted: 0, error: "Posting disabled" };
+      return { ok: false, posted: 0, results: [], error: "Posting disabled" };
     }
 
     // 1. Search
-    const query = buildSearchQuery(lang);
+    const query = buildQuery(lang);
     const searchRes = await searchTweets(query, {
       maxResults: 30,
-      sortOrder: "recency",
+      startTime: isoNowMinusMinutes(120),
+      sortOrder: "relevancy"
     });
+    const rawTweets = searchRes.data || [];
+    const includes = searchRes.includes || {};
 
-    if (!searchRes?.data?.length) {
-      console.log(`[QuoteRepostStateless] No tweets found for ${lang} (runId: ${runId})`);
-      return { ok: true, posted: 0 };
+    console.log(`[QuoteRepostStateless] Search hits=${rawTweets.length} query="${query}" [runId: ${runId}]`);
+
+    if (!rawTweets.length) {
+      return { ok: true, posted: 0, results: [] };
     }
 
-    // 2. Pick
-    const top3 = pickTopN(searchRes.data, 3);
+    // 2. Pick（score + 重複排除）
+    const { tweets: picked, scores: pickScores } = pickTopN(rawTweets, count, includes);
+    const pickedIds = picked.map((t) => t.id);
+    const topScores = pickScores.slice(0, 3).map((s) => s.toFixed(2));
 
-    // 3. Shoot
+    console.log(
+      `[QuoteRepostStateless] Pick tweetIds=[${pickedIds.join(", ")}] topScores=[${topScores.join(", ")}] [runId: ${runId}]`
+    );
+
+    if (!picked.length) {
+      return { ok: true, posted: 0, results: [] };
+    }
+
+    // 3. Grokプール生成（mode !== "template" のときだけ）
+    let grokPool = [];
+    const vidLink = pickVidalyticsLink(lang, tier);
+    const linkKind = getLinkKind(lang, vidLink);
+
+    if (mode !== "template") {
+      grokPool = await tryGenerateGrokPool({ lang, link: vidLink, n: count });
+      console.log(
+        `[QuoteRepostStateless] GrokPool generated=${grokPool.length} tier=${tier} linkKind=${linkKind} [runId: ${runId}]`
+      );
+    } else {
+      console.log(`[QuoteRepostStateless] template mode tier=${tier} linkKind=${linkKind} [runId: ${runId}]`);
+    }
+
+    // 4. Shoot（2秒間隔・レート制御）
+    const results = [];
     let posted = 0;
-    for (let i = 0; i < top3.length; i++) {
+    const SHOOT_DELAY_MS = 2000;
+
+    for (let i = 0; i < picked.length; i++) {
+      if (i > 0 && !dryRun) await sleep(SHOOT_DELAY_MS);
+
+      const t = picked[i];
+      const text = buildBodyWithMode(lang, i, tier, mode, grokPool);
+
+      if (dryRun) {
+        const len = typeof text === "string" ? text.length : 0;
+        console.log(`[QuoteRepostStateless] dryRun tweetId=${t.id} textLen=${len} [runId: ${runId}]`);
+        results.push({ tweetId: t.id, ok: true, dryRun: true, text });
+        continue;
+      }
+
       try {
-        const text = buildBody(lang, i, tier);
-        const tweetId = top3[i].id;
-        await postQuoteTweet(text, tweetId);
+        const r = await postQuoteTweet(text, t.id);
         posted++;
-        console.log(`[QuoteRepostStateless] Posted quote ${posted}/3 for ${lang} (tweetId: ${tweetId}) [runId: ${runId}]`);
+        results.push({ tweetId: t.id, ok: true, postedId: r.id });
+        console.log(
+          `[QuoteRepostStateless] Posted quote ${posted}/${count} for ${lang} (tweetId: ${t.id}) [runId: ${runId}]`
+        );
       } catch (e) {
-        if (isRateLimitError && isRateLimitError(e)) {
-          console.warn(`[QuoteRepostStateless] 429 Rate limit hit, stopping (runId: ${runId})`);
+        if (isRateLimitError(e)) {
+          console.warn(`[QuoteRepostStateless] rate limited (429) - stopping [runId: ${runId}]`);
           throw e;
         }
-        // 400/403/404/503: スキップして次へ
-        console.warn(`[QuoteRepostStateless] Skip tweet ${top3[i].id}: ${e.message} [runId: ${runId}]`);
+        if (isFatalTweetError(e)) {
+          console.warn(`[QuoteRepostStateless] Skip tweet ${t.id}: ${e.message} [runId: ${runId}]`);
+          continue;
+        }
+        if (isRetryableError(e)) {
+          await sleep(1200);
+          try {
+            const r2 = await postQuoteTweet(text, t.id);
+            posted++;
+            results.push({ tweetId: t.id, ok: true, postedId: r2.id, retry: true });
+            console.log(
+              `[QuoteRepostStateless] Posted (retry) for ${lang} tweetId: ${t.id} [runId: ${runId}]`
+            );
+          } catch (e2) {
+            console.warn(`[QuoteRepostStateless] Retry failed for ${t.id}: ${e2.message} [runId: ${runId}]`);
+          }
+        } else {
+          console.warn(`[QuoteRepostStateless] Skip tweet ${t.id}: ${e.message} [runId: ${runId}]`);
+        }
       }
     }
 
-    return { ok: true, posted };
+    return { ok: true, posted, results };
   } catch (e) {
     console.error(`[QuoteRepostStateless] Error for ${lang}:`, e.message, `[runId: ${runId}]`);
-    return { ok: false, posted: 0, error: e.message };
+    return { ok: false, posted: 0, results: [], error: e.message };
   }
 }
 

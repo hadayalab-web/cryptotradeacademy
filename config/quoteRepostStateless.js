@@ -4,39 +4,63 @@
  */
 
 // ========================================
-// VIDALYTICS_LINKS（Minimal / Regular × 6言語）
+// VIDALYTICS_LINKS（12本：Regular/Minimal × 6言語）
+// 環境変数 VID_LINK_REGULAR_XX / VID_LINK_MINIMAL_XX から読み込み
 // ========================================
-const VIDALYTICS_LINKS = {
+const VID_ENV_KEYS = {
+  en: { reg: "VID_LINK_REGULAR_EN", min: "VID_LINK_MINIMAL_EN" },
+  es: { reg: "VID_LINK_REGULAR_ES", min: "VID_LINK_MINIMAL_ES" },
+  pt: { reg: "VID_LINK_REGULAR_PT_BR", min: "VID_LINK_MINIMAL_PT_BR" },
+  ja: { reg: "VID_LINK_REGULAR_JA", min: "VID_LINK_MINIMAL_JA" },
+  ko: { reg: "VID_LINK_REGULAR_KO", min: "VID_LINK_MINIMAL_KO" },
+  ar: { reg: "VID_LINK_REGULAR_AR", min: "VID_LINK_MINIMAL_AR" },
+};
+
+// 環境変数未設定時のフォールバック（12本）
+const VID_FALLBACK = {
+  regular: {
+    en: "https://preview.vidalytics.com/vid/R_qh_0xq5QcqNsT2",
+    es: "https://preview.vidalytics.com/vid/Sn0Ksfoqayhn19Hu",
+    pt: "https://preview.vidalytics.com/vid/4nFpiTEQLXbOruxk",
+    ja: "https://preview.vidalytics.com/vid/ksCwzN2p2nOGUSso",
+    ko: "https://preview.vidalytics.com/vid/7SP9FG5F9ox6PNYS",
+    ar: "https://preview.vidalytics.com/vid/E3_5s_i7QfqcZnkm",
+  },
   minimal: {
     en: "https://preview.vidalytics.com/vid/r7EVEIvFx66Nj3dp",
     es: "https://preview.vidalytics.com/vid/C7qhJZh6N8reco2h",
     pt: "https://preview.vidalytics.com/vid/0uqYb_5TWoSfBl6Y",
-    ar: "https://preview.vidalytics.com/vid/rBzQDrGv2xSyZKtK",
-    ko: "https://preview.vidalytics.com/vid/OQNbnGJNtF6_W5zC",
     ja: "https://preview.vidalytics.com/vid/iQUVsxj5j522r_sf",
-  },
-  regular: {
-    en: "https://preview.vidalytics.com/vid/r7EVEIvFx66Nj3dp",
-    es: "https://preview.vidalytics.com/vid/Sn0Ksfoqayhn19Hu",
-    pt: "https://preview.vidalytics.com/vid/4nFpiTEQLXbOruxk",
-    ar: "https://preview.vidalytics.com/vid/E3_5s_i7QfqcZnkm",
-    ko: "https://preview.vidalytics.com/vid/7SP9FG5F9ox6PNYS",
-    ja: "https://preview.vidalytics.com/vid/ksCwzN2p2nOGUSso",
+    ko: "https://preview.vidalytics.com/vid/OQNbnGJNtF6_W5zC",
+    ar: "https://preview.vidalytics.com/vid/rBzQDrGv2xSyZKtK",
   },
 };
 
 function pickVidalyticsLink(lang, tier = "mixed") {
-  const normalLang = lang === "pt-br" ? "pt" : lang;
-  if (tier === "regular") return VIDALYTICS_LINKS.regular[normalLang] ?? VIDALYTICS_LINKS.regular.en;
-  if (tier === "minimal") return VIDALYTICS_LINKS.minimal[normalLang] ?? VIDALYTICS_LINKS.minimal.en;
-  const roll = Math.random();
-  return roll < 0.8
-    ? (VIDALYTICS_LINKS.regular[normalLang] ?? VIDALYTICS_LINKS.regular.en)
-    : (VIDALYTICS_LINKS.minimal[normalLang] ?? VIDALYTICS_LINKS.minimal.en);
+  const normalLang = lang === "pt-br" ? "pt" : (lang || "en");
+  const keys = VID_ENV_KEYS[normalLang] || VID_ENV_KEYS.en;
+
+  const getReg = () => process.env[keys.reg] || VID_FALLBACK.regular[normalLang] || VID_FALLBACK.regular.en;
+  const getMin = () => process.env[keys.min] || VID_FALLBACK.minimal[normalLang] || VID_FALLBACK.minimal.en;
+
+  if (tier === "regular") return getReg();
+  if (tier === "minimal") return getMin();
+  // tier=mixed: 90% regular / 10% minimal（LTV 最大化）
+  return Math.floor(Math.random() * 100) < 90 ? getReg() : getMin();
 }
 
+function getLinkKind(lang, link) {
+  const normalLang = lang === "pt-br" ? "pt" : (lang || "en");
+  const keys = VID_ENV_KEYS[normalLang] || VID_ENV_KEYS.en;
+  const reg = process.env[keys.reg] || VID_FALLBACK.regular[normalLang] || VID_FALLBACK.regular.en;
+  return link === reg ? "regular" : "minimal";
+}
+
+// 後方互換
+const VIDALYTICS_LINKS = VID_FALLBACK;
+
 // ========================================
-// SEARCH_CONFIG + buildSearchQuery
+// SEARCH_CONFIG + buildSearchQuery（後方互換）
 // ========================================
 const SEARCH_CONFIG = {
   en: { minFaves: 80, minRt: 15 },
@@ -54,48 +78,96 @@ function buildSearchQuery(lang) {
 }
 
 // ========================================
+// buildQuery（利益最大化モード・インプレッション最大化）
+// ========================================
+const CRYPTO_QUERIES = {
+  en: [
+    "(lang:en)",
+    "(btc OR bitcoin OR crypto OR market OR macro OR \"ETF\" OR \"liquidation\")",
+    "-is:retweet -is:reply -is:quote",
+    "(min_faves:300 OR min_retweets:50)"
+  ],
+  es: [
+    "(lang:es)",
+    "(btc OR bitcoin OR crypto OR \"criptomonedas\" OR \"Bitcoin\" OR \"ETF\")",
+    "-is:retweet -is:reply -is:quote",
+    "(min_faves:150 OR min_retweets:30)"
+  ],
+  pt: [
+    "(lang:pt)",
+    "(btc OR bitcoin OR crypto OR \"criptomoedas\" OR \"ETF\")",
+    "-is:retweet -is:reply -is:quote",
+    "(min_faves:120 OR min_retweets:20)"
+  ],
+  ja: [
+    "(lang:ja)",
+    "(btc OR bitcoin OR ビットコイン OR 仮想通貨 OR クリプト OR ETF OR 清算)",
+    "-is:retweet -is:reply -is:quote",
+    "(min_faves:80 OR min_retweets:10)"
+  ],
+  ko: [
+    "(lang:ko)",
+    "(btc OR bitcoin OR 비트코인 OR 크립토 OR 암호화폐 OR ETF)",
+    "-is:retweet -is:reply -is:quote",
+    "(min_faves:60 OR min_retweets:10)"
+  ],
+  ar: [
+    "(lang:ar)",
+    "(btc OR bitcoin OR \"بيتكوين\" OR \"كريبتو\" OR \"عملة رقمية\" OR ETF)",
+    "-is:retweet -is:reply -is:quote",
+    "(min_faves:40 OR min_retweets:5)"
+  ]
+};
+
+function buildQuery(lang) {
+  const normalLang = lang === "pt-br" ? "pt" : lang;
+  const parts = CRYPTO_QUERIES[normalLang] ?? CRYPTO_QUERIES.en;
+  return parts.join(" ");
+}
+
+// ========================================
 // 6言語テンプレ
 // ========================================
 const TEMPLATES_JA = [
-  "この動きでダッシュボード真っ赤になってる人、多い。数字で見ると状況が掴める。→ {link}",
-  "この反応、気づかないと後で後悔するやつ。必要な数字だけまとめた。→ {link}",
-  "この変化、今のうちに位置だけ確認しとくと安心。短く整理した。→ {link}",
-  "この動き、まだ巻き返し効く。数字で見るとわかる。→ {link}",
+  "市場は緑なのに含み損が膨らんでるなら、ここから。→ {link}",
+  "ダッシュボード真っ赤のまま気づかなければ後悔する。数字で確認。→ {link}",
+  "今のうちにポジション確認。この動き、まだ巻き返し効く。→ {link}",
+  "清算されそうで眠れない人、数字で状況掴む。→ {link}",
 ];
 
 const TEMPLATES_EN = [
-  "If your dashboard's all red from this move, see the numbers. → {link}",
-  "This reaction—easy to miss, hard to regret later. Numbers inside. → {link}",
-  "This change—check your position now. Quick summary. → {link}",
-  "Still time to recover. Numbers tell the story. → {link}",
+  "If the market is green but your PnL isn't, start here → {link}",
+  "When your dashboard's all red, see the numbers → {link}",
+  "Still bleeding despite the pump? Check this → {link}",
+  "Market moved and you missed it. Position yourself → {link}",
 ];
 
 const TEMPLATES_ES = [
-  "Este movimiento dejó muchos paneles en rojo. Ver los números ayuda a aclarar. → {link}",
-  "Esta reacción es fácil de pasar por alto. Resumen rápido con datos. → {link}",
-  "Este cambio merece revisar tu posición ahora. Datos esenciales aquí. → {link}",
-  "Aún hay margen para recuperarse. Los números lo muestran. → {link}",
+  "Si el mercado está en verde pero tu PnL no, empieza aquí → {link}",
+  "Cuando el panel está rojo, los números aclaran. → {link}",
+  "Aún sangrando tras el pump? Revisa tu posición → {link}",
+  "El mercado se movió y te perdiste. Posiciónate → {link}",
 ];
 
 const TEMPLATES_PT = [
-  "Esse movimento deixou muitos painéis vermelhos. Ver os números acalma. → {link}",
-  "Essa reação passa fácil despercebida. Resumo curto com dados. → {link}",
-  "Essa mudança pede uma checagem rápida da sua posição. → {link}",
-  "Ainda dá para recuperar. Os números mostram isso. → {link}",
+  "Se o mercado está verde mas seu PnL não, comece aqui → {link}",
+  "Quando o painel está vermelho, os números acalmam. → {link}",
+  "Ainda sangrando após o pump? Confira sua posição → {link}",
+  "O mercado se moveu e você perdeu. Posicione-se → {link}",
 ];
 
 const TEMPLATES_KO = [
-  "이 움직임에 계좌가 새빨개진 사람 많아요. 숫자로 보면 정리가 됩니다. → {link}",
-  "이 반응은 놓치기 쉽지만 나중에 아쉬울 수 있어요. 핵심만 정리했습니다. → {link}",
-  "지금 위치만 확인해도 마음이 한결 편해집니다. → {link}",
-  "아직 회복 여지는 있습니다. 숫자가 말해줍니다. → {link}",
+  "시장은 초록인데 PnL은 빨갛다면, 여기서 시작. → {link}",
+  "대시보드가 빨간데 모르면 후회. 숫자로 확인. → {link}",
+  "펌프에도 피 흘리는 중? 포지션 체크. → {link}",
+  "시장이 움직였는데 놓쳤다면, 여기서. → {link}",
 ];
 
 const TEMPLATES_AR = [
-  "هذا التحرك جعل شاشات كثيرين حمراء. رؤية الأرقام توضح الصورة. → {link}",
-  "هذا التفاعل سهل أن يفوتك، لكن الأرقام تلخصه بسرعة. → {link}",
-  "هذا التغير يستحق أن تراجع موقعك الآن. ملخص مختصر هنا. → {link}",
-  "ما زال هناك مجال للتعافي. الأرقام توضح ذلك. → {link}",
+  "السوق أخضر لكن ربحك ينزف؟ ابدأ هنا → {link}",
+  "الشاشة حمراء والوقت يمر. الأرقام توضح. → {link}",
+  "ما زلت تنزف بعد الضخ؟ راجع موقعك → {link}",
+  "السوق تحرك وفاتك. موضّع نفسك → {link}",
 ];
 
 function getTemplatesForLang(lang) {
@@ -117,31 +189,126 @@ function buildBody(lang, index, tier = "mixed") {
   return tpl.replace("{link}", pickVidalyticsLink(lang, tier));
 }
 
-// ========================================
-// スコアリング（最適化版）
-// ========================================
-function scoreTweet(t) {
-  const m = t.public_metrics ?? {};
-  const likes = m.like_count ?? 0;
-  const rts = m.retweet_count ?? 0;
-  const replies = m.reply_count ?? 0;
-  const quotes = m.quote_count ?? 0;
-  const ageMinutes = (Date.now() - new Date(t.created_at || 0).getTime()) / 60000;
-  const freshness = 1 / (1 + ageMinutes / 60);
-  return (likes * 1.0 + rts * 2.0 + replies * 1.5 + quotes * 1.2) * freshness;
+/**
+ * mode=template → テンプレのみ（link を {link} に差し込み）
+ * mode=grok → Grokプールのみ（空ならテンプレ）。Grok文に link が含まれていなければ付加
+ * mode=hybrid → Grokプール優先、足りない分はテンプレで埋める
+ */
+function buildBodyWithMode(lang, index, tier, mode, grokPool = []) {
+  const link = pickVidalyticsLink(lang, tier);
+  const templateFallback = () => {
+    const templates = getTemplatesForLang(lang);
+    const tpl = templates[index % templates.length];
+    return tpl.replace(/\{link\}/g, link);
+  };
+
+  if (mode === "template") return templateFallback();
+
+  const grokText = grokPool[index] && String(grokPool[index]).trim();
+  if (grokText) {
+    const hasLink = grokText.includes("vidalytics") || grokText.includes(link);
+    return hasLink ? grokText : `${grokText} → ${link}`;
+  }
+  return templateFallback();
 }
 
-function pickTopN(tweets, n) {
-  return [...tweets].sort((a, b) => scoreTweet(b) - scoreTweet(a)).slice(0, n);
+// ========================================
+// スコアリング（CVR 最大化・利益最大化モード）
+// ========================================
+const MIN_FOLLOWERS = 5000;
+const AGE_DECAY_MINUTES = 45;
+
+function getFollowersCount(tweet, includes = {}) {
+  const users = includes.users || [];
+  const user = users.find((u) => u.id === tweet.author_id);
+  const pm = user?.public_metrics;
+  return pm?.followers_count ?? 0;
+}
+
+function scoreTweet(t, includes = {}) {
+  const m = t.public_metrics ?? { like_count: 0, retweet_count: 0, reply_count: 0, quote_count: 0 };
+  const ageMinutes = (Date.now() - new Date(t.created_at || 0).getTime()) / 60000;
+
+  let score =
+    (m.like_count ?? 0) * 1.2 +
+    (m.retweet_count ?? 0) * 2.5 +
+    (m.quote_count ?? 0) * 1.5 +
+    (m.reply_count ?? 0) * 0.8;
+
+  score = score / (1 + ageMinutes / AGE_DECAY_MINUTES);
+
+  const followers = getFollowersCount(t, includes);
+  if (followers > 0 && followers < MIN_FOLLOWERS) {
+    score *= 0.5;
+  }
+  return score;
+}
+
+function passesQuality(t) {
+  const m = t.public_metrics ?? {};
+  if ((m.like_count ?? 0) === 0 && (m.retweet_count ?? 0) === 0) return false;
+  return true;
+}
+
+function getSpamAuthorIds(tweets) {
+  const byAuthor = {};
+  for (const t of tweets || []) {
+    const aid = t.author_id;
+    if (!aid) continue;
+    if (!byAuthor[aid]) byAuthor[aid] = [];
+    byAuthor[aid].push(new Date(t.created_at || 0).getTime());
+  }
+  const excluded = new Set();
+  for (const [aid, times] of Object.entries(byAuthor)) {
+    if (times.length < 2) continue;
+    times.sort((a, b) => a - b);
+    for (let i = 1; i < times.length; i++) {
+      if (times[i] - times[i - 1] < 60 * 60 * 1000) {
+        excluded.add(aid);
+        break;
+      }
+    }
+  }
+  return excluded;
+}
+
+function pickTopN(tweets, count, includes = {}) {
+  const seenTweet = new Set();
+  const seenAuthor = new Set();
+  const spamAuthors = getSpamAuthorIds(tweets);
+
+  const scored = (tweets || [])
+    .filter((t) => t && t.public_metrics)
+    .filter((t) => !spamAuthors.has(t.author_id))
+    .map((t) => ({ t, s: scoreTweet(t, includes) }))
+    .sort((a, b) => b.s - a.s);
+
+  const out = [];
+  const outScores = [];
+  for (const { t, s } of scored) {
+    if (out.length >= count) break;
+    if (seenTweet.has(t.id)) continue;
+    if (seenAuthor.has(t.author_id)) continue;
+    if (!passesQuality(t)) continue;
+    seenTweet.add(t.id);
+    seenAuthor.add(t.author_id);
+    out.push(t);
+    outScores.push(s);
+  }
+  return { tweets: out, scores: outScores };
 }
 
 module.exports = {
   VIDALYTICS_LINKS,
   pickVidalyticsLink,
+  getLinkKind,
   SEARCH_CONFIG,
   buildSearchQuery,
+  buildQuery,
   getTemplatesForLang,
   buildBody,
+  buildBodyWithMode,
   scoreTweet,
+  passesQuality,
   pickTopN,
 };
