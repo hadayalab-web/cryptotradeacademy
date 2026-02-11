@@ -163,6 +163,29 @@ async function insertQuotedTweets(rows) {
   }
 }
 
+/**
+ * x_posts に insert（X投稿生成ログ）
+ * @param {Object} row - { lang, mode, variant?, body, video_url? }
+ */
+async function insertXPost(row) {
+  const sb = getSupabase();
+  if (!sb) return { ok: false };
+  try {
+    const { error } = await sb.from("x_posts").insert({
+      lang: row.lang || null,
+      mode: row.mode || null,
+      variant: row.variant || null,
+      body: row.body || "",
+      video_url: row.video_url || null
+    });
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    console.warn("[Supabase] insertXPost error:", e.message);
+    return { ok: false };
+  }
+}
+
 module.exports = {
   getSupabase,
   insertTweetQueue,
@@ -170,5 +193,6 @@ module.exports = {
   markQueueProcessed,
   insertTweetMetrics,
   getQuotedTweetIdsInLast30Days,
-  insertQuotedTweets
+  insertQuotedTweets,
+  insertXPost
 };

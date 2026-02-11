@@ -46,7 +46,7 @@
     "verify:syntax": "node scripts/verify-syntax.js",
     "build": "node scripts/copy-telegram-messages.js",
     "vercel-build": "npm run build",
-    "predeploy": "node -c api/cron.js && node -c api/x-quote-repost.js && node -c services/x/client.js && node -c api/x-webhook.js && node -c api/x-quote-repost-batch.js",
+    "predeploy": "node -c api/cron.js && node -c api/x-post.js && node -c services/x/client.js && node -c api/x-webhook.js",
     "vercel:logs": "node scripts/fetch-vercel-logs.js",
     "vercel:logs:safe": "node scripts/fetch-vercel-logs-safe.js",
     "vercel:analyze": "node scripts/analyze-vercel-errors.js",

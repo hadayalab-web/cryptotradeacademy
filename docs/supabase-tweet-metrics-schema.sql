@@ -45,3 +45,17 @@ CREATE TABLE IF NOT EXISTS quoted_tweets (
 );
 
 CREATE INDEX IF NOT EXISTS idx_quoted_tweets_quoted_at ON quoted_tweets(quoted_at);
+
+-- 4. x_posts: X投稿生成ログ（統合実装）
+CREATE TABLE IF NOT EXISTS x_posts (
+  id BIGSERIAL PRIMARY KEY,
+  lang TEXT NOT NULL,
+  mode TEXT NOT NULL,
+  variant TEXT,
+  body TEXT NOT NULL,
+  video_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_x_posts_created_at ON x_posts(created_at);
+CREATE INDEX IF NOT EXISTS idx_x_posts_lang ON x_posts(lang);

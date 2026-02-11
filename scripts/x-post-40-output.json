@@ -1,0 +1,303 @@
+﻿node : (node:9148) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections 
+and HTTPS requests insecure by disabling certificate verification.
+発生場所 C:\Users\chiba\AppData\Local\Temp\ps-script-28e6bbaa-0287-46f0-874e-f73ef41d4a96.ps1:76 文字:69
++ ... tradeacademy; node scripts/generate-x-post-40-samples.js 2>&1 | Out-F ...
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:9148) War...e verification.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+.......... ja_minimal
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+.......... ja_regular
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+.......... en_minimal
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+[gpt5mini] generateXPost error: 400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the def
+ault (1) value is supported.
+.......... en_regular
+{
+  "ja_minimal": [
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "minimal"
+    }
+  ],
+  "ja_regular": [
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "regular"
+    }
+  ],
+  "en_minimal": [
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "minimal"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "minimal"
+    }
+  ],
+  "en_regular": [
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "B",
+      "mode": "regular"
+    },
+    {
+      "body": "繝繝・す繝･繝懊・繝臥悄縺｣襍､縲ゅけ繧ｸ繝ｩ縺悟精縺・燕縺ｫ繧ｷ繝ｼ繝ｫ繝峨Ｉttps://example.com/vsl #BTC 櫨",
+      "variant": "A",
+      "mode": "regular"
+    }
+  ]
+}
