@@ -50,6 +50,10 @@
     "api/minimal-tg-delivery.js": {
       "maxDuration": 120,
       "includeFiles": "{config/**,services/telegram/**,services/integrated/**,utils/**}"
+    },
+    "api/x-metrics-fetcher.js": {
+      "maxDuration": 60,
+      "includeFiles": "{utils/**,services/x/**}"
     }
   },
   "rewrites": [
@@ -59,13 +63,41 @@
     }
   ],
   "crons": [
-    { "path": "/api/cron", "schedule": "0,7,22,37,52 * * * *" },
-    { "path": "/api/minimal-tg-delivery", "schedule": "8 0,6,12,18 * * *" },
-    { "path": "/api/x-quote-repost-en", "schedule": "0 * * * *" },
-    { "path": "/api/x-quote-repost-es", "schedule": "5 * * * *" },
-    { "path": "/api/x-quote-repost-pt", "schedule": "10 * * * *" },
-    { "path": "/api/x-quote-repost-ja", "schedule": "15 * * * *" },
-    { "path": "/api/x-quote-repost-ko", "schedule": "20 * * * *" },
-    { "path": "/api/x-quote-repost-ar", "schedule": "25 * * * *" }
+    {
+      "path": "/api/cron",
+      "schedule": "0,7,22,37,52 * * * *"
+    },
+    {
+      "path": "/api/minimal-tg-delivery",
+      "schedule": "8 0,6,12,18 * * *"
+    },
+    {
+      "path": "/api/x-quote-repost-en",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/x-quote-repost-es",
+      "schedule": "5 * * * *"
+    },
+    {
+      "path": "/api/x-quote-repost-pt",
+      "schedule": "10 * * * *"
+    },
+    {
+      "path": "/api/x-quote-repost-ja",
+      "schedule": "15 * * * *"
+    },
+    {
+      "path": "/api/x-quote-repost-ko",
+      "schedule": "20 * * * *"
+    },
+    {
+      "path": "/api/x-quote-repost-ar",
+      "schedule": "25 * * * *"
+    },
+    {
+      "path": "/api/x-metrics-fetcher",
+      "schedule": "*/5 * * * *"
+    }
   ]
 }

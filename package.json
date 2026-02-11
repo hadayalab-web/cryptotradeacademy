@@ -68,6 +68,7 @@
   "dependencies": {
     "@google/genai": "^1.40.0",
     "@google/generative-ai": "^0.21.0",
+    "@supabase/supabase-js": "^2.95.3",
     "@vercel/kv": "^0.2.1",
     "canvas": "^3.2.1",
     "date-fns-tz": "^2.0.0",

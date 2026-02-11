@@ -684,6 +684,24 @@ async function handler(req, res) {
         if (replyEvents.length > 0) {
           await handleReplyEvent(event);
         }
+        // Trap Defence OS: 実測パイプライン — tweet_queue に投入
+        try {
+          const { insertTweetQueue } = require("../utils/supabase");
+          for (const t of event.tweet_create_events) {
+            const tweetId = t?.id_str || t?.id;
+            if (!tweetId) continue;
+            const res = await insertTweetQueue({
+              tweet_id: String(tweetId),
+              lang: null,
+              vid_link_kind: null
+            });
+            if (res.ok) {
+              console.log(`[X Webhook] 📥 Queued tweet for metrics: ${tweetId}`);
+            }
+          }
+        } catch (queueErr) {
+          console.warn("[X Webhook] ⚠️ tweet_queue insert failed (non-fatal):", queueErr.message);
+        }
       }
 
       // エンゲージメント統計を取得してバズ投稿を検知
