@@ -211,8 +211,8 @@ function buildBodyWithMode(lang, index, tier, mode, grokPool = []) {
 // ========================================
 // スコアリング（CVR 最大化・利益最大化モード）
 // ========================================
-const MIN_FOLLOWERS = 5000;
-const AGE_DECAY_MINUTES = 45;
+const MIN_FOLLOWERS = 3000;  // 5000→3000: 候補数増加、0.7x のみ適用
+const AGE_DECAY_MINUTES = 60; // 45→60: 伸び始めの投稿を拾いやすく
 
 function getFollowersCount(tweet, includes = {}) {
   const users = includes.users || [];
@@ -235,17 +235,21 @@ function scoreTweet(t, includes = {}) {
 
   const followers = getFollowersCount(t, includes);
   if (followers > 0 && followers < MIN_FOLLOWERS) {
-    score *= 0.5;
+    score *= 0.7; // 0.5→0.7: 緩和
   }
   return score;
 }
 
 function passesQuality(t) {
   const m = t.public_metrics ?? {};
+  const ageMinutes = (Date.now() - new Date(t.created_at || 0).getTime()) / 60000;
+  // 90分以内の新着ツイートは like=0 & rt=0 でも許可（伸び始め拾い）
+  if (ageMinutes <= 90 && (m.like_count ?? 0) === 0 && (m.retweet_count ?? 0) === 0) return true;
   if ((m.like_count ?? 0) === 0 && (m.retweet_count ?? 0) === 0) return false;
   return true;
 }
 
+// 30分以内に3回以上投稿している author を除外（1h/2回→30min/3回に緩和）
 function getSpamAuthorIds(tweets) {
   const byAuthor = {};
   for (const t of tweets || []) {
@@ -255,11 +259,15 @@ function getSpamAuthorIds(tweets) {
     byAuthor[aid].push(new Date(t.created_at || 0).getTime());
   }
   const excluded = new Set();
+  const WINDOW_MS = 30 * 60 * 1000;
+  const MIN_POSTS = 3;
   for (const [aid, times] of Object.entries(byAuthor)) {
-    if (times.length < 2) continue;
+    if (times.length < MIN_POSTS) continue;
     times.sort((a, b) => a - b);
-    for (let i = 1; i < times.length; i++) {
-      if (times[i] - times[i - 1] < 60 * 60 * 1000) {
+    for (let i = 0; i < times.length; i++) {
+      const windowEnd = times[i] + WINDOW_MS;
+      const countInWindow = times.filter((ts) => ts >= times[i] && ts <= windowEnd).length;
+      if (countInWindow >= MIN_POSTS) {
         excluded.add(aid);
         break;
       }
