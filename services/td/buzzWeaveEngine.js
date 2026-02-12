@@ -45,6 +45,10 @@ const SLOT_DISTRIBUTION_JST = [
   { start: 6, end: 8, count: 20 }
 ];
 const DAILY_SLOT_COUNT = 400;
+const DEFAULT_DEADLINE_MS = Number(process.env.BUZZWEAVE_DEADLINE_MS || 55000);
+const BUZZWEAVE_MAX_TARGETS = Number(process.env.BUZZWEAVE_MAX_TARGETS || 12);
+const BUZZWEAVE_GPT_CLASSIFY_TOP_N = Number(process.env.BUZZWEAVE_GPT_CLASSIFY_TOP_N || 10);
+const BUZZWEAVE_ENOUGH_CANDIDATES = Number(process.env.BUZZWEAVE_ENOUGH_CANDIDATES || 24);
 const CLEANUP_OLDER_THAN_HOURS = Number(process.env.BUZZWEAVE_SLOT_RETENTION_HOURS || 48);
 const LOG_LEVEL = process.env.BUZZWEAVE_LOG_LEVEL || "info";
 
@@ -56,6 +60,14 @@ function logWarn(...args) {
 }
 function logError(...args) {
   console.error("[BuzzWeave]", ...args);
+}
+
+function isDeadlineExceeded(startMs, deadlineMs) {
+  return Date.now() - startMs > deadlineMs;
+}
+
+function deadlineSnapshot(startMs, deadlineMs) {
+  return { elapsedMs: Date.now() - startMs, deadlineMs };
 }
 
 // 言語比率 EN 40%, ES 20%, PT/JA/KO/AR 各10%
@@ -255,7 +267,13 @@ function pickBestBuzzCandidate(buzzCandidates, slot) {
  */
 async function collectBuzzCandidates(options = {}) {
   const limit = options.limit || 20;
+  const startMs = Number(options.startMs || Date.now());
+  const deadlineMs = Number(options.deadlineMs || DEFAULT_DEADLINE_MS);
+  const maxTargets = Number(options.maxTargets || BUZZWEAVE_MAX_TARGETS);
+  const classifyTopN = Number(options.classifyTopN || BUZZWEAVE_GPT_CLASSIFY_TOP_N);
+  const enoughCandidates = Number(options.enoughCandidates || BUZZWEAVE_ENOUGH_CANDIDATES);
   const candidates = [];
+  const rawCandidates = [];
 
   const influencers = await getTdInfluencers(null, limit);
   const officials = await getTdOfficialAccounts(null, limit);
@@ -273,7 +291,19 @@ async function collectBuzzCandidates(options = {}) {
   let postsFetched = 0;
   let postsFilteredByDup = 0;
   let postsPassedThreshold = 0;
-  for (const target of targets.slice(0, 30)) {
+  let deadlineExceeded = false;
+  let earlyExitEnoughCandidates = false;
+
+  for (const target of targets.slice(0, maxTargets)) {
+    if (isDeadlineExceeded(startMs, deadlineMs)) {
+      deadlineExceeded = true;
+      logWarn("deadline exceeded", {
+        stage: "before-fetch-target",
+        ...deadlineSnapshot(startMs, deadlineMs)
+      });
+      break;
+    }
+
     const posts = await fetchRecentPostsFromX(target.handle, { limit: 5 });
     postsFetched += posts.length;
     const quotedIds = await getQuotedTweetIdsInLast30Days(posts.map((p) => String(p.id)));
@@ -289,17 +319,73 @@ async function collectBuzzCandidates(options = {}) {
       if (score < threshold) continue;
       postsPassedThreshold++;
 
-      const context = await classifyPostWithGpt4o(post.text);
-      candidates.push({
+      rawCandidates.push({
         target,
         post: {
           id: post.id,
           text: post.text,
           created_at: post.created_at
         },
-        engagementScore: score,
+        engagementScore: score
+      });
+
+      if (rawCandidates.length >= enoughCandidates) {
+        earlyExitEnoughCandidates = true;
+        break;
+      }
+    }
+    if (earlyExitEnoughCandidates) {
+      break;
+    }
+  }
+
+  rawCandidates.sort((a, b) => b.engagementScore - a.engagementScore);
+  const toClassify = rawCandidates.slice(0, Math.max(1, classifyTopN));
+  if (isDeadlineExceeded(startMs, deadlineMs)) {
+    deadlineExceeded = true;
+    logWarn("deadline exceeded", {
+      stage: "before-gpt-classification-loop",
+      ...deadlineSnapshot(startMs, deadlineMs)
+    });
+    // 途中結果を返す（分類なしフォールバック）
+    for (const c of toClassify) {
+      candidates.push({
+        ...c,
+        context: {
+          topic: "crypto",
+          tone: "neutral",
+          lang: c.target?.lang || "en"
+        }
+      });
+    }
+  } else {
+    for (const c of toClassify) {
+      if (isDeadlineExceeded(startMs, deadlineMs)) {
+        deadlineExceeded = true;
+        logWarn("deadline exceeded", {
+          stage: "gpt-classification-loop",
+          ...deadlineSnapshot(startMs, deadlineMs)
+        });
+        break;
+      }
+      const context = await classifyPostWithGpt4o(c.post.text);
+      candidates.push({
+        ...c,
         context
       });
+    }
+    // 分類途中で打ち切った場合も、残りはフォールバックで補完して部分進行を維持
+    if (deadlineExceeded && candidates.length < toClassify.length) {
+      for (const c of toClassify.slice(candidates.length)) {
+        candidates.push({
+          ...c,
+          context: {
+            topic: "crypto",
+            tone: "neutral",
+            lang: c.target?.lang || "en"
+          }
+        });
+      }
     }
   }
 
@@ -308,9 +394,14 @@ async function collectBuzzCandidates(options = {}) {
     postsFetched,
     postsFilteredByDup,
     postsPassedThreshold,
-    candidates: candidates.length
+    rawCandidates: rawCandidates.length,
+    candidates: candidates.length,
+    maxTargets,
+    classifyTopN,
+    earlyExitEnoughCandidates,
+    deadlineExceeded
   });
-  return candidates;
+  return { candidates, deadlineExceeded };
 }
 
 /**
@@ -342,8 +433,10 @@ async function generateParasiticCopy(slot, buzzCandidate, videoUrl) {
  */
 async function runBuzzWeaveCycle(options = {}) {
   const dryRun = options.dryRun !== false;
+  const deadlineMs = Number(options.deadlineMs || DEFAULT_DEADLINE_MS);
+  const startMs = Date.now();
   const runId = `bw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  logInfo("cycle start", { runId, dryRun });
+  logInfo("cycle start", { runId, dryRun, deadlineMs });
   // 古いスロットの定期掃除（毎回呼んでも負荷は低い。実削除は条件一致時のみ）
   const cleanup = await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
   if (cleanup.ok && cleanup.deleted > 0) {
@@ -358,9 +451,37 @@ async function runBuzzWeaveCycle(options = {}) {
     return { ok: true, message: "No slots in next hour", posted: 0, runId };
   }
 
-  const buzzCandidates = await collectBuzzCandidates({ limit: 50 });
+  if (isDeadlineExceeded(startMs, deadlineMs)) {
+    logWarn("deadline exceeded", {
+      stage: "before-collectBuzzCandidates",
+      runId,
+      ...deadlineSnapshot(startMs, deadlineMs)
+    });
+    return {
+      ok: true,
+      message: "deadline exceeded before collectBuzzCandidates",
+      posted: 0,
+      runId,
+      deadlineExceeded: true
+    };
+  }
+
+  const collectResult = await collectBuzzCandidates({
+    limit: 50,
+    startMs,
+    deadlineMs,
+    maxTargets: BUZZWEAVE_MAX_TARGETS,
+    classifyTopN: BUZZWEAVE_GPT_CLASSIFY_TOP_N
+  });
+  const buzzCandidates = collectResult.candidates || [];
   if (!buzzCandidates.length) {
-    return { ok: true, message: "No buzz candidates", posted: 0, runId };
+    return {
+      ok: true,
+      message: collectResult.deadlineExceeded ? "deadline exceeded during candidate collection" : "No buzz candidates",
+      posted: 0,
+      runId,
+      deadlineExceeded: !!collectResult.deadlineExceeded
+    };
   }
 
   const results = [];
@@ -374,6 +495,29 @@ async function runBuzzWeaveCycle(options = {}) {
   const body = await generateParasiticCopy(slot, candidate, videoUrl);
 
   if (!dryRun) {
+    if (isDeadlineExceeded(startMs, deadlineMs)) {
+      logWarn("deadline exceeded", {
+        stage: "before-x-post",
+        runId,
+        ...deadlineSnapshot(startMs, deadlineMs)
+      });
+      results.push({
+        slot,
+        candidate: { handle: candidate.target.handle, postId: candidate.post.id },
+        body,
+        deadlineExceeded: true,
+        success: false
+      });
+      return {
+        ok: true,
+        message: "deadline exceeded before posting",
+        posted: 0,
+        runId,
+        deadlineExceeded: true,
+        results
+      };
+    }
+
     try {
       const postResult = await postQuoteTweet(body, candidate.post.id);
       // 30日重複防止へ登録（成功投稿時）
@@ -426,6 +570,7 @@ async function runBuzzWeaveCycle(options = {}) {
     ok: true,
     posted: dryRun ? 0 : results.filter((r) => r.success).length,
     runId,
+    deadlineExceeded: !!collectResult.deadlineExceeded,
     results
   };
 }
