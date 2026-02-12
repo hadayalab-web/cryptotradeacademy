@@ -3,17 +3,23 @@
  * Cron: GET /api/buzzweave-run
  * 次1時間のスロット → バズ候補マッピング → 寄生コピー生成 → 引用リポスト
  *
- * 動作確認手順:
- * 1. npm run dev でローカルサーバーを起動
- * 2. Supabase に td_post_slots が存在することを確認（未作成なら docs/supabase-tweet-metrics-schema.sql を実行）
- * 3. curl "http://localhost:3000/api/buzzweave-run?dry_run=true"
+ * 運用:
+ * - Vercel cron は最短1分のため、90秒間隔は外部Cron（GitHub Actions / cron-job.org 等）で本APIを呼び出す。
+ * - Authorization: Bearer ${CRON_SECRET}
  */
 
 const { runBuzzWeaveCycle } = require("../services/td/buzzWeaveEngine");
+const { loadEnv } = require("../utils/loadEnv");
+loadEnv();
 
 module.exports = async function handler(req, res) {
   if (req.method !== "GET" && req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers?.authorization || req.headers?.Authorization;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
 
   const dryRun = req.query?.dry_run === "true" || req.query?.dry_run === "1";

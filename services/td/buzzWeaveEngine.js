@@ -4,6 +4,8 @@
  *
  * フロー: Search recent Posts → バズ抽出 → 文脈タグ付け → スロット生成 → マッピング → 寄生コピー生成 → 引用リポスト
  */
+const { loadEnv } = require("../../utils/loadEnv");
+loadEnv();
 
 const OpenAI = require("openai");
 const { getUserByUsername, getUserTweets, postQuoteTweet } = require("../x/client");
@@ -15,10 +17,14 @@ const {
   insertTdPostSlots,
   getTdPostSlotsInNextHour,
   consumeTdPostSlot,
+  deferTdPostSlot,
+  cleanupOldTdPostSlots,
   insertTdCopyArchive,
   insertTdCopyMeta,
   inferCopyMeta,
-  insertXPost
+  insertXPost,
+  getQuotedTweetIdsInLast30Days,
+  insertQuotedTweets
 } = require("../../utils/supabase");
 const { generateXPost } = require("../ai/gpt5mini");
 
@@ -28,16 +34,29 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 // バズ閾値（指示書準拠）
 const BUZZ_THRESHOLD = { influencer: 200, official: 500 };
 
-// 時間帯分布（JST）600枠/日
+// 時間帯分布（JST）400枠/日
 const SLOT_DISTRIBUTION_JST = [
-  { start: 8, end: 11, count: 120 },
-  { start: 12, end: 14, count: 80 },
-  { start: 17, end: 20, count: 140 },
-  { start: 21, end: 24, count: 180 },
-  { start: 0, end: 2, count: 40 },
-  { start: 2, end: 6, count: 10 },
-  { start: 6, end: 8, count: 30 }
+  { start: 8, end: 11, count: 80 },
+  { start: 12, end: 14, count: 54 },
+  { start: 17, end: 20, count: 94 },
+  { start: 21, end: 24, count: 120 },
+  { start: 0, end: 2, count: 26 },
+  { start: 2, end: 6, count: 6 },
+  { start: 6, end: 8, count: 20 }
 ];
+const DAILY_SLOT_COUNT = 400;
+const CLEANUP_OLDER_THAN_HOURS = Number(process.env.BUZZWEAVE_SLOT_RETENTION_HOURS || 48);
+const LOG_LEVEL = process.env.BUZZWEAVE_LOG_LEVEL || "info";
+
+function logInfo(...args) {
+  if (LOG_LEVEL === "info") console.log("[BuzzWeave]", ...args);
+}
+function logWarn(...args) {
+  if (LOG_LEVEL === "info" || LOG_LEVEL === "warn") console.warn("[BuzzWeave]", ...args);
+}
+function logError(...args) {
+  console.error("[BuzzWeave]", ...args);
+}
 
 // 言語比率 EN 40%, ES 20%, PT/JA/KO/AR 各10%
 const LANG_WEIGHTS = { en: 40, es: 20, pt: 10, ja: 10, ko: 10, ar: 10 };
@@ -72,7 +91,7 @@ async function fetchRecentPostsFromX(handle, options = {}) {
     const { data } = await getUserTweets(userId, { maxResults: limit });
     return Array.isArray(data) ? data : [];
   } catch (e) {
-    console.warn("[BuzzWeave] fetchRecentPostsFromX error:", handle, e.message);
+    logWarn("fetchRecentPostsFromX error:", handle, e.message);
     return [];
   }
 }
@@ -111,13 +130,13 @@ async function classifyPostWithGpt4o(postText) {
       lang: parsed.lang || "en"
     };
   } catch (e) {
-    console.warn("[BuzzWeave] classifyPostWithGpt4o error:", e.message);
+    logWarn("classifyPostWithGpt4o error:", e.message);
     return { topic: "crypto", tone: "neutral", lang: "en" };
   }
 }
 
 /**
- * 600枠/日のスロットを生成（JST 時間帯分布）
+ * 400枠/日のスロットを生成（JST 時間帯分布）
  */
 function generateSlotsForDay(date = new Date()) {
   const slots = [];
@@ -126,7 +145,9 @@ function generateSlotsForDay(date = new Date()) {
 
   const langs = ["en", "es", "pt", "ja", "ko", "ar"];
   const targets = ["influencer", "official", "flexible"];
-  const modes = ["minimal", "regular"];
+  // CVR要件を満たすため mode は日次固定配分にする（regular 70% / minimal 30%）
+  const modeSequence = buildWeightedSequence(DAILY_SLOT_COUNT, MODE_WEIGHTS);
+  let modeIndex = 0;
 
   for (const range of SLOT_DISTRIBUTION_JST) {
     const count = range.count;
@@ -136,7 +157,8 @@ function generateSlotsForDay(date = new Date()) {
     for (let i = 0; i < count; i++) {
       const lang = weightedRandom(langs, LANG_WEIGHTS);
       const target = weightedRandom(targets, TARGET_WEIGHTS);
-      const mode = weightedRandom(modes, MODE_WEIGHTS);
+      const mode = modeSequence[modeIndex] || "regular";
+      modeIndex++;
 
       const hour = startH + Math.random() * (endH - startH);
       const slotDate = new Date(base);
@@ -151,7 +173,35 @@ function generateSlotsForDay(date = new Date()) {
     }
   }
 
-  return slots.slice(0, 600);
+  return slots.slice(0, DAILY_SLOT_COUNT);
+}
+
+function buildWeightedSequence(total, weights) {
+  const keys = Object.keys(weights);
+  const weightSum = keys.reduce((sum, k) => sum + (weights[k] || 0), 0);
+  if (!weightSum || total <= 0) return [];
+  const raw = keys.map((k) => ({
+    key: k,
+    exact: (total * (weights[k] || 0)) / weightSum
+  }));
+  const baseCounts = raw.map((r) => ({ ...r, count: Math.floor(r.exact), rem: r.exact % 1 }));
+  let assigned = baseCounts.reduce((s, r) => s + r.count, 0);
+  const left = total - assigned;
+  baseCounts.sort((a, b) => b.rem - a.rem);
+  for (let i = 0; i < left; i++) {
+    baseCounts[i % baseCounts.length].count += 1;
+    assigned += 1;
+  }
+  const sequence = [];
+  for (const row of baseCounts) {
+    for (let i = 0; i < row.count; i++) sequence.push(row.key);
+  }
+  // 均一化のため軽くシャッフル
+  for (let i = sequence.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [sequence[i], sequence[j]] = [sequence[j], sequence[i]];
+  }
+  return sequence;
 }
 
 function weightedRandom(items, weights) {
@@ -162,6 +212,13 @@ function weightedRandom(items, weights) {
     if (r <= 0) return k;
   }
   return items[items.length - 1];
+}
+
+/**
+ * 古いスロット削除（定期メンテ）
+ */
+async function cleanupOldSlots(olderThanHours = CLEANUP_OLDER_THAN_HOURS) {
+  return cleanupOldTdPostSlots(olderThanHours);
 }
 
 /**
@@ -202,15 +259,27 @@ async function collectBuzzCandidates(options = {}) {
 
   const influencers = await getTdInfluencers(null, limit);
   const officials = await getTdOfficialAccounts(null, limit);
+  logInfo("targets loaded", {
+    influencers: influencers.length,
+    officials: officials.length,
+    total: influencers.length + officials.length
+  });
 
   const targets = [
     ...influencers.map((t) => ({ ...t, target_type: "influencer", org_type: null })),
     ...officials.map((t) => ({ ...t, target_type: "official", org_type: t.org_type }))
   ];
 
+  let postsFetched = 0;
+  let postsFilteredByDup = 0;
+  let postsPassedThreshold = 0;
   for (const target of targets.slice(0, 30)) {
     const posts = await fetchRecentPostsFromX(target.handle, { limit: 5 });
-    for (const post of posts) {
+    postsFetched += posts.length;
+    const quotedIds = await getQuotedTweetIdsInLast30Days(posts.map((p) => String(p.id)));
+    const deduped = posts.filter((p) => !quotedIds.has(String(p.id)));
+    postsFilteredByDup += posts.length - deduped.length;
+    for (const post of deduped) {
       const metrics = post.public_metrics || {};
       const score = calculateEngagementScore(metrics);
       const threshold =
@@ -218,6 +287,7 @@ async function collectBuzzCandidates(options = {}) {
           ? BUZZ_THRESHOLD.official
           : BUZZ_THRESHOLD.influencer;
       if (score < threshold) continue;
+      postsPassedThreshold++;
 
       const context = await classifyPostWithGpt4o(post.text);
       candidates.push({
@@ -234,6 +304,12 @@ async function collectBuzzCandidates(options = {}) {
   }
 
   candidates.sort((a, b) => b.engagementScore - a.engagementScore);
+  logInfo("candidate summary", {
+    postsFetched,
+    postsFilteredByDup,
+    postsPassedThreshold,
+    candidates: candidates.length
+  });
   return candidates;
 }
 
@@ -266,22 +342,32 @@ async function generateParasiticCopy(slot, buzzCandidate, videoUrl) {
  */
 async function runBuzzWeaveCycle(options = {}) {
   const dryRun = options.dryRun !== false;
+  const runId = `bw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  logInfo("cycle start", { runId, dryRun });
+  // 古いスロットの定期掃除（毎回呼んでも負荷は低い。実削除は条件一致時のみ）
+  const cleanup = await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
+  if (cleanup.ok && cleanup.deleted > 0) {
+    logInfo("cleanupOldTdPostSlots", {
+      deleted: cleanup.deleted,
+      olderThanHours: CLEANUP_OLDER_THAN_HOURS
+    });
+  }
 
   const slots = await getTdPostSlotsInNextHour();
   if (!slots.length) {
-    return { ok: true, message: "No slots in next hour", posted: 0 };
+    return { ok: true, message: "No slots in next hour", posted: 0, runId };
   }
 
   const buzzCandidates = await collectBuzzCandidates({ limit: 50 });
   if (!buzzCandidates.length) {
-    return { ok: true, message: "No buzz candidates", posted: 0 };
+    return { ok: true, message: "No buzz candidates", posted: 0, runId };
   }
 
   const results = [];
   const slot = slots[0];
   const candidate = pickBestBuzzCandidate(buzzCandidates, slot);
   if (!candidate) {
-    return { ok: true, message: "No matching candidate for slot", posted: 0 };
+    return { ok: true, message: "No matching candidate for slot", posted: 0, runId };
   }
 
   const videoUrl = pickVidalyticsLink(slot.lang, slot.mode);
@@ -290,7 +376,20 @@ async function runBuzzWeaveCycle(options = {}) {
   if (!dryRun) {
     try {
       const postResult = await postQuoteTweet(body, candidate.post.id);
-      await consumeTdPostSlot(slot.id);
+      // 30日重複防止へ登録（成功投稿時）
+      await insertQuotedTweets([{ tweet_id: String(candidate.post.id), lang: slot.lang }]);
+      const consume = await consumeTdPostSlot(slot.id);
+      let compensation = null;
+      if (!consume.ok) {
+        // 補償: 削除失敗時は将来時刻へ退避し、同slotの即時再利用を防ぐ
+        const deferred = await deferTdPostSlot(slot.id, 180);
+        compensation = {
+          slotConsumeFailed: true,
+          deferred: deferred.ok,
+          deferredTo: deferred.deferred_to || null
+        };
+        logWarn("slot consume failed, compensation applied", { runId, slotId: slot.id, compensation });
+      }
       await insertTdCopyArchive({ text: body, lang: slot.lang, mode: slot.mode });
       await insertTdCopyMeta(inferCopyMeta(body, slot.mode, slot.lang));
       await insertXPost({
@@ -303,9 +402,11 @@ async function runBuzzWeaveCycle(options = {}) {
         slot,
         candidate: { handle: candidate.target.handle, postId: candidate.post.id },
         tweetId: postResult?.id,
+        compensation,
         success: true
       });
     } catch (e) {
+      logError("post cycle failed", { runId, message: e.message });
       results.push({
         slot,
         error: e.message,
@@ -324,6 +425,7 @@ async function runBuzzWeaveCycle(options = {}) {
   return {
     ok: true,
     posted: dryRun ? 0 : results.filter((r) => r.success).length,
+    runId,
     results
   };
 }
@@ -332,9 +434,10 @@ async function runBuzzWeaveCycle(options = {}) {
  * 日次スロット生成（Cron用）
  */
 async function generateDailySlots() {
+  await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
   const slots = generateSlotsForDay(new Date());
   const result = await insertTdPostSlots(slots);
-  return { ok: result.ok, count: slots.length };
+  return { ok: result.ok, count: slots.length, targetDailySlots: DAILY_SLOT_COUNT };
 }
 
 module.exports = {
@@ -342,6 +445,7 @@ module.exports = {
   fetchRecentPostsFromX,
   classifyPostWithGpt4o,
   generateSlotsForDay,
+  cleanupOldSlots,
   pickBestBuzzCandidate,
   collectBuzzCandidates,
   generateParasiticCopy,

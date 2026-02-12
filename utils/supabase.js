@@ -2,7 +2,9 @@
  * Supabase クライアント（Trap Defence OS 実測パイプライン用）
  * 環境変数: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  */
+const { loadEnv } = require("./loadEnv");
 const { createClient } = require("@supabase/supabase-js");
+loadEnv();
 
 let _client = null;
 
@@ -410,6 +412,76 @@ async function consumeTdPostSlot(id) {
   }
 }
 
+/**
+ * slot消費失敗時の補償処理: スロットを将来時刻へ退避
+ * @param {string} id
+ * @param {number} deferMinutes
+ */
+async function deferTdPostSlot(id, deferMinutes = 180) {
+  const sb = getSupabase();
+  if (!sb || !id) return { ok: false };
+  try {
+    const dt = new Date(Date.now() + Math.max(1, deferMinutes) * 60 * 1000).toISOString();
+    const { error } = await sb.from("td_post_slots").update({ datetime_jst: dt }).eq("id", id);
+    if (error) throw error;
+    return { ok: true, deferred_to: dt };
+  } catch (e) {
+    console.warn("[Supabase] deferTdPostSlot error:", e.message);
+    return { ok: false };
+  }
+}
+
+/**
+ * 古いスロットを削除
+ * @param {number} olderThanHours - 何時間より古いスロットを削除するか
+ */
+async function cleanupOldTdPostSlots(olderThanHours = 48) {
+  const sb = getSupabase();
+  if (!sb) return { ok: false, deleted: 0 };
+  try {
+    const cutoff = new Date(Date.now() - Math.max(1, olderThanHours) * 60 * 60 * 1000).toISOString();
+    const { data, error } = await sb
+      .from("td_post_slots")
+      .delete()
+      .lt("datetime_jst", cutoff)
+      .select("id");
+    if (error) throw error;
+    return { ok: true, deleted: Array.isArray(data) ? data.length : 0 };
+  } catch (e) {
+    console.warn("[Supabase] cleanupOldTdPostSlots error:", e.message);
+    return { ok: false, deleted: 0 };
+  }
+}
+
+/**
+ * Health check用の簡易集計
+ */
+async function getTdPostSlotsHealthStats() {
+  const sb = getSupabase();
+  if (!sb) return { ok: false };
+  try {
+    const now = new Date();
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+    const nowIso = now.toISOString();
+    const [nextHour, total] = await Promise.all([
+      sb
+        .from("td_post_slots")
+        .select("id", { count: "exact", head: true })
+        .gte("datetime_jst", nowIso)
+        .lt("datetime_jst", oneHourLater),
+      sb.from("td_post_slots").select("id", { count: "exact", head: true })
+    ]);
+    return {
+      ok: true,
+      total_slots: total.count ?? 0,
+      next_hour_slots: nextHour.count ?? 0
+    };
+  } catch (e) {
+    console.warn("[Supabase] getTdPostSlotsHealthStats error:", e.message);
+    return { ok: false };
+  }
+}
+
 function inferCopyMeta(text, mode, lang) {
   const t = String(text || "");
   return {
@@ -450,5 +522,8 @@ module.exports = {
   inferCopyMeta,
   insertTdPostSlots,
   getTdPostSlotsInNextHour,
-  consumeTdPostSlot
+  consumeTdPostSlot,
+  deferTdPostSlot,
+  cleanupOldTdPostSlots,
+  getTdPostSlotsHealthStats
 };

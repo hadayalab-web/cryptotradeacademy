@@ -1,12 +1,12 @@
 /**
- * TD BuzzWeave Engine — 日次600枠スロット生成（スタンドアロン）
+ * TD BuzzWeave Engine — 日次400枠スロット生成（スタンドアロン）
  * 実行: node scripts/td-generate-daily-slots.js
  *
  * 前提: Supabase に td_post_slots テーブルが存在すること。
  * 作成: docs/supabase-tweet-metrics-schema.sql を Supabase SQL Editor で実行。
  */
-require("dotenv").config({ path: ".env.local" });
-require("dotenv").config();
+const { loadEnv } = require("../utils/loadEnv");
+loadEnv();
 
 const { getSupabase } = require("../utils/supabase");
 const { generateDailySlots } = require("../services/td/buzzWeaveEngine");
@@ -26,7 +26,14 @@ async function main() {
   }
 
   const result = await generateDailySlots();
-  console.log("[TD-Slots]", result.ok ? "OK" : "FAIL", "count:", result.count);
+  console.log(
+    "[TD-Slots]",
+    result.ok ? "OK" : "FAIL",
+    "count:",
+    result.count,
+    "targetDailySlots:",
+    result.targetDailySlots
+  );
   process.exit(result.ok ? 0 : 1);
 }
 
