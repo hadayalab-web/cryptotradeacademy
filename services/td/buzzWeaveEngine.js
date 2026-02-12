@@ -235,31 +235,52 @@ async function cleanupOldSlots(olderThanHours = CLEANUP_OLDER_THAN_HOURS) {
 
 /**
  * バズ候補をスロットに最適マッピング
+ * 言語フォールバック: ① slot.lang 一致 → ② en → ③ 全候補からスコア最大
  */
 function pickBestBuzzCandidate(buzzCandidates, slot) {
   if (!buzzCandidates?.length) return null;
 
-  const langMatch = (c) => c.context?.lang === slot.lang;
-  const langApprox = (c) =>
-    (slot.lang === "en" && ["es", "pt"].includes(c.context?.lang)) ||
-    (["es", "pt"].includes(slot.lang) && c.context?.lang === "en");
+  const slotLang = slot.lang;
   const targetMatch = (c) =>
     slot.target_type === "flexible" ||
     c.target_type === slot.target_type;
 
-  const scored = buzzCandidates
-    .filter((c) => targetMatch(c))
-    .map((c) => {
-      let score = c.engagementScore || 0;
-      if (langMatch(c)) score *= 2;
-      else if (langApprox(c)) score *= 1.2;
-      const topicGood = ["crypto", "finance", "ai"].includes(c.context?.topic);
-      if (topicGood) score *= 1.3;
-      return { ...c, matchScore: score };
-    })
-    .sort((a, b) => b.matchScore - a.matchScore);
+  const filtered = buzzCandidates.filter((c) => targetMatch(c));
+  if (!filtered.length) return null;
 
-  return scored[0] || null;
+  const langMatch = (c) => (c.context?.lang || c.target?.lang) === slotLang;
+  const langEn = (c) => (c.context?.lang || c.target?.lang) === "en";
+  const topicGood = (c) => ["crypto", "finance", "ai"].includes(c.context?.topic);
+
+  const scored = (arr) =>
+    arr
+      .map((c) => {
+        let s = c.engagementScore || 0;
+        if (topicGood(c)) s *= 1.3;
+        return { ...c, matchScore: s };
+      })
+      .sort((a, b) => b.matchScore - a.matchScore);
+
+  // ① candidate.lang === slot.lang
+  const exact = filtered.filter(langMatch);
+  if (exact.length) {
+    const best = scored(exact)[0];
+    console.log("[BuzzWeave] candidate selection fallback", { slotLang, fallbackUsed: "exact" });
+    return best;
+  }
+
+  // ② candidate.lang === "en"
+  const enCandidates = filtered.filter(langEn);
+  if (enCandidates.length) {
+    const best = scored(enCandidates)[0];
+    console.log("[BuzzWeave] candidate selection fallback", { slotLang, fallbackUsed: "en" });
+    return best;
+  }
+
+  // ③ 全候補からスコア最大
+  const best = scored(filtered)[0];
+  console.log("[BuzzWeave] candidate selection fallback", { slotLang, fallbackUsed: "any" });
+  return best;
 }
 
 /**
