@@ -591,6 +591,26 @@ async function getMe() {
 }
 
 /**
+ * ユーザーの直近ツイートを取得（OAuth 1.0a）
+ * @param {string} userId - X API ユーザーID
+ * @param {Object} options - オプション
+ * @param {number} options.maxResults - 最大件数（1-100、デフォルト: 5）
+ * @returns {Promise<Object>} { data: tweets[], includes }
+ */
+async function getUserTweets(userId, options = {}) {
+  const maxResults = Math.min(Math.max(1, options.maxResults || 5), 100);
+  const response = await xApiRequest(`/users/${userId}/tweets`, {
+    method: "GET",
+    params: {
+      max_results: String(maxResults),
+      "tweet.fields": "id,text,created_at,public_metrics,lang",
+      exclude: "replies"
+    }
+  });
+  return { data: response?.data || [], includes: response?.includes || {} };
+}
+
+/**
  * ツイートを検索（X API v2）
  * Bearer 専用 — OAuth 分岐なし。401 ならプラン制限 or Token 無効。
  * @param {string} query - 検索クエリ（Twitter検索構文）
@@ -928,6 +948,7 @@ module.exports = {
   uploadMedia,
   uploadVideo,
   getUserByUsername,
+  getUserTweets,
   getMe,
   searchTweets,
   getTrends,

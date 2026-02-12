@@ -1,13 +1,21 @@
 /**
  * Trap Defence OS — X投稿統合API
  * Cron: /api/x-post?lang=ja&mode=minimal
- * Grok/GrokPool/KV版廃止、gpt-5-mini 統合
+ * ?use_td=1 で Supabase td_* (辞書・公式文脈) をプロンプトに付与
  */
 
 const { generateAndSaveXPost } = require("../services/ai/gpt5mini");
 const { pickVidalyticsLink, getLinkKind } = require("../config/quoteRepostStateless");
 const { postTweet } = require("../services/x/client");
 const { getXConfigStatus } = require("../services/x/config");
+const {
+  getTdInfluencers,
+  getTdOfficialAccounts,
+  getTdEmotionDictionary,
+  insertTdCopyArchive,
+  insertTdCopyMeta,
+  inferCopyMeta
+} = require("../utils/supabase");
 
 const LANGS = ["ja", "en", "es", "pt", "ko", "ar"];
 const MODES = ["minimal", "regular"];
@@ -37,6 +45,7 @@ module.exports = async function handler(req, res) {
   const explicitMode = req.query?.mode ? normalizeMode(req.query.mode) : null;
   const postToX = req.query?.post === "true" || req.query?.post === "1";
   const dryRun = req.query?.dry_run === "true" || req.query?.dry_run === "1";
+  const useTd = req.query?.use_td === "1" || req.query?.use_td === "true";
 
   // mode 未指定時: tier=mixed で 70% regular / 30% minimal に揃える
   let mode;
@@ -48,12 +57,33 @@ module.exports = async function handler(req, res) {
   }
   const runId = `xp-${lang}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+  // Supabase td_* 連携: 辞書・公式 org_type 文脈を付与
+  let tdContext = {};
+  if (useTd) {
+    const useOfficial = Math.random() < 0.5;
+    if (useOfficial) {
+      const officials = await getTdOfficialAccounts(null, 50);
+      const pick = officials[Math.floor(Math.random() * officials.length)];
+      if (pick) tdContext.orgType = pick.org_type;
+    }
+    const dict = await getTdEmotionDictionary(null, lang, 10);
+    tdContext.dictionaryPhrases = dict.map((d) => d.phrase).filter(Boolean);
+  }
+
   try {
     const result = await generateAndSaveXPost({
       mode,
       language: lang,
-      video_url: videoUrl
+      video_url: videoUrl,
+      orgType: tdContext.orgType,
+      dictionaryPhrases: tdContext.dictionaryPhrases
     });
+
+    if (useTd && result.body) {
+      await insertTdCopyArchive({ text: result.body, lang, mode });
+      const meta = inferCopyMeta(result.body, mode, lang);
+      await insertTdCopyMeta(meta);
+    }
 
     const payload = {
       ok: true,

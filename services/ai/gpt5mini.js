@@ -1,6 +1,7 @@
 /**
  * Trap Defence OS — X投稿生成（gpt-5-mini 統合）
  * Grok / GrokPool / KV版テンプレートを廃止し、Trap Defence コピー人格に一本化
+ * Supabase td_* 連携: 辞書・公式アカウント org_type による文脈付与
  */
 
 const OpenAI = require("openai");
@@ -41,7 +42,10 @@ const SYSTEM_PROMPT = `You are the Trap Defence copywriter. All X posts MUST fol
 - You are now writing in the target language: {{LANG}}.
 - You are now generating a post for mode={{MODE}}.
 - Follow the exact structure template for this mode.
-- Never deviate from the required line structure.`;
+- Never deviate from the required line structure.
+{{ORG_CONTEXT}}
+{{DICT_NOTE}}
+{{BUZZ_CONTEXT}}`;
 
 const MODE_MINIMAL_USER = `Generate a post in {{LANG}} for mode "minimal".
 
@@ -64,6 +68,15 @@ Structure (strict):
 5. #BTC + exactly 1 emoji
 
 Output: 3-4 lines, ~150 chars. Link at end. No abstract words.`;
+
+// 公式アカウント org_type 別の文脈（指示書準拠）
+const ORG_CONTEXT_BY_TYPE = {
+  media: "Target: media accounts. Emphasize: AI trends, market structure shifts.",
+  ai: "Target: AI/crypto projects. Emphasize: model optimization, automation, multilingual AI.",
+  finance: "Target: finance/exchange accounts. Emphasize: market traps, whales, algos.",
+  corporate: "Target: corporate accounts. Emphasize: safety, efficiency, automation.",
+  government: "Target: institutional. Emphasize: structure, regulation, compliance."
+};
 
 const LANGS = ["ja", "en", "es", "pt", "ko", "ar"];
 const DEFAULT_EMOJI = "🚨";
@@ -119,10 +132,12 @@ function ensureHashtagAndEmoji(text) {
  * @param {string} opts.language - "ja" | "en" | "es" | "pt" | "ko" | "ar"
  * @param {string} opts.video_url - Vidalytics URL
  * @param {string} [opts.variant] - A/B variant (optional)
+ * @param {string} [opts.orgType] - "media"|"ai"|"finance"|"corporate"|"government" (公式向け文脈)
+ * @param {string[]} [opts.dictionaryPhrases] - 感情辞書からの参考素材（必須ではない）
  * @returns {Promise<{body: string, variant: string}>}
  */
 async function generateXPost(opts = {}) {
-  const { mode = "minimal", language = "ja", video_url = "", variant } = opts;
+  const { mode = "minimal", language = "ja", video_url = "", variant, orgType, dictionaryPhrases, buzzContext } = opts;
   const lang = LANGS.includes(language) ? language : "ja";
   const vidUrl = String(video_url || "").trim();
   const assignedVariant = variant || (Math.random() < 0.5 ? "A" : "B");
@@ -130,6 +145,16 @@ async function generateXPost(opts = {}) {
   if (!vidUrl) {
     throw new Error("video_url is required");
   }
+
+  const orgContext = orgType && ORG_CONTEXT_BY_TYPE[orgType]
+    ? "- Target context: " + ORG_CONTEXT_BY_TYPE[orgType]
+    : "";
+  const dictNote = Array.isArray(dictionaryPhrases) && dictionaryPhrases.length > 0
+    ? "- The following phrases are REFERENCE material only. Use only if natural. Do NOT force: " + dictionaryPhrases.slice(0, 10).join(" | ")
+    : "";
+  const buzzNote = buzzContext && buzzContext.quotedText
+    ? "- This is a QUOTE REPOST. Parasitically attach to the buzz post context. Quoted post excerpt: \"" + String(buzzContext.quotedText).slice(0, 150) + "\". Topic: " + (buzzContext.topic || "crypto") + ", Tone: " + (buzzContext.tone || "neutral") + ". Be natural, do NOT copy the quoted text. Never reference past copies."
+    : "";
 
   const userTpl = mode === "regular" ? MODE_REGULAR_USER : MODE_MINIMAL_USER;
   const userPrompt = userTpl
@@ -145,7 +170,10 @@ async function generateXPost(opts = {}) {
 
   const systemPrompt = SYSTEM_PROMPT
     .replace(/\{\{LANG\}\}/g, lang)
-    .replace(/\{\{MODE\}\}/g, mode);
+    .replace(/\{\{MODE\}\}/g, mode)
+    .replace("{{ORG_CONTEXT}}", orgContext)
+    .replace("{{DICT_NOTE}}", dictNote)
+    .replace("{{BUZZ_CONTEXT}}", buzzNote);
 
   try {
     const completion = await openai.chat.completions.create({

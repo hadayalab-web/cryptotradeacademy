@@ -186,6 +186,250 @@ async function insertXPost(row) {
   }
 }
 
+// ========== TD 拡散エンジン（インフルエンサー・公式・辞書・コピーメタ） ==========
+
+async function insertTdInfluencers(rows) {
+  const sb = getSupabase();
+  if (!sb || !rows?.length) return { ok: false };
+  try {
+    const toInsert = rows.map((r) => ({
+      handle: String(r.handle || r.username || "").replace(/^@/, ""),
+      platform: r.platform || "x",
+      lang: r.lang || null,
+      category: r.category || "crypto",
+      followers: r.followers ?? null,
+      notes: r.notes || null
+    }));
+    const { error } = await sb.from("td_influencers").insert(toInsert);
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    console.warn("[Supabase] insertTdInfluencers error:", e.message);
+    return { ok: false };
+  }
+}
+
+async function getTdInfluencers(lang = null, limit = 100) {
+  const sb = getSupabase();
+  if (!sb) return [];
+  try {
+    let q = sb.from("td_influencers").select("id, handle, platform, lang, category, followers");
+    if (lang) q = q.eq("lang", lang);
+    const { data } = await q.limit(limit);
+    return data || [];
+  } catch (e) {
+    console.warn("[Supabase] getTdInfluencers error:", e.message);
+    return [];
+  }
+}
+
+async function insertTdOfficialAccounts(rows) {
+  const sb = getSupabase();
+  if (!sb || !rows?.length) return { ok: false };
+  try {
+    const toInsert = rows.map((r) => ({
+      handle: String(r.handle || "").replace(/^@/, ""),
+      platform: r.platform || "x",
+      org_type: r.org_type || "corporate",
+      lang: r.lang || null,
+      region: r.region || null,
+      priority: r.priority ?? 1
+    }));
+    const { error } = await sb.from("td_official_accounts").insert(toInsert);
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    console.warn("[Supabase] insertTdOfficialAccounts error:", e.message);
+    return { ok: false };
+  }
+}
+
+async function getTdOfficialAccounts(orgType = null, limit = 100) {
+  const sb = getSupabase();
+  if (!sb) return [];
+  try {
+    let q = sb.from("td_official_accounts").select("id, handle, org_type, lang, region, priority");
+    if (orgType) q = q.eq("org_type", orgType);
+    const { data } = await q.order("priority", { ascending: false }).limit(limit);
+    return data || [];
+  } catch (e) {
+    console.warn("[Supabase] getTdOfficialAccounts error:", e.message);
+    return [];
+  }
+}
+
+async function insertTdEmotionPhrases(rows) {
+  const sb = getSupabase();
+  if (!sb || !rows?.length) return { ok: false };
+  try {
+    const toInsert = rows.map((r) => ({
+      category: r.category || "general",
+      phrase: r.phrase || "",
+      lang: r.lang || "ja"
+    }));
+    const { error } = await sb.from("td_emotion_dictionary").insert(toInsert);
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    console.warn("[Supabase] insertTdEmotionPhrases error:", e.message);
+    return { ok: false };
+  }
+}
+
+async function getTdEmotionDictionary(category = null, lang = null, limit = 20) {
+  const sb = getSupabase();
+  if (!sb) return [];
+  try {
+    let q = sb.from("td_emotion_dictionary").select("category, phrase, lang");
+    if (category) q = q.eq("category", category);
+    if (lang) q = q.eq("lang", lang);
+    const { data } = await q.limit(limit);
+    return data || [];
+  } catch (e) {
+    console.warn("[Supabase] getTdEmotionDictionary error:", e.message);
+    return [];
+  }
+}
+
+async function insertTdCopyMeta(row) {
+  const sb = getSupabase();
+  if (!sb) return { ok: false };
+  try {
+    const { error } = await sb.from("td_copy_meta").insert({
+      lang: row.lang,
+      mode: row.mode,
+      emotion_profile: row.emotion_profile || null,
+      enemy_profile: row.enemy_profile || null,
+      length: row.length ?? null,
+      intensity: row.intensity ?? null
+    });
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    console.warn("[Supabase] insertTdCopyMeta error:", e.message);
+    return { ok: false };
+  }
+}
+
+async function insertTdCopyArchive(row) {
+  const sb = getSupabase();
+  if (!sb) return { ok: false };
+  try {
+    const { error } = await sb.from("td_copy_archive").insert({
+      text: row.text,
+      lang: row.lang,
+      mode: row.mode
+    });
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    console.warn("[Supabase] insertTdCopyArchive error:", e.message);
+    return { ok: false };
+  }
+}
+
+const TD_POST_SLOTS_MIGRATION_HINT =
+  "td_post_slots が存在しません。Supabase SQL Editor で docs/supabase-tweet-metrics-schema.sql を実行してテーブルを作成してください。";
+
+async function checkTdPostSlotsExists() {
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    const { error } = await sb.from("td_post_slots").select("id").limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * コピー本文からメタ情報を推定（指示書 inferMeta 相当）
+ * @param {string} text - コピー本文
+ * @param {string} mode - minimal | regular
+ * @param {string} lang - 言語コード
+ * @returns {Object} { lang, mode, emotion_profile, enemy_profile, length, intensity }
+ */
+async function insertTdPostSlots(rows) {
+  const sb = getSupabase();
+  if (!sb || !rows?.length) return { ok: false };
+  const exists = await checkTdPostSlotsExists();
+  if (!exists) {
+    console.error("[Supabase]", TD_POST_SLOTS_MIGRATION_HINT);
+    return { ok: false, error: TD_POST_SLOTS_MIGRATION_HINT };
+  }
+  try {
+    const toInsert = rows.map((r) => ({
+      datetime_jst: r.datetime_jst,
+      lang: r.lang,
+      target_type: r.target_type,
+      mode: r.mode
+    }));
+    const { error } = await sb.from("td_post_slots").insert(toInsert);
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    console.warn("[Supabase] insertTdPostSlots error:", e.message);
+    return { ok: false };
+  }
+}
+
+async function getTdPostSlotsInNextHour() {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const exists = await checkTdPostSlotsExists();
+  if (!exists) {
+    console.warn("[Supabase]", TD_POST_SLOTS_MIGRATION_HINT);
+    return [];
+  }
+  try {
+    const now = new Date();
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+    const { data } = await sb
+      .from("td_post_slots")
+      .select("id, datetime_jst, lang, target_type, mode")
+      .gte("datetime_jst", now.toISOString())
+      .lt("datetime_jst", oneHourLater.toISOString())
+      .order("datetime_jst", { ascending: true });
+    return data || [];
+  } catch (e) {
+    console.warn("[Supabase] getTdPostSlotsInNextHour error:", e.message);
+    return [];
+  }
+}
+
+async function consumeTdPostSlot(id) {
+  const sb = getSupabase();
+  if (!sb || !id) return { ok: false };
+  try {
+    const { error } = await sb.from("td_post_slots").delete().eq("id", id);
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    console.warn("[Supabase] consumeTdPostSlot error:", e.message);
+    return { ok: false };
+  }
+}
+
+function inferCopyMeta(text, mode, lang) {
+  const t = String(text || "");
+  return {
+    lang: lang || "ja",
+    mode: mode || "minimal",
+    emotion_profile: {
+      fear: /冷える|tight|fear|凍/i.test(t) ? 0.4 : 0.2,
+      anxiety: /ざわ|unease|不安/i.test(t) ? 0.3 : 0.2,
+      sadness: /崩れ|ache|崩壊/i.test(t) ? 0.2 : 0.1,
+      disappointment: 0.1
+    },
+    enemy_profile: {
+      whale: /クジラ|whale|吸う/i.test(t) ? 1 : 0,
+      algo: /アルゴ|algo|罠/i.test(t) ? 1 : 0
+    },
+    length: t.length,
+    intensity: mode === "regular" ? 4 : 2
+  };
+}
+
 module.exports = {
   getSupabase,
   insertTweetQueue,
@@ -194,5 +438,17 @@ module.exports = {
   insertTweetMetrics,
   getQuotedTweetIdsInLast30Days,
   insertQuotedTweets,
-  insertXPost
+  insertXPost,
+  insertTdInfluencers,
+  getTdInfluencers,
+  insertTdOfficialAccounts,
+  getTdOfficialAccounts,
+  insertTdEmotionPhrases,
+  getTdEmotionDictionary,
+  insertTdCopyMeta,
+  insertTdCopyArchive,
+  inferCopyMeta,
+  insertTdPostSlots,
+  getTdPostSlotsInNextHour,
+  consumeTdPostSlot
 };
