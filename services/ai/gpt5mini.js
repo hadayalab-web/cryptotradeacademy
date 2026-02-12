@@ -137,7 +137,7 @@ function ensureHashtagAndEmoji(text) {
  * @returns {Promise<{body: string, variant: string}>}
  */
 async function generateXPost(opts = {}) {
-  const { mode = "minimal", language = "ja", video_url = "", variant, orgType, dictionaryPhrases, buzzContext } = opts;
+  const { mode = "minimal", language = "ja", video_url = "", variant, orgType, dictionaryPhrases, buzzContext, usedMode } = opts;
   const lang = LANGS.includes(language) ? language : "ja";
   const vidUrl = String(video_url || "").trim();
   const assignedVariant = variant || (Math.random() < 0.5 ? "A" : "B");
@@ -152,9 +152,27 @@ async function generateXPost(opts = {}) {
   const dictNote = Array.isArray(dictionaryPhrases) && dictionaryPhrases.length > 0
     ? "- The following phrases are REFERENCE material only. Use only if natural. Do NOT force: " + dictionaryPhrases.slice(0, 10).join(" | ")
     : "";
-  const buzzNote = buzzContext && buzzContext.quotedText
-    ? "- This is a QUOTE REPOST. Parasitically attach to the buzz post context. Quoted post excerpt: \"" + String(buzzContext.quotedText).slice(0, 150) + "\". Topic: " + (buzzContext.topic || "crypto") + ", Tone: " + (buzzContext.tone || "neutral") + ". Be natural, do NOT copy the quoted text. Never reference past copies."
-    : "";
+  let buzzNote = "";
+  const effectiveUsedMode = usedMode || buzzContext?.usedMode || "neutral_insight";
+  if (buzzContext) {
+    const parts = [];
+    if (buzzContext.quotedText) {
+      parts.push("- This is a QUOTE REPOST. Parasitically attach to the buzz post context. Quoted post excerpt: \"" + String(buzzContext.quotedText).slice(0, 150) + "\". Topic: " + (buzzContext.topic || "crypto") + ", Tone: " + (buzzContext.tone || "neutral") + ". Be natural, do NOT copy the quoted text. Never reference past copies.");
+    }
+    if (buzzContext.buzzSummary) parts.push("- Why buzzing: " + buzzContext.buzzSummary);
+    if (buzzContext.clusterPsych) parts.push("- Cluster market psychology: " + buzzContext.clusterPsych);
+    if (buzzContext.trapDefenceInsight) parts.push("- Trap Defence insight: " + buzzContext.trapDefenceInsight);
+    if (buzzContext.dangerWhyRetail) parts.push("- Why this trend is dangerous for retail traders: " + buzzContext.dangerWhyRetail);
+    if (buzzContext.whaleTrapHow) parts.push("- How whales are trapping retail: " + buzzContext.whaleTrapHow);
+    if (buzzContext.doNotDoActions) parts.push("- Typical actions NOT to do now: " + buzzContext.doNotDoActions);
+    buzzNote = parts.length ? parts.join(" ") : "";
+  }
+  const usedModeNote = effectiveUsedMode === "trap_defence_warning"
+    ? " IMPORTANT: This is TRAP DEFENCE mode. Emphasize WARNING, structure explanation, and what NOT to do. Save retail from whale traps."
+    : effectiveUsedMode === "educational_boost"
+    ? " IMPORTANT: This is EDUCATIONAL BOOST mode. Reinforce the original post's awareness message. Add depth to the educational content."
+    : " IMPORTANT: This is NEUTRAL INSIGHT mode. Explain current market structure. Balanced perspective.";
+  if (buzzNote) buzzNote += usedModeNote;
 
   const userTpl = mode === "regular" ? MODE_REGULAR_USER : MODE_MINIMAL_USER;
   const userPrompt = userTpl

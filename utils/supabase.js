@@ -502,6 +502,101 @@ function inferCopyMeta(text, mode, lang) {
   };
 }
 
+// ========== BuzzWeave 集中投下ログ（市場回収用） ==========
+
+/**
+ * 集中投下結果を buzzweave_post_log に保存
+ * @param {Object} row - { slotLang, clusterLabel, clusterScore, candidateTweetId, engagementScore, postedAt?, ourTweetId?, slotMode?, buzzSummary?, clusterPsych?, trapDefenceInsight?, dangerLabel?, usedMode? }
+ * @returns {Promise<{ok: boolean, data?: Object, error?: string}>}
+ */
+async function insertBuzzweavePostLog(row) {
+  const sb = getSupabase();
+  if (!sb) return { ok: false, error: "Supabase not configured" };
+  try {
+    const { data, error } = await sb
+      .from("buzzweave_post_log")
+      .insert({
+        slot_lang: row.slotLang || row.slot_lang,
+        cluster_label: row.clusterLabel || row.cluster_label,
+        cluster_score: Number(row.clusterScore ?? row.cluster_score ?? 0),
+        candidate_tweet_id: String(row.candidateTweetId || row.candidate_tweet_id || ""),
+        engagement_score: Number(row.engagementScore ?? row.engagement_score ?? 0),
+        posted_at: row.postedAt || row.posted_at || new Date().toISOString(),
+        our_tweet_id: row.ourTweetId || row.our_tweet_id || null,
+        slot_mode: row.slotMode || row.slot_mode || null,
+        buzz_summary: row.buzzSummary || row.buzz_summary || null,
+        cluster_psych: row.clusterPsych || row.cluster_psych || null,
+        trap_defence_insight: row.trapDefenceInsight || row.trap_defence_insight || null,
+        danger_label: row.dangerLabel || row.danger_label || "neutral",
+        used_mode: row.usedMode || row.used_mode || "neutral_insight"
+      })
+      .select("id, our_tweet_id")
+      .single();
+    if (error) throw error;
+    return { ok: true, data };
+  } catch (e) {
+    console.warn("[Supabase] insertBuzzweavePostLog error:", e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
+/**
+ * our_tweet_id で public_metrics を紐づけて更新（ポーリング/別ジョブ用）
+ * @param {string} ourTweetId - 自分が投稿した引用リポストの tweet_id
+ * @param {Object} metrics - { impressions, likes, retweets, quotes, replies }
+ * @returns {Promise<{ok: boolean, rowsUpdated?: number}>}
+ */
+async function updateBuzzweavePostLogWithMetrics(ourTweetId, metrics) {
+  const sb = getSupabase();
+  if (!sb || !ourTweetId) return { ok: false };
+  try {
+    const { data, error } = await sb
+      .from("buzzweave_post_log")
+      .update({
+        our_impressions: metrics.impressions ?? null,
+        our_likes: metrics.likes ?? null,
+        our_retweets: metrics.retweets ?? null,
+        our_quotes: metrics.quotes ?? null,
+        our_replies: metrics.replies ?? null,
+        metrics_fetched_at: new Date().toISOString()
+      })
+      .eq("our_tweet_id", String(ourTweetId))
+      .select("id");
+    if (error) throw error;
+    return { ok: true, rowsUpdated: (data || []).length };
+  } catch (e) {
+    console.warn("[Supabase] updateBuzzweavePostLogWithMetrics error:", e.message);
+    return { ok: false };
+  }
+}
+
+/**
+ * public_metrics 未取得のログを取得（ポーリング/別ジョブ用）
+ * @param {number} limit - 取得件数
+ * @param {number} minAgeMinutes - 投稿後これ以上経過したもののみ（X API 反映待ち）
+ * @returns {Promise<{ok: boolean, rows: Array}>}
+ */
+async function fetchBuzzweavePostLogsPendingMetrics(limit = 50, minAgeMinutes = 5) {
+  const sb = getSupabase();
+  if (!sb) return { ok: false, rows: [] };
+  try {
+    const minPosted = new Date(Date.now() - minAgeMinutes * 60 * 1000).toISOString();
+    const { data, error } = await sb
+      .from("buzzweave_post_log")
+      .select("id, our_tweet_id, slot_lang, cluster_label, engagement_score")
+      .not("our_tweet_id", "is", null)
+      .is("metrics_fetched_at", null)
+      .lt("posted_at", minPosted)
+      .order("posted_at", { ascending: true })
+      .limit(limit);
+    if (error) throw error;
+    return { ok: true, rows: data || [] };
+  } catch (e) {
+    console.warn("[Supabase] fetchBuzzweavePostLogsPendingMetrics error:", e.message);
+    return { ok: false, rows: [] };
+  }
+}
+
 module.exports = {
   getSupabase,
   insertTweetQueue,
@@ -525,5 +620,8 @@ module.exports = {
   consumeTdPostSlot,
   deferTdPostSlot,
   cleanupOldTdPostSlots,
-  getTdPostSlotsHealthStats
+  getTdPostSlotsHealthStats,
+  insertBuzzweavePostLog,
+  updateBuzzweavePostLogWithMetrics,
+  fetchBuzzweavePostLogsPendingMetrics
 };

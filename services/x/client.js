@@ -611,6 +611,83 @@ async function getUserTweets(userId, options = {}) {
 }
 
 /**
+ * Search recent Posts（X API v2）
+ * BuzzWeave Engine 用 — Bearer 認証（Search API は Bearer 必須のプランが多い）
+ * xApiRequest で OAuth が 401 の場合のフォールバックとして Bearer を使用
+ * @param {string} query - 検索クエリ（X検索構文）
+ * @param {Object} options - 検索オプション
+ * @param {number} options.maxResults - 最大結果数（10-100、デフォルト: 50）
+ * @param {string} options.startTime - 開始時刻（ISO 8601形式）
+ * @param {string} options.endTime - 終了時刻（ISO 8601形式）
+ * @param {string} options.sortOrder - ソート順（"relevancy" | "recency"）
+ * @returns {Promise<Object>} 検索結果 {data, includes, meta}
+ */
+async function searchPostsRecent(query, options = {}) {
+  if (!query || query.trim().length === 0) {
+    throw new Error("Search query is required");
+  }
+  const maxResults = Math.min(Math.max(10, options.maxResults || 50), 100);
+  const params = new URLSearchParams({
+    query: query.trim(),
+    max_results: String(maxResults),
+    "tweet.fields": "id,text,author_id,created_at,public_metrics,lang",
+    expansions: "author_id",
+    "user.fields": "id,name,username",
+    sort_order: options.sortOrder || "relevancy"
+  });
+  if (options.startTime) params.set("start_time", options.startTime);
+  if (options.endTime) params.set("end_time", options.endTime);
+
+  const bearer = process.env.X_API_BEARER_TOKEN;
+  if (bearer) {
+    const url = `${X_API_BASE_URL}/tweets/search/recent?${params.toString()}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${bearer}`,
+        "Content-Type": "application/json"
+      }
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      let err;
+      try {
+        err = JSON.parse(text);
+      } catch {
+        err = { detail: text };
+      }
+      throw new Error(`X API Error: ${res.status} - ${JSON.stringify(err)}`);
+    }
+    const json = await res.json();
+    try {
+      const { recordRateLimit } = require("./rateLimitTracker");
+      const headers = {};
+      for (const [k, v] of res.headers.entries()) {
+        if (k.toLowerCase().startsWith("x-rate-limit")) headers[k.toLowerCase()] = v;
+      }
+      await recordRateLimit("GET /2/tweets/search/recent", "user", headers);
+    } catch (e) {
+      /* ignore */
+    }
+    return {
+      data: json.data || [],
+      includes: json.includes || {},
+      meta: json.meta || {}
+    };
+  }
+
+  const response = await xApiRequest("/tweets/search/recent", {
+    method: "GET",
+    params: Object.fromEntries(params)
+  });
+  return {
+    data: response?.data || [],
+    includes: response?.includes || {},
+    meta: response?.meta || {}
+  };
+}
+
+/**
  * ツイートを検索（X API v2）
  * Bearer 専用 — OAuth 分岐なし。401 ならプラン制限 or Token 無効。
  * @param {string} query - 検索クエリ（Twitter検索構文）
@@ -950,6 +1027,7 @@ module.exports = {
   getUserByUsername,
   getUserTweets,
   getMe,
+  searchPostsRecent,
   searchTweets,
   getTrends,
   isRateLimitError,

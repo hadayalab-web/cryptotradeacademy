@@ -128,3 +128,33 @@ CREATE TABLE IF NOT EXISTS td_post_slots (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_td_post_slots_datetime ON td_post_slots(datetime_jst);
+
+-- 11. buzzweave_post_log: 集中投下結果回収ログ（市場から回収・学習用）
+CREATE TABLE IF NOT EXISTS buzzweave_post_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slot_lang TEXT NOT NULL,
+  cluster_label TEXT NOT NULL,
+  cluster_score NUMERIC NOT NULL,
+  candidate_tweet_id TEXT NOT NULL,
+  engagement_score NUMERIC NOT NULL,
+  posted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  our_tweet_id TEXT,
+  slot_mode TEXT,
+  buzz_summary TEXT,
+  cluster_psych TEXT,
+  trap_defence_insight TEXT,
+  danger_label TEXT,
+  used_mode TEXT,
+  our_impressions BIGINT,
+  our_likes INT,
+  our_retweets INT,
+  our_quotes INT,
+  our_replies INT,
+  metrics_fetched_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_buzzweave_post_log_posted_at ON buzzweave_post_log(posted_at);
+CREATE INDEX IF NOT EXISTS idx_buzzweave_post_log_slot_lang ON buzzweave_post_log(slot_lang);
+CREATE INDEX IF NOT EXISTS idx_buzzweave_post_log_cluster_label ON buzzweave_post_log(cluster_label);
+CREATE INDEX IF NOT EXISTS idx_buzzweave_post_log_our_tweet_id ON buzzweave_post_log(our_tweet_id) WHERE our_tweet_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_buzzweave_post_log_metrics_pending ON buzzweave_post_log(our_tweet_id) WHERE metrics_fetched_at IS NULL AND our_tweet_id IS NOT NULL;
