@@ -447,6 +447,7 @@ async function runBuzzWeaveCycle(options = {}) {
   }
 
   const slots = await getTdPostSlotsInNextHour();
+  console.log("[BuzzWeave] slot", slots.length ? slots[0] : null);
   if (!slots.length) {
     return { ok: true, message: "No slots in next hour", posted: 0, runId };
   }
@@ -487,6 +488,7 @@ async function runBuzzWeaveCycle(options = {}) {
   const results = [];
   const slot = slots[0];
   const candidate = pickBestBuzzCandidate(buzzCandidates, slot);
+  console.log("[BuzzWeave] best candidate", candidate);
   if (!candidate) {
     return { ok: true, message: "No matching candidate for slot", posted: 0, runId };
   }
@@ -519,6 +521,10 @@ async function runBuzzWeaveCycle(options = {}) {
     }
 
     try {
+      console.log("[BuzzWeave] ready to post", {
+        text: body?.slice(0, 200),
+        targetTweetId: candidate.post.id
+      });
       const postResult = await postQuoteTweet(body, candidate.post.id);
       // 30日重複防止へ登録（成功投稿時）
       await insertQuotedTweets([{ tweet_id: String(candidate.post.id), lang: slot.lang }]);
