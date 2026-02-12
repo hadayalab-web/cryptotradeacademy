@@ -4,7 +4,7 @@
  * Usage: node scripts/verify-vid-links-stateless.js
  * または .env 読込後: node -r dotenv/config scripts/verify-vid-links-stateless.js
  */
-const { pickVidalyticsLink } = require("../config/quoteRepostStateless");
+const { pickVidalyticsLink } = require("../config/buzzweaveLinks");
 
 const LANGS = ["en", "es", "pt", "pt-br", "ja", "ko", "ar"];
 const TIERS = ["regular", "minimal", "mixed"];
@@ -24,7 +24,7 @@ for (const lang of LANGS) {
 console.log("=== 6言語 × pickVidalyticsLink 確認完了 ===\n");
 
 // buildBodyWithMode の link 差し込み確認
-const { buildBodyWithMode } = require("../config/quoteRepostStateless");
+const { buildBodyWithMode } = require("../config/buzzweaveLinks");
 for (const lang of ["en", "ja"]) {
   const text = buildBodyWithMode(lang, 0, "mixed", "template", []);
   const hasLink = text.includes("vidalytics") || text.includes("preview.vidalytics");

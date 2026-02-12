@@ -9,7 +9,7 @@ loadEnv();
 
 const OpenAI = require("openai");
 const { searchPostsRecent, getUserByUsername, getUserTweets, postQuoteTweet } = require("../x/client");
-const { pickVidalyticsLink } = require("../../config/quoteRepostStateless");
+const { pickVidalyticsLink } = require("../../config/buzzweaveLinks");
 const {
   getTdInfluencers,
   getTdOfficialAccounts,

@@ -62,7 +62,7 @@ async function testReplyToTweetArguments() {
 
 /**
  * 定数の一貫性テスト
- * validate_implementation.js と整合: maxPostsPerHour のデフォルト値（環境変数フォールバック）をチェック
+ * BuzzWeave 単体OS: x-post-free-report.js は廃止のためスキップ。ファイルが存在する場合のみ検証。
  */
 function testConstantsConsistency() {
   console.log("\n🔍 定数の一貫性をテスト...\n");
@@ -70,15 +70,15 @@ function testConstantsConsistency() {
   const fs = require("fs");
   const path = require("path");
 
-  // maxPostsPerHour: x-post-free-report.js は環境変数デフォルト "5" を使用（Grok推奨値）
-  const expectedMaxPostsPerHour = 5;
   const filePath = "api/x-post-free-report.js";
   const fullPath = path.join(process.cwd(), filePath);
 
   if (!fs.existsSync(fullPath)) {
-    console.warn(`   ⚠️ ファイルが見つかりません: ${filePath}`);
-    return false;
+    console.log(`   ⏭️ ${filePath} は存在しません（BuzzWeave 単体OS のためスキップ）`);
+    return true;
   }
+
+  const expectedMaxPostsPerHour = 5;
 
   const content = fs.readFileSync(fullPath, "utf-8");
   // parseInt(process.env.X_MAX_HOURLY_POSTS || "5", 10) 形式を検出

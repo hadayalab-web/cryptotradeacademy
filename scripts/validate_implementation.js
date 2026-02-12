@@ -30,23 +30,14 @@ const EXPECTED_FUNCTION_SIGNATURES = {
       description: "ツイート投稿"
     }
   },
-  "services/x/velocityBooster.js": {
-    postVelocityReply: {
-      requiredParams: ["tweetId", "lang"], // 必須引数のみ
-      paramTypes: ["string", "string"],
-      description: "Velocity Boosterリプライ"
-    }
-  }
+  // velocityBooster.js は BuzzWeave 単体OS にて削除済み
 };
 
 // 定数の一貫性チェック
 // ⚖️ バランスアプローチ: Grokの警告を踏まえ、リスクを最小化
 // 注: x-post-minimal-version.js は Cron スケジュール制御のため定数チェック対象外
-const EXPECTED_CONSTANTS = {
-  "api/x-post-free-report.js": {
-    maxPostsPerHour: 5 // 環境変数デフォルト "5"（Grok推奨）
-  }
-};
+// BuzzWeave 単体OS: x-post-free-report.js 削除済みのため定数チェック対象外
+const EXPECTED_CONSTANTS = {};
 
 /**
  * ファイルから関数呼び出しを抽出
@@ -274,9 +265,9 @@ function validateImplementation() {
   // 3. エラーハンドリングを検証
   console.log("\n📋 3. エラーハンドリングを検証...");
   const criticalFiles = [
-    "api/x-post-free-report.js",
-    "api/x-post-minimal-version.js",
-    "services/x/velocityBooster.js"
+    "api/buzzweave-run.js",
+    "services/td/buzzWeaveEngine.js",
+    "services/x/client.js"
   ];
 
   for (const filePath of criticalFiles) {

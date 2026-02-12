@@ -3,6 +3,10 @@
 **作成日時**: 2026-01-17 14:07:03  
 **作成日**: 2026-01-17  
 
+## X 投稿は BuzzWeave Engine のみ
+**→ [X_POSTING_BUZZWEAVE_ONLY.md](./X_POSTING_BUZZWEAVE_ONLY.md)**  
+Trap Defence の X 投稿ロジックは **BuzzWeave Engine 単体OS** で、`/api/buzzweave-run`（毎分）のみが投稿を行う。その他の X 投稿経路は廃止済み。
+
 ## 運用で管理する配信（2系統だけ）
 **→ [MANAGED_DELIVERIES.md](./MANAGED_DELIVERIES.md)**  
 (1) 無料版・有料版のTG配信ライン (2) Grok引用リポストライン。この2系統のみ。

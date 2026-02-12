@@ -1,6 +1,7 @@
 /**
- * Trap Defence X Repost OS — Stateless 設定・ヘルパー
- * KV 禁止・完全 stateless・Search → Pick → Shoot
+ * BuzzWeave Engine — Vidalytics リンク・検索・テンプレート設定
+ * X 投稿（引用リポスト）で使用するリンク選定・本文生成のヘルパー。
+ * 呼び出し元: services/td/buzzWeaveEngine.js
  */
 
 // ========================================

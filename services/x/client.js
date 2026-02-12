@@ -1,5 +1,9 @@
 // services/x/client.js
 // X (Twitter) API v2 クライアント - OAuth 1.0a User Context認証
+//
+// 【OS 原則】X への write（postTweet / replyToTweet / postQuoteTweet）は
+// services/td/buzzWeaveEngine.js 経由（api/buzzweave-run.js）のみで行う。
+// 他の呼び出し元を追加しないこと。
 
 const OAuth = require("oauth-1.0a");
 const crypto = require("crypto");

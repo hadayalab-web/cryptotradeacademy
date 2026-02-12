@@ -1,8 +1,0 @@
-// api/x-quote-repost-ko.js
-// Stateless Search → Pick → Shoot（KO）
-
-const { handleStatelessQuoteRepost } = require("./x-quote-repost-stateless-handler");
-
-module.exports = async (req, res) => {
-  return handleStatelessQuoteRepost(req, res, "ko");
-};

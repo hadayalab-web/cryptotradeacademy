@@ -281,34 +281,7 @@ async function updateEngagementStats(tweetId, eventType) {
   }
 
   try {
-    // P0-1: 新しいインフルエンサーパフォーマンス分析機能を統合
-    // 可能ならマッピングを取得してメタ補完（KV read 1回）
-    let meta = {};
-    try {
-      const {
-        getInfluencerMapping,
-        incrementTweetEngagement
-      } = require("../services/x/influencerPerformance");
-      const mapping = await getInfluencerMapping(tweetId);
-      if (mapping?.influencerUsername) {
-        meta = {
-          influencerUsername: mapping.influencerUsername,
-          lang: mapping.lang,
-          postType: mapping.postType
-        };
-      }
-
-      // tweet単位の速報カウンタ更新（KV write 1回）
-      await incrementTweetEngagement(tweetId, eventType, meta);
-    } catch (perfError) {
-      console.warn(
-        "[X Webhook] ⚠️ Failed to update influencer performance (non-fatal):",
-        perfError.message
-      );
-      // エラーでも既存の統計更新は続行
-    }
-
-    // 既存の統計更新ロジック（後方互換性のため維持）
+    // 既存の統計更新ロジック（BuzzWeave 単体OS: インフルエンサーストック廃止のためシンプルに維持）
     // ツイートIDでエンゲージメント統計を更新
     const key = `x:webhook:stats:${tweetId}`;
     const stats = (await kv.get(key)) || {
