@@ -25,7 +25,8 @@ const {
   insertXPost,
   getQuotedTweetIdsInLast30Days,
   insertQuotedTweets,
-  insertBuzzweavePostLog
+  insertBuzzweavePostLog,
+  upsertBuzzweaveStatus402
 } = require("../../utils/supabase");
 const { generateXPost } = require("../ai/gpt5mini");
 
@@ -52,15 +53,24 @@ const BUZZWEAVE_GPT_CLASSIFY_TOP_N = Number(process.env.BUZZWEAVE_GPT_CLASSIFY_T
 const BUZZWEAVE_ENOUGH_CANDIDATES = Number(process.env.BUZZWEAVE_ENOUGH_CANDIDATES || 24);
 const CLEANUP_OLDER_THAN_HOURS = Number(process.env.BUZZWEAVE_SLOT_RETENTION_HOURS || 48);
 const LOG_LEVEL = process.env.BUZZWEAVE_LOG_LEVEL || "info";
+const LOG_MAX_PER_RUN = 5;
+let runLogCount = 0;
+
+function logOnce(...args) {
+  runLogCount += 1;
+  if (runLogCount <= LOG_MAX_PER_RUN) {
+    console.error("[BuzzWeave]", ...args);
+  }
+}
 
 function logInfo(...args) {
-  if (LOG_LEVEL === "info") console.log("[BuzzWeave]", ...args);
+  logOnce(...args);
 }
 function logWarn(...args) {
-  if (LOG_LEVEL === "info" || LOG_LEVEL === "warn") console.warn("[BuzzWeave]", ...args);
+  logOnce(...args);
 }
 function logError(...args) {
-  console.error("[BuzzWeave]", ...args);
+  logOnce(...args);
 }
 
 function isDeadlineExceeded(startMs, deadlineMs) {
@@ -458,6 +468,7 @@ function pickBestBuzzCandidate(buzzCandidates, slot, clusterScores = {}) {
 
 /**
  * search/recent でトレンド投稿を取得（1-1 準拠：直近1〜5分・recency・50件）
+ * 402 発生時は即停止・再試行なし。fatal402 を返して run 全体を即 return する。
  */
 async function fetchCandidatesFromSearch(slotLang, options = {}) {
   try {
@@ -479,6 +490,11 @@ async function fetchCandidatesFromSearch(slotLang, options = {}) {
       slotLang
     };
   } catch (e) {
+    const is402 = String(e?.message || "").includes("402");
+    if (is402) {
+      logError("fetchCandidatesFromSearch 402: run aborted", slotLang);
+      return { data: [], includes: {}, query: "", slotLang, fatal402: true };
+    }
     logWarn("fetchCandidatesFromSearch error:", slotLang, e.message);
     return { data: [], includes: {}, query: "", slotLang };
   }
@@ -519,15 +535,20 @@ async function collectBuzzCandidates(options = {}) {
     return { candidates, deadlineExceeded: true, clusters: {}, clusterScores: {} };
   }
 
-  // 1-1: slot.lang に合わせたクエリで直近 1〜5 分の投稿を取得
-  const { data: posts, includes, query } = await fetchCandidatesFromSearch(slotLang, {
+  // 1-1: slot.lang に合わせたクエリで直近 1〜5 分の投稿を取得（1言語のみ）
+  const searchResult = await fetchCandidatesFromSearch(slotLang, {
     maxResults: 50,
     sortOrder: "recency",
     windowMinutes: SEARCH_WINDOW_MINUTES
   });
 
+  if (searchResult.fatal402) {
+    return { candidates: [], deadlineExceeded: false, clusters: {}, clusterScores: {}, fatal402: true };
+  }
+
+  const { data: posts, includes, query } = searchResult;
+
   if (isDeadlineExceeded(startMs, deadlineMs)) {
-    logWarn("deadline exceeded", { stage: "after-search", ...deadlineSnapshot(startMs, deadlineMs) });
     return { candidates, deadlineExceeded: true, clusters: {}, clusterScores: {} };
   }
 
@@ -649,28 +670,24 @@ async function generateParasiticCopy(slot, buzzCandidate, videoUrl) {
 }
 
 /**
- * 1サイクル実行: 次1時間のスロット取得 → マッピング → 生成 → 投稿
+ * 1サイクル実行: 次1時間のスロット取得（1言語のみ）→ マッピング → 生成 → 投稿
  */
 async function runBuzzWeaveCycle(options = {}) {
+  runLogCount = 0;
   const dryRun = options.dryRun !== false;
   const deadlineMs = Number(options.deadlineMs || DEFAULT_DEADLINE_MS);
+  const langFilter = options.langFilter || null;
   const startMs = Date.now();
   const runId = `bw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  logInfo("cycle start", { runId, dryRun, deadlineMs });
-  // 古いスロットの定期掃除（毎回呼んでも負荷は低い。実削除は条件一致時のみ）
-  const cleanup = await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
-  if (cleanup.ok && cleanup.deleted > 0) {
-    logInfo("cleanupOldTdPostSlots", {
-      deleted: cleanup.deleted,
-      olderThanHours: CLEANUP_OLDER_THAN_HOURS
-    });
-  }
+  logError("cycle start", { runId, dryRun, langFilter });
 
-  const slots = await getTdPostSlotsInNextHour();
+  const cleanup = await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
+
+  const slots = await getTdPostSlotsInNextHour(langFilter);
   const slot = slots[0];
-  console.log("[BuzzWeave] slot", slot || null);
+  logError("slot", slot || null);
   if (!slots.length) {
-    return { ok: true, message: "No slots in next hour", posted: 0, runId };
+    return { ok: true, message: langFilter ? `No slots for lang=${langFilter}` : "No slots in next hour", posted: 0, runId };
   }
 
   if (isDeadlineExceeded(startMs, deadlineMs)) {
@@ -694,6 +711,13 @@ async function runBuzzWeaveCycle(options = {}) {
     deadlineMs,
     classifyTopN: BUZZWEAVE_GPT_CLASSIFY_TOP_N
   });
+
+  if (collectResult.fatal402) {
+    upsertBuzzweaveStatus402().catch(() => {});
+    logError("fatal402: run aborted");
+    return { ok: false, message: "X API 402 - run aborted", posted: 0, runId, fatal402: true };
+  }
+
   const buzzCandidates = collectResult.candidates || [];
   const clusterScores = collectResult.clusterScores || {};
   if (!buzzCandidates.length) {
@@ -715,7 +739,7 @@ async function runBuzzWeaveCycle(options = {}) {
   if (!candidate) {
     candidate = buzzCandidates.sort((a, b) => (b.engagementScore || 0) - (a.engagementScore || 0))[0];
   }
-  console.log("[BuzzWeave] best candidate", candidate);
+  logError("best candidate", candidate ? candidate.post?.id : null);
   if (!candidate) {
     return { ok: true, message: "No matching candidate for slot", posted: 0, runId };
   }
@@ -748,10 +772,7 @@ async function runBuzzWeaveCycle(options = {}) {
     }
 
     try {
-      console.log("[BuzzWeave] ready to post", {
-        text: body?.slice(0, 200),
-        targetTweetId: candidate.post.id
-      });
+      logError("ready to post", candidate.post.id);
       const postResult = await postQuoteTweet(body, candidate.post.id);
       // 集中投下ログ（市場回収用 + ミッション検証用）
       const buzzInsights = buildBuzzInsights(candidate, slot.lang);
@@ -786,12 +807,22 @@ async function runBuzzWeaveCycle(options = {}) {
       }
       await insertTdCopyArchive({ text: body, lang: slot.lang, mode: slot.mode });
       await insertTdCopyMeta(inferCopyMeta(body, slot.mode, slot.lang));
-      await insertXPost({
+      const xpostResult = await insertXPost({
         lang: slot.lang,
         mode: slot.mode,
         body,
         video_url: videoUrl
       });
+      if (!xpostResult.ok) {
+        logError("insertXPost failed, run stopping (no retry)");
+        return {
+          ok: true,
+          message: "insertXPost failed",
+          posted: 0,
+          runId,
+          results
+        };
+      }
       results.push({
         slot,
         candidate: { handle: candidate.target.handle, postId: candidate.post.id },

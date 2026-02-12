@@ -167,6 +167,7 @@ async function insertQuotedTweets(rows) {
 
 /**
  * x_posts に insert（X投稿生成ログ）
+ * 失敗時は 1 回だけログして return。再試行・throw なし（暴走防止）。
  * @param {Object} row - { lang, mode, variant?, body, video_url? }
  */
 async function insertXPost(row) {
@@ -177,13 +178,13 @@ async function insertXPost(row) {
       lang: row.lang || null,
       mode: row.mode || null,
       variant: row.variant || null,
-      body: row.body || "",
+      body: row.body != null ? String(row.body) : "",
       video_url: row.video_url || null
     });
     if (error) throw error;
     return { ok: true };
   } catch (e) {
-    console.warn("[Supabase] insertXPost error:", e.message);
+    console.error("[Supabase] insertXPost failed (once, no retry):", e.message);
     return { ok: false };
   }
 }
@@ -375,26 +376,24 @@ async function insertTdPostSlots(rows) {
   }
 }
 
-async function getTdPostSlotsInNextHour() {
+async function getTdPostSlotsInNextHour(langFilter = null) {
   const sb = getSupabase();
   if (!sb) return [];
   const exists = await checkTdPostSlotsExists();
-  if (!exists) {
-    console.warn("[Supabase]", TD_POST_SLOTS_MIGRATION_HINT);
-    return [];
-  }
+  if (!exists) return [];
   try {
     const now = new Date();
     const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
-    const { data } = await sb
+    let q = sb
       .from("td_post_slots")
       .select("id, datetime_jst, lang, target_type, mode")
       .gte("datetime_jst", now.toISOString())
       .lt("datetime_jst", oneHourLater.toISOString())
       .order("datetime_jst", { ascending: true });
+    if (langFilter) q = q.eq("lang", langFilter);
+    const { data } = await q;
     return data || [];
   } catch (e) {
-    console.warn("[Supabase] getTdPostSlotsInNextHour error:", e.message);
     return [];
   }
 }
@@ -500,6 +499,87 @@ function inferCopyMeta(text, mode, lang) {
     length: t.length,
     intensity: mode === "regular" ? 4 : 2
   };
+}
+
+// ========== BuzzWeave cron ロック（多重実行防止 + TTL） ==========
+
+const BUZZWEAVE_LOCK_NAME = "buzzweave_main";
+const LOCK_TTL_MINUTES = 10;
+
+async function acquireBuzzweaveLock(lockName = BUZZWEAVE_LOCK_NAME) {
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    const cutoff = new Date(Date.now() - LOCK_TTL_MINUTES * 60 * 1000).toISOString();
+    const now = new Date().toISOString();
+    const { data, error } = await sb
+      .from("buzzweave_locks")
+      .update({ locked: true, updated_at: now })
+      .eq("lock_name", lockName)
+      .or(`locked.eq.false,updated_at.lt.${cutoff}`)
+      .select("lock_name")
+      .maybeSingle();
+    if (error) return false;
+    return !!data;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function releaseBuzzweaveLock(lockName = BUZZWEAVE_LOCK_NAME) {
+  const sb = getSupabase();
+  if (!sb) return;
+  try {
+    await sb
+      .from("buzzweave_locks")
+      .update({ locked: false, updated_at: new Date().toISOString() })
+      .eq("lock_name", lockName);
+  } catch (_) {}
+}
+
+// ========== BuzzWeave ステータス（緊急停止・402ブロック） ==========
+
+async function upsertBuzzweaveStatusEmergencyStop(reason = "env_flag") {
+  const sb = getSupabase();
+  if (!sb) return;
+  try {
+    const now = new Date().toISOString();
+    await sb
+      .from("buzzweave_status")
+      .upsert(
+        { id: "main", last_emergency_stop_at: now, emergency_stop_reason: reason, updated_at: now },
+        { onConflict: "id" }
+      );
+  } catch (_) {}
+}
+
+async function upsertBuzzweaveStatus402() {
+  const sb = getSupabase();
+  if (!sb) return;
+  try {
+    const now = new Date().toISOString();
+    await sb
+      .from("buzzweave_status")
+      .upsert(
+        { id: "main", x_api_blocked: true, x_api_last_402_at: now, updated_at: now },
+        { onConflict: "id" }
+      );
+  } catch (_) {}
+}
+
+async function getBuzzweaveStatus() {
+  const sb = getSupabase();
+  if (!sb) return { x_api_blocked: false };
+  try {
+    const { data } = await sb
+      .from("buzzweave_status")
+      .select("x_api_blocked")
+      .eq("id", "main")
+      .maybeSingle();
+    return { x_api_blocked: !!data?.x_api_blocked };
+  } catch (e) {
+    return { x_api_blocked: false };
+  }
 }
 
 // ========== BuzzWeave 集中投下ログ（市場回収用） ==========
@@ -621,6 +701,11 @@ module.exports = {
   deferTdPostSlot,
   cleanupOldTdPostSlots,
   getTdPostSlotsHealthStats,
+  acquireBuzzweaveLock,
+  releaseBuzzweaveLock,
+  upsertBuzzweaveStatusEmergencyStop,
+  upsertBuzzweaveStatus402,
+  getBuzzweaveStatus,
   insertBuzzweavePostLog,
   updateBuzzweavePostLogWithMetrics,
   fetchBuzzweavePostLogsPendingMetrics
