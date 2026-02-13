@@ -25,7 +25,6 @@
     },
     "api/buzzweave-run.js": {
       "maxDuration": 60,
-      "runtime": "nodejs",
       "includeFiles": "{config/**,services/**,utils/**}"
     },
     "api/buzzweave-slots.js": {

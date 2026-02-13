@@ -13,8 +13,7 @@ const fs = require('fs');
 const { createMockBtcSnapshot, createMockPsychologicalSupport } = require('./mock-btc-snapshot');
 const { formatMinimalBriefing } = require('../services/telegram/messages/user/es/minimal-high-quality.es.js');
 const { formatRegularBriefing } = require('../services/telegram/messages/user/es/regular.es.js');
-const { formatTrapAlertFromSnapshot } = require('../services/telegram/messages/user/es/emergency.es.js');
-
+// Emergency テンプレートは廃止（SHIFT に統一）
 const LANG = 'es';
 
 function main() {
@@ -25,7 +24,6 @@ function main() {
   const regularMessage = formatRegularBriefing(snapshot, LANG, {
     psychologicalSupport
   });
-  const emergencyMessage = formatTrapAlertFromSnapshot(snapshot, LANG);
 
   const output = [
     '='.repeat(80),
@@ -41,10 +39,10 @@ function main() {
     regularMessage,
     '',
     '='.repeat(80),
-    '🚨 Emergencia (Trap Alert)',
+    '🚨 Emergencia (廃止 — SHIFT に統一)',
     '='.repeat(80),
     '',
-    emergencyMessage,
+    '(Emergency template removed)',
     '',
     '='.repeat(80),
     '✅ Generación de mensajes completa',

@@ -1,6 +1,6 @@
 /**
  * Trap Defence Unified OS — btcSnapshot schema and constants
- * Single source of truth for the shared data object consumed by Minimal, Regular, Emergency, BWE.
+ * Single source of truth for the shared data object consumed by Minimal, Regular, BWE. (Emergency は廃止)
  */
 
 const BTC_SNAPSHOT_KV_KEY = "btc:snapshot";

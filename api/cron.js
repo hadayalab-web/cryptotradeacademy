@@ -44,9 +44,7 @@ function loadUserTemplates(lang) {
     const { formatRegularBriefing } = require(
       `../services/telegram/messages/user/${lang}/regular.${lang}`
     );
-    const { formatTrapAlert, formatTrapAlertFromSnapshot } = require(
-      `../services/telegram/messages/user/${lang}/emergency.${lang}`
-    );
+    // Emergency 配信廃止のため emergency テンプレートは読み込まない
     // 無料版テンプレート（Zeigarnik Edition v1.5 のみ。4-post は廃止）
     let formatMinimalBriefing = null;
     try {
@@ -74,11 +72,10 @@ function loadUserTemplates(lang) {
         console.warn(`[TEMPLATE] Minimal EN fallback failed: ${e2.message}`);
       }
     }
-    return { formatRegularBriefing, formatTrapAlert, formatTrapAlertFromSnapshot, formatMinimalBriefing };
+    return { formatRegularBriefing, formatMinimalBriefing };
   } catch (e) {
     console.warn(`Fallback to EN templates. lang=${lang} error=${e.message}`);
     const { formatRegularBriefing } = require("../services/telegram/messages/user/en/regular.en");
-    const { formatTrapAlert, formatTrapAlertFromSnapshot } = require("../services/telegram/messages/user/en/emergency.en");
     // 無料版テンプレート（EN Zeigarnik Edition）
     let formatMinimalBriefing = null;
     try {
@@ -91,11 +88,11 @@ function loadUserTemplates(lang) {
     } catch (e2) {
       console.warn(`[TEMPLATE] Minimal EN fallback failed: ${e2.message}`);
     }
-    return { formatRegularBriefing, formatTrapAlert, formatTrapAlertFromSnapshot, formatMinimalBriefing };
+    return { formatRegularBriefing, formatMinimalBriefing };
   }
 }
 
-const { formatRegularBriefing, formatTrapAlert, formatTrapAlertFromSnapshot, formatMinimalBriefing } = loadUserTemplates(LANG);
+const { formatRegularBriefing, formatMinimalBriefing } = loadUserTemplates(LANG);
 
 function loadFormatRegularBriefingHTML(lang) {
   try {
@@ -1736,140 +1733,7 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // 7-B. EMERGENCY (Trap) - 6言語配信、Regular と同じ TELEGRAM_CHAT_ID_BTC_* に送信
-    // 全言語でメッセージ先頭に [EMERGENCY] を付与
-    if (deliveryMode === "emergency") {
-      // Task 9: Dr.Grok base は snapshotBuilder Stage 6 で生成（aiAnalysis 単体呼び出し削除のためフォールバック）
-      const emergencyAnalysis = gptCryptoQuantAnalysis || aiAnalysis || btcSnapshot?.drGrok?.base;
-      const targetLangsEmergency = getTargetLanguagesForRegular();
-      const series = "BTC";
-
-      for (const targetLang of targetLangsEmergency) {
-        try {
-          const langTemplates = loadUserTemplates(targetLang);
-          const formatTrap = langTemplates.formatTrapAlertFromSnapshot || langTemplates.formatTrapAlert;
-          if (!formatTrap) continue;
-
-          // Phase 3: formatTrapAlertFromSnapshot(snapshot, lang) を優先
-          const snapshotForAlert = {
-            ...btcSnapshot,
-            aiAnalysis: emergencyAnalysis,
-            drGrok: btcSnapshot.drGrok || { base: emergencyAnalysis },
-            trapDetection: {
-              ...(btcSnapshot.trapDetection || {}),
-              label: trap?.label ?? btcSnapshot.trapDetection?.label,
-              note: trap?.note ?? btcSnapshot.trapDetection?.note,
-              hint: trap?.hint ?? btcSnapshot.trapDetection?.hint
-            }
-          };
-          const alertBody = typeof formatTrap === 'function' && formatTrap.length >= 2
-            ? formatTrap(snapshotForAlert, targetLang)
-            : formatTrap({
-                inflow,
-                mpi,
-                priceUsd,
-                trap,
-                aiAnalysis: emergencyAnalysis
-              });
-          const alertText = `[EMERGENCY] ${alertBody}`;
-
-          const marketCode = getMarketCode(targetLang);
-          if (ENABLE_TELEGRAM) {
-            await sendMessageToChannel(alertText, series, marketCode);
-            console.log(`[EMERGENCY] Sent to ${targetLang}`);
-          }
-        } catch (e) {
-          console.warn(`[EMERGENCY] Error for ${targetLang}:`, e?.message);
-        }
-      }
-
-      const variant = Math.random() < 0.5 ? "A" : "B";
-      const messageId = `msg_${Date.now()}_${LANG}_${variant}_EMERGENCY`;
-
-      // メール送信（緊急配信）— Phase 4: snapshot-native
-      try {
-        const emergencySnapshot = {
-          ...btcSnapshot,
-          raw: {
-            ...(btcSnapshot.raw || {}),
-            sentimentLabel: snapshot?.sentiment_label || btcSnapshot.raw?.sentimentLabel || "Unknown",
-            change24h: snapshot?.change_24h ?? btcSnapshot.raw?.change24h ?? 0,
-            inflow,
-            mpi,
-            priceUsd
-          },
-          market_score: snapshot?.market_score ?? btcSnapshot.market_score ?? 0,
-          drGrok: { base: emergencyAnalysis },
-          trapDetection: trapDetection || btcSnapshot.trapDetection || null
-        };
-        const formatEmergencyHTML = loadFormatRegularBriefingHTML(LANG);
-        const emergencyEmailHTML = formatEmergencyHTML(emergencySnapshot, LANG, {
-          psychologicalSupport: null
-        });
-
-        const emergencySubject = `🚨 URGENT: Trap Alert - ${now
-          .toISOString()
-          .replace("T", " ")
-          .replace(/\.\d+Z$/, " UTC")}`;
-        const recipientEmails = getRecipientEmails(LANG);
-
-        if (recipientEmails && recipientEmails.length > 0) {
-          console.log(
-            `[Email] Sending emergency alert to ${recipientEmails.length} recipients (${LANG})...`
-          );
-
-          const emailResult = await sendBatchEmails({
-            recipients: recipientEmails,
-            subject: emergencySubject,
-            html: emergencyEmailHTML,
-            emailOptions: {
-              lang: LANG,
-              messageType: "EMERGENCY"
-            }
-          });
-
-          console.log(
-            `[Email] Emergency alert sent: ${emailResult.totalSent}, Errors: ${emailResult.totalErrors}`
-          );
-
-          messageLogger.logMessage({
-            message_id: messageId,
-            snapshot_id: snapshot?.snapshot_id,
-            lang: LANG,
-            variant,
-            message_type: "EMERGENCY",
-            sent_at: new Date().toISOString(),
-            email_sent: emailResult.totalSent,
-            email_errors: emailResult.totalErrors,
-            cta_links: extractCtaLinks(emergencyEmailHTML)
-          });
-        } else {
-          console.warn(`[Email] No recipients found for emergency alert (lang=${LANG})`);
-        }
-      } catch (emailError) {
-        console.error("[Email] Error sending emergency alert:", emailError);
-        messageLogger.logMessage({
-          message_id: messageId,
-          snapshot_id: snapshot?.snapshot_id,
-          lang: LANG,
-          variant,
-          message_type: "EMERGENCY",
-          sent_at: new Date().toISOString(),
-          email_error: emailError.message
-        });
-      }
-
-      // Telegram は上記 6 言語ループで送信済み
-      messageLogger.logMessage({
-        message_id: messageId,
-        snapshot_id: btcSnapshot?.snapshot_id,
-        lang: LANG,
-        variant,
-        message_type: "EMERGENCY",
-        sent_at: new Date().toISOString()
-      });
-      sent += 1;
-    }
+    // 7-B. EMERGENCY は廃止（SHIFT と役割が被るため外部通知ゼロに統一）
 
     // 7-C. WATCH (short heads-up, no long report)
     // 7-D. STANDBY_BREAK (Phase 1新規)

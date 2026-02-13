@@ -144,10 +144,29 @@ async function getCacheWithStaleRevalidate(key, ttlSeconds) {
  * @param {object} options - オプション
  * @param {boolean} options.skipCache - キャッシュをスキップするか（EMERGENCY判定時など）
  */
+function validateCQParams(endpoint, params) {
+  if (endpoint == null || String(endpoint).trim() === "") {
+    console.log("[critical-shift] CQ_PARAM_ERROR", { reason: "endpoint missing or empty" });
+    return false;
+  }
+  const requiredParamKeys = ["window", "limit", "symbol", "interval"];
+  for (const key of requiredParamKeys) {
+    if (Object.prototype.hasOwnProperty.call(params, key) && (params[key] == null || params[key] === "")) {
+      console.log("[critical-shift] CQ_PARAM_ERROR", { reason: `${key} is null or empty`, params: { ...params, [key]: params[key] } });
+      return false;
+    }
+  }
+  return true;
+}
+
 async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
     if (!API_KEY) {
         console.error("⚠️ CRYPTOQUANT_API_KEY is not set in .env.local");
         return null;
+    }
+
+    if (!validateCQParams(endpoint, params)) {
+      return null;
     }
 
     // Phase 3: キャッシュキー生成
@@ -200,7 +219,22 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
             console.warn(`[CQ Client] 404 Not Found: ${endpoint} — returning null (fallback)`);
             return null;
           }
-          throw new Error(`API Error: ${response.status} ${response.statusText}`);
+          if (response.status === 400) {
+            let body = null;
+            try {
+              const text = await response.text();
+              try { body = JSON.parse(text); } catch { body = text; }
+            } catch (_) {}
+            console.log("[critical-shift] CQ_ERROR", { status: 400, body, endpoint });
+            return null;
+          }
+          let body = null;
+          try {
+            const text = await response.text();
+            try { body = JSON.parse(text); } catch { body = text; }
+          } catch (_) {}
+          console.log("[critical-shift] CQ_ERROR", { status: response.status, body, endpoint });
+          return null;
         }
 
         const data = await response.json();
@@ -215,8 +249,10 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
           console.warn(`[CQ Client] 404 for ${endpoint}:`, error.message);
           return null;
         }
-        console.error(`❌ CryptoQuant Request Failed:`, error.message);
-        throw error;
+        const m = error.message && String(error.message).match(/API Error: (\d+)/);
+        const status = m ? m[1] : null;
+        console.log("[critical-shift] CQ_ERROR", { status: status || "exception", body: error?.message || String(error), endpoint });
+        return null;
       }
     });
 

@@ -223,8 +223,8 @@ function evaluateDeliveryMode(snapshot, context = {}) {
 
   if (force) return { mode: "regular", reason: "force", meta };
 
-  const emergency = evaluateEmergencyTrigger(snapshot);
-  if (emergency.fire) return { mode: "emergency", reason: emergency.reason, meta };
+  // Emergency は廃止。SHIFT と役割が被るため外部通知ゼロに統一。
+  // if (emergency.fire) return { mode: "emergency", ... }; は削除済み。
 
   if (isRegularSlot) return { mode: "regular", reason: "regular_slot", meta };
 
