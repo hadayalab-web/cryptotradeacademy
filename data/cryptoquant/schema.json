@@ -1,0 +1,3044 @@
+{
+  "Bitcoin": {
+    "Network-Data": [
+      {
+        "name": "block_bytes",
+        "method": "GET",
+        "path": "/v1/btc/network-data/block-bytes",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "block_interval",
+        "method": "GET",
+        "path": "/v1/btc/network-data/block-interval",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "utxo_count",
+        "method": "GET",
+        "path": "/v1/btc/network-data/utxo-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "fees",
+        "method": "GET",
+        "path": "/v1/btc/network-data/fees",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "fees_transaction",
+        "method": "GET",
+        "path": "/v1/btc/network-data/fees-transaction",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "blockreward",
+        "method": "GET",
+        "path": "/v1/btc/network-data/blockreward",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "difficulty",
+        "method": "GET",
+        "path": "/v1/btc/network-data/difficulty",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "hashrate",
+        "method": "GET",
+        "path": "/v1/btc/network-data/hashrate",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "supply",
+        "method": "GET",
+        "path": "/v1/btc/network-data/supply",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count",
+        "method": "GET",
+        "path": "/v1/btc/network-data/transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred",
+        "method": "GET",
+        "path": "/v1/btc/network-data/tokens-transferred",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "velocity",
+        "method": "GET",
+        "path": "/v1/btc/network-data/velocity",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "addresses_count",
+        "method": "GET",
+        "path": "/v1/btc/network-data/addresses-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "block_count",
+        "method": "GET",
+        "path": "/v1/btc/network-data/block-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Market-Data": [
+      {
+        "name": "price_ohlcv",
+        "method": "GET",
+        "path": "/v1/btc/market-data/price-ohlcv",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "capitalization",
+        "method": "GET",
+        "path": "/v1/btc/market-data/capitalization",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "open_interest",
+        "method": "GET",
+        "path": "/v1/btc/market-data/open-interest",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "funding_rates",
+        "method": "GET",
+        "path": "/v1/btc/market-data/funding-rates",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "taker_buy_sell_stats",
+        "method": "GET",
+        "path": "/v1/btc/market-data/taker-buy-sell-stats",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "coinbase_premium_index",
+        "method": "GET",
+        "path": "/v1/btc/market-data/coinbase-premium-index",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "liquidations",
+        "method": "GET",
+        "path": "/v1/btc/market-data/liquidations",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Exchange-Flows": [
+      {
+        "name": "reserve",
+        "method": "GET",
+        "path": "/v1/btc/exchange-flows/reserve",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count",
+        "method": "GET",
+        "path": "/v1/btc/exchange-flows/transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "netflow",
+        "method": "GET",
+        "path": "/v1/btc/exchange-flows/netflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "inflow",
+        "method": "GET",
+        "path": "/v1/btc/exchange-flows/inflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "outflow",
+        "method": "GET",
+        "path": "/v1/btc/exchange-flows/outflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "addresses_count",
+        "method": "GET",
+        "path": "/v1/btc/exchange-flows/addresses-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "in_house_flow",
+        "method": "GET",
+        "path": "/v1/btc/exchange-flows/in-house-flow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Miner-Flows": [
+      {
+        "name": "reserve",
+        "method": "GET",
+        "path": "/v1/btc/miner-flows/reserve",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count",
+        "method": "GET",
+        "path": "/v1/btc/miner-flows/transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "netflow",
+        "method": "GET",
+        "path": "/v1/btc/miner-flows/netflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "inflow",
+        "method": "GET",
+        "path": "/v1/btc/miner-flows/inflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "outflow",
+        "method": "GET",
+        "path": "/v1/btc/miner-flows/outflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "addresses_count",
+        "method": "GET",
+        "path": "/v1/btc/miner-flows/addresses-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "in_house_flow",
+        "method": "GET",
+        "path": "/v1/btc/miner-flows/in-house-flow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Inter-Entity-Flows": [
+      {
+        "name": "exchange_to_exchange",
+        "method": "GET",
+        "path": "/v1/btc/inter-entity-flows/exchange-to-exchange",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "exchange_to_miner",
+        "method": "GET",
+        "path": "/v1/btc/inter-entity-flows/exchange-to-miner",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "miner_to_exchange",
+        "method": "GET",
+        "path": "/v1/btc/inter-entity-flows/miner-to-exchange",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "miner_to_miner",
+        "method": "GET",
+        "path": "/v1/btc/inter-entity-flows/miner-to-miner",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Flow-Indicator": [
+      {
+        "name": "exchange_shutdown_index",
+        "method": "GET",
+        "path": "/v1/btc/flow-indicator/exchange-shutdown-index",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "exchange_whale_ratio",
+        "method": "GET",
+        "path": "/v1/btc/flow-indicator/exchange-whale-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "mpi",
+        "method": "GET",
+        "path": "/v1/btc/flow-indicator/mpi",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "fund_flow_ratio",
+        "method": "GET",
+        "path": "/v1/btc/flow-indicator/fund-flow-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "stablecoins_ratio",
+        "method": "GET",
+        "path": "/v1/btc/flow-indicator/stablecoins-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "exchange_inflow_cdd",
+        "method": "GET",
+        "path": "/v1/btc/flow-indicator/exchange-inflow-cdd",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "exchange_inflow_age_distribution",
+        "method": "GET",
+        "path": "/v1/btc/flow-indicator/exchange-inflow-age-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "exchange_inflow_supply_distribution",
+        "method": "GET",
+        "path": "/v1/btc/flow-indicator/exchange-inflow-supply-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "exchange_supply_ratio",
+        "method": "GET",
+        "path": "/v1/btc/flow-indicator/exchange-supply-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "miner_supply_ratio",
+        "method": "GET",
+        "path": "/v1/btc/flow-indicator/miner-supply-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Network-Indicator": [
+      {
+        "name": "nvm",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/nvm",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "stock_to_flow",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/stock-to-flow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "nvt",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/nvt",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "puell_multiple",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/puell-multiple",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "nvt_golden_cross",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/nvt-golden-cross",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "cdd",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/cdd",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "sca",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/sca",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "nupl",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/nupl",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "pnl_supply",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/pnl-supply",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "pnl_utxo",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/pnl-utxo",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "sca_distribution",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/sca-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "dormancy",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/dormancy",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "utxo_age_distribution",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/utxo-age-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "utxo_realized_age_distribution",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/utxo-realized-age-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "utxo_count_age_distribution",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/utxo-count-age-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "spent_output_age_distribution",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/spent-output-age-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "utxo_supply_distribution",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/utxo-supply-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "utxo_count_supply_distribution",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/utxo-count-supply-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "spent_output_supply_distribution",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/spent-output-supply-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "utxo_realized_supply_distribution",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/utxo-realized-supply-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "nrpl",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/nrpl",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "mca",
+        "method": "GET",
+        "path": "/v1/btc/network-indicator/mca",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Market-Indicator": [
+      {
+        "name": "stablecoin_supply_ratio",
+        "method": "GET",
+        "path": "/v1/btc/market-indicator/stablecoin-supply-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "estimated_leverage_ratio",
+        "method": "GET",
+        "path": "/v1/btc/market-indicator/estimated-leverage-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "mvrv",
+        "method": "GET",
+        "path": "/v1/btc/market-indicator/mvrv",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "sopr",
+        "method": "GET",
+        "path": "/v1/btc/market-indicator/sopr",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "sopr_ratio",
+        "method": "GET",
+        "path": "/v1/btc/market-indicator/sopr-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "realized_price",
+        "method": "GET",
+        "path": "/v1/btc/market-indicator/realized-price",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "utxo_realized_price_age_distribution",
+        "method": "GET",
+        "path": "/v1/btc/market-indicator/utxo-realized-price-age-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "pnl_index",
+        "method": "GET",
+        "path": "/v1/btc/market-indicator/pnl-index",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Fund-Data": [
+      {
+        "name": "market_price_usd",
+        "method": "GET",
+        "path": "/v1/btc/fund-data/market-price-usd",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "market_volume",
+        "method": "GET",
+        "path": "/v1/btc/fund-data/market-volume",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "market_premium",
+        "method": "GET",
+        "path": "/v1/btc/fund-data/market-premium",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "digital_asset_holdings",
+        "method": "GET",
+        "path": "/v1/btc/fund-data/digital-asset-holdings",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Lightning": [
+      {
+        "name": "stats_in_total",
+        "method": "GET",
+        "path": "/v1/btc/lightning/stats-in-total",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Miner-Data": [
+      {
+        "name": "companies",
+        "method": "GET",
+        "path": "/v1/btc/miner-data/companies",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Mempool": [
+      {
+        "name": "stats_by_relative_fee",
+        "method": "GET",
+        "path": "/v1/btc/mempool/stats-by-relative-fee",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "stats_in_total",
+        "method": "GET",
+        "path": "/v1/btc/mempool/stats-in-total",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Status": [
+      {
+        "name": "entity_list",
+        "method": "GET",
+        "path": "/v1/btc/status/entity-list",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ]
+  },
+  "TRX": {
+    "Network-Data": [
+      {
+        "name": "energy_consumption",
+        "method": "GET",
+        "path": "/v1/trx/network-data/energy-consumption",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "bandwidth_consumption",
+        "method": "GET",
+        "path": "/v1/trx/network-data/bandwidth-consumption",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tps",
+        "method": "GET",
+        "path": "/v1/trx/network-data/tps",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred",
+        "method": "GET",
+        "path": "/v1/trx/network-data/tokens-transferred",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "block_count",
+        "method": "GET",
+        "path": "/v1/trx/network-data/block-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "total_value_staked",
+        "method": "GET",
+        "path": "/v1/trx/network-data/total-value-staked",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "staking_rate",
+        "method": "GET",
+        "path": "/v1/trx/network-data/staking-rate",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "supply",
+        "method": "GET",
+        "path": "/v1/trx/network-data/supply",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "fees",
+        "method": "GET",
+        "path": "/v1/trx/network-data/fees",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "addresses_count",
+        "method": "GET",
+        "path": "/v1/trx/network-data/addresses-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count",
+        "method": "GET",
+        "path": "/v1/trx/network-data/transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Defi": [
+      {
+        "name": "sunswap_activity",
+        "method": "GET",
+        "path": "/v1/trx/defi/sunswap-activity",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "sunpump_tokens",
+        "method": "GET",
+        "path": "/v1/trx/defi/sunpump-tokens",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Market-Data": [
+      {
+        "name": "price_ohlcv",
+        "method": "GET",
+        "path": "/v1/trx/market-data/price-ohlcv",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "capitalization",
+        "method": "GET",
+        "path": "/v1/trx/market-data/capitalization",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ]
+  },
+  "Stablecoin": {
+    "Network-Data": [
+      {
+        "name": "supply",
+        "method": "GET",
+        "path": "/v1/stablecoin/network-data/supply",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "events_count",
+        "method": "GET",
+        "path": "/v1/stablecoin/network-data/events-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred",
+        "method": "GET",
+        "path": "/v1/stablecoin/network-data/tokens-transferred",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "addresses_count",
+        "method": "GET",
+        "path": "/v1/stablecoin/network-data/addresses-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Market-Data": [
+      {
+        "name": "price_ohlcv",
+        "method": "GET",
+        "path": "/v1/stablecoin/market-data/price-ohlcv",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "capitalization",
+        "method": "GET",
+        "path": "/v1/stablecoin/market-data/capitalization",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Exchange-Flows": [
+      {
+        "name": "reserve",
+        "method": "GET",
+        "path": "/v1/stablecoin/exchange-flows/reserve",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count",
+        "method": "GET",
+        "path": "/v1/stablecoin/exchange-flows/transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "netflow",
+        "method": "GET",
+        "path": "/v1/stablecoin/exchange-flows/netflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "inflow",
+        "method": "GET",
+        "path": "/v1/stablecoin/exchange-flows/inflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "outflow",
+        "method": "GET",
+        "path": "/v1/stablecoin/exchange-flows/outflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "addresses_count",
+        "method": "GET",
+        "path": "/v1/stablecoin/exchange-flows/addresses-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Flow-Indicator": [
+      {
+        "name": "exchange_supply_ratio",
+        "method": "GET",
+        "path": "/v1/stablecoin/flow-indicator/exchange-supply-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Status": [
+      {
+        "name": "entity_list",
+        "method": "GET",
+        "path": "/v1/stablecoin/status/entity-list",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ]
+  },
+  "Ethereum": {
+    "Eth2": [
+      {
+        "name": "total_value_staked",
+        "method": "GET",
+        "path": "/v1/eth/eth2/total-value-staked",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "staking_inflow_total",
+        "method": "GET",
+        "path": "/v1/eth/eth2/staking-inflow-total",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "staking_validator_total",
+        "method": "GET",
+        "path": "/v1/eth/eth2/staking-validator-total",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "depositor_count_total",
+        "method": "GET",
+        "path": "/v1/eth/eth2/depositor-count-total",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "depositor_count_new",
+        "method": "GET",
+        "path": "/v1/eth/eth2/depositor-count-new",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "staking_rate",
+        "method": "GET",
+        "path": "/v1/eth/eth2/staking-rate",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "phase0_success_rate",
+        "method": "GET",
+        "path": "/v1/eth/eth2/phase0-success-rate",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "staking_transaction_count",
+        "method": "GET",
+        "path": "/v1/eth/eth2/staking-transaction-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Exchange-Flows": [
+      {
+        "name": "reserve",
+        "method": "GET",
+        "path": "/v1/eth/exchange-flows/reserve",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count",
+        "method": "GET",
+        "path": "/v1/eth/exchange-flows/transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "netflow",
+        "method": "GET",
+        "path": "/v1/eth/exchange-flows/netflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "inflow",
+        "method": "GET",
+        "path": "/v1/eth/exchange-flows/inflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "outflow",
+        "method": "GET",
+        "path": "/v1/eth/exchange-flows/outflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "addresses_count",
+        "method": "GET",
+        "path": "/v1/eth/exchange-flows/addresses-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Market-Data": [
+      {
+        "name": "price_ohlcv",
+        "method": "GET",
+        "path": "/v1/eth/market-data/price-ohlcv",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "capitalization",
+        "method": "GET",
+        "path": "/v1/eth/market-data/capitalization",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "open_interest",
+        "method": "GET",
+        "path": "/v1/eth/market-data/open-interest",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "funding_rates",
+        "method": "GET",
+        "path": "/v1/eth/market-data/funding-rates",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "taker_buy_sell_stats",
+        "method": "GET",
+        "path": "/v1/eth/market-data/taker-buy-sell-stats",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "coinbase_premium_index",
+        "method": "GET",
+        "path": "/v1/eth/market-data/coinbase-premium-index",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "liquidations",
+        "method": "GET",
+        "path": "/v1/eth/market-data/liquidations",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Market-Indicator": [
+      {
+        "name": "estimated_leverage_ratio",
+        "method": "GET",
+        "path": "/v1/eth/market-indicator/estimated-leverage-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Fund-Data": [
+      {
+        "name": "market_price_usd",
+        "method": "GET",
+        "path": "/v1/eth/fund-data/market-price-usd",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "market_volume",
+        "method": "GET",
+        "path": "/v1/eth/fund-data/market-volume",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "market_premium",
+        "method": "GET",
+        "path": "/v1/eth/fund-data/market-premium",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "digital_asset_holdings",
+        "method": "GET",
+        "path": "/v1/eth/fund-data/digital-asset-holdings",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Network-Data": [
+      {
+        "name": "supply",
+        "method": "GET",
+        "path": "/v1/eth/network-data/supply",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count",
+        "method": "GET",
+        "path": "/v1/eth/network-data/transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "addresses_count",
+        "method": "GET",
+        "path": "/v1/eth/network-data/addresses-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "block_bytes",
+        "method": "GET",
+        "path": "/v1/eth/network-data/block-bytes",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "block_count",
+        "method": "GET",
+        "path": "/v1/eth/network-data/block-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "uncle_block_count",
+        "method": "GET",
+        "path": "/v1/eth/network-data/uncle-block-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "block_interval",
+        "method": "GET",
+        "path": "/v1/eth/network-data/block-interval",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "fees",
+        "method": "GET",
+        "path": "/v1/eth/network-data/fees",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "fees_burnt",
+        "method": "GET",
+        "path": "/v1/eth/network-data/fees-burnt",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "fees_tips",
+        "method": "GET",
+        "path": "/v1/eth/network-data/fees-tips",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "fees_transaction",
+        "method": "GET",
+        "path": "/v1/eth/network-data/fees-transaction",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "fees_burnt_transaction",
+        "method": "GET",
+        "path": "/v1/eth/network-data/fees-burnt-transaction",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "fees_tips_transaction",
+        "method": "GET",
+        "path": "/v1/eth/network-data/fees-tips-transaction",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "blockreward",
+        "method": "GET",
+        "path": "/v1/eth/network-data/blockreward",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "blockreward_except_uncle",
+        "method": "GET",
+        "path": "/v1/eth/network-data/blockreward-except-uncle",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "uncle_blockreward",
+        "method": "GET",
+        "path": "/v1/eth/network-data/uncle-blockreward",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "difficulty",
+        "method": "GET",
+        "path": "/v1/eth/network-data/difficulty",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "hashrate",
+        "method": "GET",
+        "path": "/v1/eth/network-data/hashrate",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "gas",
+        "method": "GET",
+        "path": "/v1/eth/network-data/gas",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "base_fee",
+        "method": "GET",
+        "path": "/v1/eth/network-data/base-fee",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "max_fee",
+        "method": "GET",
+        "path": "/v1/eth/network-data/max-fee",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "max_priority_fee",
+        "method": "GET",
+        "path": "/v1/eth/network-data/max-priority-fee",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "velocity",
+        "method": "GET",
+        "path": "/v1/eth/network-data/velocity",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "contracts_count",
+        "method": "GET",
+        "path": "/v1/eth/network-data/contracts-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count_between_eoa",
+        "method": "GET",
+        "path": "/v1/eth/network-data/transactions-count-between-eoa",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "contract_calls_count_external",
+        "method": "GET",
+        "path": "/v1/eth/network-data/contract-calls-count-external",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "contract_calls_count_internal",
+        "method": "GET",
+        "path": "/v1/eth/network-data/contract-calls-count-internal",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "contract_calls_count",
+        "method": "GET",
+        "path": "/v1/eth/network-data/contract-calls-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count_all",
+        "method": "GET",
+        "path": "/v1/eth/network-data/transactions-count-all",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred_count",
+        "method": "GET",
+        "path": "/v1/eth/network-data/tokens-transferred-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred_count_between_eoa",
+        "method": "GET",
+        "path": "/v1/eth/network-data/tokens-transferred-count-between-eoa",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred_count_by_contract_calls_external",
+        "method": "GET",
+        "path": "/v1/eth/network-data/tokens-transferred-count-by-contract-calls-external",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred_count_by_contract_calls_internal",
+        "method": "GET",
+        "path": "/v1/eth/network-data/tokens-transferred-count-by-contract-calls-internal",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred_count_by_contract_calls",
+        "method": "GET",
+        "path": "/v1/eth/network-data/tokens-transferred-count-by-contract-calls",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred_count_all",
+        "method": "GET",
+        "path": "/v1/eth/network-data/tokens-transferred-count-all",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred",
+        "method": "GET",
+        "path": "/v1/eth/network-data/tokens-transferred",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred_between_eoa",
+        "method": "GET",
+        "path": "/v1/eth/network-data/tokens-transferred-between-eoa",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred_by_contract_calls_external",
+        "method": "GET",
+        "path": "/v1/eth/network-data/tokens-transferred-by-contract-calls-external",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred_by_contract_calls_internal",
+        "method": "GET",
+        "path": "/v1/eth/network-data/tokens-transferred-by-contract-calls-internal",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred_by_contract_calls",
+        "method": "GET",
+        "path": "/v1/eth/network-data/tokens-transferred-by-contract-calls",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred_all",
+        "method": "GET",
+        "path": "/v1/eth/network-data/tokens-transferred-all",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "failed_transactions_count",
+        "method": "GET",
+        "path": "/v1/eth/network-data/failed-transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "failed_tokens_transferred_count",
+        "method": "GET",
+        "path": "/v1/eth/network-data/failed-tokens-transferred-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "addresses_count_all",
+        "method": "GET",
+        "path": "/v1/eth/network-data/addresses-count-all",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Flow-Indicator": [
+      {
+        "name": "exchange_supply_ratio",
+        "method": "GET",
+        "path": "/v1/eth/flow-indicator/exchange-supply-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Status": [
+      {
+        "name": "entity_list",
+        "method": "GET",
+        "path": "/v1/eth/status/entity-list",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ]
+  },
+  "ERC20": {
+    "Network-Data": [
+      {
+        "name": "supply",
+        "method": "GET",
+        "path": "/v1/erc20/network-data/supply",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "velocity",
+        "method": "GET",
+        "path": "/v1/erc20/network-data/velocity",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count",
+        "method": "GET",
+        "path": "/v1/erc20/network-data/transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred_count",
+        "method": "GET",
+        "path": "/v1/erc20/network-data/tokens-transferred-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred",
+        "method": "GET",
+        "path": "/v1/erc20/network-data/tokens-transferred",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "addresses_count",
+        "method": "GET",
+        "path": "/v1/erc20/network-data/addresses-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Market-Data": [
+      {
+        "name": "price_ohlcv",
+        "method": "GET",
+        "path": "/v1/erc20/market-data/price-ohlcv",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Exchange-Flows": [
+      {
+        "name": "reserve",
+        "method": "GET",
+        "path": "/v1/erc20/exchange-flows/reserve",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count",
+        "method": "GET",
+        "path": "/v1/erc20/exchange-flows/transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "netflow",
+        "method": "GET",
+        "path": "/v1/erc20/exchange-flows/netflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "inflow",
+        "method": "GET",
+        "path": "/v1/erc20/exchange-flows/inflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "outflow",
+        "method": "GET",
+        "path": "/v1/erc20/exchange-flows/outflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "addresses_count",
+        "method": "GET",
+        "path": "/v1/erc20/exchange-flows/addresses-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Flow-Indicator": [
+      {
+        "name": "exchange_supply_ratio",
+        "method": "GET",
+        "path": "/v1/erc20/flow-indicator/exchange-supply-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Status": [
+      {
+        "name": "entity_list",
+        "method": "GET",
+        "path": "/v1/erc20/status/entity-list",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ]
+  },
+  "Xrp": {
+    "Dex-Indicator": [
+      {
+        "name": "buy_sell_ratio",
+        "method": "GET",
+        "path": "/v1/xrp/dex-indicator/buy-sell-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "trade_share",
+        "method": "GET",
+        "path": "/v1/xrp/dex-indicator/trade-share",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "AMM-Data": [
+      {
+        "name": "price",
+        "method": "GET",
+        "path": "/v1/xrp/amm-data/price",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "liquidity",
+        "method": "GET",
+        "path": "/v1/xrp/amm-data/liquidity",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "swap_stats",
+        "method": "GET",
+        "path": "/v1/xrp/amm-data/swap-stats",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "fee",
+        "method": "GET",
+        "path": "/v1/xrp/amm-data/fee",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Market-Data": [
+      {
+        "name": "price_ohlcv",
+        "method": "GET",
+        "path": "/v1/xrp/market-data/price-ohlcv",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "open_interest",
+        "method": "GET",
+        "path": "/v1/xrp/market-data/open-interest",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "funding_rates",
+        "method": "GET",
+        "path": "/v1/xrp/market-data/funding-rates",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "taker_buy_sell_stats",
+        "method": "GET",
+        "path": "/v1/xrp/market-data/taker-buy-sell-stats",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "liquidations",
+        "method": "GET",
+        "path": "/v1/xrp/market-data/liquidations",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "capitalization",
+        "method": "GET",
+        "path": "/v1/xrp/market-data/capitalization",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "estimated_leverage_ratio",
+        "method": "GET",
+        "path": "/v1/xrp/market-data/estimated-leverage-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Network-Data": [
+      {
+        "name": "addresses_count",
+        "method": "GET",
+        "path": "/v1/xrp/network-data/addresses-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "velocity",
+        "method": "GET",
+        "path": "/v1/xrp/network-data/velocity",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "block_interval",
+        "method": "GET",
+        "path": "/v1/xrp/network-data/block-interval",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "xrp_burnt",
+        "method": "GET",
+        "path": "/v1/xrp/network-data/xrp-burnt",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "ledger_count",
+        "method": "GET",
+        "path": "/v1/xrp/network-data/ledger-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "fees",
+        "method": "GET",
+        "path": "/v1/xrp/network-data/fees",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count",
+        "method": "GET",
+        "path": "/v1/xrp/network-data/transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "tokens_transferred",
+        "method": "GET",
+        "path": "/v1/xrp/network-data/tokens-transferred",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "supply",
+        "method": "GET",
+        "path": "/v1/xrp/network-data/supply",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Network-Indicator": [
+      {
+        "name": "nvt",
+        "method": "GET",
+        "path": "/v1/xrp/network-indicator/nvt",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Entity-Flows": [
+      {
+        "name": "reserve",
+        "method": "GET",
+        "path": "/v1/xrp/entity-flows/reserve",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "share",
+        "method": "GET",
+        "path": "/v1/xrp/entity-flows/share",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "inflow",
+        "method": "GET",
+        "path": "/v1/xrp/entity-flows/inflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "outflow",
+        "method": "GET",
+        "path": "/v1/xrp/entity-flows/outflow",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "addresses_count",
+        "method": "GET",
+        "path": "/v1/xrp/entity-flows/addresses-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count",
+        "method": "GET",
+        "path": "/v1/xrp/entity-flows/transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "whale_movements",
+        "method": "GET",
+        "path": "/v1/xrp/entity-flows/whale-movements",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Flow-Indicator": [
+      {
+        "name": "exchange_inflow_value_distribution",
+        "method": "GET",
+        "path": "/v1/xrp/flow-indicator/exchange-inflow-value-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "exchange_outflow_value_distribution",
+        "method": "GET",
+        "path": "/v1/xrp/flow-indicator/exchange-outflow-value-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "exchange_inflow_count_value_distribution",
+        "method": "GET",
+        "path": "/v1/xrp/flow-indicator/exchange-inflow-count-value-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "exchange_outflow_count_value_distribution",
+        "method": "GET",
+        "path": "/v1/xrp/flow-indicator/exchange-outflow-count-value-distribution",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "exchange_supply_ratio",
+        "method": "GET",
+        "path": "/v1/xrp/flow-indicator/exchange-supply-ratio",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Dex-Data": [
+      {
+        "name": "volume",
+        "method": "GET",
+        "path": "/v1/xrp/dex-data/volume",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "transactions_count",
+        "method": "GET",
+        "path": "/v1/xrp/dex-data/transactions-count",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "liquidity",
+        "method": "GET",
+        "path": "/v1/xrp/dex-data/liquidity",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      },
+      {
+        "name": "dex_price",
+        "method": "GET",
+        "path": "/v1/xrp/dex-data/dex-price",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ],
+    "Status": [
+      {
+        "name": "entity_list",
+        "method": "GET",
+        "path": "/v1/xrp/status/entity-list",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ]
+  },
+  "Alt": {
+    "Market-Data": [
+      {
+        "name": "price_ohlcv",
+        "method": "GET",
+        "path": "/v1/alt/market-data/price-ohlcv",
+        "params": {
+          "window": "day",
+          "limit": 100,
+          "exchange": "all_exchange"
+        },
+        "responseExample": null,
+        "source": "discovery"
+      }
+    ]
+  }
+}

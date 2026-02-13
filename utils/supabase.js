@@ -677,6 +677,100 @@ async function fetchBuzzweavePostLogsPendingMetrics(limit = 50, minAgeMinutes = 
   }
 }
 
+/**
+ * btcSnapshot を btc_snapshots に保存（Unified OS: 必須履歴）
+ * @param {Object} row - snapshotToDbRow(snapshot) の戻り値
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+async function insertBtcSnapshot(row) {
+  const sb = getSupabase();
+  if (!sb) return { ok: false, error: "Supabase not configured" };
+  try {
+    const { error } = await sb.from("btc_snapshots").upsert(row, {
+      onConflict: "snapshot_id",
+      ignoreDuplicates: false
+    });
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    console.warn("[Supabase] insertBtcSnapshot error:", e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
+/**
+ * Phase 4: 直近 N 件の btcSnapshot 履歴を取得（Dashboard 用）
+ * @param {number} [limit=50] - 取得件数
+ * @returns {Promise<Object[]>} btcSnapshot 形式の配列
+ */
+async function getBtcSnapshotsHistory(limit = 50) {
+  const sb = getSupabase();
+  if (!sb) return [];
+  try {
+    const { data, error } = await sb
+      .from("btc_snapshots")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(Math.min(limit, 200));
+    if (error) throw error;
+    return (data || []).map((row) => ({
+      ...dbRowToBtcSnapshot(row),
+      created_at: row.created_at
+    }));
+  } catch (e) {
+    console.warn("[Supabase] getBtcSnapshotsHistory error:", e.message);
+    return [];
+  }
+}
+
+/**
+ * 直近の btcSnapshot を btc_snapshots から取得（evaluateDeliveryMode 用）
+ * @returns {Promise<Object|null>} btcSnapshot 形式、または null
+ */
+async function getLastBtcSnapshot() {
+  const sb = getSupabase();
+  if (!sb) return null;
+  try {
+    const { data, error } = await sb
+      .from("btc_snapshots")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return dbRowToBtcSnapshot(data);
+  } catch (e) {
+    console.warn("[Supabase] getLastBtcSnapshot error:", e.message);
+    return null;
+  }
+}
+
+function dbRowToBtcSnapshot(row) {
+  if (!row) return null;
+  return {
+    snapshot_id: row.snapshot_id,
+    as_of_utc: row.as_of_utc,
+    raw: row.raw || {},
+    cqDeep: row.cq_deep || null,
+    xSentiment: row.x_sentiment || null,
+    highResX: row.high_res_x || null,
+    gptStructureReasoning: row.gpt_structure_reasoning ?? null,
+    gptScenarioMap: row.gpt_scenario_map ?? null,
+    gptTrapInterpretation: row.gpt_trap_interpretation ?? null,
+    sosovalueArticle: row.sosovalue_article ?? null,
+    drGrok: row.dr_grok ?? null,
+    trapDetection: row.trap_detection || null,
+    trapAlert: row.trap_alert || null,
+    divergenceSignal: row.divergence_signal || null,
+    market_score: row.market_score ?? 0,
+    tradeSignal: row.trade_signal || null,
+    meta: row.meta ?? null,
+    marketRegime: row.market_regime ?? null,
+    diff: row.diff ?? null
+  };
+}
+
 module.exports = {
   getSupabase,
   insertTweetQueue,
@@ -708,5 +802,8 @@ module.exports = {
   getBuzzweaveStatus,
   insertBuzzweavePostLog,
   updateBuzzweavePostLogWithMetrics,
-  fetchBuzzweavePostLogsPendingMetrics
+  fetchBuzzweavePostLogsPendingMetrics,
+  insertBtcSnapshot,
+  getLastBtcSnapshot,
+  getBtcSnapshotsHistory
 };

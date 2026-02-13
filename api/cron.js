@@ -44,7 +44,7 @@ function loadUserTemplates(lang) {
     const { formatRegularBriefing } = require(
       `../services/telegram/messages/user/${lang}/regular.${lang}`
     );
-    const { formatTrapAlert } = require(
+    const { formatTrapAlert, formatTrapAlertFromSnapshot } = require(
       `../services/telegram/messages/user/${lang}/emergency.${lang}`
     );
     // 無料版テンプレート（Zeigarnik Edition v1.5 のみ。4-post は廃止）
@@ -74,11 +74,11 @@ function loadUserTemplates(lang) {
         console.warn(`[TEMPLATE] Minimal EN fallback failed: ${e2.message}`);
       }
     }
-    return { formatRegularBriefing, formatTrapAlert, formatMinimalBriefing };
+    return { formatRegularBriefing, formatTrapAlert, formatTrapAlertFromSnapshot, formatMinimalBriefing };
   } catch (e) {
     console.warn(`Fallback to EN templates. lang=${lang} error=${e.message}`);
     const { formatRegularBriefing } = require("../services/telegram/messages/user/en/regular.en");
-    const { formatTrapAlert } = require("../services/telegram/messages/user/en/emergency.en");
+    const { formatTrapAlert, formatTrapAlertFromSnapshot } = require("../services/telegram/messages/user/en/emergency.en");
     // 無料版テンプレート（EN Zeigarnik Edition）
     let formatMinimalBriefing = null;
     try {
@@ -91,13 +91,21 @@ function loadUserTemplates(lang) {
     } catch (e2) {
       console.warn(`[TEMPLATE] Minimal EN fallback failed: ${e2.message}`);
     }
-    return { formatRegularBriefing, formatTrapAlert, formatMinimalBriefing };
+    return { formatRegularBriefing, formatTrapAlert, formatTrapAlertFromSnapshot, formatMinimalBriefing };
   }
 }
 
-const { formatRegularBriefing, formatTrapAlert, formatMinimalBriefing } = loadUserTemplates(LANG);
-// メールHTMLフォーマット関数（英語版をデフォルトとして使用）
-const { formatRegularBriefingHTML } = require("../services/email/messages/user/en/regular.en");
+const { formatRegularBriefing, formatTrapAlert, formatTrapAlertFromSnapshot, formatMinimalBriefing } = loadUserTemplates(LANG);
+
+function loadFormatRegularBriefingHTML(lang) {
+  try {
+    const mod = require(`../services/email/messages/user/${lang}/regular.${lang}`);
+    return mod.formatRegularBriefingHTML;
+  } catch (e) {
+    const en = require("../services/email/messages/user/en/regular.en");
+    return en.formatRegularBriefingHTML;
+  }
+}
 
 const {
   getExchangeInflow,
@@ -105,6 +113,11 @@ const {
 } = require("../services/cryptoquant/endpoints/btc");
 // Phase 2: 市場別深掘りデータ
 const { getCQDeepMetrics } = require("../services/cryptoquant/deepMetrics");
+const { writeEarlySnapshot, writeFullSnapshot, persistSnapshotToDb } = require("../services/snapshot/btcSnapshotWriter");
+const { buildFullSnapshot } = require("../services/snapshot/btcSnapshotSchema");
+const { runAssetSnapshot } = require("../services/snapshot/assetSnapshotBuilder");
+const { evaluateDeliveryMode } = require("../logic/deliveryModeEvaluator");
+const { getLastBtcSnapshot } = require("../utils/supabase");
 // 設計: 3本パイプラインは inflow/mpi/whaleRatio のみ。getHighResolutionCQData はオーバースペックのため cron では使用しない。
 // Phase 3: CryptoQuant capabilities初期化
 const { initializeCapabilities } = require("../services/cryptoquant/capabilities");
@@ -133,7 +146,7 @@ const marketSnapshotService = require("../services/core/marketSnapshot");
 // Phase 2: Message Logger Service (A/Bテスト・計測用)
 const messageLogger = require("../services/core/messageLogger");
 
-const { analyzeMarket, analyzeXSentimentLive } = require("../services/grok/client");
+const { analyzeXSentimentLive } = require("../services/grok/client");
 // 高解像度Grok X解析
 const { analyzeXSentimentHighResolutionCompat } = require("../services/grok/highResolution");
 // USP3: Dr. Grokの心理的サポート機能
@@ -165,8 +178,11 @@ const { sendBatchEmails } = require("../services/email/resendClient");
 const { postProofToX } = require("../services/x/proof-post");
 // コンテンツ保存サービス（定時配信用）
 const { getContent } = require("../services/core/contentStorage");
-// Gemini: CQ最新+過去比較でSoSoValue風記事
-const { generateSosovalueStyleArticle } = require("../services/gemini/sosovalueArticle");
+// Phase 3: snapshotBuilder (Stage 5 Gemini + Stage 6 Dr.Grok base)
+const { runStages5And6 } = require("../services/snapshot/snapshotBuilder");
+const { computeDivergenceSignal } = require("../logic/divergence/computeDivergenceSignal");
+const { computeMarketRegime } = require("../logic/regime/computeMarketRegime");
+const { computeSnapshotDiff } = require("../logic/diff/computeSnapshotDiff");
 // 信頼度スコアベースの統一品質ゲート（全方位対応）
 // 見逃した機会計算ユーティリティ
 const {
@@ -175,7 +191,8 @@ const {
 } = require("../utils/missedOpportunities");
 
 // Phase 1: イベント駆動配信システム（Strategic SSOT v4.0）
-const ENABLE_EVENT_DRIVEN = process.env.ENABLE_EVENT_DRIVEN === "true";
+const ENABLE_EVENT_DRIVEN = process.env.ENABLE_EVENT_DRIVEN === "false" ? false : true;
+const ENABLE_CRITICAL_SHIFT = process.env.ENABLE_CRITICAL_SHIFT === "false" ? false : true;
 // Telegram送信の有効化（デフォルト: true = Telegram配信を主要チャネルとして使用）
 // COO推奨: Telegram配信に戻す（コスト最適化、運用負荷最小化、即時性の確保）
 const ENABLE_TELEGRAM = process.env.ENABLE_TELEGRAM !== "false"; // デフォルトでtrue（明示的にfalseにしない限り有効）
@@ -230,6 +247,32 @@ function getMarketCode(lang) {
     "pt-br": "PT-BR"
   };
   return langToMarket[lang] || "EN";
+}
+
+function buildInternalApiUrl(req, apiPath) {
+  const configuredBase =
+    process.env.INTERNAL_API_BASE_URL ||
+    process.env.CRON_BASE_URL ||
+    process.env.APP_BASE_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
+
+  try {
+    if (configuredBase) {
+      return new URL(apiPath, configuredBase).toString();
+    }
+    const host = req?.headers?.["x-forwarded-host"] || req?.headers?.host;
+    if (!host) return null;
+    const proto = req?.headers?.["x-forwarded-proto"] || "https";
+    const base =
+      String(host).startsWith("http://") || String(host).startsWith("https://")
+        ? String(host)
+        : `${proto}://${host}`;
+    return new URL(apiPath, base).toString();
+  } catch (error) {
+    console.warn("[Cron] Failed to build internal API URL:", error?.message);
+    return null;
+  }
 }
 
 /**
@@ -422,32 +465,7 @@ module.exports = async function handler(req, res) {
     const rawSentiment = fng.label ?? fng.value;
     const sentimentLabel = normalizeSentiment(rawSentiment);
 
-    // 無料版（Minimal）早期 payload 書き込み: Regular slot 時、基本データ取得直後に KV へ書き出し。
-    // 後続の AI 解析が失敗しても Minimal 配信は実行できるようにする（15:00/21:00 JST = 06:00/12:00 UTC 配信の確実化）
-    if (isRegularSlot || force) {
-      const earlyMinimalPayload = {
-        now: new Date().toISOString(),
-        minimalTrapScore: 50,
-        priceUsd,
-        change24h,
-        trapData: { trapAlert: null, exchangeNetflow: inflow, whaleRatio: null },
-        minimalMarketData: { mpi, priceUsd, change24h, score: null },
-        sentimentData: { sentiment: sentimentLabel, risk: null },
-        market_score: null,
-        grokXAnalysis: null,
-        sentimentLabel
-      };
-      try {
-        const { getKV } = require("../utils/kv");
-        const kvEarly = getKV();
-        if (kvEarly) {
-          await kvEarly.set("minimal:btc:latest", earlyMinimalPayload, { ex: 1200 });
-          console.log("[MINIMAL] Early payload written to minimal:btc:latest (basic data, TTL 1200s). Will be overwritten with full data later if available.");
-        }
-      } catch (kvErr) {
-        console.warn("[MINIMAL] Early KV write failed:", kvErr.message);
-      }
-    }
+    // Phase 2: 早期 Minimal 書き込みは Stage 1 完了後（market_score, trap 取得後）に writeEarlySnapshot で実行
 
     // 3. Base context (X Sentiment defaults)
     let xSentiment = { whaleBias: 0, retailFomo: 50, newsImpact: 0 };
@@ -775,6 +793,19 @@ module.exports = async function handler(req, res) {
     tp = tradeSignal.tp;
     sl = tradeSignal.sl;
 
+    // Phase 2: writeEarlySnapshot (btc:snapshot:early) — Stage 1 完了直後に毎回実行（憲法準拠）
+    try {
+      const { getKV } = require("../utils/kv");
+      const kv = getKV();
+      const raw = { inflow, mpi, priceUsd, change24h, sentimentLabel, fng };
+      if (kv) {
+        await writeEarlySnapshot(kv, raw, snapshot.market_score, trap);
+        console.log("[Phase 2] Early snapshot written to btc:snapshot:early");
+      }
+    } catch (e) {
+      console.warn("[Phase 2] writeEarlySnapshot failed:", e?.message);
+    }
+
     // Phase 4: EMERGENCY判定（SSOT準拠）
     // Step 1: SSOT閾値統一 - trapScore>=60 に統一（品質ゲートと統一）
     // 注: trapScoreは cqDeep.trapScore または trapDetection.trapScore から取得
@@ -786,9 +817,6 @@ module.exports = async function handler(req, res) {
     let shouldSend = true; // デフォルト: 既存動作維持
     let triggerType = isRegularSlot ? "REGULAR" : finalNeedsEmergency ? "EMERGENCY" : "WATCH";
     let triggerReason = "Legacy mode";
-
-    // divergenceSignalResultを関数スコープの最初で定義（すべてのブロックで使用可能にする）
-    let divergenceSignalResult = null;
 
     // Phase 2: 深掘りデータ初期化
     // 基本データで初期化し、後でイベント駆動パスまたはREGULARパスで拡張
@@ -998,6 +1026,30 @@ module.exports = async function handler(req, res) {
     }
     // ===== Phase 1 End =====
 
+    // Phase 2: getCQDeepMetrics を常時取得（CQ Pro 100% 受け皿）
+    if (!cqDeep.sopr && !cqDeep.trapScore) {
+      try {
+        const priceOptions = { usdPrice: priceUsd };
+        if (getMarketCode(LANG) === "KO") {
+          try {
+            const [upbitPriceData, usdKrwRate] = await Promise.all([
+              fetchBTCKRWPrice(),
+              fetchUSDKRWRate()
+            ]);
+            priceOptions.upbitPrice = upbitPriceData?.tradePrice ?? priceUsd;
+            priceOptions.usdKrwRate = usdKrwRate ?? 1300;
+          } catch (_) {
+            priceOptions.upbitPrice = priceUsd;
+            priceOptions.usdKrwRate = 1300;
+          }
+        }
+        const deep = await getCQDeepMetrics(getMarketCode(LANG), priceOptions);
+        cqDeep = { ...cqDeep, ...deep };
+      } catch (e) {
+        console.warn("[Phase 2] getCQDeepMetrics fallback failed:", e?.message);
+      }
+    }
+
     // 6-2. 定期配信時のAI解析（GPT + Grok分離）
     // イベント駆動有効時は、トリガー判定後にAI呼び出しを調整
     // P0 FIX: isRegularSlotの場合は必ずAI解析を実行（エラー時も配信を継続）
@@ -1175,19 +1227,7 @@ module.exports = async function handler(req, res) {
       // ===== USP3: Dr. Grokの心理的サポート =====
       // P0 FIX: 各言語ループ内で計算するように変更（言語ごとに正しいアドバイスを返すため）
       // psychologicalSupportは各言語ループ内で計算される（後で定義）
-      // divergenceSignalResultは関数スコープの最初で定義済み（700行目付近）
-      // 値がnullの場合は更新を試みる
-      if (!divergenceSignalResult) {
-        try {
-          // baseCoreDecisionまたはcoreDecisionからダイバージェンスシグナルを取得
-          divergenceSignalResult =
-            baseCoreDecision?.divergenceSignal || coreDecision?.divergenceSignal || null;
-        } catch (error) {
-          console.warn("[Dr. Grok] Error getting divergence signal:", error.message);
-          divergenceSignalResult = null; // エラー時はnullを明示的に設定
-        }
-      }
-
+      // divergenceSignal は computeDivergenceSignal を唯一のソースとする（Task 10 で計算）
       // P0 FIX: 言語ごとにpsychologicalSupportを計算するため、ここでは計算しない
       // 各言語ループ内で計算する（targetLangを正しく渡すため）
       psychologicalSupport = null; // 各言語ループ内で計算される
@@ -1196,163 +1236,155 @@ module.exports = async function handler(req, res) {
       // integratedOptimizationは各言語ループ内で計算される（後で定義）
       integratedOptimization = null; // 各言語ループ内で計算される
     } else if (needsLongReport && !isRegularSlot) {
-      // 緊急配信時: divergenceSignalResultを取得（isRegularSlotブロック外でも使用可能にする）
-      if (typeof divergenceSignalResult === "undefined") {
-        divergenceSignalResult = null;
-        try {
-          divergenceSignalResult =
-            baseCoreDecision?.divergenceSignal || coreDecision?.divergenceSignal || null;
-        } catch (error) {
-          console.warn("[Dr. Grok] Error getting divergence signal (emergency):", error.message);
-          divergenceSignalResult = null;
-        }
-      }
-      // 注: shouldCallGrok は未定義だったため削除（needsLongReport で十分）
-      // 緊急配信時: 既存のGrok分析を維持（後方互換性）
-      const marketSummaryPayload = {
-        asset: "BTC",
-        inflow,
-        mpi,
-        sentiment: sentimentLabel,
-        priceUsd,
-        change24h,
-        xSentiment,
-        score: coreDecision.score,
-        signal: tradeSignal.signal,
-        tp: tradeSignal.tp,
-        sl: tradeSignal.sl,
-        trap
-      };
-
-      try {
-        // トラップ検出情報を準備（高リスク時に「辛口モード」を有効化）
-        const trapInfo = trapDetection
-          ? {
-              trapSeverity: trapDetection.trapSeverity || "NONE",
-              trapScore: trapDetection.trapScore || 0,
-              trapType: trapDetection.trapType || null
-            }
-          : null;
-
-        // Phase 2: 市場コードとCryptoQuant深掘りデータ、トラップ検出情報をGrokに渡す
-        aiAnalysis = await analyzeMarket(
-          JSON.stringify(marketSummaryPayload),
-          JSON.stringify(xSentiment),
-          LANG,
-          getMarketCode(LANG),
-          cqDeep,
-          trapInfo
-        );
-      } catch (err) {
-        console.warn(
-          "⚠️ Grok Market Analyze Error in analyzeMarket, fallback to offline analysis:",
-          err?.message || err
-        );
-        aiAnalysis = null;
-      }
+      // divergenceSignal は computeDivergenceSignal を唯一のソースとする（Task 10 で計算）
+      // Task 9: aiAnalysis 単体呼び出し削除。Stage 6 (Dr.Grok base) は snapshotBuilder で実行。
     }
 
     // 7. Telegram send
     let sent = 0;
 
-    // ===== Phase 1: イベント駆動配信対応 =====
-    // イベント駆動有効時は、shouldSend判定を優先
-    const willSend = ENABLE_EVENT_DRIVEN ? shouldSend : true;
+    // Phase 2: btcSnapshot 構築・配信モード評価（早期 return の前に実行）
+    const raw = { inflow, mpi, priceUsd, change24h, sentimentLabel, fng };
+    const derivedTrapDetection = trapDetection || (trap && {
+      trapScore: trap.confidence === "HIGH" ? 80 : trap.confidence === "MEDIUM" ? 50 : 30,
+      trapDetected: trap.isTrap,
+      trapSeverity: trap.confidence,
+      trapType: null
+    }) || null;
 
-    // P0 FIX: 早期returnを「定期枠以外」に限定（GPT-5.2推奨案A）
-    // 定期枠(isRegularSlot)は shouldSend=false でも送る（forceも同様）
-    // これにより「isRegularSlot=true なのに止まる」が解消される
-    if (!force && !isRegularSlot && !willSend) {
-      console.log(`[Event-Driven] Skipping send: ${triggerReason}`);
-      return res.status(200).json({
-        success: true,
-        sentMessages: 0,
-        skipped: true,
-        trigger: { type: triggerType, reason: triggerReason },
-        slot: { isRegularSlot, force },
-        metrics: {
-          inflow,
-          mpi,
-          sentiment: sentimentLabel,
-          priceUsd,
-          change24h,
-          score: coreDecision.score,
-          regime: coreDecision.regime,
-          confidence: coreDecision.confidence,
-          signal: tradeSignal.signal
-        }
-      });
-    }
-    // ===== Phase 1 End =====
-
-    // 無料版（Minimal）は同じタイミングで実行しない → 別 Cron /api/minimal-tg-delivery で別時刻に配信。ここでは payload を KV に書き出すだけ。
-    if (isRegularSlot || force) {
-      let minimalTrapScore = null;
-      if (trapDetection && trapDetection.trapScore != null) {
-        minimalTrapScore = trapDetection.trapScore;
-      } else if (cqDeep && cqDeep.trapScore != null) {
-        minimalTrapScore = cqDeep.trapScore;
-      } else if (trap && trap.isTrap) {
-        minimalTrapScore = trap.confidence === "HIGH" ? 80 : trap.confidence === "MEDIUM" ? 50 : 30;
-      } else if (trap && !trap.isTrap) {
-        minimalTrapScore = 15;
-      }
-      let whaleRatioValue = null;
-      if (cqDeep?.whaleFlows?.whaleRatio != null) {
-        whaleRatioValue = cqDeep.whaleFlows.whaleRatio;
-      } else if (highResCQData?.whaleRatio != null) {
-        whaleRatioValue = highResCQData.whaleRatio;
-      } else if (cqDeep?.whaleRatio != null) {
-        whaleRatioValue = cqDeep.whaleRatio;
-      }
-      const minimalPayload = {
-        now: now.toISOString ? now.toISOString() : new Date().toISOString(),
-        minimalTrapScore,
-        priceUsd,
-        change24h,
-        trapData: {
-          trapAlert: trapAlert || null,
-          exchangeNetflow: inflow,
-          whaleRatio: whaleRatioValue
-        },
-        minimalMarketData: {
-          mpi,
-          priceUsd,
-          change24h,
-          score: snapshot?.market_score
-        },
-        sentimentData: grokXAnalysis
-          ? {
-              sentiment: grokXAnalysis.sentiment || sentimentLabel,
-              risk: grokXAnalysis.risk || null
-            }
-          : { sentiment: sentimentLabel },
-        market_score: snapshot?.market_score,
-        grokXAnalysis: grokXAnalysis || null,
-        sentimentLabel
+    // Task 8/9: Stage 5 (Gemini) + Stage 6 (Dr.Grok base) — deliveryMode 非依存で常に実行
+    let stage56 = { sosovalueArticle: null, drGrok: null };
+    try {
+      const partial = {
+        raw,
+        cqDeep: cqDeep || { inflow, mpi },
+        xSentiment: xSentiment || { whaleBias: 0, retailFomo: 50 },
+        trapDetection: derivedTrapDetection,
+        trap: trap || {},
+        tradeSignal: tradeSignal || null,
+        market_score: snapshot?.market_score ?? coreDecision?.score ?? 0
       };
+      stage56 = await runStages5And6(partial, getMarketCode);
+    } catch (e) {
+      console.warn("[snapshotBuilder] Stage 5/6 failed:", e?.message);
+    }
+
+    // Task 10: computeDivergenceSignal / computeMarketRegime（lastSnapshot を事前取得）
+    const lastSnapshot = await getLastBtcSnapshot();
+    const preSnapshot = {
+      raw,
+      cqDeep: cqDeep || { inflow, mpi },
+      xSentiment: xSentiment || null,
+      market_score: snapshot?.market_score ?? coreDecision?.score ?? 0
+    };
+    const divergenceSignal = computeDivergenceSignal(preSnapshot, lastSnapshot);
+    const marketRegime = computeMarketRegime(preSnapshot);
+    const preSnapshotForDiff = { ...preSnapshot, cqDeep: cqDeep || { inflow, mpi }, trapDetection: derivedTrapDetection, divergenceSignal, marketRegime };
+    const diff = computeSnapshotDiff(preSnapshotForDiff, lastSnapshot);
+
+    const btcSnapshot = buildFullSnapshot({
+      raw,
+      cqDeep: cqDeep || { inflow, mpi },
+      xSentiment: xSentiment || null,
+      highResX: highResXData || null,
+      gptStructureReasoning: gptRegularAnalysis || gptCryptoQuantAnalysis || null,
+      gptScenarioMap: null,
+      gptTrapInterpretation: null,
+      sosovalueArticle: stage56.sosovalueArticle,
+      drGrok: stage56.drGrok,
+      trapDetection: derivedTrapDetection,
+      trapAlert: trapAlert || null,
+      divergenceSignal,
+      marketRegime,
+      market_score: snapshot?.market_score ?? coreDecision?.score ?? 0,
+      tradeSignal: tradeSignal || null,
+      diff
+    });
+
+    if (isRegularSlot || force) {
       try {
         const { getKV } = require("../utils/kv");
         const kv = getKV();
         if (kv) {
-          await kv.set("minimal:btc:latest", minimalPayload, { ex: 1200 });
-          console.log("[MINIMAL] Wrote full payload to minimal:btc:latest (TTL 1200s). Delivery by /api/minimal-tg-delivery at 06:08/12:08 UTC (15:08/21:08 JST).");
+          await writeFullSnapshot(kv, btcSnapshot);
+          await persistSnapshotToDb(btcSnapshot);
+          await runAssetSnapshot("BTC", btcSnapshot);
+          console.log("[Phase 2] btcSnapshot written to KV (btc:snapshot, asset:snapshot:BTC) and persisted to DB");
         }
-      } catch (kvErr) {
-        console.warn("[MINIMAL] KV write failed:", kvErr.message);
+      } catch (e) {
+        console.warn("[Phase 2] writeFullSnapshot/persistSnapshotToDb failed:", e?.message);
       }
     }
 
+    const deliveryResult = evaluateDeliveryMode(btcSnapshot, {
+      isRegularSlot,
+      force,
+      lastSnapshot: lastSnapshot && lastSnapshot.snapshot_id !== btcSnapshot.snapshot_id ? lastSnapshot : null
+    });
+    const deliveryMode = deliveryResult.mode;
+    const deliveryMeta = deliveryResult.meta || {};
+    let criticalShiftResult = null;
+
+    // CRITICAL SHIFT (separate engine): keep Minimal/Regular/Emergency logic untouched.
+    if (ENABLE_CRITICAL_SHIFT) {
+      try {
+        const criticalShiftRunUrl = buildInternalApiUrl(req, "/api/critical-shift/run");
+        if (!criticalShiftRunUrl) {
+          console.warn("[CRITICAL_SHIFT] Skipped: unable to build internal API URL");
+        } else {
+          const runUrl = new URL(criticalShiftRunUrl);
+          if (process.env.CRON_SECRET) {
+            runUrl.searchParams.set("cron_secret", process.env.CRON_SECRET);
+          }
+          const runRes = await fetch(runUrl.toString(), {
+            method: "POST",
+            signal: AbortSignal.timeout(12000),
+            headers: {
+              "Content-Type": "application/json",
+              ...(process.env.CRON_SECRET
+                ? { Authorization: `Bearer ${process.env.CRON_SECRET}` }
+                : {})
+            }
+          });
+          criticalShiftResult = await runRes.json().catch(() => null);
+          if (!runRes.ok) {
+            console.warn("[CRITICAL_SHIFT] Run API returned non-200:", {
+              status: runRes.status,
+              statusText: runRes.statusText
+            });
+          } else {
+            console.log("[CRITICAL_SHIFT] Run completed:", {
+              triggered: Boolean(criticalShiftResult?.triggered),
+              shiftType: criticalShiftResult?.evaluation?.shiftType || criticalShiftResult?.dispatchPayload?.snapshot?.shiftType || "NONE",
+              confidence: criticalShiftResult?.evaluation?.confidence ?? criticalShiftResult?.dispatchPayload?.snapshot?.confidence ?? 0
+            });
+          }
+        }
+      } catch (error) {
+        console.warn("[CRITICAL_SHIFT] Run failed:", error?.message);
+      }
+    } else {
+      criticalShiftResult = { enabled: false, reason: "ENABLE_CRITICAL_SHIFT=false" };
+    }
+
+    // 早期 return: minimal かつ定期枠外かつ force なしの場合は送信ブロックをスキップ
+    if (!force && !isRegularSlot && deliveryMode === "minimal") {
+      console.log(`[Phase 2] Skipping send (deliveryMode=minimal): ${deliveryResult.reason}`);
+      return res.status(200).json({
+        success: true,
+        sentMessages: 0,
+        skipped: true,
+        deliveryMode,
+        reason: deliveryResult.reason,
+        slot: { isRegularSlot, force },
+        criticalShift: criticalShiftResult
+      });
+    }
+
     // 7-A. REGULAR（有料版 - 6言語すべてに配信）
-    // P0 FIX: 早期return条件を修正したため、isRegularSlotがtrueの場合は必ず到達する
-    // 定期配信（isRegularSlot）と強制配信（force）は必ず送信
-    // イベント駆動のREGULARトリガーも送信（早期returnで既にフィルタリング済み）
-    // 重要: isRegularSlotがtrueの場合は、イベント駆動の判定に関係なく必ず配信
-    if (
-      isRegularSlot ||
-      force ||
-      (ENABLE_EVENT_DRIVEN && triggerType === "REGULAR" && !isRegularSlot)
-    ) {
+    // Phase 2: deliveryMode を主とする（evaluateDeliveryMode の結果）
+    // meta.standbyBreak は regular の亜種としてテンプレートで文言調整
+    if (deliveryMode === "regular") {
       console.log(
         "[REGULAR] ✅✅✅ DELIVERY START: Sending REGULAR message (paid version) to all languages..."
       );
@@ -1435,50 +1467,18 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      // Gemini: CQ最新データでSoSoValue風記事を1本生成（全言語で共通利用）
-      let sosovalueArticle = null;
-      try {
-        const firstLang = targetLangsForRegular[0] || "en";
-        console.log(`[Gemini SoSoValue] Generating SoSoValue-style article (lang: ${firstLang})...`);
-        sosovalueArticle = await generateSosovalueStyleArticle({
-          cqData: {
-            priceUsd,
-            change24h,
-            inflow,
-            mpi,
-            trapScore: cqDeep?.trapScore
-          },
-          lang: firstLang
-        });
-        if (sosovalueArticle) {
-          console.log("[Gemini SoSoValue] Article generated, length:", sosovalueArticle.length);
-        }
-      } catch (e) {
-        console.warn("[Gemini SoSoValue] Skip:", e.message);
-      }
+      // Task 8: SoSoValue風記事は snapshotBuilder Stage 5 で生成済み（btcSnapshot.sosovalueArticle）
 
       // 各言語ごとに配信
       for (const targetLang of targetLangsForRegular) {
         try {
           console.log(`[REGULAR] Processing language: ${targetLang}`);
 
-          // P0 FIX: 各言語ごとにpsychologicalSupportを計算（targetLangを正しく渡すため）
+          // Task 10: diagnoseUserSentimentCompat(snapshot, lang) オーバーロード
           let langPsychologicalSupport = null;
           try {
             console.log(`[Dr. Grok] Diagnosing user sentiment for ${targetLang}...`);
-            langPsychologicalSupport = await diagnoseUserSentimentCompat(
-              {
-                price_usd_display: priceUsd,
-                change_24h: change24h,
-                market_score: snapshot.market_score,
-                trapDetection: trapDetection,
-                marketBug: marketBugDetection, // 後方互換性
-                trapAlert: trapAlert,
-                divergenceSignal: divergenceSignalResult || null // nullを明示的に設定
-              },
-              xSentiment,
-              targetLang // P0 FIX: LANGではなくtargetLangを渡す
-            );
+            langPsychologicalSupport = await diagnoseUserSentimentCompat(btcSnapshot, targetLang);
 
             if (
               langPsychologicalSupport &&
@@ -1565,90 +1565,53 @@ module.exports = async function handler(req, res) {
             // エラー時は続行（必須ではない）
           }
 
-          // Phase 3: スナップショットをテンプレートに渡す（全言語で統一データ）
-          // GPT解析結果（gptRegularAnalysis）を優先的に使用
-          const finalAnalysis = gptRegularAnalysis || aiAnalysis;
-
-          // 高解像度データとダイバージェンスシグナルを取得
-          // baseCoreDecisionからダイバージェンスシグナルを取得（高解像度データが使用されている場合）
-          // 注意: divergenceSignalResultは関数スコープの最初で定義済み（700行目付近）
-          let finalHighResCQ = highResCQData;
-          let finalHighResX = highResXData;
-          // divergenceSignalResultは既に定義済みのため、値がnullの場合は更新を試みる
-          if (!divergenceSignalResult) {
-            try {
-              divergenceSignalResult =
-                baseCoreDecision?.divergenceSignal || coreDecision?.divergenceSignal || null;
-            } catch (error) {
-              console.warn(
-                "[Dr. Grok] Error getting divergence signal (regular slot):",
-                error.message
-              );
-              divergenceSignalResult = null;
-            }
-          }
-
           // 言語別のmissedOpportunitiesフォーマット
           const langMissedOpportunitiesFormatted = missedOpportunities
             ? formatMissedOpportunities(missedOpportunities, targetLang)
             : null;
 
-          let regularText = langFormatRegularBriefing({
-            snapshot, // Phase 3: スナップショット全体（後方互換性のため残す）
-            now,
-            inflow: snapshot.inflow,
-            mpi: snapshot.mpi,
-            sentimentLabel: snapshot.sentiment_label,
-            priceUsd: snapshot.price_usd_display,
-            change24h: snapshot.change_24h,
-            score: snapshot.market_score,
-            tradeSignal,
-            trap,
-            aiAnalysis: finalAnalysis, // 後方互換性のため残す
-            stats: null, // reserved
-            lang: targetLang,
-            // Phase 2: A/Bテスト識別子
-            variant,
-            messageId,
-            // Phase 2: 市場別データ（後方互換性のため残す）
-            trapScore: cqDeep?.trapScore,
-            whaleFlows: cqDeep?.whaleFlows,
-            liquidations: cqDeep?.liquidations,
-            kimchiPremium: cqDeep?.kimchiPremium,
-            upbitPrice: cqDeep?.upbitPrice ?? snapshot.price_usd_display,
-            riskReward: cqDeep?.riskReward,
-            nupl: cqDeep?.longTerm?.nupl,
-            sopr30d: cqDeep?.longTerm?.sopr30d,
-            // Phase1-Product: 新機能データ
-            noTradeAlert: null, // 将来の実装用
-            trapRisk: null, // 将来の実装用
-            exitMap: null, // 将来の実装用
-            // 新規: サービス未利用ユーザーの悲惨な状況
+          // Task 10: formatRegularBriefing(snapshot, lang, opts) — snapshot-native
+          const snapshotForRegular = {
+            ...btcSnapshot,
+            cqDeep: cqDeep || btcSnapshot.cqDeep, // REGULARブロックでマージ済みのdeepDataを使用
+            highResX: highResXData || btcSnapshot.highResX
+          };
+          const regularOpts = {
+            psychologicalSupport: langPsychologicalSupport || null,
             nonUserImpactReport: langNonUserImpactReport,
             missedOpportunities: langMissedOpportunitiesFormatted,
-            // ニュース番組構造用: GPTリポーターとGrok X解析を分離
-            gptReporterAnalysis: gptRegularAnalysis ?? null, // GPTリポーターのトラップニュース分析（CryptoQuantデータ解析）
-            grokXAnalysis: grokXAnalysis ?? null, // Grok X解析結果（Xセンチメント分析）
-            // 高解像度データ
-            highResCQ: finalHighResCQ,
-            highResX: finalHighResX,
-            divergenceSignal: divergenceSignalResult,
-            // USP1: トラップ防御結果
-            trapDetection: trapDetection || null,
-            marketBug: marketBugDetection || null, // 後方互換性
-            trapAlert: trapAlert || null,
-            // USP3: Dr. Grokの心理的サポート（言語ごとに計算）
-            psychologicalSupport: langPsychologicalSupport || null, // P0 FIX: 言語ごとのpsychologicalSupportを使用
-            // 統合最適化は廃止（GPT=CQ/Trap、Grok=X/トレーダーサポート、Gemini=SoSoValue記事に役割限定）
-            integratedOptimization: null,
-            showContent: null,
-            // Gemini: CQ+過去比較で生成したSoSoValue風記事
-            sosovalueArticle: sosovalueArticle || null
-          });
+            grokXAnalysis: grokXAnalysis ?? null,
+            marketBug: marketBugDetection || null
+          };
+          const regularText = langFormatRegularBriefing(snapshotForRegular, targetLang, regularOpts);
 
-          // Phase 4: メッセージ送信とログ記録
-          // メール送信は廃止（Telegramのみ配信）
-          // メール送信コードは削除されました - Telegram配信のみ
+          // Phase 4: Regular email (snapshot-native)
+          const formatRegularBriefingHTML = loadFormatRegularBriefingHTML(targetLang);
+          const emailHTML = formatRegularBriefingHTML(snapshotForRegular, targetLang, {
+            psychologicalSupport: langPsychologicalSupport || null,
+            nonUserImpactReport: langNonUserImpactReport,
+            missedOpportunities: langMissedOpportunitiesFormatted,
+            grokXAnalysis: grokXAnalysis ?? null
+          });
+          const regularRecipientEmails = getRecipientEmails(targetLang);
+          if (regularRecipientEmails && regularRecipientEmails.length > 0) {
+            try {
+              const regularSubject = `🌤️ Trap Defence BTC Report - ${snapshotForRegular.as_of_utc
+                ? new Date(snapshotForRegular.as_of_utc).toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC")
+                : now.toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC")}`;
+              const emailResult = await sendBatchEmails({
+                recipients: regularRecipientEmails,
+                subject: regularSubject,
+                html: emailHTML,
+                emailOptions: { lang: targetLang, messageType: "REGULAR" }
+              });
+              console.log(
+                `[Email] Regular report sent to ${emailResult.totalSent} recipients (${targetLang})`
+              );
+            } catch (emailErr) {
+              console.warn(`[Email] Regular send error for ${targetLang}:`, emailErr.message);
+            }
+          }
 
           // Telegram送信（オプション、環境変数で有効化）
           let regularActuallySent = false;
@@ -1736,54 +1699,75 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // 7-B. EMERGENCY (Trap) - 15分ごとの緊急配信
-    if (finalNeedsEmergency || (ENABLE_EVENT_DRIVEN && triggerType === "EMERGENCY")) {
-      // Phase 2: A/Bテストバリアント識別
-      const AB_VARIANTS = ["A", "B"];
+    // 7-B. EMERGENCY (Trap) - 6言語配信、Regular と同じ TELEGRAM_CHAT_ID_BTC_* に送信
+    // 全言語でメッセージ先頭に [EMERGENCY] を付与
+    if (deliveryMode === "emergency") {
+      // Task 9: Dr.Grok base は snapshotBuilder Stage 6 で生成（aiAnalysis 単体呼び出し削除のためフォールバック）
+      const emergencyAnalysis = gptCryptoQuantAnalysis || aiAnalysis || btcSnapshot?.drGrok?.base;
+      const targetLangsEmergency = getTargetLanguagesForRegular();
+      const series = "BTC";
+
+      for (const targetLang of targetLangsEmergency) {
+        try {
+          const langTemplates = loadUserTemplates(targetLang);
+          const formatTrap = langTemplates.formatTrapAlertFromSnapshot || langTemplates.formatTrapAlert;
+          if (!formatTrap) continue;
+
+          // Phase 3: formatTrapAlertFromSnapshot(snapshot, lang) を優先
+          const snapshotForAlert = {
+            ...btcSnapshot,
+            aiAnalysis: emergencyAnalysis,
+            drGrok: btcSnapshot.drGrok || { base: emergencyAnalysis },
+            trapDetection: {
+              ...(btcSnapshot.trapDetection || {}),
+              label: trap?.label ?? btcSnapshot.trapDetection?.label,
+              note: trap?.note ?? btcSnapshot.trapDetection?.note,
+              hint: trap?.hint ?? btcSnapshot.trapDetection?.hint
+            }
+          };
+          const alertBody = typeof formatTrap === 'function' && formatTrap.length >= 2
+            ? formatTrap(snapshotForAlert, targetLang)
+            : formatTrap({
+                inflow,
+                mpi,
+                priceUsd,
+                trap,
+                aiAnalysis: emergencyAnalysis
+              });
+          const alertText = `[EMERGENCY] ${alertBody}`;
+
+          const marketCode = getMarketCode(targetLang);
+          if (ENABLE_TELEGRAM) {
+            await sendMessageToChannel(alertText, series, marketCode);
+            console.log(`[EMERGENCY] Sent to ${targetLang}`);
+          }
+        } catch (e) {
+          console.warn(`[EMERGENCY] Error for ${targetLang}:`, e?.message);
+        }
+      }
+
       const variant = Math.random() < 0.5 ? "A" : "B";
       const messageId = `msg_${Date.now()}_${LANG}_${variant}_EMERGENCY`;
 
-      // GPT解析結果を緊急配信に反映
-      const emergencyAnalysis = gptCryptoQuantAnalysis || aiAnalysis;
-
-      const alertText = formatTrapAlert({
-        inflow,
-        mpi,
-        priceUsd,
-        trap,
-        aiAnalysis: emergencyAnalysis // GPT解析結果を優先
-      });
-
-      // メール送信（緊急配信）
+      // メール送信（緊急配信）— Phase 4: snapshot-native
       try {
-        // 緊急配信用のメールHTMLを生成（簡易版、formatRegularBriefingHTMLをベースに）
-        const emergencyEmailHTML = formatRegularBriefingHTML({
-          now,
-          inflow,
-          mpi,
-          sentimentLabel: snapshot?.sentiment_label || "Unknown",
-          priceUsd,
-          change24h: snapshot?.change_24h || 0,
-          score: snapshot?.market_score || 0,
-          tradeSignal: { signal: "STANDBY", confidence: 0 },
-          trap,
-          aiAnalysis: emergencyAnalysis,
-          stats: null,
-          trapScore: cqDeep?.trapScore,
-          whaleFlows: cqDeep?.whaleFlows,
-          liquidations: cqDeep?.liquidations,
-          noTradeAlert: null,
-          trapRisk: null,
-          exitMap: null,
-          trapDetection: trapDetection || null,
-          marketBug: null,
-          trapAlert: trapAlert || null,
-          divergenceSignal: null,
-          psychologicalSupport: null,
-          gptReporterAnalysis: null,
-          grokXAnalysis: null,
-          cqDeep: cqDeep,
-          showContent: null // 緊急配信ではshowContentは使用しない
+        const emergencySnapshot = {
+          ...btcSnapshot,
+          raw: {
+            ...(btcSnapshot.raw || {}),
+            sentimentLabel: snapshot?.sentiment_label || btcSnapshot.raw?.sentimentLabel || "Unknown",
+            change24h: snapshot?.change_24h ?? btcSnapshot.raw?.change24h ?? 0,
+            inflow,
+            mpi,
+            priceUsd
+          },
+          market_score: snapshot?.market_score ?? btcSnapshot.market_score ?? 0,
+          drGrok: { base: emergencyAnalysis },
+          trapDetection: trapDetection || btcSnapshot.trapDetection || null
+        };
+        const formatEmergencyHTML = loadFormatRegularBriefingHTML(LANG);
+        const emergencyEmailHTML = formatEmergencyHTML(emergencySnapshot, LANG, {
+          psychologicalSupport: null
         });
 
         const emergencySubject = `🚨 URGENT: Trap Alert - ${now
@@ -1838,24 +1822,15 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      // Telegram送信（オプション）
-      if (ENABLE_TELEGRAM) {
-        const emergencySendResult = await sendMessage(alertText);
-        const telegramMessageId =
-          emergencySendResult?.message_id || emergencySendResult?.raw?.result?.message_id;
-
-        messageLogger.logMessage({
-          message_id: messageId,
-          snapshot_id: snapshot?.snapshot_id,
-          lang: LANG,
-          variant,
-          message_type: "EMERGENCY",
-          sent_at: new Date().toISOString(),
-          telegram_message_id: telegramMessageId,
-          cta_links: extractCtaLinks(alertText)
-        });
-      }
-
+      // Telegram は上記 6 言語ループで送信済み
+      messageLogger.logMessage({
+        message_id: messageId,
+        snapshot_id: btcSnapshot?.snapshot_id,
+        lang: LANG,
+        variant,
+        message_type: "EMERGENCY",
+        sent_at: new Date().toISOString()
+      });
       sent += 1;
     }
 
@@ -1872,19 +1847,7 @@ module.exports = async function handler(req, res) {
       let psychologicalSupportSTANDBY = null;
       try {
         console.log("[Dr. Grok] Diagnosing user sentiment for STANDBY_BREAK...");
-        psychologicalSupportSTANDBY = await diagnoseUserSentimentCompat(
-          {
-            price_usd_display: priceUsd,
-            change_24h: change24h,
-            market_score: coreDecision.score,
-            trapDetection: null, // STANDBY_BREAKではトラップ防御は不要
-            marketBug: null, // 後方互換性
-            trapAlert: null,
-            divergenceSignal: null
-          },
-          xSentiment,
-          LANG
-        );
+        psychologicalSupportSTANDBY = await diagnoseUserSentimentCompat(btcSnapshot, LANG);
       } catch (error) {
         console.warn(
           "[Dr. Grok] Error providing psychological support for STANDBY_BREAK:",
@@ -1892,37 +1855,8 @@ module.exports = async function handler(req, res) {
         );
       }
 
-      const standbyBreakText = formatRegularBriefing({
-        snapshot, // Phase 3: スナップショット
-        now,
-        inflow,
-        mpi,
-        sentimentLabel,
-        priceUsd,
-        change24h,
-        score: coreDecision.score,
-        tradeSignal,
-        trap,
-        aiAnalysis,
-        lang: LANG,
-        // Phase 2: A/Bテスト識別子
-        variant,
-        messageId,
-        // Phase 2: 市場別データ追加
-        trapScore: cqDeep?.trapScore,
-        whaleFlows: cqDeep?.whaleFlows,
-        liquidations: cqDeep?.liquidations,
-        kimchiPremium: cqDeep?.kimchiPremium,
-        upbitPrice: cqDeep?.upbitPrice ?? priceUsd,
-        riskReward: cqDeep?.riskReward,
-        nupl: cqDeep?.longTerm?.nupl,
-        sopr30d: cqDeep?.longTerm?.sopr30d,
-        // USP1: トラップ防御結果
-        trapDetection: null, // STANDBY_BREAKではトラップ防御は不要
-        marketBug: null, // 後方互換性
-        trapAlert: null,
-        divergenceSignal: null,
-        // USP3: Dr. Grokの心理的サポート
+      // Snapshot-native: formatRegularBriefing(snapshot, lang, opts)
+      const standbyBreakText = formatRegularBriefing(btcSnapshot, LANG, {
         psychologicalSupport: psychologicalSupportSTANDBY || null
       });
 
@@ -1955,56 +1889,13 @@ module.exports = async function handler(req, res) {
       let psychologicalSupportWATCH = null;
       try {
         console.log("[Dr. Grok] Diagnosing user sentiment for WATCH...");
-        psychologicalSupportWATCH = await diagnoseUserSentimentCompat(
-          {
-            price_usd_display: priceUsd,
-            change_24h: change24h,
-            market_score: coreDecision.score,
-            trapDetection: null, // WATCHではトラップ防御は不要
-            marketBug: null, // 後方互換性
-            trapAlert: null,
-            divergenceSignal: null
-          },
-          xSentiment,
-          LANG
-        );
+        psychologicalSupportWATCH = await diagnoseUserSentimentCompat(btcSnapshot, LANG);
       } catch (error) {
         console.warn("[Dr. Grok] Error providing psychological support for WATCH:", error.message);
       }
 
-      // Phase 2: WATCHメッセージもformatRegularBriefingを使用（多言語対応）
-      // ただし、aiAnalysisは不要（コスト削減のため）
-      const watchText = formatRegularBriefing({
-        snapshot, // Phase 3: スナップショット
-        now,
-        inflow,
-        mpi,
-        sentimentLabel,
-        priceUsd,
-        change24h,
-        score: coreDecision.score,
-        tradeSignal,
-        trap,
-        aiAnalysis: null, // WATCHはGrok呼び出しなし（コスト削減）
-        lang: LANG,
-        // Phase 2: A/Bテスト識別子
-        variant,
-        messageId,
-        // Phase 2: 市場別データ追加
-        trapScore: cqDeep?.trapScore,
-        whaleFlows: cqDeep?.whaleFlows,
-        liquidations: cqDeep?.liquidations,
-        kimchiPremium: cqDeep?.kimchiPremium,
-        upbitPrice: cqDeep?.upbitPrice ?? priceUsd,
-        riskReward: cqDeep?.riskReward,
-        nupl: cqDeep?.longTerm?.nupl,
-        sopr30d: cqDeep?.longTerm?.sopr30d,
-        // USP1: トラップ防御結果
-        trapDetection: null, // WATCHではトラップ防御は不要
-        marketBug: null, // 後方互換性
-        trapAlert: null,
-        divergenceSignal: null,
-        // USP3: Dr. Grokの心理的サポート
+      // Snapshot-native: formatRegularBriefing(snapshot, lang, opts)
+      const watchText = formatRegularBriefing(btcSnapshot, LANG, {
         psychologicalSupport: psychologicalSupportWATCH || null
       });
 
@@ -2043,19 +1934,7 @@ module.exports = async function handler(req, res) {
       let psychologicalSupportWATCHLegacy = null;
       try {
         console.log("[Dr. Grok] Diagnosing user sentiment for WATCH (legacy)...");
-        psychologicalSupportWATCHLegacy = await diagnoseUserSentimentCompat(
-          {
-            price_usd_display: priceUsd,
-            change_24h: change24h,
-            market_score: coreDecision.score,
-            trapDetection: null, // WATCHではトラップ防御は不要
-            marketBug: null, // 後方互換性
-            trapAlert: null,
-            divergenceSignal: null
-          },
-          xSentiment,
-          LANG
-        );
+        psychologicalSupportWATCHLegacy = await diagnoseUserSentimentCompat(btcSnapshot, LANG);
       } catch (error) {
         console.warn(
           "[Dr. Grok] Error providing psychological support for WATCH (legacy):",
@@ -2063,34 +1942,8 @@ module.exports = async function handler(req, res) {
         );
       }
 
-      // Legacyモードでも多言語対応を維持
-      const watchText = formatRegularBriefing({
-        snapshot, // Phase 3: スナップショット
-        now,
-        inflow,
-        mpi,
-        sentimentLabel,
-        priceUsd,
-        change24h,
-        score: coreDecision.score,
-        tradeSignal,
-        trap,
-        aiAnalysis: null, // WATCHはGrok呼び出しなし（コスト削減）
-        // Phase 2: 市場別データ追加
-        trapScore: cqDeep?.trapScore,
-        whaleFlows: cqDeep?.whaleFlows,
-        liquidations: cqDeep?.liquidations,
-        kimchiPremium: cqDeep?.kimchiPremium,
-        upbitPrice: cqDeep?.upbitPrice ?? priceUsd,
-        riskReward: cqDeep?.riskReward,
-        nupl: cqDeep?.longTerm?.nupl,
-        sopr30d: cqDeep?.longTerm?.sopr30d,
-        // USP1: トラップ防御結果
-        trapDetection: null, // WATCHではトラップ防御は不要
-        marketBug: null, // 後方互換性
-        trapAlert: null,
-        divergenceSignal: null,
-        // USP3: Dr. Grokの心理的サポート
+      // Snapshot-native: formatRegularBriefing(snapshot, lang, opts)
+      const watchText = formatRegularBriefing(btcSnapshot, LANG, {
         psychologicalSupport: psychologicalSupportWATCHLegacy || null
       });
 
@@ -2141,7 +1994,8 @@ module.exports = async function handler(req, res) {
       tp,
       sl,
       xSentiment,
-      xIntel
+      xIntel,
+      criticalShift: criticalShiftResult
     });
   } catch (error) {
     console.error("❌ Cron Job Failed:", error);

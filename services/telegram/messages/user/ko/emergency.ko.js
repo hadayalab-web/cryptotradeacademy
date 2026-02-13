@@ -6,6 +6,35 @@ function formatUsd(v) {
   return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
+/**
+ * Phase 3: Snapshot-native Trap Alert (KO)
+ */
+function formatTrapAlertFromSnapshot(snapshotOrPayload, lang = 'ko') {
+  if (!snapshotOrPayload || typeof snapshotOrPayload !== 'object') {
+    return '🚨 *Dr. Grok 트랩 알림* — 데이터 없음.';
+  }
+  const isSnapshot = snapshotOrPayload.raw != null;
+  let inflow, mpi, priceUsd, trap, aiAnalysis;
+  if (isSnapshot) {
+    const raw = snapshotOrPayload.raw || {};
+    const cqDeep = snapshotOrPayload.cqDeep || {};
+    const td = snapshotOrPayload.trapDetection || {};
+    inflow = raw.inflow ?? cqDeep.exchangeNetflow ?? 0;
+    mpi = raw.mpi ?? cqDeep.minerMPI ?? cqDeep.mpi ?? 0;
+    priceUsd = raw.priceUsd ?? null;
+    trap = {
+      label: td.label ?? (td.trapDetected ? 'Whale Trap' : 'Whale Trap'),
+      confidence: td.trapSeverity ?? (td.trapDetected ? 'HIGH' : 'MEDIUM'),
+      note: td.note ?? (td.reasons && td.reasons[0]) ?? null,
+      hint: td.hint ?? null
+    };
+    aiAnalysis = snapshotOrPayload.drGrok?.base ?? snapshotOrPayload.aiAnalysis ?? '';
+  } else {
+    ({ inflow, mpi, priceUsd, trap, aiAnalysis } = snapshotOrPayload);
+  }
+  return formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis });
+}
+
 function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
@@ -48,4 +77,4 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   return lines.join('\n');
 }
 
-module.exports = { formatTrapAlert };
+module.exports = { formatTrapAlert, formatTrapAlertFromSnapshot };

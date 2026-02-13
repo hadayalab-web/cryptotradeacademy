@@ -77,7 +77,82 @@ Apenas para fins educacionais.
 *(Este snapshot está intencionalmente incompleto; o desdobramento estrutural completo está disponível no Briefing Regular.)*`.trim();
 }
 
-const formatMinimalBriefing = formatMinimalBriefingOSv26;
-const formatMinimalHighQualityBriefing = formatMinimalBriefingOSv26;
+/**
+ * Phase 3: Snapshot-native Minimal Briefing (PT-BR)
+ */
+function formatMinimalBriefing(snapshotOrPayload, lang = 'pt-br') {
+  if (!snapshotOrPayload || typeof snapshotOrPayload !== 'object') {
+    return '🌤️ Trap Defence BTC — Sem dados disponíveis.';
+  }
+  const isSnapshot = snapshotOrPayload.raw != null && snapshotOrPayload.as_of_utc != null;
+  const snapshot = isSnapshot ? snapshotOrPayload : {
+    raw: {
+      priceUsd: snapshotOrPayload.priceUsd,
+      change24h: snapshotOrPayload.change24h,
+      inflow: snapshotOrPayload.trapData?.exchangeNetflow ?? 0,
+      mpi: snapshotOrPayload.minimalMarketData?.mpi ?? 0,
+      sentimentLabel: snapshotOrPayload.sentimentLabel ?? snapshotOrPayload.sentimentData?.sentiment
+    },
+    as_of_utc: snapshotOrPayload.now,
+    trapDetection: { trapScore: snapshotOrPayload.minimalTrapScore },
+    cqDeep: { whaleRatio: snapshotOrPayload.trapData?.whaleRatio, mpi: snapshotOrPayload.minimalMarketData?.mpi },
+    meta: {}
+  };
+  const raw = snapshot.raw || {};
+  const trapScore = snapshot.trapDetection?.trapScore ?? snapshot.cqDeep?.trapScore ?? null;
+  const priceUsd = raw.priceUsd ?? null;
+  const inflow = raw.inflow ?? 0;
+  const sentimentLabel = raw.sentimentLabel ?? 'Desconhecido';
+  const mpi = raw.mpi ?? snapshot.cqDeep?.mpi ?? snapshot.cqDeep?.minerMPI ?? 0;
+  const meta = snapshot.meta || {};
+  const watchNote = meta.watch ? '\n⚠️ WATCH: Condições requerem atenção.' : '';
+
+  const asOf = snapshot.as_of_utc ?? snapshotOrPayload?.now;
+  const tsRaw = typeof asOf === 'string' ? asOf : (asOf && typeof asOf.toISOString === 'function' ? asOf.toISOString() : new Date().toISOString());
+  const ts = tsRaw.replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
+  const trapScoreDisplay = trapScore != null ? Math.round(Number(trapScore)) : 'N/A';
+  const netflowStr = inflow >= 0 ? `+${Number(inflow).toFixed(0)} BTC` : `${Number(inflow).toFixed(0)} BTC`;
+  const priceStr = priceUsd != null ? `$${Number(priceUsd).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}` : 'N/A';
+  const cqBase = inflow >= 0
+    ? 'Alta entrada em exchanges → pressão de venda no curto prazo'
+    : 'Saída → detentores garantindo ativos';
+  const cqSummary = `${cqBase} (visão superficial)`;
+  const xSummary = toSurfaceSentiment(sentimentLabel);
+  const macroSummary = 'Risk-off dominante; condições de liquidez apertadas';
+  const insight = trapScore != null && trapScore < 30
+    ? 'A estrutura superficial mostra liquidez se deslocando sob pressão de medo; a dinâmica baleia-algo mais profunda só se revela no briefing completo.'
+    : trapScore != null && trapScore >= 50
+      ? 'Os fluxos visíveis indicam reconfiguração; os motores estruturais subjacentes permanecem fora deste snapshot mínimo.'
+      : 'Deslocamentos de liquidez impulsionados por medo são evidentes; o mapa estrutural completo está disponível apenas no Briefing Regular.';
+
+  return `🌤️ Trap Defence BTC — Briefing Mínimo
+📅 ${ts}
+
+━━━━━━━━━━━━━━━━━━━━
+📡 Market Snapshot
+━━━━━━━━━━━━━━━━━━━━
+• Trap Score: ${trapScoreDisplay}/100
+• CQ Summary: ${cqSummary}
+• X Sentiment: ${xSummary}
+• Macro Summary: ${macroSummary}
+
+━━━━━━━━━━━━━━━━━━━━
+📊 Métricas-Chave
+━━━━━━━━━━━━━━━━━━━━
+• Preço: ${priceStr}
+• Netflow: ${netflowStr}
+• MPI: ${Number(mpi).toFixed(2)}
+• Sentimento: ${sentimentLabel}
+
+━━━━━━━━━━━━━━━━━━━━
+🧠 Insight
+━━━━━━━━━━━━━━━━━━━━
+${insight}${watchNote}
+
+Apenas para fins educacionais.
+*(Este snapshot está intencionalmente incompleto; o desdobramento estrutural completo está disponível no Briefing Regular.)*`.trim();
+}
+
+const formatMinimalHighQualityBriefing = formatMinimalBriefing;
 
 module.exports = { formatMinimalBriefingOSv26, formatMinimalBriefing, formatMinimalHighQualityBriefing };

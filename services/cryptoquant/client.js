@@ -215,4 +215,50 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
     return data;
 }
 
-module.exports = { fetchCryptoQuant };
+// Multi-Asset: schema-based call
+let _schema = null;
+function loadSchema() {
+  if (_schema) return _schema;
+  try {
+    const path = require('path');
+    const schemaPath = path.join(__dirname, '../../data/cryptoquant/schema.json');
+    _schema = require(schemaPath);
+    return _schema;
+  } catch (e) {
+    console.warn('[CQ Client] Schema not loaded:', e.message);
+    return null;
+  }
+}
+
+const ASSET_SCHEMA_KEY = { BTC: 'Bitcoin', ETH: 'Ethereum', XRP: 'Xrp', TRX: 'TRX', STABLECOIN: 'Stablecoin', ERC20: 'ERC20', ALT: 'Alt' };
+
+/**
+ * Call CQ endpoint by category (asset), group, and endpoint name (from schema.json)
+ * @param {string} category - Asset: BTC, ETH, XRP, TRX, STABLECOIN, ERC20, Alt
+ * @param {string} group - Category: Exchange-Flows, Flow-Indicator, Market-Indicator, etc.
+ * @param {string} endpointName - e.g. netflow, mpi, exchange_whale_ratio
+ * @param {Object} params - Override default params (window, limit, exchange)
+ * @param {Object} options - { skipCache }
+ * @returns {Promise<any|null>}
+ */
+async function callCQ(category, group, endpointName, params = {}, options = {}) {
+  const schema = loadSchema();
+  if (!schema) return fetchCryptoQuant(`/${category.toLowerCase()}/${String(group).toLowerCase().replace(/_/g, '-')}/${String(endpointName).replace(/_/g, '-')}`, { ...params, window: params.window || 'day', limit: params.limit || 100 }, options);
+
+  const assetKey = ASSET_SCHEMA_KEY[String(category).toUpperCase()] || (category.charAt(0).toUpperCase() + category.slice(1).toLowerCase());
+  const cat = schema[assetKey];
+  if (!cat) return null;
+
+  const endpoints = cat[group];
+  if (!endpoints || !Array.isArray(endpoints)) return null;
+
+  const nameNorm = String(endpointName || '').replace(/-/g, '_').toLowerCase();
+  const ep = endpoints.find((e) => (e.name || '').replace(/-/g, '_').toLowerCase() === nameNorm);
+  if (!ep) return null;
+
+  const pathStr = (ep.path || '').replace(/^\/v1/, '') || `/${category.toLowerCase()}/${String(group).toLowerCase().replace(/_/g, '-')}/${(ep.name || '').replace(/_/g, '-')}`;
+  const mergedParams = { ...(ep.params || {}), ...params };
+  return fetchCryptoQuant(pathStr, mergedParams, options);
+}
+
+module.exports = { fetchCryptoQuant, callCQ, loadSchema };

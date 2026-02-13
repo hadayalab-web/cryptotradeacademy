@@ -6,6 +6,39 @@ function formatUsd(v) {
   return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
+/**
+ * Phase 3: Snapshot-native Trap Alert
+ * Accepts btcSnapshot or legacy { inflow, mpi, priceUsd, trap, aiAnalysis }
+ * @param {Object} snapshotOrPayload - btcSnapshot or legacy payload
+ * @param {string} [lang='en']
+ * @returns {string} Alert message (without [EMERGENCY] prefix)
+ */
+function formatTrapAlertFromSnapshot(snapshotOrPayload, lang = 'en') {
+  if (!snapshotOrPayload || typeof snapshotOrPayload !== 'object') {
+    return '🚨 *Dr. Grok Trap Alert* — No data available.';
+  }
+  const isSnapshot = snapshotOrPayload.raw != null;
+  let inflow, mpi, priceUsd, trap, aiAnalysis;
+  if (isSnapshot) {
+    const raw = snapshotOrPayload.raw || {};
+    const cqDeep = snapshotOrPayload.cqDeep || {};
+    const td = snapshotOrPayload.trapDetection || {};
+    inflow = raw.inflow ?? cqDeep.exchangeNetflow ?? 0;
+    mpi = raw.mpi ?? cqDeep.minerMPI ?? cqDeep.mpi ?? 0;
+    priceUsd = raw.priceUsd ?? null;
+    trap = {
+      label: td.label ?? (td.trapDetected ? 'Whale Trap' : 'Whale Trap'),
+      confidence: td.trapSeverity ?? (td.trapDetected ? 'HIGH' : 'MEDIUM'),
+      note: td.note ?? (td.reasons && td.reasons[0]) ?? null,
+      hint: td.hint ?? null
+    };
+    aiAnalysis = snapshotOrPayload.drGrok?.base ?? snapshotOrPayload.aiAnalysis ?? '';
+  } else {
+    ({ inflow, mpi, priceUsd, trap, aiAnalysis } = snapshotOrPayload);
+  }
+  return formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis });
+}
+
 function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   const flowDir = inflow >= 0 ? 'Inflow' : 'Outflow';
   const flowAbs = Math.abs(inflow || 0);
@@ -48,4 +81,4 @@ function formatTrapAlert({ inflow, mpi, priceUsd, trap, aiAnalysis }) {
   return lines.join('\n');
 }
 
-module.exports = { formatTrapAlert };
+module.exports = { formatTrapAlert, formatTrapAlertFromSnapshot };

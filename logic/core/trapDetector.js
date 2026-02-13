@@ -11,8 +11,8 @@ const { applyQualityGate } = require('./signalQualityGate');
 /**
  * トラップ検知エンジン（統合版）
  * CryptoQuantオンチェーンデータとGrok X解析を統合して市場のトラップを検出
- * marketBugDetector.jsとtrapDetector.jsの機能を統合
- * 
+ * Phase 3: whaleRatio, minerFlows, SOPR, NUPL, liquidity, funding で補強
+ *
  * @param {Object} params - 検出パラメータ
  * @param {number} params.exchangeNetflow - CryptoQuant Exchange Netflow (kBTC)
  * @param {number} params.minerMPI - CryptoQuant Miner Position Index
@@ -21,7 +21,8 @@ const { applyQualityGate } = require('./signalQualityGate');
  * @param {number} params.priceChange24h - 24時間価格変化率 (%)
  * @param {Object} params.highResCQ - 高解像度CryptoQuantデータ
  * @param {Object} params.highResX - 高解像度Xセンチメントデータ
- * @returns {Object} トラップ検出結果
+ * @param {Object} [params.cqDeep] - Phase 3: whaleRatio, minerFlows, sopr, sopr30d, nupl, liquidity, funding
+ * @returns {Object} トラップ検出結果（reasons 配列を含む）
  */
 function detectTrapDetection(params = {}) {
   const {
@@ -32,6 +33,7 @@ function detectTrapDetection(params = {}) {
     priceChange24h = 0,
     highResCQ = null,
     highResX = null,
+    cqDeep = null,
   } = params;
 
   // ===== 1. 高解像度ダイバージェンス検出 =====
@@ -115,6 +117,52 @@ function detectTrapDetection(params = {}) {
     }
   }
 
+  // ===== Phase 3: CQ Deep 指標で補強 =====
+  const reasons = [];
+  if (divergenceResult.multipleDivergences >= 2) reasons.push("multiple_divergences");
+  if (whaleRetailDivergence > 25) reasons.push("whale_retail_divergence");
+  if (basicTrap.isTrap) reasons.push(basicTrap.type || "basic_trap");
+
+  if (cqDeep && typeof cqDeep === "object") {
+    const whaleRatio = Number(cqDeep.whaleFlows?.whaleRatio ?? cqDeep.whaleRatio ?? 0);
+    if (whaleRatio >= 0.9) {
+      trapScore += 20;
+      reasons.push("whale_ratio_extreme");
+    } else if (whaleRatio >= 0.85) {
+      trapScore += 10;
+      reasons.push("whale_ratio_high");
+    }
+    const minerFlows = cqDeep.minerFlows;
+    if (minerFlows && typeof minerFlows.outflow === "number" && minerFlows.outflow > 5000) {
+      trapScore += 15;
+      reasons.push("miner_outflow_high");
+    }
+    const sopr = Number(cqDeep.sopr ?? cqDeep.longTerm?.sopr ?? 1);
+    const sopr30d = Number(cqDeep.sopr30d ?? cqDeep.longTerm?.sopr30d ?? 1);
+    if (sopr < 0.95 && sopr30d < 0.98) {
+      trapScore += 10;
+      reasons.push("sopr_capitulation");
+    }
+    const nupl = cqDeep.nupl ?? cqDeep.longTerm?.nupl;
+    if (nupl != null && Number(nupl) < -0.2) {
+      trapScore += 10;
+      reasons.push("nupl_oversold");
+    }
+    const funding = Number(cqDeep.funding ?? 0);
+    if (funding !== 0 && Math.abs(funding) > 0.0008) {
+      trapScore += 5;
+      reasons.push("funding_extreme");
+    }
+    const liquidity = cqDeep.liquidity;
+    if (liquidity && typeof liquidity === "object" && (liquidity.depth ?? liquidity.value) != null) {
+      const depth = Number(liquidity.depth ?? liquidity.value ?? 1);
+      if (depth < 0.3) {
+        trapScore += 15;
+        reasons.push("liquidity_vacuum");
+      }
+    }
+  }
+
   // トラップの深刻度を判定
   if (trapScore >= 70) {
     trapSeverity = 'CRITICAL';
@@ -165,7 +213,9 @@ function detectTrapDetection(params = {}) {
     bugSeverity: trapSeverity, // 後方互換性
     trapType,
     bugType: trapType, // 後方互換性
-    
+    reasons, // Phase 3: 検出理由リスト
+    confidence: Math.min(1, trapScore / 100),
+
     // ダイバージェンス情報
     divergence: divergenceResult,
     

@@ -683,8 +683,37 @@ Psychological Advice: Continue monitoring. Maintain discipline and wait for high
 /**
  * 後方互換性のためのラッパー関数
  * 既存のanalyzeXSentimentHighResolutionCompatと統合
+ *
+ * Task 10 オーバーロード: (snapshot, lang) を受け取る形式を追加
+ * - 第1引数が snapshot（.raw を持つ）の場合: snapshot から marketData / xSentiment を抽出して呼び出し
+ * - 従来の (marketData, xSentiment, lang) も引き続きサポート
  */
-async function diagnoseUserSentimentCompat(marketData, xSentiment, lang = 'en') {
+async function diagnoseUserSentimentCompat(marketDataOrSnapshot, xSentimentOrLang, lang = 'en') {
+  let marketData, xSentiment;
+  if (marketDataOrSnapshot && typeof marketDataOrSnapshot === 'object' && marketDataOrSnapshot.raw) {
+    // (snapshot, lang) オーバーロード
+    const snapshot = marketDataOrSnapshot;
+    const targetLang = typeof xSentimentOrLang === 'string' ? xSentimentOrLang : 'en';
+    const raw = snapshot.raw || {};
+    marketData = {
+      price_usd_display: raw.priceUsd ?? raw.price,
+      change_24h: raw.change24h ?? 0,
+      market_score: snapshot.market_score ?? 0,
+      trapDetection: snapshot.trapDetection ?? null,
+      marketBug: snapshot.trapDetection ?? null,
+      trapAlert: snapshot.trapAlert ?? null,
+      divergenceSignal: snapshot.divergenceSignal ?? null,
+    };
+    xSentiment = snapshot.xSentiment || { whaleBias: 0, retailFomo: 50 };
+    lang = targetLang;
+  } else {
+    marketData = marketDataOrSnapshot;
+    xSentiment = xSentimentOrLang;
+    if (typeof xSentiment !== 'object') {
+      lang = xSentimentOrLang || 'en';
+      xSentiment = {};
+    }
+  }
   // 高解像度Xデータを取得
   let highResX = null;
   try {

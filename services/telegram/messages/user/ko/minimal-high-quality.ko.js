@@ -77,7 +77,82 @@ ${insight}
 *(이 스냅샷은 의도적으로 불완전함; 전체 구조 분석은 정식 브리핑에서 확인할 수 있습니다.)*`.trim();
 }
 
-const formatMinimalBriefing = formatMinimalBriefingOSv26;
-const formatMinimalHighQualityBriefing = formatMinimalBriefingOSv26;
+/**
+ * Phase 3: Snapshot-native Minimal Briefing (KO)
+ */
+function formatMinimalBriefing(snapshotOrPayload, lang = 'ko') {
+  if (!snapshotOrPayload || typeof snapshotOrPayload !== 'object') {
+    return '🌤️ Trap Defence BTC — 데이터 없음.';
+  }
+  const isSnapshot = snapshotOrPayload.raw != null && snapshotOrPayload.as_of_utc != null;
+  const snapshot = isSnapshot ? snapshotOrPayload : {
+    raw: {
+      priceUsd: snapshotOrPayload.priceUsd,
+      change24h: snapshotOrPayload.change24h,
+      inflow: snapshotOrPayload.trapData?.exchangeNetflow ?? 0,
+      mpi: snapshotOrPayload.minimalMarketData?.mpi ?? 0,
+      sentimentLabel: snapshotOrPayload.sentimentLabel ?? snapshotOrPayload.sentimentData?.sentiment
+    },
+    as_of_utc: snapshotOrPayload.now,
+    trapDetection: { trapScore: snapshotOrPayload.minimalTrapScore },
+    cqDeep: { whaleRatio: snapshotOrPayload.trapData?.whaleRatio, mpi: snapshotOrPayload.minimalMarketData?.mpi },
+    meta: {}
+  };
+  const raw = snapshot.raw || {};
+  const trapScore = snapshot.trapDetection?.trapScore ?? snapshot.cqDeep?.trapScore ?? null;
+  const priceUsd = raw.priceUsd ?? null;
+  const inflow = raw.inflow ?? 0;
+  const sentimentLabel = raw.sentimentLabel ?? '알 수 없음';
+  const mpi = raw.mpi ?? snapshot.cqDeep?.mpi ?? snapshot.cqDeep?.minerMPI ?? 0;
+  const meta = snapshot.meta || {};
+  const watchNote = meta.watch ? '\n⚠️ WATCH: 주의가 필요합니다.' : '';
+
+  const asOf = snapshot.as_of_utc ?? snapshotOrPayload?.now;
+  const tsRaw = typeof asOf === 'string' ? asOf : (asOf && typeof asOf.toISOString === 'function' ? asOf.toISOString() : new Date().toISOString());
+  const ts = tsRaw.replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
+  const trapScoreDisplay = trapScore != null ? Math.round(Number(trapScore)) : 'N/A';
+  const netflowStr = inflow >= 0 ? `+${Number(inflow).toFixed(0)} BTC` : `${Number(inflow).toFixed(0)} BTC`;
+  const priceStr = priceUsd != null ? `$${Number(priceUsd).toLocaleString('ko-KR', { maximumFractionDigits: 0 })}` : 'N/A';
+  const cqBase = inflow >= 0
+    ? '거래소 유입 증가 → 단기 매도 압력'
+    : '유출 → 보유자들이 자산 보호 중';
+  const cqSummary = `${cqBase} (표면적 관점)`;
+  const xSummary = toSurfaceSentiment(sentimentLabel);
+  const macroSummary = 'Risk-off 지배; 유동성 조건 경직';
+  const insight = trapScore != null && trapScore < 30
+    ? '표면적 구조는 공포 압력 아래에서 유동성 이동을 보여줌; 고래-알고리즘의 더 깊은 역학은 정식 브리핑에서만 드러납니다.'
+    : trapScore != null && trapScore >= 50
+      ? '가시적 유입은 재구성을 시사; 기저 구조 동력은 이 최소 스냅샷 밖에 남아 있습니다.'
+      : '공포 주도 유동성 변화가 뚜렷함; 전체 구조 맵은 정식 브리핑에서만 이용 가능합니다.';
+
+  return `🌤️ Trap Defence BTC — 최소 브리핑
+📅 ${ts}
+
+━━━━━━━━━━━━━━━━━━━━
+📡 Market Snapshot
+━━━━━━━━━━━━━━━━━━━━
+• Trap Score: ${trapScoreDisplay}/100
+• CQ Summary: ${cqSummary}
+• X Sentiment: ${xSummary}
+• Macro Summary: ${macroSummary}
+
+━━━━━━━━━━━━━━━━━━━━
+📊 주요 지표
+━━━━━━━━━━━━━━━━━━━━
+• 가격: ${priceStr}
+• Netflow: ${netflowStr}
+• MPI: ${Number(mpi).toFixed(2)}
+• 센티먼트: ${sentimentLabel}
+
+━━━━━━━━━━━━━━━━━━━━
+🧠 Insight
+━━━━━━━━━━━━━━━━━━━━
+${insight}${watchNote}
+
+교육 목적 전용.
+*(이 스냅샷은 의도적으로 불완전함; 전체 구조 분석은 정식 브리핑에서 확인할 수 있습니다.)*`.trim();
+}
+
+const formatMinimalHighQualityBriefing = formatMinimalBriefing;
 
 module.exports = { formatMinimalBriefingOSv26, formatMinimalBriefing, formatMinimalHighQualityBriefing };

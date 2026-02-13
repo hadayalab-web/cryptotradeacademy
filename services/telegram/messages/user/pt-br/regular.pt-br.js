@@ -45,7 +45,36 @@ function getPortuguesePsychologicalAdvice(psychologicalState, psychologicalRisk)
   return 'As condições do mercado são relativamente estáveis. Mantenha a disciplina e espere configurações de qualidade.';
 }
 
-function formatRegularBriefing({
+function formatRegularBriefing(snapshotOrPayload, lang = 'pt-br', opts = {}) {
+  if (!snapshotOrPayload || typeof snapshotOrPayload !== 'object') return '🌤️ Trap Defence BTC - Regular Briefing — Sem dados de snapshot.';
+  const isSnapshot = snapshotOrPayload.raw != null;
+  if (!isSnapshot) {
+    return formatRegularBriefingCore(snapshotOrPayload);
+  }
+  const raw = snapshotOrPayload.raw || {};
+  const cqDeep = snapshotOrPayload.cqDeep || {};
+  const td = snapshotOrPayload.trapDetection || {};
+  const asOf = snapshotOrPayload.as_of_utc || new Date().toISOString();
+  const now = typeof asOf === 'string' ? new Date(asOf) : asOf;
+  const payload = {
+    now, inflow: raw.inflow ?? cqDeep.exchangeNetflow ?? 0, mpi: raw.mpi ?? cqDeep.minerMPI ?? cqDeep.mpi ?? 0,
+    sentimentLabel: raw.sentimentLabel ?? 'Desconhecido', priceUsd: raw.priceUsd ?? null, change24h: raw.change24h ?? null,
+    score: snapshotOrPayload.market_score ?? 0, tradeSignal: snapshotOrPayload.tradeSignal || { signal: 'STANDBY', tp: null, sl: null, rr: null },
+    trap: td.trapDetected ? { isTrap: true, label: td.label ?? 'Trap', confidence: td.trapSeverity ?? 'MEDIUM' } : { isTrap: false, label: 'No trap', confidence: 'LOW' },
+    aiAnalysis: snapshotOrPayload.drGrok?.base ?? (typeof snapshotOrPayload.gptStructureReasoning === 'string' ? snapshotOrPayload.gptStructureReasoning : null),
+    stats: null, trapScore: cqDeep.trapScore ?? td.trapScore ?? null, whaleFlows: cqDeep.whaleFlows ?? null, liquidations: cqDeep.liquidations ?? null,
+    noTradeAlert: null, trapRisk: null, exitMap: null, trapDetection: td, marketBug: opts.marketBug ?? null, trapAlert: snapshotOrPayload.trapAlert ?? null,
+    divergenceSignal: snapshotOrPayload.divergenceSignal ?? null, psychologicalSupport: opts.psychologicalSupport ?? null,
+    hasGeminiContent: !!(snapshotOrPayload.sosovalueArticle && snapshotOrPayload.sosovalueArticle.trim()), sosovalueArticle: snapshotOrPayload.sosovalueArticle ?? null,
+    gptReporterAnalysis: snapshotOrPayload.gptStructureReasoning ?? null, grokXAnalysis: opts.grokXAnalysis ?? snapshotOrPayload.highResX ?? null,
+    riskReward: cqDeep.riskReward ?? null, nupl: cqDeep.longTerm?.nupl ?? cqDeep.nupl ?? null, sopr30d: cqDeep.longTerm?.sopr30d ?? cqDeep.sopr30d ?? null,
+    kimchiPremium: cqDeep.kimchiPremium ?? null, upbitPrice: cqDeep.upbitPrice ?? null,
+    whaleFlows: cqDeep.whaleFlows ?? null
+  };
+  return formatRegularBriefingCore(payload);
+}
+
+function formatRegularBriefingCore({
   now,
   inflow,
   mpi,

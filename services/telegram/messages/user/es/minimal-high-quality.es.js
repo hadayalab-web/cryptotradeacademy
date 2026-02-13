@@ -78,7 +78,82 @@ Solo para fines educativos.
 *(Este snapshot está intencionalmente incompleto; el desglose estructural completo está disponible en el Briefing Regular.)*`.trim();
 }
 
-const formatMinimalBriefing = formatMinimalBriefingOSv26;
-const formatMinimalHighQualityBriefing = formatMinimalBriefingOSv26;
+/**
+ * Phase 3: Snapshot-native Minimal Briefing (ES)
+ */
+function formatMinimalBriefing(snapshotOrPayload, lang = 'es') {
+  if (!snapshotOrPayload || typeof snapshotOrPayload !== 'object') {
+    return '🌤️ Trap Defence BTC — Sin datos disponibles.';
+  }
+  const isSnapshot = snapshotOrPayload.raw != null && snapshotOrPayload.as_of_utc != null;
+  const snapshot = isSnapshot ? snapshotOrPayload : {
+    raw: {
+      priceUsd: snapshotOrPayload.priceUsd,
+      change24h: snapshotOrPayload.change24h,
+      inflow: snapshotOrPayload.trapData?.exchangeNetflow ?? 0,
+      mpi: snapshotOrPayload.minimalMarketData?.mpi ?? 0,
+      sentimentLabel: snapshotOrPayload.sentimentLabel ?? snapshotOrPayload.sentimentData?.sentiment
+    },
+    as_of_utc: snapshotOrPayload.now,
+    trapDetection: { trapScore: snapshotOrPayload.minimalTrapScore },
+    cqDeep: { whaleRatio: snapshotOrPayload.trapData?.whaleRatio, mpi: snapshotOrPayload.minimalMarketData?.mpi },
+    meta: {}
+  };
+  const raw = snapshot.raw || {};
+  const trapScore = snapshot.trapDetection?.trapScore ?? snapshot.cqDeep?.trapScore ?? null;
+  const priceUsd = raw.priceUsd ?? null;
+  const inflow = raw.inflow ?? 0;
+  const sentimentLabel = raw.sentimentLabel ?? 'Desconocido';
+  const mpi = raw.mpi ?? snapshot.cqDeep?.mpi ?? snapshot.cqDeep?.minerMPI ?? 0;
+  const meta = snapshot.meta || {};
+  const watchNote = meta.watch ? '\n⚠️ WATCH: Condiciones requieren atención.' : '';
+
+  const asOf = snapshot.as_of_utc ?? snapshotOrPayload?.now;
+  const tsRaw = typeof asOf === 'string' ? asOf : (asOf && typeof asOf.toISOString === 'function' ? asOf.toISOString() : new Date().toISOString());
+  const ts = tsRaw.replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
+  const trapScoreDisplay = trapScore != null ? Math.round(Number(trapScore)) : 'N/A';
+  const netflowStr = inflow >= 0 ? `+${Number(inflow).toFixed(0)} BTC` : `${Number(inflow).toFixed(0)} BTC`;
+  const priceStr = priceUsd != null ? `$${Number(priceUsd).toLocaleString('es-ES', { maximumFractionDigits: 0 })}` : 'N/A';
+  const cqBase = inflow >= 0
+    ? 'Alta entrada a exchanges → presión de venta a corto plazo'
+    : 'Salida → tenedores asegurando activos';
+  const cqSummary = `${cqBase} (vista superficial)`;
+  const xSummary = toSurfaceSentiment(sentimentLabel);
+  const macroSummary = 'Risk-off dominante; condiciones de liquidez ajustadas';
+  const insight = trapScore != null && trapScore < 30
+    ? 'La estructura superficial muestra liquidez desplazándose bajo presión de miedo; la dinámica ballena-algo más profunda solo se revela en el briefing completo.'
+    : trapScore != null && trapScore >= 50
+      ? 'Los flujos visibles indican reconfiguración; los impulsores estructurales subyacentes quedan fuera de este snapshot mínimo.'
+      : 'Los desplazamientos de liquidez impulsados por miedo son evidentes; el mapa estructural completo está disponible solo en el briefing Regular.';
+
+  return `🌤️ Trap Defence BTC — Briefing Mínimo
+📅 ${ts}
+
+━━━━━━━━━━━━━━━━━━━━
+📡 Market Snapshot
+━━━━━━━━━━━━━━━━━━━━
+• Trap Score: ${trapScoreDisplay}/100
+• CQ Summary: ${cqSummary}
+• X Sentiment: ${xSummary}
+• Macro Summary: ${macroSummary}
+
+━━━━━━━━━━━━━━━━━━━━
+📊 Métricas Clave
+━━━━━━━━━━━━━━━━━━━━
+• Precio: ${priceStr}
+• Netflow: ${netflowStr}
+• MPI: ${Number(mpi).toFixed(2)}
+• Sentimiento: ${sentimentLabel}
+
+━━━━━━━━━━━━━━━━━━━━
+🧠 Insight
+━━━━━━━━━━━━━━━━━━━━
+${insight}${watchNote}
+
+Solo para fines educativos.
+*(Este snapshot está intencionalmente incompleto; el desglose estructural completo está disponible en el Briefing Regular.)*`.trim();
+}
+
+const formatMinimalHighQualityBriefing = formatMinimalBriefing;
 
 module.exports = { formatMinimalBriefingOSv26, formatMinimalBriefing, formatMinimalHighQualityBriefing };

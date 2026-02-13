@@ -41,7 +41,41 @@ function getKoreanPsychologicalAdvice(psychologicalState, psychologicalRisk) {
   return '시장 조건이 상대적으로 안정적입니다. 규율을 유지하고 품질 있는 설정을 기다리세요.';
 }
 
-function formatRegularBriefing({
+function extractPayloadFromSnapshot(snapshot, lang = 'ko', opts = {}) {
+  if (!snapshot || typeof snapshot !== 'object') return null;
+  const raw = snapshot.raw || {};
+  const cqDeep = snapshot.cqDeep || {};
+  const td = snapshot.trapDetection || {};
+  const asOf = snapshot.as_of_utc || new Date().toISOString();
+  const now = typeof asOf === 'string' ? new Date(asOf) : asOf;
+  return {
+    now, inflow: raw.inflow ?? cqDeep.exchangeNetflow ?? 0, mpi: raw.mpi ?? cqDeep.minerMPI ?? cqDeep.mpi ?? 0,
+    sentimentLabel: raw.sentimentLabel ?? '알 수 없음', priceUsd: raw.priceUsd ?? null, change24h: raw.change24h ?? null,
+    score: snapshot.market_score ?? 0, tradeSignal: snapshot.tradeSignal || { signal: 'STANDBY', tp: null, sl: null, rr: null },
+    trap: td.trapDetected ? { isTrap: true, label: td.label ?? 'Trap', confidence: td.trapSeverity ?? 'MEDIUM' } : { isTrap: false, label: 'No trap', confidence: 'LOW' },
+    aiAnalysis: snapshot.drGrok?.base ?? (typeof snapshot.gptStructureReasoning === 'string' ? snapshot.gptStructureReasoning : null),
+    stats: null, trapScore: cqDeep.trapScore ?? td.trapScore ?? null, whaleFlows: cqDeep.whaleFlows ?? null, liquidations: cqDeep.liquidations ?? null,
+    noTradeAlert: null, trapRisk: null, exitMap: null, trapDetection: td, marketBug: opts.marketBug ?? null, trapAlert: snapshot.trapAlert ?? null,
+    divergenceSignal: snapshot.divergenceSignal ?? null, psychologicalSupport: opts.psychologicalSupport ?? null,
+    hasGeminiContent: !!(snapshot.sosovalueArticle && snapshot.sosovalueArticle.trim()), sosovalueArticle: snapshot.sosovalueArticle ?? null,
+    gptReporterAnalysis: snapshot.gptStructureReasoning ?? null, grokXAnalysis: opts.grokXAnalysis ?? snapshot.highResX ?? null,
+    riskReward: cqDeep.riskReward ?? null, nupl: cqDeep.longTerm?.nupl ?? cqDeep.nupl ?? null, sopr30d: cqDeep.longTerm?.sopr30d ?? cqDeep.sopr30d ?? null,
+    kimchiPremium: cqDeep.kimchiPremium ?? null, upbitPrice: cqDeep.upbitPrice ?? null
+  };
+}
+
+function formatRegularBriefing(snapshotOrPayload, lang = 'ko', opts = {}) {
+  if (!snapshotOrPayload || typeof snapshotOrPayload !== 'object') return '🌤️ Trap Defence BTC - Regular Briefing — 스냅샷 데이터 없음.';
+  const isSnapshot = snapshotOrPayload.raw != null;
+  if (isSnapshot) {
+    const payload = extractPayloadFromSnapshot(snapshotOrPayload, lang, opts);
+    if (!payload) return '🌤️ Trap Defence BTC - Regular Briefing — 잘못된 스냅샷.';
+    return formatRegularBriefingCore(payload);
+  }
+  return formatRegularBriefingCore(snapshotOrPayload);
+}
+
+function formatRegularBriefingCore({
   now,
   inflow,
   mpi,

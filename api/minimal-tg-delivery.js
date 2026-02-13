@@ -51,10 +51,10 @@ function getSocialProofButton(lang = "en") {
 function loadMinimalFormatter(lang) {
   try {
     const mod = require(`../services/telegram/messages/user/${lang}/minimal-high-quality.${lang}`);
-    return mod.formatMinimalBriefingOSv26 || mod.formatMinimalBriefing || null;
+    return mod.formatMinimalBriefing || mod.formatMinimalBriefingOSv26 || null;
   } catch (e) {
     const en = require("../services/telegram/messages/user/en/minimal-high-quality.en");
-    return en.formatMinimalBriefingOSv26 || en.formatMinimalBriefing || null;
+    return en.formatMinimalBriefing || en.formatMinimalBriefingOSv26 || null;
   }
 }
 
@@ -74,10 +74,15 @@ module.exports = async function handler(req, res) {
     return res.status(503).json({ error: "KV not available" });
   }
 
-  const payload = await kv.get("minimal:btc:latest");
-  if (!payload || !payload.now) {
+  // Phase 2: btc:snapshot:early → btc:snapshot → minimal:btc:latest の順で読む
+  let payload = await kv.get("btc:snapshot:early")
+    || await kv.get("btc:snapshot");
+  if (!payload) {
+    payload = await kv.get("minimal:btc:latest");
+  }
+  if (!payload) {
     return res.status(503).json({
-      error: "No minimal payload in KV (minimal:btc:latest). Run /api/cron first (it writes payload on regular slot)."
+      error: "No snapshot in KV (btc:snapshot:early, btc:snapshot, minimal:btc:latest). Run /api/cron first."
     });
   }
 
@@ -97,19 +102,6 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, skipped: true, reason: "Telegram disabled" });
   }
 
-  const {
-    now,
-    minimalTrapScore,
-    priceUsd,
-    change24h,
-    trapData,
-    minimalMarketData,
-    sentimentData,
-    market_score,
-    grokXAnalysis,
-    sentimentLabel
-  } = payload;
-
   const results = { sent: [], errors: [] };
 
   for (const targetLang of targetLangs) {
@@ -119,20 +111,8 @@ module.exports = async function handler(req, res) {
         results.errors.push({ lang: targetLang, error: "No formatter" });
         continue;
       }
-
-      const nowDate = typeof now === "string" ? new Date(now) : now || new Date();
-      const minimalText = formatMinimal({
-        now: nowDate,
-        trapScore: minimalTrapScore,
-        priceUsd,
-        change24h,
-        trapData: trapData || {},
-        marketData: minimalMarketData || {},
-        sentimentData: sentimentData || { sentiment: sentimentLabel },
-        lang: targetLang,
-        score: market_score,
-        grokGeminiOptimization: null
-      });
+      // Phase 3: formatMinimalBriefing(snapshot, lang) - accepts btcSnapshot or legacy payload
+      const minimalText = formatMinimal(payload, targetLang);
 
       const chatId = resolveMinimalChatId(targetLang);
       if (!chatId) {

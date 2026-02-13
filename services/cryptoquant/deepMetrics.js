@@ -5,6 +5,28 @@
 const { fetchCryptoQuant } = require('./client');
 const { getExchangeInflow, getMinerPositionIndex } = require('./endpoints/btc');
 
+/**
+ * CQ Pro fetch with retry: 404→null, 500→retry once, 429→wait+retry
+ * @returns {Promise<any|null>}
+ */
+async function fetchCQWithRetry(path, params = {}, opts = {}, retryCount = 0) {
+  try {
+    return await fetchCryptoQuant(path, params, opts);
+  } catch (e) {
+    const msg = String(e?.message || '');
+    if (msg.includes('404')) return null;
+    if (msg.includes('500') && retryCount < 1) {
+      await new Promise(r => setTimeout(r, 2000));
+      return fetchCQWithRetry(path, params, opts, retryCount + 1);
+    }
+    if (msg.includes('429') && retryCount < 2) {
+      await new Promise(r => setTimeout(r, 5000));
+      return fetchCQWithRetry(path, params, opts, retryCount + 1);
+    }
+    throw e;
+  }
+}
+
 // Valid market codes
 const VALID_MARKETS = ['EN', 'AR', 'KO', 'JA', 'ES', 'PT-BR'];
 
@@ -85,20 +107,27 @@ async function getWhaleFlows(options = {}) {
  * @returns {Promise<Object>} { longLiquidations, shortLiquidations, totalLiquidations }
  */
 /**
- * Liquidations取得
- * 
- * 注意: CryptoQuant APIでは Liquidations エンドポイントが提供されていないため（404エラー）、
- * 常に0を返します。trapScore計算ではLiquidationsによるスコア加算は行われません。
- * 
- * @param {object} options - オプション（互換性のため残すが使用しない）
- * @returns {Promise<Object>} 常に0を返す
+ * Liquidations取得（derivatives）
+ * 404→null相当で0を返す。500/429はリトライ。
+ * @returns {Promise<Object>} { longLiquidations, shortLiquidations, totalLiquidations }
  */
 async function getLiquidations(options = {}) {
-  // CryptoQuant APIでは提供されていないため、常に0を返す
+  let longL = 0;
+  let shortL = 0;
+  try {
+    const longData = await fetchCQWithRetry('/btc/derivatives/liquidations-long', { exchange: 'all_exchange', window: 'day', limit: 1 }, options);
+    const longPoint = longData?.result?.data?.[0];
+    longL = Number(longPoint?.value ?? longPoint?.liquidations ?? 0) || 0;
+  } catch { /* 404 or other: keep 0 */ }
+  try {
+    const shortData = await fetchCQWithRetry('/btc/derivatives/liquidations-short', { exchange: 'all_exchange', window: 'day', limit: 1 }, options);
+    const shortPoint = shortData?.result?.data?.[0];
+    shortL = Number(shortPoint?.value ?? shortPoint?.liquidations ?? 0) || 0;
+  } catch { /* 404 or other: keep 0 */ }
   return {
-    longLiquidations: 0,
-    shortLiquidations: 0,
-    totalLiquidations: 0,
+    longLiquidations: longL,
+    shortLiquidations: shortL,
+    totalLiquidations: longL + shortL,
   };
 }
 
@@ -167,16 +196,225 @@ function calculateKimchiPremium(upbitPrice, usdPrice, usdKrwRate) {
 }
 
 /**
- * NUPL取得（JA市場用）
- *
- * 注意: CryptoQuant APIでは NUPL エンドポイントが提供されていないため（404エラー）、
- * 常に0を返します。riskReward計算ではNUPLによる加算は行われません。
- *
- * @returns {Promise<number>} 常に0を返す
+ * NUPL取得（CQ Pro）
+ * 404の場合はnullを返し、ログを残す。取得可能なら値を返す。
+ * @returns {Promise<number|null>}
  */
 async function getNUPL() {
-  // CryptoQuant APIでは提供されていないため、常に0を返す
-  return 0;
+  const endpoints = ['/btc/network-indicator/nupl', '/btc/market-indicator/nupl'];
+  for (const path of endpoints) {
+    try {
+      const data = await fetchCQWithRetry(path, { window: 'day', limit: 1 });
+      const point = data?.result?.data?.[0];
+      const v = Number(point?.value ?? point?.nupl ?? 0);
+      return Number.isFinite(v) ? v : null;
+    } catch (e) {
+      if (e.message && String(e.message).includes('404')) {
+        try { require('../utils/logger').Logger.debug('deepMetrics', `NUPL ${path} 404`, {}); } catch (_) {}
+      } else {
+        console.warn('[deepMetrics] NUPL fetch error:', e.message);
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * LTH-NUPL取得（Long-Term Holder NUPL、CQ Pro）
+ * 404→null。TODO: requires confirmed CQ Pro endpoint（パス未確認の場合はnullを想定）
+ * @returns {Promise<number|null>}
+ */
+async function getLTHNUPL() {
+  const paths = ['/btc/network-indicator/lth-nupl', '/btc/market-indicator/lth-nupl'];
+  for (const path of paths) {
+    try {
+      const data = await fetchCQWithRetry(path, { window: 'day', limit: 1 });
+      const point = data?.result?.data?.[0];
+      const v = Number(point?.value ?? point?.lth_nupl ?? point?.nupl ?? 0);
+      return Number.isFinite(v) ? v : null;
+    } catch {
+      // 404: try next
+    }
+  }
+  return null;
+}
+
+/**
+ * Funding Rate取得（CQ Pro）
+ * 404の場合はnull、取得可能なら値（小数、例: 0.0001 = 0.01%）
+ * @returns {Promise<number|null>}
+ */
+async function getFundingRate() {
+  const paths = ['/btc/derivatives/funding-rate', '/derivatives/funding-rate/btc'];
+  for (const path of paths) {
+    try {
+      const data = await fetchCQWithRetry(path, { exchange: 'all_exchange', window: '8hour', limit: 1 });
+      const point = data?.result?.data?.[0];
+      const v = Number(point?.value ?? point?.funding_rate ?? point?.rate ?? 0);
+      return Number.isFinite(v) ? v : null;
+    } catch (e) {
+      if (e.message && String(e.message).includes('404')) {
+        try { require('../utils/logger').Logger.debug('deepMetrics', `Funding ${path} 404`, {}); } catch (_) {}
+      } else {
+        console.warn('[deepMetrics] Funding fetch error:', e.message);
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Open Interest取得（CQ Pro）
+ * 404の場合はnull、取得可能なら値（USD）
+ * @returns {Promise<number|null>}
+ */
+async function getOpenInterest() {
+  const paths = ['/btc/derivatives/open-interest', '/derivatives/open-interest/btc'];
+  for (const path of paths) {
+    try {
+      const data = await fetchCQWithRetry(path, { exchange: 'all_exchange', window: 'day', limit: 1 });
+      const point = data?.result?.data?.[0];
+      const v = Number(point?.value ?? point?.open_interest ?? point?.oi ?? 0);
+      return Number.isFinite(v) && v > 0 ? v : null;
+    } catch (e) {
+      if (e.message && String(e.message).includes('404')) {
+        try { require('../utils/logger').Logger.debug('deepMetrics', `OI ${path} 404`, {}); } catch (_) {}
+      } else {
+        console.warn('[deepMetrics] OpenInterest fetch error:', e.message);
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Miner Flows取得（CQ Pro、MPI以外の鉱夫指標）
+ * 404の場合はnull、取得可能なら { outflow, inflow, netflow } 等
+ * @returns {Promise<Object|null>}
+ */
+async function getMinerFlows() {
+  const paths = ['/btc/miner-flows/outflow', '/btc/flow-indicator/miner-outflow'];
+  for (const path of paths) {
+    try {
+      const data = await fetchCQWithRetry(path, { window: 'day', limit: 1 });
+      const point = data?.result?.data?.[0];
+      const outflow = Number(point?.value ?? point?.outflow ?? point?.miner_outflow ?? 0);
+      if (Number.isFinite(outflow)) {
+        return { outflow, inflow: point?.inflow ?? null, netflow: point?.netflow ?? null };
+      }
+    } catch (e) {
+      if (e.message && String(e.message).includes('404')) {
+        try { require('../utils/logger').Logger.debug('deepMetrics', `MinerFlows ${path} 404`, {}); } catch (_) {}
+      } else {
+        console.warn('[deepMetrics] MinerFlows fetch error:', e.message);
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Stablecoin metrics取得（CQ Pro）
+ * 404→null。TODO: requires confirmed CQ Pro endpoint（パス未確認の場合はnullを想定）
+ * @returns {Promise<Object|null>}
+ */
+async function getStablecoinMetrics() {
+  const paths = [
+    '/stablecoin/exchange-reserve',
+    '/btc/stablecoin/exchange-reserve',
+  ];
+  for (const path of paths) {
+    try {
+      const data = await fetchCQWithRetry(path, { window: 'day', limit: 1 });
+      const point = data?.result?.data?.[0];
+      if (point && typeof point === 'object') {
+        return {
+          exchangeReserve: point?.value ?? point?.reserve ?? null,
+          supplyRatio: point?.supply_ratio ?? null,
+          ...point,
+        };
+      }
+    } catch {
+      // 404: try next path
+    }
+  }
+  return null;
+}
+
+/**
+ * ETF flows取得（CQ Pro）
+ * 404→null。TODO: requires confirmed CQ Pro endpoint（パス未確認の場合はnullを想定）
+ * @returns {Promise<Object|null>}
+ */
+async function getETFFlows() {
+  const paths = ['/btc/etf-flows', '/btc/etf/flows'];
+  for (const path of paths) {
+    try {
+      const data = await fetchCQWithRetry(path, { window: 'day', limit: 1 });
+      const point = data?.result?.data?.[0];
+      if (point && typeof point === 'object') {
+        return {
+          inflow: point?.inflow ?? point?.value ?? null,
+          outflow: point?.outflow ?? null,
+          netflow: point?.netflow ?? null,
+          ...point,
+        };
+      }
+    } catch {
+      // 404: try next path
+    }
+  }
+  return null;
+}
+
+/**
+ * Exchange flows（詳細）取得
+ * netflowは既存。inflow/outflowを個別に取得可能な場合
+ * @returns {Promise<Object|null>}
+ */
+async function getExchangeFlowsDetailed() {
+  try {
+    const inflowData = await fetchCQWithRetry('/btc/exchange-flows/inflow', { exchange: 'all_exchange', window: 'day', limit: 1 });
+    const outflowData = await fetchCQWithRetry('/btc/exchange-flows/outflow', { exchange: 'all_exchange', window: 'day', limit: 1 });
+    const inflowPoint = inflowData?.result?.data?.[0];
+    const outflowPoint = outflowData?.result?.data?.[0];
+    const inflow = Number(inflowPoint?.value ?? inflowPoint?.inflow ?? 0) || null;
+    const outflow = Number(outflowPoint?.value ?? outflowPoint?.outflow ?? 0) || null;
+    if (inflow != null || outflow != null) {
+      return { inflow, outflow, netflow: (inflow ?? 0) - (outflow ?? 0) };
+    }
+  } catch { /* 404 */ }
+  return null;
+}
+
+/**
+ * Liquidity取得（CQ Pro）
+ * 404の場合はnull、取得可能なら { depth, bidAskSpread, ... } 等
+ * @returns {Promise<Object|null>}
+ */
+async function getLiquidity() {
+  const paths = ['/btc/liquidity/depth', '/btc/market-indicator/liquidity'];
+  for (const path of paths) {
+    try {
+      const data = await fetchCQWithRetry(path, { window: 'day', limit: 1 });
+      const point = data?.result?.data?.[0];
+      if (point && typeof point === 'object') {
+        return {
+          value: point?.value ?? null,
+          depth: point?.depth ?? null,
+          bidAskSpread: point?.bid_ask_spread ?? null,
+          ...point,
+        };
+      }
+    } catch (e) {
+      if (e.message && String(e.message).includes('404')) {
+        try { require('../utils/logger').Logger.debug('deepMetrics', `Liquidity ${path} 404`, {}); } catch (_) {}
+      } else {
+        console.warn('[deepMetrics] Liquidity fetch error:', e.message);
+      }
+    }
+  }
+  return null;
 }
 
 /**
@@ -311,17 +549,56 @@ function deriveBaseFromHighRes(highResCQ) {
 }
 
 /**
+ * CQ Pro 共通フィールド取得（derivatives, liquidity, miner flows, LTH, stablecoin, exchange flows, ETF flows）
+ * 404のものはnullでスキップ。並列取得。
+ * @returns {Promise<Object>}
+ */
+async function fetchCQProCommonFields() {
+  const [
+    sopr, sopr30d, nupl, lthNupl, funding, openInterest, liquidations, minerFlows, liquidity,
+    stablecoinMetrics, etfFlows, exchangeFlowsDetailed,
+  ] = await Promise.all([
+    getSOPR().catch(() => null),
+    getSOPR30d().catch(() => null),
+    getNUPL().catch(() => null),
+    getLTHNUPL().catch(() => null),
+    getFundingRate().catch(() => null),
+    getOpenInterest().catch(() => null),
+    getLiquidations().catch(() => ({ longLiquidations: 0, shortLiquidations: 0, totalLiquidations: 0 })),
+    getMinerFlows().catch(() => null),
+    getLiquidity().catch(() => null),
+    getStablecoinMetrics().catch(() => null),
+    getETFFlows().catch(() => null),
+    getExchangeFlowsDetailed().catch(() => null),
+  ]);
+  const out = {
+    sopr: sopr != null && Number.isFinite(sopr) ? sopr : null,
+    sopr30d: sopr30d != null && Number.isFinite(sopr30d) ? sopr30d : null,
+    nupl: nupl != null && Number.isFinite(nupl) ? nupl : null,
+    lthNupl: lthNupl != null && Number.isFinite(lthNupl) ? lthNupl : null,
+    funding: funding != null && Number.isFinite(funding) ? funding : null,
+    openInterest: openInterest != null && Number.isFinite(openInterest) ? openInterest : null,
+    liquidations: liquidations && typeof liquidations === 'object' ? liquidations : null,
+    minerFlows: minerFlows && typeof minerFlows === 'object' ? minerFlows : null,
+    liquidity: liquidity && typeof liquidity === 'object' ? liquidity : null,
+    stablecoinMetrics: stablecoinMetrics && typeof stablecoinMetrics === 'object' ? stablecoinMetrics : null,
+    etfFlows: etfFlows && typeof etfFlows === 'object' ? etfFlows : null,
+    exchangeFlowsDetailed: exchangeFlowsDetailed && typeof exchangeFlowsDetailed === 'object' ? exchangeFlowsDetailed : null,
+  };
+  return out;
+}
+
+/**
  * 市場別深掘りデータ取得（Phase 2）
  * Step 2-4: EMERGENCY判定指標のキャッシュバイパス対応
- * オーバースペック対策: options.highResCQ を渡すと netflow/mpi/whale の再取得をスキップ（同一エンドポイント重複呼び出し回避）
+ * CQ Pro 100%: sopr, sopr30d, nupl, funding, openInterest, minerFlows, liquidity を全市場で受け皿として含む
  * @param {string} market - 市場コード (EN/AR/KO/JA/ES/PT-BR)
  * @param {Object} options - 追加オプション（価格情報など）
  * @param {Object} options.highResCQ - getHighResolutionCQData() の戻り値（省略時は自前で取得）
  * @param {boolean} options.skipCache - キャッシュをスキップするか（EMERGENCY判定時など）
- * @returns {Promise<Object>} 市場別深掘りデータ
+ * @returns {Promise<Object>} 市場別深掘りデータ（cqDeep）
  */
 async function getCQDeepMetrics(market, options = {}) {
-  // Validate market code
   if (!VALID_MARKETS.includes(market)) {
     console.warn(`[deepMetrics] Invalid market code: ${market}, using EN as default`);
     market = 'EN';
@@ -343,7 +620,7 @@ async function getCQDeepMetrics(market, options = {}) {
       minerMPI = mpiData?.value ?? 0;
     }
 
-    const exchangeOutflow = 0; // 算出が必要な場合は実装
+    const exchangeOutflow = 0;
     const netflow = exchangeInflow - exchangeOutflow;
 
     const baseResult = {
@@ -351,8 +628,13 @@ async function getCQDeepMetrics(market, options = {}) {
       exchangeOutflow,
       netflow,
       minerMPI,
-      activeAddresses: 0, // 必要に応じて実装
+      mpi: minerMPI,
+      activeAddresses: 0,
     };
+
+    // CQ Pro 共通フィールド（全市場で受け皿を用意、404はnull）
+    const cqPro = await fetchCQProCommonFields();
+    Object.assign(baseResult, cqPro);
 
     switch (market) {
       case 'EN': {
@@ -365,46 +647,30 @@ async function getCQDeepMetrics(market, options = {}) {
             interpretation: whaleRatio > WHALE_RATIO_HIGH_PRESSURE_THRESHOLD ? 'high_selling_pressure' : 'normal',
           };
         } else {
-          const [whale, liquidations] = await Promise.all([
-            getWhaleFlows({ skipCache: options.skipCache }),
-            getLiquidations({ skipCache: options.skipCache }),
-          ]);
-          whaleData = whale;
+          whaleData = await getWhaleFlows({ skipCache: options.skipCache });
         }
-        const liquidations = { longLiquidations: 0, shortLiquidations: 0, totalLiquidations: 0 };
-        const trapScore = calculateTrapScore(
-          whaleData.whaleRatio || 0,
-          liquidations,
-          null
-        );
+        const liquidationsData = baseResult.liquidations ?? { longLiquidations: 0, shortLiquidations: 0, totalLiquidations: 0 };
+        const trapScore = calculateTrapScore(whaleData.whaleRatio || 0, liquidationsData, null);
 
         return {
           ...baseResult,
           whaleFlows: whaleData,
-          liquidations,
+          whaleRatio: whaleData.whaleRatio,
+          liquidations: liquidationsData,
           trapScore,
         };
       }
 
       case 'KO': {
-        // KO市場: Kimchi Premium計算
         const [upbitInflow, binanceInflow] = await Promise.all([
           getUpbitInflow(),
           getBinanceInflow(),
         ]);
-
-        // 価格情報が必要（optionsから取得、または別途取得）
         const upbitPrice = options.upbitPrice ?? 0;
-        const usdPrice = options.usdPrice ?? 0; // USD価格を使用
-        const usdKrwRate = options.usdKrwRate ?? 1300; // デフォルト為替レート
-
-        const kimchiPremium = calculateKimchiPremium(
-          upbitPrice,
-          usdPrice,
-          usdKrwRate
-        );
-
-        const isTrap = kimchiPremium > 0.05; // 5%以上でTrap判定
+        const usdPrice = options.usdPrice ?? 0;
+        const usdKrwRate = options.usdKrwRate ?? 1300;
+        const kimchiPremium = calculateKimchiPremium(upbitPrice, usdPrice, usdKrwRate);
+        const isTrap = kimchiPremium > 0.05;
 
         return {
           ...baseResult,
@@ -417,21 +683,16 @@ async function getCQDeepMetrics(market, options = {}) {
       }
 
       case 'JA': {
-        // JA市場: NUPL + SOPR + Risk/Reward
-        const [nupl, sopr, sopr30d] = await Promise.all([
-          getNUPL(),
-          getSOPR(),
-          getSOPR30d(),
-        ]);
-
+        const nupl = baseResult.nupl ?? null;
+        const sopr30d = baseResult.sopr30d ?? 1.0;
         const riskReward = calculateRiskReward(nupl, sopr30d);
 
         return {
           ...baseResult,
           longTerm: {
-            nupl,
-            sopr,
-            sopr30d,
+            nupl: baseResult.nupl,
+            sopr: baseResult.sopr,
+            sopr30d: baseResult.sopr30d,
           },
           riskReward,
         };
@@ -441,18 +702,23 @@ async function getCQDeepMetrics(market, options = {}) {
       case 'ES':
       case 'PT-BR':
       default:
-        // AR/LATAM市場: 基本データのみ
         return baseResult;
     }
   } catch (error) {
     console.error(`[deepMetrics] Error fetching deep metrics for ${market}:`, error);
-    // Return safe defaults on error
     return {
       exchangeInflow: 0,
       exchangeOutflow: 0,
       netflow: 0,
       minerMPI: 0,
-      activeAddresses: 0,
+      mpi: 0,
+      sopr: null,
+      sopr30d: null,
+      nupl: null,
+      funding: null,
+      openInterest: null,
+      minerFlows: null,
+      liquidity: null,
     };
   }
 }
@@ -465,8 +731,17 @@ module.exports = {
   getBinanceInflow,
   calculateKimchiPremium,
   getNUPL,
+  getLTHNUPL,
   getSOPR,
   getSOPR30d,
+  getFundingRate,
+  getOpenInterest,
+  getMinerFlows,
+  getLiquidity,
+  getStablecoinMetrics,
+  getETFFlows,
+  getExchangeFlowsDetailed,
+  fetchCQProCommonFields,
   calculateTrapScore,
   calculateRiskReward,
 };

@@ -32,83 +32,29 @@ console.log(`✅ RESEND_API_KEY: ${process.env.RESEND_API_KEY.substring(0, 10)}.
 
 const { sendResendEmail } = require('../services/email/resendClient');
 const { formatRegularBriefingHTML } = require('../services/email/messages/user/en/regular.en');
+const { createMockBtcSnapshot, createMockPsychologicalSupport } = require('./mock-btc-snapshot');
 
 // CEOのメールアドレス
 const CEO_EMAIL = 'chibaichi.work@gmail.com';
 
-  // テスト用の市場データ（簡易版）
-  const testMarketData = {
-  now: new Date(),
-  inflow: -1500, // BTC流出
-  mpi: 0.5,
-  sentimentLabel: 'Neutral',
-  priceUsd: 45000,
-  change24h: 2.5,
-  score: 65,
-  tradeSignal: {
-    signal: 'STANDBY',
-    confidence: 0.8,
-  },
-  trap: {
-    isTrap: false,
-    label: 'No trap detected',
-    confidence: 0.2,
-  },
-  aiAnalysis: 'Market conditions are stable. No immediate trap signals detected. Continue with defensive strategy.',
-  stats: null,
-  trapScore: 35,
-  whaleFlows: 0.3,
-  liquidations: null,
-  noTradeAlert: null,
-  trapRisk: null,
-  exitMap: null,
-  trapDetection: {
-    trapDetected: false,
-    trapScore: 35,
-    trapSeverity: 'LOW',
-    trapType: 'NONE',
-    details: {
-      multipleDivergences: 1,
-      onchainSocialDivergence: 0.2,
-    },
-  },
-  marketBug: null,
-  trapAlert: null,
-  divergenceSignal: null,
-  psychologicalSupport: {
-    psychologicalState: 'NEUTRAL',
-    psychologicalRisk: 'LOW',
-    supportMessage: 'You are maintaining discipline. Keep waiting for clear advantage.',
-    mentalBlocks: [],
-  },
-  hasGeminiContent: false,
-  gptReporterAnalysis: 'GPT Mental Trainer: Market data shows stable conditions. No psychological traps detected.',
-  grokXAnalysis: 'Dr. Grok: X sentiment is neutral. Retail FOMO is moderate. Continue defensive approach.',
-  geminiImageUrl: null,
-  geminiVideoUrl: null,
-  cqDeep: {
-    trapScore: 35,
-    whaleFlows: 0.3,
-    liquidations: null,
-    longTerm: {
-      nupl: null,
-      sopr: null,
-      sopr30d: null,
-    },
-  },
-  showContent: null, // テストではnull（実際の配信ではproduceShow()から取得）
-};
+// Phase 4: snapshot-native mock
+const snapshot = createMockBtcSnapshot({
+  raw: { inflow: -1500, mpi: 0.5, priceUsd: 45000, change24h: 2.5, sentimentLabel: 'Neutral' },
+  market_score: 65,
+  tradeSignal: { signal: 'STANDBY', tp: null, sl: null, rr: null }
+});
+const psychologicalSupport = createMockPsychologicalSupport();
 
 async function sendTestEmail() {
   try {
     console.log('📧 CEOへのテストメール送信を開始...');
     console.log(`📮 送信先: ${CEO_EMAIL}`);
 
-    // メールHTMLを生成
-    const emailHTML = formatRegularBriefingHTML(testMarketData);
+    // メールHTMLを生成 (Phase 4: snapshot-native)
+    const emailHTML = formatRegularBriefingHTML(snapshot, 'en', { psychologicalSupport });
 
     // メール件名
-    const subject = `🧪 TEST: Trap Defense BTC Report - ${testMarketData.now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC')}`;
+    const subject = `🧪 TEST: Trap Defense BTC Report - ${snapshot.as_of_utc.replace('T', ' ').replace(/\.\d+Z$/, ' UTC')}`;
 
     // メール送信
     console.log('📤 メールを送信中...');

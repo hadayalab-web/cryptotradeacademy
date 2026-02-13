@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trap Defence OS — Snapshot Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background: #111; color: #eee; }
+    h1 { font-size: 1.5rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    .card { background: #1a1a1a; border-radius: 8px; padding: 16px; }
+    .card h3 { margin: 0 0 12px; font-size: 0.9rem; color: #888; }
+    .card canvas { max-height: 200px; }
+    .snapshot-section { margin-bottom: 24px; }
+    .snapshot-section pre { background: #0a0a0a; padding: 12px; overflow-x: auto; font-size: 12px; }
+    .meta { color: #666; font-size: 0.85rem; }
+    .error { color: #f66; }
+  </style>
+</head>
+<body>
+  <h1>Trap Defence OS — Snapshot Dashboard</h1>
+  <p class="meta">Public dashboard. Data from /api/dashboard/btc and /api/dashboard/history</p>
+
+  <div class="snapshot-section">
+    <h2>Current Snapshot (KV)</h2>
+    <div id="snapshot-json"></div>
+  </div>
+
+  <div class="snapshot-section" id="diff-section" style="display:none;">
+    <h2>📊 Snapshot Diff (vs previous)</h2>
+    <div class="card" id="diff-card"></div>
+  </div>
+
+  <div class="snapshot-section">
+    <h2>Charts (from history)</h2>
+    <div class="grid">
+      <div class="card"><h3>trapScore</h3><canvas id="chart-trapScore"></canvas></div>
+      <div class="card"><h3>market_score</h3><canvas id="chart-market_score"></canvas></div>
+      <div class="card"><h3>whaleRatio</h3><canvas id="chart-whaleRatio"></canvas></div>
+      <div class="card"><h3>funding</h3><canvas id="chart-funding"></canvas></div>
+      <div class="card"><h3>OI</h3><canvas id="chart-oi"></canvas></div>
+      <div class="card"><h3>liquidity</h3><canvas id="chart-liquidity"></canvas></div>
+      <div class="card"><h3>sentimentLabel</h3><canvas id="chart-sentiment"></canvas></div>
+      <div class="card"><h3>divergenceLevel</h3><canvas id="chart-divergence"></canvas></div>
+      <div class="card"><h3>marketRegime</h3><canvas id="chart-regime"></canvas></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+    const chartOptions = { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } };
+
+    function safeNum(v) { const n = Number(v); return Number.isFinite(n) ? n : null; }
+    function safeStr(v) { return v != null ? String(v) : 'n/a'; }
+
+    async function fetchBtc() {
+      try {
+        const r = await fetch(API_BASE + '/api/dashboard/btc');
+        const data = await r.json();
+        const s = data?.snapshot;
+        document.getElementById('snapshot-json').innerHTML = s
+          ? '<pre>' + JSON.stringify(s, null, 2) + '</pre>'
+          : '<p class="error">No snapshot in KV</p>';
+        const diff = s?.diff;
+        const diffEl = document.getElementById('diff-section');
+        const diffCard = document.getElementById('diff-card');
+        if (diff && (diff.summaryText || Object.keys(diff).length > 0)) {
+          diffEl.style.display = 'block';
+          diffCard.innerHTML = diff.summaryText
+            ? '<p><strong>Summary:</strong> ' + escapeHtml(diff.summaryText) + '</p>'
+              + (Object.keys(diff).filter(k => k !== 'summaryText').length
+                ? '<pre style="margin-top:12px;font-size:11px;">' + JSON.stringify(diff, null, 2) + '</pre>'
+                : '')
+            : '<pre>' + JSON.stringify(diff, null, 2) + '</pre>';
+        } else {
+          diffEl.style.display = 'none';
+        }
+        return s;
+      } catch (e) {
+        document.getElementById('snapshot-json').innerHTML = '<p class="error">' + e.message + '</p>';
+        return null;
+      }
+    }
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    async function fetchHistory() {
+      try {
+        const r = await fetch(API_BASE + '/api/dashboard/history?limit=50');
+        const data = await r.json();
+        return data?.snapshots || [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function extractChartData(snapshots) {
+      const labels = snapshots.map(s => {
+        const t = s.created_at || s.as_of_utc;
+        return t ? new Date(t).toLocaleString() : '';
+      }).reverse();
+      return {
+        labels,
+        trapScore: snapshots.map(s => safeNum(s.trapDetection?.trapScore ?? s.cqDeep?.trapScore)).reverse(),
+        market_score: snapshots.map(s => safeNum(s.market_score)).reverse(),
+        whaleRatio: snapshots.map(s => {
+          const wr = s.cqDeep?.whaleFlows?.whaleRatio ?? s.cqDeep?.whaleRatio;
+          const n = safeNum(wr);
+          return n != null ? n * 100 : null;
+        }).reverse(),
+        funding: snapshots.map(s => safeNum(s.cqDeep?.funding)).reverse(),
+        oi: snapshots.map(s => safeNum(s.cqDeep?.openInterest ?? s.cqDeep?.open_interest)).reverse(),
+        liquidity: snapshots.map(s => {
+          const liq = s.cqDeep?.liquidity;
+          if (liq && typeof liq === 'object') return safeNum(liq.depth ?? liq.value);
+          return safeNum(liq);
+        }).reverse(),
+        sentiment: snapshots.map(s => safeStr(s.raw?.sentimentLabel)).reverse(),
+        divergence: snapshots.map(s => safeStr(s.divergenceSignal?.divergenceLevel)).reverse(),
+        regime: snapshots.map(s => safeStr(s.marketRegime)).reverse()
+      };
+    }
+
+    function buildChart(canvasId, labels, values, label, isNumeric = true) {
+      const ctx = document.getElementById(canvasId)?.getContext('2d');
+      if (!ctx) return;
+      const existing = Chart.getChart(ctx);
+      if (existing) existing.destroy();
+      const data = isNumeric
+        ? values.map(v => v != null ? v : 0)
+        : values.map((v, i) => ({ x: labels[i], y: (values.slice(0, i + 1).filter(x => x === v).length) }));
+      new Chart(ctx, {
+        type: isNumeric ? 'line' : 'bar',
+        data: {
+          labels,
+          datasets: [{ label, data, borderColor: '#4a9', backgroundColor: 'rgba(74,170,153,0.2)', fill: true }]
+        },
+        options: chartOptions
+      });
+    }
+
+    function buildCategoricalChart(canvasId, labels, values) {
+      const ctx = document.getElementById(canvasId)?.getContext('2d');
+      if (!ctx) return;
+      const existing = Chart.getChart(ctx);
+      if (existing) existing.destroy();
+      const counts = {};
+      values.forEach(v => { counts[v] = (counts[v] || 0) + 1; });
+      const keys = Object.keys(counts);
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: keys,
+          datasets: [{ label: 'Count', data: keys.map(k => counts[k]), backgroundColor: '#4a9' }]
+        },
+        options: chartOptions
+      });
+    }
+
+    async function init() {
+      await fetchBtc();
+      const snapshots = await fetchHistory();
+      if (snapshots.length === 0) return;
+      const d = extractChartData(snapshots);
+      buildChart('chart-trapScore', d.labels, d.trapScore, 'trapScore');
+      buildChart('chart-market_score', d.labels, d.market_score, 'market_score');
+      buildChart('chart-whaleRatio', d.labels, d.whaleRatio, 'whaleRatio %');
+      buildChart('chart-funding', d.labels, d.funding, 'funding');
+      buildChart('chart-oi', d.labels, d.oi, 'OI');
+      buildChart('chart-liquidity', d.labels, d.liquidity, 'liquidity');
+      buildCategoricalChart('chart-sentiment', d.labels, d.sentiment);
+      buildCategoricalChart('chart-divergence', d.labels, d.divergence);
+      buildCategoricalChart('chart-regime', d.labels, d.regime);
+    }
+
+    init();
+  </script>
+</body>
+</html>

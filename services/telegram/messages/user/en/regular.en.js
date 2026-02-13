@@ -45,7 +45,79 @@ function getEnglishPsychologicalAdvice(psychologicalState, psychologicalRisk) {
   return 'Market conditions are relatively stable. Maintain discipline and wait for quality setups.';
 }
 
-function formatRegularBriefing({
+/**
+ * Phase 3: Extract legacy-shaped payload from snapshot + opts for formatRegularBriefingCore
+ */
+function extractPayloadFromSnapshot(snapshot, lang = 'en', opts = {}) {
+  if (!snapshot || typeof snapshot !== 'object') return null;
+  const raw = snapshot.raw || {};
+  const cqDeep = snapshot.cqDeep || {};
+  const td = snapshot.trapDetection || {};
+  const asOf = snapshot.as_of_utc || new Date().toISOString();
+  const now = typeof asOf === 'string' ? new Date(asOf) : asOf;
+  return {
+    now,
+    inflow: raw.inflow ?? cqDeep.exchangeNetflow ?? 0,
+    mpi: raw.mpi ?? cqDeep.minerMPI ?? cqDeep.mpi ?? 0,
+    sentimentLabel: raw.sentimentLabel ?? 'Unknown',
+    priceUsd: raw.priceUsd ?? null,
+    change24h: raw.change24h ?? null,
+    score: snapshot.market_score ?? 0,
+    tradeSignal: snapshot.tradeSignal || { signal: 'STANDBY', tp: null, sl: null, rr: null },
+    trap: td.trapDetected ? { isTrap: true, label: td.label ?? 'Trap', confidence: td.trapSeverity ?? 'MEDIUM' } : { isTrap: false, label: 'No trap', confidence: 'LOW' },
+    aiAnalysis: snapshot.drGrok?.base ?? (typeof snapshot.gptStructureReasoning === 'string' ? snapshot.gptStructureReasoning : null),
+    stats: null,
+    trapScore: cqDeep.trapScore ?? td.trapScore ?? null,
+    whaleFlows: cqDeep.whaleFlows ?? null,
+    liquidations: cqDeep.liquidations ?? null,
+    noTradeAlert: null,
+    trapRisk: null,
+    exitMap: null,
+    trapDetection: td,
+    marketBug: opts.marketBug ?? null,
+    trapAlert: snapshot.trapAlert ?? null,
+    divergenceSignal: snapshot.divergenceSignal ?? null,
+    psychologicalSupport: opts.psychologicalSupport ?? null,
+    hasGeminiContent: !!(snapshot.sosovalueArticle && snapshot.sosovalueArticle.trim()),
+    sosovalueArticle: snapshot.sosovalueArticle ?? null,
+    gptReporterAnalysis: snapshot.gptStructureReasoning ?? null,
+    grokXAnalysis: opts.grokXAnalysis ?? snapshot.highResX ?? null,
+    nonUserImpactReport: opts.nonUserImpactReport ?? null,
+    missedOpportunities: opts.missedOpportunities ?? null,
+    riskReward: cqDeep.riskReward ?? null,
+    nupl: cqDeep.longTerm?.nupl ?? cqDeep.nupl ?? null,
+    sopr30d: cqDeep.longTerm?.sopr30d ?? cqDeep.sopr30d ?? null,
+    kimchiPremium: cqDeep.kimchiPremium ?? null,
+    upbitPrice: cqDeep.upbitPrice ?? null,
+    diff: snapshot.diff ?? null
+  };
+}
+
+/**
+ * Phase 3: Snapshot-native Regular Briefing (EN)
+ * @param {Object} snapshotOrPayload - btcSnapshot or legacy payload (backward compat during Task 10 migration)
+ * @param {string} [lang='en']
+ * @param {Object} [opts] - { psychologicalSupport, nonUserImpactReport, missedOpportunities, grokXAnalysis }
+ */
+function formatRegularBriefing(snapshotOrPayload, lang = 'en', opts = {}) {
+  if (!snapshotOrPayload || typeof snapshotOrPayload !== 'object') {
+    return '🌤️ Trap Defence BTC - Regular Briefing — No snapshot data available.';
+  }
+  const isSnapshot = snapshotOrPayload.raw != null;
+  if (isSnapshot) {
+    const payload = extractPayloadFromSnapshot(snapshotOrPayload, lang, opts);
+    if (!payload) return '🌤️ Trap Defence BTC - Regular Briefing — Invalid snapshot.';
+    return formatRegularBriefingCore(payload);
+  }
+  // Backward compat: legacy payload (now, inflow, ...) passed directly
+  return formatRegularBriefingCore(snapshotOrPayload);
+}
+
+/**
+ * Core implementation (legacy payload shape).
+ * @deprecated Use formatRegularBriefing(snapshot, lang, opts)
+ */
+function formatRegularBriefingCore({
   now,
   inflow,
   mpi,
@@ -76,6 +148,7 @@ function formatRegularBriefing({
   sosovalueArticle = null, // Gemini: CQ最新+過去比較でSoSoValue風記事
   gptReporterAnalysis, // GPT: CQ総合分析→Trapアラート
   grokXAnalysis, // Grok: Xセンチメント→トレード依存症サポート
+  diff = null, // Phase 4: snapshot diff
 }) {
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
@@ -540,6 +613,9 @@ ${inflow >= 0 ? 'Sell-side liquidity dense below price from forced selling and m
     const trapScoreRounded = Math.round(displayTrapScore);
     const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 HIGH RISK' : displayTrapScore >= 40 ? '⚠️ MODERATE' : '✅ LOW';
     lines.push(`🎯 Trap Score: ${trapScoreRounded}/100 ${trapScoreEmoji}`);
+  }
+  if (diff && diff.summaryText) {
+    lines.push(`📊 Diff: ${diff.summaryText}`);
   }
   lines.push('');
   

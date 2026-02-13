@@ -642,8 +642,9 @@ async function collectBuzzCandidates(options = {}) {
 /**
  * 寄生コピー生成（3-1 + クジラのカモ救済ミッション準拠）
  * usedMode で trap_defence_warning / neutral_insight / educational_boost を切り替え
+ * Unified OS: btcSnapshot を渡し、TD と同一市場状態で投稿する（必須）
  */
-async function generateParasiticCopy(slot, buzzCandidate, videoUrl) {
+async function generateParasiticCopy(slot, buzzCandidate, videoUrl, btcSnapshot = null) {
   const { target, post, context } = buzzCandidate;
   const dict = await getTdEmotionDictionary(null, slot.lang, 10);
   const phrases = dict.map((d) => d.phrase).filter(Boolean);
@@ -663,7 +664,8 @@ async function generateParasiticCopy(slot, buzzCandidate, videoUrl) {
       tone: context?.tone || "neutral",
       lang: context?.lang || target?.lang || slot.lang,
       ...buzzInsights
-    }
+    },
+    btcSnapshot
   });
 
   return result.body;
@@ -677,9 +679,10 @@ async function runBuzzWeaveCycle(options = {}) {
   const dryRun = options.dryRun !== false;
   const deadlineMs = Number(options.deadlineMs || DEFAULT_DEADLINE_MS);
   const langFilter = options.langFilter || null;
+  const btcSnapshot = options.btcSnapshot || null;
   const startMs = Date.now();
   const runId = `bw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  logError("cycle start", { runId, dryRun, langFilter });
+  logError("cycle start", { runId, dryRun, langFilter, hasBtcSnapshot: !!btcSnapshot });
 
   const cleanup = await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
 
@@ -745,7 +748,7 @@ async function runBuzzWeaveCycle(options = {}) {
   }
 
   const videoUrl = pickVidalyticsLink(slot.lang, slot.mode);
-  const body = await generateParasiticCopy(slot, candidate, videoUrl);
+  const body = await generateParasiticCopy(slot, candidate, videoUrl, btcSnapshot);
 
   if (!dryRun) {
     if (isDeadlineExceeded(startMs, deadlineMs)) {

@@ -17,10 +17,91 @@ function toSurfaceSentiment(raw) {
 }
 
 /**
- * Trap Defence Minimal Engine v1.5（Zeigarnik Edition 完全体）
- * Market Snapshot + Key Metrics + Insight + ツァイガルニク効果（未完の緊張）
- * @param {Object} options - { now, trapScore, priceUsd, change24h, trapData, marketData, sentimentData, lang }
+ * Phase 3: Snapshot-native Minimal Briefing
+ * Accepts btcSnapshot or legacy payload (for backward compat).
+ * @param {Object} snapshotOrPayload - btcSnapshot or legacy { now, minimalTrapScore, trapData, ... }
+ * @param {string} [lang='en']
  * @returns {string} Telegram message
+ */
+function formatMinimalBriefing(snapshotOrPayload, lang = 'en') {
+  if (!snapshotOrPayload || typeof snapshotOrPayload !== 'object') {
+    return '🌤️ Trap Defence BTC — No data available.';
+  }
+  // Detect snapshot vs legacy
+  const isSnapshot = snapshotOrPayload.raw != null && snapshotOrPayload.as_of_utc != null;
+  const snapshot = isSnapshot
+    ? snapshotOrPayload
+    : {
+        raw: {
+          priceUsd: snapshotOrPayload.priceUsd,
+          change24h: snapshotOrPayload.change24h,
+          inflow: snapshotOrPayload.trapData?.exchangeNetflow ?? 0,
+          mpi: snapshotOrPayload.minimalMarketData?.mpi ?? 0,
+          sentimentLabel: snapshotOrPayload.sentimentLabel ?? snapshotOrPayload.sentimentData?.sentiment
+        },
+        as_of_utc: snapshotOrPayload.now,
+        trapDetection: { trapScore: snapshotOrPayload.minimalTrapScore },
+        cqDeep: { whaleRatio: snapshotOrPayload.trapData?.whaleRatio, mpi: snapshotOrPayload.minimalMarketData?.mpi },
+        meta: {}
+      };
+  const raw = snapshot.raw || {};
+  const trapScore = snapshot.trapDetection?.trapScore ?? snapshot.cqDeep?.trapScore ?? null;
+  const priceUsd = raw.priceUsd ?? null;
+  const change24h = raw.change24h ?? null;
+  const inflow = raw.inflow ?? 0;
+  const sentimentLabel = raw.sentimentLabel ?? 'Unknown';
+  const mpi = raw.mpi ?? snapshot.cqDeep?.mpi ?? snapshot.cqDeep?.minerMPI ?? 0;
+  const whaleRatio = snapshot.cqDeep?.whaleFlows?.whaleRatio ?? snapshot.cqDeep?.whaleRatio ?? null;
+  const meta = snapshot.meta || {};
+  const watchNote = meta.watch ? '\n⚠️ WATCH: Conditions warrant closer attention.' : '';
+
+  const ts = (snapshot.as_of_utc || new Date().toISOString()).replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
+  const trapScoreDisplay = trapScore != null ? Math.round(Number(trapScore)) : 'N/A';
+  const netflowStr = inflow >= 0 ? `+${Number(inflow).toFixed(0)} BTC` : `${Number(inflow).toFixed(0)} BTC`;
+  const priceStr = priceUsd != null ? `$${Number(priceUsd).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : 'N/A';
+  const cqBase = inflow >= 0
+    ? 'High exchange inflow → short-term selling pressure'
+    : 'Outflow → holders securing assets';
+  const cqSummary = `${cqBase} (surface-level view)`;
+  const xSummary = toSurfaceSentiment(sentimentLabel);
+  const macroSummary = 'Risk-off dominant; liquidity conditions tight';
+  const insight = trapScore != null && trapScore < 30
+    ? 'Surface structure shows liquidity shifting under fear pressure; deeper whale–algo dynamics are only revealed in the full briefing.'
+    : trapScore != null && trapScore >= 50
+      ? 'Visible flows indicate reconfiguration; the underlying structural drivers remain outside this minimal snapshot.'
+      : 'Fear-driven liquidity shifts are evident; the full structural map is available only in the complete briefing.';
+
+  return `🌤️ Trap Defence BTC — Minimal Briefing
+📅 ${ts}
+
+━━━━━━━━━━━━━━━━━━━━
+📡 Market Snapshot
+━━━━━━━━━━━━━━━━━━━━
+• Trap Score: ${trapScoreDisplay}/100
+• CQ Summary: ${cqSummary}
+• X Sentiment: ${xSummary}
+• Macro Summary: ${macroSummary}
+
+━━━━━━━━━━━━━━━━━━━━
+📊 Key Metrics
+━━━━━━━━━━━━━━━━━━━━
+• Price: ${priceStr}
+• Netflow: ${netflowStr}
+• MPI: ${Number(mpi).toFixed(2)}
+• Sentiment: ${sentimentLabel}
+
+━━━━━━━━━━━━━━━━━━━━
+🧠 Insight
+━━━━━━━━━━━━━━━━━━━━
+${insight}${watchNote}
+
+For educational purposes only.
+*(This snapshot is intentionally incomplete; the full structural breakdown is available in the Regular Briefing.)*`.trim();
+}
+
+/**
+ * Legacy shape support (mapSnapshotToMinimalPayload 経由等)
+ * @deprecated Use formatMinimalBriefing(snapshot, lang)
  */
 function formatMinimalBriefingOSv26({
   now = new Date(),
@@ -79,7 +160,5 @@ For educational purposes only.
 *(This snapshot is intentionally incomplete; the full structural breakdown is available in the Regular Briefing.)*`.trim();
 }
 
-// formatMinimalBriefing は Zeigarnik Edition へのエイリアス（後方互換）
-const formatMinimalBriefing = formatMinimalBriefingOSv26;
-
+// formatMinimalBriefingOSv26 は legacy 用、formatMinimalBriefing が snapshot-native の主
 module.exports = { formatMinimalBriefingOSv26, formatMinimalBriefing };

@@ -30,42 +30,19 @@ function loadMinimalTemplates(lang) {
 
 /**
  * 無料版メッセージのキーポイントを取得（6言語同一ロジック）
+ * Snapshot-native: formatMinimalBriefing(snapshot, lang) で btcSnapshot を直接渡す
  * @param {string} lang - 言語コード（en, es, pt-br, ar, ja, ko）
- * @param {object|null} reportData - レポートデータ（省略時は null でテンプレートのみ）
+ * @param {object|null} snapshot - btcSnapshot（raw, cqDeep, trapDetection 等）。省略時は null
  * @returns {Promise<object|null>} { hook, trapScore, dataPoints, drGrokInsight, mentalNote, whatToAvoid } または null
  */
-async function getMinimalContentForLang(lang, reportData = null) {
+async function getMinimalContentForLang(lang, snapshot = null) {
   try {
     const langTemplates = loadMinimalTemplates(lang);
     const formatMinimalBriefing =
       langTemplates.formatMinimalBriefingOSv26 || langTemplates.formatMinimalBriefing;
     if (!formatMinimalBriefing) return null;
 
-    const trapData = reportData?.trapData || {
-      trapAlert: null,
-      exchangeNetflow: reportData?.exchangeNetflow ?? null,
-      whaleRatio: reportData?.whaleRatio ?? null
-    };
-    const marketData = reportData?.marketData || {
-      mpi: reportData?.mpi ?? null,
-      priceUsd: reportData?.priceUsd ?? null,
-      change24h: reportData?.change24h ?? null
-    };
-    const sentimentData = reportData?.sentimentData || {
-      sentiment: reportData?.sentiment ?? null,
-      risk: reportData?.risk ?? null
-    };
-
-    const minimalText = formatMinimalBriefing({
-      now: new Date(),
-      trapScore: reportData?.trapScore ?? null,
-      priceUsd: reportData?.priceUsd ?? null,
-      change24h: reportData?.change24h ?? null,
-      trapData,
-      marketData,
-      sentimentData,
-      lang: lang
-    });
+    const minimalText = formatMinimalBriefing(snapshot, lang);
     if (!minimalText) return null;
 
     const keyPoints = {

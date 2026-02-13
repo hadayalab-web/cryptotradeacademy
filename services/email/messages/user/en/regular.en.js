@@ -1,8 +1,10 @@
 // Eメール配信用のHTMLフォーマット関数
 // services/email/messages/user/en/regular.en.js
+// Phase 4: snapshot-native — formatRegularBriefingHTML(snapshot, lang, opts)
 
 const fs = require('fs');
 const path = require('path');
+const { extractFromSnapshot } = require('../../shared/extractFromSnapshot');
 
 /**
  * ロゴをbase64エンコードして取得
@@ -706,37 +708,57 @@ function getEmailStyles() {
   `;
 }
 
-function formatRegularBriefingHTML({
-  now,
-  inflow,
-  mpi,
-  sentimentLabel,
-  priceUsd,
-  change24h,
-  score,
-  tradeSignal,
-  trap,
-  aiAnalysis,
-  stats,
-  trapScore,
-  whaleFlows,
-  liquidations,
-  noTradeAlert,
-  trapRisk,
-  exitMap,
-  trapDetection,
-  marketBug,
-  trapAlert,
-  divergenceSignal,
-  psychologicalSupport,
-  hasGeminiContent = false,
-  gptReporterAnalysis,
-  grokXAnalysis,
-  geminiImageUrl,
-  geminiVideoUrl,
-  cqDeep = null, // CryptoQuant深掘りデータ
-  showContent = null, // Gemini番組プロデューサーが生成したコンテンツ
-}) {
+/**
+ * Phase 4: Snapshot-native Email Regular Briefing (EN)
+ * @param {Object} snapshot - btcSnapshot (raw, cqDeep, trapDetection, divergenceSignal, marketRegime, sosovalueArticle, drGrok, xSentiment, highResX, meta)
+ * @param {string} [lang='en']
+ * @param {Object} [opts] - { psychologicalSupport, nonUserImpactReport, missedOpportunities }
+ */
+function formatRegularBriefingHTML(snapshot, lang = 'en', opts = {}) {
+  if (!snapshot || typeof snapshot !== 'object') {
+    return '<!DOCTYPE html><html><body><p>No snapshot data available.</p></body></html>';
+  }
+  const payload = extractFromSnapshot(snapshot, opts);
+  if (!payload) {
+    return '<!DOCTYPE html><html><body><p>Invalid snapshot.</p></body></html>';
+  }
+  return formatRegularBriefingHTMLCore(payload);
+}
+
+function formatRegularBriefingHTMLCore(payload) {
+  const {
+    now,
+    inflow,
+    mpi,
+    sentimentLabel,
+    priceUsd,
+    change24h,
+    score,
+    tradeSignal,
+    trap,
+    aiAnalysis,
+    stats,
+    trapScore,
+    whaleFlows,
+    liquidations,
+    noTradeAlert,
+    trapRisk,
+    exitMap,
+    trapDetection,
+    marketBug,
+    trapAlert,
+    divergenceSignal,
+    psychologicalSupport,
+    hasGeminiContent = false,
+    gptReporterAnalysis,
+    grokXAnalysis,
+    geminiImageUrl,
+    geminiVideoUrl,
+    cqDeep = null,
+    showContent = null,
+    diff = null
+  } = payload;
+
   const ts = now.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
 
   // Trap Alert判定
@@ -1376,6 +1398,7 @@ function formatRegularBriefingHTML({
               ${trapScore != null ? `<li>🎯 Trap Score: ${Math.round(trapScore)}/100</li>` : ''}
               <li>💰 BTC Price: ${formatUsd(priceUsd)} (${formatPercent(change24h)} / 24h)</li>
               ${psychologicalSupport && psychologicalSupport.psychologicalState !== 'UNKNOWN' ? `<li>💚 Psychological State: ${psychologicalSupport.psychologicalState} (${psychologicalSupport.psychologicalRisk} Risk)</li>` : ''}
+              ${diff && diff.summaryText ? `<li>📊 Snapshot Diff: ${diff.summaryText}</li>` : ''}
             </ul>
           </div>
           <p><strong>Next Report:</strong> ${(() => {

@@ -168,39 +168,25 @@ async function main() {
       console.warn('⚠️ 心理的サポート診断エラー:', error.message);
     }
 
-    // 8. EメールHTML生成
+    // 8. EメールHTML生成 (Phase 4: snapshot-native)
     console.log('📧 EメールHTML生成中...');
-    
-    // formatRegularBriefingHTMLのパラメータを正しく設定
-    const html = formatRegularBriefingHTML({
-      now: new Date(),
-      inflow: inflowValue,
-      mpi: mpiValue,
-      sentimentLabel,
-      priceUsd,
-      change24h,
-      score: coreDecision.score,
-      tradeSignal,
-      trap,
-      aiAnalysis: gptReporterAnalysis,
-      stats: null,
-      trapScore: trapDetection?.trapScore || null,
-      whaleFlows: null, // 簡略化のためnull
-      liquidations: null, // 簡略化のためnull
-      noTradeAlert: null,
-      trapRisk: null,
-      exitMap: null,
+    const snapshot = {
+      snapshot_id: `snapshot_test_${Date.now()}`,
+      as_of_utc: new Date().toISOString(),
+      raw: { inflow: inflowValue, mpi: mpiValue, priceUsd, change24h, sentimentLabel },
+      cqDeep: { trapScore: trapDetection?.trapScore, whaleFlows: null, liquidations: null },
+      xSentiment: { whaleBias: 0, retailFomo: 50, newsImpact: 0 },
       trapDetection,
-      marketBug: null,
       trapAlert,
       divergenceSignal: null,
-      psychologicalSupport,
-      hasGeminiContent: false, // テストではGeminiコンテンツは生成しない
-      gptReporterAnalysis,
-      grokXAnalysis,
-      geminiImageUrl: null,
-      geminiVideoUrl: null,
-    });
+      market_score: coreDecision.score,
+      tradeSignal,
+      gptStructureReasoning: gptReporterAnalysis,
+      drGrok: { base: gptReporterAnalysis },
+      highResX: grokXAnalysis,
+      sosovalueArticle: null
+    };
+    const html = formatRegularBriefingHTML(snapshot, 'en', { psychologicalSupport });
 
     // 9. Eメール送信
     console.log('📨 CEO宛てEメール送信中...');
