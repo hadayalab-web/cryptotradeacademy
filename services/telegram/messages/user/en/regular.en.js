@@ -321,7 +321,10 @@ function formatRegularBriefingCore({
 
   // GPT CQ Engine: CryptoQuant解析 → Whale Intent, Algo Behavior, Retail Psych Distortion, Liquidity Map
   let gptNewsText = gptReporterAnalysis || aiAnalysis || null;
-  
+  if (gptNewsText != null && typeof gptNewsText !== "string") {
+    console.warn("[REGULAR] gptNewsText is not a string (type: " + typeof gptNewsText + "), using empty");
+    gptNewsText = "";
+  }
   // エラーメッセージを検出（API error, unavailable, error等のキーワード）
   if (gptNewsText && typeof gptNewsText === 'string') {
     const errorKeywords = ['api error', 'unavailable', 'error', 'failed', 'timeout'];

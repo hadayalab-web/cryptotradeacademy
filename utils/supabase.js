@@ -513,15 +513,16 @@ function inferCopyMeta(text, mode, lang) {
 }
 
 // ========== BuzzWeave cron ロック（多重実行防止 + TTL） ==========
+// TTL 60秒: 例外で finally が動かなくても時間経過でロックが自動解除される
 
 const BUZZWEAVE_LOCK_NAME = "buzzweave_main";
-const LOCK_TTL_MINUTES = 10;
+const LOCK_TTL_SECONDS = Number(process.env.BUZZWEAVE_LOCK_TTL_SECONDS) || 60;
 
 async function acquireBuzzweaveLock(lockName = BUZZWEAVE_LOCK_NAME) {
   const sb = getSupabase();
   if (!sb) return false;
   try {
-    const cutoff = new Date(Date.now() - LOCK_TTL_MINUTES * 60 * 1000).toISOString();
+    const cutoff = new Date(Date.now() - LOCK_TTL_SECONDS * 1000).toISOString();
     const now = new Date().toISOString();
     const { data, error } = await sb
       .from("buzzweave_locks")

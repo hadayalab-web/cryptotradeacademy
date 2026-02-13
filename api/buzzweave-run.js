@@ -3,7 +3,7 @@
  * Cron: GET /api/buzzweave-run?lang=en など（1 run で 1 言語のみ、round-robin で lang を渡す）
  *
  * 緊急停止: BUZZWEAVE_EMERGENCY_STOP=true で即 return
- * ロック: 多重実行防止のため buzzweave_locks で排他
+ * ロック: 多重実行防止のため buzzweave_locks で排他。取得後は try/finally で必ず解放。TTL 60秒で自動解除。
  *
  * Runtime: Node.js を強制（Edge では console.log 等が期待どおり動かないため）
  */
@@ -59,6 +59,8 @@ async function handler(req, res) {
     return res.status(200).json({ ok: true, message: "Locked (another run in progress)", posted: 0 });
   }
 
+  console.log("[buzzweave-run] lock acquired");
+
   const dryRun = req.query?.dry_run === "true" || req.query?.dry_run === "1";
   const assetParam = (req.query?.asset || "BTC").toUpperCase();
   const langParam = req.query?.lang;
@@ -66,62 +68,64 @@ async function handler(req, res) {
     ? langParam
     : BUZZWEAVE_LANGS[Math.floor(Date.now() / 60000) % BUZZWEAVE_LANGS.length];
 
-  let btcSnapshot = null;
-  let kv = null;
   try {
-    kv = getKV();
-    if (kv) {
-      const assetKey = assetSnapshotKvKey(assetParam);
-      let raw = await kv.get(assetKey);
-      if (!raw && assetParam === "BTC") raw = await kv.get(BTC_SNAPSHOT_KV_KEY);
-      if (raw && raw.as_of_utc) {
-        const age = Date.now() - new Date(raw.as_of_utc).getTime();
-        if (age <= BTC_SNAPSHOT_MAX_AGE_MS) btcSnapshot = raw;
-        else console.warn("[buzzweave-run] snapshot too old, age_ms=" + age);
-      } else {
-        console.warn("[buzzweave-run] no snapshot in KV for asset=" + assetParam + " (run /api/cron first)");
-      }
-    }
-  } catch (e) {
-    console.warn("[buzzweave-run] KV get snapshot failed:", e.message);
-  }
-
-  if (!btcSnapshot) {
-    console.log("[buzzweave-run] early return: SKIP_NO_SNAPSHOT (no btcSnapshot in KV)");
-    console.warn("[BWE] No btcSnapshot available, skipping BuzzWeave cycle.");
-    await releaseBuzzweaveLock();
-    return res.status(200).json({ ok: true, status: "SKIP_NO_SNAPSHOT", message: "No btcSnapshot in KV (run /api/cron first)", posted: 0 });
-  }
-
-  if (kv && !btcSnapshot.macroContext) {
+    let btcSnapshot = null;
+    let kv = null;
     try {
-      const [nasdaq, gold] = await Promise.all([
-        kv.get(assetSnapshotKvKey("NASDAQ")),
-        kv.get(assetSnapshotKvKey("GOLD"))
-      ]);
-      if (nasdaq || gold) {
-        const { buildMacroContextFromAssets } = require("../logic/criticalShift/macroRiskEvaluator");
-        const macroContext = buildMacroContextFromAssets({
-          nasdaqSnapshot: nasdaq || null,
-          goldSnapshot: gold || null
-        });
-        btcSnapshot = { ...btcSnapshot, macroContext };
+      kv = getKV();
+      if (kv) {
+        const assetKey = assetSnapshotKvKey(assetParam);
+        let raw = await kv.get(assetKey);
+        if (!raw && assetParam === "BTC") raw = await kv.get(BTC_SNAPSHOT_KV_KEY);
+        if (raw && raw.as_of_utc) {
+          const age = Date.now() - new Date(raw.as_of_utc).getTime();
+          if (age <= BTC_SNAPSHOT_MAX_AGE_MS) btcSnapshot = raw;
+          else console.warn("[buzzweave-run] snapshot too old, age_ms=" + age);
+        } else {
+          console.warn("[buzzweave-run] no snapshot in KV for asset=" + assetParam + " (run /api/cron first)");
+        }
       }
-    } catch (_) {}
-  }
+    } catch (e) {
+      console.warn("[buzzweave-run] KV get snapshot failed:", e.message);
+    }
 
-  try {
-    console.log("[buzzweave-run] calling runBuzzWeaveCycle", { dryRun, langFilter });
+    if (!btcSnapshot) {
+      console.log("[buzzweave-run] early return: SKIP_NO_SNAPSHOT (no btcSnapshot in KV)");
+      console.warn("[BWE] No btcSnapshot available, skipping BuzzWeave cycle.");
+      return res.status(200).json({ ok: true, status: "SKIP_NO_SNAPSHOT", message: "No btcSnapshot in KV (run /api/cron first)", posted: 0 });
+    }
+
+    if (kv && !btcSnapshot.macroContext) {
+      try {
+        const [nasdaq, gold] = await Promise.all([
+          kv.get(assetSnapshotKvKey("NASDAQ")),
+          kv.get(assetSnapshotKvKey("GOLD"))
+        ]);
+        if (nasdaq || gold) {
+          const { buildMacroContextFromAssets } = require("../logic/macroRiskEvaluator");
+          const macroContext = buildMacroContextFromAssets({
+            nasdaqSnapshot: nasdaq || null,
+            goldSnapshot: gold || null
+          });
+          btcSnapshot = { ...btcSnapshot, macroContext };
+        }
+      } catch (_) {}
+    }
+
+    console.log("[buzzweave-run] run started");
     const result = await runBuzzWeaveCycle({ dryRun, langFilter, btcSnapshot });
+    console.log("[buzzweave-run] run completed");
     return res.status(200).json(result);
   } catch (e) {
-    console.error("[buzzweave-run] error:", e.message);
+    console.error("[buzzweave-run] ❌ Error in runBuzzWeave", e.message);
+    console.error("[buzzweave-run] Stack trace for lock:", e.stack);
     return res
       .status(500)
       .setHeader("x-vercel-no-retry", "1")
       .json({ ok: false, message: "Internal error", posted: 0 });
   } finally {
     await releaseBuzzweaveLock();
+    console.log("[buzzweave-run] lock released");
   }
 }
 

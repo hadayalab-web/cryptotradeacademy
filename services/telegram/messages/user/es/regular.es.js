@@ -277,7 +277,10 @@ function formatRegularBriefingCore({
   // GPT CQ Engine
   // エラーメッセージやnullの場合は、フォールバック処理
   let gptNewsText = gptReporterAnalysis || aiAnalysis || null;
-  
+  if (gptNewsText != null && typeof gptNewsText !== "string") {
+    console.warn("[REGULAR] gptNewsText is not a string (type: " + typeof gptNewsText + "), using empty");
+    gptNewsText = "";
+  }
   // エラーメッセージを検出（API error, unavailable, error等のキーワード）
   if (gptNewsText && typeof gptNewsText === 'string') {
     const errorKeywords = ['api error', 'unavailable', 'error', 'failed', 'timeout'];
