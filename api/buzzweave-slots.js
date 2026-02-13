@@ -3,6 +3,7 @@
  * Cron: GET /api/buzzweave-slots（日1回・0:00 JST 等）
  */
 
+require("../utils/suppressKnownWarnings");
 const { getSupabase } = require("../utils/supabase");
 const { generateDailySlots } = require("../services/td/buzzWeaveEngine");
 const { loadEnv } = require("../utils/loadEnv");

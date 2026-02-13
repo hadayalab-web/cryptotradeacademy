@@ -7,6 +7,7 @@
  *
  * Runtime: Node.js を強制（Edge では console.log 等が期待どおり動かないため）
  */
+require("../utils/suppressKnownWarnings");
 
 const { runBuzzWeaveCycle } = require("../services/td/buzzWeaveEngine");
 const { loadEnv } = require("../utils/loadEnv");

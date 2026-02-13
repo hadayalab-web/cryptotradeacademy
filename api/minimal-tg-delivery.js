@@ -2,6 +2,7 @@
 // 無料版（Minimal Version）TG配信専用。Regular と同時刻にしないため、別 Cron で別時刻に実行する。
 // cron が書き出す btc:snapshot:early / btc:snapshot を読んで 6 言語配信する。minimal:btc:latest は移行期フォールバック。
 
+require("../utils/suppressKnownWarnings");
 const { getKV } = require("../utils/kv");
 const { sendMessageToAsset } = require("../services/telegram/bot");
 

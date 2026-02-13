@@ -1,3 +1,4 @@
+require("../../utils/suppressKnownWarnings");
 const { getKV } = require("../../utils/kv");
 const { evaluateCriticalShift } = require("../../logic/criticalShift/evaluator");
 const {

@@ -11,6 +11,7 @@ const {
   getTdPostSlotsInNextHour,
   getTdPostSlotsHealthStats
 } = require("../utils/supabase");
+require("../utils/suppressKnownWarnings");
 const { loadEnv } = require("../utils/loadEnv");
 loadEnv();
 
