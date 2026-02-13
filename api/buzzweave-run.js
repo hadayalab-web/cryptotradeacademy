@@ -4,6 +4,8 @@
  *
  * 緊急停止: BUZZWEAVE_EMERGENCY_STOP=true で即 return
  * ロック: 多重実行防止のため buzzweave_locks で排他
+ *
+ * Runtime: Node.js を強制（Edge では console.log 等が期待どおり動かないため）
  */
 
 const { runBuzzWeaveCycle } = require("../services/td/buzzWeaveEngine");
@@ -21,29 +23,38 @@ loadEnv();
 
 const BUZZWEAVE_LANGS = ["en", "es", "pt", "ja", "ko", "ar"];
 
-module.exports = async function handler(req, res) {
+async function handler(req, res) {
+  console.log("[buzzweave-run] handler start");
+
   if (req.method !== "GET" && req.method !== "POST") {
+    console.log("[buzzweave-run] early return: method not allowed");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = req.headers?.authorization || req.headers?.Authorization;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  const querySecret = req.query?.cron_secret;
+  const authOk = !cronSecret || authHeader === `Bearer ${cronSecret}` || querySecret === cronSecret;
+  if (!authOk) {
+    console.log("[buzzweave-run] early return: 401 Unauthorized (cronSecret set, Bearer or cron_secret mismatch)");
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
 
   if (process.env.BUZZWEAVE_EMERGENCY_STOP === "true" || process.env.BUZZWEAVE_EMERGENCY_STOP === "1") {
+    console.log("[buzzweave-run] early return: Emergency stop active");
     await upsertBuzzweaveStatusEmergencyStop("env_flag");
     return res.status(200).json({ ok: true, message: "Emergency stop active", posted: 0 });
   }
 
   const status = await getBuzzweaveStatus();
   if (status.x_api_blocked) {
+    console.log("[buzzweave-run] early return: X API blocked flag active");
     return res.status(200).json({ ok: true, message: "X API blocked flag active", posted: 0 });
   }
 
   const acquired = await acquireBuzzweaveLock();
   if (!acquired) {
+    console.log("[buzzweave-run] early return: Locked (another run in progress)");
     return res.status(200).json({ ok: true, message: "Locked (another run in progress)", posted: 0 });
   }
 
@@ -75,6 +86,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (!btcSnapshot) {
+    console.log("[buzzweave-run] early return: SKIP_NO_SNAPSHOT (no btcSnapshot in KV)");
     console.warn("[BWE] No btcSnapshot available, skipping BuzzWeave cycle.");
     await releaseBuzzweaveLock();
     return res.status(200).json({ ok: true, status: "SKIP_NO_SNAPSHOT", message: "No btcSnapshot in KV (run /api/cron first)", posted: 0 });
@@ -98,6 +110,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    console.log("[buzzweave-run] calling runBuzzWeaveCycle", { dryRun, langFilter });
     const result = await runBuzzWeaveCycle({ dryRun, langFilter, btcSnapshot });
     return res.status(200).json(result);
   } catch (e) {
@@ -109,4 +122,7 @@ module.exports = async function handler(req, res) {
   } finally {
     await releaseBuzzweaveLock();
   }
-};
+}
+
+module.exports = handler;
+module.exports.config = { runtime: "nodejs" };
