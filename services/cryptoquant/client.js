@@ -196,7 +196,11 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
         });
 
         if (!response.ok) {
-            throw new Error(`API Error: ${response.status} ${response.statusText}`);
+          if (response.status === 404) {
+            console.warn(`[CQ Client] 404 Not Found: ${endpoint} — returning null (fallback)`);
+            return null;
+          }
+          throw new Error(`API Error: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
@@ -207,11 +211,16 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
         return data;
 
       } catch (error) {
+        if (error.message && String(error.message).includes("404")) {
+          console.warn(`[CQ Client] 404 for ${endpoint}:`, error.message);
+          return null;
+        }
         console.error(`❌ CryptoQuant Request Failed:`, error.message);
         throw error;
       }
     });
-    
+
+    if (data === null) return null;
     return data;
 }
 

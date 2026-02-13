@@ -1,5 +1,9 @@
 const { classifyShiftType } = require("./shiftTypes");
 const { CRITICAL_SHIFT_THRESHOLDS } = require("./thresholds");
+const {
+  inferMacroRiskOnOff: inferMacroRiskOnOffFromChanges,
+  normalizeMacroRiskOnOff
+} = require("./macroRiskEvaluator");
 
 function toNumber(value, fallback = 0) {
   const n = Number(value);
@@ -25,15 +29,6 @@ function clamp100(value) {
   return Math.round(value);
 }
 
-function normalizeMacroRiskOnOff(value) {
-  if (!value) return null;
-  const upper = String(value).toUpperCase();
-  if (upper === "RISK_ON") return "RISK_ON";
-  if (upper === "RISK_OFF") return "RISK_OFF";
-  if (upper === "NEUTRAL" || upper === "MIXED") return "NEUTRAL";
-  return null;
-}
-
 function asScore(value) {
   const n = toNumberOrNull(value);
   return n == null ? null : Number(clamp01(n).toFixed(3));
@@ -45,35 +40,22 @@ function inferMacroRiskOnOff(macroSnapshot, btcSnapshot) {
   );
   if (fromSnapshot) return fromSnapshot;
 
-  const t = CRITICAL_SHIFT_THRESHOLDS;
-  const nasdaqChange = toNumberOrNull(
-    macroSnapshot?.nasdaq?.raw?.change24h ?? macroSnapshot?.nasdaqChange24h
-  );
-  const goldChange = toNumberOrNull(
-    macroSnapshot?.gold?.raw?.change24h ?? macroSnapshot?.goldChange24h
-  );
-
-  const nasdaqRegimeRaw = String(macroSnapshot?.nasdaqRegime || btcSnapshot?.macroContext?.nasdaqRegime || "")
-    .toUpperCase();
+  const nasdaqRegimeRaw = String(
+    macroSnapshot?.nasdaqRegime || btcSnapshot?.macroContext?.nasdaqRegime || ""
+  ).toUpperCase();
   if (nasdaqRegimeRaw.includes("RISK_ON")) return "RISK_ON";
   if (nasdaqRegimeRaw.includes("RISK_OFF")) return "RISK_OFF";
 
-  if (nasdaqChange == null && goldChange == null) return null;
-  if (
-    nasdaqChange != null &&
-    nasdaqChange >= t.NASDAQ_RISK_ON_CHANGE_24H &&
-    (goldChange == null || goldChange <= t.GOLD_RISK_ON_CHANGE_24H)
-  ) {
-    return "RISK_ON";
-  }
-  if (
-    nasdaqChange != null &&
-    nasdaqChange <= t.NASDAQ_RISK_OFF_CHANGE_24H &&
-    (goldChange == null || goldChange >= t.GOLD_RISK_OFF_CHANGE_24H)
-  ) {
-    return "RISK_OFF";
-  }
-  return "NEUTRAL";
+  const nasdaqChange24h = toNumberOrNull(
+    macroSnapshot?.nasdaq?.raw?.change24h ?? macroSnapshot?.nasdaqChange24h
+  );
+  const goldChange24h = toNumberOrNull(
+    macroSnapshot?.gold?.raw?.change24h ?? macroSnapshot?.goldChange24h
+  );
+  return inferMacroRiskOnOffFromChanges(
+    { nasdaqChange24h, goldChange24h },
+    CRITICAL_SHIFT_THRESHOLDS
+  );
 }
 
 function scoreWhaleAccumulation(btcSnapshot) {

@@ -8,32 +8,14 @@ const {
 } = require("../../services/snapshot/criticalShiftSnapshotBuilder");
 const { formatCriticalShiftAlert } = require("../../services/ai/gpt5mini");
 
+const { buildMacroContextFromAssets } = require("../../logic/criticalShift/macroRiskEvaluator");
+
 const CRITICAL_SHIFT_LANGS = ["en", "ja", "es", "ko", "pt-br", "ar"];
-const BTC_SNAPSHOT_KEYS = ["btc:snapshot:full:latest", "asset:snapshot:BTC", "btc:snapshot"];
+const BTC_SNAPSHOT_KEYS = ["asset:snapshot:BTC", "btc:snapshot"];
 
 function toNumberOrNull(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
-}
-
-function normalizeMacroRiskOnOff(value) {
-  if (!value) return null;
-  const upper = String(value).toUpperCase();
-  if (upper === "RISK_ON") return "RISK_ON";
-  if (upper === "RISK_OFF") return "RISK_OFF";
-  if (upper === "NEUTRAL" || upper === "MIXED") return "NEUTRAL";
-  return null;
-}
-
-function inferMacroRiskOnOffFromChanges(nasdaqChange24h, goldChange24h) {
-  if (nasdaqChange24h == null && goldChange24h == null) return null;
-  if ((nasdaqChange24h != null && nasdaqChange24h >= 1.0) && (goldChange24h == null || goldChange24h <= -0.3)) {
-    return "RISK_ON";
-  }
-  if ((nasdaqChange24h != null && nasdaqChange24h <= -1.0) && (goldChange24h == null || goldChange24h >= 0.3)) {
-    return "RISK_OFF";
-  }
-  return "NEUTRAL";
 }
 
 async function getFirstSnapshot(kv, keys) {
@@ -52,26 +34,31 @@ function buildMacroSnapshot({ btcSnapshot, nasdaqSnapshot, goldSnapshot }) {
   const nasdaqChange24h = toNumberOrNull(nasdaqSnapshot?.raw?.change24h);
   const goldChange24h = toNumberOrNull(goldSnapshot?.raw?.change24h);
 
-  const macroRiskOnOff =
-    normalizeMacroRiskOnOff(btcSnapshot?.macroContext?.macroRiskOnOff) ??
-    inferMacroRiskOnOffFromChanges(nasdaqChange24h, goldChange24h);
-
-  const nasdaqRegime =
-    btcSnapshot?.macroContext?.nasdaqRegime ??
-    (nasdaqChange24h == null ? null : nasdaqChange24h > 1 ? "RISK_ON" : nasdaqChange24h < -1 ? "RISK_OFF" : "NEUTRAL");
-
-  const goldWhaleBiasRaw =
-    btcSnapshot?.macroContext?.goldWhaleBias ??
-    (goldChange24h == null ? null : goldChange24h > 0 ? "BULLISH" : goldChange24h < 0 ? "BEARISH" : "NEUTRAL");
+  const fromBtc =
+    btcSnapshot?.macroContext &&
+    (btcSnapshot.macroContext.macroRiskOnOff != null ||
+      btcSnapshot.macroContext.nasdaqRegime != null ||
+      btcSnapshot.macroContext.goldWhaleBias != null);
+  const macro =
+    fromBtc
+      ? {
+          nasdaqRegime: btcSnapshot.macroContext.nasdaqRegime ?? null,
+          goldWhaleBias:
+            btcSnapshot.macroContext.goldWhaleBias == null
+              ? null
+              : String(btcSnapshot.macroContext.goldWhaleBias),
+          macroRiskOnOff: btcSnapshot.macroContext.macroRiskOnOff ?? null
+        }
+      : buildMacroContextFromAssets({ nasdaqSnapshot, goldSnapshot });
 
   return {
     nasdaq: nasdaqSnapshot || null,
     gold: goldSnapshot || null,
     nasdaqChange24h,
     goldChange24h,
-    nasdaqRegime,
-    goldWhaleBias: goldWhaleBiasRaw == null ? null : String(goldWhaleBiasRaw),
-    macroRiskOnOff
+    nasdaqRegime: macro.nasdaqRegime,
+    goldWhaleBias: macro.goldWhaleBias,
+    macroRiskOnOff: macro.macroRiskOnOff
   };
 }
 
@@ -83,7 +70,12 @@ module.exports = async function handler(req, res) {
   const cronSecret = process.env.CRON_SECRET;
   const auth = req.headers?.authorization || req.headers?.Authorization;
   const querySecret = req.query?.cron_secret;
-  if (cronSecret && auth !== `Bearer ${cronSecret}` && querySecret !== cronSecret) {
+  const authOk =
+    !cronSecret ||
+    (auth && String(auth).trim().toLowerCase() === `bearer ${cronSecret}`.toLowerCase()) ||
+    querySecret === cronSecret;
+  if (!authOk) {
+    console.warn("[critical-shift/run] 401 Unauthorized — cronSecret set, Bearer or cron_secret mismatch.");
     return res.status(401).json({ error: "Unauthorized" });
   }
 
@@ -110,6 +102,7 @@ module.exports = async function handler(req, res) {
     });
 
     if (!evaluation.triggered) {
+      console.log("[critical-shift/run] 200 OK (triggered=false)");
       return res.status(200).json({
         success: true,
         triggered: false,
@@ -135,6 +128,7 @@ module.exports = async function handler(req, res) {
       }, {})
     };
 
+    console.log("[critical-shift/run] 200 OK (triggered=true)");
     return res.status(200).json({
       success: true,
       triggered: true,

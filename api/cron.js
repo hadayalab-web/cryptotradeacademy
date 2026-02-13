@@ -432,23 +432,19 @@ module.exports = async function handler(req, res) {
       isInRegularHours: REGULAR_HOURS.includes(utcHour)
     });
 
-    // 1. On-chain (CryptoQuant) - リトライ付き
-    const fetchCQData = async () => {
-      return await Promise.all([
+    // 1. On-chain (CryptoQuant) - リトライ付き。404/失敗時は fallback 0 で Stage1 を継続
+    let inflowData = null;
+    let mpiData = null;
+    try {
+      [inflowData, mpiData] = await Promise.all([
         pRetry(() => getExchangeInflow(), { retries: 2, factor: 2, minTimeout: 500 }),
         pRetry(() => getMinerPositionIndex(), { retries: 2, factor: 2, minTimeout: 500 })
       ]);
-    };
-
-    const [inflowData, mpiData] = await fetchCQData();
-
-    if (!inflowData || !mpiData) {
-      logger.warn("No data from CryptoQuant");
-      return res.status(200).json({ message: "No on-chain data, skipped." });
+    } catch (e) {
+      logger.warn("CryptoQuant fetch failed after retry:", e?.message, "— using fallback inflow=0, mpi=0.");
     }
-
-    const inflow = Number(inflowData.value) || 0;
-    const mpi = Number(mpiData.value) || 0;
+    const inflow = Number(inflowData?.value ?? 0) || 0;
+    const mpi = Number(mpiData?.value ?? 0) || 0;
 
     // 2. Price & Fear&Greed - リトライ付き
     const fetchPriceData = async () => {
@@ -1282,6 +1278,24 @@ module.exports = async function handler(req, res) {
     const preSnapshotForDiff = { ...preSnapshot, cqDeep: cqDeep || { inflow, mpi }, trapDetection: derivedTrapDetection, divergenceSignal, marketRegime };
     const diff = computeSnapshotDiff(preSnapshotForDiff, lastSnapshot);
 
+    let nasdaqSnapshot = null;
+    let goldSnapshot = null;
+    if (isRegularSlot || force) {
+      try {
+        [nasdaqSnapshot, goldSnapshot] = await Promise.all([
+          runAssetSnapshot("NASDAQ"),
+          runAssetSnapshot("GOLD")
+        ]);
+      } catch (e) {
+        console.warn("[Phase 2] runAssetSnapshot NASDAQ/GOLD failed:", e?.message);
+      }
+    }
+    const { buildMacroContextFromAssets } = require("../logic/criticalShift/macroRiskEvaluator");
+    const macroContext =
+      nasdaqSnapshot || goldSnapshot
+        ? buildMacroContextFromAssets({ nasdaqSnapshot, goldSnapshot })
+        : null;
+
     const btcSnapshot = buildFullSnapshot({
       raw,
       cqDeep: cqDeep || { inflow, mpi },
@@ -1298,7 +1312,8 @@ module.exports = async function handler(req, res) {
       marketRegime,
       market_score: snapshot?.market_score ?? coreDecision?.score ?? 0,
       tradeSignal: tradeSignal || null,
-      diff
+      diff,
+      macroContext
     });
 
     if (isRegularSlot || force) {
@@ -1365,6 +1380,28 @@ module.exports = async function handler(req, res) {
       }
     } else {
       criticalShiftResult = { enabled: false, reason: "ENABLE_CRITICAL_SHIFT=false" };
+    }
+
+    // 7-D. CRITICAL SHIFT (商品 SHIFT): Telegram 配信
+    const CRITICAL_SHIFT_LANGS = ["en", "ja", "es", "ko", "pt-br", "ar"];
+    if (
+      ENABLE_CRITICAL_SHIFT &&
+      criticalShiftResult?.triggered &&
+      criticalShiftResult?.dispatchPayload?.alerts &&
+      ENABLE_TELEGRAM
+    ) {
+      const shiftAlerts = criticalShiftResult.dispatchPayload.alerts;
+      for (const lang of CRITICAL_SHIFT_LANGS) {
+        const text = shiftAlerts[lang];
+        if (!text || typeof text !== "string") continue;
+        try {
+          const marketCode = getMarketCode(lang);
+          await sendMessageToChannel(text, "BTC", marketCode);
+          console.log("[CRITICAL_SHIFT] Telegram sent for", lang);
+        } catch (e) {
+          console.warn("[CRITICAL_SHIFT] Telegram send failed for", lang, e?.message);
+        }
+      }
     }
 
     // 早期 return: minimal かつ定期枠外かつ force なしの場合は送信ブロックをスキップ

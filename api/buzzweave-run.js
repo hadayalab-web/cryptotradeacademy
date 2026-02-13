@@ -87,16 +87,12 @@ module.exports = async function handler(req, res) {
         kv.get(assetSnapshotKvKey("GOLD"))
       ]);
       if (nasdaq || gold) {
-        btcSnapshot = {
-          ...btcSnapshot,
-          macroContext: {
-            nasdaqRegime: nasdaq?.raw?.change24h != null ? (nasdaq.raw.change24h > 2 ? "risk_on" : nasdaq.raw.change24h < -2 ? "risk_off" : "neutral") : null,
-            goldWhaleBias: gold?.raw?.change24h ?? null,
-            macroRiskOnOff: nasdaq && gold && nasdaq.raw?.change24h != null && gold.raw?.change24h != null
-              ? (nasdaq.raw.change24h > 0 && gold.raw.change24h > 0 ? "risk_on" : nasdaq.raw.change24h < 0 && gold.raw.change24h < 0 ? "risk_off" : "mixed")
-              : null
-          }
-        };
+        const { buildMacroContextFromAssets } = require("../logic/criticalShift/macroRiskEvaluator");
+        const macroContext = buildMacroContextFromAssets({
+          nasdaqSnapshot: nasdaq || null,
+          goldSnapshot: gold || null
+        });
+        btcSnapshot = { ...btcSnapshot, macroContext };
       }
     } catch (_) {}
   }

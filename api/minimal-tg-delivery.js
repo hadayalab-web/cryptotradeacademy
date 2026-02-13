@@ -1,6 +1,6 @@
 // api/minimal-tg-delivery.js
 // 無料版（Minimal Version）TG配信専用。Regular と同時刻にしないため、別 Cron で別時刻に実行する。
-// cron が KV に書き出す minimal:btc:latest を読んで 6 言語配信する。
+// cron が書き出す btc:snapshot:early / btc:snapshot を読んで 6 言語配信する。minimal:btc:latest は移行期フォールバック。
 
 const { getKV } = require("../utils/kv");
 const { sendMessageToAsset } = require("../services/telegram/bot");
@@ -74,7 +74,7 @@ module.exports = async function handler(req, res) {
     return res.status(503).json({ error: "KV not available" });
   }
 
-  // Phase 2: btc:snapshot:early → btc:snapshot → minimal:btc:latest の順で読む
+  // btc:snapshot:early → btc:snapshot を優先。minimal:btc:latest は移行期フォールバック
   let payload = await kv.get("btc:snapshot:early")
     || await kv.get("btc:snapshot");
   if (!payload) {
@@ -82,7 +82,7 @@ module.exports = async function handler(req, res) {
   }
   if (!payload) {
     return res.status(503).json({
-      error: "No snapshot in KV (btc:snapshot:early, btc:snapshot, minimal:btc:latest). Run /api/cron first."
+      error: "No snapshot in KV (btc:snapshot:early, btc:snapshot, or minimal:btc:latest fallback). Run /api/cron first."
     });
   }
 

@@ -79,15 +79,7 @@ function classifyShiftType(metrics = {}, btcSnapshot = null, macroSnapshot = nul
     return "DOWN";
   }
 
-  // ACCEL: structure is thin + derivatives pressure can amplify move
-  if (
-    liquidityStressScore >= t.LIQUIDITY_STRESS_HIGH &&
-    derivativesStressScore >= t.SCORE_MEDIUM
-  ) {
-    return "ACCEL";
-  }
-
-  // REVERSAL: opposite pressure emerges vs recent direction
+  // REVERSAL: opposite pressure emerges vs recent direction (before ACCEL per spec)
   const bullishReversal =
     change24h < 0 &&
     whaleAccumulationScore >= t.WHALE_ACCUMULATION_HIGH &&
@@ -102,6 +94,14 @@ function classifyShiftType(metrics = {}, btcSnapshot = null, macroSnapshot = nul
 
   if (bullishReversal || bearishReversal) {
     return "REVERSAL";
+  }
+
+  // ACCEL: structure is thin + derivatives pressure can amplify move
+  if (
+    liquidityStressScore >= t.LIQUIDITY_STRESS_HIGH &&
+    derivativesStressScore >= t.SCORE_MEDIUM
+  ) {
+    return "ACCEL";
   }
 
   return "NONE";

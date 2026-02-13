@@ -8,7 +8,7 @@ const { loadEnv } = require("../../utils/loadEnv");
 loadEnv();
 
 const OpenAI = require("openai");
-const { searchPostsRecent, getUserByUsername, getUserTweets, postQuoteTweet } = require("../x/client");
+const { searchPostsRecent, getUserByUsername, getUserTweets, postQuoteTweet: postQuoteTweetDefault } = require("../x/client");
 const { pickVidalyticsLink } = require("../../config/buzzweaveLinks");
 const {
   getTdInfluencers,
@@ -680,6 +680,7 @@ async function runBuzzWeaveCycle(options = {}) {
   const deadlineMs = Number(options.deadlineMs || DEFAULT_DEADLINE_MS);
   const langFilter = options.langFilter || null;
   const btcSnapshot = options.btcSnapshot || null;
+  const postQuoteTweet = options.postQuoteTweet || postQuoteTweetDefault;
   const startMs = Date.now();
   const runId = `bw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   logError("cycle start", { runId, dryRun, langFilter, hasBtcSnapshot: !!btcSnapshot });
@@ -777,6 +778,7 @@ async function runBuzzWeaveCycle(options = {}) {
     try {
       logError("ready to post", candidate.post.id);
       const postResult = await postQuoteTweet(body, candidate.post.id);
+      console.log("[BuzzWeave] post success", { tweetId: postResult?.id || null, quotedId: candidate.post.id });
       // 集中投下ログ（市場回収用 + ミッション検証用）
       const buzzInsights = buildBuzzInsights(candidate, slot.lang);
       await insertBuzzweavePostLog({

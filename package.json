@@ -8,6 +8,9 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "validate:os": "node scripts/validate-trap-defence-os.js",
+    "health:external": "node scripts/health-check-external-deps.js",
+    "test:buzzweave-post": "node scripts/test-buzzweave-post.js",
     "start": "node scripts/monitor_process.js",
     "test:local": "node scripts/local_test.js",
     "test:email": "node scripts/test-email-delivery.js",
