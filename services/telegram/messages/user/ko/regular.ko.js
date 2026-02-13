@@ -196,7 +196,7 @@ function formatRegularBriefingCore({
     }
   }
 
-  if (!gptNewsText || gptNewsText.trim() === '') {
+  if (!gptNewsText || String(gptNewsText || "").trim() === '') {
     const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
     gptNewsText = `## 2-1. Whale Intent (구조적 추론)
 ${inflow >= 0 ? '고래들이 공황 구간에서 공급을 흡수하는 듯 보이며, 가격이 유동성 포켓으로 하락한 뒤 조용히 누적하기 전에 흡수하고 있습니다.' : '고래 유입은 보유자들이 자산을 보호 중임을 시사합니다. 유출은 누적 또는 재조정을 가리킵니다.'}

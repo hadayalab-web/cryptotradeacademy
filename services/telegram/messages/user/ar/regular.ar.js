@@ -301,7 +301,7 @@ function formatRegularBriefingCore({
     }
   }
   
-  if (!gptNewsText || gptNewsText.trim() === '') {
+  if (!gptNewsText || String(gptNewsText || "").trim() === '') {
     const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
     gptNewsText = `## 2-1. Whale Intent (استنتاج هيكلي)
 ${inflow >= 0 ? 'الحيتان تبدو تمتص العرض في مناطق الذعر، تاركة السعر يسقط نحو جيوب السيولة قبل التراكم بصمت.' : 'تدفقات الحيتان تشير إلى أن الحائزين يؤمنون الأصول. التدفق الخارجي يشير إلى تراكم أو إعادة موازنة.'}

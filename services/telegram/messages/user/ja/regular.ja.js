@@ -222,7 +222,7 @@ function formatRegularBriefingCore({
     }
   }
 
-  if (!gptNewsText || gptNewsText.trim() === '') {
+  if (!gptNewsText || String(gptNewsText || "").trim() === '') {
     const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
     gptNewsText = `## 2-1. Whale Intent (構造的推論)
 ${inflow >= 0 ? 'クジラはパニックゾーンで供給を吸収しているように見え、価格が流動性ポケットへ落ちた後に静かに累積する前に吸収している。' : 'クジラの流出はホルダーが資産を保護中であることを示唆。流出は累積または再調整を示す。'}

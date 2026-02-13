@@ -298,7 +298,7 @@ function formatRegularBriefingCore({
     }
   }
   
-  if (!gptNewsText || gptNewsText.trim() === '') {
+  if (!gptNewsText || String(gptNewsText || "").trim() === '') {
     const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
     gptNewsText = `## 2-1. Whale Intent (inferência estrutural)
 ${inflow >= 0 ? 'As baleias parecem absorver oferta em zonas de pânico, deixando o preço cair em direção aos bolsões de liquidez antes de acumular de forma silenciosa.' : 'Os fluxos de baleias sugerem detentores garantindo ativos. A saída indica acumulação ou rebalanceamento.'}

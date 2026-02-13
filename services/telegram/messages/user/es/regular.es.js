@@ -306,7 +306,7 @@ function formatRegularBriefingCore({
     }
   }
   
-  if (!gptNewsText || gptNewsText.trim() === '') {
+  if (!gptNewsText || String(gptNewsText || "").trim() === '') {
     const inflowDisplay = inflow >= 0 ? `Entrada ${Math.abs(inflow).toFixed(0)} BTC` : `Salida ${Math.abs(inflow).toFixed(0)} BTC`;
     const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
     gptNewsText = `## 2-1. Whale Intent (inferencia estructural)

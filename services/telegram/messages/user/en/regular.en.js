@@ -344,7 +344,7 @@ function formatRegularBriefingCore({
   
   // v2.2 フォールバック: 構造のみ、行動示唆ゼロ
   // v2.5: Behind-the-Scenes 4要素のみ、## 階層統一
-  if (!gptNewsText || gptNewsText.trim() === '') {
+  if (!gptNewsText || String(gptNewsText || "").trim() === '') {
     const inflowDisplay = inflow >= 0 ? `Inflow ${Math.abs(inflow).toFixed(0)} BTC` : `Outflow ${Math.abs(inflow).toFixed(0)} BTC`;
     const mpiDisplay = mpi >= 0 ? `+${mpi.toFixed(2)}` : mpi.toFixed(2);
     gptNewsText = `## 2-1. Whale Intent (structural inference)
