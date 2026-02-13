@@ -378,9 +378,15 @@ async function insertTdPostSlots(rows) {
 
 async function getTdPostSlotsInNextHour(langFilter = null) {
   const sb = getSupabase();
-  if (!sb) return [];
+  if (!sb) {
+    console.warn("[BuzzWeave] getTdPostSlotsInNextHour: no Supabase client");
+    return [];
+  }
   const exists = await checkTdPostSlotsExists();
-  if (!exists) return [];
+  if (!exists) {
+    console.warn("[BuzzWeave] getTdPostSlotsInNextHour: td_post_slots table missing or inaccessible");
+    return [];
+  }
   try {
     const now = new Date();
     const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
@@ -392,8 +398,13 @@ async function getTdPostSlotsInNextHour(langFilter = null) {
       .order("datetime_jst", { ascending: true });
     if (langFilter) q = q.eq("lang", langFilter);
     const { data } = await q;
-    return data || [];
+    const list = data || [];
+    if (list.length === 0) {
+      console.log("[BuzzWeave] getTdPostSlotsInNextHour: 0 slots in next hour", { langFilter: langFilter || "(any)" });
+    }
+    return list;
   } catch (e) {
+    console.warn("[BuzzWeave] getTdPostSlotsInNextHour error:", e?.message);
     return [];
   }
 }

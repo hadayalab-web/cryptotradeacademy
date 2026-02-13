@@ -483,18 +483,29 @@ async function fetchCandidatesFromSearch(slotLang, options = {}) {
       endTime: endTime.toISOString(),
       sortOrder: options.sortOrder || "recency"
     });
+    const data = Array.isArray(res?.data) ? res.data : [];
+    console.log("[BuzzWeave] search/recent result", {
+      count: data.length,
+      slotLang,
+      query: (query || "").slice(0, 80)
+    });
     return {
-      data: Array.isArray(res?.data) ? res.data : [],
+      data,
       includes: res?.includes || {},
       query,
       slotLang
     };
   } catch (e) {
-    const is402 = String(e?.message || "").includes("402");
+    const msg = String(e?.message || "");
+    const statusMatch = msg.match(/X API Error: (\d+)/);
+    const status = statusMatch ? statusMatch[1] : null;
+    const is402 = msg.includes("402");
     if (is402) {
+      console.warn("[BuzzWeave] search/recent 402 (Payment Required)", { slotLang });
       logError("fetchCandidatesFromSearch 402: run aborted", slotLang);
       return { data: [], includes: {}, query: "", slotLang, fatal402: true };
     }
+    console.warn("[BuzzWeave] search/recent error", { slotLang, status, message: msg.slice(0, 200) });
     logWarn("fetchCandidatesFromSearch error:", slotLang, e.message);
     return { data: [], includes: {}, query: "", slotLang };
   }
@@ -689,8 +700,14 @@ async function runBuzzWeaveCycle(options = {}) {
 
   const slots = await getTdPostSlotsInNextHour(langFilter);
   const slot = slots[0];
+  console.log("[BuzzWeave] slots", {
+    count: slots.length,
+    langFilter: langFilter || "(round-robin)",
+    firstSlot: slot ? { id: slot.id, lang: slot.lang, datetime_jst: slot.datetime_jst } : null
+  });
   logError("slot", slot || null);
   if (!slots.length) {
+    console.log("[BuzzWeave] stop: no slots in next hour", { langFilter });
     return { ok: true, message: langFilter ? `No slots for lang=${langFilter}` : "No slots in next hour", posted: 0, runId };
   }
 
@@ -724,7 +741,18 @@ async function runBuzzWeaveCycle(options = {}) {
 
   const buzzCandidates = collectResult.candidates || [];
   const clusterScores = collectResult.clusterScores || {};
+  console.log("[BuzzWeave] candidates", {
+    count: buzzCandidates.length,
+    fatal402: !!collectResult.fatal402,
+    deadlineExceeded: !!collectResult.deadlineExceeded
+  });
   if (!buzzCandidates.length) {
+    const reason = collectResult.fatal402
+      ? "X API 402"
+      : collectResult.deadlineExceeded
+        ? "deadline exceeded"
+        : "search returned 0 or all filtered";
+    console.log("[BuzzWeave] stop: no candidates", { reason });
     return {
       ok: true,
       message: collectResult.deadlineExceeded ? "deadline exceeded during candidate collection" : "No buzz candidates",
@@ -743,8 +771,10 @@ async function runBuzzWeaveCycle(options = {}) {
   if (!candidate) {
     candidate = buzzCandidates.sort((a, b) => (b.engagementScore || 0) - (a.engagementScore || 0))[0];
   }
+  console.log("[BuzzWeave] best candidate", { candidateId: candidate?.post?.id ?? null, hasCandidate: !!candidate });
   logError("best candidate", candidate ? candidate.post?.id : null);
   if (!candidate) {
+    console.log("[BuzzWeave] stop: no matching candidate for slot");
     return { ok: true, message: "No matching candidate for slot", posted: 0, runId };
   }
 
@@ -776,6 +806,7 @@ async function runBuzzWeaveCycle(options = {}) {
     }
 
     try {
+      console.log("[BuzzWeave] posting", { quotedId: candidate.post.id, dryRun: false });
       logError("ready to post", candidate.post.id);
       const postResult = await postQuoteTweet(body, candidate.post.id);
       console.log("[BuzzWeave] post success", { tweetId: postResult?.id || null, quotedId: candidate.post.id });
