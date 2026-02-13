@@ -1340,24 +1340,24 @@ module.exports = async function handler(req, res) {
     // CRITICAL SHIFT (separate engine): keep Minimal/Regular/Emergency logic untouched.
     if (ENABLE_CRITICAL_SHIFT) {
       try {
-        const criticalShiftRunUrl = buildInternalApiUrl(req, "/api/critical-shift/run");
-        if (!criticalShiftRunUrl) {
-          console.warn("[CRITICAL_SHIFT] Skipped: unable to build internal API URL");
+        const cronSecret = process.env.CRON_SECRET;
+        if (!cronSecret) {
+          console.warn("[CRITICAL_SHIFT] Skipped: CRON_SECRET not set (required for /api/critical-shift/run auth)");
         } else {
-          const runUrl = new URL(criticalShiftRunUrl);
-          if (process.env.CRON_SECRET) {
-            runUrl.searchParams.set("cron_secret", process.env.CRON_SECRET);
-          }
-          const runRes = await fetch(runUrl.toString(), {
-            method: "POST",
-            signal: AbortSignal.timeout(12000),
-            headers: {
-              "Content-Type": "application/json",
-              ...(process.env.CRON_SECRET
-                ? { Authorization: `Bearer ${process.env.CRON_SECRET}` }
-                : {})
-            }
-          });
+          const criticalShiftRunUrl = buildInternalApiUrl(req, "/api/critical-shift/run");
+          if (!criticalShiftRunUrl) {
+            console.warn("[CRITICAL_SHIFT] Skipped: unable to build internal API URL");
+          } else {
+            const runUrl = new URL(criticalShiftRunUrl);
+            runUrl.searchParams.set("cron_secret", cronSecret);
+            const runRes = await fetch(runUrl.toString(), {
+              method: "POST",
+              signal: AbortSignal.timeout(12000),
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${cronSecret}`
+              }
+            });
           criticalShiftResult = await runRes.json().catch(() => null);
           if (!runRes.ok) {
             console.warn("[CRITICAL_SHIFT] Run API returned non-200:", {
@@ -1371,6 +1371,7 @@ module.exports = async function handler(req, res) {
               confidence: criticalShiftResult?.evaluation?.confidence ?? criticalShiftResult?.dispatchPayload?.snapshot?.confidence ?? 0
             });
           }
+        }
         }
       } catch (error) {
         console.warn("[CRITICAL_SHIFT] Run failed:", error?.message);

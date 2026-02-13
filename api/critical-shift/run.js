@@ -76,7 +76,7 @@ module.exports = async function handler(req, res) {
     (auth && String(auth).trim().toLowerCase() === `bearer ${cronSecret}`.toLowerCase()) ||
     querySecret === cronSecret;
   if (!authOk) {
-    console.warn("[critical-shift/run] 401 Unauthorized — cronSecret set, Bearer or cron_secret mismatch.");
+    console.warn("[CRITICAL_SHIFT] Unauthorized access", { status: 401, endpoint: "/api/critical-shift/run" });
     return res.status(401).json({ error: "Unauthorized" });
   }
 
