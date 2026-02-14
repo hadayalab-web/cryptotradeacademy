@@ -56,21 +56,22 @@ const LOG_LEVEL = process.env.BUZZWEAVE_LOG_LEVEL || "info";
 const LOG_MAX_PER_RUN = 5;
 let runLogCount = 0;
 
-function logOnce(...args) {
+function logOnce(level, ...args) {
   runLogCount += 1;
   if (runLogCount <= LOG_MAX_PER_RUN) {
-    console.error("[BuzzWeave]", ...args);
+    const fn = level === "warn" ? console.warn : level === "error" ? console.error : console.log;
+    fn("[BuzzWeave]", ...args);
   }
 }
 
 function logInfo(...args) {
-  logOnce(...args);
+  logOnce("info", ...args);
 }
 function logWarn(...args) {
-  logOnce(...args);
+  logOnce("warn", ...args);
 }
 function logError(...args) {
-  logOnce(...args);
+  logOnce("error", ...args);
 }
 
 function isDeadlineExceeded(startMs, deadlineMs) {
@@ -697,7 +698,7 @@ async function runBuzzWeaveCycle(options = {}) {
   const postQuoteTweet = options.postQuoteTweet || postQuoteTweetDefault;
   const startMs = Date.now();
   const runId = `bw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  logError("cycle start", { runId, dryRun, langFilter, hasBtcSnapshot: !!btcSnapshot });
+  logInfo("cycle start", { runId, dryRun, langFilter, hasBtcSnapshot: !!btcSnapshot });
 
   const cleanup = await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
 
@@ -708,7 +709,7 @@ async function runBuzzWeaveCycle(options = {}) {
     langFilter: langFilter || "(round-robin)",
     firstSlot: slot ? { id: slot.id, lang: slot.lang, datetime_jst: slot.datetime_jst } : null
   });
-  logError("slot", slot || null);
+  logInfo("slot", slot || null);
   if (!slots.length) {
     console.log("[BuzzWeave] stop: no slots in next hour", { langFilter });
     return { ok: true, message: langFilter ? `No slots for lang=${langFilter}` : "No slots in next hour", posted: 0, runId };
@@ -772,7 +773,7 @@ async function runBuzzWeaveCycle(options = {}) {
     candidate = buzzCandidates.sort((a, b) => (b.engagementScore || 0) - (a.engagementScore || 0))[0];
   }
   console.log("[BuzzWeave] best candidate", { candidateId: candidate?.post?.id ?? null, hasCandidate: !!candidate });
-  logError("best candidate", candidate ? candidate.post?.id : null);
+  logInfo("best candidate", candidate ? candidate.post?.id : null);
   if (!candidate) {
     console.log("[BuzzWeave] stop: no matching candidate for slot");
     return { ok: true, message: "No matching candidate for slot", posted: 0, runId };
@@ -807,7 +808,7 @@ async function runBuzzWeaveCycle(options = {}) {
 
     try {
       console.log("[BuzzWeave] posting", { quotedId: candidate.post.id, dryRun: false });
-      logError("ready to post", candidate.post.id);
+      logInfo("ready to post", candidate.post.id);
       const postResult = await postQuoteTweet(body, candidate.post.id);
       console.log("[BuzzWeave] BWE SCAN: REPOSTED quoted_id=" + candidate.post.id + " our_tweet_id=" + (postResult?.id || "null"));
       // 集中投下ログ（市場回収用 + ミッション検証用）

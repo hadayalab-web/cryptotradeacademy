@@ -65,10 +65,15 @@ module.exports = async function handler(req, res) {
   const cronSecret = process.env.CRON_SECRET;
   const auth = req.headers?.authorization || req.headers?.Authorization;
   const querySecret = req.query?.cron_secret;
+  let bodySecret = null;
+  if (req.body && typeof req.body === "object") {
+    bodySecret = req.body.cron_secret ?? req.body.cronSecret;
+  }
   const authOk =
     !cronSecret ||
     (auth && String(auth).trim().toLowerCase() === "bearer " + String(cronSecret).toLowerCase()) ||
-    querySecret === cronSecret;
+    querySecret === cronSecret ||
+    bodySecret === cronSecret;
   if (!authOk) {
     console.warn("[kiba/run] Unauthorized access", { status: 401, endpoint: "/api/kiba/run" });
     return res.status(401).json({ error: "Unauthorized" });

@@ -1355,7 +1355,8 @@ module.exports = async function handler(req, res) {
               headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${cronSecret}`
-              }
+              },
+              body: JSON.stringify({ cron_secret: cronSecret })
             });
             kibaResult = await runRes.json().catch(() => null);
             if (!runRes.ok) {

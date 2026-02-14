@@ -294,11 +294,13 @@ async function getOpenInterest() {
  */
 async function getMinerFlows() {
   const paths = ['/btc/miner-flows/outflow', '/btc/flow-indicator/miner-outflow'];
+  const minerParams = { window: 'day', limit: 1, miner: 'all_miner' };
   for (const path of paths) {
     try {
-      const data = await fetchCQWithRetry(path, { window: 'day', limit: 1 });
+      const params = path.includes('miner-flows') ? minerParams : { window: 'day', limit: 1 };
+      const data = await fetchCQWithRetry(path, params);
       const point = data?.result?.data?.[0];
-      const outflow = Number(point?.value ?? point?.outflow ?? point?.miner_outflow ?? 0);
+      const outflow = Number(point?.outflow_total ?? point?.value ?? point?.outflow ?? point?.miner_outflow ?? 0);
       if (Number.isFinite(outflow)) {
         return { outflow, inflow: point?.inflow ?? null, netflow: point?.netflow ?? null };
       }
