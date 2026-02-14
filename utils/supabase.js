@@ -530,16 +530,26 @@ async function acquireBuzzweaveLock(lockName = BUZZWEAVE_LOCK_NAME) {
   try {
     const cutoff = new Date(Date.now() - LOCK_TTL_SECONDS * 1000).toISOString();
     const now = new Date().toISOString();
+    // 条件: lock_name 一致 かつ (locked=false または updated_at が TTL より古い)
+    // PostgREST: timestamp に : が含まれるため .or() 内はダブルクォートで囲む
     const { data, error } = await sb
       .from("buzzweave_locks")
       .update({ locked: true, updated_at: now })
       .eq("lock_name", lockName)
-      .or(`locked.eq.false,updated_at.lt.${cutoff}`)
+      .or(`locked.eq.false,updated_at.lt."${cutoff}"`)
       .select("lock_name")
       .maybeSingle();
-    if (error) return false;
-    return !!data;
+    if (error) {
+      console.warn("[buzzweave-run] acquireBuzzweaveLock error:", error.message, error.code);
+      return false;
+    }
+    if (!data) {
+      console.warn("[buzzweave-run] acquireBuzzweaveLock: no row updated (filter matched 0 rows)", { cutoff, now });
+      return false;
+    }
+    return true;
   } catch (e) {
+    console.warn("[buzzweave-run] acquireBuzzweaveLock exception:", e?.message);
     return false;
   }
 }
