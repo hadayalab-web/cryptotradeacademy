@@ -1,5 +1,5 @@
 const {
-  KIBA_LATEST_KV_KEY,
+  getKibaLatestKey,
   buildKibaHistoryKey,
   buildKibaSnapshot
 } = require("./kibaSnapshotSchema");
@@ -7,12 +7,13 @@ const {
 const DEFAULT_HISTORY_BUCKET_MINUTES = 15;
 
 async function writeKibaSnapshot(kv, snapshot, options = {}) {
-  const latestKey = KIBA_LATEST_KV_KEY;
+  const asset = options.asset || "BTC";
+  const latestKey = getKibaLatestKey(asset);
   const bucketMinutes =
     Number.isFinite(Number(options.bucketMinutes)) && Number(options.bucketMinutes) > 0
       ? Number(options.bucketMinutes)
       : DEFAULT_HISTORY_BUCKET_MINUTES;
-  const historyKey = buildKibaHistoryKey(snapshot?.as_of_utc, bucketMinutes);
+  const historyKey = buildKibaHistoryKey(snapshot?.as_of_utc, bucketMinutes, asset);
 
   if (!kv || !snapshot || typeof snapshot !== "object") {
     return { ok: false, latestKey, historyKey: null };
@@ -37,7 +38,8 @@ async function buildAndWriteKibaSnapshot(kv, params = {}) {
   });
 
   const writeResult = await writeKibaSnapshot(kv, snapshot, {
-    bucketMinutes: params.bucketMinutes
+    bucketMinutes: params.bucketMinutes,
+    asset: params.asset || "BTC"
   });
 
   return {

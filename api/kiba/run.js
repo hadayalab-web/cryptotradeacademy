@@ -1,13 +1,22 @@
 require("../../utils/suppressKnownWarnings");
 const { getKV } = require("../../utils/kv");
 const { runKibaEngine } = require("../../core/kiba/kiba_engine");
-const { KIBA_LATEST_KV_KEY } = require("../../services/snapshot/kibaSnapshotSchema");
+const { getKibaLatestKey } = require("../../services/snapshot/kibaSnapshotSchema");
 const { buildAndWriteKibaSnapshot } = require("../../services/snapshot/kibaSnapshotBuilder");
 const { formatCriticalAlert } = require("../../services/ai/gpt5mini");
 const { buildMacroContextFromAssets } = require("../../logic/macroRiskEvaluator");
 
 const ALERT_LANGS = ["en", "ja", "es", "ko", "pt-br", "ar"];
 const BTC_SNAPSHOT_KEYS = ["asset:snapshot:BTC", "btc:snapshot"];
+
+/** /api/health 用: 最終実行時刻とステータスを KV に記録 */
+async function writeKibaHealthStatus(kv, status) {
+  if (!kv) return;
+  try {
+    await kv.set("health:kiba:lastRun", Date.now());
+    await kv.set("health:kiba:lastStatus", status);
+  } catch (_) {}
+}
 
 function toNumberOrNull(value) {
   const n = Number(value);
@@ -76,8 +85,12 @@ module.exports = async function handler(req, res) {
     bodySecret === cronSecret;
   if (!authOk) {
     console.warn("[kiba/run] Unauthorized access", { status: 401, endpoint: "/api/kiba/run" });
+    const kvAuth = getKV();
+    if (kvAuth) writeKibaHealthStatus(kvAuth, 401).catch(() => {});
     return res.status(401).json({ error: "Unauthorized" });
   }
+
+  const asset = String((req.query?.asset || req.body?.asset || "BTC")).toUpperCase();
 
   try {
     const kv = getKV();
@@ -85,11 +98,12 @@ module.exports = async function handler(req, res) {
       return res.status(503).json({ success: false, error: "KV not available", triggered: false });
     }
 
+    const kibaLatestKey = getKibaLatestKey(asset);
     const [btcResult, nasdaqSnapshot, goldSnapshot, lastKiba] = await Promise.all([
-      getFirstSnapshot(kv, BTC_SNAPSHOT_KEYS),
+      getFirstSnapshot(kv, asset === "BTC" ? BTC_SNAPSHOT_KEYS : [`asset:snapshot:${asset}`]),
       kv.get("asset:snapshot:NASDAQ"),
       kv.get("asset:snapshot:GOLD"),
-      kv.get(KIBA_LATEST_KV_KEY)
+      kv.get(kibaLatestKey)
     ]);
     const btcSnapshot = btcResult.value;
 
@@ -102,11 +116,13 @@ module.exports = async function handler(req, res) {
     const runResult = runKibaEngine({
       btcSnapshot: btcSnapshot || null,
       macroSnapshot,
-      lastKibaSnapshot: lastKiba || null
+      lastKibaSnapshot: lastKiba || null,
+      asset
     });
 
     if (!runResult.triggered) {
       console.log("[kiba/run] 200 OK (triggered=false)");
+      await writeKibaHealthStatus(kv, 200);
       return res.status(200).json({
         success: true,
         triggered: false,
@@ -118,7 +134,8 @@ module.exports = async function handler(req, res) {
     const writeResult = await buildAndWriteKibaSnapshot(kv, {
       runResult,
       btcSnapshot,
-      macroSnapshot
+      macroSnapshot,
+      asset
     });
 
     const dispatchPayload = {
@@ -132,6 +149,7 @@ module.exports = async function handler(req, res) {
     };
 
     console.log("[kiba/run] 200 OK (triggered=true)");
+    await writeKibaHealthStatus(kv, 200);
     return res.status(200).json({
       success: true,
       triggered: true,
@@ -146,6 +164,8 @@ module.exports = async function handler(req, res) {
     });
   } catch (error) {
     console.error("[kiba/run] Error:", error?.message);
+    const kvErr = getKV();
+    if (kvErr) writeKibaHealthStatus(kvErr, 200).catch(() => {}); // 200 = レスポンスは 200 で返しているため
     return res.status(200).json({
       success: false,
       triggered: false,

@@ -430,6 +430,9 @@ interface BtcSnapshot {
 7. evaluateDeliveryMode
 8. 転換点アラート（Critical Alert） 実行（`ENABLE_KIBA !== false` 時）→ `/api/kiba/run`
 
+**KIBA（転換点アラート）の時間軸（正式仕様）**  
+KIBA は、**regular スロットで更新された最新の btc:snapshot を前提に評価する**。非 regular 時は前回 regular スロットで書き込まれた btc:snapshot を使用し、新規 snapshot は生成しない。cron は regular スロットでのみ NASDAQ/GOLD snapshot・macroContext・btc:snapshot を更新する。`/api/kiba/run` は常に asset:snapshot:BTC / btc:snapshot の最新 KV を読む。非 regular 時の KIBA は「前回 regular の構造変化を噛み直す」役割とする。
+
 ※ 将来的に Stage1–6 を `btcSnapshotBuilder` に集約し、cron はそれを呼ぶだけにする構成も検討可。
 9. dispatch: minimal / regular / emergency
 10. Regular (Telegram/Email): `formatRegularBriefing(snapshot, lang, opts)` — snapshot-native
@@ -449,10 +452,13 @@ interface BtcSnapshot {
 
 ### 2.8.6 Multi-Asset Framework
 
-- `runAssetSnapshot(assetCode)` — Stage 1–6 を任意アセットに抽象化
+- `runAssetSnapshot(asset)` — asset = "BTC" | "ETH" | "NASDAQ" | "GOLD" 等。Stage 1–6 を任意アセットに抽象化。
+- `writeAssetSnapshot(asset, snapshot)` / `readAssetSnapshot(asset)` — 正式仕様の抽象化レイヤー。
 - `assetSnapshotSchema.js`, `adapters/{btc,eth,sol,nasdaq,gold}Adapter.js`
+- **KV 命名規則**: `asset:snapshot:${ASSET}`, `asset:snapshot:${ASSET}:early`（将来）. `kiba:snapshot:${ASSET}:latest`, `kiba:snapshot:${ASSET}:YYYYMMDDHHmm`.
 - KV: `asset:snapshot:${asset}` / `btc:snapshot` (legacy)
 - DB: `btc_snapshots`, `asset_snapshots`
+- cron で `ENABLE_ETH=true` 時に `runAssetSnapshot("ETH")` を regular スロットで実行（段階 1）。deliveryMode / KIBA の ETH 対応は段階 2。
 
 ### 2.8.7 Snapshot Diff Engine
 

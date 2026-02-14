@@ -5,6 +5,7 @@
  * フロー: Search recent Posts → バズ抽出 → 文脈タグ付け → スロット生成 → マッピング → 寄生コピー生成 → 引用リポスト
  */
 const { loadEnv } = require("../../utils/loadEnv");
+const { getKV } = require("../../utils/kv");
 loadEnv();
 
 const OpenAI = require("openai");
@@ -811,6 +812,10 @@ async function runBuzzWeaveCycle(options = {}) {
       logInfo("ready to post", candidate.post.id);
       const postResult = await postQuoteTweet(body, candidate.post.id);
       console.log("[BuzzWeave] BWE SCAN: REPOSTED quoted_id=" + candidate.post.id + " our_tweet_id=" + (postResult?.id || "null"));
+      try {
+        const kv = getKV();
+        if (kv) await kv.set("health:bwe:lastPost", Date.now());
+      } catch (_) {}
       // 集中投下ログ（市場回収用 + ミッション検証用）
       const buzzInsights = buildBuzzInsights(candidate, slot.lang);
       await insertBuzzweavePostLog({

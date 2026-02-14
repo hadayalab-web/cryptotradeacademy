@@ -1,19 +1,31 @@
 /**
  * Internal engine snapshot schema. No user-facing names exposed.
+ * Multi-asset: kiba:snapshot:${ASSET}:latest, kiba:snapshot:${ASSET}:YYYYMMDDHHmm
  */
 
 const KIBA_LATEST_KV_KEY = "kiba:snapshot:latest";
 const KIBA_HISTORY_PREFIX = "kiba:snapshot";
+
+function getKibaLatestKey(asset = "BTC") {
+  const a = String(asset || "BTC").toUpperCase();
+  return a === "BTC" ? KIBA_LATEST_KV_KEY : `kiba:snapshot:${a}:latest`;
+}
+
+function getKibaHistoryPrefix(asset = "BTC") {
+  const a = String(asset || "BTC").toUpperCase();
+  return a === "BTC" ? KIBA_HISTORY_PREFIX : `kiba:snapshot:${a}`;
+}
 
 function toNumberOrNull(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
 
-function buildKibaHistoryKey(asOfUtc, bucketMinutes = 15) {
+function buildKibaHistoryKey(asOfUtc, bucketMinutes = 15, asset = "BTC") {
+  const prefix = getKibaHistoryPrefix(asset);
   const d = new Date(asOfUtc || Date.now());
   if (!Number.isFinite(d.getTime())) {
-    return `${KIBA_HISTORY_PREFIX}:${Date.now()}`;
+    return `${prefix}:${Date.now()}`;
   }
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, "0");
@@ -22,7 +34,7 @@ function buildKibaHistoryKey(asOfUtc, bucketMinutes = 15) {
   const minute = d.getUTCMinutes();
   const bucket = Math.max(1, Number(bucketMinutes) || 15);
   const minuteBucket = String(Math.floor(minute / bucket) * bucket).padStart(2, "0");
-  return `${KIBA_HISTORY_PREFIX}:${y}${m}${day}${h}${minuteBucket}`;
+  return `${prefix}:${y}${m}${day}${h}${minuteBucket}`;
 }
 
 function normalizeLevel(value) {
@@ -57,6 +69,8 @@ function buildKibaSnapshot({ runResult, btcSnapshot = null, macroSnapshot = null
 module.exports = {
   KIBA_LATEST_KV_KEY,
   KIBA_HISTORY_PREFIX,
+  getKibaLatestKey,
+  getKibaHistoryPrefix,
   buildKibaHistoryKey,
   buildKibaSnapshot
 };

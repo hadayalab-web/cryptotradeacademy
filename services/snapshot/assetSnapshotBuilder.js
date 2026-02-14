@@ -32,6 +32,7 @@ const ADAPTERS = {
 
 /**
  * Persist snapshot to KV at asset:snapshot:{assetCode}
+ * 正式仕様: writeAssetSnapshot(asset, snapshot) の実体。
  */
 async function writeAssetSnapshotToKv(assetCode, snapshot) {
   const kv = getKV();
@@ -43,6 +44,34 @@ async function writeAssetSnapshotToKv(assetCode, snapshot) {
   } catch (e) {
     console.warn("[assetSnapshotBuilder] KV write error:", e.message);
     return false;
+  }
+}
+
+/** Alias for multi-asset 仕様: writeAssetSnapshot(asset, snapshot) */
+async function writeAssetSnapshot(asset, snapshot) {
+  return writeAssetSnapshotToKv(String(asset || "BTC").toUpperCase(), snapshot);
+}
+
+/**
+ * Read asset snapshot from KV. 正式仕様: readAssetSnapshot(asset)
+ * BTC の場合は btc:snapshot をフォールバックとして読む。
+ */
+async function readAssetSnapshot(asset) {
+  const kv = getKV();
+  if (!kv) return null;
+  const code = String(asset || "BTC").toUpperCase();
+  const primaryKey = assetSnapshotKvKey(code);
+  try {
+    let value = await kv.get(primaryKey);
+    if (value) return value;
+    if (code === "BTC") {
+      value = await kv.get("btc:snapshot");
+      if (value) return value;
+    }
+    return null;
+  } catch (e) {
+    console.warn("[assetSnapshotBuilder] readAssetSnapshot error:", e.message);
+    return null;
   }
 }
 
@@ -117,4 +146,9 @@ async function runAssetSnapshot(assetCode, existingSnapshot = null) {
   }
 }
 
-module.exports = { runAssetSnapshot, writeAssetSnapshotToKv };
+module.exports = {
+  runAssetSnapshot,
+  writeAssetSnapshotToKv,
+  writeAssetSnapshot,
+  readAssetSnapshot
+};

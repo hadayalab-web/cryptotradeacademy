@@ -1,11 +1,25 @@
 # BuzzWeave 復旧チェックリスト
 
+## ⚠️ column locked does not exist が出る場合
+
+**接続先（qctmnyoyanisxxsekcjj）は正しいが、その DB の `buzzweave_locks` に `locked` カラムが無い。**
+
+→ **Supabase Dashboard（qctmnyoyanisxxsekcjj）→ SQL Editor** で次を実行：
+
+```sql
+ALTER TABLE buzzweave_locks ADD COLUMN IF NOT EXISTS locked BOOLEAN NOT NULL DEFAULT FALSE;
+UPDATE buzzweave_locks SET locked = FALSE WHERE locked IS NULL;
+```
+
+詳細: `docs/supabase-buzzweave-locks-add-locked.sql`
+
+---
+
 ## 調査結果
 
 ### 1. コードの状態
 - `utils/supabase.js` に `SUPABASE_PROJECT_REF` 対応あり
-- **未コミット・未プッシュ**（git status で M 表示）
-- → デプロイされているのは旧コード。修正が反映されていない
+- → デプロイ済み。接続ログ `[Supabase] connecting to qctmnyoyanisxxsekcjj.supabase.co` が出ていれば OK
 
 ### 2. 接続の流れ
 ```
@@ -58,6 +72,6 @@ Vercel → 対象プロジェクト → Settings → Environment Variables
 
 | 事象 | 原因 |
 |------|------|
-| column locked does not exist | Vercel が別の Supabase DB に接続している |
-| ALTER TABLE 後も同じエラー | 修正した DB と API が参照する DB が別 |
+| column locked does not exist | **接続先 DB の buzzweave_locks に locked カラムが無い**。ALTER TABLE で追加が必要 |
+| 接続先が違う | SUPABASE_PROJECT_REF で強制すれば解消（接続ログで確認済みなら OK） |
 | [Supabase] connecting to が出ない | 修正コードが未デプロイ |

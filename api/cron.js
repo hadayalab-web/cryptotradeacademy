@@ -394,6 +394,13 @@ module.exports = async function handler(req, res) {
   logger.info("Cron job started: Whale Monitor");
 
   try {
+    // /api/health 用: 最終実行時刻を記録（毎回）
+    try {
+      const { getKV } = require("../utils/kv");
+      const kvHealth = getKV();
+      if (kvHealth) await kvHealth.set("health:cron:lastExecution", Date.now());
+    } catch (_) {}
+
     // 0. 時間スロット判定（6時間ごとデフォルト、4時間ごとに切り替え可能）- UTC固定
     const now = new Date();
     const nowUTC = zonedTimeToUtc(now, TZ_UTC);
@@ -1285,6 +1292,13 @@ module.exports = async function handler(req, res) {
         ]);
       } catch (e) {
         console.warn("[Phase 2] runAssetSnapshot NASDAQ/GOLD failed:", e?.message);
+      }
+      if (process.env.ENABLE_ETH === "true") {
+        try {
+          await runAssetSnapshot("ETH");
+        } catch (e) {
+          console.warn("[Phase 2] runAssetSnapshot ETH failed:", e?.message);
+        }
       }
     }
     const { buildMacroContextFromAssets } = require("../logic/macroRiskEvaluator");
