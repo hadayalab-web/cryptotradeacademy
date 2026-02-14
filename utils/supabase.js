@@ -555,9 +555,14 @@ async function acquireBuzzweaveLockLegacy(sb, lockName, cutoff, now) {
     .maybeSingle();
   if (error) {
     if (isMissingColumnError42703(error)) {
-      // locked も updated_at も無い超古いスキーマ → ロックなしで実行許可（多重実行リスクあり）
-      console.warn("[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema (lock_name only), allowing run without lock");
-      return true;
+      // 最小スキーマ時: デフォルトは取得失敗（暴走防止）。投稿を止めたくない場合は BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK=true で run を許可
+      const allowWhenMinimal = process.env.BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK === "true" || process.env.BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK === "1";
+      if (allowWhenMinimal) {
+        console.warn("[buzzweave-run] acquireBuzzweaveLock: minimal schema, BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK=true → allowing run (lock not enforced). Fix table to remove override.");
+        return true;
+      }
+      console.warn("[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema (lock_name only), refusing run. Set BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK=true to allow posting, or fix table. See docs/BUZZWEAVE_LOCK_SCHEMA_FIX.md");
+      return false;
     }
     console.warn("[buzzweave-run] acquireBuzzweaveLock legacy update error:", error.message, error.code);
     return false;
@@ -572,8 +577,13 @@ async function acquireBuzzweaveLockLegacy(sb, lockName, cutoff, now) {
     .maybeSingle();
   if (insertError) {
     if (isMissingColumnError42703(insertError)) {
-      console.warn("[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema, allowing run without lock");
-      return true;
+      const allowWhenMinimal = process.env.BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK === "true" || process.env.BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK === "1";
+      if (allowWhenMinimal) {
+        console.warn("[buzzweave-run] acquireBuzzweaveLock: minimal schema (insert path), BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK=true → allowing run.");
+        return true;
+      }
+      console.warn("[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema, refusing run. Set BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK=true to allow posting, or fix table.");
+      return false;
     }
     if (String(insertError.code) !== "23505") {
       console.warn("[buzzweave-run] acquireBuzzweaveLock legacy insert error:", insertError.message, insertError.code);

@@ -19,7 +19,7 @@ const SYSTEM_PROMPT = `You are the Trap Defence copywriter. All X posts MUST fol
 - ENEMY (クジラ/アルゴ/罠/餌/吸われる)
 - DEFENCE (Minimal/Regular/シールド/フル防御/機関レベル)
 - Create "reflex" not persuasion
-- ~150 characters
+- Length: no strict limit (premium). Keep punchy.
 - Link at end
 - #BTC exactly once
 - Exactly 1 emoji
@@ -57,7 +57,7 @@ Structure (strict):
 4. {{VIDEO_URL}}
 5. #BTC + exactly 1 emoji
 
-Output: 3-4 lines, ~150 chars. Link at end. No abstract words.`;
+Output: 3-4 lines. Link at end. No abstract words. Length: no strict limit (premium).`;
 
 const MODE_REGULAR_USER = `Generate a post in {{LANG}} for mode "regular".
 
@@ -68,7 +68,7 @@ Structure (strict):
 4. {{VIDEO_URL}}
 5. #BTC + exactly 1 emoji
 
-Output: 3-4 lines, ~150 chars. Link at end. No abstract words.`;
+Output: 3-4 lines. Link at end. No abstract words. Length: no strict limit (premium).`;
 
 // 公式アカウント org_type 別の文脈（指示書準拠）
 const ORG_CONTEXT_BY_TYPE = {
@@ -102,24 +102,25 @@ function regimeTone(regime) {
 // Unicode Emoji 簡易検出（一般的な絵文字範囲）
 const EMOJI_REGEX = /[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u2600-\u26FF\u2700-\u27BF]/gu;
 
+// プレミアムプラン: 文字数制限なし。API 上限 25000 のみ安全のため適用
+const X_PREMIUM_MAX_LENGTH = 25000;
 const MAX_LEN_BY_LANG = {
-  ja: 150,
-  ko: 150,
-  ar: 150,
-  en: 180,
-  es: 180,
-  pt: 180
+  ja: X_PREMIUM_MAX_LENGTH,
+  ko: X_PREMIUM_MAX_LENGTH,
+  ar: X_PREMIUM_MAX_LENGTH,
+  en: X_PREMIUM_MAX_LENGTH,
+  es: X_PREMIUM_MAX_LENGTH,
+  pt: X_PREMIUM_MAX_LENGTH
 };
 
 function trimToMax(text, lang = "ja") {
   if (!text || typeof text !== "string") return "";
   const t = text.trim();
-  const max = MAX_LEN_BY_LANG[lang] ?? MAX_LEN_BY_LANG.ja;
-  const margin = Math.min(20, max - 10);
-  if (t.length <= max + margin) return t;
+  const max = MAX_LEN_BY_LANG[lang] ?? X_PREMIUM_MAX_LENGTH;
+  if (t.length <= max) return t;
   const cut = t.substring(0, max - 3);
   const lastSpace = cut.lastIndexOf(" ");
-  const trimmed = lastSpace > max * 0.6 ? cut.substring(0, lastSpace) : cut;
+  const trimmed = lastSpace > max * 0.5 ? cut.substring(0, lastSpace) : cut;
   return trimmed.trim() + "...";
 }
 
@@ -286,11 +287,21 @@ async function generateXPost(opts = {}) {
     }
     body = ensureHashtagAndEmoji(body);
     body = trimToMax(body, lang);
+    // 三重ガード: trimToMax でリンクが切れても絶対に落とさない
+    if (!body.includes(vidUrl)) {
+      body = (body.trim() + " " + vidUrl).replace(/\s+/g, " ");
+      body = ensureHashtagAndEmoji(body);
+    }
     return { body, variant: assignedVariant };
   } catch (e) {
     console.warn("[gpt5mini] generateXPost error:", e.message);
     const fallback = `ダッシュボード真っ赤。クジラが吸う前にシールド。${vidUrl} #BTC 🔥`;
-    return { body: trimToMax(ensureHashtagAndEmoji(fallback), lang), variant: assignedVariant };
+    let out = trimToMax(ensureHashtagAndEmoji(fallback), lang);
+    if (!out.includes(vidUrl)) {
+      out = (out.trim() + " " + vidUrl).replace(/\s+/g, " ");
+      out = ensureHashtagAndEmoji(out);
+    }
+    return { body: out, variant: assignedVariant };
   }
 }
 

@@ -1,18 +1,16 @@
 # BuzzWeave ロックスキーマとフェイルセーフ
 
-**要点**: ログに `buzzweave_locks has minimal schema (lock_name only), allowing run without lock` が出るのは**異常ではなく、意図されたフェイルセーフ**。BuzzWeave は壊れていない。
+**更新**: minimal スキーマ時は **実行を許可せず run をスキップ** するように変更済み（X API 無駄叩き防止）。修復手順は [BUZZWEAVE_LOCK_SCHEMA_FIX.md](./BUZZWEAVE_LOCK_SCHEMA_FIX.md) を参照。
 
 ---
 
-## 1. 3 段階のフェイルセーフ
+## 1. 2 段階のフェイルセーフ（minimal 時は run しない）
 
 | 段階 | 条件 | 動作 |
 |------|------|------|
-| **新ロック** | テーブルに `locked` カラムがある | `locked = true` で排他。TTL 60 秒経過で再取得可能。 |
-| **旧ロック（Legacy）** | `locked` が無いが `updated_at` がある | `updated_at` の TTL のみで排他（`locked column missing, fallback to legacy TTL lock`）。 |
-| **ロック無しで実行** | `lock_name` のみの minimal schema | ロック取得を諦め、**実行を許可**（`minimal schema (lock_name only), allowing run without lock`）。 |
-
-現在、テーブルが **lock_name のみ** のため、上記 3 段階目の「ロック無しで実行」になっている。
+| **新ロック** | テーブルに `locked` カラムがある | `locked = true` で排他。TTL 60 秒経過で再取得可能。run はロック取得成功時のみ。 |
+| **旧ロック（Legacy）** | `locked` が無いが `updated_at` がある | `updated_at` の TTL のみで排他（`locked column missing, fallback to legacy TTL lock`）。run は許可。 |
+| **minimal schema** | `lock_name` のみ | **ロック取得失敗** とし、**run をスキップ**（X API を叩かない）。テーブル修復まで BuzzWeave は起動しない。 |
 
 ---
 
@@ -26,6 +24,5 @@
 
 ## 3. どうするか
 
-- **今すぐ直す必要はない**。フェイルセーフで動いているので、ログは「通知」であり「危険」ではない。
-- **スキーマを整えたい場合**: `buzzweave_locks` に **locked** と **updated_at** を足すと、新ロック方式で動作しログが静かになり、多重実行の可能性がゼロに近づく。
-- 完全スキーマ用の SQL は `docs/supabase-buzzweave-locks-add-locked.sql` および **minimal から一括で完全版にする場合** は `docs/supabase-buzzweave-locks-full-schema-migration.sql` を参照。
+- **minimal スキーマのまま** にすると、BuzzWeave は **run しない**（ロック取得失敗のため）。X API は消費されない。
+- **BuzzWeave を再開したい場合**: `buzzweave_locks` に **locked** と **updated_at** を追加する。手順は [BUZZWEAVE_LOCK_SCHEMA_FIX.md](./BUZZWEAVE_LOCK_SCHEMA_FIX.md) および `docs/supabase-buzzweave-locks-full-schema-migration.sql` を参照。

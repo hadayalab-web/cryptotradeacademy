@@ -1,3 +1,14 @@
+# BuzzWeave Engine 完全開示 Part 2 — 各ファイル全文（1文字も省略なし）
+
+- **Part 1（構造・ロジック・依存・フロー）**: [BUZZWEAVE_ENGINE_FULL_DISCLOSURE.md](./BUZZWEAVE_ENGINE_FULL_DISCLOSURE.md) をクリックで開く
+
+以下のファイルは、リポジトリの該当パスと完全に同一の内容です。
+
+---
+
+## ファイル1: services/td/buzzWeaveEngine.js 全文
+
+```javascript
 /**
  * TD BuzzWeave Engine — 引用リポスト最適化エンジン
  * 目的: 高インプレッション・高エンゲージメント・高CVR（すべて逆算）
@@ -27,8 +38,7 @@ const {
   getQuotedTweetIdsInLast30Days,
   insertQuotedTweets,
   insertBuzzweavePostLog,
-  upsertBuzzweaveStatus402,
-  getBuzzweaveStatus
+  upsertBuzzweaveStatus402
 } = require("../../utils/supabase");
 const { generateXPost } = require("../ai/gpt5mini");
 
@@ -49,16 +59,6 @@ const SLOT_DISTRIBUTION_JST = [
   { start: 6, end: 8, count: 20 }
 ];
 const DAILY_SLOT_COUNT = 400;
-// 投稿したい時間帯だけスロットを生成（X API を叩く時間を絞る）。未設定なら全時間帯。例: "8,9,10,11,12,13,14,17,18,19,20,21,22,23"
-const BUZZWEAVE_ACTIVE_HOURS_JST = (() => {
-  const raw = process.env.BUZZWEAVE_ACTIVE_HOURS_JST;
-  if (!raw || typeof raw !== "string") return null;
-  const hours = raw
-    .split(",")
-    .map((h) => parseInt(h.trim(), 10))
-    .filter((h) => Number.isFinite(h) && h >= 0 && h <= 23);
-  return hours.length ? new Set(hours) : null;
-})();
 const DEFAULT_DEADLINE_MS = Number(process.env.BUZZWEAVE_DEADLINE_MS || 55000);
 const BUZZWEAVE_MAX_TARGETS = Number(process.env.BUZZWEAVE_MAX_TARGETS || 12);
 const BUZZWEAVE_GPT_CLASSIFY_TOP_N = Number(process.env.BUZZWEAVE_GPT_CLASSIFY_TOP_N || 10);
@@ -354,12 +354,8 @@ function generateSlotsForDay(date = new Date()) {
       modeIndex++;
 
       const hour = startH + Math.random() * (endH - startH);
-      const hourJst = Math.floor(hour);
-      // 投稿したい時間帯だけスロットを生成（BUZZWEAVE_ACTIVE_HOURS_JST 未設定の場合は従来どおり全時間帯）
-      if (BUZZWEAVE_ACTIVE_HOURS_JST && !BUZZWEAVE_ACTIVE_HOURS_JST.has(hourJst)) continue;
-
       const slotDate = new Date(base);
-      slotDate.setUTCHours(hourJst - 9, Math.floor(Math.random() * 60), 0, 0);
+      slotDate.setUTCHours(Math.floor(hour) - 9, Math.floor(Math.random() * 60), 0, 0);
 
       slots.push({
         datetime_jst: slotDate.toISOString(),
@@ -731,13 +727,6 @@ async function runBuzzWeaveCycle(options = {}) {
     return { ok: true, message: langFilter ? `No slots for lang=${langFilter}` : "No slots in next hour", posted: 0, runId };
   }
 
-  // 402 無限ループ防止: 直接 runBuzzWeaveCycle が呼ばれた場合でも、X API を叩く前にブロック状態を再確認
-  const status = await getBuzzweaveStatus();
-  if (status.x_api_blocked) {
-    console.log("[BuzzWeave] stop: x_api_blocked=true, skipping X API (no search/post)");
-    return { ok: true, message: "X API blocked flag active", posted: 0, runId, xApiBlocked: true };
-  }
-
   if (isDeadlineExceeded(startMs, deadlineMs)) {
     logWarn("deadline exceeded", {
       stage: "before-collectBuzzCandidates",
@@ -802,35 +791,8 @@ async function runBuzzWeaveCycle(options = {}) {
     return { ok: true, message: "No matching candidate for slot", posted: 0, runId };
   }
 
-  // 候補の健全性チェック: 必ず search パイプライン由来（cluster 付与済み）の候補だけ投稿する。無関係投稿に寄生しない。
-  const VALID_CLUSTERS = new Set(["etf", "price_surge", "fud", "regulation", "meme", "other"]);
-  if (
-    !candidate?.post?.id ||
-    !candidate?.post?.text ||
-    !VALID_CLUSTERS.has(candidate.cluster)
-  ) {
-    logError("invalid candidate (missing post.id/post.text or cluster not from pipeline), refusing to post", {
-      hasPostId: !!candidate?.post?.id,
-      hasPostText: !!candidate?.post?.text,
-      cluster: candidate?.cluster
-    });
-    return { ok: false, message: "Invalid candidate: not from buzz pipeline", posted: 0, runId };
-  }
-
   const videoUrl = pickVidalyticsLink(slot.lang, slot.mode);
-  if (!videoUrl || typeof videoUrl !== "string" || !videoUrl.includes("vidalytics")) {
-    logError("pickVidalyticsLink returned invalid URL, refusing to post");
-    return { ok: false, message: "Invalid Vidalytics URL", posted: 0, runId };
-  }
-
   const body = await generateParasiticCopy(slot, candidate, videoUrl, btcSnapshot);
-
-  // リンク必須ガード: body に Vidalytics が含まれていなければ投稿しない（暴走防止）
-  const bodyStr = typeof body === "string" ? body : "";
-  if (!bodyStr.trim() || !bodyStr.includes(videoUrl)) {
-    logError("body missing Vidalytics link, refusing to post", { bodyLength: bodyStr.length, hasLink: bodyStr.includes(videoUrl) });
-    return { ok: false, message: "Body missing Vidalytics link", posted: 0, runId };
-  }
 
   if (!dryRun) {
     if (isDeadlineExceeded(startMs, deadlineMs)) {
@@ -865,11 +827,29 @@ async function runBuzzWeaveCycle(options = {}) {
         const kv = getKV();
         if (kv) await kv.set("health:bwe:lastPost", Date.now());
       } catch (_) {}
-      // 潜在リスク対策: 重複防止・スロット消費を最優先（この後の DB 失敗でも二重引用・スロット再利用を防ぐ）
+      // 集中投下ログ（市場回収用 + ミッション検証用）
+      const buzzInsights = buildBuzzInsights(candidate, slot.lang);
+      await insertBuzzweavePostLog({
+        slotLang: slot.lang,
+        clusterLabel: candidate.cluster || "other",
+        clusterScore: clusterScores[candidate.cluster] ?? 0,
+        candidateTweetId: String(candidate.post.id),
+        engagementScore: candidate.engagementScore ?? 0,
+        postedAt: new Date().toISOString(),
+        ourTweetId: postResult?.id || null,
+        slotMode: slot.mode,
+        buzzSummary: buzzInsights.buzzSummary,
+        clusterPsych: buzzInsights.clusterPsych,
+        trapDefenceInsight: buzzInsights.trapDefenceInsight,
+        dangerLabel: candidate.dangerLabel || "neutral",
+        usedMode: buzzInsights.usedMode || "neutral_insight"
+      });
+      // 30日重複防止へ登録（成功投稿時）
       await insertQuotedTweets([{ tweet_id: String(candidate.post.id), lang: slot.lang }]);
       const consume = await consumeTdPostSlot(slot.id);
       let compensation = null;
       if (!consume.ok) {
+        // 補償: 削除失敗時は将来時刻へ退避し、同slotの即時再利用を防ぐ
         const deferred = await deferTdPostSlot(slot.id, 180);
         compensation = {
           slotConsumeFailed: true,
@@ -878,33 +858,8 @@ async function runBuzzWeaveCycle(options = {}) {
         };
         logWarn("slot consume failed, compensation applied", { runId, slotId: slot.id, compensation });
       }
-      // ログ・アーカイブ（失敗しても投稿は成功扱い）
-      const buzzInsights = buildBuzzInsights(candidate, slot.lang);
-      try {
-        await insertBuzzweavePostLog({
-          slotLang: slot.lang,
-          clusterLabel: candidate.cluster || "other",
-          clusterScore: clusterScores[candidate.cluster] ?? 0,
-          candidateTweetId: String(candidate.post.id),
-          engagementScore: candidate.engagementScore ?? 0,
-          postedAt: new Date().toISOString(),
-          ourTweetId: postResult?.id || null,
-          slotMode: slot.mode,
-          buzzSummary: buzzInsights.buzzSummary,
-          clusterPsych: buzzInsights.clusterPsych,
-          trapDefenceInsight: buzzInsights.trapDefenceInsight,
-          dangerLabel: candidate.dangerLabel || "neutral",
-          usedMode: buzzInsights.usedMode || "neutral_insight"
-        });
-      } catch (logErr) {
-        logWarn("insertBuzzweavePostLog failed (post already succeeded)", logErr?.message);
-      }
-      try {
-        await insertTdCopyArchive({ text: body, lang: slot.lang, mode: slot.mode });
-        await insertTdCopyMeta(inferCopyMeta(body, slot.mode, slot.lang));
-      } catch (archiveErr) {
-        logWarn("insertTdCopyArchive/insertTdCopyMeta failed (post already succeeded)", archiveErr?.message);
-      }
+      await insertTdCopyArchive({ text: body, lang: slot.lang, mode: slot.mode });
+      await insertTdCopyMeta(inferCopyMeta(body, slot.mode, slot.lang));
       const xpostResult = await insertXPost({
         lang: slot.lang,
         mode: slot.mode,
@@ -962,7 +917,7 @@ async function generateDailySlots() {
   await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
   const slots = generateSlotsForDay(new Date());
   const result = await insertTdPostSlots(slots);
-  return { ok: result.ok, count: result.ok ? slots.length : 0, targetDailySlots: DAILY_SLOT_COUNT };
+  return { ok: result.ok, count: slots.length, targetDailySlots: DAILY_SLOT_COUNT };
 }
 
 module.exports = {
@@ -981,3 +936,407 @@ module.exports = {
   BUZZ_THRESHOLD,
   SLOT_DISTRIBUTION_JST
 };
+```
+
+---
+
+## ファイル2: api/buzzweave-run.js 全文
+
+```javascript
+/**
+ * TD BuzzWeave Engine — 1サイクル実行 API
+ * Cron: GET /api/buzzweave-run?lang=en など（1 run で 1 言語のみ、round-robin で lang を渡す）
+ *
+ * 緊急停止: BUZZWEAVE_EMERGENCY_STOP=true で即 return
+ * ロック: 多重実行防止のため buzzweave_locks で排他。取得後は try/finally で必ず解放。TTL 60秒で自動解除。
+ *
+ * Runtime: Node.js を強制（Edge では console.log 等が期待どおり動かないため）
+ */
+require("../utils/suppressKnownWarnings");
+
+const { runBuzzWeaveCycle } = require("../services/td/buzzWeaveEngine");
+const { loadEnv } = require("../utils/loadEnv");
+const { getKV } = require("../utils/kv");
+const { BTC_SNAPSHOT_KV_KEY, BTC_SNAPSHOT_MAX_AGE_MS } = require("../services/snapshot/btcSnapshotSchema");
+const { assetSnapshotKvKey } = require("../services/snapshot/assetSnapshotSchema");
+const {
+  acquireBuzzweaveLock,
+  releaseBuzzweaveLock,
+  upsertBuzzweaveStatusEmergencyStop,
+  getBuzzweaveStatus,
+  isSupabaseConfigured,
+  getBuzzweaveLockState
+} = require("../utils/supabase");
+loadEnv();
+
+const BUZZWEAVE_LANGS = ["en", "es", "pt", "ja", "ko", "ar"];
+
+async function handler(req, res) {
+  console.log("[buzzweave-run] handler start");
+
+  if (req.method !== "GET" && req.method !== "POST") {
+    console.log("[buzzweave-run] early return: method not allowed");
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers?.authorization || req.headers?.Authorization;
+  const querySecret = req.query?.cron_secret;
+  const authOk = !cronSecret || authHeader === `Bearer ${cronSecret}` || querySecret === cronSecret;
+  if (!authOk) {
+    console.log("[buzzweave-run] early return: 401 Unauthorized (cronSecret set, Bearer or cron_secret mismatch)");
+    return res.status(401).json({ ok: false, error: "Unauthorized" });
+  }
+
+  if (process.env.BUZZWEAVE_EMERGENCY_STOP === "true" || process.env.BUZZWEAVE_EMERGENCY_STOP === "1") {
+    console.log("[buzzweave-run] early return: Emergency stop active");
+    await upsertBuzzweaveStatusEmergencyStop("env_flag");
+    return res.status(200).json({ ok: true, message: "Emergency stop active", posted: 0 });
+  }
+
+  const status = await getBuzzweaveStatus();
+  if (status.x_api_blocked) {
+    console.log("[buzzweave-run] early return: X API blocked flag active");
+    return res.status(200).json({ ok: true, message: "X API blocked flag active", posted: 0 });
+  }
+
+  if (!isSupabaseConfigured()) {
+    console.error("[buzzweave-run] early return: Supabase NOT configured (NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY missing on Vercel)");
+    return res.status(503).json({ ok: false, message: "Supabase not configured", posted: 0 });
+  }
+
+  const acquired = await acquireBuzzweaveLock();
+  if (!acquired) {
+    const lockState = await getBuzzweaveLockState();
+    console.log("[buzzweave-run] early return: Locked", lockState.ok ? { locked: lockState.locked, updated_at: lockState.updated_at } : { reason: lockState.reason });
+    return res.status(200).json({
+      ok: true,
+      message: "Locked (another run in progress)",
+      posted: 0,
+      debug_lock: lockState.ok
+        ? { locked: lockState.locked, updated_at: lockState.updated_at, hint: "ロック取得に失敗。DB上で locked=true なら他リクエストが保持中。updated_at が60秒以上前ならTTLで解除されるはず。" }
+        : { reason: lockState.reason, error: lockState.error }
+    });
+  }
+
+  console.log("[buzzweave-run] lock acquired");
+
+  const dryRun = req.query?.dry_run === "true" || req.query?.dry_run === "1";
+  const assetParam = (req.query?.asset || "BTC").toUpperCase();
+  const langParam = req.query?.lang;
+  const langFilter = langParam && BUZZWEAVE_LANGS.includes(langParam)
+    ? langParam
+    : BUZZWEAVE_LANGS[Math.floor(Date.now() / 60000) % BUZZWEAVE_LANGS.length];
+
+  try {
+    let btcSnapshot = null;
+    let kv = null;
+    try {
+      kv = getKV();
+      if (kv) {
+        const assetKey = assetSnapshotKvKey(assetParam);
+        let raw = await kv.get(assetKey);
+        if (!raw && assetParam === "BTC") raw = await kv.get(BTC_SNAPSHOT_KV_KEY);
+        if (raw && raw.as_of_utc) {
+          const age = Date.now() - new Date(raw.as_of_utc).getTime();
+          if (age <= BTC_SNAPSHOT_MAX_AGE_MS) btcSnapshot = raw;
+          else console.warn("[buzzweave-run] snapshot too old, age_ms=" + age);
+        } else {
+          console.warn("[buzzweave-run] no snapshot in KV for asset=" + assetParam + " (run /api/cron first)");
+        }
+      }
+    } catch (e) {
+      console.warn("[buzzweave-run] KV get snapshot failed:", e.message);
+    }
+
+    if (!btcSnapshot) {
+      console.log("[buzzweave-run] early return: SKIP_NO_SNAPSHOT (no btcSnapshot in KV)");
+      console.warn("[BWE] No btcSnapshot available, skipping BuzzWeave cycle.");
+      return res.status(200).json({ ok: true, status: "SKIP_NO_SNAPSHOT", message: "No btcSnapshot in KV (run /api/cron first)", posted: 0 });
+    }
+
+    if (kv && !btcSnapshot.macroContext) {
+      try {
+        const [nasdaq, gold] = await Promise.all([
+          kv.get(assetSnapshotKvKey("NASDAQ")),
+          kv.get(assetSnapshotKvKey("GOLD"))
+        ]);
+        if (nasdaq || gold) {
+          const { buildMacroContextFromAssets } = require("../logic/macroRiskEvaluator");
+          const macroContext = buildMacroContextFromAssets({
+            nasdaqSnapshot: nasdaq || null,
+            goldSnapshot: gold || null
+          });
+          btcSnapshot = { ...btcSnapshot, macroContext };
+        }
+      } catch (_) {}
+    }
+
+    console.log("[buzzweave-run] run started");
+    const result = await runBuzzWeaveCycle({ dryRun, langFilter, btcSnapshot });
+    console.log("[buzzweave-run] run completed");
+    return res.status(200).json(result);
+  } catch (e) {
+    console.error("[buzzweave-run] ❌ Error in runBuzzWeave", e.message);
+    console.error("[buzzweave-run] Stack trace for lock:", e.stack);
+    return res
+      .status(500)
+      .setHeader("x-vercel-no-retry", "1")
+      .json({ ok: false, message: "Internal error", posted: 0 });
+  } finally {
+    await releaseBuzzweaveLock();
+    console.log("[buzzweave-run] lock released");
+  }
+}
+
+module.exports = handler;
+module.exports.config = { runtime: "nodejs" };
+```
+
+---
+
+## ファイル3: api/buzzweave-slots.js 全文
+
+```javascript
+/**
+ * TD BuzzWeave Engine — 日次400枠スロット生成 API
+ * Cron: GET /api/buzzweave-slots（日1回・0:00 JST 等）
+ */
+
+require("../utils/suppressKnownWarnings");
+const { getSupabase } = require("../utils/supabase");
+const { generateDailySlots } = require("../services/td/buzzWeaveEngine");
+const { loadEnv } = require("../utils/loadEnv");
+loadEnv();
+
+module.exports = async function handler(req, res) {
+  if (req.method !== "GET" && req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers?.authorization || req.headers?.Authorization;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ ok: false, error: "Unauthorized" });
+  }
+
+  const sb = getSupabase();
+  if (!sb) {
+    return res.status(503).json({
+      ok: false,
+      error:
+        "Supabase が未設定です。NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY を確認してください。"
+    });
+  }
+  const { error: slotTableError } = await sb.from("td_post_slots").select("id").limit(1);
+  if (slotTableError) {
+    return res.status(500).json({
+      ok: false,
+      error:
+        "td_post_slots が存在しません。Supabase SQL Editor で docs/supabase-tweet-metrics-schema.sql を実行してテーブルを作成してください。"
+    });
+  }
+
+  try {
+    const result = await generateDailySlots();
+    return res.status(200).json(result);
+  } catch (e) {
+    console.error("[buzzweave-slots] error:", e.message);
+    return res.status(500).json({
+      ok: false,
+      error: e.message
+    });
+  }
+};
+```
+
+---
+
+## ファイル4: api/buzzweave-health.js 全文
+
+```javascript
+/**
+ * TD BuzzWeave Engine — Health Check API
+ * GET /api/buzzweave-health
+ * Authorization: Bearer ${CRON_SECRET}
+ */
+
+const {
+  getSupabase,
+  getTdInfluencers,
+  getTdOfficialAccounts,
+  getTdPostSlotsInNextHour,
+  getTdPostSlotsHealthStats,
+  getBuzzweaveLockState,
+  isSupabaseConfigured
+} = require("../utils/supabase");
+require("../utils/suppressKnownWarnings");
+const { loadEnv } = require("../utils/loadEnv");
+loadEnv();
+
+module.exports = async function handler(req, res) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers?.authorization || req.headers?.Authorization;
+  const querySecret = req.query?.cron_secret;
+  const authOk = !cronSecret || authHeader === `Bearer ${cronSecret}` || querySecret === cronSecret;
+  if (!authOk) {
+    return res.status(401).json({ ok: false, error: "Unauthorized" });
+  }
+
+  const supabaseConfigured = isSupabaseConfigured();
+  const lockState = await getBuzzweaveLockState();
+
+  if (!supabaseConfigured || !lockState.ok) {
+    return res.status(503).json({
+      ok: false,
+      status: "degraded",
+      reason: lockState.reason || "supabase_not_configured",
+      hint: "Vercel の環境変数 NEXT_PUBLIC_SUPABASE_URL/SUPABASE_URL と SUPABASE_SERVICE_ROLE_KEY がローカル .env と一致しているか確認してください。",
+      checks: { supabase_configured: supabaseConfigured, lock_read_ok: lockState.ok }
+    });
+  }
+
+  const sb = getSupabase();
+  if (!sb) {
+    return res.status(503).json({
+      ok: false,
+      status: "degraded",
+      reason: "supabase_not_configured"
+    });
+  }
+
+  try {
+    const env = {
+      OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+      X_API_CONSUMER_KEY: !!process.env.X_API_CONSUMER_KEY,
+      X_API_CONSUMER_KEY_SECRET: !!process.env.X_API_CONSUMER_KEY_SECRET,
+      X_API_ACCESS_TOKEN: !!process.env.X_API_ACCESS_TOKEN,
+      X_API_ACCESS_TOKEN_SECRET: !!process.env.X_API_ACCESS_TOKEN_SECRET
+    };
+    const [slotsHealth, nextHourSlots, influencers, officials] = await Promise.all([
+      getTdPostSlotsHealthStats(),
+      getTdPostSlotsInNextHour(),
+      getTdInfluencers(null, 1),
+      getTdOfficialAccounts(null, 1)
+    ]);
+
+    const ok =
+      slotsHealth.ok &&
+      Array.isArray(nextHourSlots) &&
+      influencers.length > 0 &&
+      officials.length > 0 &&
+      Object.values(env).every(Boolean);
+
+    return res.status(ok ? 200 : 503).json({
+      ok,
+      status: ok ? "healthy" : "degraded",
+      checks: {
+        env,
+        supabase: {
+          configured: true,
+          lock: {
+            locked: lockState.locked,
+            updated_at: lockState.updated_at
+          },
+          hint: "lock.locked=true かつ buzzweave-run が毎回 Locked なら、TTL 60秒待つか release-buzzweave-lock.js を実行。Vercel とローカルで別 DB を見ている可能性あり。"
+        },
+        slots: {
+          total: slotsHealth.total_slots ?? null,
+          nextHour: Array.isArray(nextHourSlots) ? nextHourSlots.length : null
+        },
+        targets: {
+          influencers_has_data: influencers.length > 0,
+          officials_has_data: officials.length > 0
+        }
+      },
+      ts: new Date().toISOString()
+    });
+  } catch (e) {
+    return res.status(500).json({
+      ok: false,
+      status: "error",
+      error: e.message
+    });
+  }
+};
+```
+
+---
+
+## ファイル5: api/buzzweave-metrics-poll.js 全文
+
+```javascript
+/**
+ * BuzzWeave 集中投下ログ: public_metrics ポーリング
+ * Vercel Cron または手動で呼び出し。metrics_fetched_at が null のログに対して
+ * X API から自分の引用リポストの public_metrics を取得し、buzzweave_post_log に紐づけて保存する。
+ */
+const { fetchBuzzweavePostLogsPendingMetrics, updateBuzzweavePostLogWithMetrics } = require("../utils/supabase");
+const { getTweetMetrics } = require("../services/x/metrics");
+
+module.exports = async function handler(req, res) {
+  res.setHeader("Content-Type", "application/json");
+  try {
+    const limit = parseInt(req.query?.limit, 10) || 20;
+    const minAgeMinutes = parseInt(req.query?.minAgeMinutes, 10) || 5;
+
+    const { ok, rows } = await fetchBuzzweavePostLogsPendingMetrics(limit, minAgeMinutes);
+    if (!ok || !rows?.length) {
+      return res.status(200).json({
+        ok: true,
+        message: "No pending metrics",
+        updated: 0,
+        errors: []
+      });
+    }
+
+    const results = [];
+    const errors = [];
+    for (const row of rows) {
+      const tweetId = row.our_tweet_id;
+      if (!tweetId) continue;
+      try {
+        const data = await getTweetMetrics(tweetId, true);
+        const pm = data?.publicMetrics || {};
+        const impressions =
+          data?.nonPublicMetrics?.impression_count ??
+          data?.organicMetrics?.impression_count ??
+          pm.impression_count ??
+          null;
+        const metrics = {
+          impressions: impressions ?? null,
+          likes: pm.like_count ?? null,
+          retweets: pm.retweet_count ?? null,
+          quotes: pm.quote_count ?? null,
+          replies: pm.reply_count ?? null
+        };
+        const update = await updateBuzzweavePostLogWithMetrics(tweetId, metrics);
+        if (update.ok) {
+          results.push({ tweetId, ...metrics });
+        } else {
+          errors.push({ tweetId, error: "update failed" });
+        }
+      } catch (e) {
+        errors.push({ tweetId, error: e.message });
+      }
+    }
+
+    return res.status(200).json({
+      ok: true,
+      updated: results.length,
+      results,
+      errors: errors.length ? errors : undefined
+    });
+  } catch (e) {
+    console.error("[buzzweave-metrics-poll]", e.message);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+};
+```
+
+---
+
+次のファイルはクリックで開けます: [config/buzzweaveLinks.js](../config/buzzweaveLinks.js)、[services/ai/gpt5mini.js](../services/ai/gpt5mini.js)、[services/x/client.js](../services/x/client.js)、[utils/supabase.js](../utils/supabase.js)。Part 1 [BUZZWEAVE_ENGINE_FULL_DISCLOSURE.md](./BUZZWEAVE_ENGINE_FULL_DISCLOSURE.md) に「5. X API」「6. GPT」「7. pickVidalyticsLink」「8. generateParasiticCopy」「9. テンプレート」および supabase の BuzzWeave 関連関数の抜粋を記載済みです。
