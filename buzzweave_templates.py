@@ -11,6 +11,8 @@ SUPPORTED_LANGUAGES = {"en", "es", "pt", "ar", "ko", "ja"}
 TRAP_CLASSIFICATIONS = {"BAIT_NO_FLOW", "HYPE_WITH_FLOW", "FEAR_WITH_FLOW"}
 
 DATA_SOURCES_LABEL = "Data: Dune / Glassnode / Coinglass (structure only, no prediction)."
+# グローバル固定タグ（OS の顔。アルゴ・クロス言語で共通）
+GLOBAL_HASHTAG = "#TrapDefence"
 
 HASHTAGS_BY_LANG: Dict[str, str] = {
     "en": "#Bitcoin #Crypto",
@@ -28,6 +30,44 @@ CTA_BY_LANG: Dict[str, str] = {
     "ar": "إعادة تغريد لإنقاذ شخص. ما رأيك؟",
     "ko": "RT로 누군가를 구할 수 있어요. 어떻게 생각하세요?",
     "ja": "RTで誰かを救える。どう思う？",
+}
+
+# v3: ブックマーク誘導（アルゴの retention シグナル。Save this liq map 等）
+BOOKMARK_SAVE_BY_LANG: Dict[str, str] = {
+    "en": "Save this — liq/flow map for later.",
+    "es": "Guarda esto — mapa de liquidez/flujo para después.",
+    "pt": "Salve isto — mapa de liquidez/fluxo para depois.",
+    "ar": "احفظ هذا — خريطة السيولة/التدفق للمراجعة لاحقاً.",
+    "ko": "저장해 두세요 — 나중에 볼 유동성/플로우 맵.",
+    "ja": "保存用 — 流動性・フローマップはあとで見返す用。",
+}
+
+# v3: 返信誘発フック（質問・投票で reply rate >5% → ランキング3倍）
+QUESTION_HOOK_V3: Dict[str, Dict[str, str]] = {
+    "BAIT_NO_FLOW": {
+        "en": "Trap or real? Structure says:",
+        "es": "¿Trampa o real? La estructura dice:",
+        "pt": "Trampa ou real? A estrutura diz:",
+        "ar": "فخ أم حقيقي؟ الهيكل يقول:",
+        "ko": "함정일까, 진짜일까? 구조가 말해요:",
+        "ja": "罠か、本物か？構造が示す:",
+    },
+    "HYPE_WITH_FLOW": {
+        "en": "This time flow confirms. Your take?",
+        "es": "Esta vez el flujo lo confirma. ¿Tu opinión?",
+        "pt": "Desta vez o fluxo confirma. O que acha?",
+        "ar": "هذه المرة التدفق يؤكد. ما رأيك؟",
+        "ko": "이번엔 플로우가 확인해요. 어떻게 보세요?",
+        "ja": "今回はフローが裏付け。あなたの見解は？",
+    },
+    "FEAR_WITH_FLOW": {
+        "en": "Structural risk — not just emotion. Agree?",
+        "es": "Riesgo estructural — no solo emoción. ¿De acuerdo?",
+        "pt": "Risco estrutural — não só emoção. Concorda?",
+        "ar": "مخاطر هيكلية — ليست عاطفة فقط. توافق؟",
+        "ko": "구조적 리스크 — 감정만이 아니에요. 동의하세요?",
+        "ja": "構造的リスク — 感情だけじゃない。同意？",
+    },
 }
 
 # v1: one-shot templates with placeholders {flow}, {flow_direction}, {liquidity}, {structure_note}
@@ -134,8 +174,8 @@ def render(
     - lang: en, es, pt, ar, ko, ja (auto-normalized).
     - classification: BAIT_NO_FLOW | HYPE_WITH_FLOW | FEAR_WITH_FLOW.
     - kiba_data: onchain_confirmation, flow_signal, liquidity_signal, sentiment_signal.
-    - format: "single" → one string; "thread" → list of 3 tweets (Hook, Data, CTA).
-    - version: "v1" = placeholder templates; "v2" = empathy + bullets + CTA + data source.
+    - format: "single" → one string; "thread" → list of 3 (v2) or 5 (v3) tweets.
+    - version: "v1" = placeholder; "v2" = empathy + bullets + CTA; "v3" = question hook + bookmark + #TrapDefence (algo-optimized).
     """
     lang = normalize_lang(lang)
     if classification not in TRAP_CLASSIFICATIONS:
@@ -160,6 +200,25 @@ def render(
                 structure_note=structure_note_str,
             )
         return template
+
+    # v3: question hook + bookmark + #TrapDefence（アルゴ最適化: 返信誘発・保存誘導・グローバルタグ）
+    if version == "v3":
+        qhook_map = QUESTION_HOOK_V3.get(classification, QUESTION_HOOK_V3["BAIT_NO_FLOW"])
+        hook = qhook_map.get(lang) or qhook_map.get("en") or ""
+        bookmark = BOOKMARK_SAVE_BY_LANG.get(lang) or BOOKMARK_SAVE_BY_LANG["en"] or ""
+        bullets = build_bullets(kiba)
+        data_src = DATA_SOURCES_LABEL
+        hashtag_with_global = (hashtag + " " + GLOBAL_HASHTAG).strip()
+        if format == "thread":
+            # 5-part thread: Hook+question → Chart slot(bullets) → Heatmap/liq(structure_note) → 結論 → Bookmark+CTA+hashtags
+            return [
+                hook,
+                "\n".join(bullets),
+                structure_note_str,
+                data_src,
+                bookmark + "\n\n" + cta + " " + hashtag_with_global,
+            ]
+        return hook + "\n\n" + "\n".join(bullets) + "\n\n" + structure_note_str + "\n\n" + data_src + "\n\n" + bookmark + "\n\n" + cta + " " + hashtag_with_global
 
     # v2
     hook_map = EMPATHY_HOOK_V2.get(classification, EMPATHY_HOOK_V2["BAIT_NO_FLOW"])

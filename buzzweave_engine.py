@@ -39,11 +39,21 @@ GLOBAL_OVERLAP_UTC = [(13, 0), (16, 0)]
 
 # Daily cap: align with buzzweave_kpi guardrails (shadowban risk if >5/day)
 try:
-    from buzzweave_kpi import GUARDRAIL_MAX_POSTS_PER_DAY as _KPI_MAX, RECOMMENDED_MIN_POSTS_PER_DAY as _KPI_MIN, get_neutral_boosters_for_lang
+    from buzzweave_kpi import (
+        GUARDRAIL_MAX_POSTS_PER_DAY as _KPI_MAX,
+        GUARDRAIL_EMERGENCY_MAX_POSTS_PER_DAY as _KPI_EMERGENCY_MAX,
+        RECOMMENDED_MIN_POSTS_PER_DAY as _KPI_MIN,
+        SELF_RESTRAINT_MAX_POSTS_PER_DAY as _KPI_RESTRAINT_MAX,
+        get_neutral_boosters_for_lang,
+        get_self_restraint_protocol,
+    )
 except ImportError:
     _KPI_MAX = 4
+    _KPI_EMERGENCY_MAX = 5
     _KPI_MIN = 2
+    _KPI_RESTRAINT_MAX = 1
     get_neutral_boosters_for_lang = lambda lang: []
+    get_self_restraint_protocol = lambda: {}
 MAX_POSTS_PER_DAY = min(4, _KPI_MAX)
 MIN_POSTS_PER_DAY = max(2, _KPI_MIN)
 DATA_SOURCES_LABEL = "Data: Dune / Glassnode / Coinglass (structure only, no prediction)."
@@ -425,6 +435,18 @@ def generate_structural_quote_thread(post: dict, classification: str, kiba_data:
     return generate_structural_quote_v2(post, classification, kiba_data, use_thread_format=True)
 
 
+def generate_structural_quote_v3(post: dict, classification: str, kiba_data: dict, use_thread_format: bool = False) -> Union[str, List[str]]:
+    """
+    v3: アルゴ最適化。質問フック + ブックマーク誘導 + #TrapDefence。
+    Reply誘発・メディア前提(attach_visual=True 推奨)・保存用コピーを組み込み。
+    use_thread_format=True 時は 5-part thread: Hook+question → Bullets → Structure note → Data source → Bookmark+CTA+hashtags.
+    """
+    if template_render:
+        lang = _tpl_normalize_lang(post.get("language") or "en") if _tpl_normalize_lang else _normalize_lang(post.get("language") or "en")
+        return template_render(lang, classification, kiba_data, format="thread" if use_thread_format else "single", version="v3")
+    return generate_structural_quote_v2(post, classification, kiba_data, use_thread_format=use_thread_format)
+
+
 def generate_structural_quote(post: dict, classification: str, kiba_data: dict) -> str:
     """
     For BAIT_NO_FLOW: trap visibility / heat vs structure.
@@ -526,20 +548,25 @@ def run_buzzweave_trap_cycle(
     dry_run: bool = True,
     max_candidates: Optional[int] = None,
     use_v2: bool = True,
+    use_v3: bool = False,
     require_fire_window: bool = True,
     use_thread_format: bool = False,
+    self_restraint_active: bool = False,
 ) -> dict:
     """
     Detect trap candidates -> classify with KIBA -> generate structural quote -> publish (or log only if dry_run).
     Only posts when KIBA has crosschecked and classification is one of BAIT_NO_FLOW, HYPE_WITH_FLOW, FEAR_WITH_FLOW.
-    v2: empathy + bullets + CTA + data source; daily cap MAX_POSTS_PER_DAY; attach_visual + hashtag in log.
+    v2: empathy + bullets + CTA. v3: question hook + bookmark + #TrapDefence (algo-optimized). attach_visual=True 推奨。
+    self_restraint_active=True 時は 1 日 1 本まで（ER 低迷時の自己抑制）。緊急時も 5 本上限。
     """
     candidates = detect_trap_candidates(require_fire_window=require_fire_window)
     if max_candidates is not None and max_candidates > 0:
         candidates = candidates[:max_candidates]
     posts_today = 0 if dry_run else _count_posts_today()
-    remaining_cap = max(0, MAX_POSTS_PER_DAY - posts_today)
-    results = {"candidates": len(candidates), "posted": 0, "skipped": 0, "posts_today": posts_today, "logs": []}
+    effective_cap = _KPI_RESTRAINT_MAX if self_restraint_active else MAX_POSTS_PER_DAY
+    effective_cap = min(effective_cap, _KPI_EMERGENCY_MAX)
+    remaining_cap = max(0, effective_cap - posts_today)
+    results = {"candidates": len(candidates), "posted": 0, "skipped": 0, "posts_today": posts_today, "effective_cap": effective_cap, "logs": []}
     for post in candidates:
         if not dry_run and remaining_cap <= 0:
             results["skipped"] += 1
@@ -548,7 +575,9 @@ def run_buzzweave_trap_cycle(
         if classification not in TRAP_CLASSIFICATIONS:
             results["skipped"] += 1
             continue
-        if use_v2:
+        if use_v3:
+            quote = generate_structural_quote_v3(post, classification, kiba_data, use_thread_format=use_thread_format)
+        elif use_v2:
             quote = generate_structural_quote_v2(post, classification, kiba_data, use_thread_format=use_thread_format)
         else:
             quote = generate_structural_quote(post, classification, kiba_data)
@@ -564,15 +593,23 @@ def run_buzzweave_trap_cycle(
                 "classification": classification,
                 "quote_preview": preview,
                 "use_v2": use_v2,
+                "use_v3": use_v3,
                 "attach_visual": True,
             })
             results["skipped"] += 1
             continue
         lang = _normalize_lang(post.get("language") or "en")
+        hashtag = HASHTAGS_BY_LANG.get(lang) or HASHTAGS_BY_LANG["en"]
+        if use_v3:
+            try:
+                from buzzweave_templates import GLOBAL_HASHTAG
+                hashtag = (hashtag + " " + GLOBAL_HASHTAG).strip()
+            except ImportError:
+                pass
         publish_quote(
             post, quote, classification, kiba_data,
             attach_visual=True,
-            hashtag=HASHTAGS_BY_LANG.get(lang) or HASHTAGS_BY_LANG["en"],
+            hashtag=hashtag,
         )
         results["posted"] += 1
         remaining_cap -= 1
@@ -589,13 +626,15 @@ def run_kiba_to_buzzweave_pipeline(
     dry_run: bool = True,
     max_candidates: Optional[int] = None,
     use_v2: bool = True,
+    use_v3: bool = False,
     require_fire_window: bool = True,
     use_thread_format: bool = False,
+    self_restraint_active: bool = False,
 ) -> dict:
     """
     Run KIBA crosscheck then BuzzWeave trap cycle in one flow.
     1. (Optional) Run influencer_onchain_alert_pipeline() → alerts + export_for_kiba.
-    2. Run run_buzzweave_trap_cycle() with given options.
+    2. Run run_buzzweave_trap_cycle() with given options (v2/v3, self_restraint).
     Returns { "kiba_export": {...}, "buzzweave_result": {...} }.
     """
     kiba_export: Optional[dict] = None
@@ -609,8 +648,10 @@ def run_kiba_to_buzzweave_pipeline(
         dry_run=dry_run,
         max_candidates=max_candidates,
         use_v2=use_v2,
+        use_v3=use_v3,
         require_fire_window=require_fire_window,
         use_thread_format=use_thread_format,
+        self_restraint_active=self_restraint_active,
     )
     return {"kiba_export": kiba_export, "buzzweave_result": buzzweave_result}
 
@@ -619,8 +660,9 @@ def run_kiba_to_buzzweave_pipeline(
 # Spec summary (Grok final)
 # ---------------------------------------------------------------------------
 # • Fire: 5–30 min after bait; only in language UTC window (EN 14–18, ES/PT 20–23, AR 16–20, KO/JA 01–05, global 13–16).
-# • Template v2: empathy hook + bullets (Flow / Liquidity / Sentiment) + data source + CTA + hashtag.
-# • Thread: 3 tweets = Hook | Data (KIBA) | CTA. Option: 2–4 posts/day, attach chart/heatmap/liq.
+# • Template v2: empathy hook + bullets + CTA. v3: question hook + bookmark + #TrapDefence (algo-optimized).
+# • Thread: v2 = 3 tweets (Hook | Data | CTA). v3 = 5 tweets (Hook+question | Bullets | Structure | Data | Bookmark+CTA).
+# • Cap: 2–4/day; self_restraint=1/day; emergency max 5/day. attach_visual=True 推奨.
 # • Risk: data source cited; no prediction; structure only; positive ratio 3:1 (education : warning).
 
 # ---------------------------------------------------------------------------

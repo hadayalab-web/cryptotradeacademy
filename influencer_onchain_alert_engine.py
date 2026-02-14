@@ -219,6 +219,15 @@ def compute_kiba_alert_score(alert: dict) -> dict:
         score += 5
     if (alert.get("sentiment_signal") or "").upper() in ("FOMO", "FUD"):
         score += 5
+    # 行動パターン補正: trap_density / peak_trap_hours で +0〜5
+    try:
+        from influencer_behavior_profiler import get_behavior_correction
+        from datetime import datetime, timezone
+        acc = (alert.get("account") or "").strip()
+        if acc:
+            score += get_behavior_correction(acc, datetime.now(timezone.utc).hour)
+    except ImportError:
+        pass
     score = min(100.0, max(0.0, score))
     alert["kiba_alert_score"] = str(round(score, 1))
     return alert

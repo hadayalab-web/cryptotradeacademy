@@ -236,6 +236,15 @@ def compute_sentiment_modifier() -> float:
     from_cat = 5.0 if has_high else 0.0
 
     modifier = from_risk + from_count + from_cat
+    # 行動パターン補正: トップ5オフェンダー分の trap_density/peak_hours 補正を加算（cap 20）
+    try:
+        from influencer_behavior_profiler import get_behavior_correction
+        for o in with_scores[:5]:
+            acc = (o[1].get("account") or "").strip()
+            if acc:
+                modifier += get_behavior_correction(acc)
+    except ImportError:
+        pass
     return round(min(max(modifier, 0.0), 20.0), 2)
 
 

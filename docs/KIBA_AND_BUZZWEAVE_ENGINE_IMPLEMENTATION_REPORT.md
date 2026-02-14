@@ -307,10 +307,10 @@ boosters_en = get_neutral_boosters_for_lang("en")
 
 **集計内容（インフルエンサー単位）**
 
-- **trap_density**: Trap 関連観測数で正規化（0–1、10件以上で 1.0 に近づく）
+- **trap_density**: Trap 関連観測数を **直近30日重み** と **KIBA スコア加重** で集計し、正規化（0–1）。直近ほど・スコア高ほど重い。`TRAP_DENSITY_NORMALIZER` で 1.0 に近づく。
 - **dominant_pattern**: BAIT_NO_FLOW / HYPE_WITH_FLOW / FEAR_WITH_FLOW の最多分類
-- **peak_trap_hours_utc**: Trap 投稿が多かった UTC 時間帯（上位3）
-- **top_keywords**: trigger_keywords の頻度上位
+- **peak_trap_hours_utc**: Trap 投稿が多かった UTC 時間帯。**2時間窓でヒストグラムを平滑化** し、上位ピークを採用（「その人が Trap を張りやすい時間帯」を学習）。
+- **top_keywords**: trigger_keywords に加え、**behavior_pattern** および **market_correlation** テキストからもキーワードを抽出し頻度上位を保持（ナラティブの癖を学習）。
 - **avg_kiba_score**: 平均 KIBA スコア
 
 **モジュール: `influencer_behavior_profiler.py`**
@@ -321,7 +321,14 @@ boosters_en = get_neutral_boosters_for_lang("en")
 | `save_profiles(profiles)` | `buzzweave_trap_data/influencer_behavior_profiles.json` に保存。 |
 | `load_profiles()` | 保存済みプロファイルを読み込み（無ければ build）。 |
 | `get_profile_for_account(account)` | 指定アカウントのプロファイル 1 件。 |
+| `get_behavior_correction(account, utc_hour=None)` | KIBA スコア補正用。trap_density と peak_trap_hours に基づき **0〜5** のデルタを返す（cap 5）。 |
 | `run_profiler_and_save()` | 集計→保存してプロファイル一覧を返す。 |
+
+**行動パターン補正（KIBA 統合）**
+
+- **bait_offender_registry**: `compute_sentiment_modifier()` 内で、トップ5オフェンダーそれぞれに `get_behavior_correction(account)` を加算（modifier は従来どおり 0〜20 でキャップ）。
+- **influencer_onchain_alert_engine**: `compute_kiba_alert_score()` 内で、該当アカウントの `get_behavior_correction(account, utc_hour)` をスコアに加算（0〜100 でキャップ）。  
+→ 「行動パターン × 構造裏取り」の二段階スコアとなり、Trap を張りがち・ピーク時間帯のアカウントがより高い危険度で評価される。
 
 **BuzzWeave との連携**
 
@@ -333,12 +340,86 @@ boosters_en = get_neutral_boosters_for_lang("en")
 
 ---
 
-## 8. 今後の拡張（想定）
+## 8. BuzzWeave v3 とアルゴ最適化レイヤー（Grok 由来）
+
+**目的**: 「構造的に正しい」v2 に、X アルゴの仕様（返信誘発・メディア前提・ブックマーク誘導・ダウンランク回避）を組み込み、**アルゴリズム的にも最適化された Trap Defence OS** にする。
+
+### 8.1 v3 テンプレート仕様（buzzweave_templates）
+
+- **質問フック（QUESTION_HOOK_V3）**: 分類別・言語別の「Trap or real?」「Your take?」「Agree?」で **返信誘発**（reply rate >5% → ランキング3倍）。
+- **ブックマーク誘導（BOOKMARK_SAVE_BY_LANG）**: 「Save this — liq/flow map for later.」等で retention シグナルを強化。
+- **グローバルタグ**: `GLOBAL_HASHTAG = "#TrapDefence"` を全投稿に付与（クロス言語・OS の顔）。
+- **スレッド v3**: 5-part（Hook+question → Bullets → Structure note → Data source → Bookmark+CTA+hashtags）。Chart/Heatmap は attach_visual で対応。
+
+`render(..., version="v3")` で single / thread の両方に対応。
+
+### 8.2 KPI：ER 閾値と自己抑制プロトコル（buzzweave_kpi）
+
+- **ENGAGEMENT_RATE_LOWER_ALERT_PCT = 2.0**: ER < 2% が続くとアルゴに deprioritize → ローアラート用。
+- **自己抑制プロトコル**: 連続 N 投稿で ER が閾値未満の場合、`get_self_restraint_protocol()` に従い **1 日 1 本** に制限し、テーマを「ポジティブ寄りの教育スレッド」に一時シフト。`pause_recommendation`: ER < 1% なら 24hr 休止＋コンテンツ監査。
+- **GUARDRAIL_EMERGENCY_MAX_POSTS_PER_DAY = 5**: 緊急時でも **>6 投稿/日は出さない**（downrank 回避）。
+
+### 8.3 エンジン側（buzzweave_engine）
+
+- **generate_structural_quote_v3(post, classification, kiba_data, use_thread_format)**  
+  → テンプレート `version="v3"` で生成。attach_visual=True 推奨。
+- **run_buzzweave_trap_cycle(..., use_v3=False, self_restraint_active=False)**  
+  - `use_v3=True`: v3 テンプレート＋#TrapDefence 付与。  
+  - `self_restraint_active=True`: その日の実効キャップを 1 に（自己抑制）。  
+  - 実効キャップは常に `min(cap, GUARDRAIL_EMERGENCY_MAX_POSTS_PER_DAY)` で上限制限。
+
+### 8.4 Local verifiers（中立ブースターの再定義）
+
+- **NEUTRAL_BOOSTERS_BY_LANG** を「**local verifiers**」として位置づけ（別名 `LOCAL_VERIFIERS_BY_LANG`）。  
+  「Trap を煽る側ではなく、検証・拡散する側」のタグとして、1 言語 1 日 1 本の種まき時に使用。
+
+---
+
+## 9. Trap 狩りダッシュボード設計
+
+**目的**: `buzzweave_trap_post_log.json` と KPI / self_restraint 状態を可視化し、言語別・分類別・インフルエンサー別の運用状況を把握する。
+
+### 9.1 データソース
+
+| ソース | 説明 |
+|--------|------|
+| `buzzweave_trap_data/buzzweave_trap_post_log.json` | 投稿ログ（original_post_id, account, classification, timestamp, attach_visual, hashtag, neutral_boosters 等）。 |
+| `buzzweave_kpi.get_kpi_snapshot()` | 期待値レンジ・ガードレール・自己抑制プロトコル。 |
+| `buzzweave_kpi.get_guardrails()` | max_posts_per_day, emergency_max, er_threshold, self_restraint_*。 |
+| `buzzweave_trap_data/influencer_behavior_profiles.json` | プロファイル数（オプション）。 |
+
+### 9.2 集計項目（ダッシュボード用）
+
+- **log_summary**: 総投稿数、今日の投稿数、直近 N 日件数。
+- **by_language**: 言語別投稿数（hashtag から推測: en, es, pt, ar, ko, ja）。
+- **by_classification**: BAIT_NO_FLOW / HYPE_WITH_FLOW / FEAR_WITH_FLOW 別。
+- **by_account_top20**: 引用元アカウント（インフルエンサー）別投稿数上位 20。
+- **guardrails / self_restraint_protocol / kpi_snapshot**: KPI モジュールからそのまま取得。
+- **posts_today, effective_cap**: 今日の投稿数と実効キャップ（run_buzzweave_trap_cycle と同等）。
+
+### 9.3 実装: buzzweave_dashboard_data.py
+
+| 関数 | 説明 |
+|------|------|
+| `get_dashboard_snapshot(include_profiles=True, days=30)` | 上記集計をまとめた dict を返す。API や UI に渡す用。 |
+| `export_dashboard_json(snapshot)` | スナップショットを JSON 文字列で返す（HTTP レスポンス用）。 |
+
+**実行例**: `python buzzweave_dashboard_data.py` で標準出力に JSON を出力。
+
+### 9.4 UI/API の想定
+
+- **GET /api/buzzweave/dashboard**: `get_dashboard_snapshot()` の結果を JSON で返す。
+- **フロント**: 言語別・分類別の棒グラフ、インフルエンサー別テーブル、KPI カード、自己抑制プロトコル状態（発動条件・推奨アクション）の表示。
+- **将来**: 直近投稿の ER を X Analytics 等から取得し、連続低 ER で `self_restraint_active` を自動 ON にするオプションと連携。
+
+---
+
+## 10. 今後の拡張（想定）
 
 - **オンチェーン**: `influencer_onchain_alert_engine` の `check_whale_flow` 等を実 API（Dune / Glassnode / Coinglass 等）に差し替え。
-- **投稿実行**: `publish_quote` の結果を既存の `services/td/buzzWeaveEngine.js` や X API と連携し、実際の引用リポスト＋メディア添付・中立ブースターのタグ付けを実行。
-- **Trap 狩りダッシュボード**: `buzzweave_trap_post_log.json` と KPI スナップショットを可視化する UI/API。
+- **投稿実行**: `publish_quote` の結果を既存の `services/td/buzzWeaveEngine.js` や X API と連携し、実際の引用リポスト＋メディア添付・local verifiers のタグ付けを実行。
 - **6言語スケジュール**: 言語別 UTC 窓に基づく投稿スロットの自動生成（Cron との連携）。
+- **ER 連動**: 直近投稿の ER を取得し、連続低 ER で `self_restraint_active` を自動 ON にするオプション。
 
 ---
 
