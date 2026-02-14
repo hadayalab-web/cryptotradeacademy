@@ -540,6 +540,10 @@ function isMissingLockedColumnError(error) {
   return code === "42703" && /buzzweave_locks\.locked|column\s+.*locked.*does not exist/i.test(msg);
 }
 
+function isMissingColumnError42703(error) {
+  return String(error?.code || "") === "42703" && /buzzweave_locks|column\s+.*does not exist/i.test(String(error?.message || ""));
+}
+
 async function acquireBuzzweaveLockLegacy(sb, lockName, cutoff, now) {
   // 旧スキーマ互換: locked カラムが無い場合は updated_at の TTL のみで排他する
   const { data, error } = await sb
@@ -550,6 +554,11 @@ async function acquireBuzzweaveLockLegacy(sb, lockName, cutoff, now) {
     .select("lock_name")
     .maybeSingle();
   if (error) {
+    if (isMissingColumnError42703(error)) {
+      // locked も updated_at も無い超古いスキーマ → ロックなしで実行許可（多重実行リスクあり）
+      console.warn("[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema (lock_name only), allowing run without lock");
+      return true;
+    }
     console.warn("[buzzweave-run] acquireBuzzweaveLock legacy update error:", error.message, error.code);
     return false;
   }
@@ -562,6 +571,10 @@ async function acquireBuzzweaveLockLegacy(sb, lockName, cutoff, now) {
     .select("lock_name")
     .maybeSingle();
   if (insertError) {
+    if (isMissingColumnError42703(insertError)) {
+      console.warn("[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema, allowing run without lock");
+      return true;
+    }
     if (String(insertError.code) !== "23505") {
       console.warn("[buzzweave-run] acquireBuzzweaveLock legacy insert error:", insertError.message, insertError.code);
     }
