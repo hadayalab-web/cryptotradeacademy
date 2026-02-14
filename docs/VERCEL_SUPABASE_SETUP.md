@@ -33,6 +33,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6...
 |--------|------|------|
 | `NEXT_PUBLIC_SUPABASE_URL` または `SUPABASE_URL` | ✅ | Supabase プロジェクト URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | ロック・DB 操作に必要 |
+| `SUPABASE_PROJECT_REF` | 推奨 | 接続先ズレ対策。例: `qctmnyoyanisxxsekcjj` を設定すると `https://{ref}.supabase.co` を強制し、連携の誤設定を上書きする |
 
 - **Production / Preview / Development** のうち、使う環境すべてに設定
 - 値の末尾スペース・改行が入っていないか確認

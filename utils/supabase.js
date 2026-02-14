@@ -10,16 +10,26 @@ let _client = null;
 
 function getSupabase() {
   if (_client) return _client;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  let url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  // 接続先のズレ対策: SUPABASE_PROJECT_REF が設定されていれば URL を強制
+  const projectRef = process.env.SUPABASE_PROJECT_REF;
+  if (projectRef && projectRef.trim()) {
+    url = `https://${projectRef.trim()}.supabase.co`;
+  }
   if (!url || !key) return null;
+  const host = (url.match(/https:\/\/([^/]+)/) || [])[1] || "unknown";
+  console.log("[Supabase] connecting to", host);
   _client = createClient(url, key);
   return _client;
 }
 
 function isSupabaseConfigured() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const projectRef = process.env.SUPABASE_PROJECT_REF;
+  const url = projectRef && projectRef.trim()
+    ? `https://${projectRef.trim()}.supabase.co`
+    : (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL);
   return !!(url && key);
 }
 
