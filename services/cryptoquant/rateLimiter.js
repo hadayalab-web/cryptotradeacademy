@@ -4,16 +4,16 @@
 
 const { kv } = require("@vercel/kv");
 
-// Professionalプラン: 20 req/min
-// Premiumプラン: より高いレート制限
+// CryptoQuant 公式: Professional 70 req/min, Premium はより高いレート
+// https://cryptoquant.com/pricing
 const CRYPTOQUANT_PLAN = process.env.CRYPTOQUANT_PLAN || "professional";
 const RATE_LIMIT_PER_MINUTE =
-  CRYPTOQUANT_PLAN === "premium" || CRYPTOQUANT_PLAN === "enterprise" ? 60 : 20;
+  CRYPTOQUANT_PLAN === "premium" || CRYPTOQUANT_PLAN === "enterprise" ? 120 : 70;
 
 // Step 2-3: ローカル最小制限（KV不調時のフォールバック）
-// Professional: 10 req/min, Premium: 30 req/min（分散レート制限の50%）
+// Professional: 35 req/min, Premium: 60 req/min（分散レート制限の50%）
 const LOCAL_MIN_RATE_LIMIT_PER_MINUTE =
-  CRYPTOQUANT_PLAN === "premium" || CRYPTOQUANT_PLAN === "enterprise" ? 30 : 10;
+  CRYPTOQUANT_PLAN === "premium" || CRYPTOQUANT_PLAN === "enterprise" ? 60 : 35;
 
 // レート制限キー
 const RATE_LIMIT_KEY = "cq:rate_limit:bucket";
