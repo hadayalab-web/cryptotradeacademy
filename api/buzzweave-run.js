@@ -19,7 +19,8 @@ const {
   releaseBuzzweaveLock,
   upsertBuzzweaveStatusEmergencyStop,
   getBuzzweaveStatus,
-  isSupabaseConfigured
+  isSupabaseConfigured,
+  getBuzzweaveLockState
 } = require("../utils/supabase");
 loadEnv();
 
@@ -61,8 +62,16 @@ async function handler(req, res) {
 
   const acquired = await acquireBuzzweaveLock();
   if (!acquired) {
-    console.log("[buzzweave-run] early return: Locked (another run in progress or lock held in DB)");
-    return res.status(200).json({ ok: true, message: "Locked (another run in progress)", posted: 0 });
+    const lockState = await getBuzzweaveLockState();
+    console.log("[buzzweave-run] early return: Locked", lockState.ok ? { locked: lockState.locked, updated_at: lockState.updated_at } : { reason: lockState.reason });
+    return res.status(200).json({
+      ok: true,
+      message: "Locked (another run in progress)",
+      posted: 0,
+      debug_lock: lockState.ok
+        ? { locked: lockState.locked, updated_at: lockState.updated_at, hint: "ロック取得に失敗。DB上で locked=true なら他リクエストが保持中。updated_at が60秒以上前ならTTLで解除されるはず。" }
+        : { reason: lockState.reason, error: lockState.error }
+    });
   }
 
   console.log("[buzzweave-run] lock acquired");
