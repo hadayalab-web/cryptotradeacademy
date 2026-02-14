@@ -722,6 +722,27 @@ async function getBuzzweaveStatus() {
   }
 }
 
+/**
+ * X API blocked フラグを手動解除する（Token 修正後などに使用）
+ * @returns {Promise<{ok: boolean, error?: string}>}
+ */
+async function clearBuzzweaveStatusXApiBlocked() {
+  const sb = getSupabase();
+  if (!sb) return { ok: false, error: "Supabase not configured" };
+  try {
+    const now = new Date().toISOString();
+    const { error } = await sb
+      .from("buzzweave_status")
+      .upsert(
+        { id: "main", x_api_blocked: false, updated_at: now },
+        { onConflict: "id" }
+      );
+    return error ? { ok: false, error: error.message } : { ok: true };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
 // ========== BuzzWeave 集中投下ログ（市場回収用） ==========
 
 /**
@@ -940,6 +961,7 @@ module.exports = {
   upsertBuzzweaveStatusEmergencyStop,
   upsertBuzzweaveStatus402,
   getBuzzweaveStatus,
+  clearBuzzweaveStatusXApiBlocked,
   insertBuzzweavePostLog,
   updateBuzzweavePostLogWithMetrics,
   fetchBuzzweavePostLogsPendingMetrics,
