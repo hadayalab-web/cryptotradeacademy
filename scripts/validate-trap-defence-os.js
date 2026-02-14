@@ -1,6 +1,6 @@
 /**
  * Trap Defence OS 整合性検証スクリプト
- * 実装ブリーフ準拠: macroContext / macroRiskOnOff 一元化 / shiftType 優先順位 / KV キー / SHIFT 配信
+ * macroContext / macroRiskOnOff 一元化 / KV キー / 内部エンジン配信
  * 実行: node scripts/validate-trap-defence-os.js
  */
 const path = require("path");
@@ -20,7 +20,7 @@ let failed = 0;
 
 // 1. macroRiskEvaluator が存在し、inferMacroRiskOnOff / buildMacroContextFromAssets を export している
 try {
-  const macroRisk = require("../logic/criticalShift/macroRiskEvaluator");
+  const macroRisk = require("../logic/macroRiskEvaluator");
   assert(typeof macroRisk.inferMacroRiskOnOff === "function", "macroRiskEvaluator.inferMacroRiskOnOff exists");
   assert(typeof macroRisk.buildMacroContextFromAssets === "function", "macroRiskEvaluator.buildMacroContextFromAssets exists");
   passed += 2;
@@ -29,9 +29,9 @@ try {
   failed += 2;
 }
 
-// 2. 同一入力で macroRiskOnOff が thresholds に従う（1.0 / -0.3 → RISK_ON）
+// 2. 同一入力で macroRiskOnOff が MACRO_THRESHOLDS に従う
 try {
-  const { inferMacroRiskOnOff } = require("../logic/criticalShift/macroRiskEvaluator");
+  const { inferMacroRiskOnOff } = require("../logic/macroRiskEvaluator");
   const r1 = inferMacroRiskOnOff({ nasdaqChange24h: 1.5, goldChange24h: -0.5 });
   assert(r1 === "RISK_ON", "macroRiskOnOff(1.5, -0.5) === RISK_ON");
   const r2 = inferMacroRiskOnOff({ nasdaqChange24h: -1.5, goldChange24h: 0.5 });
@@ -42,31 +42,9 @@ try {
   failed += 2;
 }
 
-// 3. shiftTypes: REVERSAL が ACCEL より先に判定される（両方条件を満たすケースで REVERSAL が返る）
+// 3. kiba/run の BTC_SNAPSHOT_KEYS に btc:snapshot:full:latest が含まれていない
 try {
-  const { classifyShiftType } = require("../logic/criticalShift/shiftTypes");
-  const { CRITICAL_SHIFT_THRESHOLDS: t } = require("../logic/criticalShift/thresholds");
-  const metrics = {
-    whaleAccumulationScore: t.WHALE_ACCUMULATION_HIGH,
-    whaleDistributionScore: 0,
-    retailFomoScore: t.RETAIL_FOMO_HIGH,
-    panicScore: 0,
-    liquidityStressScore: t.LIQUIDITY_STRESS_HIGH,
-    derivativesStressScore: t.SCORE_MEDIUM,
-    macroRiskOnOff: "NEUTRAL"
-  };
-  const btcSnapshot = { raw: { change24h: -2 }, trapDetection: { trapScore: 50 }, cqDeep: {} };
-  const result = classifyShiftType(metrics, btcSnapshot, null);
-  assert(result === "REVERSAL", "REVERSAL before ACCEL: result === REVERSAL when both conditions could match");
-  passed++;
-} catch (e) {
-  console.error("[FAIL] shiftType REVERSAL before ACCEL:", e.message);
-  failed++;
-}
-
-// 4. run.js の BTC_SNAPSHOT_KEYS に btc:snapshot:full:latest が含まれていない
-try {
-  const runPath = path.join(__dirname, "../api/critical-shift/run.js");
+  const runPath = path.join(__dirname, "../api/kiba/run.js");
   const runSrc = require("fs").readFileSync(runPath, "utf8");
   assert(
     !runSrc.includes("btc:snapshot:full:latest"),
@@ -82,7 +60,7 @@ try {
   failed += 2;
 }
 
-// 5. minimal-tg-delivery のコメントが btc:snapshot:early / btc:snapshot を読むと明記
+// 4. minimal-tg-delivery のコメントが btc:snapshot:early / btc:snapshot を読むと明記
 try {
   const minPath = path.join(__dirname, "../api/minimal-tg-delivery.js");
   const minSrc = require("fs").readFileSync(minPath, "utf8");
@@ -100,7 +78,7 @@ try {
   failed += 2;
 }
 
-// 6. cron が buildFullSnapshot に macroContext を渡している
+// 5. cron が buildFullSnapshot に macroContext を渡している
 try {
   const cronPath = path.join(__dirname, "../api/cron.js");
   const cronSrc = require("fs").readFileSync(cronPath, "utf8");
@@ -118,18 +96,19 @@ try {
   failed += 2;
 }
 
-// 7. cron が CRITICAL SHIFT 発火時に Telegram 送信（sendMessageToChannel）を呼んでいる
+// 6. cron が内部エンジン発火時に Telegram 送信（sendMessageToChannel）を呼んでいる
 try {
   const cronPath = path.join(__dirname, "../api/cron.js");
   const cronSrc = require("fs").readFileSync(cronPath, "utf8");
   assert(
     cronSrc.includes("dispatchPayload") && cronSrc.includes("alerts") && cronSrc.includes("sendMessageToChannel"),
-    "cron sends CRITICAL SHIFT alerts via sendMessageToChannel"
+    "cron sends internal engine alerts via sendMessageToChannel"
   );
-  passed++;
+  assert(cronSrc.includes("/api/kiba/run"), "cron calls /api/kiba/run");
+  passed += 2;
 } catch (e) {
-  console.error("[FAIL] CRITICAL SHIFT Telegram delivery:", e.message);
-  failed++;
+  console.error("[FAIL] internal engine Telegram delivery:", e.message);
+  failed += 2;
 }
 
 console.log("\n---");

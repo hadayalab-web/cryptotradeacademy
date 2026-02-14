@@ -9,7 +9,9 @@ const {
   getTdInfluencers,
   getTdOfficialAccounts,
   getTdPostSlotsInNextHour,
-  getTdPostSlotsHealthStats
+  getTdPostSlotsHealthStats,
+  getBuzzweaveLockState,
+  isSupabaseConfigured
 } = require("../utils/supabase");
 require("../utils/suppressKnownWarnings");
 const { loadEnv } = require("../utils/loadEnv");
@@ -22,8 +24,23 @@ module.exports = async function handler(req, res) {
 
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = req.headers?.authorization || req.headers?.Authorization;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  const querySecret = req.query?.cron_secret;
+  const authOk = !cronSecret || authHeader === `Bearer ${cronSecret}` || querySecret === cronSecret;
+  if (!authOk) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
+  }
+
+  const supabaseConfigured = isSupabaseConfigured();
+  const lockState = await getBuzzweaveLockState();
+
+  if (!supabaseConfigured || !lockState.ok) {
+    return res.status(503).json({
+      ok: false,
+      status: "degraded",
+      reason: lockState.reason || "supabase_not_configured",
+      hint: "Vercel の環境変数 NEXT_PUBLIC_SUPABASE_URL/SUPABASE_URL と SUPABASE_SERVICE_ROLE_KEY がローカル .env と一致しているか確認してください。",
+      checks: { supabase_configured: supabaseConfigured, lock_read_ok: lockState.ok }
+    });
   }
 
   const sb = getSupabase();
@@ -62,6 +79,14 @@ module.exports = async function handler(req, res) {
       status: ok ? "healthy" : "degraded",
       checks: {
         env,
+        supabase: {
+          configured: true,
+          lock: {
+            locked: lockState.locked,
+            updated_at: lockState.updated_at
+          },
+          hint: "lock.locked=true かつ buzzweave-run が毎回 Locked なら、TTL 60秒待つか release-buzzweave-lock.js を実行。Vercel とローカルで別 DB を見ている可能性あり。"
+        },
         slots: {
           total: slotsHealth.total_slots ?? null,
           nextHour: Array.isArray(nextHourSlots) ? nextHourSlots.length : null

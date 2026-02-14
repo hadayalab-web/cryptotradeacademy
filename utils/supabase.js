@@ -17,6 +17,12 @@ function getSupabase() {
   return _client;
 }
 
+function isSupabaseConfigured() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return !!(url && key);
+}
+
 /**
  * tweet_queue に insert
  * @param {Object} row - { tweet_id, lang?, vid_link_kind? }
@@ -549,6 +555,28 @@ async function releaseBuzzweaveLock(lockName = BUZZWEAVE_LOCK_NAME) {
   } catch (_) {}
 }
 
+/** ロック状態を読み取り（診断用）。Supabase 接続確認にも使う */
+async function getBuzzweaveLockState(lockName = BUZZWEAVE_LOCK_NAME) {
+  const sb = getSupabase();
+  if (!sb) return { ok: false, reason: "supabase_not_configured" };
+  try {
+    const { data, error } = await sb
+      .from("buzzweave_locks")
+      .select("lock_name, locked, updated_at")
+      .eq("lock_name", lockName)
+      .maybeSingle();
+    if (error) return { ok: false, reason: "supabase_error", error: error.message };
+    return {
+      ok: true,
+      lock_name: data?.lock_name ?? lockName,
+      locked: !!data?.locked,
+      updated_at: data?.updated_at ?? null
+    };
+  } catch (e) {
+    return { ok: false, reason: "supabase_error", error: e?.message };
+  }
+}
+
 // ========== BuzzWeave ステータス（緊急停止・402ブロック） ==========
 
 async function upsertBuzzweaveStatusEmergencyStop(reason = "env_flag") {
@@ -817,5 +845,7 @@ module.exports = {
   fetchBuzzweavePostLogsPendingMetrics,
   insertBtcSnapshot,
   getLastBtcSnapshot,
-  getBtcSnapshotsHistory
+  getBtcSnapshotsHistory,
+  isSupabaseConfigured,
+  getBuzzweaveLockState
 };

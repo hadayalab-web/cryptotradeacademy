@@ -11,23 +11,23 @@
 
 | 対象 | 定義 |
 |------|------|
-| **Trap Defence BTC（Minimal / Regular / SHIFT）** | **商品**。Telegram で**定期 / 不定期**に自動配信される。 |
+| **Trap Defence BTC（Minimal / Regular / 転換点アラート）** | **商品**。Telegram で**定期 / 不定期**に自動配信される。 |
 | **BuzzWeave Engine** | **X → Vidalytics → Whop** が連携した**自動集客・送客システム**（ブリーフィングではない）。 |
 
 ### 0.1 Trap Defence BTC と BuzzWeave の分離 【ブレなし】
 
-- **コード・ドキュメント**: `TRAP_DEFENCE_UNIFIED_OS_ARCHITECTURE.md` で TD = 価値エンジン（Minimal/Regular/Emergency/CRITICAL SHIFT）、BWE = 成長エンジン（X 引用リポスト・Vidalytics リンク・Whop 着地）と明確に分かれている。
+- **コード・ドキュメント**: `TRAP_DEFENCE_UNIFIED_OS_ARCHITECTURE.md` で TD = 価値エンジン（Minimal/Regular/Emergency/転換点アラート）、BWE = 成長エンジン（X 引用リポスト・Vidalytics リンク・Whop 着地）と明確に分かれている。
 - **実装**: cron は Minimal/Regular/Emergency の **Telegram 配信のみ**担当。BWE は `api/buzzweave-run.js` → `runBuzzWeaveCycle` で **X 投稿** と `pickVidalyticsLink`（Vidalytics）→ Whop 着地。両者の役割は混線していない。
 - **結論**: 「Trap Defence BTC = 商品で Telegram 配信」「BuzzWeave = X～Vidalytics～Whop の集客・送客」という定義は**ブレていない**。
 
-### 0.2 CRITICAL SHIFT を「商品・Telegram 配信」とみなした場合のブレ 【High】
+### 0.2 転換点アラート を「商品・Telegram 配信」とみなした場合のブレ 【High】
 
-- **定義**: SHIFT も Trap Defence BTC の**商品**のひとつで、Telegram で定期/不定期配信される、としている。
+- **定義**: 転換点アラート も Trap Defence BTC の**商品**のひとつで、Telegram で定期/不定期配信される、としている。
 - **実装**: 
-  - `api/critical-shift/run.js` で CRITICAL SHIFT は**評価・スナップショット作成・KV 保存・多言語アラート文生成**まで実施し、`dispatchPayload`（`alerts` に 6 言語分）を返している。
-  - 一方、**この `dispatchPayload` を Telegram に送るコードがリポジトリ内に存在しない**。cron は `criticalShiftResult` をレスポンスに含めるだけで、Minimal/Regular/Emergency のような「配信ブロック（sendMessageToChannel 等）」が SHIFT 用にない。
-- **結論**: 「SHIFT = 商品で Telegram で配信」と定義するなら、**現状はブレている**。SHIFT は「Regular 特典・転換点検知」として評価・KV 保存まではあるが、**Telegram への配信経路が未実装**。  
-  - 対応案: (1) SHIFT 発火時に `dispatchPayload.alerts` を Regular 購読者向けチャット等に送る配信を cron（または別 API）に追加する、(2) あるいは「SHIFT は現時点では配信対象外（将来 SHIFT_PRO で配信）」と定義側で明記する。
+  - `api/kiba/run.js` で 転換点アラート は**評価・スナップショット作成・KV 保存・多言語アラート文生成**まで実施し、`dispatchPayload`（`alerts` に 6 言語分）を返している。
+  - 一方、**この `dispatchPayload` を Telegram に送るコードがリポジトリ内に存在しない**。cron は `kibaResult` をレスポンスに含めるだけで、Minimal/Regular/Emergency のような「配信ブロック（sendMessageToChannel 等）」が 転換点アラート 用にない。
+- **結論**: 「転換点アラート = 商品で Telegram で配信」と定義するなら、**現状はブレている**。転換点アラート は「Regular 特典・転換点検知」として評価・KV 保存まではあるが、**Telegram への配信経路が未実装**。  
+  - 対応案: (1) 転換点アラート 発火時に `dispatchPayload.alerts` を Regular 購読者向けチャット等に送る配信を cron（または別 API）に追加する、(2) あるいは「転換点アラート は現時点では配信対象外（将来 転換点アラート_PRO で配信）」と定義側で明記する。
 
 ### 0.3 Minimal / Regular の「定期・不定期」 【ブレなし】
 
@@ -43,7 +43,7 @@
 
 - **事実**: `api/cron.js` の `buildFullSnapshot()` 呼び出し（786–804行）で **macroContext を渡していない**。そのため KV に保存される `btcSnapshot.macroContext` は常に `null`。
 - **影響**: 
-  - `api/critical-shift/run.js` は `btcSnapshot?.macroContext` を優先するが、cron 由来の btcSnapshot では常に null のため、実質的に `inferMacroRiskOnOffFromChanges(nasdaqChange24h, goldChange24h)` に依存している。
+  - `api/kiba/run.js` は `btcSnapshot?.macroContext` を優先するが、cron 由来の btcSnapshot では常に null のため、実質的に `inferMacroRiskOnOffFromChanges(nasdaqChange24h, goldChange24h)` に依存している。
   - 「macroContext の一次ソースは btcSnapshot.macroContext」という設計と実装が一致していない。
 - **推奨**: cron 側で NASDAQ/GOLD を取得し、run.js と同一ロジック（または thresholds を参照する共通関数）で macroContext を組み立て、`buildFullSnapshot({ ..., macroContext })` に渡す。run.js の `buildMacroSnapshot` は btcSnapshot.macroContext を優先するだけにし、一次ソースを btcSnapshot に統一する。
 
@@ -51,10 +51,10 @@
 
 - **事実**: 
   - **run.js**: `buildMacroSnapshot()` 内で `normalizeMacroRiskOnOff(btcSnapshot?.macroContext?.macroRiskOnOff) ?? inferMacroRiskOnOffFromChanges(nasdaqChange24h, goldChange24h)`。閾値はハードコード（1.0, -0.3, -1.0, 0.3）。
-  - **evaluator.js**: `inferMacroRiskOnOff()` で `CRITICAL_SHIFT_THRESHOLDS.NASDAQ_RISK_ON_CHANGE_24H` 等を参照。
+  - **evaluator.js**: `inferMacroRiskOnOff()` で `CRITICAL_転換点アラート_THRESHOLDS.NASDAQ_RISK_ON_CHANGE_24H` 等を参照。
   - **buzzweave-run.js**: `btcSnapshot.macroContext` が無い場合に NASDAQ/GOLD から別ロジックで補完（change24h > 2 → risk_on 等）。閾値が run.js / thresholds と異なる（2 / -2 等）。
 - **影響**: 同じ「マクロ局面」が run.js・evaluator・BWE で異なる閾値・異なるラベルになりうる。
-- **推奨**: macro 判定（nasdaqChange24h / goldChange24h → macroRiskOnOff）を一箇所に集約（例: `logic/criticalShift/` または `services/snapshot/` の共通関数）し、run.js / evaluator / BWE はすべてそこを参照する。閾値は `thresholds.js` のみから取得する。
+- **推奨**: macro 判定（nasdaqChange24h / goldChange24h → macroRiskOnOff）を一箇所に集約（例: `core/kiba` または `services/snapshot/` の共通関数）し、run.js / evaluator / BWE はすべてそこを参照する。閾値は `thresholds.js` のみから取得する。
 
 ### 1.3 snapshot → evaluator → shiftTypes の流れ 【問題なし】
 
@@ -62,18 +62,18 @@
 
 ---
 
-## 2. CRITICAL SHIFT の整合性
+## 2. 転換点アラート の整合性
 
 ### 2.1 shiftType の優先順位が仕様と不一致 【Medium】
 
 - **仕様**: TOP → BOTTOM → UP → DOWN → **REVERSAL** → **ACCEL** → NONE
-- **実装**: `logic/criticalShift/shiftTypes.js` では **ACCEL** を **REVERSAL** より先に判定している（80–86行で ACCEL、88–103行で REVERSAL）。
+- **実装**: `core/kiba（旧 shiftTypes は廃止）` では **ACCEL** を **REVERSAL** より先に判定している（80–86行で ACCEL、88–103行で REVERSAL）。
 - **影響**: 両方の条件を満たす場合、仕様では REVERSAL を返すべきところ、実装では ACCEL が返る。
 - **修正案** (diff):
 
 ```diff
---- a/logic/criticalShift/shiftTypes.js
-+++ b/logic/criticalShift/shiftTypes.js
+--- a/core/kiba（旧 shiftTypes は廃止）
++++ b/core/kiba（旧 shiftTypes は廃止）
 @@ -77,14 +77,6 @@ function classifyShiftType(metrics = {}, btcSnapshot = null, macroSnapshot = null) {
      return "DOWN";
    }
@@ -123,15 +123,15 @@
 
 ## 3. Emergency との役割分離
 
-### 3.1 Emergency と CRITICAL SHIFT の判定領域 【問題なし】
+### 3.1 Emergency と 転換点アラート の判定領域 【問題なし】
 
 - **Emergency** (`logic/deliveryModeEvaluator.js`): trapScore≥60, trapSeverity CRITICAL/HIGH, whale-retail divergence, kimchi premium, liquidity vacuum, ETF shock, miner capitulation, panic+volatility など「即時警告」向け。
-- **CRITICAL SHIFT** (`logic/criticalShift/`): 構造的転換（TOP/BOTTOM/UP/DOWN/ACCEL/REVERSAL）のスコアベース判定。閾値は thresholds.js、confidence と suppression window で制御。
+- **転換点アラート** (`core/kiba`): 構造的転換（TOP/BOTTOM/UP/DOWN/ACCEL/REVERSAL）のスコアベース判定。閾値は thresholds.js、confidence と suppression window で制御。
 - トリガー条件と目的が異なり、重複はない。
 
-### 3.2 deliveryMode と CRITICAL SHIFT の責務 【問題なし】
+### 3.2 deliveryMode と 転換点アラート の責務 【問題なし】
 
-- deliveryMode は「minimal / regular / emergency」の**配信モード**。CRITICAL SHIFT は**別エンジン**で、cron から `ENABLE_CRITICAL_SHIFT` 時に `/api/critical-shift/run` を呼ぶだけ。配信結果は `criticalShiftResult` として返し、Minimal/Regular/Emergency の分岐には直接使っていない。責務の混線なし。
+- deliveryMode は「minimal / regular / emergency」の**配信モード**。転換点アラート は**別エンジン**で、cron から `ENABLE_KIBA` 時に `/api/kiba/run` を呼ぶだけ。配信結果は `kibaResult` として返し、Minimal/Regular/Emergency の分岐には直接使っていない。責務の混線なし。
 
 ---
 
@@ -147,9 +147,9 @@
 - **minimal-tg-delivery.js** コメント（3行）: 「cron が KV に書き出す minimal:btc:latest を読んで」とあるが、**cron は minimal:btc:latest に一切書いていない**。実際の読み順は `btc:snapshot:early` → `btc:snapshot` → `minimal:btc:latest`（フォールバックのみ）。ドキュメント・コメントと実装の乖離。
 - **推奨**: コメントを「cron が書き出す btc:snapshot:early / btc:snapshot を読んで」に修正。`minimal:btc:latest` は「移行期フォールバック」と明記。
 
-### 4.3 SHIFT テンプレート 【問題なし】
+### 4.3 転換点アラート テンプレート 【問題なし】
 
-- CRITICAL SHIFT 用の表示は gpt5mini の `formatCriticalShiftAlert(criticalShiftSnapshot, lang)` のみ。snapshot の shiftType / reasons / confidence / btcContext / macroContext を参照しており、criticalShiftSnapshotSchema と一致。
+- 転換点アラート 用の表示は gpt5mini の `formatCriticalShiftAlert(criticalShiftSnapshot, lang)` のみ。snapshot の shiftType / reasons / confidence / btcContext / macroContext を参照しており、kibaSnapshotSchema と一致。
 
 ### 4.4 snapshotBuilder と全テンプレート 【問題なし】
 
@@ -163,9 +163,9 @@
 
 - run.js は `asset:snapshot:NASDAQ` と `asset:snapshot:GOLD` を取得し、`buildMacroSnapshot()` で nasdaqChange24h / goldChange24h / nasdaqRegime / goldWhaleBias を導出。evaluator の `inferMacroRiskOnOff` も macroSnapshot および btcSnapshot.macroContext を参照。NASDAQ/GOLD はマクロ文脈としてのみ使われている。
 
-### 5.2 CRITICAL SHIFT の対象が BTC のみ 【問題なし】
+### 5.2 転換点アラート の対象が BTC のみ 【問題なし】
 
-- evaluator は btcSnapshot を主入力とし、macroSnapshot は補助。shiftTypes の change24h / trapScore は btcSnapshot 由来。他アセットは CRITICAL SHIFT 判定に使われていない。
+- evaluator は btcSnapshot を主入力とし、macroSnapshot は補助。shiftTypes の change24h / trapScore は btcSnapshot 由来。他アセットは 転換点アラート 判定に使われていない。
 
 ### 5.3 不要なデータの流入 【問題なし】
 
@@ -179,8 +179,8 @@
 
 | キー | 書き手 | 読み手 | 備考 |
 |-----|--------|--------|------|
-| `criticalshift:snapshot:latest` | criticalShiftSnapshotBuilder | run.js (lastCriticalShift), cron (結果参照) | 設計通り |
-| `criticalshift:snapshot:YYYYMMDDHHmm` | criticalShiftSnapshotBuilder | （履歴用） | 設計通り |
+| `kiba:snapshot:latest` | kibaSnapshotBuilder | run.js (lastKiba), cron (結果参照) | 設計通り |
+| `kiba:snapshot:YYYYMMDDHHmm` | kibaSnapshotBuilder | （履歴用） | 設計通り |
 | `btc:snapshot:full:latest` | **なし** | run.js (getFirstSnapshot の先頭) | **誰も書いていない** |
 | `btc:snapshot` | btcSnapshotWriter (writeFullSnapshot) | run.js, minimal-tg-delivery, BWE 等 | 設計通り |
 | `btc:snapshot:early` | btcSnapshotWriter (writeEarlySnapshot) | minimal-tg-delivery, (run.js は参照していない) | 設計通り |
@@ -189,7 +189,7 @@
 
 ### 6.2 問題: btc:snapshot:full:latest が未使用 【High】
 
-- **事実**: `api/critical-shift/run.js` の `BTC_SNAPSHOT_KEYS = ["btc:snapshot:full:latest", "asset:snapshot:BTC", "btc:snapshot"]`。先頭キー `btc:snapshot:full:latest` を**どこも書き込んでいない**。btcSnapshotWriter は `btc:snapshot` と `btc:snapshot:early` のみ。
+- **事実**: `api/kiba/run.js` の `BTC_SNAPSHOT_KEYS = ["btc:snapshot:full:latest", "asset:snapshot:BTC", "btc:snapshot"]`。先頭キー `btc:snapshot:full:latest` を**どこも書き込んでいない**。btcSnapshotWriter は `btc:snapshot` と `btc:snapshot:early` のみ。
 - **影響**: getFirstSnapshot は毎回 1 キー目で null を取り、2 キー目または 3 キー目にフォールバックする。デッドコードかつ将来「full:latest を書く」実装を入れた場合の取り違えリスク。
 - **推奨**: 
   - 運用上「full」と「early」を分けないなら、`BTC_SNAPSHOT_KEYS` から `btc:snapshot:full:latest` を削除し、`["asset:snapshot:BTC", "btc:snapshot"]` にする。
@@ -212,30 +212,30 @@
 3. Grok / 深掘り（条件付き）→ イベント駆動判定  
 4. Stage 5/6 (runStages5And6) → buildFullSnapshot → (isRegularSlot \|\| force) 時のみ writeFullSnapshot / persistSnapshotToDb / runAssetSnapshot('BTC')  
 5. evaluateDeliveryMode(btcSnapshot, …)  
-6. ENABLE_CRITICAL_SHIFT 時は `/api/critical-shift/run` を HTTP 呼び出し  
+6. ENABLE_KIBA 時は `/api/kiba/run` を HTTP 呼び出し  
 7. deliveryMode に応じて REGULAR / EMERGENCY / WATCH / STANDBY_BREAK 配信  
 
 ### 7.2 タイミング・競合 【Medium】
 
-- **CRITICAL SHIFT の実行タイミング**: cron は「配信ブロックの前」に critical-shift/run を呼んでいる（832–837 行付近の後、配信の前）。run.js が読む KV は、**同じ cron 内で writeFullSnapshot した直後**（regular/force 時）か、**前回の regular で書いた btc:snapshot**（非 regular 時）。  
-- 非 regular 時は「最大で定期間隔（例 6h）古い」btc スナップショットで CRITICAL SHIFT が評価される。意図であれば「CRITICAL SHIFT は定期枠データを前提とする」とドキュメントに書くのがよい。
+- **転換点アラート の実行タイミング**: cron は「配信ブロックの前」に kiba/run を呼んでいる（832–837 行付近の後、配信の前）。run.js が読む KV は、**同じ cron 内で writeFullSnapshot した直後**（regular/force 時）か、**前回の regular で書いた btc:snapshot**（非 regular 時）。  
+- 非 regular 時は「最大で定期間隔（例 6h）古い」btc スナップショットで 転換点アラート が評価される。意図であれば「転換点アラート は定期枠データを前提とする」とドキュメントに書くのがよい。
 - **minimal-tg-delivery**: 別 cron（8 0,6,12,18 * * *）で実行。読むのは `btc:snapshot:early` または `btc:snapshot`。cron が 0,7,22,37,52 分に動くため、minimal が 8 分に動くときは 0 分 or 6 分等の early/full を読む。race は許容範囲。
 
-### 7.3 Stage1 → early → full → deliveryMode → CRITICAL SHIFT の順序 【問題なし】
+### 7.3 Stage1 → early → full → deliveryMode → 転換点アラート の順序 【問題なし】
 
-- 上記の通り、early は Stage 1 直後、full は全 Stage と buildFullSnapshot の後（かつ isRegularSlot \|\| force 時のみ）。deliveryMode は full スナップショットで評価。CRITICAL SHIFT は full 書き込みの後に呼ばれる。順序は正しい。
+- 上記の通り、early は Stage 1 直後、full は全 Stage と buildFullSnapshot の後（かつ isRegularSlot \|\| force 時のみ）。deliveryMode は full スナップショットで評価。転換点アラート は full 書き込みの後に呼ばれる。順序は正しい。
 
 ---
 
 ## 8. gpt5mini のテンプレート整合性
 
-### 8.1 Minimal / Regular / SHIFT のテンプレート 【問題なし】
+### 8.1 Minimal / Regular / 転換点アラート のテンプレート 【問題なし】
 
 - **Minimal**: gpt5mini の `generateXPost({ mode: "minimal", ... })`。BWE 用。snapshot は btcSnapshot を渡す設計。regimeTone / marketRegime / divergence 等は btcSnapshot から取得。snapshot-native と矛盾なし。
 - **Regular**: 同様に `mode: "regular"`。構造テンプレは SYSTEM_PROMPT と MODE_*_USER で定義。snapshot は btcSnapshot。
-- **SHIFT**: `formatCriticalShiftAlert(criticalShiftSnapshot, lang)` は CRITICAL SHIFT 用。shiftType / confidence / reasons / btcContext / macroContext を表示。criticalShiftSnapshotSchema の形状と一致。
+- **転換点アラート**: `formatCriticalShiftAlert(criticalShiftSnapshot, lang)` は 転換点アラート 用。shiftType / confidence / reasons / btcContext / macroContext を表示。kibaSnapshotSchema の形状と一致。
 
-### 8.2 CRITICAL SHIFT の shiftType / reasons / confidence の反映 【問題なし】
+### 8.2 転換点アラート の shiftType / reasons / confidence の反映 【問題なし】
 
 - run.js は `writeResult.snapshot`（buildCriticalShiftSnapshot の結果）を `formatCriticalShiftAlert(writeResult.snapshot, lang)` に渡している。schema の normalizeShiftType / clampConfidence / reasons がそのまま表示に使われている。
 
@@ -282,12 +282,12 @@
 
 - **内訳**
   - 血流・データソースの一貫性: 減点（macroContext 未設定・二重管理）
-  - CRITICAL SHIFT 整合性: 減点（優先順位 ACCEL/REVERSAL、閾値の二重管理）
+  - 転換点アラート 整合性: 減点（優先順位 ACCEL/REVERSAL、閾値の二重管理）
   - Emergency との分離: 満点
   - snapshot-native: 軽微なコメント乖離のみ
   - multi-asset 役割: 満点
   - KV 設計: 減点（full:latest 未使用、NASDAQ/GOLD 未書き込み）
-  - Cron パイプライン: 軽微（非 regular 時の CRITICAL SHIFT のデータ鮮度）
+  - Cron パイプライン: 軽微（非 regular 時の 転換点アラート のデータ鮮度）
   - gpt5mini テンプレート: 満点
   - ノイズ・レガシー: 減点（デッドキー、二重ロジック）
 

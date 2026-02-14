@@ -18,7 +18,8 @@ const {
   acquireBuzzweaveLock,
   releaseBuzzweaveLock,
   upsertBuzzweaveStatusEmergencyStop,
-  getBuzzweaveStatus
+  getBuzzweaveStatus,
+  isSupabaseConfigured
 } = require("../utils/supabase");
 loadEnv();
 
@@ -53,9 +54,14 @@ async function handler(req, res) {
     return res.status(200).json({ ok: true, message: "X API blocked flag active", posted: 0 });
   }
 
+  if (!isSupabaseConfigured()) {
+    console.error("[buzzweave-run] early return: Supabase NOT configured (NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY missing on Vercel)");
+    return res.status(503).json({ ok: false, message: "Supabase not configured", posted: 0 });
+  }
+
   const acquired = await acquireBuzzweaveLock();
   if (!acquired) {
-    console.log("[buzzweave-run] early return: Locked (another run in progress)");
+    console.log("[buzzweave-run] early return: Locked (another run in progress or lock held in DB)");
     return res.status(200).json({ ok: true, message: "Locked (another run in progress)", posted: 0 });
   }
 

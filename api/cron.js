@@ -189,7 +189,7 @@ const {
 
 // Phase 1: イベント駆動配信システム（Strategic SSOT v4.0）
 const ENABLE_EVENT_DRIVEN = process.env.ENABLE_EVENT_DRIVEN === "false" ? false : true;
-const ENABLE_CRITICAL_SHIFT = process.env.ENABLE_CRITICAL_SHIFT === "false" ? false : true;
+const ENABLE_KIBA = process.env.ENABLE_KIBA === "false" ? false : true;
 // Telegram送信の有効化（デフォルト: true = Telegram配信を主要チャネルとして使用）
 // COO推奨: Telegram配信に戻す（コスト最適化、運用負荷最小化、即時性の確保）
 const ENABLE_TELEGRAM = process.env.ENABLE_TELEGRAM !== "false"; // デフォルトでtrue（明示的にfalseにしない限り有効）
@@ -1287,7 +1287,7 @@ module.exports = async function handler(req, res) {
         console.warn("[Phase 2] runAssetSnapshot NASDAQ/GOLD failed:", e?.message);
       }
     }
-    const { buildMacroContextFromAssets } = require("../logic/criticalShift/macroRiskEvaluator");
+    const { buildMacroContextFromAssets } = require("../logic/macroRiskEvaluator");
     const macroContext =
       nasdaqSnapshot || goldSnapshot
         ? buildMacroContextFromAssets({ nasdaqSnapshot, goldSnapshot })
@@ -1335,20 +1335,19 @@ module.exports = async function handler(req, res) {
     });
     const deliveryMode = deliveryResult.mode;
     const deliveryMeta = deliveryResult.meta || {};
-    let criticalShiftResult = null;
+    let kibaResult = null;
 
-    // CRITICAL SHIFT (separate engine): keep Minimal/Regular/Emergency logic untouched.
-    if (ENABLE_CRITICAL_SHIFT) {
+    if (ENABLE_KIBA) {
       try {
         const cronSecret = process.env.CRON_SECRET;
         if (!cronSecret) {
-          console.warn("[CRITICAL_SHIFT] Skipped: CRON_SECRET not set (required for /api/critical-shift/run auth)");
+          console.warn("[kiba] Skipped: CRON_SECRET not set (required for /api/kiba/run auth)");
         } else {
-          const criticalShiftRunUrl = buildInternalApiUrl(req, "/api/critical-shift/run");
-          if (!criticalShiftRunUrl) {
-            console.warn("[CRITICAL_SHIFT] Skipped: unable to build internal API URL");
+          const kibaRunUrl = buildInternalApiUrl(req, "/api/kiba/run");
+          if (!kibaRunUrl) {
+            console.warn("[kiba] Skipped: unable to build internal API URL");
           } else {
-            const runUrl = new URL(criticalShiftRunUrl);
+            const runUrl = new URL(kibaRunUrl);
             runUrl.searchParams.set("cron_secret", cronSecret);
             const runRes = await fetch(runUrl.toString(), {
               method: "POST",
@@ -1358,46 +1357,44 @@ module.exports = async function handler(req, res) {
                 Authorization: `Bearer ${cronSecret}`
               }
             });
-          criticalShiftResult = await runRes.json().catch(() => null);
-          if (!runRes.ok) {
-            console.warn("[CRITICAL_SHIFT] Run API returned non-200:", {
-              status: runRes.status,
-              statusText: runRes.statusText
-            });
-          } else {
-            console.log("[CRITICAL_SHIFT] Run completed:", {
-              triggered: Boolean(criticalShiftResult?.triggered),
-              shiftType: criticalShiftResult?.evaluation?.shiftType || criticalShiftResult?.dispatchPayload?.snapshot?.shiftType || "NONE",
-              confidence: criticalShiftResult?.evaluation?.confidence ?? criticalShiftResult?.dispatchPayload?.snapshot?.confidence ?? 0
-            });
+            kibaResult = await runRes.json().catch(() => null);
+            if (!runRes.ok) {
+              console.warn("[kiba] Run API returned non-200:", {
+                status: runRes.status,
+                statusText: runRes.statusText
+              });
+            } else {
+              console.log("[kiba] Run completed:", {
+                triggered: Boolean(kibaResult?.triggered),
+                level: kibaResult?.impact?.level || "NONE"
+              });
+            }
           }
         }
-        }
       } catch (error) {
-        console.warn("[CRITICAL_SHIFT] Run failed:", error?.message);
+        console.warn("[kiba] Run failed:", error?.message);
       }
     } else {
-      criticalShiftResult = { enabled: false, reason: "ENABLE_CRITICAL_SHIFT=false" };
+      kibaResult = { enabled: false, reason: "ENABLE_KIBA=false" };
     }
 
-    // 7-D. CRITICAL SHIFT (商品 SHIFT): Telegram 配信
-    const CRITICAL_SHIFT_LANGS = ["en", "ja", "es", "ko", "pt-br", "ar"];
+    const ALERT_LANGS = ["en", "ja", "es", "ko", "pt-br", "ar"];
     if (
-      ENABLE_CRITICAL_SHIFT &&
-      criticalShiftResult?.triggered &&
-      criticalShiftResult?.dispatchPayload?.alerts &&
+      ENABLE_KIBA &&
+      kibaResult?.triggered &&
+      kibaResult?.dispatchPayload?.alerts &&
       ENABLE_TELEGRAM
     ) {
-      const shiftAlerts = criticalShiftResult.dispatchPayload.alerts;
-      for (const lang of CRITICAL_SHIFT_LANGS) {
-        const text = shiftAlerts[lang];
+      const alerts = kibaResult.dispatchPayload.alerts;
+      for (const lang of ALERT_LANGS) {
+        const text = alerts[lang];
         if (!text || typeof text !== "string") continue;
         try {
           const marketCode = getMarketCode(lang);
           await sendMessageToChannel(text, "BTC", marketCode);
-          console.log("[CRITICAL_SHIFT] Telegram sent for", lang);
+          console.log("[kiba] Telegram sent for", lang);
         } catch (e) {
-          console.warn("[CRITICAL_SHIFT] Telegram send failed for", lang, e?.message);
+          console.warn("[kiba] Telegram send failed for", lang, e?.message);
         }
       }
     }
@@ -1412,7 +1409,7 @@ module.exports = async function handler(req, res) {
         deliveryMode,
         reason: deliveryResult.reason,
         slot: { isRegularSlot, force },
-        criticalShift: criticalShiftResult
+        kiba: kibaResult
       });
     }
 
@@ -1616,7 +1613,8 @@ module.exports = async function handler(req, res) {
             nonUserImpactReport: langNonUserImpactReport,
             missedOpportunities: langMissedOpportunitiesFormatted,
             grokXAnalysis: grokXAnalysis ?? null,
-            marketBug: marketBugDetection || null
+            marketBug: marketBugDetection || null,
+            internalImpact: kibaResult?.impact || { level: "NONE", intensity: "none" }
           };
           const regularText = langFormatRegularBriefing(snapshotForRegular, targetLang, regularOpts);
 
@@ -1734,7 +1732,7 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // 7-B. EMERGENCY は廃止（SHIFT と役割が被るため外部通知ゼロに統一）
+    // 7-B. EMERGENCY は廃止（内部エンジンと役割が被るため外部通知ゼロに統一）
 
     // 7-C. WATCH (short heads-up, no long report)
     // 7-D. STANDBY_BREAK (Phase 1新規)
@@ -1897,7 +1895,7 @@ module.exports = async function handler(req, res) {
       sl,
       xSentiment,
       xIntel,
-      criticalShift: criticalShiftResult
+      kiba: kibaResult
     });
   } catch (error) {
     console.error("❌ Cron Job Failed:", error);

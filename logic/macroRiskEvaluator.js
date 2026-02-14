@@ -1,8 +1,13 @@
 /**
  * Single source of truth for macro risk (RISK_ON / RISK_OFF / NEUTRAL).
- * Used by run.js, evaluator.js, buzzweave-run.js. All thresholds from thresholds.js.
+ * Used by kiba/run, cron, buzzweave-run. Macro-only thresholds.
  */
-const { CRITICAL_SHIFT_THRESHOLDS } = require("./thresholds");
+const MACRO_THRESHOLDS = {
+  NASDAQ_RISK_ON_CHANGE_24H: 1.0,
+  NASDAQ_RISK_OFF_CHANGE_24H: -1.0,
+  GOLD_RISK_ON_CHANGE_24H: -0.3,
+  GOLD_RISK_OFF_CHANGE_24H: 0.3
+};
 
 function toNumberOrNull(value) {
   const n = Number(value);
@@ -18,19 +23,11 @@ function normalizeMacroRiskOnOff(value) {
   return null;
 }
 
-/**
- * Infer macro risk from NASDAQ/GOLD change24h only. No snapshot labels.
- * @param {{ nasdaqChange24h?: number|null, goldChange24h?: number|null }} inputs
- * @param {Object} [thresholds] - defaults to CRITICAL_SHIFT_THRESHOLDS
- * @returns {"RISK_ON"|"RISK_OFF"|"NEUTRAL"|null}
- */
-function inferMacroRiskOnOff(inputs, thresholds = CRITICAL_SHIFT_THRESHOLDS) {
+function inferMacroRiskOnOff(inputs, thresholds) {
+  const t = thresholds || MACRO_THRESHOLDS;
   const nasdaqChange24h = toNumberOrNull(inputs?.nasdaqChange24h);
   const goldChange24h = toNumberOrNull(inputs?.goldChange24h);
-
   if (nasdaqChange24h == null && goldChange24h == null) return null;
-
-  const t = thresholds;
   if (
     nasdaqChange24h != null &&
     nasdaqChange24h >= t.NASDAQ_RISK_ON_CHANGE_24H &&
@@ -48,33 +45,26 @@ function inferMacroRiskOnOff(inputs, thresholds = CRITICAL_SHIFT_THRESHOLDS) {
   return "NEUTRAL";
 }
 
-/**
- * Build macroContext from NASDAQ/GOLD asset snapshots (for cron → btcSnapshot).
- * @param {{ nasdaqSnapshot?: object|null, goldSnapshot?: object|null }} params
- * @param {Object} [thresholds]
- * @returns {{ nasdaqRegime: string|null, goldWhaleBias: string|null, macroRiskOnOff: "RISK_ON"|"RISK_OFF"|"NEUTRAL"|null }}
- */
 function buildMacroContextFromAssets(
-  { nasdaqSnapshot = null, goldSnapshot = null } = {},
-  thresholds = CRITICAL_SHIFT_THRESHOLDS
+  _params,
+  thresholds
 ) {
+  const { nasdaqSnapshot = null, goldSnapshot = null } = _params || {};
+  const t = thresholds || MACRO_THRESHOLDS;
   const nasdaqChange24h = toNumberOrNull(nasdaqSnapshot?.raw?.change24h);
   const goldChange24h = toNumberOrNull(goldSnapshot?.raw?.change24h);
-
   const macroRiskOnOff = inferMacroRiskOnOff(
     { nasdaqChange24h, goldChange24h },
-    thresholds
+    t
   );
-
   const nasdaqRegime =
     nasdaqChange24h == null
       ? null
-      : nasdaqChange24h >= thresholds.NASDAQ_RISK_ON_CHANGE_24H
+      : nasdaqChange24h >= t.NASDAQ_RISK_ON_CHANGE_24H
         ? "RISK_ON"
-        : nasdaqChange24h <= thresholds.NASDAQ_RISK_OFF_CHANGE_24H
+        : nasdaqChange24h <= t.NASDAQ_RISK_OFF_CHANGE_24H
           ? "RISK_OFF"
           : "NEUTRAL";
-
   const goldWhaleBias =
     goldChange24h == null
       ? null
@@ -83,7 +73,6 @@ function buildMacroContextFromAssets(
         : goldChange24h < 0
           ? "BEARISH"
           : "NEUTRAL";
-
   return {
     nasdaqRegime: nasdaqRegime == null ? null : String(nasdaqRegime),
     goldWhaleBias: goldWhaleBias == null ? null : String(goldWhaleBias),
@@ -94,5 +83,6 @@ function buildMacroContextFromAssets(
 module.exports = {
   inferMacroRiskOnOff,
   buildMacroContextFromAssets,
-  normalizeMacroRiskOnOff
+  normalizeMacroRiskOnOff,
+  MACRO_THRESHOLDS
 };

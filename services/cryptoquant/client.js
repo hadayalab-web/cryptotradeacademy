@@ -146,13 +146,13 @@ async function getCacheWithStaleRevalidate(key, ttlSeconds) {
  */
 function validateCQParams(endpoint, params) {
   if (endpoint == null || String(endpoint).trim() === "") {
-    console.log("[critical-shift] CQ_PARAM_ERROR", { reason: "endpoint missing or empty" });
+    console.log("[CQ] CQ_PARAM_ERROR", { reason: "endpoint missing or empty" });
     return false;
   }
   const requiredParamKeys = ["window", "limit", "symbol", "interval"];
   for (const key of requiredParamKeys) {
     if (Object.prototype.hasOwnProperty.call(params, key) && (params[key] == null || params[key] === "")) {
-      console.log("[critical-shift] CQ_PARAM_ERROR", { reason: `${key} is null or empty`, params: { ...params, [key]: params[key] } });
+      console.log("[CQ] CQ_PARAM_ERROR", { reason: `${key} is null or empty`, params: { ...params, [key]: params[key] } });
       return false;
     }
   }
@@ -225,7 +225,7 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
               const text = await response.text();
               try { body = JSON.parse(text); } catch { body = text; }
             } catch (_) {}
-            console.log("[critical-shift] CQ_ERROR", { status: 400, body, endpoint });
+            console.log("[CQ] CQ_ERROR", { status: 400, body, endpoint });
             return null;
           }
           let body = null;
@@ -233,7 +233,7 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
             const text = await response.text();
             try { body = JSON.parse(text); } catch { body = text; }
           } catch (_) {}
-          console.log("[critical-shift] CQ_ERROR", { status: response.status, body, endpoint });
+          console.log("[CQ] CQ_ERROR", { status: response.status, body, endpoint });
           return null;
         }
 
@@ -251,7 +251,7 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
         }
         const m = error.message && String(error.message).match(/API Error: (\d+)/);
         const status = m ? m[1] : null;
-        console.log("[critical-shift] CQ_ERROR", { status: status || "exception", body: error?.message || String(error), endpoint });
+        console.log("[CQ] CQ_ERROR", { status: status || "exception", body: error?.message || String(error), endpoint });
         return null;
       }
     });

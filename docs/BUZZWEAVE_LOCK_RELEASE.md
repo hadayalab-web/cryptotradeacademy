@@ -2,6 +2,9 @@
 
 「`early return: Locked (another run in progress)`」が連続し、BWE が一度も実行されない場合の対処。
 
+> **重要**: Locked が続く原因は多くの場合 **Vercel の Supabase 環境変数ミス** です。  
+> まず [VERCEL_SUPABASE_SETUP.md](./VERCEL_SUPABASE_SETUP.md) で設定を確認してください。
+
 ---
 
 ## 方法 1: Node スクリプト（推奨）

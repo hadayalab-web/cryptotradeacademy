@@ -13,7 +13,7 @@ const fs = require('fs');
 const { createMockBtcSnapshot, createMockPsychologicalSupport } = require('./mock-btc-snapshot');
 const { formatMinimalBriefing } = require('../services/telegram/messages/user/es/minimal-high-quality.es.js');
 const { formatRegularBriefing } = require('../services/telegram/messages/user/es/regular.es.js');
-// Emergency テンプレートは廃止（SHIFT に統一）
+// Emergency テンプレートは廃止（内部アラートに統一）
 const LANG = 'es';
 
 function main() {
@@ -39,7 +39,7 @@ function main() {
     regularMessage,
     '',
     '='.repeat(80),
-    '🚨 Emergencia (廃止 — SHIFT に統一)',
+    '🚨 Emergencia (廃止 — 内部アラートに統一)',
     '='.repeat(80),
     '',
     '(Emergency template removed)',

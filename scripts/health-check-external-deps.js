@@ -15,17 +15,17 @@ function log(name, ok, message) {
 let passed = 0;
 let failed = 0;
 
-// 1. CRON_SECRET が設定されていれば critical-shift は認証で保護される前提の確認（実 401 は別途 curl で確認推奨）
+// 1. CRON_SECRET が設定されていれば kiba は認証で保護される前提の確認（実 401 は別途 curl で確認推奨）
 try {
-  const runPath = path.join(__dirname, "../api/critical-shift/run.js");
+  const runPath = path.join(__dirname, "../api/kiba/run.js");
   const runSrc = require("fs").readFileSync(runPath, "utf8");
   const hasCronSecretCheck =
     runSrc.includes("CRON_SECRET") &&
     (runSrc.includes("Bearer") || runSrc.includes("cron_secret"));
-  if (log("critical-shift auth", hasCronSecretCheck, hasCronSecretCheck ? "Auth logic present" : "No CRON_SECRET check found")) passed++;
+  if (log("kiba auth", hasCronSecretCheck, hasCronSecretCheck ? "Auth logic present" : "No CRON_SECRET check found")) passed++;
   else failed++;
 } catch (e) {
-  log("critical-shift auth", false, e.message);
+  log("kiba auth", false, e.message);
   failed++;
 }
 

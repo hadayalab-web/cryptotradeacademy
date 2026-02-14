@@ -294,142 +294,64 @@ async function generateXPost(opts = {}) {
   }
 }
 
-const CRITICAL_SHIFT_I18N = {
+const ALERT_I18N = {
   en: {
-    title: "CRITICAL SHIFT detected",
-    kind: "Type",
-    confidence: "Confidence",
-    mainReasons: "Main reasons",
+    titleCritical: "Critical market alert",
+    titleHigh: "High structural stress",
+    titleElevated: "Elevated structure",
     marketContext: "Market context",
     btcLine: (price, change, regime) =>
       `• BTC ${price != null ? `$${Number(price).toFixed(0)}` : "N/A"} / 24h ${change != null ? `${Number(change).toFixed(2)}%` : "N/A"} / Regime ${regime || "N/A"}`,
-    macroLine: (nasdaqRegime, goldWhaleBias, macroRiskOnOff) =>
-      `• NASDAQ ${nasdaqRegime || "N/A"} / GOLD ${goldWhaleBias || "N/A"} / Macro ${macroRiskOnOff || "N/A"}`,
-    note:
-      "Use this as directional positioning context, not as a direct buy/sell signal."
+    macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / GOLD ${gb || "N/A"} / Macro ${mo || "N/A"}`,
+    note: "Use as directional context, not as a direct buy/sell signal."
   },
   ja: {
-    title: "CRITICAL SHIFT 検知",
-    kind: "種別",
-    confidence: "信頼度",
-    mainReasons: "主な理由",
+    titleCritical: "重要マーケットアラート",
+    titleHigh: "構造ストレス高",
+    titleElevated: "構造変化注意",
     marketContext: "市場の文脈",
     btcLine: (price, change, regime) =>
       `• BTC ${price != null ? `$${Number(price).toFixed(0)}` : "N/A"} / 24h ${change != null ? `${Number(change).toFixed(2)}%` : "N/A"} / レジーム ${regime || "N/A"}`,
-    macroLine: (nasdaqRegime, goldWhaleBias, macroRiskOnOff) =>
-      `• NASDAQ ${nasdaqRegime || "N/A"} / GOLD ${goldWhaleBias || "N/A"} / マクロ ${macroRiskOnOff || "N/A"}`,
-    note:
-      "具体的な売買シグナルではなく、どちら側に立つべきかを決める材料として使ってください。"
+    macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / GOLD ${gb || "N/A"} / マクロ ${mo || "N/A"}`,
+    note: "具体的な売買シグナルではなく、ポジションの材料として使ってください。"
   },
-  es: {
-    title: "CRITICAL SHIFT detectado",
-    kind: "Tipo",
-    confidence: "Confianza",
-    mainReasons: "Razones principales",
-    marketContext: "Contexto de mercado",
-    btcLine: (price, change, regime) =>
-      `• BTC ${price != null ? `$${Number(price).toFixed(0)}` : "N/A"} / 24h ${change != null ? `${Number(change).toFixed(2)}%` : "N/A"} / Régimen ${regime || "N/A"}`,
-    macroLine: (nasdaqRegime, goldWhaleBias, macroRiskOnOff) =>
-      `• NASDAQ ${nasdaqRegime || "N/A"} / ORO ${goldWhaleBias || "N/A"} / Macro ${macroRiskOnOff || "N/A"}`,
-    note:
-      "Úsalo como contexto de sesgo direccional, no como señal directa de compra/venta."
-  },
-  "pt-br": {
-    title: "CRITICAL SHIFT detectado",
-    kind: "Tipo",
-    confidence: "Confianca",
-    mainReasons: "Principais motivos",
-    marketContext: "Contexto de mercado",
-    btcLine: (price, change, regime) =>
-      `• BTC ${price != null ? `$${Number(price).toFixed(0)}` : "N/A"} / 24h ${change != null ? `${Number(change).toFixed(2)}%` : "N/A"} / Regime ${regime || "N/A"}`,
-    macroLine: (nasdaqRegime, goldWhaleBias, macroRiskOnOff) =>
-      `• NASDAQ ${nasdaqRegime || "N/A"} / OURO ${goldWhaleBias || "N/A"} / Macro ${macroRiskOnOff || "N/A"}`,
-    note:
-      "Use como contexto de direcao, nao como sinal direto de compra/venda."
-  },
-  ko: {
-    title: "CRITICAL SHIFT 감지",
-    kind: "유형",
-    confidence: "신뢰도",
-    mainReasons: "주요 이유",
-    marketContext: "시장 맥락",
-    btcLine: (price, change, regime) =>
-      `• BTC ${price != null ? `$${Number(price).toFixed(0)}` : "N/A"} / 24h ${change != null ? `${Number(change).toFixed(2)}%` : "N/A"} / 레짐 ${regime || "N/A"}`,
-    macroLine: (nasdaqRegime, goldWhaleBias, macroRiskOnOff) =>
-      `• NASDAQ ${nasdaqRegime || "N/A"} / GOLD ${goldWhaleBias || "N/A"} / 매크로 ${macroRiskOnOff || "N/A"}`,
-    note:
-      "직접 매수/매도 신호가 아니라, 어느 방향에 설지 판단하는 재료로 사용하세요."
-  },
-  ar: {
-    title: "تم اكتشاف CRITICAL SHIFT",
-    kind: "النوع",
-    confidence: "الثقة",
-    mainReasons: "الاسباب الرئيسية",
-    marketContext: "سياق السوق",
-    btcLine: (price, change, regime) =>
-      `• BTC ${price != null ? `$${Number(price).toFixed(0)}` : "N/A"} / 24h ${change != null ? `${Number(change).toFixed(2)}%` : "N/A"} / النظام ${regime || "N/A"}`,
-    macroLine: (nasdaqRegime, goldWhaleBias, macroRiskOnOff) =>
-      `• NASDAQ ${nasdaqRegime || "N/A"} / GOLD ${goldWhaleBias || "N/A"} / الماكرو ${macroRiskOnOff || "N/A"}`,
-    note:
-      "استخدمه كسياق لاتجاه التموضع وليس كاشارة شراء/بيع مباشرة."
-  }
+  es: { titleCritical: "Alerta de mercado critica", titleHigh: "Estrés estructural alto", titleElevated: "Estructura elevada", marketContext: "Contexto de mercado", btcLine: (p, c, r) => `• BTC ${p != null ? `$${Number(p).toFixed(0)}` : "N/A"} / 24h ${c != null ? `${Number(c).toFixed(2)}%` : "N/A"} / Régimen ${r || "N/A"}`, macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / ORO ${gb || "N/A"} / Macro ${mo || "N/A"}`, note: "Úsalo como contexto direccional, no como señal directa." },
+  "pt-br": { titleCritical: "Alerta critica de mercado", titleHigh: "Estresse estrutural alto", titleElevated: "Estrutura elevada", marketContext: "Contexto de mercado", btcLine: (p, c, r) => `• BTC ${p != null ? `$${Number(p).toFixed(0)}` : "N/A"} / 24h ${c != null ? `${Number(c).toFixed(2)}%` : "N/A"} / Regime ${r || "N/A"}`, macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / OURO ${gb || "N/A"} / Macro ${mo || "N/A"}`, note: "Use como contexto de direcao, nao como sinal direto." },
+  ko: { titleCritical: "중요 시장 알림", titleHigh: "구조적 스트레스 높음", titleElevated: "구조 변화 주의", marketContext: "시장 맥락", btcLine: (p, c, r) => `• BTC ${p != null ? `$${Number(p).toFixed(0)}` : "N/A"} / 24h ${c != null ? `${Number(c).toFixed(2)}%` : "N/A"} / 레짐 ${r || "N/A"}`, macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / GOLD ${gb || "N/A"} / 매크로 ${mo || "N/A"}`, note: "직접 매수/매도 신호가 아니라, 방향 판단 재료로 사용하세요." },
+  ar: { titleCritical: "تنبيه السوق الحرج", titleHigh: "ضغط هيكلي مرتفع", titleElevated: "هيكل مرتفع", marketContext: "سياق السوق", btcLine: (p, c, r) => `• BTC ${p != null ? `$${Number(p).toFixed(0)}` : "N/A"} / 24h ${c != null ? `${Number(c).toFixed(2)}%` : "N/A"} / النظام ${r || "N/A"}`, macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / GOLD ${gb || "N/A"} / الماكرو ${mo || "N/A"}`, note: "استخدمه كسياق اتجاه وليس كاشارة شراء/بيع مباشرة." }
 };
 
-const CRITICAL_SHIFT_LABELS = {
-  en: { UP: "Up Shift", DOWN: "Down Shift", TOP: "Top Risk", BOTTOM: "Bottom Opportunity", ACCEL: "Acceleration", REVERSAL: "Reversal", NONE: "None" },
-  ja: { UP: "上昇転換", DOWN: "下落転換", TOP: "天井警戒", BOTTOM: "底打ち候補", ACCEL: "加速", REVERSAL: "反転", NONE: "なし" },
-  es: { UP: "Giro alcista", DOWN: "Giro bajista", TOP: "Riesgo de techo", BOTTOM: "Zona de suelo", ACCEL: "Aceleracion", REVERSAL: "Reversion", NONE: "Ninguno" },
-  "pt-br": { UP: "Virada de alta", DOWN: "Virada de baixa", TOP: "Risco de topo", BOTTOM: "Possivel fundo", ACCEL: "Aceleracao", REVERSAL: "Reversao", NONE: "Nenhum" },
-  ko: { UP: "상승 전환", DOWN: "하락 전환", TOP: "상단 경계", BOTTOM: "바닥 후보", ACCEL: "가속", REVERSAL: "반전", NONE: "없음" },
-  ar: { UP: "تحول صاعد", DOWN: "تحول هابط", TOP: "خطر القمة", BOTTOM: "فرصة قاع", ACCEL: "تسارع", REVERSAL: "انعكاس", NONE: "لا شيء" }
-};
-
-function normalizeCriticalShiftLang(lang) {
-  const normalized = String(lang || "en").toLowerCase().replace(/_/g, "-");
-  if (normalized === "pt") return "pt-br";
-  if (CRITICAL_SHIFT_I18N[normalized]) return normalized;
-  return "en";
+function normalizeAlertLang(lang) {
+  const n = String(lang || "en").toLowerCase().replace(/_/g, "-");
+  if (n === "pt") return "pt-br";
+  return ALERT_I18N[n] ? n : "en";
 }
 
-/**
- * CRITICAL SHIFT alert formatter (template-based).
- * @param {Object} criticalShiftSnapshot
- * @param {string} lang
- * @returns {string}
- */
-function formatCriticalShiftAlert(criticalShiftSnapshot, lang = "en") {
-  const snapshot = criticalShiftSnapshot && typeof criticalShiftSnapshot === "object"
-    ? criticalShiftSnapshot
-    : {};
-  const resolvedLang = normalizeCriticalShiftLang(lang);
-  const i18n = CRITICAL_SHIFT_I18N[resolvedLang] || CRITICAL_SHIFT_I18N.en;
-  const labels = CRITICAL_SHIFT_LABELS[resolvedLang] || CRITICAL_SHIFT_LABELS.en;
+/** Internal engine alert. Level only; no internal names exposed. */
+function formatCriticalAlert(snapshot, lang = "en") {
+  const s = snapshot && typeof snapshot === "object" ? snapshot : {};
+  const resolvedLang = normalizeAlertLang(lang);
+  const i18n = ALERT_I18N[resolvedLang] || ALERT_I18N.en;
+  const level = String(s.level || "NONE").toUpperCase();
+  const title = level === "CRITICAL" ? i18n.titleCritical : level === "HIGH" ? i18n.titleHigh : i18n.titleElevated;
+  const btc = s.btcContext || {};
+  const macro = s.macroContext || {};
+  return [title, `${i18n.marketContext}:`, i18n.btcLine(btc.priceUsd, btc.change24h, btc.regime), i18n.macroLine(macro.nasdaqRegime, macro.goldWhaleBias, macro.macroRiskOnOff), i18n.note].join("\n");
+}
 
-  const shiftType = String(snapshot.shiftType || "NONE").toUpperCase();
-  const shiftLabel = labels[shiftType] || labels.NONE;
-  const confidence = Number(snapshot.confidence);
-  const confidenceValue = Number.isFinite(confidence) ? Math.max(0, Math.min(100, Math.round(confidence))) : 0;
-
-  const reasons = Array.isArray(snapshot.reasons)
-    ? snapshot.reasons.filter((x) => typeof x === "string" && x.trim()).slice(0, 3)
-    : [];
-  if (reasons.length === 0) {
-    reasons.push("Cross-market structure suggests a possible transition.");
-  }
-
-  const btc = snapshot.btcContext || {};
-  const macro = snapshot.macroContext || {};
-
-  return [
-    i18n.title,
-    `${i18n.kind}: ${shiftLabel} (${i18n.confidence} ${confidenceValue}%)`,
-    `${i18n.mainReasons}:`,
-    ...reasons.map((r) => `• ${r}`),
-    `${i18n.marketContext}:`,
-    i18n.btcLine(btc.priceUsd, btc.change24h, btc.regime),
-    i18n.macroLine(macro.nasdaqRegime, macro.goldWhaleBias, macro.macroRiskOnOff),
-    i18n.note
-  ].join("\n");
+/** @deprecated Use formatCriticalAlert. Normalizes legacy snapshot (shiftType/confidence) to level. */
+function formatCriticalShiftAlert(legacySnapshot, lang = "en") {
+  const s = legacySnapshot && typeof legacySnapshot === "object" ? legacySnapshot : {};
+  const level =
+    s.level != null
+      ? String(s.level).toUpperCase()
+      : String(s.shiftType || "NONE").toUpperCase() === "NONE"
+        ? "NONE"
+        : (Number(s.confidence) >= 85 ? "CRITICAL" : Number(s.confidence) >= 75 ? "HIGH" : "ELEVATED");
+  return formatCriticalAlert(
+    { level, btcContext: s.btcContext, macroContext: s.macroContext },
+    lang
+  );
 }
 
 /**
@@ -455,6 +377,7 @@ module.exports = {
   SYSTEM_PROMPT,
   generateXPost,
   generateAndSaveXPost,
+  formatCriticalAlert,
   formatCriticalShiftAlert,
   trimToMax,
   ensureHashtagAndEmoji,

@@ -80,13 +80,13 @@ Trap Defence は **価値エンジン**（value engine）である。
 - **製品**: Bitcoin 市場構造の深い理解を届ける
 - **目的**: "Provide what the market wants most, using CQ × 3AI." / "Sell water in the desert. Sell shovels in the gold rush."
 
-**商品ラインナップ（3つ）:** Minimal / Regular / SHIFT。いずれも Telegram で定期・不定期に自動配信される。
+**商品ラインナップ（3つ）:** Minimal / Regular / 転換点アラート。いずれも Telegram で定期・不定期に自動配信される。
 
 | 商品 | 性質 | 目的 |
 |------|------|------|
 | Minimal | 無料・表面レベル・堅牢 | 必ず届く、導入用 |
 | Regular | 有料・深層構造 | 本質的価値 |
-| SHIFT | 転換点アラート（CRITICAL SHIFT） | 構造変化の瞬間アラート |
+| 転換点アラート | 転換点アラート（Critical Alert） | 構造変化の瞬間アラート |
 
 - **Emergency**: 商品名としては前面に出さない。**deliveryMode（内部モード）** としてのみ残し、即時警告時に配信経路を切り替えるために使用する。
 
@@ -99,11 +99,11 @@ Minimal
 Regular
 └ BTC 深層構造
 
-SHIFT（CRITICAL SHIFT）
+転換点アラート（Critical Alert）
 └ 転換点アラート（BTC 中心 + Macro）
 ```
 
-> 将来拡張: SHIFT は KV キー / evaluator / alert template を独立させ、`CRITICAL_SHIFT_PRO` として単独プラン化できる構造を維持する。
+> 将来拡張: 転換点アラート は KV キー / evaluator / alert template を独立させ、`CRITICAL_ALERT_PRO` として単独プラン化できる構造を維持する。
 
 ### 0.3.2 BuzzWeave Engine (BWE) とは
 
@@ -366,7 +366,7 @@ Regular は時間スロットだけでなく、以下のイベントでも発火
 4. writeFullSnapshot / persistSnapshotToDb
 5. evaluateDeliveryMode
 6. dispatch: minimal / regular / emergency
-7. CRITICAL SHIFT 判定: `/api/critical-shift/run`（別ロジックとして分離。Regular 本文には混ぜない）
+7. 転換点アラート（Critical Alert） 判定: `/api/kiba/run`（別ロジックとして分離。Regular 本文には混ぜない）
 8. Regular: `diagnoseUserSentimentCompat(snapshot, lang)` → `formatRegularBriefing(snapshot, lang, opts)`
 9. Emergency: `formatTrapAlertFromSnapshot(snapshot, lang)`
 
@@ -428,7 +428,7 @@ interface BtcSnapshot {
 5. buildFullSnapshot（diff を含む）
 6. writeFullSnapshot / persistSnapshotToDb / runAssetSnapshot('BTC', btcSnapshot)
 7. evaluateDeliveryMode
-8. CRITICAL SHIFT 実行（`ENABLE_CRITICAL_SHIFT !== false` 時）→ `/api/critical-shift/run`
+8. 転換点アラート（Critical Alert） 実行（`ENABLE_KIBA !== false` 時）→ `/api/kiba/run`
 
 ※ 将来的に Stage1–6 を `btcSnapshotBuilder` に集約し、cron はそれを呼ぶだけにする構成も検討可。
 9. dispatch: minimal / regular / emergency
