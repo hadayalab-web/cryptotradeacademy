@@ -295,7 +295,45 @@ boosters_en = get_neutral_boosters_for_lang("en")
 
 ---
 
-## 7. 今後の拡張（想定）
+## 7. ログからのパターン学習（influencer_behavior_profiler）
+
+**目的**: BuzzWeave がログを食い、インフルエンサーごとの Trap 行動パターンを集計し、次の Trap を事前に捕捉しやすくする（「Trap を狩る」→「Trap を先読みする」）。
+
+**データソース（3つを縦に束ねる）**
+
+- `influencer_alert_data/influencer_alerts.json`
+- `bait_registry_data/offenders.json`
+- `buzzweave_trap_data/buzzweave_trap_post_log.json`
+
+**集計内容（インフルエンサー単位）**
+
+- **trap_density**: Trap 関連観測数で正規化（0–1、10件以上で 1.0 に近づく）
+- **dominant_pattern**: BAIT_NO_FLOW / HYPE_WITH_FLOW / FEAR_WITH_FLOW の最多分類
+- **peak_trap_hours_utc**: Trap 投稿が多かった UTC 時間帯（上位3）
+- **top_keywords**: trigger_keywords の頻度上位
+- **avg_kiba_score**: 平均 KIBA スコア
+
+**モジュール: `influencer_behavior_profiler.py`**
+
+| 関数 | 説明 |
+|------|------|
+| `build_profiles()` | 3ソースから集計しプロファイル一覧を返す。 |
+| `save_profiles(profiles)` | `buzzweave_trap_data/influencer_behavior_profiles.json` に保存。 |
+| `load_profiles()` | 保存済みプロファイルを読み込み（無ければ build）。 |
+| `get_profile_for_account(account)` | 指定アカウントのプロファイル 1 件。 |
+| `run_profiler_and_save()` | 集計→保存してプロファイル一覧を返す。 |
+
+**BuzzWeave との連携**
+
+- `detect_trap_candidates(..., use_behavior_priority=True)` で、プロファイルの **trap_density 降順** と **現在 UTC が peak_trap_hours に入っているか** により候補をソート。Trap を張りがちなアカウントを優先する。
+
+**bait_offender_registry との連携**
+
+- `get_offender_with_profile(account)` / `list_offenders_with_profiles()` で、オフェンダーに **behavior_profile** を付与して返す。KIBA 側で「BAIT_NO_FLOW 多めならスコアに +補正」等に利用可能。
+
+---
+
+## 8. 今後の拡張（想定）
 
 - **オンチェーン**: `influencer_onchain_alert_engine` の `check_whale_flow` 等を実 API（Dune / Glassnode / Coinglass 等）に差し替え。
 - **投稿実行**: `publish_quote` の結果を既存の `services/td/buzzWeaveEngine.js` や X API と連携し、実際の引用リポスト＋メディア添付・中立ブースターのタグ付けを実行。

@@ -136,9 +136,47 @@ def get_offender(account: str) -> Optional[dict]:
     return None
 
 
+def get_offender_with_profile(account: str) -> Optional[dict]:
+    """Return offender dict with behavior_profile from influencer_behavior_profiler when available."""
+    o = get_offender(account)
+    if o is None:
+        return None
+    try:
+        from influencer_behavior_profiler import get_profile_for_account
+        profile = get_profile_for_account(account)
+        if profile:
+            return {**o, "behavior_profile": profile}
+    except ImportError:
+        pass
+    return o
+
+
 def list_offenders() -> list:
     """Return list of all offenders."""
     return load_offenders()["offenders"]
+
+
+def list_offenders_with_profiles() -> list:
+    """Return list of offenders with behavior_profile attached (from influencer_behavior_profiler)."""
+    offenders = list_offenders()
+    try:
+        from influencer_behavior_profiler import load_profiles
+        profiles_list = load_profiles()
+        profile_by_acc = {}
+        for p in profiles_list:
+            acc = (p.get("account") or "").strip().lower().lstrip("@")
+            if acc:
+                profile_by_acc[acc] = p
+        out = []
+        for o in offenders:
+            acc = (o.get("account") or "").strip().lower().lstrip("@")
+            if acc and acc in profile_by_acc:
+                out.append({**o, "behavior_profile": profile_by_acc[acc]})
+            else:
+                out.append(o)
+        return out
+    except ImportError:
+        return offenders
 
 
 def merge_new_scan_results(new_json: dict) -> None:

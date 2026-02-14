@@ -221,10 +221,36 @@ def _mock_recent_posts_for_offender(entry: dict) -> Optional[dict]:
     }
 
 
-def detect_trap_candidates(require_fire_window: bool = True) -> list[dict]:
+def _sort_candidates_by_behavior_profiles(candidates: list[dict]) -> list[dict]:
+    """プロファイルの trap_density と peak_trap_hours で優先度付けし、Trap を張りがちなアカウントを前に。"""
+    try:
+        from influencer_behavior_profiler import load_profiles
+        profiles_list = load_profiles()
+    except ImportError:
+        return candidates
+    profile_by_account = {}
+    for p in profiles_list:
+        acc = (p.get("account") or "").strip().lower().lstrip("@")
+        if acc:
+            profile_by_account[acc] = p
+    now_utc_hour = datetime.now(timezone.utc).hour
+    def priority(c: dict) -> tuple:
+        acc = (c.get("account") or "").strip().lower().lstrip("@")
+        p = profile_by_account.get(acc)
+        if not p:
+            return (0.0, 0)
+        density = float(p.get("trap_density") or 0)
+        peak = list(p.get("peak_trap_hours_utc") or [])
+        in_peak = 1 if now_utc_hour in peak else 0
+        return (-density, -in_peak)
+    return sorted(candidates, key=priority)
+
+
+def detect_trap_candidates(require_fire_window: bool = True, use_behavior_priority: bool = True) -> list[dict]:
     """
     Scan influencers + bait offenders with 'recent posts'; filter by language (EN,ES,PT,AR,KO,JA),
     timing_pattern, and (if require_fire_window) current UTC in language's BuzzWeave sortie window.
+    If use_behavior_priority=True, sort by influencer_behavior_profiler (trap_density, peak_trap_hours).
     Output: list of trap_candidate_posts.
     """
     candidates: list[dict] = []
@@ -264,6 +290,8 @@ def detect_trap_candidates(require_fire_window: bool = True) -> list[dict]:
             candidates.append(post)
     except ImportError:
         pass
+    if use_behavior_priority and candidates:
+        candidates = _sort_candidates_by_behavior_profiles(candidates)
     return candidates
 
 

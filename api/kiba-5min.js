@@ -1,6 +1,6 @@
 /**
  * KIBA 5分クロン: CQ を 5 分ごとに取得し、CQ で異常を検知したときだけ Grok を呼ぶ
- * vercel.json: "schedule": "*/5 * * * *"
+ * vercel.json: "schedule": 5分間隔 (cron: 5min interval)
  *
  * 流れ: (1) CQ のみ取得 → (2) CQ ベースで異常チェック（kibaScore 閾値）→ (3) 異常時のみ Grok 取得
  *       → (4) runKibaOnce で本判定 → 発火時は Telegram アラート送信

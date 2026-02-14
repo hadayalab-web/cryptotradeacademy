@@ -1,0 +1,148 @@
+{
+  "profiles": [
+    {
+      "account": "@cryptoarabia",
+      "trap_density": 0.2,
+      "dominant_pattern": "BAIT_NO_FLOW",
+      "peak_trap_hours_utc": [
+        12
+      ],
+      "top_keywords": [],
+      "avg_kiba_score": 71.2,
+      "trap_count": 2
+    },
+    {
+      "account": "@btc_arabic",
+      "trap_density": 0.2,
+      "dominant_pattern": "BAIT_NO_FLOW",
+      "peak_trap_hours_utc": [
+        12
+      ],
+      "top_keywords": [],
+      "avg_kiba_score": 71.5,
+      "trap_count": 2
+    },
+    {
+      "account": "@arabcryptonews",
+      "trap_density": 0.2,
+      "dominant_pattern": "BAIT_NO_FLOW",
+      "peak_trap_hours_utc": [
+        12
+      ],
+      "top_keywords": [],
+      "avg_kiba_score": 72.7,
+      "trap_count": 2
+    },
+    {
+      "account": "@traderar",
+      "trap_density": 0.2,
+      "dominant_pattern": "BAIT_NO_FLOW",
+      "peak_trap_hours_utc": [
+        12
+      ],
+      "top_keywords": [],
+      "avg_kiba_score": 65.9,
+      "trap_count": 2
+    },
+    {
+      "account": "@kryptoarab",
+      "trap_density": 0.2,
+      "dominant_pattern": "BAIT_NO_FLOW",
+      "peak_trap_hours_utc": [
+        12
+      ],
+      "top_keywords": [],
+      "avg_kiba_score": 71.4,
+      "trap_count": 2
+    },
+    {
+      "account": "@bait_user_1",
+      "trap_density": 0.1,
+      "dominant_pattern": "BAIT_NO_FLOW",
+      "peak_trap_hours_utc": [],
+      "top_keywords": [
+        "100x",
+        "moon",
+        "gem"
+      ],
+      "avg_kiba_score": 0.8,
+      "trap_count": 1
+    },
+    {
+      "account": "@bait_user_2",
+      "trap_density": 0.1,
+      "dominant_pattern": "BAIT_NO_FLOW",
+      "peak_trap_hours_utc": [],
+      "top_keywords": [
+        "last chance",
+        "don't miss"
+      ],
+      "avg_kiba_score": 0.6,
+      "trap_count": 1
+    },
+    {
+      "account": "@crypto_whale_btc",
+      "trap_density": 0.1,
+      "dominant_pattern": "BAIT_NO_FLOW",
+      "peak_trap_hours_utc": [],
+      "top_keywords": [
+        "pump",
+        "accumulate",
+        "bullish"
+      ],
+      "avg_kiba_score": 0.6,
+      "trap_count": 1
+    },
+    {
+      "account": "@kr_trader",
+      "trap_density": 0.1,
+      "dominant_pattern": "BAIT_NO_FLOW",
+      "peak_trap_hours_utc": [],
+      "top_keywords": [
+        "bitcoin",
+        "up"
+      ],
+      "avg_kiba_score": 0.5,
+      "trap_count": 1
+    },
+    {
+      "account": "@meme_pump",
+      "trap_density": 0.1,
+      "dominant_pattern": "BAIT_NO_FLOW",
+      "peak_trap_hours_utc": [],
+      "top_keywords": [
+        "moon",
+        "100x",
+        "pump"
+      ],
+      "avg_kiba_score": 0.5,
+      "trap_count": 1
+    },
+    {
+      "account": "@es_influencer",
+      "trap_density": 0.1,
+      "dominant_pattern": "BAIT_NO_FLOW",
+      "peak_trap_hours_utc": [],
+      "top_keywords": [
+        "bitcoin",
+        "sube",
+        "comprar"
+      ],
+      "avg_kiba_score": 0.4,
+      "trap_count": 1
+    },
+    {
+      "account": "@cn_insider",
+      "trap_density": 0.1,
+      "dominant_pattern": "BAIT_NO_FLOW",
+      "peak_trap_hours_utc": [],
+      "top_keywords": [
+        "pump",
+        "bullish",
+        "moon"
+      ],
+      "avg_kiba_score": 0.5,
+      "trap_count": 1
+    }
+  ]
+}
