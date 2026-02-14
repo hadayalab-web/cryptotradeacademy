@@ -484,11 +484,7 @@ async function fetchCandidatesFromSearch(slotLang, options = {}) {
       sortOrder: options.sortOrder || "recency"
     });
     const data = Array.isArray(res?.data) ? res.data : [];
-    console.log("[BuzzWeave] search/recent result", {
-      count: data.length,
-      slotLang,
-      query: (query || "").slice(0, 80)
-    });
+    console.log("[BuzzWeave] BWE SCAN: X API accessed OK, posts fetched:", data.length, "| lang:", slotLang, "| query:", (query || "").slice(0, 60));
     return {
       data,
       includes: res?.includes || {},
@@ -542,8 +538,9 @@ async function collectBuzzCandidates(options = {}) {
   let clusterScores = {};
 
   if (isDeadlineExceeded(startMs, deadlineMs)) {
+    console.log("[BuzzWeave] BWE SCAN: deadline exceeded before search, posts_fetched=0");
     logWarn("deadline exceeded", { stage: "before-search", ...deadlineSnapshot(startMs, deadlineMs) });
-    return { candidates, deadlineExceeded: true, clusters: {}, clusterScores: {} };
+    return { candidates, deadlineExceeded: true, clusters: {}, clusterScores: {}, postsFetched: 0 };
   }
 
   // 1-1: slot.lang に合わせたクエリで直近 1〜5 分の投稿を取得（1言語のみ）
@@ -554,18 +551,21 @@ async function collectBuzzCandidates(options = {}) {
   });
 
   if (searchResult.fatal402) {
-    return { candidates: [], deadlineExceeded: false, clusters: {}, clusterScores: {}, fatal402: true };
+    console.log("[BuzzWeave] BWE SCAN: X API 402, run aborted");
+    return { candidates: [], deadlineExceeded: false, clusters: {}, clusterScores: {}, fatal402: true, postsFetched: 0 };
   }
 
   const { data: posts, includes, query } = searchResult;
 
   if (isDeadlineExceeded(startMs, deadlineMs)) {
-    return { candidates, deadlineExceeded: true, clusters: {}, clusterScores: {} };
+    console.log("[BuzzWeave] BWE SCAN: deadline exceeded after search, posts_fetched=" + posts.length);
+    return { candidates, deadlineExceeded: true, clusters: {}, clusterScores: {}, postsFetched: posts.length };
   }
 
   if (!posts.length) {
+    console.log("[BuzzWeave] BWE SCAN: 0 posts from search, no buzz candidates");
     logInfo("candidate summary (search/recent)", { rawCandidates: 0, candidates: 0, clusters: {}, clusterScores: {} });
-    return { candidates, deadlineExceeded: false, clusters: {}, clusterScores: {} };
+    return { candidates, deadlineExceeded: false, clusters: {}, clusterScores: {}, postsFetched: 0 };
   }
 
   const quotedIds = await getQuotedTweetIdsInLast30Days(posts.map((p) => String(p.id)));
@@ -596,7 +596,8 @@ async function collectBuzzCandidates(options = {}) {
 
   if (isDeadlineExceeded(startMs, deadlineMs)) {
     logWarn("deadline exceeded", { stage: "after-median-filter", ...deadlineSnapshot(startMs, deadlineMs) });
-    return { candidates: filteredByMedian.slice(0, classifyTopN).map(c => ({ ...c, context: { topic: "crypto", tone: "neutral", lang: c.target?.lang || "en" }, cluster: classifyCluster(c.post?.text) })), deadlineExceeded: true, clusters: {}, clusterScores: {} };
+    console.log("[BuzzWeave] BWE SCAN: deadline after median filter, posts_fetched=" + posts.length + " buzz_candidates=" + filteredByMedian.length);
+    return { candidates: filteredByMedian.slice(0, classifyTopN).map(c => ({ ...c, context: { topic: "crypto", tone: "neutral", lang: c.target?.lang || "en" }, cluster: classifyCluster(c.post?.text) })), deadlineExceeded: true, clusters: {}, clusterScores: {}, postsFetched: posts.length };
   }
 
   // 2-1: トレンドクラスタリング + 危険度分類
@@ -622,6 +623,7 @@ async function collectBuzzCandidates(options = {}) {
 
   if (isDeadlineExceeded(startMs, deadlineMs)) {
     deadlineExceeded = true;
+    console.log("[BuzzWeave] BWE SCAN: deadline exceeded during classify, posts_fetched=" + posts.length + " buzz_candidates=" + toClassify.length);
     for (const c of toClassify) {
       candidates.push({ ...c, context: { topic: "crypto", tone: "neutral", lang: c.target?.lang || "en" } });
     }
@@ -640,6 +642,7 @@ async function collectBuzzCandidates(options = {}) {
   }
 
   candidates.sort((a, b) => b.engagementScore - a.engagementScore);
+  console.log("[BuzzWeave] BWE SCAN: posts_fetched=" + posts.length + " buzz_candidates=" + candidates.length + " (median_filtered=" + filteredByMedian.length + ")");
   logInfo("candidate summary (search/recent)", {
     rawCandidates: rawCandidates.length,
     filteredByMedian: filteredByMedian.length,
@@ -647,7 +650,7 @@ async function collectBuzzCandidates(options = {}) {
     clusterScores,
     deadlineExceeded
   });
-  return { candidates, deadlineExceeded, clusters, clusterScores };
+  return { candidates, deadlineExceeded, clusters, clusterScores, postsFetched: posts.length };
 }
 
 /**
@@ -741,11 +744,8 @@ async function runBuzzWeaveCycle(options = {}) {
 
   const buzzCandidates = collectResult.candidates || [];
   const clusterScores = collectResult.clusterScores || {};
-  console.log("[BuzzWeave] candidates", {
-    count: buzzCandidates.length,
-    fatal402: !!collectResult.fatal402,
-    deadlineExceeded: !!collectResult.deadlineExceeded
-  });
+  const postsFetched = collectResult.postsFetched ?? "?";
+  console.log("[BuzzWeave] BWE SCAN RESULT: posts_fetched=" + postsFetched + " buzz_candidates=" + buzzCandidates.length + (collectResult.deadlineExceeded ? " (deadline)" : ""));
   if (!buzzCandidates.length) {
     const reason = collectResult.fatal402
       ? "X API 402"
@@ -809,7 +809,7 @@ async function runBuzzWeaveCycle(options = {}) {
       console.log("[BuzzWeave] posting", { quotedId: candidate.post.id, dryRun: false });
       logError("ready to post", candidate.post.id);
       const postResult = await postQuoteTweet(body, candidate.post.id);
-      console.log("[BuzzWeave] post success", { tweetId: postResult?.id || null, quotedId: candidate.post.id });
+      console.log("[BuzzWeave] BWE SCAN: REPOSTED quoted_id=" + candidate.post.id + " our_tweet_id=" + (postResult?.id || "null"));
       // 集中投下ログ（市場回収用 + ミッション検証用）
       const buzzInsights = buildBuzzInsights(candidate, slot.lang);
       await insertBuzzweavePostLog({
@@ -875,6 +875,7 @@ async function runBuzzWeaveCycle(options = {}) {
       });
     }
   } else {
+    console.log("[BuzzWeave] BWE SCAN: DRY RUN would_repost quoted_id=" + candidate.post.id);
     results.push({
       slot,
       candidate: { handle: candidate.target.handle, postId: candidate.post.id },
