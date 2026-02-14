@@ -66,6 +66,86 @@ function buildMacroSnapshot(_ref) {
   };
 }
 
+/**
+ * kiba を1回実行する共通ロジック（cron からの直接呼び出し / HTTP ハンドラの両方で使用）
+ * @param {object} kv - KV クライアント
+ * @param {object} options - { btcSnapshot?, nasdaqSnapshot?, goldSnapshot?, asset? }
+ * @returns {Promise<object>} { success, triggered, impact, dispatchPayload?, error?, source?, kv? }
+ */
+async function runKibaOnce(kv, options = {}) {
+  const asset = String(options.asset || "BTC").toUpperCase();
+  const kibaLatestKey = getKibaLatestKey(asset);
+  const snapshotKeys = asset === "BTC" ? BTC_SNAPSHOT_KEYS : [`asset:snapshot:${asset}`];
+
+  let btcSnapshot = options.btcSnapshot;
+  let nasdaqSnapshot = options.nasdaqSnapshot;
+  let goldSnapshot = options.goldSnapshot;
+  let btcResultKey = null;
+
+  if (!btcSnapshot) {
+    const btcResult = await getFirstSnapshot(kv, snapshotKeys);
+    btcSnapshot = btcResult.value;
+    btcResultKey = btcResult.key;
+  }
+  if (nasdaqSnapshot === undefined) nasdaqSnapshot = await kv.get("asset:snapshot:NASDAQ");
+  if (goldSnapshot === undefined) goldSnapshot = await kv.get("asset:snapshot:GOLD");
+
+  const lastKiba = await kv.get(kibaLatestKey);
+  const macroSnapshot = buildMacroSnapshot({ btcSnapshot, nasdaqSnapshot, goldSnapshot });
+
+  const runResult = runKibaEngine({
+    btcSnapshot: btcSnapshot || null,
+    macroSnapshot,
+    lastKibaSnapshot: lastKiba || null,
+    asset
+  });
+
+  const source = {
+    btcSnapshotKey: btcResultKey ?? (options.btcSnapshot ? "in-memory" : null),
+    hasNasdaq: !!nasdaqSnapshot,
+    hasGold: !!goldSnapshot
+  };
+
+  if (!runResult.triggered) {
+    return {
+      success: true,
+      triggered: false,
+      source,
+      impact: runResult.impact
+    };
+  }
+
+  const writeResult = await buildAndWriteKibaSnapshot(kv, {
+    runResult,
+    btcSnapshot,
+    macroSnapshot,
+    asset
+  });
+
+  const dispatchPayload = {
+    type: "CRITICAL_ALERT",
+    targetAudience: "REGULAR_ONLY_DEV_BENEFIT",
+    snapshot: writeResult.snapshot,
+    alerts: ALERT_LANGS.reduce((acc, lang) => {
+      acc[lang] = formatCriticalAlert(writeResult.snapshot, lang);
+      return acc;
+    }, {})
+  };
+
+  return {
+    success: true,
+    triggered: true,
+    source,
+    impact: runResult.impact,
+    kv: {
+      latestKey: writeResult.latestKey,
+      historyKey: writeResult.historyKey,
+      saved: writeResult.ok
+    },
+    dispatchPayload
+  };
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -98,74 +178,19 @@ module.exports = async function handler(req, res) {
       return res.status(503).json({ success: false, error: "KV not available", triggered: false });
     }
 
-    const kibaLatestKey = getKibaLatestKey(asset);
-    const [btcResult, nasdaqSnapshot, goldSnapshot, lastKiba] = await Promise.all([
-      getFirstSnapshot(kv, asset === "BTC" ? BTC_SNAPSHOT_KEYS : [`asset:snapshot:${asset}`]),
-      kv.get("asset:snapshot:NASDAQ"),
-      kv.get("asset:snapshot:GOLD"),
-      kv.get(kibaLatestKey)
-    ]);
-    const btcSnapshot = btcResult.value;
-
-    const macroSnapshot = buildMacroSnapshot({
-      btcSnapshot,
-      nasdaqSnapshot,
-      goldSnapshot
-    });
-
-    const runResult = runKibaEngine({
-      btcSnapshot: btcSnapshot || null,
-      macroSnapshot,
-      lastKibaSnapshot: lastKiba || null,
-      asset
-    });
-
-    if (!runResult.triggered) {
+    const result = await runKibaOnce(kv, { asset });
+    if (!result.triggered) {
       console.log("[kiba/run] 200 OK (triggered=false)");
       await writeKibaHealthStatus(kv, 200);
-      return res.status(200).json({
-        success: true,
-        triggered: false,
-        source: { btcSnapshotKey: btcResult.key, hasNasdaq: !!nasdaqSnapshot, hasGold: !!goldSnapshot },
-        impact: runResult.impact
-      });
+      return res.status(200).json(result);
     }
-
-    const writeResult = await buildAndWriteKibaSnapshot(kv, {
-      runResult,
-      btcSnapshot,
-      macroSnapshot,
-      asset
-    });
-
-    const dispatchPayload = {
-      type: "CRITICAL_ALERT",
-      targetAudience: "REGULAR_ONLY_DEV_BENEFIT",
-      snapshot: writeResult.snapshot,
-      alerts: ALERT_LANGS.reduce((acc, lang) => {
-        acc[lang] = formatCriticalAlert(writeResult.snapshot, lang);
-        return acc;
-      }, {})
-    };
-
     console.log("[kiba/run] 200 OK (triggered=true)");
     await writeKibaHealthStatus(kv, 200);
-    return res.status(200).json({
-      success: true,
-      triggered: true,
-      source: { btcSnapshotKey: btcResult.key, hasNasdaq: !!nasdaqSnapshot, hasGold: !!goldSnapshot },
-      impact: runResult.impact,
-      kv: {
-        latestKey: writeResult.latestKey,
-        historyKey: writeResult.historyKey,
-        saved: writeResult.ok
-      },
-      dispatchPayload
-    });
+    return res.status(200).json(result);
   } catch (error) {
     console.error("[kiba/run] Error:", error?.message);
     const kvErr = getKV();
-    if (kvErr) writeKibaHealthStatus(kvErr, 200).catch(() => {}); // 200 = レスポンスは 200 で返しているため
+    if (kvErr) writeKibaHealthStatus(kvErr, 200).catch(() => {});
     return res.status(200).json({
       success: false,
       triggered: false,
@@ -173,3 +198,5 @@ module.exports = async function handler(req, res) {
     });
   }
 };
+
+module.exports.runKibaOnce = runKibaOnce;

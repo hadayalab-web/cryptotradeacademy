@@ -97,11 +97,9 @@ WHERE id = 'main';
    - Vercel の **cron が動く環境**（Production）の `CRON_SECRET` と、**kiba/run が動く環境**の `CRON_SECRET` が**完全に同一**か。
    - 本番とステージングで別値にしている場合、cron の `INTERNAL_API_BASE_URL` / `CRON_BASE_URL` が別デプロイを指していないか。
 
-2. **内部 API URL**
-   - cron は `buildInternalApiUrl(req, "/api/kiba/run")` で URL を組み立てています（`api/cron.js` 249–273 行）。
-   - 使用されるベースは次の優先順位です:  
-     `INTERNAL_API_BASE_URL` → `CRON_BASE_URL` → `APP_BASE_URL` → `NEXT_PUBLIC_SITE_URL` → `VERCEL_URL`。
-   - ここで別ドメイン・別デプロイに飛んでいると、その先の `CRON_SECRET` が違うと 401 になります。
+2. **cron からの kiba 実行**
+   - cron は **HTTP で自アプリの /api/kiba/run を叩かず**、`runKibaOnce(kv, { btcSnapshot, ... })` を直接呼ぶ実装に変更済み（過剰実装の解消）。401 は cron 経由では発生しません。
+   - 手動で POST する場合（例: 疎通確認）のみ `CRON_SECRET` が必要です。
 
 3. **前後のスペース**
    - `CRON_SECRET` に前後のスペースが入っていないか（.env や Vercel の値のコピペミス）。

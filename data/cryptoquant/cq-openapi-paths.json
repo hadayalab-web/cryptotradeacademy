@@ -1,0 +1,2701 @@
+{
+  "paths": [
+    "/v1/integrations/googleanalytics/installations/c5b8021eef58f16c6c582ac959c69544dd37093ee3e7ee4dc6c055534e1c5172/sites/site_m",
+    "/v1//btc/status/entity-list",
+    "/v1/btc/status/entity-list",
+    "/v1//btc/network-data/supply",
+    "/v1//btc/network-data/velocity",
+    "/v1//btc/network-data/transactions-count",
+    "/v1//btc/network-data/addresses-count",
+    "/v1//btc/network-data/tokens-transferred",
+    "/v1//btc/network-data/block-bytes",
+    "/v1//btc/network-data/block-count",
+    "/v1//btc/network-data/block-interval",
+    "/v1//btc/network-data/utxo-count",
+    "/v1//btc/network-data/fees",
+    "/v1//btc/network-data/fees-transaction",
+    "/v1//btc/network-data/blockreward",
+    "/v1//btc/network-data/difficulty",
+    "/v1//btc/network-data/hashrate",
+    "/v1/btc/network-data/supply",
+    "/v1/btc/network-data/velocity",
+    "/v1/btc/network-data/transactions-count",
+    "/v1/btc/network-data/addresses-count",
+    "/v1/btc/network-data/tokens-transferred",
+    "/v1/btc/network-data/block-bytes",
+    "/v1/btc/network-data/block-count",
+    "/v1/btc/network-data/block-interval",
+    "/v1/btc/network-data/utxo-count",
+    "/v1/btc/network-data/fees",
+    "/v1/btc/network-data/fees-transaction",
+    "/v1/btc/network-data/blockreward",
+    "/v1/btc/network-data/difficulty",
+    "/v1/btc/network-data/hashrate",
+    "/v1//btc/market-data/price-ohlcv",
+    "/v1//btc/market-data/open-interest",
+    "/v1//btc/market-data/funding-rates",
+    "/v1//btc/market-data/taker-buy-sell-stats",
+    "/v1//btc/market-data/liquidations",
+    "/v1//btc/market-data/capitalization",
+    "/v1//btc/market-data/coinbase-premium-index",
+    "/v1/btc/market-data/price-ohlcv",
+    "/v1/btc/market-data/open-interest",
+    "/v1/btc/market-data/funding-rates",
+    "/v1/btc/market-data/taker-buy-sell-stats",
+    "/v1/btc/market-data/liquidations",
+    "/v1/btc/market-data/capitalization",
+    "/v1/btc/market-data/coinbase-premium-index",
+    "/v1//btc/fund-data/market-price-usd",
+    "/v1//btc/fund-data/market-volume",
+    "/v1//btc/fund-data/market-premium",
+    "/v1//btc/fund-data/digital-asset-holdings",
+    "/v1/btc/fund-data/market-price-usd",
+    "/v1/btc/fund-data/market-volume",
+    "/v1/btc/fund-data/market-premium",
+    "/v1/btc/fund-data/digital-asset-holdings",
+    "/v1//btc/exchange-flows/reserve",
+    "/v1//btc/exchange-flows/netflow",
+    "/v1//btc/exchange-flows/inflow",
+    "/v1//btc/exchange-flows/outflow",
+    "/v1//btc/exchange-flows/transactions-count",
+    "/v1//btc/exchange-flows/addresses-count",
+    "/v1//btc/exchange-flows/in-house-flow",
+    "/v1/btc/exchange-flows/reserve",
+    "/v1/btc/exchange-flows/netflow",
+    "/v1/btc/exchange-flows/inflow",
+    "/v1/btc/exchange-flows/outflow",
+    "/v1/btc/exchange-flows/transactions-count",
+    "/v1/btc/exchange-flows/addresses-count",
+    "/v1/btc/exchange-flows/in-house-flow",
+    "/v1//btc/miner-flows/reserve",
+    "/v1//btc/miner-flows/netflow",
+    "/v1//btc/miner-flows/inflow",
+    "/v1//btc/miner-flows/outflow",
+    "/v1//btc/miner-flows/transactions-count",
+    "/v1//btc/miner-flows/addresses-count",
+    "/v1//btc/miner-flows/in-house-flow",
+    "/v1/btc/miner-flows/reserve",
+    "/v1/btc/miner-flows/netflow",
+    "/v1/btc/miner-flows/inflow",
+    "/v1/btc/miner-flows/outflow",
+    "/v1/btc/miner-flows/transactions-count",
+    "/v1/btc/miner-flows/addresses-count",
+    "/v1/btc/miner-flows/in-house-flow",
+    "/v1//btc/inter-entity-flows/exchange-to-exchange",
+    "/v1//btc/inter-entity-flows/miner-to-exchange",
+    "/v1//btc/inter-entity-flows/exchange-to-miner",
+    "/v1//btc/inter-entity-flows/miner-to-miner",
+    "/v1/btc/inter-entity-flows/exchange-to-exchange",
+    "/v1/btc/inter-entity-flows/miner-to-exchange",
+    "/v1/btc/inter-entity-flows/exchange-to-miner",
+    "/v1/btc/inter-entity-flows/miner-to-miner",
+    "/v1//btc/network-indicator/stock-to-flow",
+    "/v1//btc/network-indicator/nvt",
+    "/v1//btc/network-indicator/nvt-golden-cross",
+    "/v1//btc/network-indicator/nvm",
+    "/v1//btc/network-indicator/puell-multiple",
+    "/v1//btc/network-indicator/cdd",
+    "/v1//btc/network-indicator/mca",
+    "/v1//btc/network-indicator/sca",
+    "/v1//btc/network-indicator/sca-distribution",
+    "/v1//btc/network-indicator/nupl",
+    "/v1//btc/network-indicator/nrpl",
+    "/v1//btc/network-indicator/pnl-utxo",
+    "/v1//btc/network-indicator/pnl-supply",
+    "/v1//btc/network-indicator/dormancy",
+    "/v1//btc/network-indicator/utxo-age-distribution",
+    "/v1//btc/network-indicator/utxo-realized-age-distribution",
+    "/v1//btc/network-indicator/utxo-count-age-distribution",
+    "/v1//btc/network-indicator/spent-output-age-distribution",
+    "/v1//btc/network-indicator/utxo-supply-distribution",
+    "/v1//btc/network-indicator/utxo-realized-supply-distribution",
+    "/v1//btc/network-indicator/utxo-count-supply-distribution",
+    "/v1//btc/network-indicator/spent-output-supply-distribution",
+    "/v1/btc/network-indicator/stock-to-flow",
+    "/v1/btc/network-indicator/nvt",
+    "/v1/btc/network-indicator/nvt-golden-cross",
+    "/v1/btc/network-indicator/nvm",
+    "/v1/btc/network-indicator/puell-multiple",
+    "/v1/btc/network-indicator/cdd",
+    "/v1/btc/network-indicator/mca",
+    "/v1/btc/network-indicator/sca",
+    "/v1/btc/network-indicator/sca-distribution",
+    "/v1/btc/network-indicator/nupl",
+    "/v1/btc/network-indicator/nrpl",
+    "/v1/btc/network-indicator/pnl-utxo",
+    "/v1/btc/network-indicator/pnl-supply",
+    "/v1/btc/network-indicator/dormancy",
+    "/v1/btc/network-indicator/utxo-age-distribution",
+    "/v1/btc/network-indicator/utxo-realized-age-distribution",
+    "/v1/btc/network-indicator/utxo-count-age-distribution",
+    "/v1/btc/network-indicator/spent-output-age-distribution",
+    "/v1/btc/network-indicator/utxo-supply-distribution",
+    "/v1/btc/network-indicator/utxo-realized-supply-distribution",
+    "/v1/btc/network-indicator/utxo-count-supply-distribution",
+    "/v1/btc/network-indicator/spent-output-supply-distribution",
+    "/v1//btc/market-indicator/estimated-leverage-ratio",
+    "/v1//btc/market-indicator/stablecoin-supply-ratio",
+    "/v1//btc/market-indicator/mvrv",
+    "/v1//btc/market-indicator/sopr",
+    "/v1//btc/market-indicator/sopr-ratio",
+    "/v1//btc/market-indicator/realized-price",
+    "/v1//btc/market-indicator/utxo-realized-price-age-distribution",
+    "/v1/btc/market-indicator/estimated-leverage-ratio",
+    "/v1/btc/market-indicator/stablecoin-supply-ratio",
+    "/v1/btc/market-indicator/mvrv",
+    "/v1/btc/market-indicator/sopr",
+    "/v1/btc/market-indicator/sopr-ratio",
+    "/v1/btc/market-indicator/realized-price",
+    "/v1/btc/market-indicator/utxo-realized-price-age-distribution",
+    "/v1//btc/mempool/stats-by-relative-fee",
+    "/v1//btc/mempool/stats-in-total",
+    "/v1/btc/mempool/stats-by-relative-fee",
+    "/v1/btc/mempool/stats-in-total",
+    "/v1//btc/lightning-network/stats-in-total",
+    "/v1/btc/lightning/stats-in-total",
+    "/v1//btc/flow-indicator/mpi",
+    "/v1//btc/flow-indicator/exchange-shutdown-index",
+    "/v1//btc/flow-indicator/exchange-whale-ratio",
+    "/v1//btc/flow-indicator/fund-flow-ratio",
+    "/v1//btc/flow-indicator/stablecoins-ratio",
+    "/v1//btc/flow-indicator/exchange-inflow-age-distribution",
+    "/v1//btc/flow-indicator/exchange-inflow-supply-distribution",
+    "/v1//btc/flow-indicator/exchange-inflow-cdd",
+    "/v1//btc/flow-indicator/exchange-supply-ratio",
+    "/v1//btc/flow-indicator/miner-supply-ratio",
+    "/v1/btc/flow-indicator/mpi",
+    "/v1/btc/flow-indicator/exchange-shutdown-index",
+    "/v1/btc/flow-indicator/exchange-whale-ratio",
+    "/v1/btc/flow-indicator/fund-flow-ratio",
+    "/v1/btc/flow-indicator/stablecoins-ratio",
+    "/v1/btc/flow-indicator/exchange-inflow-age-distribution",
+    "/v1/btc/flow-indicator/exchange-inflow-supply-distribution",
+    "/v1/btc/flow-indicator/exchange-inflow-cdd",
+    "/v1/btc/flow-indicator/exchange-supply-ratio",
+    "/v1/btc/flow-indicator/miner-supply-ratio",
+    "/v1//btc/miner-data/companies",
+    "/v1/btc/miner-data/companies",
+    "/v1//eth/status/entity-list",
+    "/v1/eth/status/entity-list",
+    "/v1//eth/network-data/supply",
+    "/v1//eth/network-data/velocity",
+    "/v1//eth/network-data/contracts-count",
+    "/v1//eth/network-data/transactions-count",
+    "/v1//eth/network-data/transactions-count-between-eoa",
+    "/v1//eth/network-data/contract-calls-count-external",
+    "/v1//eth/network-data/contract-calls-count-internal",
+    "/v1//eth/network-data/contract-calls-count",
+    "/v1//eth/network-data/transactions-count-all",
+    "/v1//eth/network-data/addresses-count",
+    "/v1//eth/network-data/addresses-count-all",
+    "/v1//eth/network-data/tokens-transferred-count",
+    "/v1//eth/network-data/tokens-transferred-count-between-eoa",
+    "/v1//eth/network-data/tokens-transferred-count-by-contract-calls-external",
+    "/v1//eth/network-data/tokens-transferred-count-by-contract-calls-internal",
+    "/v1//eth/network-data/tokens-transferred-count-by-contract-calls",
+    "/v1//eth/network-data/tokens-transferred-count-all",
+    "/v1//eth/network-data/tokens-transferred",
+    "/v1//eth/network-data/tokens-transferred-between-eoa",
+    "/v1//eth/network-data/tokens-transferred-by-contract-calls-external",
+    "/v1//eth/network-data/tokens-transferred-by-contract-calls-internal",
+    "/v1//eth/network-data/tokens-transferred-by-contract-calls",
+    "/v1//eth/network-data/tokens-transferred-all",
+    "/v1//eth/network-data/failed-transactions-count",
+    "/v1//eth/network-data/failed-tokens-transferred-count",
+    "/v1//eth/network-data/block-bytes",
+    "/v1//eth/network-data/block-count",
+    "/v1//eth/network-data/block-interval",
+    "/v1//eth/network-data/fees",
+    "/v1//eth/network-data/fees-burnt",
+    "/v1//eth/network-data/fees-tips",
+    "/v1//eth/network-data/fees-transaction",
+    "/v1//eth/network-data/fees-burnt-transaction",
+    "/v1//eth/network-data/fees-tips-transaction",
+    "/v1//eth/network-data/blockreward",
+    "/v1//eth/network-data/blockreward-except-uncle",
+    "/v1//eth/network-data/gas",
+    "/v1//eth/network-data/base-fee",
+    "/v1//eth/network-data/max-fee",
+    "/v1//eth/network-data/max-priority-fee",
+    "/v1//eth/network-data/difficulty",
+    "/v1//eth/network-data/hashrate",
+    "/v1//eth/network-data/uncle-block-count",
+    "/v1//eth/network-data/uncle-blockreward",
+    "/v1/eth/network-data/supply",
+    "/v1/eth/network-data/velocity",
+    "/v1/eth/network-data/contracts-count",
+    "/v1/eth/network-data/transactions-count",
+    "/v1/eth/network-data/transactions-count-between-eoa",
+    "/v1/eth/network-data/contract-calls-count-external",
+    "/v1/eth/network-data/contract-calls-count-internal",
+    "/v1/eth/network-data/contract-calls-count",
+    "/v1/eth/network-data/transactions-count-all",
+    "/v1/eth/network-data/addresses-count",
+    "/v1/eth/network-data/addresses-count-all",
+    "/v1/eth/network-data/tokens-transferred-count",
+    "/v1/eth/network-data/tokens-transferred-count-between-eoa",
+    "/v1/eth/network-data/tokens-transferred-count-by-contract-calls-external",
+    "/v1/eth/network-data/tokens-transferred-count-by-contract-calls-internal",
+    "/v1/eth/network-data/tokens-transferred-count-by-contract-calls",
+    "/v1/eth/network-data/tokens-transferred-count-all",
+    "/v1/eth/network-data/tokens-transferred",
+    "/v1/eth/network-data/tokens-transferred-between-eoa",
+    "/v1/eth/network-data/tokens-transferred-by-contract-calls-external",
+    "/v1/eth/network-data/tokens-transferred-by-contract-calls-internal",
+    "/v1/eth/network-data/tokens-transferred-by-contract-calls",
+    "/v1/eth/network-data/tokens-transferred-all",
+    "/v1/eth/network-data/failed-transactions-count",
+    "/v1/eth/network-data/failed-tokens-transferred-count",
+    "/v1/eth/network-data/block-bytes",
+    "/v1/eth/network-data/block-count",
+    "/v1/eth/network-data/block-interval",
+    "/v1/eth/network-data/fees",
+    "/v1/eth/network-data/fees-burnt",
+    "/v1/eth/network-data/fees-tips",
+    "/v1/eth/network-data/fees-transaction",
+    "/v1/eth/network-data/fees-burnt-transaction",
+    "/v1/eth/network-data/fees-tips-transaction",
+    "/v1/eth/network-data/blockreward",
+    "/v1/eth/network-data/blockreward-except-uncle",
+    "/v1/eth/network-data/gas",
+    "/v1/eth/network-data/base-fee",
+    "/v1/eth/network-data/max-fee",
+    "/v1/eth/network-data/max-priority-fee",
+    "/v1/eth/network-data/difficulty",
+    "/v1/eth/network-data/hashrate",
+    "/v1/eth/network-data/uncle-block-count",
+    "/v1/eth/network-data/uncle-blockreward",
+    "/v1//eth/exchange-flows/reserve",
+    "/v1//eth/exchange-flows/netflow",
+    "/v1//eth/exchange-flows/inflow",
+    "/v1//eth/exchange-flows/outflow",
+    "/v1//eth/exchange-flows/transactions-count",
+    "/v1//eth/exchange-flows/addresses-count",
+    "/v1/eth/exchange-flows/reserve",
+    "/v1/eth/exchange-flows/netflow",
+    "/v1/eth/exchange-flows/inflow",
+    "/v1/eth/exchange-flows/outflow",
+    "/v1/eth/exchange-flows/transactions-count",
+    "/v1/eth/exchange-flows/addresses-count",
+    "/v1//eth/market-data/price-ohlcv",
+    "/v1//eth/market-data/open-interest",
+    "/v1//eth/market-data/funding-rates",
+    "/v1//eth/market-data/taker-buy-sell-stats",
+    "/v1//eth/market-data/liquidations",
+    "/v1//eth/market-data/coinbase-premium-index",
+    "/v1//eth/market-data/capitalization",
+    "/v1/eth/market-data/price-ohlcv",
+    "/v1/eth/market-data/open-interest",
+    "/v1/eth/market-data/funding-rates",
+    "/v1/eth/market-data/taker-buy-sell-stats",
+    "/v1/eth/market-data/liquidations",
+    "/v1/eth/market-data/coinbase-premium-index",
+    "/v1/eth/market-data/capitalization",
+    "/v1//eth/market-indicator/estimated-leverage-ratio",
+    "/v1/eth/market-indicator/estimated-leverage-ratio",
+    "/v1//eth/flow-indicator/exchange-supply-ratio",
+    "/v1/eth/flow-indicator/exchange-supply-ratio",
+    "/v1//eth/fund-data/market-price-usd",
+    "/v1//eth/fund-data/market-volume",
+    "/v1//eth/fund-data/market-premium",
+    "/v1//eth/fund-data/digital-asset-holdings",
+    "/v1/eth/fund-data/market-price-usd",
+    "/v1/eth/fund-data/market-volume",
+    "/v1/eth/fund-data/market-premium",
+    "/v1/eth/fund-data/digital-asset-holdings",
+    "/v1//stablecoin/status/entity-list",
+    "/v1/stablecoin/status/entity-list",
+    "/v1//stablecoin/exchange-flows/reserve",
+    "/v1//stablecoin/exchange-flows/netflow",
+    "/v1//stablecoin/exchange-flows/inflow",
+    "/v1//stablecoin/exchange-flows/outflow",
+    "/v1//stablecoin/exchange-flows/transactions-count",
+    "/v1//stablecoin/exchange-flows/addresses-count",
+    "/v1/stablecoin/exchange-flows/reserve",
+    "/v1/stablecoin/exchange-flows/netflow",
+    "/v1/stablecoin/exchange-flows/inflow",
+    "/v1/stablecoin/exchange-flows/outflow",
+    "/v1/stablecoin/exchange-flows/transactions-count",
+    "/v1/stablecoin/exchange-flows/addresses-count",
+    "/v1//stablecoin/network-data/supply",
+    "/v1//stablecoin/network-data/events-count",
+    "/v1//stablecoin/network-data/tokens-transferred",
+    "/v1//stablecoin/network-data/addresses-count",
+    "/v1/stablecoin/network-data/supply",
+    "/v1/stablecoin/network-data/events-count",
+    "/v1/stablecoin/network-data/tokens-transferred",
+    "/v1/stablecoin/network-data/addresses-count",
+    "/v1//stablecoin/market-data/price-ohlcv",
+    "/v1//stablecoin/market-data/capitalization",
+    "/v1/stablecoin/market-data/price-ohlcv",
+    "/v1/stablecoin/market-data/capitalization",
+    "/v1//stablecoin/flow-indicator/exchange-supply-ratio",
+    "/v1/stablecoin/flow-indicator/exchange-supply-ratio",
+    "/v1//erc20/status/entity-list",
+    "/v1/erc20/status/entity-list",
+    "/v1//erc20/exchange-flows/reserve",
+    "/v1//erc20/exchange-flows/netflow",
+    "/v1//erc20/exchange-flows/inflow",
+    "/v1//erc20/exchange-flows/outflow",
+    "/v1//erc20/exchange-flows/transactions-count",
+    "/v1//erc20/exchange-flows/addresses-count",
+    "/v1/erc20/exchange-flows/reserve",
+    "/v1/erc20/exchange-flows/netflow",
+    "/v1/erc20/exchange-flows/inflow",
+    "/v1/erc20/exchange-flows/outflow",
+    "/v1/erc20/exchange-flows/transactions-count",
+    "/v1/erc20/exchange-flows/addresses-count",
+    "/v1//erc20/market-data/price-ohlcv",
+    "/v1/erc20/market-data/price-ohlcv",
+    "/v1//erc20/flow-indicator/exchange-supply-ratio",
+    "/v1/erc20/flow-indicator/exchange-supply-ratio",
+    "/v1//xrp/entity-flows/reserve",
+    "/v1//xrp/entity-flows/share",
+    "/v1//xrp/entity-flows/transactions-count",
+    "/v1//xrp/entity-flows/inflow",
+    "/v1//xrp/entity-flows/outflow",
+    "/v1//xrp/entity-flows/addresses-count",
+    "/v1//xrp/entity-flows/whale-movements",
+    "/v1/xrp/entity-flows/reserve",
+    "/v1/xrp/entity-flows/share",
+    "/v1/xrp/entity-flows/transactions-count",
+    "/v1/xrp/entity-flows/inflow",
+    "/v1/xrp/entity-flows/outflow",
+    "/v1/xrp/entity-flows/addresses-count",
+    "/v1/xrp/entity-flows/whale-movements",
+    "/v1//xrp/flow-indicator/exchange-inflow-value-distribution",
+    "/v1//xrp/flow-indicator/exchange-outflow-value-distribution",
+    "/v1//xrp/flow-indicator/exchange-inflow-count-value-distribution",
+    "/v1//xrp/flow-indicator/exchange-outflow-count-value-distribution",
+    "/v1//xrp/flow-indicator/exchange-supply-ratio",
+    "/v1/xrp/flow-indicator/exchange-inflow-value-distribution",
+    "/v1/xrp/flow-indicator/exchange-outflow-value-distribution",
+    "/v1/xrp/flow-indicator/exchange-inflow-count-value-distribution",
+    "/v1/xrp/flow-indicator/exchange-outflow-count-value-distribution",
+    "/v1/xrp/flow-indicator/exchange-supply-ratio",
+    "/v1//xrp/market-data/price-ohlcv",
+    "/v1//xrp/market-data/open-interest",
+    "/v1//xrp/market-data/funding-rates",
+    "/v1//xrp/market-data/taker-buy-sell-stats",
+    "/v1//xrp/market-data/liquidations",
+    "/v1//xrp/market-data/capitalization",
+    "/v1//xrp/market-data/estimated-leverage-ratio",
+    "/v1/xrp/market-data/price-ohlcv",
+    "/v1/xrp/market-data/open-interest",
+    "/v1/xrp/market-data/funding-rates",
+    "/v1/xrp/market-data/taker-buy-sell-stats",
+    "/v1/xrp/market-data/liquidations",
+    "/v1/xrp/market-data/capitalization",
+    "/v1/xrp/market-data/estimated-leverage-ratio",
+    "/v1//xrp/network-data/addresses-count",
+    "/v1//xrp/network-data/velocity",
+    "/v1//xrp/network-data/block-interval",
+    "/v1//xrp/network-data/xrp-burnt",
+    "/v1//xrp/network-data/ledger-count",
+    "/v1//xrp/network-data/fees",
+    "/v1//xrp/network-data/transactions-count",
+    "/v1//xrp/network-data/tokens-transferred",
+    "/v1//xrp/network-data/supply",
+    "/v1/xrp/network-data/addresses-count",
+    "/v1/xrp/network-data/velocity",
+    "/v1/xrp/network-data/block-interval",
+    "/v1/xrp/network-data/xrp-burnt",
+    "/v1/xrp/network-data/ledger-count",
+    "/v1/xrp/network-data/fees",
+    "/v1/xrp/network-data/transactions-count",
+    "/v1/xrp/network-data/tokens-transferred",
+    "/v1/xrp/network-data/supply",
+    "/v1//xrp/network-indicator/nvt",
+    "/v1/xrp/network-indicator/nvt",
+    "/v1//xrp/dex-data/volume",
+    "/v1//xrp/dex-data/transactions-count",
+    "/v1//xrp/dex-data/liquidity",
+    "/v1//xrp/dex-data/dex-price",
+    "/v1/xrp/dex-data/volume",
+    "/v1/xrp/dex-data/transactions-count",
+    "/v1/xrp/dex-data/liquidity",
+    "/v1/xrp/dex-data/dex-price",
+    "/v1//xrp/amm-data/price",
+    "/v1//xrp/amm-data/liquidity",
+    "/v1//xrp/amm-data/fee",
+    "/v1//xrp/amm-data/swap-stats",
+    "/v1/xrp/amm-data/price",
+    "/v1/xrp/amm-data/liquidity",
+    "/v1/xrp/amm-data/fee",
+    "/v1/xrp/amm-data/swap-stats",
+    "/v1//trx/market-data/price-ohlcv",
+    "/v1//trx/market-data/capitalization",
+    "/v1/trx/market-data/price-ohlcv",
+    "/v1/trx/market-data/capitalization",
+    "/v1//trx/network-data/supply",
+    "/v1//trx/network-data/transactions-count",
+    "/v1//trx/network-data/addresses-count",
+    "/v1//trx/network-data/tokens-transferred",
+    "/v1//trx/network-data/block-count",
+    "/v1//trx/network-data/fees",
+    "/v1//trx/network-data/tps",
+    "/v1//trx/network-data/total-value-staked",
+    "/v1//trx/network-data/staking-rate",
+    "/v1//trx/network-data/energy-stake",
+    "/v1/trx/network-data/supply",
+    "/v1/trx/network-data/transactions-count",
+    "/v1/trx/network-data/addresses-count",
+    "/v1/trx/network-data/tokens-transferred",
+    "/v1/trx/network-data/block-count",
+    "/v1/trx/network-data/fees",
+    "/v1/trx/network-data/tps",
+    "/v1/trx/network-data/total-value-staked",
+    "/v1/trx/network-data/staking-rate",
+    "/v1/trx/network-data/energy-stake",
+    "/v1//alt/market-data/price-ohlcv",
+    "/v1/alt/market-data/price-ohlcv"
+  ],
+  "pathMeta": {
+    "/v1/integrations/googleanalytics/installations/c5b8021eef58f16c6c582ac959c69544dd37093ee3e7ee4dc6c055534e1c5172/sites/site_m": {
+      "asset": "Bitcoin",
+      "category": "googleanalytics",
+      "source": "userguide-html"
+    },
+    "/v1//btc/status/entity-list": {
+      "asset": "Bitcoin",
+      "category": "status",
+      "source": "userguide-html"
+    },
+    "/v1/btc/status/entity-list": {
+      "asset": "Bitcoin",
+      "category": "status",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/supply": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/velocity": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/transactions-count": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/addresses-count": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/tokens-transferred": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/block-bytes": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/block-count": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/block-interval": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/utxo-count": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/fees": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/fees-transaction": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/blockreward": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/difficulty": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-data/hashrate": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/supply": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/velocity": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/transactions-count": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/addresses-count": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/tokens-transferred": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/block-bytes": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/block-count": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/block-interval": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/utxo-count": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/fees": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/fees-transaction": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/blockreward": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/difficulty": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-data/hashrate": {
+      "asset": "Bitcoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-data/price-ohlcv": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-data/open-interest": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-data/funding-rates": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-data/taker-buy-sell-stats": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-data/liquidations": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-data/capitalization": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-data/coinbase-premium-index": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-data/price-ohlcv": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-data/open-interest": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-data/funding-rates": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-data/taker-buy-sell-stats": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-data/liquidations": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-data/capitalization": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-data/coinbase-premium-index": {
+      "asset": "Bitcoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/fund-data/market-price-usd": {
+      "asset": "Bitcoin",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/fund-data/market-volume": {
+      "asset": "Bitcoin",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/fund-data/market-premium": {
+      "asset": "Bitcoin",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/fund-data/digital-asset-holdings": {
+      "asset": "Bitcoin",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/fund-data/market-price-usd": {
+      "asset": "Bitcoin",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/fund-data/market-volume": {
+      "asset": "Bitcoin",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/fund-data/market-premium": {
+      "asset": "Bitcoin",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/fund-data/digital-asset-holdings": {
+      "asset": "Bitcoin",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1//btc/exchange-flows/reserve": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/exchange-flows/netflow": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/exchange-flows/inflow": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/exchange-flows/outflow": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/exchange-flows/transactions-count": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/exchange-flows/addresses-count": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/exchange-flows/in-house-flow": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/exchange-flows/reserve": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/exchange-flows/netflow": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/exchange-flows/inflow": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/exchange-flows/outflow": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/exchange-flows/transactions-count": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/exchange-flows/addresses-count": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/exchange-flows/in-house-flow": {
+      "asset": "Bitcoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/miner-flows/reserve": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/miner-flows/netflow": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/miner-flows/inflow": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/miner-flows/outflow": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/miner-flows/transactions-count": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/miner-flows/addresses-count": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/miner-flows/in-house-flow": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/miner-flows/reserve": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/miner-flows/netflow": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/miner-flows/inflow": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/miner-flows/outflow": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/miner-flows/transactions-count": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/miner-flows/addresses-count": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/miner-flows/in-house-flow": {
+      "asset": "Bitcoin",
+      "category": "miner-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/inter-entity-flows/exchange-to-exchange": {
+      "asset": "Bitcoin",
+      "category": "inter-entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/inter-entity-flows/miner-to-exchange": {
+      "asset": "Bitcoin",
+      "category": "inter-entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/inter-entity-flows/exchange-to-miner": {
+      "asset": "Bitcoin",
+      "category": "inter-entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/inter-entity-flows/miner-to-miner": {
+      "asset": "Bitcoin",
+      "category": "inter-entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/inter-entity-flows/exchange-to-exchange": {
+      "asset": "Bitcoin",
+      "category": "inter-entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/inter-entity-flows/miner-to-exchange": {
+      "asset": "Bitcoin",
+      "category": "inter-entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/inter-entity-flows/exchange-to-miner": {
+      "asset": "Bitcoin",
+      "category": "inter-entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1/btc/inter-entity-flows/miner-to-miner": {
+      "asset": "Bitcoin",
+      "category": "inter-entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/stock-to-flow": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/nvt": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/nvt-golden-cross": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/nvm": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/puell-multiple": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/cdd": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/mca": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/sca": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/sca-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/nupl": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/nrpl": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/pnl-utxo": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/pnl-supply": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/dormancy": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/utxo-age-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/utxo-realized-age-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/utxo-count-age-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/spent-output-age-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/utxo-supply-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/utxo-realized-supply-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/utxo-count-supply-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/network-indicator/spent-output-supply-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/stock-to-flow": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/nvt": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/nvt-golden-cross": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/nvm": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/puell-multiple": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/cdd": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/mca": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/sca": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/sca-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/nupl": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/nrpl": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/pnl-utxo": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/pnl-supply": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/dormancy": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/utxo-age-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/utxo-realized-age-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/utxo-count-age-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/spent-output-age-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/utxo-supply-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/utxo-realized-supply-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/utxo-count-supply-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/network-indicator/spent-output-supply-distribution": {
+      "asset": "Bitcoin",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-indicator/estimated-leverage-ratio": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-indicator/stablecoin-supply-ratio": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-indicator/mvrv": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-indicator/sopr": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-indicator/sopr-ratio": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-indicator/realized-price": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/market-indicator/utxo-realized-price-age-distribution": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-indicator/estimated-leverage-ratio": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-indicator/stablecoin-supply-ratio": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-indicator/mvrv": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-indicator/sopr": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-indicator/sopr-ratio": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-indicator/realized-price": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/market-indicator/utxo-realized-price-age-distribution": {
+      "asset": "Bitcoin",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/mempool/stats-by-relative-fee": {
+      "asset": "Bitcoin",
+      "category": "mempool",
+      "source": "userguide-html"
+    },
+    "/v1//btc/mempool/stats-in-total": {
+      "asset": "Bitcoin",
+      "category": "mempool",
+      "source": "userguide-html"
+    },
+    "/v1/btc/mempool/stats-by-relative-fee": {
+      "asset": "Bitcoin",
+      "category": "mempool",
+      "source": "userguide-html"
+    },
+    "/v1/btc/mempool/stats-in-total": {
+      "asset": "Bitcoin",
+      "category": "mempool",
+      "source": "userguide-html"
+    },
+    "/v1//btc/lightning-network/stats-in-total": {
+      "asset": "Bitcoin",
+      "category": "lightning-network",
+      "source": "userguide-html"
+    },
+    "/v1/btc/lightning/stats-in-total": {
+      "asset": "Bitcoin",
+      "category": "lightning",
+      "source": "userguide-html"
+    },
+    "/v1//btc/flow-indicator/mpi": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/flow-indicator/exchange-shutdown-index": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/flow-indicator/exchange-whale-ratio": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/flow-indicator/fund-flow-ratio": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/flow-indicator/stablecoins-ratio": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/flow-indicator/exchange-inflow-age-distribution": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/flow-indicator/exchange-inflow-supply-distribution": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/flow-indicator/exchange-inflow-cdd": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/flow-indicator/exchange-supply-ratio": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/flow-indicator/miner-supply-ratio": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/flow-indicator/mpi": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/flow-indicator/exchange-shutdown-index": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/flow-indicator/exchange-whale-ratio": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/flow-indicator/fund-flow-ratio": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/flow-indicator/stablecoins-ratio": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/flow-indicator/exchange-inflow-age-distribution": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/flow-indicator/exchange-inflow-supply-distribution": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/flow-indicator/exchange-inflow-cdd": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/flow-indicator/exchange-supply-ratio": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/btc/flow-indicator/miner-supply-ratio": {
+      "asset": "Bitcoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//btc/miner-data/companies": {
+      "asset": "Bitcoin",
+      "category": "miner-data",
+      "source": "userguide-html"
+    },
+    "/v1/btc/miner-data/companies": {
+      "asset": "Bitcoin",
+      "category": "miner-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/status/entity-list": {
+      "asset": "Ethereum",
+      "category": "status",
+      "source": "userguide-html"
+    },
+    "/v1/eth/status/entity-list": {
+      "asset": "Ethereum",
+      "category": "status",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/supply": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/velocity": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/contracts-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/transactions-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/transactions-count-between-eoa": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/contract-calls-count-external": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/contract-calls-count-internal": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/contract-calls-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/transactions-count-all": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/addresses-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/addresses-count-all": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/tokens-transferred-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/tokens-transferred-count-between-eoa": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/tokens-transferred-count-by-contract-calls-external": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/tokens-transferred-count-by-contract-calls-internal": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/tokens-transferred-count-by-contract-calls": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/tokens-transferred-count-all": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/tokens-transferred": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/tokens-transferred-between-eoa": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/tokens-transferred-by-contract-calls-external": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/tokens-transferred-by-contract-calls-internal": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/tokens-transferred-by-contract-calls": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/tokens-transferred-all": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/failed-transactions-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/failed-tokens-transferred-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/block-bytes": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/block-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/block-interval": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/fees": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/fees-burnt": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/fees-tips": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/fees-transaction": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/fees-burnt-transaction": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/fees-tips-transaction": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/blockreward": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/blockreward-except-uncle": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/gas": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/base-fee": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/max-fee": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/max-priority-fee": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/difficulty": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/hashrate": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/uncle-block-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/network-data/uncle-blockreward": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/supply": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/velocity": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/contracts-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/transactions-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/transactions-count-between-eoa": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/contract-calls-count-external": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/contract-calls-count-internal": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/contract-calls-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/transactions-count-all": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/addresses-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/addresses-count-all": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/tokens-transferred-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/tokens-transferred-count-between-eoa": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/tokens-transferred-count-by-contract-calls-external": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/tokens-transferred-count-by-contract-calls-internal": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/tokens-transferred-count-by-contract-calls": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/tokens-transferred-count-all": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/tokens-transferred": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/tokens-transferred-between-eoa": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/tokens-transferred-by-contract-calls-external": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/tokens-transferred-by-contract-calls-internal": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/tokens-transferred-by-contract-calls": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/tokens-transferred-all": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/failed-transactions-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/failed-tokens-transferred-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/block-bytes": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/block-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/block-interval": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/fees": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/fees-burnt": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/fees-tips": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/fees-transaction": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/fees-burnt-transaction": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/fees-tips-transaction": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/blockreward": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/blockreward-except-uncle": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/gas": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/base-fee": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/max-fee": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/max-priority-fee": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/difficulty": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/hashrate": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/uncle-block-count": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/network-data/uncle-blockreward": {
+      "asset": "Ethereum",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/exchange-flows/reserve": {
+      "asset": "Ethereum",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//eth/exchange-flows/netflow": {
+      "asset": "Ethereum",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//eth/exchange-flows/inflow": {
+      "asset": "Ethereum",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//eth/exchange-flows/outflow": {
+      "asset": "Ethereum",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//eth/exchange-flows/transactions-count": {
+      "asset": "Ethereum",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//eth/exchange-flows/addresses-count": {
+      "asset": "Ethereum",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/eth/exchange-flows/reserve": {
+      "asset": "Ethereum",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/eth/exchange-flows/netflow": {
+      "asset": "Ethereum",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/eth/exchange-flows/inflow": {
+      "asset": "Ethereum",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/eth/exchange-flows/outflow": {
+      "asset": "Ethereum",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/eth/exchange-flows/transactions-count": {
+      "asset": "Ethereum",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/eth/exchange-flows/addresses-count": {
+      "asset": "Ethereum",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//eth/market-data/price-ohlcv": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/market-data/open-interest": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/market-data/funding-rates": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/market-data/taker-buy-sell-stats": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/market-data/liquidations": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/market-data/coinbase-premium-index": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/market-data/capitalization": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/market-data/price-ohlcv": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/market-data/open-interest": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/market-data/funding-rates": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/market-data/taker-buy-sell-stats": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/market-data/liquidations": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/market-data/coinbase-premium-index": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/market-data/capitalization": {
+      "asset": "Ethereum",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/market-indicator/estimated-leverage-ratio": {
+      "asset": "Ethereum",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/eth/market-indicator/estimated-leverage-ratio": {
+      "asset": "Ethereum",
+      "category": "market-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//eth/flow-indicator/exchange-supply-ratio": {
+      "asset": "Ethereum",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/eth/flow-indicator/exchange-supply-ratio": {
+      "asset": "Ethereum",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//eth/fund-data/market-price-usd": {
+      "asset": "Ethereum",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/fund-data/market-volume": {
+      "asset": "Ethereum",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/fund-data/market-premium": {
+      "asset": "Ethereum",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1//eth/fund-data/digital-asset-holdings": {
+      "asset": "Ethereum",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/fund-data/market-price-usd": {
+      "asset": "Ethereum",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/fund-data/market-volume": {
+      "asset": "Ethereum",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/fund-data/market-premium": {
+      "asset": "Ethereum",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1/eth/fund-data/digital-asset-holdings": {
+      "asset": "Ethereum",
+      "category": "fund-data",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/status/entity-list": {
+      "asset": "Stablecoin",
+      "category": "status",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/status/entity-list": {
+      "asset": "Stablecoin",
+      "category": "status",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/exchange-flows/reserve": {
+      "asset": "Stablecoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/exchange-flows/netflow": {
+      "asset": "Stablecoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/exchange-flows/inflow": {
+      "asset": "Stablecoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/exchange-flows/outflow": {
+      "asset": "Stablecoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/exchange-flows/transactions-count": {
+      "asset": "Stablecoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/exchange-flows/addresses-count": {
+      "asset": "Stablecoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/exchange-flows/reserve": {
+      "asset": "Stablecoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/exchange-flows/netflow": {
+      "asset": "Stablecoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/exchange-flows/inflow": {
+      "asset": "Stablecoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/exchange-flows/outflow": {
+      "asset": "Stablecoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/exchange-flows/transactions-count": {
+      "asset": "Stablecoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/exchange-flows/addresses-count": {
+      "asset": "Stablecoin",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/network-data/supply": {
+      "asset": "Stablecoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/network-data/events-count": {
+      "asset": "Stablecoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/network-data/tokens-transferred": {
+      "asset": "Stablecoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/network-data/addresses-count": {
+      "asset": "Stablecoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/network-data/supply": {
+      "asset": "Stablecoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/network-data/events-count": {
+      "asset": "Stablecoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/network-data/tokens-transferred": {
+      "asset": "Stablecoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/network-data/addresses-count": {
+      "asset": "Stablecoin",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/market-data/price-ohlcv": {
+      "asset": "Stablecoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/market-data/capitalization": {
+      "asset": "Stablecoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/market-data/price-ohlcv": {
+      "asset": "Stablecoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/market-data/capitalization": {
+      "asset": "Stablecoin",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//stablecoin/flow-indicator/exchange-supply-ratio": {
+      "asset": "Stablecoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/stablecoin/flow-indicator/exchange-supply-ratio": {
+      "asset": "Stablecoin",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//erc20/status/entity-list": {
+      "asset": "ERC20",
+      "category": "status",
+      "source": "userguide-html"
+    },
+    "/v1/erc20/status/entity-list": {
+      "asset": "ERC20",
+      "category": "status",
+      "source": "userguide-html"
+    },
+    "/v1//erc20/exchange-flows/reserve": {
+      "asset": "ERC20",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//erc20/exchange-flows/netflow": {
+      "asset": "ERC20",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//erc20/exchange-flows/inflow": {
+      "asset": "ERC20",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//erc20/exchange-flows/outflow": {
+      "asset": "ERC20",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//erc20/exchange-flows/transactions-count": {
+      "asset": "ERC20",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//erc20/exchange-flows/addresses-count": {
+      "asset": "ERC20",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/erc20/exchange-flows/reserve": {
+      "asset": "ERC20",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/erc20/exchange-flows/netflow": {
+      "asset": "ERC20",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/erc20/exchange-flows/inflow": {
+      "asset": "ERC20",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/erc20/exchange-flows/outflow": {
+      "asset": "ERC20",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/erc20/exchange-flows/transactions-count": {
+      "asset": "ERC20",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1/erc20/exchange-flows/addresses-count": {
+      "asset": "ERC20",
+      "category": "exchange-flows",
+      "source": "userguide-html"
+    },
+    "/v1//erc20/market-data/price-ohlcv": {
+      "asset": "ERC20",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/erc20/market-data/price-ohlcv": {
+      "asset": "ERC20",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//erc20/flow-indicator/exchange-supply-ratio": {
+      "asset": "ERC20",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/erc20/flow-indicator/exchange-supply-ratio": {
+      "asset": "ERC20",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/entity-flows/reserve": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/entity-flows/share": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/entity-flows/transactions-count": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/entity-flows/inflow": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/entity-flows/outflow": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/entity-flows/addresses-count": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/entity-flows/whale-movements": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/entity-flows/reserve": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/entity-flows/share": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/entity-flows/transactions-count": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/entity-flows/inflow": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/entity-flows/outflow": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/entity-flows/addresses-count": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/entity-flows/whale-movements": {
+      "asset": "Xrp",
+      "category": "entity-flows",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/flow-indicator/exchange-inflow-value-distribution": {
+      "asset": "Xrp",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/flow-indicator/exchange-outflow-value-distribution": {
+      "asset": "Xrp",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/flow-indicator/exchange-inflow-count-value-distribution": {
+      "asset": "Xrp",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/flow-indicator/exchange-outflow-count-value-distribution": {
+      "asset": "Xrp",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/flow-indicator/exchange-supply-ratio": {
+      "asset": "Xrp",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/flow-indicator/exchange-inflow-value-distribution": {
+      "asset": "Xrp",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/flow-indicator/exchange-outflow-value-distribution": {
+      "asset": "Xrp",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/flow-indicator/exchange-inflow-count-value-distribution": {
+      "asset": "Xrp",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/flow-indicator/exchange-outflow-count-value-distribution": {
+      "asset": "Xrp",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/flow-indicator/exchange-supply-ratio": {
+      "asset": "Xrp",
+      "category": "flow-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/market-data/price-ohlcv": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/market-data/open-interest": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/market-data/funding-rates": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/market-data/taker-buy-sell-stats": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/market-data/liquidations": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/market-data/capitalization": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/market-data/estimated-leverage-ratio": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/market-data/price-ohlcv": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/market-data/open-interest": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/market-data/funding-rates": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/market-data/taker-buy-sell-stats": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/market-data/liquidations": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/market-data/capitalization": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/market-data/estimated-leverage-ratio": {
+      "asset": "Xrp",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/network-data/addresses-count": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/network-data/velocity": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/network-data/block-interval": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/network-data/xrp-burnt": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/network-data/ledger-count": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/network-data/fees": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/network-data/transactions-count": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/network-data/tokens-transferred": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/network-data/supply": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/network-data/addresses-count": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/network-data/velocity": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/network-data/block-interval": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/network-data/xrp-burnt": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/network-data/ledger-count": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/network-data/fees": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/network-data/transactions-count": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/network-data/tokens-transferred": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/network-data/supply": {
+      "asset": "Xrp",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/network-indicator/nvt": {
+      "asset": "Xrp",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/network-indicator/nvt": {
+      "asset": "Xrp",
+      "category": "network-indicator",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/dex-data/volume": {
+      "asset": "Xrp",
+      "category": "dex-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/dex-data/transactions-count": {
+      "asset": "Xrp",
+      "category": "dex-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/dex-data/liquidity": {
+      "asset": "Xrp",
+      "category": "dex-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/dex-data/dex-price": {
+      "asset": "Xrp",
+      "category": "dex-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/dex-data/volume": {
+      "asset": "Xrp",
+      "category": "dex-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/dex-data/transactions-count": {
+      "asset": "Xrp",
+      "category": "dex-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/dex-data/liquidity": {
+      "asset": "Xrp",
+      "category": "dex-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/dex-data/dex-price": {
+      "asset": "Xrp",
+      "category": "dex-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/amm-data/price": {
+      "asset": "Xrp",
+      "category": "amm-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/amm-data/liquidity": {
+      "asset": "Xrp",
+      "category": "amm-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/amm-data/fee": {
+      "asset": "Xrp",
+      "category": "amm-data",
+      "source": "userguide-html"
+    },
+    "/v1//xrp/amm-data/swap-stats": {
+      "asset": "Xrp",
+      "category": "amm-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/amm-data/price": {
+      "asset": "Xrp",
+      "category": "amm-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/amm-data/liquidity": {
+      "asset": "Xrp",
+      "category": "amm-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/amm-data/fee": {
+      "asset": "Xrp",
+      "category": "amm-data",
+      "source": "userguide-html"
+    },
+    "/v1/xrp/amm-data/swap-stats": {
+      "asset": "Xrp",
+      "category": "amm-data",
+      "source": "userguide-html"
+    },
+    "/v1//trx/market-data/price-ohlcv": {
+      "asset": "TRX",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//trx/market-data/capitalization": {
+      "asset": "TRX",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/trx/market-data/price-ohlcv": {
+      "asset": "TRX",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/trx/market-data/capitalization": {
+      "asset": "TRX",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1//trx/network-data/supply": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//trx/network-data/transactions-count": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//trx/network-data/addresses-count": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//trx/network-data/tokens-transferred": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//trx/network-data/block-count": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//trx/network-data/fees": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//trx/network-data/tps": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//trx/network-data/total-value-staked": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//trx/network-data/staking-rate": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//trx/network-data/energy-stake": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/trx/network-data/supply": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/trx/network-data/transactions-count": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/trx/network-data/addresses-count": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/trx/network-data/tokens-transferred": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/trx/network-data/block-count": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/trx/network-data/fees": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/trx/network-data/tps": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/trx/network-data/total-value-staked": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/trx/network-data/staking-rate": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1/trx/network-data/energy-stake": {
+      "asset": "TRX",
+      "category": "network-data",
+      "source": "userguide-html"
+    },
+    "/v1//alt/market-data/price-ohlcv": {
+      "asset": "Alt",
+      "category": "market-data",
+      "source": "userguide-html"
+    },
+    "/v1/alt/market-data/price-ohlcv": {
+      "asset": "Alt",
+      "category": "market-data",
+      "source": "userguide-html"
+    }
+  },
+  "fetchedAt": "2026-02-14T10:06:35.885Z"
+}

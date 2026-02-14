@@ -4,6 +4,7 @@
 
 const { fetchCryptoQuant } = require('./client');
 const { getExchangeInflow, getMinerPositionIndex } = require('./endpoints/btc');
+const { isPathKnown } = require('./reference');
 
 /**
  * CQ Pro fetch with retry: 404→null, 500→retry once, 429→wait+retry
@@ -93,42 +94,26 @@ async function getWhaleFlows(options = {}) {
 }
 
 /**
- * Liquidations取得（EN市場用）
- *
- * CryptoQuant provides separate long and short liquidation metrics.
- * We combine both to get total liquidations.
- *
- * Endpoints:
- * - /derivatives/liquidations-long/btc
- * - /derivatives/liquidations-short/btc
- *
- * Phase 3: 機能フラグで制御（404エンドポイントを呼ばない）
- *
- * @returns {Promise<Object>} { longLiquidations, shortLiquidations, totalLiquidations }
- */
-/**
- * Liquidations取得（derivatives）
+ * Liquidations取得（CQ: /btc/market-data/liquidations 1本で long/short 含む）
  * 404→null相当で0を返す。500/429はリトライ。
  * @returns {Promise<Object>} { longLiquidations, shortLiquidations, totalLiquidations }
  */
 async function getLiquidations(options = {}) {
-  let longL = 0;
-  let shortL = 0;
   try {
-    const longData = await fetchCQWithRetry('/btc/derivatives/liquidations-long', { exchange: 'all_exchange', window: 'day', limit: 1 }, options);
-    const longPoint = longData?.result?.data?.[0];
-    longL = Number(longPoint?.value ?? longPoint?.liquidations ?? 0) || 0;
-  } catch { /* 404 or other: keep 0 */ }
-  try {
-    const shortData = await fetchCQWithRetry('/btc/derivatives/liquidations-short', { exchange: 'all_exchange', window: 'day', limit: 1 }, options);
-    const shortPoint = shortData?.result?.data?.[0];
-    shortL = Number(shortPoint?.value ?? shortPoint?.liquidations ?? 0) || 0;
-  } catch { /* 404 or other: keep 0 */ }
-  return {
-    longLiquidations: longL,
-    shortLiquidations: shortL,
-    totalLiquidations: longL + shortL,
-  };
+    const data = await fetchCQWithRetry('/btc/market-data/liquidations', { exchange: 'all_exchange', window: 'day', limit: 1 }, options);
+    const point = data?.result?.data?.[0];
+    if (!point) return { longLiquidations: 0, shortLiquidations: 0, totalLiquidations: 0 };
+    const longL = Number(point?.long_liquidations ?? point?.liquidations_long ?? point?.value ?? 0) || 0;
+    const shortL = Number(point?.short_liquidations ?? point?.liquidations_short ?? 0) || 0;
+    const total = Number(point?.total_liquidations ?? point?.liquidations ?? point?.value ?? 0) || (longL + shortL);
+    return {
+      longLiquidations: longL,
+      shortLiquidations: shortL,
+      totalLiquidations: total,
+    };
+  } catch {
+    return { longLiquidations: 0, shortLiquidations: 0, totalLiquidations: 0 };
+  }
 }
 
 /**
@@ -220,17 +205,17 @@ async function getNUPL() {
 }
 
 /**
- * LTH-NUPL取得（Long-Term Holder NUPL、CQ Pro）
- * 404→null。TODO: requires confirmed CQ Pro endpoint（パス未確認の場合はnullを想定）
+ * LTH-NUPL取得（Long-Term Holder NUPL）
+ * CQ は /btc/network-indicator/nupl で nupl（lth_nupl 等を含む場合あり）を提供。
  * @returns {Promise<number|null>}
  */
 async function getLTHNUPL() {
-  const paths = ['/btc/network-indicator/lth-nupl', '/btc/market-indicator/lth-nupl'];
-  for (const path of paths) {
+  const paths = ['/btc/network-indicator/nupl', '/btc/network-indicator/lth-nupl', '/btc/market-indicator/lth-nupl'];
+  for (const p of paths) {
     try {
-      const data = await fetchCQWithRetry(path, { window: 'day', limit: 1 });
+      const data = await fetchCQWithRetry(p, { window: 'day', limit: 1 });
       const point = data?.result?.data?.[0];
-      const v = Number(point?.value ?? point?.lth_nupl ?? point?.nupl ?? 0);
+      const v = Number(point?.lth_nupl ?? point?.value ?? point?.nupl ?? 0);
       return Number.isFinite(v) ? v : null;
     } catch {
       // 404: try next
@@ -240,51 +225,45 @@ async function getLTHNUPL() {
 }
 
 /**
- * Funding Rate取得（CQ Pro）
+ * Funding Rate取得（CQ: /btc/market-data/funding-rates）
  * 404の場合はnull、取得可能なら値（小数、例: 0.0001 = 0.01%）
  * @returns {Promise<number|null>}
  */
 async function getFundingRate() {
-  const paths = ['/btc/derivatives/funding-rate', '/derivatives/funding-rate/btc'];
-  for (const path of paths) {
-    try {
-      const data = await fetchCQWithRetry(path, { exchange: 'all_exchange', window: '8hour', limit: 1 });
-      const point = data?.result?.data?.[0];
-      const v = Number(point?.value ?? point?.funding_rate ?? point?.rate ?? 0);
-      return Number.isFinite(v) ? v : null;
-    } catch (e) {
-      if (e.message && String(e.message).includes('404')) {
-        try { require('../utils/logger').Logger.debug('deepMetrics', `Funding ${path} 404`, {}); } catch (_) {}
-      } else {
-        console.warn('[deepMetrics] Funding fetch error:', e.message);
-      }
+  try {
+    const data = await fetchCQWithRetry('/btc/market-data/funding-rates', { exchange: 'all_exchange', window: '8hour', limit: 1 });
+    const point = data?.result?.data?.[0];
+    const v = Number(point?.value ?? point?.funding_rate ?? point?.rate ?? 0);
+    return Number.isFinite(v) ? v : null;
+  } catch (e) {
+    if (e.message && String(e.message).includes('404')) {
+      try { require('../utils/logger').Logger.debug('deepMetrics', 'Funding funding-rates 404', {}); } catch (_) {}
+    } else {
+      console.warn('[deepMetrics] Funding fetch error:', e.message);
     }
+    return null;
   }
-  return null;
 }
 
 /**
- * Open Interest取得（CQ Pro）
+ * Open Interest取得（CQ: /btc/market-data/open-interest）
  * 404の場合はnull、取得可能なら値（USD）
  * @returns {Promise<number|null>}
  */
 async function getOpenInterest() {
-  const paths = ['/btc/derivatives/open-interest', '/derivatives/open-interest/btc'];
-  for (const path of paths) {
-    try {
-      const data = await fetchCQWithRetry(path, { exchange: 'all_exchange', window: 'day', limit: 1 });
-      const point = data?.result?.data?.[0];
-      const v = Number(point?.value ?? point?.open_interest ?? point?.oi ?? 0);
-      return Number.isFinite(v) && v > 0 ? v : null;
-    } catch (e) {
-      if (e.message && String(e.message).includes('404')) {
-        try { require('../utils/logger').Logger.debug('deepMetrics', `OI ${path} 404`, {}); } catch (_) {}
-      } else {
-        console.warn('[deepMetrics] OpenInterest fetch error:', e.message);
-      }
+  try {
+    const data = await fetchCQWithRetry('/btc/market-data/open-interest', { exchange: 'all_exchange', window: 'day', limit: 1 });
+    const point = data?.result?.data?.[0];
+    const v = Number(point?.value ?? point?.open_interest ?? point?.oi ?? 0);
+    return Number.isFinite(v) && v > 0 ? v : null;
+  } catch (e) {
+    if (e.message && String(e.message).includes('404')) {
+      try { require('../utils/logger').Logger.debug('deepMetrics', 'OI open-interest 404', {}); } catch (_) {}
+    } else {
+      console.warn('[deepMetrics] OpenInterest fetch error:', e.message);
     }
+    return null;
   }
-  return null;
 }
 
 /**
@@ -316,18 +295,18 @@ async function getMinerFlows() {
 }
 
 /**
- * Stablecoin metrics取得（CQ Pro）
- * 404→null。TODO: requires confirmed CQ Pro endpoint（パス未確認の場合はnullを想定）
+ * Stablecoin metrics取得（CQ: /stablecoin/exchange-flows/reserve 等）
  * @returns {Promise<Object|null>}
  */
 async function getStablecoinMetrics() {
   const paths = [
-    '/stablecoin/exchange-reserve',
-    '/btc/stablecoin/exchange-reserve',
+    '/stablecoin/exchange-flows/reserve',
+    '/btc/exchange-flows/reserve',
   ];
-  for (const path of paths) {
+  const params = { exchange: 'all_exchange', window: 'day', limit: 1 };
+  for (const p of paths) {
     try {
-      const data = await fetchCQWithRetry(path, { window: 'day', limit: 1 });
+      const data = await fetchCQWithRetry(p, params);
       const point = data?.result?.data?.[0];
       if (point && typeof point === 'object') {
         return {
@@ -344,15 +323,16 @@ async function getStablecoinMetrics() {
 }
 
 /**
- * ETF flows取得（CQ Pro）
- * 404→null。TODO: requires confirmed CQ Pro endpoint（パス未確認の場合はnullを想定）
+ * ETF flows取得（CQ に ETF 専用パスが無い場合は呼び出さず null）
  * @returns {Promise<Object|null>}
  */
 async function getETFFlows() {
   const paths = ['/btc/etf-flows', '/btc/etf/flows'];
-  for (const path of paths) {
+  const toTry = paths.filter((p) => isPathKnown(p));
+  if (toTry.length === 0) return null;
+  for (const p of toTry) {
     try {
-      const data = await fetchCQWithRetry(path, { window: 'day', limit: 1 });
+      const data = await fetchCQWithRetry(p, { window: 'day', limit: 1 });
       const point = data?.result?.data?.[0];
       if (point && typeof point === 'object') {
         return {
@@ -390,15 +370,16 @@ async function getExchangeFlowsDetailed() {
 }
 
 /**
- * Liquidity取得（CQ Pro）
- * 404の場合はnull、取得可能なら { depth, bidAskSpread, ... } 等
+ * Liquidity取得（CQ に該当パスが存在する場合のみ呼び出し、なければ null）
  * @returns {Promise<Object|null>}
  */
 async function getLiquidity() {
   const paths = ['/btc/liquidity/depth', '/btc/market-indicator/liquidity'];
-  for (const path of paths) {
+  const toTry = paths.filter((p) => isPathKnown(p));
+  if (toTry.length === 0) return null;
+  for (const p of toTry) {
     try {
-      const data = await fetchCQWithRetry(path, { window: 'day', limit: 1 });
+      const data = await fetchCQWithRetry(p, { window: 'day', limit: 1 });
       const point = data?.result?.data?.[0];
       if (point && typeof point === 'object') {
         return {
@@ -410,7 +391,7 @@ async function getLiquidity() {
       }
     } catch (e) {
       if (e.message && String(e.message).includes('404')) {
-        try { require('../utils/logger').Logger.debug('deepMetrics', `Liquidity ${path} 404`, {}); } catch (_) {}
+        try { require('../utils/logger').Logger.debug('deepMetrics', `Liquidity ${p} 404`, {}); } catch (_) {}
       } else {
         console.warn('[deepMetrics] Liquidity fetch error:', e.message);
       }

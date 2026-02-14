@@ -246,32 +246,6 @@ function getMarketCode(lang) {
   return langToMarket[lang] || "EN";
 }
 
-function buildInternalApiUrl(req, apiPath) {
-  const configuredBase =
-    process.env.INTERNAL_API_BASE_URL ||
-    process.env.CRON_BASE_URL ||
-    process.env.APP_BASE_URL ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
-
-  try {
-    if (configuredBase) {
-      return new URL(apiPath, configuredBase).toString();
-    }
-    const host = req?.headers?.["x-forwarded-host"] || req?.headers?.host;
-    if (!host) return null;
-    const proto = req?.headers?.["x-forwarded-proto"] || "https";
-    const base =
-      String(host).startsWith("http://") || String(host).startsWith("https://")
-        ? String(host)
-        : `${proto}://${host}`;
-    return new URL(apiPath, base).toString();
-  } catch (error) {
-    console.warn("[Cron] Failed to build internal API URL:", error?.message);
-    return null;
-  }
-}
-
 /**
  * メール送信先リストを取得
  * 環境変数またはデータベースから取得（将来実装）
@@ -1353,38 +1327,22 @@ module.exports = async function handler(req, res) {
 
     if (ENABLE_KIBA) {
       try {
-        const cronSecret = process.env.CRON_SECRET;
-        if (!cronSecret) {
-          console.warn("[kiba] Skipped: CRON_SECRET not set (required for /api/kiba/run auth)");
+        const { getKV } = require("../utils/kv");
+        const { runKibaOnce } = require("./kiba/run");
+        const kv = getKV();
+        if (kv) {
+          kibaResult = await runKibaOnce(kv, {
+            btcSnapshot,
+            nasdaqSnapshot,
+            goldSnapshot,
+            asset: "BTC"
+          });
+          console.log("[kiba] run completed:", {
+            triggered: Boolean(kibaResult?.triggered),
+            level: kibaResult?.impact?.level || "NONE"
+          });
         } else {
-          const kibaRunUrl = buildInternalApiUrl(req, "/api/kiba/run");
-          if (!kibaRunUrl) {
-            console.warn("[kiba] Skipped: unable to build internal API URL");
-          } else {
-            const runUrl = new URL(kibaRunUrl);
-            runUrl.searchParams.set("cron_secret", cronSecret);
-            const runRes = await fetch(runUrl.toString(), {
-              method: "POST",
-              signal: AbortSignal.timeout(12000),
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${cronSecret}`
-              },
-              body: JSON.stringify({ cron_secret: cronSecret })
-            });
-            kibaResult = await runRes.json().catch(() => null);
-            if (!runRes.ok) {
-              console.warn("[kiba] Run API returned non-200:", {
-                status: runRes.status,
-                statusText: runRes.statusText
-              });
-            } else {
-              console.log("[kiba] Run completed:", {
-                triggered: Boolean(kibaResult?.triggered),
-                level: kibaResult?.impact?.level || "NONE"
-              });
-            }
-          }
+          console.warn("[kiba] Skipped: KV not available");
         }
       } catch (error) {
         console.warn("[kiba] Run failed:", error?.message);

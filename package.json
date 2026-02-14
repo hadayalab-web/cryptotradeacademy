@@ -58,6 +58,7 @@
     "vercel:all": "npm run vercel:logs && npm run vercel:analyze && npm run vercel:csv && npm run vercel:issue",
     "validate:implementation": "node scripts/validate_implementation.js",
     "cq:schema": "node scripts/cq-scrape-schema.js",
+    "cq:reference": "node scripts/cq-fetch-reference.js",
     "test:critical": "node scripts/test_critical_functions.js",
     "precommit": "npm run validate:implementation && npm run test:critical",
     "deploy": "vercel --prod",
