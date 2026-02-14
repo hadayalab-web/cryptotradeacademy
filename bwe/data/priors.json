@@ -1,0 +1,8 @@
+{
+  "en": { "p0": 0.62, "alpha": 62, "beta": 38, "sigma": 0.08 },
+  "pt": { "p0": 0.55, "alpha": 55, "beta": 45, "sigma": 0.08 },
+  "es": { "p0": 0.54, "alpha": 54, "beta": 46, "sigma": 0.08 },
+  "ja": { "p0": 0.5, "alpha": 50, "beta": 50, "sigma": 0.09 },
+  "ar": { "p0": 0.47, "alpha": 47, "beta": 53, "sigma": 0.1 },
+  "ko": { "p0": 0.51, "alpha": 51, "beta": 49, "sigma": 0.09 }
+}

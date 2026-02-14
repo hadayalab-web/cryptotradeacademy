@@ -1,0 +1,34 @@
+{
+  "seed": 20260214,
+  "allocationState": {
+    "global": {
+      "posteriors": {
+        "en": { "alpha": 62, "beta": 38, "priorMean": 0.62, "sigma": 0.08 },
+        "pt": { "alpha": 55, "beta": 45, "priorMean": 0.55, "sigma": 0.08 },
+        "es": { "alpha": 54, "beta": 46, "priorMean": 0.54, "sigma": 0.08 },
+        "ja": { "alpha": 50, "beta": 50, "priorMean": 0.5, "sigma": 0.09 },
+        "ar": { "alpha": 47, "beta": 53, "priorMean": 0.47, "sigma": 0.1 },
+        "ko": { "alpha": 51, "beta": 49, "priorMean": 0.51, "sigma": 0.09 }
+      },
+      "hotCold": {
+        "en": { "hot": false, "cold": false, "chainDepthCap": 3, "posteriorMean": 0.62 },
+        "pt": { "hot": false, "cold": false, "chainDepthCap": 3, "posteriorMean": 0.55 },
+        "es": { "hot": false, "cold": false, "chainDepthCap": 3, "posteriorMean": 0.54 },
+        "ja": { "hot": false, "cold": false, "chainDepthCap": 3, "posteriorMean": 0.5 },
+        "ar": { "hot": false, "cold": false, "chainDepthCap": 3, "posteriorMean": 0.47 },
+        "ko": { "hot": false, "cold": false, "chainDepthCap": 3, "posteriorMean": 0.51 }
+      },
+      "driftFlag": false,
+      "explorationEpsilon": 0.05,
+      "updatedAt": "2026-02-14T00:00:00.000Z"
+    },
+    "byAccount": {}
+  },
+  "drift": {
+    "driftFlag": false,
+    "driftScore": 0,
+    "windowShiftHours": 0
+  },
+  "accounts": {},
+  "flywheelHistory": []
+}

@@ -1,0 +1,41 @@
+{
+  "language": "pt",
+  "hooks": [
+    "O mapa de liquidez virou agora.",
+    "Quase todo mundo ignora esse sinal.",
+    "A volatilidade está montando uma armadilha.",
+    "Este setup parece simples, mas não é."
+  ],
+  "values": [
+    "Funding, interesse aberto e momentum estão divergindo de um jeito que costuma punir entrada atrasada.",
+    "O preço parece forte, mas o fluxo sugere prioridade total em gestão de risco.",
+    "A vantagem está em esperar confirmação, não em perseguir candle verde."
+  ],
+  "ctas": [
+    "Use seu checklist antes de entrar.",
+    "Proteja o downside e só depois aumente posição.",
+    "Sem stop claro, melhor ficar de fora."
+  ],
+  "mediaHints": [
+    "video curto de leitura de gráfico",
+    "clip de heatmap de liquidez",
+    "visual de checklist de risco"
+  ],
+  "emojis": ["⚠️", "📊", "🎯", "🧠", "🔥", "✅", "🚨"],
+  "quoteHooks": [
+    "Thread forte, mas falta esta camada de risco:",
+    "Contexto importante para este post:",
+    "Sinal ok, execução precisa deste filtro:"
+  ],
+  "pollQuestions": [
+    "Qual é seu modo de operação hoje?",
+    "Como você está controlando risco nesta sessão?",
+    "O que pesa mais na sua entrada?"
+  ],
+  "pollOptionSets": [
+    ["Esperar confirmação", "Entrada gradual", "Entrada agressiva", "Sem trade"],
+    ["Stop curto", "Stop amplo", "Hedge primeiro", "Ficar zerado"],
+    ["Tendência", "Liquidez", "Risco-retorno", "Sentimento"]
+  ],
+  "spamKeywords": ["compre agora", "garantido", "100x", "dinheiro fácil", "sem risco"]
+}

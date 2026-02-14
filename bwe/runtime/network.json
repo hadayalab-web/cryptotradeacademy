@@ -1,0 +1,92 @@
+{
+  "generatedAt": "2026-02-14T00:00:00.000Z",
+  "hub": "acct1",
+  "roles": [
+    {
+      "accountId": "acct1",
+      "role": "hub",
+      "cluster": "hub",
+      "languages": ["en"],
+      "dailyCap": 40,
+      "interAccountShareLimit": 0.15,
+      "chainFlowShare": 0.6,
+      "isolationTag": "isolation-segment-1"
+    },
+    {
+      "accountId": "acct2",
+      "role": "spoke",
+      "cluster": "amer",
+      "languages": ["pt"],
+      "dailyCap": 20,
+      "interAccountShareLimit": 0.15,
+      "chainFlowShare": 0.1,
+      "isolationTag": "isolation-segment-2"
+    },
+    {
+      "accountId": "acct3",
+      "role": "spoke",
+      "cluster": "amer",
+      "languages": ["es"],
+      "dailyCap": 20,
+      "interAccountShareLimit": 0.15,
+      "chainFlowShare": 0.1,
+      "isolationTag": "isolation-segment-3"
+    },
+    {
+      "accountId": "acct4",
+      "role": "spoke",
+      "cluster": "apac",
+      "languages": ["ja", "ko"],
+      "dailyCap": 15,
+      "interAccountShareLimit": 0.15,
+      "chainFlowShare": 0.1,
+      "isolationTag": "isolation-segment-4"
+    },
+    {
+      "accountId": "acct5",
+      "role": "spoke",
+      "cluster": "mena",
+      "languages": ["ar", "ko"],
+      "dailyCap": 15,
+      "interAccountShareLimit": 0.15,
+      "chainFlowShare": 0.1,
+      "isolationTag": "isolation-segment-5"
+    }
+  ],
+  "volumes": {
+    "totalBaseDailyCap": 110,
+    "interAccountShareCapByAccount": {
+      "acct1": 0.15,
+      "acct2": 0.15,
+      "acct3": 0.15,
+      "acct4": 0.15,
+      "acct5": 0.15
+    }
+  },
+  "chainPaths": [
+    { "patternId": "hub_amer_bidirectional", "from": "acct1", "to": "acct2", "weight": 0.5, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "hub_amer_bidirectional", "from": "acct1", "to": "acct3", "weight": 0.5, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "hub_to_apac", "from": "acct1", "to": "acct4", "weight": 0.3, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "hub_to_apac", "from": "acct1", "to": "acct5", "weight": 0.3, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "spoke_to_spoke", "from": "acct2", "to": "acct3", "weight": 0.15, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "spoke_to_spoke", "from": "acct2", "to": "acct4", "weight": 0.15, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "spoke_to_spoke", "from": "acct2", "to": "acct5", "weight": 0.15, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "spoke_to_spoke", "from": "acct3", "to": "acct2", "weight": 0.15, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "spoke_to_spoke", "from": "acct3", "to": "acct4", "weight": 0.15, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "spoke_to_spoke", "from": "acct3", "to": "acct5", "weight": 0.15, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "spoke_to_spoke", "from": "acct4", "to": "acct2", "weight": 0.15, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "spoke_to_spoke", "from": "acct4", "to": "acct3", "weight": 0.15, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "spoke_to_spoke", "from": "acct4", "to": "acct5", "weight": 0.15, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "spoke_to_spoke", "from": "acct5", "to": "acct2", "weight": 0.15, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "spoke_to_spoke", "from": "acct5", "to": "acct3", "weight": 0.15, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "spoke_to_spoke", "from": "acct5", "to": "acct4", "weight": 0.15, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "apac_to_hub", "from": "acct4", "to": "acct1", "weight": 0.05, "minDelayMinutes": 240, "maxDelayMinutes": 480 },
+    { "patternId": "apac_to_hub", "from": "acct5", "to": "acct1", "weight": 0.05, "minDelayMinutes": 240, "maxDelayMinutes": 480 }
+  ],
+  "constraints": {
+    "maxInterAccountSharePerAccount": 0.15,
+    "minInterAccountDelayMinutes": 240,
+    "maxInterAccountDelayMinutes": 480,
+    "penaltyIsolationRequired": true
+  }
+}

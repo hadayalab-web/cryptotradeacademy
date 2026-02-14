@@ -1,0 +1,41 @@
+{
+  "language": "en",
+  "hooks": [
+    "Liquidity map just flipped.",
+    "Most traders miss this shift.",
+    "Volatility is signaling a trap.",
+    "This setup is not obvious at first glance."
+  ],
+  "values": [
+    "Funding, open interest, and momentum are diverging in a way that usually punishes late entries.",
+    "Price action looks bullish, but order-flow imbalance says risk-first positioning is safer.",
+    "The edge comes from waiting for confirmation, not from chasing green candles."
+  ],
+  "ctas": [
+    "Use your checklist before pressing buy.",
+    "Protect downside first, then scale in.",
+    "If your stop is unclear, skip the trade."
+  ],
+  "mediaHints": [
+    "short chart breakdown video",
+    "liquidity heatmap clip",
+    "risk checklist visual"
+  ],
+  "emojis": ["⚠️", "📊", "🎯", "🧠", "🔥", "✅", "🚨"],
+  "quoteHooks": [
+    "Useful thread, but add this risk layer:",
+    "Important context to this post:",
+    "Signal is valid, execution needs this filter:"
+  ],
+  "pollQuestions": [
+    "What is your trade mode today?",
+    "How are you managing risk this session?",
+    "What matters most in your entry?"
+  ],
+  "pollOptionSets": [
+    ["Wait for confirmation", "Scale in slowly", "Aggressive entry", "No trade"],
+    ["Tight stop", "Wide stop", "Hedge first", "Flat"],
+    ["Trend", "Liquidity", "Risk-reward", "Sentiment"]
+  ],
+  "spamKeywords": ["buy now", "guaranteed", "100x", "free money", "no risk"]
+}
