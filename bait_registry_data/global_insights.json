@@ -1,0 +1,22 @@
+{
+  "common_patterns": [
+    "Coordinated timing",
+    "Coordinated posting: @cn_insider, @crypto_whale_btc, @meme_pump within 5min",
+    "Copy-paste narratives"
+  ],
+  "timing_signals": [
+    "Weekend pump",
+    "1-15min BTC micro-move correlation",
+    "Pre-market spike",
+    "Synchronized narratives before pump/dump (overlap=0.20)"
+  ],
+  "recommended_watchlist": [
+    "@kr_trader",
+    "@bait_user_2",
+    "@meme_pump",
+    "@es_influencer",
+    "@crypto_whale_btc",
+    "@cn_insider",
+    "@bait_user_1"
+  ]
+}

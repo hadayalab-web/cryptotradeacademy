@@ -1,0 +1,84 @@
+[
+  {
+    "account": "@bait_user_1",
+    "category": "BAIT_FARMER",
+    "risk_score": "0.85",
+    "behavior_pattern": "Pump then dump",
+    "trigger_keywords": [
+      "100x",
+      "moon",
+      "gem"
+    ],
+    "market_correlation": "Peaks before dumps"
+  },
+  {
+    "account": "@bait_user_2",
+    "category": "MANIPULATOR",
+    "risk_score": "0.6",
+    "behavior_pattern": "Fake urgency",
+    "trigger_keywords": [
+      "last chance",
+      "don't miss"
+    ],
+    "market_correlation": "Spikes on low volume"
+  },
+  {
+    "account": "@crypto_whale_btc",
+    "category": "BTC_CORRELATED",
+    "risk_score": "0.62",
+    "behavior_pattern": "Posts correlate with 1-15min BTC moves (n=5)",
+    "trigger_keywords": [
+      "pump",
+      "accumulate",
+      "bullish"
+    ],
+    "market_correlation": "Posts precede 0.1-0.3% moves"
+  },
+  {
+    "account": "@kr_trader",
+    "category": "HIDDEN_INFLUENCER; REGIONAL_KR",
+    "risk_score": "0.49",
+    "behavior_pattern": "Posts correlate with 1-15min BTC moves (n=4)",
+    "trigger_keywords": [
+      "bitcoin",
+      "up"
+    ],
+    "market_correlation": "KR session volatility"
+  },
+  {
+    "account": "@meme_pump",
+    "category": "HIDDEN_INFLUENCER; MEME_VOLATILITY",
+    "risk_score": "0.46",
+    "behavior_pattern": "Posts correlate with 1-15min BTC moves (n=6)",
+    "trigger_keywords": [
+      "moon",
+      "100x",
+      "pump"
+    ],
+    "market_correlation": "Meme-led volatility spikes"
+  },
+  {
+    "account": "@es_influencer",
+    "category": "HIDDEN_INFLUENCER; REGIONAL_ES",
+    "risk_score": "0.43",
+    "behavior_pattern": "Posts correlate with 1-15min BTC moves (n=4)",
+    "trigger_keywords": [
+      "bitcoin",
+      "sube",
+      "comprar"
+    ],
+    "market_correlation": "ES session correlation"
+  },
+  {
+    "account": "@cn_insider",
+    "category": "HIDDEN_INFLUENCER; REGIONAL_CN",
+    "risk_score": "0.5",
+    "behavior_pattern": "Posts correlate with 1-15min BTC moves (n=5)",
+    "trigger_keywords": [
+      "pump",
+      "bullish",
+      "moon"
+    ],
+    "market_correlation": "CN session; sync with @meme_pump"
+  }
+]
