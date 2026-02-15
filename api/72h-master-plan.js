@@ -1,6 +1,6 @@
 /**
  * Trap Defence OS — 72h マスタープラン（FOMO → ATH → CRASH ローテ）
- * Cron: 6h ごと (vercel.json: "0 */6 * * *")
+ * Cron: 6h ごと (vercel.json の cron は 6時間毎)
  * 現在のナラティブを KV に保存。build_structured_post 等が参照して bias に利用可能
  */
 
