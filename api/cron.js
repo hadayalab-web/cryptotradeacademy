@@ -110,6 +110,7 @@ const {
 } = require("../services/cryptoquant/endpoints/btc");
 // Phase 2: 市場別深掘りデータ
 const { getCQDeepMetrics } = require("../services/cryptoquant/deepMetrics");
+const { getCqLatest, cqLatestToCqDeep } = require("../services/snapshot/cqLatestWriter");
 const { writeEarlySnapshot, writeFullSnapshot, persistSnapshotToDb } = require("../services/snapshot/btcSnapshotWriter");
 const { buildFullSnapshot } = require("../services/snapshot/btcSnapshotSchema");
 const { runAssetSnapshot } = require("../services/snapshot/assetSnapshotBuilder");
@@ -804,6 +805,24 @@ module.exports = async function handler(req, res) {
         // 前回状態取得
         const lastState = await stateManager.getLastState(market);
 
+        // CQ 一本化: kiba-5min が 5 分ごとに書く cq:latest を優先。無い or 古いときだけ getCQDeepMetrics
+        let cqFromCache = false;
+        try {
+          const { getKV } = require("../utils/kv");
+          const kv = getKV();
+          if (kv) {
+            const cqLatest = await getCqLatest(kv, 15 * 60 * 1000);
+            if (cqLatest) {
+              const deepFromCache = cqLatestToCqDeep(cqLatest);
+              if (deepFromCache && (deepFromCache.trapScore != null || deepFromCache.whaleRatio != null)) {
+                cqDeep = { ...cqDeep, ...deepFromCache };
+                cqFromCache = true;
+                console.log("[CQDeep] Using cq:latest from kiba-5min (single source for CQ).");
+              }
+            }
+          }
+        } catch (_) {}
+
         // Step 2-4: EMERGENCY判定指標のキャッシュバイパス判定
         // 前回の状態からEMERGENCY判定が必要かどうかを事前にチェック
         // ただし、正確な判定には最新データが必要なため、常にskipCache: trueとする
@@ -855,29 +874,31 @@ module.exports = async function handler(req, res) {
           // 常に最新データで取得（キャッシュをバイパス）
           priceOptions.skipCache = shouldSkipCacheForEmergency;
 
-          // 設計: 3本パイプライン（GPT/Grok/Gemini）に必要なCQは inflow, mpi, whaleRatio のみ。高解像度はオーバースペックのため取得しない。
-          // 定期枠: getCQDeepMetrics のみ（highResCQ なし）→ trapScore / whaleRatio を取得。20〜60秒短縮で300秒タイムアウト余裕確保。
-          // 15分監視枠: 深掘りもスキップして高速化。
+          // 設計: CQ は kiba-5min が 5 分ごとに cq:latest に書くのを優先。未取得時のみ getCQDeepMetrics（API 二重取得を廃止）
           if (isRegularSlot || force) {
-            console.log("[CQDeep] Regular slot: fetching deep metrics only (no high-res, design: minimal CQ).");
-            highResCQData = null;
-            try {
-              const deepResult = await getCQDeepMetrics(market, priceOptions);
-              cqDeep = { ...cqDeep, ...deepResult };
-              console.log("[CQDeep] Deep metrics fetched:", {
-                trapScore: deepResult?.trapScore,
-                whaleRatio: deepResult?.whaleFlows?.whaleRatio
-              });
-            } catch (deepErr) {
-              console.warn("[Phase 2] Error in getCQDeepMetrics:", deepErr?.message);
-              if (Object.keys(cqDeep).length <= 2) {
-                try {
-                  const fallbackDeep = await getCQDeepMetrics(market, priceOptions);
-                  cqDeep = { ...cqDeep, ...fallbackDeep };
-                } catch (e2) {
-                  console.warn("[Phase 2] Fallback getCQDeepMetrics failed:", e2?.message);
+            if (!cqFromCache) {
+              console.log("[CQDeep] Regular slot: no cq:latest, fetching deep metrics.");
+              highResCQData = null;
+              try {
+                const deepResult = await getCQDeepMetrics(market, priceOptions);
+                cqDeep = { ...cqDeep, ...deepResult };
+                console.log("[CQDeep] Deep metrics fetched:", {
+                  trapScore: deepResult?.trapScore,
+                  whaleRatio: deepResult?.whaleFlows?.whaleRatio
+                });
+              } catch (deepErr) {
+                console.warn("[Phase 2] Error in getCQDeepMetrics:", deepErr?.message);
+                if (Object.keys(cqDeep).length <= 2) {
+                  try {
+                    const fallbackDeep = await getCQDeepMetrics(market, priceOptions);
+                    cqDeep = { ...cqDeep, ...fallbackDeep };
+                  } catch (e2) {
+                    console.warn("[Phase 2] Fallback getCQDeepMetrics failed:", e2?.message);
+                  }
                 }
               }
+            } else {
+              highResCQData = null;
             }
           } else {
             console.log(
@@ -1457,16 +1478,23 @@ module.exports = async function handler(req, res) {
         // エラー時は続行（必須ではない）
       }
 
-      // Phase 2: イベント駆動が無効な場合でも深掘りデータを取得（一度だけ）
+      // Phase 2: イベント駆動が無効な場合でも深掘りデータを取得（cq:latest 優先）
       if (!ENABLE_EVENT_DRIVEN || !stateManager) {
         try {
-          // 最初の言語の市場コードを使用（深掘りデータは全言語で共通）
-          const firstLangMarket = getMarketCode(targetLangsForRegular[0]);
-          const deepData = await getCQDeepMetrics(firstLangMarket, {
-            upbitPrice: priceUsd,
-            usdKrwRate: 1300
-          });
-          cqDeep = { ...cqDeep, ...deepData };
+          const { getKV } = require("../utils/kv");
+          const kv = getKV();
+          const cqLatest = kv ? await getCqLatest(kv, 15 * 60 * 1000) : null;
+          if (cqLatest) {
+            cqDeep = { ...cqDeep, ...cqLatestToCqDeep(cqLatest) };
+            console.log("[CQDeep] Using cq:latest (event-driven off path).");
+          } else {
+            const firstLangMarket = getMarketCode(targetLangsForRegular[0]);
+            const deepData = await getCQDeepMetrics(firstLangMarket, {
+              upbitPrice: priceUsd,
+              usdKrwRate: 1300
+            });
+            cqDeep = { ...cqDeep, ...deepData };
+          }
         } catch (error) {
           console.warn("[Phase 2] Error fetching deep metrics:", error.message);
         }

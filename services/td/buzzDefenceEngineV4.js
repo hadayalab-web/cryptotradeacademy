@@ -17,6 +17,7 @@ const {
   insertXPost,
   insertChainRaidPostKpi
 } = require("../../utils/supabase");
+const { selectCTA } = require("../cta/psychDynamicCta");
 
 // ---- CTR: cliffhanger 接尾辞（未完の物語） ----
 const CLIFFHANGER_SUFFIX_BY_LANG = {
@@ -150,13 +151,20 @@ function buildMainPost(structuredPost, vidalyticsLink, options = {}) {
   const solutionLine = vidalyticsLink ? `${relief} ${vidalyticsLink}` : "";
 
   // 必須: cta_core × psychology_tag × 選択肢テンプレで組み立て（GPT に CTA を丸投げしない）
-  // v4.5: psych_type があれば narrative 最適化 CTA を優先
+  // v4.5: psychDynamicCta で narrative_tag × poll_ratio × lang から CTA 選択
   let ctaLine = ctaCore;
   if (enableChoiceCta) {
-    const psychType = structuredPost.psych_type || structuredPost.narrative_tag;
-    const psychMap = { FOMO: "FOMO_RIDE", FUD: "FUD_ESCAPE", HYPE: "FOMO_RIDE" };
-    const resolvedPsych = psychMap[psychType] || psychologyTag;
-    const choiceMap = CHOICE_CTA_BY_TAG[resolvedPsych] || CHOICE_CTA_BY_TAG[psychologyTag] || CHOICE_CTA_BY_TAG.NEUTRAL;
+    const pollYes = structuredPost.poll_yes ?? 0;
+    const pollNo = structuredPost.poll_no ?? 0;
+    const total = pollYes + pollNo;
+    const pollRatio = total > 0 ? pollYes / total : undefined;
+    const ctaTag =
+      selectCTA({
+        poll_ratio: pollRatio,
+        narrative_tag: structuredPost.narrative_tag || structuredPost.psych_type,
+        lang
+      }) || psychologyTag;
+    const choiceMap = CHOICE_CTA_BY_TAG[ctaTag] || CHOICE_CTA_BY_TAG[psychologyTag] || CHOICE_CTA_BY_TAG.NEUTRAL;
     ctaLine = choiceMap[lang] || choiceMap.en || ctaCore;
   }
 
@@ -343,8 +351,20 @@ async function runBuzzDefenceV4Cycle(structuredPost, quotedTweetId, options = {}
   }
 
   const postFn = postQuoteTweet || require("../x/client").postQuoteTweet;
+  const replyToTweet = require("../x/client").replyToTweet;
   const result = await postFn(built.mainPost, quotedTweetId);
   const tweetId = result?.id || null;
+
+  // 自リプライ 1 本目を即時投稿（velocity +50%、X アルゴ Booster）
+  let selfReplyCount = 0;
+  if (tweetId && options.enableSelfReplies !== false && built.selfReplyPosts?.[0]?.text) {
+    try {
+      await replyToTweet(built.selfReplyPosts[0].text, tweetId);
+      selfReplyCount = 1;
+    } catch (e) {
+      console.warn("[buzzDefenceV4] self-reply1 failed:", e?.message);
+    }
+  }
 
   // KPI ログ（1サイクルに含む: insertQuotedTweets → insertBuzzweavePostLog → insertXPost）
   const lang = structuredPost.lang || "en";
@@ -406,7 +426,8 @@ async function runBuzzDefenceV4Cycle(structuredPost, quotedTweetId, options = {}
     posted: tweetId ? 1 : 0,
     tweetId,
     mainPost: built.mainPost,
-    kpiLogged: !!xpostResult?.ok
+    kpiLogged: !!xpostResult?.ok,
+    selfReplyCount
   };
 }
 

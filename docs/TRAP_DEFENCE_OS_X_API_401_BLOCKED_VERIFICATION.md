@@ -59,7 +59,17 @@ node scripts/clear-buzzweave-x-api-blocked.js
 - 前提: `.env` に `NEXT_PUBLIC_SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を設定し、**本番と同じ Supabase プロジェクト**を指していること。
 - 実装: `utils/supabase.js` の `clearBuzzweaveStatusXApiBlocked()` を呼び出します。
 
-### 方法 B: Supabase SQL で解除
+### 方法 B: API で解除（CRON_SECRET 認証）
+
+```bash
+curl -X GET "https://your-app.vercel.app/api/buzzweave-clear-x-api-blocked?cron_secret=YOUR_CRON_SECRET"
+# または
+curl -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://your-app.vercel.app/api/buzzweave-clear-x-api-blocked"
+```
+
+- リモートから解除する場合に便利。CRON_SECRET 必須。
+
+### 方法 C: Supabase SQL で解除
 
 ```sql
 UPDATE buzzweave_status

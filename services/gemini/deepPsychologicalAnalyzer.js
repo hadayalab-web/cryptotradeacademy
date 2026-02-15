@@ -9,8 +9,8 @@ if (!GEMINI_API_KEY) {
 }
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-// 本番で変更する場合は GEMINI_MODEL で上書き（デフォルト: gemini-3-flash-preview）
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
+// 本番で変更する場合は GEMINI_MODEL で上書き（デフォルト: gemini-3-pro-preview）
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3-pro-preview';
 
 // キャッシュ設定（GPTと同じパターンで一貫性を保つ）
 const GEMINI_CACHE_TTL_SECONDS = Number(process.env.GEMINI_CACHE_TTL_SECONDS || 900); // デフォルト: 15分

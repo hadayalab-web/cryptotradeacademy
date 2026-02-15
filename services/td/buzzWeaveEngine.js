@@ -9,8 +9,17 @@ const { getKV } = require("../../utils/kv");
 loadEnv();
 
 const OpenAI = require("openai");
-const { searchPostsRecent, getUserByUsername, getUserTweets, postQuoteTweet: postQuoteTweetDefault } = require("../x/client");
+const {
+  searchPostsRecent,
+  getUserByUsername,
+  getUserTweets,
+  postQuoteTweet: postQuoteTweetDefault,
+  postTweet,
+  replyToTweet
+} = require("../x/client");
 const { pickVidalyticsLink } = require("../../config/buzzweaveLinks");
+const { sortSlotsByWeight } = require("../scheduler/peakClusterScheduler");
+const { buildBestSlot } = require("./autonomousSlotGenerator");
 const {
   getTdInfluencers,
   getTdOfficialAccounts,
@@ -31,8 +40,10 @@ const {
   getBuzzweaveStatus
 } = require("../../utils/supabase");
 const { generateXPost } = require("../ai/gpt5mini");
+const { buildStructuredPostFromSlot } = require("../textgen/buildStructuredPost");
+const { getBtcSnapshot } = require("../market/getBtcSnapshot");
 
-const MODEL = process.env.GPT_MODEL_X_POST || "gpt-4o-mini";
+const MODEL = process.env.GPT_MODEL_X_POST || "gpt-4o";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // バズ閾値（指示書準拠）
@@ -694,12 +705,112 @@ async function generateParasiticCopy(slot, buzzCandidate, videoUrl, btcSnapshot 
       topic: context?.topic || "crypto",
       tone: context?.tone || "neutral",
       lang: context?.lang || target?.lang || slot.lang,
+      narrative_tag: slot.narrative_tag,
+      cta_type: slot.cta_type,
+      cluster_id: slot.cluster_id,
       ...buzzInsights
     },
     btcSnapshot
   });
 
   return result.body;
+}
+
+/**
+ * 自律投稿: スロット + テンプレートから本文を生成し、スタンドアロン投稿 + 自リプライ
+ * AUTONOMOUS_SLOT_MODE 時に呼ばれる
+ * v5.2: getBtcSnapshot で市場データ取得、pickBestFunnelLink で導線を自律選択
+ */
+async function buildAndPostFromSlot(slot, btcSnapshot, options = {}) {
+  const { dryRun = true, postTweet: postFn = postTweet, replyToTweet: replyFn = replyToTweet } = options;
+
+  // 市場スナップショット: btcSnapshot があれば優先、なければ getBtcSnapshot() で DB から取得
+  let market_snapshot;
+  if (btcSnapshot?.cqDeep || btcSnapshot?.raw || btcSnapshot?.trapDetection) {
+    market_snapshot = {
+      trapScore: btcSnapshot?.cqDeep?.trapScore ?? btcSnapshot?.trapDetection?.trapScore ?? btcSnapshot?.trap_score ?? "elevated",
+      netflowState: btcSnapshot?.cqDeep?.raw?.netflow ?? btcSnapshot?.raw?.netflow ?? "absorption",
+      whaleRatio: btcSnapshot?.cqDeep?.whaleRatio ?? btcSnapshot?.raw?.whale_ratio ?? "unknown",
+      cvdState: btcSnapshot?.cqDeep?.cvdState ?? btcSnapshot?.raw?.cvd_state ?? "neutral",
+      liquidationBias: btcSnapshot?.raw?.liquidation_bias ?? btcSnapshot?.raw?.bias ?? "neutral",
+      fundingRate: btcSnapshot?.raw?.funding_state ?? "neutral",
+      athLevel: btcSnapshot?.raw?.ath_level ?? "$69K–$72K",
+      dogeMove: btcSnapshot?.raw?.doge_move ?? btcSnapshot?.raw?.dogeChange ?? "+12%",
+      xrpMove: btcSnapshot?.raw?.xrp_move ?? btcSnapshot?.raw?.xrpChange ?? "+8%"
+    };
+  } else {
+    market_snapshot = await getBtcSnapshot();
+  }
+
+  const { main_text, reply_text_1, reply_text_2, link } = await buildStructuredPostFromSlot(slot, market_snapshot);
+
+  if (dryRun) {
+    console.log("[BuzzWeave] buildAndPostFromSlot dryRun", { lang: slot.lang, narrative_tag: slot.narrative_tag, cta_type: slot.cta_type });
+    return { ok: true, posted: 0, dryRun: true, autonomous: true, main_text: main_text?.slice(0, 200) + "...", runId: `bw-${Date.now()}` };
+  }
+
+  try {
+    const result = await postFn(main_text);
+    const postId = result?.id || null;
+    if (!postId) throw new Error("postTweet returned no id");
+
+    // X の安全性チェック: リンク入りを先に投稿すると通過率UP。失敗時は retry
+    async function safeReply(text) {
+      if (!text || typeof text !== "string") return false;
+      try {
+        await replyFn(text, postId);
+        return true;
+      } catch (e) {
+        console.error("[BuzzWeave] reply failed, retry in 1.5s:", e?.message);
+        await new Promise((r) => setTimeout(r, 1500));
+        try {
+          await replyFn(text, postId);
+          return true;
+        } catch (e2) {
+          console.error("[BuzzWeave] reply retry failed:", e2?.message);
+          return false;
+        }
+      }
+    }
+
+    let selfReplyCount = 0;
+    if (reply_text_2?.trim()) {
+      if (await safeReply(reply_text_2)) selfReplyCount++;
+    }
+    if (reply_text_1?.trim()) {
+      if (await safeReply(reply_text_1)) selfReplyCount++;
+    }
+
+    const lang = slot.lang || "en";
+    await consumeTdPostSlot(slot.id);
+    await insertXPost({ lang, mode: "autonomous", body: main_text });
+    await insertBuzzweavePostLog({
+      slotLang: lang,
+      clusterLabel: slot.cluster_id || "autonomous",
+      clusterScore: 0,
+      candidateTweetId: null,
+      engagementScore: 0,
+      postedAt: new Date().toISOString(),
+      ourTweetId: postId,
+      slotMode: "autonomous",
+      buzzSummary: `autonomous ${slot.narrative_tag} / ${slot.cta_type}`,
+      clusterPsych: null,
+      trapDefenceInsight: reply_text_1?.slice(0, 100) || null,
+      dangerLabel: slot.narrative_tag?.toLowerCase() || "autonomous",
+      usedMode: "autonomous",
+      funnelType: link?.type ?? null,
+      funnelUrl: link?.url ?? null,
+      narrativeTag: slot.narrative_tag ?? null,
+      ctaType: slot.cta_type ?? null
+    });
+
+    console.log("[BuzzWeave] buildAndPostFromSlot success", { postId, lang, narrative_tag: slot.narrative_tag, cta_type: slot.cta_type, selfReplyCount });
+    return { ok: true, posted: 1, autonomous: true, tweetId: postId, selfReplyCount, runId: `bw-${Date.now()}` };
+  } catch (e) {
+    console.error("[BuzzWeave] buildAndPostFromSlot error:", e?.message);
+    const deferred = await deferTdPostSlot(slot.id, 180);
+    return { ok: false, posted: 0, autonomous: true, error: e?.message, deferred: !!deferred.ok, runId: `bw-${Date.now()}` };
+  }
 }
 
 /**
@@ -718,12 +829,23 @@ async function runBuzzWeaveCycle(options = {}) {
 
   const cleanup = await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
 
-  const slots = await getTdPostSlotsInNextHour(langFilter);
+  const rawSlots = await getTdPostSlotsInNextHour(langFilter);
+  const slots = await sortSlotsByWeight(rawSlots);
   const slot = slots[0];
   console.log("[BuzzWeave] slots", {
     count: slots.length,
     langFilter: langFilter || "(round-robin)",
-    firstSlot: slot ? { id: slot.id, lang: slot.lang, datetime_jst: slot.datetime_jst } : null
+    firstSlot: slot
+      ? {
+          id: slot.id,
+          lang: slot.lang,
+          datetime_jst: slot.datetime_jst,
+          cluster_id: slot.cluster_id,
+          narrative_tag: slot.narrative_tag,
+          cta_type: slot.cta_type,
+          weight: slot._weight ?? slot.weight
+        }
+      : null
   });
   logInfo("slot", slot || null);
   if (!slots.length) {
@@ -736,6 +858,12 @@ async function runBuzzWeaveCycle(options = {}) {
   if (status.x_api_blocked) {
     console.log("[BuzzWeave] stop: x_api_blocked=true, skipping X API (no search/post)");
     return { ok: true, message: "X API blocked flag active", posted: 0, runId, xApiBlocked: true };
+  }
+
+  // AUTONOMOUS_SLOT_MODE: スロットに narrative_tag/cta_type があれば OS が文章を自律生成して投稿
+  if (AUTONOMOUS_SLOT_MODE && slot.narrative_tag && slot.cta_type) {
+    const organicResult = await buildAndPostFromSlot(slot, btcSnapshot, { dryRun, postTweet, replyToTweet });
+    if (organicResult) return organicResult;
   }
 
   if (isDeadlineExceeded(startMs, deadlineMs)) {
@@ -955,11 +1083,33 @@ async function runBuzzWeaveCycle(options = {}) {
   };
 }
 
+const AUTONOMOUS_SLOT_MODE = process.env.AUTONOMOUS_SLOT_MODE === "true" || process.env.AUTONOMOUS_SLOT_MODE === "1";
+
 /**
  * 日次スロット生成（Cron用）
+ * AUTONOMOUS_SLOT_MODE=true のときは最適スロット 1 個のみ生成
  */
 async function generateDailySlots() {
   await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
+
+  if (AUTONOMOUS_SLOT_MODE) {
+    const bestSlot = await buildBestSlot();
+    if (!bestSlot) {
+      logWarn("autonomous mode: buildBestSlot returned null, falling back to legacy");
+      const slots = generateSlotsForDay(new Date());
+      const result = await insertTdPostSlots(slots);
+      return { ok: result.ok, count: result.ok ? slots.length : 0, targetDailySlots: DAILY_SLOT_COUNT, autonomous: false };
+    }
+    const result = await insertTdPostSlots([bestSlot]);
+    return {
+      ok: result.ok,
+      count: result.ok ? 1 : 0,
+      targetDailySlots: 1,
+      autonomous: true,
+      slot: { lang: bestSlot.lang, cluster_id: bestSlot.cluster_id, narrative_tag: bestSlot.narrative_tag, cta_type: bestSlot.cta_type, weight: bestSlot.weight }
+    };
+  }
+
   const slots = generateSlotsForDay(new Date());
   const result = await insertTdPostSlots(slots);
   return { ok: result.ok, count: result.ok ? slots.length : 0, targetDailySlots: DAILY_SLOT_COUNT };

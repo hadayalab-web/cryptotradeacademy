@@ -21,7 +21,7 @@ const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
 
 // 本番で変更する場合は環境変数で上書き
 const GROK_MODEL = process.env.GROK_MODEL_X_LIVE || process.env.GROK_MODEL_HIGH_RES || "grok-4-1-fast-reasoning";
-const GEMINI_MODEL = process.env.GEMINI_CONTENT_OPTIMIZER_MODEL || "gemini-3-flash-preview";
+const GEMINI_MODEL = process.env.GEMINI_CONTENT_OPTIMIZER_MODEL || "gemini-3-pro-preview";
 
 // P0 FIX: 環境変数がない場合でもエラーを出さないように遅延初期化
 let grokClient = null;

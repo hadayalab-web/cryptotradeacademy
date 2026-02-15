@@ -6,10 +6,10 @@
 ログに次のように出たら、テーブル修復が必要です。
 
 ```
-[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema (lock_name only), refusing run. Set BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK=true to allow posting, or fix table.
+[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema (locked column missing), refusing run. Run migration: docs/supabase-buzzweave-locks.sql
 ```
 
-**投稿を止めたくない場合**: テーブル修復前に一時的に環境変数 `BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK=true` を設定すると、minimal スキーマのままでも run を許可し、投稿を再開できる。ロックは効かないので、修復後はこの env を外すこと。詳細は [BUZZWEAVE_WHEN_POSTING_STOPPED.md](./BUZZWEAVE_WHEN_POSTING_STOPPED.md)。
+**minimal スキーマ時は run を拒否**（暴走防止）。テーブル修復まで投稿は再開しない。
 
 ---
 
@@ -26,7 +26,7 @@
 
 ## 2. あわせて確認したいこと
 
-- **x_api_blocked**: 402 後に `true` になっている場合は、Token 修正・クレジット補充後に [scripts/clear-buzzweave-x-api-blocked.js](../scripts/clear-buzzweave-x-api-blocked.js) で解除。
+- **x_api_blocked**: 402 後に `true` になっている場合は、Token 修正・クレジット補充後に [scripts/clear-buzzweave-x-api-blocked.js](../scripts/clear-buzzweave-x-api-blocked.js) または `GET /api/buzzweave-clear-x-api-blocked?cron_secret=xxx` で解除。
 - **スロットを時間帯で絞る**: 環境変数 `BUZZWEAVE_ACTIVE_HOURS_JST` を設定すると、その時間帯（JST）のみスロットを生成し、それ以外は X API を叩きません。例: `8,9,10,11,12,13,14,17,18,19,20,21,22,23`
 
 以上で、「投稿する時だけ X API を叩く」状態に近づけられます。

@@ -90,6 +90,25 @@ async function getCqLatest(kv, maxAgeMs = 10 * 60 * 1000) {
 }
 
 /**
+ * cq:latest を cron/btcSnapshot の cqDeep 形式に変換（CQ取得の一本化用）
+ * kiba-5min が 5 分ごとに書いた cq:latest を cron が参照するときに使用
+ */
+function cqLatestToCqDeep(cqLatest) {
+  if (!cqLatest || typeof cqLatest !== "object") return {};
+  const raw = cqLatest.raw || {};
+  const whaleRatio = cqLatest.whale_ratio ?? raw.whaleRatio ?? 0;
+  return {
+    trapScore: cqLatest.trap_score ?? raw.trapScore ?? null,
+    whaleFlows: { whaleRatio },
+    whaleRatio,
+    netflow: raw.netflow ?? null,
+    liquidations: raw.liquidations ?? null,
+    openInterest: cqLatest.open_interest ?? raw.openInterest ?? null,
+    exchangeInflow: cqLatest.exchange_inflow ?? raw.exchangeInflow ?? null
+  };
+}
+
+/**
  * cq:latest を kiba_chain_integration の cq_metrics 形式に変換
  * @param {Object} cqLatest - getCqLatest の戻り値
  * @returns {Object} { oi_spike, whale_inflow, long_short_ratio, open_interest, ... }
@@ -121,5 +140,6 @@ module.exports = {
   normalizeToCqLatest,
   writeCqLatest,
   getCqLatest,
+  cqLatestToCqDeep,
   cqLatestToCqMetrics
 };

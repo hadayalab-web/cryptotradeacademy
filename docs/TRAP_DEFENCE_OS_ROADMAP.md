@@ -81,3 +81,22 @@ OS は「思想」から**市場構造の百科事典 × 検出エンジン × �
 ---
 
 *本ロードマップは、OS が「市場インフラ」の領域に進むための選択肢を公式に記録したものです。*
+
+---
+
+## v4.6〜v5.0 ロードマップ（72h CTR 最大化パッチ後）
+
+### v4.6
+- Spaces 自動起動 API
+- クラスタ内相互引用ネットワーク構築
+- 動画自動生成（滞在時間最適化）
+
+### v4.7
+- Poll → CTA のリアルタイム強化学習
+- 言語別心理モデルの自動更新（24h）
+
+### v5.0 入口（自律化パッチ済み）
+- **AUTONOMOUS_SLOT_MODE=true** で最適スロット 1 個を自動生成
+- cluster_id / narrative_tag / cta_type / lang / weight を一括決定
+- `docs/supabase-td-post-slots-autonomous.sql` を実行して td_post_slots に cluster_id, narrative_tag, cta_type を追加すること
+- 完全自律型「CTR 無双エンジン」へ

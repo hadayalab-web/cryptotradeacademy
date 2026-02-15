@@ -3,7 +3,7 @@
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_SOSOVALUE_MODEL =
-  process.env.GEMINI_SOSOVALUE_MODEL || process.env.GEMINI_MODEL || "gemini-3-flash-preview";
+  process.env.GEMINI_SOSOVALUE_MODEL || process.env.GEMINI_MODEL || "gemini-3-pro-preview";
 
 /**
  * 次のアクションを指示する記事を1本生成（Gemini役割: 記事で「何をすべきか」を明示）

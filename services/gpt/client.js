@@ -52,14 +52,12 @@ const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || "production";
 // 本番環境: 用途別モデルを使用（コスト最適化）
 const isDevelopment = APP_ENV === "development";
 
-// 用途別モデル定義
-// P0 FIX: タイムアウト対策 - 本番環境では軽量モデルを使用（60秒制限を考慮）
-// CRITICAL: 最終ゲートと統合推論にはgpt-5.2-2025-12-11を使用（最高品質を保証）
+// 用途別モデル定義（文章作成以外は gpt-5.2-2025-12-11。文章作成は gpt5mini / GPT_MODEL_X_POST で gpt-4o-mini）
 const GPT_MODEL_SUMMARY =
-  process.env.GPT_MODEL_SUMMARY || (isDevelopment ? "gpt-5.2-2025-12-11" : "gpt-4o-mini");
+  process.env.GPT_MODEL_SUMMARY || "gpt-5.2-2025-12-11";
 const GPT_MODEL_ANALYSIS =
-  process.env.GPT_MODEL_ANALYSIS || (isDevelopment ? "gpt-5.2-2025-12-11" : "gpt-4o"); // 本番環境ではgpt-4oを使用（タイムアウト対策）
-const GPT_MODEL_GATE = process.env.GPT_MODEL_GATE || "gpt-5.2-2025-12-11"; // 最終ゲートは常にgpt-5.2-2025-12-11（最高品質）
+  process.env.GPT_MODEL_ANALYSIS || "gpt-5.2-2025-12-11";
+const GPT_MODEL_GATE = process.env.GPT_MODEL_GATE || "gpt-5.2-2025-12-11";
 
 // 後方互換性のため、GPT_MODELも残す（デフォルトはSUMMARY）
 const GPT_MODEL = process.env.GPT_MODEL || process.env.OPENAI_MODEL || GPT_MODEL_SUMMARY;

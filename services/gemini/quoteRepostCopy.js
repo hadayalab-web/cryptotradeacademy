@@ -1,8 +1,8 @@
 // services/gemini/quoteRepostCopy.js
-// 引用リポスト用: ペルソナの深層心理フック・反論処理メッセージを gemini-3-flash-preview で生成
+// 引用リポスト用: ペルソナの深層心理フック・反論処理メッセージを gemini-3-pro-preview で生成
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_QUOTE_REPOST_MODEL = process.env.GEMINI_QUOTE_REPOST_MODEL || "gemini-3-flash-preview";
+const GEMINI_QUOTE_REPOST_MODEL = process.env.GEMINI_QUOTE_REPOST_MODEL || "gemini-3-pro-preview";
 
 const SUPPORTED_LANGS = ["en", "es", "pt-br", "ar", "ja", "ko"];
 
@@ -107,7 +107,7 @@ function buildMarketContext(reportData) {
 }
 
 /**
- * ペルソナの深層心理を鷲掴みにするメッセージを生成（gemini-3-flash-preview）
+ * ペルソナの深層心理を鷲掴みにするメッセージを生成（gemini-3-pro-preview）
  * CryptoQuant/市況データを渡し、市況を把握した上で「無様なペルソナ」に言及させる。
  * ターゲット: 含み損・思考停止・トレード依存。責めない・共感＋枠組みの提示。
  * @param {Object} options - { lang, reportData }
@@ -131,7 +131,7 @@ Task: Write exactly 2 or 3 short sentences in ${langName}. Reference the current
 }
 
 /**
- * ペルソナの反論処理をするメッセージを1段落で生成（gemini-3-flash-preview）
+ * ペルソナの反論処理をするメッセージを1段落で生成（gemini-3-pro-preview）
  * 「高い」「また負ける」「今はいい」などの反論を優しく受け止め、リアルタイムの価値・リスクゼロを匂わせる。
  * @param {Object} options - { lang }
  * @returns {Promise<string|null>}

@@ -7,7 +7,7 @@
 const OpenAI = require("openai");
 const { insertXPost } = require("../../utils/supabase");
 
-const MODEL = process.env.GPT_MODEL_X_POST || "gpt-4o-mini";
+const MODEL = process.env.GPT_MODEL_X_POST || "gpt-4o";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 const SYSTEM_PROMPT = `You are the Trap Defence copywriter. All X posts MUST follow these rules.

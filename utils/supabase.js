@@ -377,12 +377,18 @@ async function insertTdPostSlots(rows) {
     return { ok: false, error: TD_POST_SLOTS_MIGRATION_HINT };
   }
   try {
-    const toInsert = rows.map((r) => ({
-      datetime_jst: r.datetime_jst,
-      lang: r.lang,
-      target_type: r.target_type,
-      mode: r.mode
-    }));
+    const toInsert = rows.map((r) => {
+      const row = {
+        datetime_jst: r.datetime_jst,
+        lang: r.lang,
+        target_type: r.target_type ?? "flexible",
+        mode: r.mode ?? "regular"
+      };
+      if (r.cluster_id != null) row.cluster_id = r.cluster_id;
+      if (r.narrative_tag != null) row.narrative_tag = r.narrative_tag;
+      if (r.cta_type != null) row.cta_type = r.cta_type;
+      return row;
+    });
     const { error } = await sb.from("td_post_slots").insert(toInsert);
     if (error) throw error;
     return { ok: true };
@@ -408,7 +414,7 @@ async function getTdPostSlotsInNextHour(langFilter = null) {
     const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
     let q = sb
       .from("td_post_slots")
-      .select("id, datetime_jst, lang, target_type, mode")
+      .select("id, datetime_jst, lang, target_type, mode, cluster_id, narrative_tag, cta_type")
       .gte("datetime_jst", now.toISOString())
       .lt("datetime_jst", oneHourLater.toISOString())
       .order("datetime_jst", { ascending: true });
@@ -555,13 +561,8 @@ async function acquireBuzzweaveLockLegacy(sb, lockName, cutoff, now) {
     .maybeSingle();
   if (error) {
     if (isMissingColumnError42703(error)) {
-      // 最小スキーマ時: デフォルトは取得失敗（暴走防止）。投稿を止めたくない場合は BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK=true で run を許可
-      const allowWhenMinimal = process.env.BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK === "true" || process.env.BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK === "1";
-      if (allowWhenMinimal) {
-        console.warn("[buzzweave-run] acquireBuzzweaveLock: minimal schema, BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK=true → allowing run (lock not enforced). Fix table to remove override.");
-        return true;
-      }
-      console.warn("[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema (lock_name only), refusing run. Set BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK=true to allow posting, or fix table. See docs/BUZZWEAVE_LOCK_SCHEMA_FIX.md");
+      // 最小スキーマ時: 常に拒否（暴走防止）。スキーマ修復は docs/supabase-buzzweave-locks.sql 参照
+      console.warn("[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema (locked column missing), refusing run. Run migration: docs/supabase-buzzweave-locks.sql");
       return false;
     }
     console.warn("[buzzweave-run] acquireBuzzweaveLock legacy update error:", error.message, error.code);
@@ -577,12 +578,7 @@ async function acquireBuzzweaveLockLegacy(sb, lockName, cutoff, now) {
     .maybeSingle();
   if (insertError) {
     if (isMissingColumnError42703(insertError)) {
-      const allowWhenMinimal = process.env.BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK === "true" || process.env.BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK === "1";
-      if (allowWhenMinimal) {
-        console.warn("[buzzweave-run] acquireBuzzweaveLock: minimal schema (insert path), BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK=true → allowing run.");
-        return true;
-      }
-      console.warn("[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema, refusing run. Set BUZZWEAVE_ALLOW_RUN_WHEN_MINIMAL_LOCK=true to allow posting, or fix table.");
+      console.warn("[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema (insert path), refusing run. Run migration: docs/supabase-buzzweave-locks.sql");
       return false;
     }
     if (String(insertError.code) !== "23505") {
@@ -779,7 +775,13 @@ async function insertBuzzweavePostLog(row) {
         cluster_psych: row.clusterPsych || row.cluster_psych || null,
         trap_defence_insight: row.trapDefenceInsight || row.trap_defence_insight || null,
         danger_label: row.dangerLabel || row.danger_label || "neutral",
-        used_mode: row.usedMode || row.used_mode || "neutral_insight"
+        used_mode: row.usedMode || row.used_mode || "neutral_insight",
+        funnel_type: row.funnelType ?? row.funnel_type ?? null,
+        funnel_url: row.funnelUrl ?? row.funnel_url ?? null,
+        narrative_tag: row.narrativeTag ?? row.narrative_tag ?? null,
+        cta_type: row.ctaType ?? row.cta_type ?? null,
+        our_clicks: row.ourClicks ?? row.our_clicks ?? null,
+        our_subs: row.ourSubs ?? row.our_subs ?? null
       })
       .select("id, our_tweet_id")
       .single();
@@ -809,6 +811,8 @@ async function updateBuzzweavePostLogWithMetrics(ourTweetId, metrics) {
         our_retweets: metrics.retweets ?? null,
         our_quotes: metrics.quotes ?? null,
         our_replies: metrics.replies ?? null,
+        our_clicks: metrics.clicks ?? metrics.link_clicks ?? null,
+        our_subs: metrics.subs ?? null,
         metrics_fetched_at: new Date().toISOString()
       })
       .eq("our_tweet_id", String(ourTweetId))
