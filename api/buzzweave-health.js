@@ -10,7 +10,7 @@ const {
   getTdOfficialAccounts,
   getTdPostSlotsInNextHour,
   getTdPostSlotsHealthStats,
-  getBuzzweaveLockState,
+  getBuzzweaveStatus,
   isSupabaseConfigured
 } = require("../utils/supabase");
 require("../utils/suppressKnownWarnings");
@@ -31,15 +31,19 @@ module.exports = async function handler(req, res) {
   }
 
   const supabaseConfigured = isSupabaseConfigured();
-  const lockState = await getBuzzweaveLockState();
+  let statusOk = false;
+  try {
+    await getBuzzweaveStatus();
+    statusOk = true;
+  } catch (_) {}
 
-  if (!supabaseConfigured || !lockState.ok) {
+  if (!supabaseConfigured || !statusOk) {
     return res.status(503).json({
       ok: false,
       status: "degraded",
-      reason: lockState.reason || "supabase_not_configured",
+      reason: !supabaseConfigured ? "supabase_not_configured" : "supabase_read_failed",
       hint: "Vercel の環境変数 NEXT_PUBLIC_SUPABASE_URL/SUPABASE_URL と SUPABASE_SERVICE_ROLE_KEY がローカル .env と一致しているか確認してください。",
-      checks: { supabase_configured: supabaseConfigured, lock_read_ok: lockState.ok }
+      checks: { supabase_configured: supabaseConfigured, supabase_read_ok: statusOk }
     });
   }
 
@@ -79,14 +83,7 @@ module.exports = async function handler(req, res) {
       status: ok ? "healthy" : "degraded",
       checks: {
         env,
-        supabase: {
-          configured: true,
-          lock: {
-            locked: lockState.locked,
-            updated_at: lockState.updated_at
-          },
-          hint: "lock.locked=true かつ buzzweave-run が毎回 Locked なら、TTL 60秒待つか release-buzzweave-lock.js を実行。Vercel とローカルで別 DB を見ている可能性あり。"
-        },
+        supabase: { configured: true },
         slots: {
           total: slotsHealth.total_slots ?? null,
           nextHour: Array.isArray(nextHourSlots) ? nextHourSlots.length : null

@@ -534,155 +534,6 @@ function inferCopyMeta(text, mode, lang) {
   };
 }
 
-// ========== BuzzWeave cron ロック（多重実行防止 + TTL） ==========
-// TTL 60秒: 例外で finally が動かなくても時間経過でロックが自動解除される
-
-const BUZZWEAVE_LOCK_NAME = "buzzweave_main";
-const LOCK_TTL_SECONDS = Number(process.env.BUZZWEAVE_LOCK_TTL_SECONDS) || 60;
-
-function isMissingLockedColumnError(error) {
-  const code = String(error?.code || "");
-  const msg = String(error?.message || "");
-  return code === "42703" && /buzzweave_locks\.locked|column\s+.*locked.*does not exist/i.test(msg);
-}
-
-function isMissingColumnError42703(error) {
-  return String(error?.code || "") === "42703" && /buzzweave_locks|column\s+.*does not exist/i.test(String(error?.message || ""));
-}
-
-async function acquireBuzzweaveLockLegacy(sb, lockName, cutoff, now) {
-  // 旧スキーマ互換: locked カラムが無い場合は updated_at の TTL のみで排他する
-  const { data, error } = await sb
-    .from("buzzweave_locks")
-    .update({ updated_at: now })
-    .eq("lock_name", lockName)
-    .or(`updated_at.is.null,updated_at.lt."${cutoff}"`)
-    .select("lock_name")
-    .maybeSingle();
-  if (error) {
-    if (isMissingColumnError42703(error)) {
-      // 最小スキーマ時: 常に拒否（暴走防止）。スキーマ修復は docs/supabase-buzzweave-locks.sql 参照
-      console.warn("[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema (locked column missing), refusing run. Run migration: docs/supabase-buzzweave-locks.sql");
-      return false;
-    }
-    console.warn("[buzzweave-run] acquireBuzzweaveLock legacy update error:", error.message, error.code);
-    return false;
-  }
-  if (data) return true;
-
-  // 行が無い初回だけ insert を試す（既存なら 23505 で false）
-  const { data: inserted, error: insertError } = await sb
-    .from("buzzweave_locks")
-    .insert({ lock_name: lockName, updated_at: now })
-    .select("lock_name")
-    .maybeSingle();
-  if (insertError) {
-    if (isMissingColumnError42703(insertError)) {
-      console.warn("[buzzweave-run] acquireBuzzweaveLock: buzzweave_locks has minimal schema (insert path), refusing run. Run migration: docs/supabase-buzzweave-locks.sql");
-      return false;
-    }
-    if (String(insertError.code) !== "23505") {
-      console.warn("[buzzweave-run] acquireBuzzweaveLock legacy insert error:", insertError.message, insertError.code);
-    }
-    return false;
-  }
-  return !!inserted;
-}
-
-async function acquireBuzzweaveLock(lockName = BUZZWEAVE_LOCK_NAME) {
-  const sb = getSupabase();
-  if (!sb) return false;
-  try {
-    const cutoff = new Date(Date.now() - LOCK_TTL_SECONDS * 1000).toISOString();
-    const now = new Date().toISOString();
-    // 条件: lock_name 一致 かつ (locked=false または updated_at が TTL より古い)
-    // PostgREST: timestamp に : が含まれるため .or() 内はダブルクォートで囲む
-    const { data, error } = await sb
-      .from("buzzweave_locks")
-      .update({ locked: true, updated_at: now })
-      .eq("lock_name", lockName)
-      .or(`locked.eq.false,updated_at.lt."${cutoff}"`)
-      .select("lock_name")
-      .maybeSingle();
-    if (error) {
-      if (isMissingLockedColumnError(error)) {
-        console.warn("[buzzweave-run] acquireBuzzweaveLock: locked column missing, fallback to legacy TTL lock");
-        return await acquireBuzzweaveLockLegacy(sb, lockName, cutoff, now);
-      }
-      console.warn("[buzzweave-run] acquireBuzzweaveLock error:", error.message, error.code);
-      return false;
-    }
-    if (!data) {
-      console.warn("[buzzweave-run] acquireBuzzweaveLock: no row updated (filter matched 0 rows)", { cutoff, now });
-      return false;
-    }
-    return true;
-  } catch (e) {
-    console.warn("[buzzweave-run] acquireBuzzweaveLock exception:", e?.message);
-    return false;
-  }
-}
-
-async function releaseBuzzweaveLock(lockName = BUZZWEAVE_LOCK_NAME) {
-  const sb = getSupabase();
-  if (!sb) return;
-  try {
-    const { error } = await sb
-      .from("buzzweave_locks")
-      .update({ locked: false, updated_at: new Date().toISOString() })
-      .eq("lock_name", lockName);
-    if (error && isMissingLockedColumnError(error)) {
-      // 旧スキーマ互換: updated_at を古い値にして即時アンロック扱いにする
-      await sb
-        .from("buzzweave_locks")
-        .update({ updated_at: new Date(0).toISOString() })
-        .eq("lock_name", lockName);
-    }
-  } catch (_) {}
-}
-
-/** ロック状態を読み取り（診断用）。Supabase 接続確認にも使う */
-async function getBuzzweaveLockState(lockName = BUZZWEAVE_LOCK_NAME) {
-  const sb = getSupabase();
-  if (!sb) return { ok: false, reason: "supabase_not_configured" };
-  try {
-    const { data, error } = await sb
-      .from("buzzweave_locks")
-      .select("lock_name, locked, updated_at")
-      .eq("lock_name", lockName)
-      .maybeSingle();
-    if (error) {
-      if (!isMissingLockedColumnError(error)) {
-        return { ok: false, reason: "supabase_error", error: error.message };
-      }
-      // 旧スキーマ互換: updated_at の鮮度から lock 状態を近似
-      const { data: legacyData, error: legacyError } = await sb
-        .from("buzzweave_locks")
-        .select("lock_name, updated_at")
-        .eq("lock_name", lockName)
-        .maybeSingle();
-      if (legacyError) return { ok: false, reason: "supabase_error", error: legacyError.message };
-      const updatedAt = legacyData?.updated_at || null;
-      const ageMs = updatedAt ? Date.now() - new Date(updatedAt).getTime() : Number.POSITIVE_INFINITY;
-      return {
-        ok: true,
-        lock_name: legacyData?.lock_name ?? lockName,
-        locked: ageMs <= LOCK_TTL_SECONDS * 1000,
-        updated_at: updatedAt,
-        legacy_mode: true
-      };
-    }
-    return {
-      ok: true,
-      lock_name: data?.lock_name ?? lockName,
-      locked: !!data?.locked,
-      updated_at: data?.updated_at ?? null
-    };
-  } catch (e) {
-    return { ok: false, reason: "supabase_error", error: e?.message };
-  }
-}
-
 // ========== BuzzWeave ステータス（緊急停止・402ブロック） ==========
 
 async function upsertBuzzweaveStatusEmergencyStop(reason = "env_flag") {
@@ -1124,8 +975,6 @@ module.exports = {
   deferTdPostSlot,
   cleanupOldTdPostSlots,
   getTdPostSlotsHealthStats,
-  acquireBuzzweaveLock,
-  releaseBuzzweaveLock,
   upsertBuzzweaveStatusEmergencyStop,
   upsertBuzzweaveStatus402,
   getBuzzweaveStatus,
@@ -1140,7 +989,6 @@ module.exports = {
   getLastBtcSnapshot,
   getBtcSnapshotsHistory,
   isSupabaseConfigured,
-  getBuzzweaveLockState,
   recordBuzzWeaveRun,
   getTodayRunCount,
   getLastRunTimestamp

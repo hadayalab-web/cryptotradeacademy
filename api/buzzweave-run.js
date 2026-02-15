@@ -3,10 +3,7 @@
  * Cron: GET /api/buzzweave-run?lang=en など（1 run で 1 言語のみ、round-robin で lang を渡す）
  *
  * PQT-ONLY: BUZZWEAVE_PQT_ONLY=true のとき、エンジンは runBuzzWeaveCyclePqtOnly に分岐。
- * スロット取得・通常ポストは行わず、Fisherman 検出 → 上位 5〜10% → PQT のみ投稿。詳細は docs/BUZZWEAVE_PQT_ONLY_SPEC.md
- *
  * 緊急停止: BUZZWEAVE_EMERGENCY_STOP=true で即 return
- * ロック: 多重実行防止のため buzzweave_locks で排他。取得後は try/finally で必ず解放。TTL 60秒で自動解除。
  *
  * Runtime: Node.js を強制（Edge では console.log 等が期待どおり動かないため）
  */
@@ -18,12 +15,9 @@ const { getKV } = require("../utils/kv");
 const { BTC_SNAPSHOT_KV_KEY, BTC_SNAPSHOT_MAX_AGE_MS } = require("../services/snapshot/btcSnapshotSchema");
 const { assetSnapshotKvKey } = require("../services/snapshot/assetSnapshotSchema");
 const {
-  acquireBuzzweaveLock,
-  releaseBuzzweaveLock,
   upsertBuzzweaveStatusEmergencyStop,
   getBuzzweaveStatus,
   isSupabaseConfigured,
-  getBuzzweaveLockState,
   getTodayRunCount,
   getLastRunTimestamp,
   recordBuzzWeaveRun
@@ -68,22 +62,6 @@ async function handler(req, res) {
     console.error("[buzzweave-run] early return: Supabase NOT configured (NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY missing on Vercel)");
     return res.status(503).json({ ok: false, message: "Supabase not configured", posted: 0 });
   }
-
-  const acquired = await acquireBuzzweaveLock();
-  if (!acquired) {
-    const lockState = await getBuzzweaveLockState();
-    console.log("[buzzweave-run] early return: Locked", lockState.ok ? { locked: lockState.locked, updated_at: lockState.updated_at } : { reason: lockState.reason });
-    return res.status(200).json({
-      ok: true,
-      message: "Locked (another run in progress)",
-      posted: 0,
-      debug_lock: lockState.ok
-        ? { locked: lockState.locked, updated_at: lockState.updated_at, hint: "ロック取得に失敗。DB上で locked=true なら他リクエストが保持中。updated_at が60秒以上前ならTTLで解除されるはず。" }
-        : { reason: lockState.reason, error: lockState.error }
-    });
-  }
-
-  console.log("[buzzweave-run] lock acquired");
 
   const dryRun = req.query?.dry_run === "true" || req.query?.dry_run === "1";
   const assetParam = (req.query?.asset || "BTC").toUpperCase();
@@ -157,14 +135,11 @@ async function handler(req, res) {
     return res.status(200).json(result);
   } catch (e) {
     console.error("[buzzweave-run] ❌ Error in runBuzzWeave", e.message);
-    console.error("[buzzweave-run] Stack trace for lock:", e.stack);
+    console.error("[buzzweave-run] Stack trace:", e.stack);
     return res
       .status(500)
       .setHeader("x-vercel-no-retry", "1")
       .json({ ok: false, message: "Internal error", posted: 0 });
-  } finally {
-    await releaseBuzzweaveLock();
-    console.log("[buzzweave-run] lock released");
   }
 }
 
