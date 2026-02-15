@@ -2,6 +2,9 @@
  * TD BuzzWeave Engine — 1サイクル実行 API
  * Cron: GET /api/buzzweave-run?lang=en など（1 run で 1 言語のみ、round-robin で lang を渡す）
  *
+ * PQT-ONLY: BUZZWEAVE_PQT_ONLY=true のとき、エンジンは runBuzzWeaveCyclePqtOnly に分岐。
+ * スロット取得・通常ポストは行わず、Fisherman 検出 → 上位 5〜10% → PQT のみ投稿。詳細は docs/BUZZWEAVE_PQT_ONLY_SPEC.md
+ *
  * 緊急停止: BUZZWEAVE_EMERGENCY_STOP=true で即 return
  * ロック: 多重実行防止のため buzzweave_locks で排他。取得後は try/finally で必ず解放。TTL 60秒で自動解除。
  *
@@ -20,11 +23,17 @@ const {
   upsertBuzzweaveStatusEmergencyStop,
   getBuzzweaveStatus,
   isSupabaseConfigured,
-  getBuzzweaveLockState
+  getBuzzweaveLockState,
+  getTodayRunCount,
+  getLastRunTimestamp,
+  recordBuzzWeaveRun
 } = require("../utils/supabase");
+const { determineDailyRunTarget } = require("../services/td/autonomousSlotGenerator");
 loadEnv();
 
 const BUZZWEAVE_LANGS = ["en", "es", "pt", "ja", "ko", "ar"];
+const MIN_RUN_INTERVAL_HOURS = Number(process.env.BUZZWEAVE_MIN_RUN_INTERVAL_HOURS) || 3;
+const MIN_RUN_INTERVAL_MS = MIN_RUN_INTERVAL_HOURS * 60 * 60 * 1000;
 
 async function handler(req, res) {
   console.log("[buzzweave-run] handler start");
@@ -110,6 +119,20 @@ async function handler(req, res) {
       return res.status(200).json({ ok: true, status: "SKIP_NO_SNAPSHOT", message: "No btcSnapshot in KV (run /api/cron first)", posted: 0 });
     }
 
+    const dailyLimit = determineDailyRunTarget(btcSnapshot);
+    const todayRuns = await getTodayRunCount();
+    if (todayRuns >= dailyLimit) {
+      console.log("[buzzweave-run] early return: daily_limit_reached", { todayRuns, dailyLimit });
+      return res.status(200).json({ ok: true, skipped: "daily_limit_reached", todayRuns, dailyLimit, posted: 0 });
+    }
+
+    const lastRunAt = await getLastRunTimestamp();
+    if (lastRunAt > 0 && Date.now() - lastRunAt < MIN_RUN_INTERVAL_MS) {
+      const waitMs = MIN_RUN_INTERVAL_MS - (Date.now() - lastRunAt);
+      console.log("[buzzweave-run] early return: interval_not_reached", { lastRunAt, waitMs });
+      return res.status(200).json({ ok: true, skipped: "interval_not_reached", posted: 0 });
+    }
+
     if (kv && !btcSnapshot.macroContext) {
       try {
         const [nasdaq, gold] = await Promise.all([
@@ -130,6 +153,7 @@ async function handler(req, res) {
     console.log("[buzzweave-run] run started");
     const result = await runBuzzWeaveCycle({ dryRun, langFilter, btcSnapshot });
     console.log("[buzzweave-run] run completed");
+    await recordBuzzWeaveRun();
     return res.status(200).json(result);
   } catch (e) {
     console.error("[buzzweave-run] ❌ Error in runBuzzWeave", e.message);

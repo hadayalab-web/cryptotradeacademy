@@ -9,6 +9,7 @@
 
 - 本番実行の入口は `api/buzzweave-run.js`。
 - 本番の主エンジンは `services/td/buzzWeaveEngine.js`。
+- **PQT-ONLY モード**: `BUZZWEAVE_PQT_ONLY=true` で、投稿は PQT（引用リポスト）のみ。通常ポスト・固定スケジュール・Grok 数字は廃止。仕様は `docs/BUZZWEAVE_PQT_ONLY_SPEC.md`。
 - `services/td/buzzDefenceEngineV4.js` / `services/td/buzzDefenceEngineV4_1.js` は、現状は主にテスト・サンプル参照（本番入口から直接は呼ばれていない）。
 - X API 暴走防止は、`x_api_blocked` フラグ・ロック・TTL・1run上限で多段防御。
 
@@ -67,6 +68,17 @@
   - trap/netflow/liquidation/funding から narrative 推定
 - `services/td/autonomousSlotGenerator.js`
   - cluster/lang/CTA/weight を統合決定
+
+### B'. PQT CTR 最大化（6言語・200〜350投稿レンジ）
+
+- **設計**: `docs/BUZZWEAVE_PQT_CTR_DESIGN.md`（Grok の数字は使わず、Fisherman 検出＋CTR 学習のみ）
+- `services/td/languageConfig.js` — 6言語 weight/tone
+- `services/td/pqtPlanner.js` — 1日 PQT レンジ（trap_score 連動）・言語別配分
+- `services/td/fishermanDetector.js` — hype＋engagement でスロット選定
+- `services/td/pqtTemplates.js` — 6言語×2バリアント
+- `services/td/pqtCtaEngine.js` — テンプレ選択（CTR）・buildPqt・recordPqtResult
+- `services/td/pqtProofSnippet.js` — buildProofSnippetFromSnapshot
+- `services/td/pqtRunner.js` — runPqtDay 統合（candidatesByLang は呼び出し元が用意。本番入口は未接続）
 
 ### C. CQ 一本化・言語penalty
 

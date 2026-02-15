@@ -749,6 +749,63 @@ async function clearBuzzweaveStatusXApiBlocked() {
   }
 }
 
+// ========== BuzzWeave run 回数・間隔（1日上限・3h 間隔） ==========
+
+/**
+ * 1 run 完了時に実行時刻を記録（buzzweave_run_log）
+ */
+async function recordBuzzWeaveRun() {
+  const sb = getSupabase();
+  if (!sb) return;
+  try {
+    await sb.from("buzzweave_run_log").insert({ executed_at: new Date().toISOString() });
+  } catch (e) {
+    console.warn("[Supabase] recordBuzzWeaveRun failed:", e?.message);
+  }
+}
+
+/**
+ * 当日（UTC 0:00 以降）の run 回数を取得
+ */
+async function getTodayRunCount() {
+  const sb = getSupabase();
+  if (!sb) return 0;
+  try {
+    const now = new Date();
+    const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const { count, error } = await sb
+      .from("buzzweave_run_log")
+      .select("*", { count: "exact", head: true })
+      .gte("executed_at", startOfDay.toISOString());
+    if (error) return 0;
+    return typeof count === "number" ? count : 0;
+  } catch (e) {
+    console.warn("[Supabase] getTodayRunCount failed:", e?.message);
+    return 0;
+  }
+}
+
+/**
+ * 直近の run 実行時刻（Unix ms）。未実行時は 0
+ */
+async function getLastRunTimestamp() {
+  const sb = getSupabase();
+  if (!sb) return 0;
+  try {
+    const { data, error } = await sb
+      .from("buzzweave_run_log")
+      .select("executed_at")
+      .order("executed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data?.executed_at) return 0;
+    return new Date(data.executed_at).getTime();
+  } catch (e) {
+    console.warn("[Supabase] getLastRunTimestamp failed:", e?.message);
+    return 0;
+  }
+}
+
 // ========== BuzzWeave 集中投下ログ（市場回収用） ==========
 
 /**
@@ -1083,5 +1140,8 @@ module.exports = {
   getLastBtcSnapshot,
   getBtcSnapshotsHistory,
   isSupabaseConfigured,
-  getBuzzweaveLockState
+  getBuzzweaveLockState,
+  recordBuzzWeaveRun,
+  getTodayRunCount,
+  getLastRunTimestamp
 };

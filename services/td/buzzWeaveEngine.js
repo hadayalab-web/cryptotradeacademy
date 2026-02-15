@@ -42,6 +42,13 @@ const {
 const { generateXPost } = require("../ai/gpt5mini");
 const { buildStructuredPostFromSlot } = require("../textgen/buildStructuredPost");
 const { getBtcSnapshot } = require("../market/getBtcSnapshot");
+const { selectFishermanSlotsTopPercent, selectSlotsFallback } = require("./fishermanDetector");
+const { buildPqt, recordPqtUse } = require("./pqtCtaEngine");
+const { buildProofSnippetFromSnapshot } = require("./pqtProofSnippet");
+const { allocatePqtPerLanguageFromSchedule } = require("./pqtPlanner");
+const { orderedCandidatesWithTier3Cap, orderCandidatesByPerformanceTiers } = require("./fishermanPriority");
+const { scoreShiteshiCandidate } = require("./shiteshiScoring");
+const { pickBestFunnelLink } = require("../links");
 
 const MODEL = process.env.GPT_MODEL_X_POST || "gpt-4o";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -78,6 +85,16 @@ const CLEANUP_OLDER_THAN_HOURS = Number(process.env.BUZZWEAVE_SLOT_RETENTION_HOU
 const LOG_LEVEL = process.env.BUZZWEAVE_LOG_LEVEL || "info";
 const LOG_MAX_PER_RUN = 5;
 let runLogCount = 0;
+
+const API_CALL_CAP = Number(process.env.BUZZWEAVE_API_CALL_CAP) || 20;
+const PQT_ONLY_MODE = process.env.BUZZWEAVE_PQT_ONLY === "true" || process.env.BUZZWEAVE_PQT_ONLY === "1";
+let runApiCallCount = 0;
+function countApiCall() {
+  runApiCallCount += 1;
+  if (runApiCallCount > API_CALL_CAP) {
+    throw new Error("api_call_cap_exceeded");
+  }
+}
 
 function logOnce(level, ...args) {
   runLogCount += 1;
@@ -500,6 +517,7 @@ function pickBestBuzzCandidate(buzzCandidates, slot, clusterScores = {}) {
  */
 async function fetchCandidatesFromSearch(slotLang, options = {}) {
   try {
+    countApiCall();
     const now = Date.now();
     const windowMin = options.windowMinutes ?? SEARCH_WINDOW_MINUTES;
     const endTime = new Date(now - 10 * 1000); // API制約: 10秒以上前
@@ -750,6 +768,7 @@ async function buildAndPostFromSlot(slot, btcSnapshot, options = {}) {
   }
 
   try {
+    countApiCall();
     const result = await postFn(main_text);
     const postId = result?.id || null;
     if (!postId) throw new Error("postTweet returned no id");
@@ -757,6 +776,7 @@ async function buildAndPostFromSlot(slot, btcSnapshot, options = {}) {
     // X の安全性チェック: リンク入りを先に投稿すると通過率UP。失敗時は retry
     async function safeReply(text) {
       if (!text || typeof text !== "string") return false;
+      countApiCall();
       try {
         await replyFn(text, postId);
         return true;
@@ -814,10 +834,131 @@ async function buildAndPostFromSlot(slot, btcSnapshot, options = {}) {
 }
 
 /**
- * 1サイクル実行: 次1時間のスロット取得（1言語のみ）→ マッピング → 生成 → 投稿
+ * PQT-ONLY 1サイクル: スロット不要。Fisherman 検出 → 上位 5〜10% → 4要素テンプレ → 引用投稿のみ。
+ * 投稿数 = trapScore + Fisherman 活動量。API クレジットで cap。
+ */
+async function runBuzzWeaveCyclePqtOnly(options = {}) {
+  runLogCount = 0;
+  runApiCallCount = 0;
+  const dryRun = options.dryRun !== false;
+  const langFilter = options.langFilter || "en";
+  const snapshot = options.btcSnapshot || (await getBtcSnapshot());
+  try {
+    const { collectPerformanceMetricsForSnapshot } = require("./mlPqtMetrics");
+    snapshot.performanceMetrics = await collectPerformanceMetricsForSnapshot(new Date());
+  } catch (_) {}
+  const postQuoteTweet = options.postQuoteTweet || postQuoteTweetDefault;
+  const startMs = Date.now();
+  const runId = `bw-pqt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  logInfo("pqt-only cycle start", { runId, dryRun, langFilter });
+
+  const status = await getBuzzweaveStatus();
+  if (status.x_api_blocked) {
+    return { ok: true, message: "X API blocked", posted: 0, runId, xApiBlocked: true };
+  }
+
+  const collectResult = await collectBuzzCandidates({
+    slotLang: langFilter,
+    startMs,
+    deadlineMs: DEFAULT_DEADLINE_MS,
+    classifyTopN: BUZZWEAVE_GPT_CLASSIFY_TOP_N
+  });
+  if (collectResult.fatal402) {
+    upsertBuzzweaveStatus402().catch(() => {});
+    return { ok: false, message: "X API 402", posted: 0, runId, fatal402: true };
+  }
+
+  const candidates = collectResult.candidates || [];
+  const perLang = allocatePqtPerLanguageFromSchedule(snapshot);
+  const cap = Math.max(1, Math.min(perLang[langFilter] || API_CALL_CAP, API_CALL_CAP));
+  let slots = selectFishermanSlotsTopPercent(candidates, langFilter, { maxCount: cap });
+  if (slots.length === 0) slots = selectSlotsFallback(candidates, Math.min(3, cap));
+
+  const shiteshiStats = {};
+  const VELOCITY_SCALE = 500;
+  for (const slot of slots) {
+    const id = slot?.post?.id ?? slot?.id ?? String(slot);
+    const candidateMetrics = {
+      velocity: Math.min(1, (slot.engagementScore ?? 0) / VELOCITY_SCALE),
+      volatilityImpact: 0.5,
+      followerQuality: 0.5,
+      networkCentrality: 0.5,
+      spikeFrequency: 0.5,
+      lastSpikeAt: Date.now()
+    };
+    slot.shiteshiScore = scoreShiteshiCandidate(candidateMetrics);
+    shiteshiStats[id] = { shiteshiScore: slot.shiteshiScore };
+  }
+
+  if (snapshot?.performanceMetrics) {
+    try {
+      const { normalizePerformanceMetrics } = require("./mlPqtNormalizer");
+      const normalized = normalizePerformanceMetrics(snapshot.performanceMetrics);
+      slots = orderCandidatesByPerformanceTiers(slots, normalized, 2);
+      slots.sort((a, b) => (b.shiteshiScore ?? 0) - (a.shiteshiScore ?? 0));
+    } catch (_) {
+      slots = orderedCandidatesWithTier3Cap(slots, shiteshiStats, 2);
+    }
+  } else {
+    slots = orderedCandidatesWithTier3Cap(slots, shiteshiStats, 2);
+  }
+
+  let posted = 0;
+  for (const slot of slots) {
+    if (runApiCallCount >= API_CALL_CAP) break;
+    const sourceId = slot?.post?.id;
+    if (!sourceId) continue;
+
+    let link = null;
+    try {
+      const best = await pickBestFunnelLink({ lang: langFilter, narrative_tag: "FOMO", cta_type: "ATH_SURGE", weight: 1 });
+      link = best?.url || pickVidalyticsLink(langFilter, "regular");
+    } catch (_) {
+      link = pickVidalyticsLink(langFilter, "regular");
+    }
+    if (!link) continue;
+
+    const coin = /BTC|bitcoin/i.test(slot?.post?.text || "") ? "BTC" : /ETH/i.test(slot?.post?.text || "") ? "ETH" : "BTC";
+    const proofSnippet = buildProofSnippetFromSnapshot(snapshot, langFilter, slot);
+    const built = buildPqt(langFilter, { coin, proofSnippet, link });
+    if (!built || !built.text) continue;
+
+    if (dryRun) {
+      posted += 1;
+      recordPqtUse(langFilter, built.templateIndex);
+      continue;
+    }
+    try {
+      countApiCall();
+      const postResult = await postQuoteTweet(built.text, sourceId);
+      posted += 1;
+      recordPqtUse(langFilter, built.templateIndex);
+      await insertQuotedTweets([{ tweet_id: String(sourceId), lang: langFilter }]);
+      await insertBuzzweavePostLog({
+        slotLang: langFilter,
+        clusterLabel: slot.cluster || "pqt",
+        candidateTweetId: String(sourceId),
+        engagementScore: slot.engagementScore ?? 0,
+        postedAt: new Date().toISOString(),
+        ourTweetId: postResult?.id ?? null,
+        slotMode: "pqt_only",
+        buzzSummary: "PQT-only Fisherman",
+        usedMode: "pqt_only"
+      });
+    } catch (e) {
+      logWarn("pqt post failed", sourceId, e?.message);
+    }
+  }
+
+  return { ok: true, posted, runId, pqtOnly: true };
+}
+
+/**
+ * 1サイクル実行: PQT-ONLY 時は runBuzzWeaveCyclePqtOnly。それ以外はスロット取得 → マッピング → 生成 → 投稿
  */
 async function runBuzzWeaveCycle(options = {}) {
   runLogCount = 0;
+  runApiCallCount = 0;
   const dryRun = options.dryRun !== false;
   const deadlineMs = Number(options.deadlineMs || DEFAULT_DEADLINE_MS);
   const langFilter = options.langFilter || null;
@@ -826,6 +967,10 @@ async function runBuzzWeaveCycle(options = {}) {
   const startMs = Date.now();
   const runId = `bw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   logInfo("cycle start", { runId, dryRun, langFilter, hasBtcSnapshot: !!btcSnapshot });
+
+  if (PQT_ONLY_MODE) {
+    return runBuzzWeaveCyclePqtOnly(options);
+  }
 
   const cleanup = await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
 
@@ -985,6 +1130,7 @@ async function runBuzzWeaveCycle(options = {}) {
     }
 
     try {
+      countApiCall();
       console.log("[BuzzWeave] posting", { quotedId: candidate.post.id, dryRun: false });
       logInfo("ready to post", candidate.post.id);
       const postResult = await postQuoteTweet(body, candidate.post.id);
@@ -1090,6 +1236,9 @@ const AUTONOMOUS_SLOT_MODE = process.env.AUTONOMOUS_SLOT_MODE === "true" || proc
  * AUTONOMOUS_SLOT_MODE=true のときは最適スロット 1 個のみ生成
  */
 async function generateDailySlots() {
+  if (PQT_ONLY_MODE) {
+    return { ok: true, count: 0, targetDailySlots: 0, pqtOnly: true };
+  }
   await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
 
   if (AUTONOMOUS_SLOT_MODE) {
@@ -1127,7 +1276,9 @@ module.exports = {
   collectBuzzCandidates,
   generateParasiticCopy,
   runBuzzWeaveCycle,
+  runBuzzWeaveCyclePqtOnly,
   generateDailySlots,
   BUZZ_THRESHOLD,
-  SLOT_DISTRIBUTION_JST
+  SLOT_DISTRIBUTION_JST,
+  PQT_ONLY_MODE
 };

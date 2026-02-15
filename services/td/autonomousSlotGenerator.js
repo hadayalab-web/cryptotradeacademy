@@ -13,6 +13,32 @@ const { computeQueueWeightForSlot } = require("../scheduler/peakClusterScheduler
 const CANDIDATE_LANGS = ["ko", "ja", "es", "en", "pt", "ar"];
 
 /**
+ * snapshot からボラティリティを推定（volatility 未設定時）
+ */
+function getVolatilityFromSnapshot(snapshot) {
+  const t = String(snapshot?.trapScore ?? "").toLowerCase();
+  if (t === "elevated" || t === "high") return "high";
+  if (t === "unknown" || t === "" || t === "neutral") return "medium";
+  return "low";
+}
+
+/**
+ * 1日あたりの run 上限を snapshot のボラティリティで決定
+ * 根拠: docs/BUZZWEAVE_DAILY_POST_TARGET_RATIONALE.md（6言語×4導線カバー・3h窓最大8）
+ * low=6（6言語1周）, medium=7, high=8（窓いっぱい）。env で上書き可。
+ */
+function determineDailyRunTarget(snapshot) {
+  const low = Number(process.env.BUZZWEAVE_DAILY_RUN_LOW) || 6;
+  const medium = Number(process.env.BUZZWEAVE_DAILY_RUN_MEDIUM) || 7;
+  const high = Number(process.env.BUZZWEAVE_DAILY_RUN_HIGH) || 8;
+  const vol = snapshot?.volatility ?? getVolatilityFromSnapshot(snapshot);
+  const cap = 8; // 3h 間隔の物理上限
+  if (vol === "high") return Math.min(high, cap);
+  if (vol === "medium") return Math.min(medium, cap);
+  return Math.min(low, cap);
+}
+
+/**
  * 最大 cluster_size の金クラスタを選択
  */
 function pickBestCluster(clusters) {
@@ -79,4 +105,10 @@ async function buildBestSlot() {
   return { ...slot, weight };
 }
 
-module.exports = { buildBestSlot, pickBestCluster, pickBestLangForCluster };
+module.exports = {
+  buildBestSlot,
+  pickBestCluster,
+  pickBestLangForCluster,
+  determineDailyRunTarget,
+  getVolatilityFromSnapshot
+};

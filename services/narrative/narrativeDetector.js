@@ -1,9 +1,14 @@
 /**
  * v5.5: 市場スナップショットからナラティブを直接判定
  * 72h ローテーションを「市場構造」に同期
+ * 鮮度切れ (is_stale) 時は DEFAULT(FOMO) を返し、誤推定を避ける
  */
 
 function detectNarrativeFromSnapshot(snapshot) {
+  if (snapshot?.is_stale) {
+    return "FOMO";
+  }
+
   const trapScore = String(snapshot?.trapScore ?? "").toLowerCase();
   const netflowState = String(snapshot?.netflowState ?? "").toLowerCase();
   const liquidationBias = String(snapshot?.liquidationBias ?? "").toLowerCase();
