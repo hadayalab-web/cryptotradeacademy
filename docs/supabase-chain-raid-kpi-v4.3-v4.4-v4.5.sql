@@ -21,8 +21,14 @@ CREATE INDEX IF NOT EXISTS idx_chain_raid_post_kpi_narrative ON chain_raid_post_
 
 -- ============================================================
 -- v4.3: view_cluster_ctr_stats 拡張（avg_er, botnet, corr_botnet_ctr）
+-- カラム順変更のため REPLACE では不可 → 依存オブジェクトを DROP してから再作成
 -- ============================================================
-CREATE OR REPLACE VIEW view_cluster_ctr_stats AS
+DROP MATERIALIZED VIEW IF EXISTS mv_cluster_corr CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS mv_cluster_ctr_stats CASCADE;
+DROP VIEW IF EXISTS view_cluster_corr CASCADE;
+DROP VIEW IF EXISTS view_cluster_ctr_stats CASCADE;
+
+CREATE VIEW view_cluster_ctr_stats AS
 SELECT
   COALESCE(kpi.botnet_cluster_id, kpi.cluster_id, 'unknown') AS cluster_id,
   kpi.lang,

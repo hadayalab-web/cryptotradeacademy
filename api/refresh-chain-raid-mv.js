@@ -1,6 +1,6 @@
 /**
  * Trap Defence OS v4.2+ — chain_raid materialized views を 5 分ごとに REFRESH
- * cron: */5 * * * *
+ * cron: every 5 min (vercel.json: "*/5 * * * *")
  */
 require("../utils/suppressKnownWarnings");
 
