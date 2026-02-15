@@ -94,16 +94,6 @@ function loadUserTemplates(lang) {
 
 const { formatRegularBriefing, formatMinimalBriefing } = loadUserTemplates(LANG);
 
-function loadFormatRegularBriefingHTML(lang) {
-  try {
-    const mod = require(`../services/email/messages/user/${lang}/regular.${lang}`);
-    return mod.formatRegularBriefingHTML;
-  } catch (e) {
-    const en = require("../services/email/messages/user/en/regular.en");
-    return en.formatRegularBriefingHTML;
-  }
-}
-
 const {
   getExchangeInflow,
   getMinerPositionIndex
@@ -171,8 +161,6 @@ const {
   sendMessageToAsset
 } = require("../services/telegram/bot");
 const { getSocialProofText } = require("../services/telegram/reaction-counter");
-// Resend Email送信サービス
-const { sendBatchEmails } = require("../services/email/resendClient");
 const { postProofToX } = require("../services/x/proof-post");
 // コンテンツ保存サービス（定時配信用）
 const { getContent } = require("../services/core/contentStorage");
@@ -245,33 +233,6 @@ function getMarketCode(lang) {
     "pt-br": "PT-BR"
   };
   return langToMarket[lang] || "EN";
-}
-
-/**
- * メール送信先リストを取得
- * 環境変数またはデータベースから取得（将来実装）
- *
- * @param {string} lang - 言語コード
- * @returns {string[]} メールアドレスの配列
- */
-function getRecipientEmails(lang) {
-  // 環境変数から取得（カンマ区切り）
-  const envKey = `EMAIL_RECIPIENTS_${lang.toUpperCase().replace("-", "_")}`;
-  const envEmails = process.env[envKey] || process.env.EMAIL_RECIPIENTS;
-
-  if (envEmails) {
-    return envEmails
-      .split(",")
-      .map((email) => email.trim())
-      .filter((email) => email);
-  }
-
-  // デフォルト: CEOのメールアドレス（テスト用）
-  // 本番環境ではデータベースまたはWhop APIから取得する実装が必要
-  const defaultEmail = "chibaichi.work@gmail.com"; // CEO
-  console.warn(`[Email] No recipients configured for lang=${lang}. Using default: ${defaultEmail}`);
-  console.warn(`[Email] Set ${envKey} or EMAIL_RECIPIENTS environment variable for production.`);
-  return [defaultEmail];
 }
 
 // --- External data helpers -------------------------------------
@@ -1618,34 +1579,6 @@ module.exports = async function handler(req, res) {
             internalImpact: kibaResult?.impact || { level: "NONE", intensity: "none" }
           };
           const regularText = langFormatRegularBriefing(snapshotForRegular, targetLang, regularOpts);
-
-          // Phase 4: Regular email (snapshot-native)
-          const formatRegularBriefingHTML = loadFormatRegularBriefingHTML(targetLang);
-          const emailHTML = formatRegularBriefingHTML(snapshotForRegular, targetLang, {
-            psychologicalSupport: langPsychologicalSupport || null,
-            nonUserImpactReport: langNonUserImpactReport,
-            missedOpportunities: langMissedOpportunitiesFormatted,
-            grokXAnalysis: grokXAnalysis ?? null
-          });
-          const regularRecipientEmails = getRecipientEmails(targetLang);
-          if (regularRecipientEmails && regularRecipientEmails.length > 0) {
-            try {
-              const regularSubject = `🌤️ Trap Defence BTC Report - ${snapshotForRegular.as_of_utc
-                ? new Date(snapshotForRegular.as_of_utc).toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC")
-                : now.toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC")}`;
-              const emailResult = await sendBatchEmails({
-                recipients: regularRecipientEmails,
-                subject: regularSubject,
-                html: emailHTML,
-                emailOptions: { lang: targetLang, messageType: "REGULAR" }
-              });
-              console.log(
-                `[Email] Regular report sent to ${emailResult.totalSent} recipients (${targetLang})`
-              );
-            } catch (emailErr) {
-              console.warn(`[Email] Regular send error for ${targetLang}:`, emailErr.message);
-            }
-          }
 
           // Telegram送信（オプション、環境変数で有効化）
           let regularActuallySent = false;

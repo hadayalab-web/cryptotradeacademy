@@ -28,8 +28,6 @@
     "test:telegram-leads": "node scripts/test-telegram-lead-discovery.js",
     "preview:vsl1": "node scripts/preview-vsl1-message.js",
     "check:setup": "node scripts/check-vsl-workflow-setup.js",
-    "check:resend": "node scripts/check-resend-setup.js",
-    "check:resend:emails": "node scripts/check-resend-emails.js",
     "test:reports": "node scripts/test-lead-discovery-reports.js",
     "test:reports:execution": "node scripts/test-lead-discovery-reports.js execution",
     "test:reports:daily": "node scripts/test-lead-discovery-reports.js daily",

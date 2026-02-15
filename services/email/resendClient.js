@@ -87,59 +87,6 @@ async function sendResendEmail(options = {}) {
   }
 }
 
-/**
- * バッチメール送信（複数の受信者に同じメールを送信）
- * 
- * @param {Object} options - バッチ送信オプション
- * @param {string[]} options.recipients - 受信者メールアドレス配列
- * @param {string} options.subject - メール件名
- * @param {string} options.html - HTML形式のメール本文
- * @param {Object} [options.emailOptions] - その他のメールオプション
- * @returns {Promise<Array>} 送信結果の配列
- */
-async function sendBatchEmails(options = {}) {
-  const {
-    recipients = [],
-    subject,
-    html,
-    emailOptions = {},
-  } = options;
-
-  if (!recipients || recipients.length === 0) {
-    throw new Error('No recipients provided');
-  }
-
-  const results = [];
-  const errors = [];
-
-  // バッチ送信（Resend APIは最大50件まで一度に送信可能）
-  const BATCH_SIZE = 50;
-  for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
-    const batch = recipients.slice(i, i + BATCH_SIZE);
-    
-    try {
-      const result = await sendResendEmail({
-        ...emailOptions,
-        to: batch,
-        subject,
-        html,
-      });
-      results.push({ batch, result });
-    } catch (error) {
-      errors.push({ batch, error: error.message });
-      console.error(`[Resend] Batch send error (batch ${i / BATCH_SIZE + 1}):`, error);
-    }
-  }
-
-  return {
-    success: results,
-    errors: errors,
-    totalSent: results.reduce((sum, r) => sum + (r.batch?.length || 0), 0),
-    totalErrors: errors.reduce((sum, e) => sum + (e.batch?.length || 0), 0),
-  };
-}
-
 module.exports = {
   sendResendEmail,
-  sendBatchEmails,
 };
