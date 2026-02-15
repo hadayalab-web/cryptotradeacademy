@@ -2,7 +2,7 @@
  * TD BuzzWeave Engine — 引用リポスト最適化エンジン
  * 目的: 高インプレッション・高エンゲージメント・高CVR（すべて逆算）
  *
- * フロー: Search recent Posts → バズ抽出 → 文脈タグ付け → スロット生成 → マッピング → 寄生コピー生成 → 引用リポスト
+ * フロー: Search → バズ抽出 → Fisherman スロット → テンプレ（buildPqt）→ 引用リポスト。旧 GPT 寄生コピー経路は廃止。
  */
 const { loadEnv } = require("../../utils/loadEnv");
 const { getKV } = require("../../utils/kv");
@@ -39,7 +39,6 @@ const {
   upsertBuzzweaveStatus402,
   getBuzzweaveStatus
 } = require("../../utils/supabase");
-const { generateXPost } = require("../ai/gpt5mini");
 const { buildStructuredPostFromSlot } = require("../textgen/buildStructuredPost");
 const { getBtcSnapshot } = require("../market/getBtcSnapshot");
 const { selectFishermanSlotsTopPercent, selectSlotsFallback } = require("./fishermanDetector");
@@ -628,7 +627,7 @@ async function collectBuzzCandidates(options = {}) {
     const handle = user?.username || post.author_id || "unknown";
     rawCandidates.push({
       target: { handle: String(handle).replace(/^@/, ""), org_type: null, lang: post.lang || slotLang, target_type: "flexible" },
-      post: { id: post.id, text: post.text, created_at: post.created_at },
+      post: { id: post.id, text: post.text, created_at: post.created_at, public_metrics: post.public_metrics || metrics },
       engagementScore: score
     });
   }
@@ -697,41 +696,6 @@ async function collectBuzzCandidates(options = {}) {
     deadlineExceeded
   });
   return { candidates, deadlineExceeded, clusters, clusterScores, postsFetched: posts.length };
-}
-
-/**
- * 寄生コピー生成（3-1 + クジラのカモ救済ミッション準拠）
- * usedMode で trap_defence_warning / neutral_insight / educational_boost を切り替え
- * Unified OS: btcSnapshot を渡し、TD と同一市場状態で投稿する（必須）
- */
-async function generateParasiticCopy(slot, buzzCandidate, videoUrl, btcSnapshot = null) {
-  const { target, post, context } = buzzCandidate;
-  const dict = await getTdEmotionDictionary(null, slot.lang, 10);
-  const phrases = dict.map((d) => d.phrase).filter(Boolean);
-  const buzzInsights = buildBuzzInsights(buzzCandidate, slot.lang);
-  const { usedMode } = buzzInsights;
-
-  const result = await generateXPost({
-    mode: slot.mode,
-    language: slot.lang,
-    video_url: videoUrl || pickVidalyticsLink(slot.lang, slot.mode),
-    orgType: target.org_type || undefined,
-    dictionaryPhrases: phrases,
-    usedMode,
-    buzzContext: {
-      quotedText: post.text?.slice(0, 200),
-      topic: context?.topic || "crypto",
-      tone: context?.tone || "neutral",
-      lang: context?.lang || target?.lang || slot.lang,
-      narrative_tag: slot.narrative_tag,
-      cta_type: slot.cta_type,
-      cluster_id: slot.cluster_id,
-      ...buzzInsights
-    },
-    btcSnapshot
-  });
-
-  return result.body;
 }
 
 /**
@@ -870,9 +834,39 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
 
   const candidates = collectResult.candidates || [];
   const perLang = allocatePqtPerLanguageFromSchedule(snapshot);
-  const cap = Math.max(1, Math.min(perLang[langFilter] || API_CALL_CAP, API_CALL_CAP));
+  let cap = Math.max(1, Math.min(perLang[langFilter] || API_CALL_CAP, API_CALL_CAP));
+  const dailyTarget = Number(process.env.BUZZWEAVE_DAILY_PQT_TARGET);
+  const RUNS_PER_DAY_FOR_TARGET = 6;
+  if (dailyTarget > 0) {
+    cap = Math.min(Math.ceil(dailyTarget / RUNS_PER_DAY_FOR_TARGET), 50);
+  } else {
+    const volumeMult = Math.min(10, Math.max(1, Number(process.env.BUZZWEAVE_VOLUME_MULTIPLIER) || 1));
+    if (volumeMult > 1) cap = Math.min(Math.ceil(cap * volumeMult), 50);
+  }
+  const utcDay = new Date().getUTCDay();
+  const isTueWedThu = utcDay >= 2 && utcDay <= 4;
+  const weekdayWarp = process.env.BUZZWEAVE_WEEKDAY_WARP === "true" || process.env.BUZZWEAVE_WEEKDAY_WARP === "1";
+  if (weekdayWarp && isTueWedThu) cap = Math.min(cap * 2, 100);
+  const effectiveCap = cap;
   let slots = selectFishermanSlotsTopPercent(candidates, langFilter, { maxCount: cap });
   if (slots.length === 0) slots = selectSlotsFallback(candidates, Math.min(3, cap));
+
+  const nowMs = Date.now();
+  const WINDOW_2_7MIN_SEC = { min: 120, max: 420 };
+  const MOMENTUM_LIKES_PER_10MIN = 50;
+  for (const slot of slots) {
+    const createdAt = slot?.post?.created_at ? new Date(slot.post.created_at).getTime() : 0;
+    slot._ageSec = createdAt ? (nowMs - createdAt) / 1000 : 999999;
+    const likeCount = Number(slot?.post?.public_metrics?.like_count) || 0;
+    slot._likesPer10min = slot._ageSec > 0 ? (likeCount / (slot._ageSec / 60)) * 10 : 0;
+    slot._in2_7Window = slot._ageSec >= WINDOW_2_7MIN_SEC.min && slot._ageSec <= WINDOW_2_7MIN_SEC.max;
+  }
+  const inWindow = slots.filter((s) => s._in2_7Window);
+  if (inWindow.length > 0) slots = inWindow;
+  slots.sort((a, b) => {
+    if (a._in2_7Window !== b._in2_7Window) return a._in2_7Window ? -1 : 1;
+    return (b._likesPer10min ?? 0) - (a._likesPer10min ?? 0);
+  });
 
   const shiteshiStats = {};
   const VELOCITY_SCALE = 500;
@@ -903,9 +897,11 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     slots = orderedCandidatesWithTier3Cap(slots, shiteshiStats, 2);
   }
 
+  const REPLY_FIRST_ALL_MAX_PCT = 0.3;
   let posted = 0;
-  for (const slot of slots) {
-    if (runApiCallCount >= API_CALL_CAP) break;
+  for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
+    const slot = slots[slotIndex];
+    if (runApiCallCount >= effectiveCap) break;
     const sourceId = slot?.post?.id;
     if (!sourceId) continue;
 
@@ -920,7 +916,7 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
 
     const coin = /BTC|bitcoin/i.test(slot?.post?.text || "") ? "BTC" : /ETH/i.test(slot?.post?.text || "") ? "ETH" : "BTC";
     const proofSnippet = buildProofSnippetFromSnapshot(snapshot, langFilter, slot);
-    const built = buildPqt(langFilter, { coin, proofSnippet, link });
+    const built = buildPqt(langFilter, { coin, proofSnippet, link, quotedText: slot?.post?.text });
     if (!built || !built.text) continue;
 
     if (dryRun) {
@@ -928,23 +924,53 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
       recordPqtUse(langFilter, built.templateIndex);
       continue;
     }
+    const replyFirstQtRaw = process.env.BUZZWEAVE_REPLY_FIRST_QT || "";
+    const replyFirstQt = replyFirstQtRaw === "true" || replyFirstQtRaw === "1" || replyFirstQtRaw === "all" || replyFirstQtRaw === "every";
+    const replyFirstQtEverySlot = replyFirstQtRaw === "all" || replyFirstQtRaw === "every";
+    const isFirstSlot = posted === 0;
+    const replyFirstWithinCap = replyFirstQtEverySlot ? slotIndex < Math.ceil(slots.length * REPLY_FIRST_ALL_MAX_PCT) : isFirstSlot;
     try {
-      countApiCall();
-      const postResult = await postQuoteTweet(built.text, sourceId);
-      posted += 1;
-      recordPqtUse(langFilter, built.templateIndex);
-      await insertQuotedTweets([{ tweet_id: String(sourceId), lang: langFilter }]);
-      await insertBuzzweavePostLog({
-        slotLang: langFilter,
-        clusterLabel: slot.cluster || "pqt",
-        candidateTweetId: String(sourceId),
-        engagementScore: slot.engagementScore ?? 0,
-        postedAt: new Date().toISOString(),
-        ourTweetId: postResult?.id ?? null,
-        slotMode: "pqt_only",
-        buzzSummary: "PQT-only Fisherman",
-        usedMode: "pqt_only"
-      });
+      if (replyFirstQt && replyToTweet && replyFirstWithinCap) {
+        const oneLiner = langFilter === "en" ? "Key level most miss 👇" : langFilter === "ja" ? "要チェック 👇" : "Key level 👇";
+        countApiCall();
+        const replyResult = await replyToTweet(oneLiner, sourceId);
+        const replyId = replyResult?.data?.id ?? replyResult?.id;
+        if (replyId) {
+          countApiCall();
+          const postResult = await postQuoteTweet(built.text, replyId);
+          posted += 1;
+          recordPqtUse(langFilter, built.templateIndex);
+          await insertQuotedTweets([{ tweet_id: String(sourceId), lang: langFilter }]);
+          await insertBuzzweavePostLog({
+            slotLang: langFilter,
+            clusterLabel: slot.cluster || "pqt",
+            candidateTweetId: String(sourceId),
+            engagementScore: slot.engagementScore ?? 0,
+            postedAt: new Date().toISOString(),
+            ourTweetId: postResult?.id ?? null,
+            slotMode: "pqt_only",
+            buzzSummary: "PQT-only Reply-first QT",
+            usedMode: "pqt_only"
+          });
+        }
+      } else {
+        countApiCall();
+        const postResult = await postQuoteTweet(built.text, sourceId);
+        posted += 1;
+        recordPqtUse(langFilter, built.templateIndex);
+        await insertQuotedTweets([{ tweet_id: String(sourceId), lang: langFilter }]);
+        await insertBuzzweavePostLog({
+          slotLang: langFilter,
+          clusterLabel: slot.cluster || "pqt",
+          candidateTweetId: String(sourceId),
+          engagementScore: slot.engagementScore ?? 0,
+          postedAt: new Date().toISOString(),
+          ourTweetId: postResult?.id ?? null,
+          slotMode: "pqt_only",
+          buzzSummary: "PQT-only Fisherman",
+          usedMode: "pqt_only"
+        });
+      }
     } catch (e) {
       logWarn("pqt post failed", sourceId, e?.message);
     }
@@ -954,279 +980,10 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
 }
 
 /**
- * 1サイクル実行: PQT-ONLY 時は runBuzzWeaveCyclePqtOnly。それ以外はスロット取得 → マッピング → 生成 → 投稿
+ * 1サイクル実行: 常に PQT-only（テンプレ）に委譲。旧 GPT 寄生コピー経路は廃止。
  */
 async function runBuzzWeaveCycle(options = {}) {
-  runLogCount = 0;
-  runApiCallCount = 0;
-  const dryRun = options.dryRun !== false;
-  const deadlineMs = Number(options.deadlineMs || DEFAULT_DEADLINE_MS);
-  const langFilter = options.langFilter || null;
-  const btcSnapshot = options.btcSnapshot || null;
-  const postQuoteTweet = options.postQuoteTweet || postQuoteTweetDefault;
-  const startMs = Date.now();
-  const runId = `bw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  logInfo("cycle start", { runId, dryRun, langFilter, hasBtcSnapshot: !!btcSnapshot });
-
-  if (PQT_ONLY_MODE) {
-    return runBuzzWeaveCyclePqtOnly(options);
-  }
-
-  const cleanup = await cleanupOldSlots(CLEANUP_OLDER_THAN_HOURS);
-
-  const rawSlots = await getTdPostSlotsInNextHour(langFilter);
-  const slots = await sortSlotsByWeight(rawSlots);
-  const slot = slots[0];
-  console.log("[BuzzWeave] slots", {
-    count: slots.length,
-    langFilter: langFilter || "(round-robin)",
-    firstSlot: slot
-      ? {
-          id: slot.id,
-          lang: slot.lang,
-          datetime_jst: slot.datetime_jst,
-          cluster_id: slot.cluster_id,
-          narrative_tag: slot.narrative_tag,
-          cta_type: slot.cta_type,
-          weight: slot._weight ?? slot.weight
-        }
-      : null
-  });
-  logInfo("slot", slot || null);
-  if (!slots.length) {
-    console.log("[BuzzWeave] stop: no slots in next hour", { langFilter });
-    return { ok: true, message: langFilter ? `No slots for lang=${langFilter}` : "No slots in next hour", posted: 0, runId };
-  }
-
-  // 402 無限ループ防止: 直接 runBuzzWeaveCycle が呼ばれた場合でも、X API を叩く前にブロック状態を再確認
-  const status = await getBuzzweaveStatus();
-  if (status.x_api_blocked) {
-    console.log("[BuzzWeave] stop: x_api_blocked=true, skipping X API (no search/post)");
-    return { ok: true, message: "X API blocked flag active", posted: 0, runId, xApiBlocked: true };
-  }
-
-  // AUTONOMOUS_SLOT_MODE: スロットに narrative_tag/cta_type があれば OS が文章を自律生成して投稿
-  if (AUTONOMOUS_SLOT_MODE && slot.narrative_tag && slot.cta_type) {
-    const organicResult = await buildAndPostFromSlot(slot, btcSnapshot, { dryRun, postTweet, replyToTweet });
-    if (organicResult) return organicResult;
-  }
-
-  if (isDeadlineExceeded(startMs, deadlineMs)) {
-    logWarn("deadline exceeded", {
-      stage: "before-collectBuzzCandidates",
-      runId,
-      ...deadlineSnapshot(startMs, deadlineMs)
-    });
-    return {
-      ok: true,
-      message: "deadline exceeded before collectBuzzCandidates",
-      posted: 0,
-      runId,
-      deadlineExceeded: true
-    };
-  }
-
-  const collectResult = await collectBuzzCandidates({
-    slotLang: slot.lang,
-    startMs,
-    deadlineMs,
-    classifyTopN: BUZZWEAVE_GPT_CLASSIFY_TOP_N
-  });
-
-  if (collectResult.fatal402) {
-    upsertBuzzweaveStatus402().catch(() => {});
-    logError("fatal402: run aborted");
-    return { ok: false, message: "X API 402 - run aborted", posted: 0, runId, fatal402: true };
-  }
-
-  const buzzCandidates = collectResult.candidates || [];
-  const clusterScores = collectResult.clusterScores || {};
-  const postsFetched = collectResult.postsFetched ?? "?";
-  console.log("[BuzzWeave] BWE SCAN RESULT: posts_fetched=" + postsFetched + " buzz_candidates=" + buzzCandidates.length + (collectResult.deadlineExceeded ? " (deadline)" : ""));
-  if (!buzzCandidates.length) {
-    const reason = collectResult.fatal402
-      ? "X API 402"
-      : collectResult.deadlineExceeded
-        ? "deadline exceeded"
-        : "search returned 0 or all filtered";
-    console.log("[BuzzWeave] stop: no candidates", { reason });
-    return {
-      ok: true,
-      message: collectResult.deadlineExceeded ? "deadline exceeded during candidate collection" : "No buzz candidates",
-      posted: 0,
-      runId,
-      deadlineExceeded: !!collectResult.deadlineExceeded
-    };
-  }
-
-  if (isDeadlineExceeded(startMs, deadlineMs)) {
-    logWarn("deadline exceeded", { stage: "before-pickBestBuzzCandidate", runId, ...deadlineSnapshot(startMs, deadlineMs) });
-  }
-
-  const results = [];
-  let candidate = pickBestBuzzCandidate(buzzCandidates, slot, clusterScores);
-  if (!candidate) {
-    candidate = buzzCandidates.sort((a, b) => (b.engagementScore || 0) - (a.engagementScore || 0))[0];
-  }
-  console.log("[BuzzWeave] best candidate", { candidateId: candidate?.post?.id ?? null, hasCandidate: !!candidate });
-  logInfo("best candidate", candidate ? candidate.post?.id : null);
-  if (!candidate) {
-    console.log("[BuzzWeave] stop: no matching candidate for slot");
-    return { ok: true, message: "No matching candidate for slot", posted: 0, runId };
-  }
-
-  // 候補の健全性チェック: 必ず search パイプライン由来（cluster 付与済み）の候補だけ投稿する。無関係投稿に寄生しない。
-  const VALID_CLUSTERS = new Set(["etf", "price_surge", "fud", "regulation", "meme", "other"]);
-  if (
-    !candidate?.post?.id ||
-    !candidate?.post?.text ||
-    !VALID_CLUSTERS.has(candidate.cluster)
-  ) {
-    logError("invalid candidate (missing post.id/post.text or cluster not from pipeline), refusing to post", {
-      hasPostId: !!candidate?.post?.id,
-      hasPostText: !!candidate?.post?.text,
-      cluster: candidate?.cluster
-    });
-    return { ok: false, message: "Invalid candidate: not from buzz pipeline", posted: 0, runId };
-  }
-
-  const videoUrl = pickVidalyticsLink(slot.lang, slot.mode);
-  if (!videoUrl || typeof videoUrl !== "string" || !videoUrl.includes("vidalytics")) {
-    logError("pickVidalyticsLink returned invalid URL, refusing to post");
-    return { ok: false, message: "Invalid Vidalytics URL", posted: 0, runId };
-  }
-
-  const body = await generateParasiticCopy(slot, candidate, videoUrl, btcSnapshot);
-
-  // リンク必須ガード: body に Vidalytics が含まれていなければ投稿しない（暴走防止）
-  const bodyStr = typeof body === "string" ? body : "";
-  if (!bodyStr.trim() || !bodyStr.includes(videoUrl)) {
-    logError("body missing Vidalytics link, refusing to post", { bodyLength: bodyStr.length, hasLink: bodyStr.includes(videoUrl) });
-    return { ok: false, message: "Body missing Vidalytics link", posted: 0, runId };
-  }
-
-  if (!dryRun) {
-    if (isDeadlineExceeded(startMs, deadlineMs)) {
-      logWarn("deadline exceeded", {
-        stage: "before-x-post",
-        runId,
-        ...deadlineSnapshot(startMs, deadlineMs)
-      });
-      results.push({
-        slot,
-        candidate: { handle: candidate.target.handle, postId: candidate.post.id },
-        body,
-        deadlineExceeded: true,
-        success: false
-      });
-      return {
-        ok: true,
-        message: "deadline exceeded before posting",
-        posted: 0,
-        runId,
-        deadlineExceeded: true,
-        results
-      };
-    }
-
-    try {
-      countApiCall();
-      console.log("[BuzzWeave] posting", { quotedId: candidate.post.id, dryRun: false });
-      logInfo("ready to post", candidate.post.id);
-      const postResult = await postQuoteTweet(body, candidate.post.id);
-      console.log("[BuzzWeave] BWE SCAN: REPOSTED quoted_id=" + candidate.post.id + " our_tweet_id=" + (postResult?.id || "null"));
-      try {
-        const kv = getKV();
-        if (kv) await kv.set("health:bwe:lastPost", Date.now());
-      } catch (_) {}
-      // 潜在リスク対策: 重複防止・スロット消費を最優先（この後の DB 失敗でも二重引用・スロット再利用を防ぐ）
-      await insertQuotedTweets([{ tweet_id: String(candidate.post.id), lang: slot.lang }]);
-      const consume = await consumeTdPostSlot(slot.id);
-      let compensation = null;
-      if (!consume.ok) {
-        const deferred = await deferTdPostSlot(slot.id, 180);
-        compensation = {
-          slotConsumeFailed: true,
-          deferred: deferred.ok,
-          deferredTo: deferred.deferred_to || null
-        };
-        logWarn("slot consume failed, compensation applied", { runId, slotId: slot.id, compensation });
-      }
-      // ログ・アーカイブ（失敗しても投稿は成功扱い）
-      const buzzInsights = buildBuzzInsights(candidate, slot.lang);
-      try {
-        await insertBuzzweavePostLog({
-          slotLang: slot.lang,
-          clusterLabel: candidate.cluster || "other",
-          clusterScore: clusterScores[candidate.cluster] ?? 0,
-          candidateTweetId: String(candidate.post.id),
-          engagementScore: candidate.engagementScore ?? 0,
-          postedAt: new Date().toISOString(),
-          ourTweetId: postResult?.id || null,
-          slotMode: slot.mode,
-          buzzSummary: buzzInsights.buzzSummary,
-          clusterPsych: buzzInsights.clusterPsych,
-          trapDefenceInsight: buzzInsights.trapDefenceInsight,
-          dangerLabel: candidate.dangerLabel || "neutral",
-          usedMode: buzzInsights.usedMode || "neutral_insight"
-        });
-      } catch (logErr) {
-        logWarn("insertBuzzweavePostLog failed (post already succeeded)", logErr?.message);
-      }
-      try {
-        await insertTdCopyArchive({ text: body, lang: slot.lang, mode: slot.mode });
-        await insertTdCopyMeta(inferCopyMeta(body, slot.mode, slot.lang));
-      } catch (archiveErr) {
-        logWarn("insertTdCopyArchive/insertTdCopyMeta failed (post already succeeded)", archiveErr?.message);
-      }
-      const xpostResult = await insertXPost({
-        lang: slot.lang,
-        mode: slot.mode,
-        body,
-        video_url: videoUrl
-      });
-      if (!xpostResult.ok) {
-        logError("insertXPost failed, run stopping (no retry)");
-        return {
-          ok: true,
-          message: "insertXPost failed",
-          posted: 0,
-          runId,
-          results
-        };
-      }
-      results.push({
-        slot,
-        candidate: { handle: candidate.target.handle, postId: candidate.post.id },
-        tweetId: postResult?.id,
-        compensation,
-        success: true
-      });
-    } catch (e) {
-      logError("post cycle failed", { runId, message: e.message });
-      results.push({
-        slot,
-        error: e.message,
-        success: false
-      });
-    }
-  } else {
-    console.log("[BuzzWeave] BWE SCAN: DRY RUN would_repost quoted_id=" + candidate.post.id);
-    results.push({
-      slot,
-      candidate: { handle: candidate.target.handle, postId: candidate.post.id },
-      body,
-      dryRun: true
-    });
-  }
-
-  return {
-    ok: true,
-    posted: dryRun ? 0 : results.filter((r) => r.success).length,
-    runId,
-    deadlineExceeded: !!collectResult.deadlineExceeded,
-    results
-  };
+  return runBuzzWeaveCyclePqtOnly(options);
 }
 
 const AUTONOMOUS_SLOT_MODE = process.env.AUTONOMOUS_SLOT_MODE === "true" || process.env.AUTONOMOUS_SLOT_MODE === "1";
@@ -1274,7 +1031,6 @@ module.exports = {
   cleanupOldSlots,
   pickBestBuzzCandidate,
   collectBuzzCandidates,
-  generateParasiticCopy,
   runBuzzWeaveCycle,
   runBuzzWeaveCyclePqtOnly,
   generateDailySlots,

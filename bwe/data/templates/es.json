@@ -4,7 +4,10 @@
     "El mapa de liquidez acaba de cambiar.",
     "La mayoría pasa por alto esta señal.",
     "La volatilidad está preparando una trampa.",
-    "Este setup parece fácil, pero no lo es."
+    "Este setup parece fácil, pero no lo es.",
+    "¡Exacto! Mira esto:",
+    "Coincido—clave que casi nadie ve:",
+    "Checklist para este movimiento:"
   ],
   "values": [
     "Funding, interés abierto y momentum divergen de forma que suele castigar entradas tardías.",
@@ -14,7 +17,10 @@
   "ctas": [
     "Aplica tu checklist antes de entrar.",
     "Protege el downside y escala después.",
-    "Si no tienes stop claro, no operes."
+    "Si no tienes stop claro, no operes.",
+    "Checklist para este movimiento: [link]",
+    "Briefing completo aquí: [link]",
+    "Mi playbook para este setup: [link]"
   ],
   "mediaHints": [
     "video corto de estructura del gráfico",
@@ -25,7 +31,10 @@
   "quoteHooks": [
     "Buen hilo, pero añade esta capa de riesgo:",
     "Contexto clave para este post:",
-    "La señal sirve, la ejecución necesita este filtro:"
+    "La señal sirve, la ejecución necesita este filtro:",
+    "¡Exacto! Mira esto:",
+    "Checklist para este movimiento:",
+    "Mi playbook para este setup:"
   ],
   "pollQuestions": [
     "¿Cuál es tu modo de trade hoy?",

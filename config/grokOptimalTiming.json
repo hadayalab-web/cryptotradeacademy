@@ -1,0 +1,71 @@
+{
+  "shiteshi_activity_peaks": [
+    { "start_hour_utc": 0, "end_hour_utc": 4, "weight": 0.9, "reason": "Asia (KO/JA) shiteshi pumps during local prime evening hours" },
+    { "start_hour_utc": 8, "end_hour_utc": 12, "weight": 0.75, "reason": "AR/ME shiteshi morning activity overlap with Asia" },
+    { "start_hour_utc": 13, "end_hour_utc": 17, "weight": 0.95, "reason": "EN/US shiteshi peaks in NY session overlap" },
+    { "start_hour_utc": 20, "end_hour_utc": 24, "weight": 0.8, "reason": "EN/ES/PT late evening shiteshi pumps" }
+  ],
+  "lantern_reaction_peaks": [
+    { "start_hour_utc": 0, "end_hour_utc": 4, "weight": 0.88, "reason": "Asia lantern traders flock to pumps" },
+    { "start_hour_utc": 9, "end_hour_utc": 13, "weight": 0.8, "reason": "AR retail high visibility window" },
+    { "start_hour_utc": 14, "end_hour_utc": 18, "weight": 0.92, "reason": "EN lantern peak reaction during US hours" },
+    { "start_hour_utc": 20, "end_hour_utc": 23, "weight": 0.82, "reason": "ES/PT/EN evening retail engagement" }
+  ],
+  "optimal_run_times_utc": [0, 1, 8, 13, 14, 15, 16, 20, 21],
+  "optimal_run_times_reason": "Captures shiteshi peaks in Asia, AR, EN/US/PT/ES for timely PQTs.",
+  "per_language_nudge": {
+    "en": [13, 14, 15, 16, 17, 20, 21],
+    "es": [14, 15, 16, 20, 21],
+    "pt": [13, 14, 15, 16, 20],
+    "ar": [8, 9, 10, 17, 18],
+    "ko": [0, 1, 2, 8, 9],
+    "ja": [0, 1, 2, 8, 9]
+  },
+  "cron_schedule_suggestion": "0 0,1,8,13,14,15,16,20,21 * * *",
+  "cron_schedule_reason": "Runs at minute 0 during multi-region shiteshi peaks for max PQT opportunities.",
+  "expected_reach": {
+    "daily_impressions_low": 20000,
+    "daily_impressions_high": 200000,
+    "daily_engagements_low": 1000,
+    "daily_engagements_high": 15000,
+    "assumptions_one_line": "15-30 PQTs/day on buzzy shiteshi (2k-50k imp each); PQT 5-25% visibility capture, 3-8% engagement rate, no outliers."
+  },
+  "expected_reach_at_max_volume": {
+    "daily_impressions_low": 100000,
+    "daily_impressions_high": 800000,
+    "daily_engagements_low": 5000,
+    "daily_engagements_high": 50000,
+    "assumptions_one_line": "100-150 PQTs/day at 9 runs; per-PQT imp 40-70% of low-vol due to dilution; diminishing returns from X spam algo, QT thread saturation, rate limits ceiling ~200 posts/day."
+  },
+  "recommended_settings": {
+    "label": "落としどころ",
+    "cron_schedule": "0 0,8,13,14,20,21 * * *",
+    "runs_per_day": 6,
+    "BUZZWEAVE_API_CALL_CAP": 8,
+    "BUZZWEAVE_DAILY_RUN_HIGH": 6,
+    "expected_pqts_per_day": "30-50",
+    "expected_impressions": "50k-120k",
+    "expected_engagements": "2k-8k",
+    "reason": "6 run でピークを押さえつつ API 節約。1 run あたり cap 8 で希釈を抑え、想定インプレ 5万-12万・エンゲ 2k-8k。"
+  },
+  "volume_5x_settings": {
+    "label": "5倍ボリューム",
+    "BUZZWEAVE_VOLUME_MULTIPLIER": 5,
+    "cron_schedule": "0 0,8,13,14,20,21 * * *",
+    "runs_per_day": 6,
+    "expected_pqts_per_day": "150-250",
+    "expected_impressions": "20万-40万（希釈で 5倍には届かず 3-4倍程度の想定）",
+    "expected_conversions": "50-100",
+    "reason": "落としどころの cap を 5倍。60 PQT 超で希釈 -20% の caveat あり。インプレは線形では伸びない。"
+  },
+  "target_250_settings": {
+    "label": "250投稿/日ターゲット（1成約≒2.5投稿）",
+    "BUZZWEAVE_DAILY_PQT_TARGET": 250,
+    "cron_schedule": "0 0,8,13,14,20,21 * * *",
+    "runs_per_day": 6,
+    "cap_per_run": 42,
+    "expected_pqts_per_day": "250前後",
+    "expected_conversions": "約100",
+    "reason": "1成約≒2.5投稿の前提で250/日→約100成約。BUZZWEAVE_DAILY_PQT_TARGET=250 で run あたり cap 42。VOLUME_MULTIPLIER は未使用。"
+  }
+}

@@ -4,7 +4,10 @@
     "O mapa de liquidez virou agora.",
     "Quase todo mundo ignora esse sinal.",
     "A volatilidade está montando uma armadilha.",
-    "Este setup parece simples, mas não é."
+    "Este setup parece simples, mas não é.",
+    "Mano, spot on!",
+    "Concordo—nível chave que quase ninguém vê:",
+    "Checklist pra não queimar aqui:"
   ],
   "values": [
     "Funding, interesse aberto e momentum estão divergindo de um jeito que costuma punir entrada atrasada.",
@@ -14,7 +17,10 @@
   "ctas": [
     "Use seu checklist antes de entrar.",
     "Proteja o downside e só depois aumente posição.",
-    "Sem stop claro, melhor ficar de fora."
+    "Sem stop claro, melhor ficar de fora.",
+    "Checklist pra não queimar aqui: [link]",
+    "Pega o briefing: [link]",
+    "Meu playbook pra esse setup: [link]"
   ],
   "mediaHints": [
     "video curto de leitura de gráfico",
@@ -25,7 +31,10 @@
   "quoteHooks": [
     "Thread forte, mas falta esta camada de risco:",
     "Contexto importante para este post:",
-    "Sinal ok, execução precisa deste filtro:"
+    "Sinal ok, execução precisa deste filtro:",
+    "Mano, spot on!",
+    "Checklist pra não queimar aqui:",
+    "Meu playbook pra esse setup:"
   ],
   "pollQuestions": [
     "Qual é seu modo de operação hoje?",

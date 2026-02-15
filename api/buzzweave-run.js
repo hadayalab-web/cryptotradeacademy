@@ -2,7 +2,7 @@
  * TD BuzzWeave Engine — 1サイクル実行 API
  * Cron: GET /api/buzzweave-run?lang=en など（1 run で 1 言語のみ、round-robin で lang を渡す）
  *
- * PQT-ONLY: BUZZWEAVE_PQT_ONLY=true のとき、エンジンは runBuzzWeaveCyclePqtOnly に分岐。
+ * 常に PQT-only（テンプレ）: runBuzzWeaveCycle は runBuzzWeaveCyclePqtOnly に委譲。旧 GPT 寄生コピー経路は廃止。
  * 緊急停止: BUZZWEAVE_EMERGENCY_STOP=true で即 return
  *
  * Runtime: Node.js を強制（Edge では console.log 等が期待どおり動かないため）
