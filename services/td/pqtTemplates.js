@@ -2,7 +2,7 @@
  * PQT 本文テンプレート（6言語 × 4–5バリアント）
  * Grok Secret Weapons: Question prefix（Reply +400%）, Double linebreak, Emoji mid-hook, Mirror vocab, No final period → pqtSecretWeapons で適用
  * トーン方針: 緊急感・危機感を前面に（クジラのトラップから救済する趣旨）— 危機リードのバリアントを混在
- * 心理フル加速: 損失回避バイアス × ツァイガルニク効果（未完の答え）× 心理的緊急性 — 先頭バリアントでめいっぱい効かせる
+ * 心理フル加速: 損失回避・緊急性・ツァイガルニク効果を刺激 — 先頭バリアントでめいっぱい効かせる
  */
 const PQT_TEMPLATES = {
   en: [
