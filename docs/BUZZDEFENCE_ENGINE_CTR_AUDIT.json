@@ -1,0 +1,68 @@
+{
+  "audit_date": "2026-02-15",
+  "north_star": "X → Vidalytics CTR 最大化",
+  "engines_overview": "2つのエンジンが存在: (1) Python buzzweave_engine = Trap Defence OS / KIBA連携・構造的引用・ログのみ (2) JS buzzWeaveEngine.js = 本番X投稿・Vidalytics必須・GPT寄生コピー",
+  "post_generation": {
+    "hook": {
+      "python": "v2: EMPATHY_HOOK_V2 分類×言語。v3: QUESTION_HOOK_V3（Trap or real? / Your take? / Agree?）返信誘発。BotNet: 'Bot cluster detected. Structure says:'",
+      "js": "GPT generateXPost が buzzContext/dictionaryPhrases から生成。直接 hook 定数はなし。"
+    },
+    "bullets": {
+      "python": "build_bullets(kiba_data): Flow / Liquidity / Sentiment + clustered/FOMO-FUD 時追加。KIBA 由来。",
+      "js": "GPT 出力に含まれる場合あり。明示的な bullets 構造なし。"
+    },
+    "cta": {
+      "python": "CTA_BY_LANG: 'RT to save someone. What do you think?' 等 6言語。返信誘発型。",
+      "js": "GPT が生成。Link at end 指示。Vidalytics リンク必須。"
+    },
+    "hashtags": {
+      "python": "HASHTAGS_BY_LANG + GLOBAL_HASHTAG #TrapDefence。BotNet: #BotNetAlert 追加。",
+      "js": "GPT 出力またはテンプレに含まれる。#BTC 等。"
+    },
+    "vidalytics_link": {
+      "python": "なし。Python エンジンは Vidalytics を参照しない。",
+      "js": "pickVidalyticsLink(lang, tier)。regular/minimal 各6言語。mixed=70% reg / 30% min。必須ガード: リンクなしなら投稿しない。"
+    }
+  },
+  "x_algo_optimization": {
+    "posting_time": {
+      "python": "TIMING_WINDOWS_UTC 言語別。5–30分 reaction。GLOBAL_OVERLAP_UTC 13–16。",
+      "js": "SLOT_DISTRIBUTION_JST。BUZZWEAVE_ACTIVE_HOURS_JST で時間帯制限。"
+    },
+    "self_reply": "未実装。自リプライでの追記・拡張なし。",
+    "poll": "未実装。Poll 生成・添付なし。",
+    "media": {
+      "python": "attach_visual=True をログに記録。chart/heatmap/liq 添付を推奨。実際の添付は JS 側。",
+      "js": "video_url で Vidalytics をメディアとして添付する想定。postQuoteTweet の実装依存。"
+    },
+    "thread_structure": {
+      "python": "v2: 3-part。v3: 5-part (Hook / Bullets / Structure note / Data source / Bookmark+CTA+hashtags)。",
+      "js": "スレッド構造の明示的扱いなし。単一引用リポスト。"
+    }
+  },
+  "ctr_optimization": {
+    "cliffhanger": "未実装。未完の物語・cliffhanger の明示的生成なし。",
+    "choice_cta": "CTA は固定（RT to save / What do you think?）。選択肢型 CTA なし。",
+    "fear_to_relief": "FEAR_WITH_FLOW で「恐怖→構造的リスク→流動性の切れ目」の導線。安心への明示的フレーズは弱い。",
+    "botnet_integration": "BotNetAlert は Python で publish_botnet_alert。JS 本番投稿フローとは未連携。"
+  },
+  "template_structure": {
+    "python_v3": "hook / bullets / structure_note / data_sources / cta / hashtags / visual_payload を render で生成。BotNet は generate_botnet_demo で同構造。",
+    "js": "GPT generateXPost が mode/language/video_url/buzzContext から本文生成。テンプレは config/buzzweaveLinks のテキスト＋{link}。",
+    "lang_templates": "Python: 6言語 (en,es,pt,ar,ko,ja)。JS: 同様 6言語。"
+  },
+  "os_integration": {
+    "kiba": "Python: classify_trap が KIBA データ使用。JS: KIBA パイプラインとは別。cluster (etf/fud/meme等) で分類。",
+    "botnet_detection": "Python: botnet_detector → publish_botnet_alert で BuzzWeave ログに記録。JS には未連携。",
+    "structural_data": "Python: trap_defence_structural_data を botnet/KIBA が参照。JS: 参照なし。"
+  },
+  "issues_or_todo": [
+    "Python と JS の投稿パイプラインが未統合。Python の構造的引用が JS の X 投稿に流れない。",
+    "Vidalytics リンクが Python テンプレに組み込まれていない。CTR 最大化の主導線が Python 側にない。",
+    "cliffhanger / 選択肢型 CTA / 恐怖→安心の強化が未実装。",
+    "Poll 添付なし。X アルゴの返信誘発メリットを未活用。",
+    "自リプライによる 2–3 リプ追記（2時間寿命対策）なし。",
+    "BotNetAlert が本番 X 投稿に乗っていない。検出しても JS 経由で投稿されない。",
+    "Python の v3 テンプレ（質問フック・ブックマーク誘導）が JS の GPT プロンプトに反映されていない。"
+  ]
+}

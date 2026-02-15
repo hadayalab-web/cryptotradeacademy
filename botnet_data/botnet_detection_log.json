@@ -1,0 +1,87 @@
+{
+  "entries": [
+    {
+      "post_id": "demo_post",
+      "bot_suspects": [
+        {
+          "account": "@u6",
+          "score": 20,
+          "reasons": [
+            "cluster_member"
+          ]
+        },
+        {
+          "account": "@u4",
+          "score": 20,
+          "reasons": [
+            "cluster_member"
+          ]
+        },
+        {
+          "account": "@u3",
+          "score": 20,
+          "reasons": [
+            "cluster_member"
+          ]
+        },
+        {
+          "account": "@u0",
+          "score": 20,
+          "reasons": [
+            "cluster_member"
+          ]
+        },
+        {
+          "account": "@u7",
+          "score": 20,
+          "reasons": [
+            "cluster_member"
+          ]
+        },
+        {
+          "account": "@u2",
+          "score": 20,
+          "reasons": [
+            "cluster_member"
+          ]
+        },
+        {
+          "account": "@u1",
+          "score": 20,
+          "reasons": [
+            "cluster_member"
+          ]
+        },
+        {
+          "account": "@u5",
+          "score": 20,
+          "reasons": [
+            "cluster_member"
+          ]
+        }
+      ],
+      "cluster_events": [
+        {
+          "cluster_id": "demo_post_c0",
+          "accounts": [
+            "u6",
+            "u4",
+            "u3",
+            "u0",
+            "u7",
+            "u2",
+            "u1",
+            "u5"
+          ],
+          "burst_factor": 8.0,
+          "window_seconds": 3
+        }
+      ],
+      "initial_boost_factor": 8.0,
+      "raid_detected": false,
+      "raid_factor": 0.0,
+      "summary": "1 cluster(s) detected. 8 bot suspect(s) (max score 20).",
+      "timestamp": "2026-02-15T00:26:29Z"
+    }
+  ]
+}

@@ -2,6 +2,10 @@
 
 本ドキュメントは、Trap Defence OS の**KIBA（構造裏取り）**と**BuzzWeave Engine（引用リポスト戦術）**の実装をまとめたレポートです。
 
+**関連**  
+- 構造的根拠: `docs/TRAP_DEFENCE_STRUCTURAL_RATIONALE.md`、`trap_defence_structural_data.py`  
+- 次フェーズの選択肢: `docs/TRAP_DEFENCE_OS_ROADMAP.md`（ボット推定・収益モデル・心理数理・マルチアセット）
+
 ---
 
 ## 1. 概要
@@ -416,10 +420,14 @@ boosters_en = get_neutral_boosters_for_lang("en")
 
 ## 10. 今後の拡張（想定）
 
-- **オンチェーン**: `influencer_onchain_alert_engine` の `check_whale_flow` 等を実 API（Dune / Glassnode / Coinglass 等）に差し替え。
+- **オンチェーン**: `influencer_onchain_alert_engine` の `check_whale_flow` 等を実 API（Dune / Glassnode / CryptoQuant 等）に差し替え。
 - **投稿実行**: `publish_quote` の結果を既存の `services/td/buzzWeaveEngine.js` や X API と連携し、実際の引用リポスト＋メディア添付・local verifiers のタグ付けを実行。
 - **6言語スケジュール**: 言語別 UTC 窓に基づく投稿スロットの自動生成（Cron との連携）。
 - **ER 連動**: 直近投稿の ER を取得し、連続低 ER で `self_restraint_active` を自動 ON にするオプション。
+
+**応用フェーズ（4 選択肢）**: ボットネット推定・収益モデル分解・心理モデル数理化・マルチアセット拡張の詳細は `docs/TRAP_DEFENCE_OS_ROADMAP.md` を参照。
+
+**Phase A（BotNet Detection）MVP 実装済み**: `botnet_detector.py`, `botnet_dashboard_data.py` — クラスタ検出・レイド検出・ボットスコア・BuzzWeave 連携（publish_botnet_alert）。
 
 ---
 

@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 SUPPORTED_LANGUAGES = {"en", "es", "pt", "ar", "ko", "ja"}
 TRAP_CLASSIFICATIONS = {"BAIT_NO_FLOW", "HYPE_WITH_FLOW", "FEAR_WITH_FLOW"}
 
-DATA_SOURCES_LABEL = "Data: Dune / Glassnode / Coinglass (structure only, no prediction)."
+DATA_SOURCES_LABEL = "Data: Dune / Glassnode / CryptoQuant (structure only, no prediction)."
 # グローバル固定タグ（OS の顔。アルゴ・クロス言語で共通）
 GLOBAL_HASHTAG = "#TrapDefence"
 

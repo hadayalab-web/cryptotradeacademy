@@ -13,9 +13,12 @@ Constraints: Never amplify vague buzz; only post when KIBA has crosschecked and 
 import json
 import os
 from datetime import datetime, timezone, timedelta
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 _ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# StructuredPost: v4 統合パイプライン用。Python が構造を生成し、JS が投稿する。
+StructuredPost = Dict[str, Any]
 _LOG_PATH = os.path.join(_ROOT, "buzzweave_trap_data", "buzzweave_trap_post_log.json")
 
 SUPPORTED_LANGUAGES = {"en", "es", "pt", "ar", "ko", "ja"}
@@ -56,7 +59,7 @@ except ImportError:
     get_self_restraint_protocol = lambda: {}
 MAX_POSTS_PER_DAY = min(4, _KPI_MAX)
 MIN_POSTS_PER_DAY = max(2, _KPI_MIN)
-DATA_SOURCES_LABEL = "Data: Dune / Glassnode / Coinglass (structure only, no prediction)."
+DATA_SOURCES_LABEL = "Data: Dune / Glassnode / CryptoQuant (structure only, no prediction)."
 
 # Optional: use buzzweave_templates as single source for 6-language templates
 try:
@@ -365,6 +368,193 @@ def classify_trap(post: dict, kiba_data: Optional[dict] = None) -> tuple[str, di
     if sentiment == "FUD":
         return "FEAR_WITH_FLOW", kiba_data
     return "BAIT_NO_FLOW", kiba_data
+
+
+def _classification_to_psychology(classification: str, kiba_data: dict) -> str:
+    """Map classification + sentiment to psychology_tag for CTR (FOMO/FUD/HOPE/ANGER)."""
+    sent = (kiba_data.get("sentiment_signal") or "").upper()
+    if classification == "FEAR_WITH_FLOW" or sent == "FUD":
+        return "FUD"
+    if classification == "HYPE_WITH_FLOW" or sent == "FOMO":
+        return "FOMO"
+    if classification == "BAIT_NO_FLOW":
+        return "HOPE"  # trap visibility = hope to avoid
+    return "NEUTRAL"
+
+
+# ---------------------------------------------------------------------------
+# v4.4: ナラティブ分類（Grok/LLM 拡張用プレースホルダ）
+# ---------------------------------------------------------------------------
+def _infer_narrative_tag(botnet_result: Optional[Dict[str, Any]], lang: str) -> str:
+    """v4.4: 釣り師ポストのナラティブ分類。Grok 連携時に差し替え可能。"""
+    if not botnet_result:
+        return "HYPE"
+    raid = botnet_result.get("raid_detected") or False
+    burst = float(botnet_result.get("initial_boost_factor") or botnet_result.get("burst_factor_v42") or 0)
+    if raid and burst >= 50:
+        return "FOMO"
+    if burst >= 30:
+        return "HYPE"
+    return "NEUTRAL"
+
+
+# ---------------------------------------------------------------------------
+# build_structured_post (v4: 構造テンプレ生成専用 — JS に渡す StructuredPost)
+# ---------------------------------------------------------------------------
+
+
+def build_structured_post(
+    payload: Dict[str, Any],
+) -> StructuredPost:
+    """
+    v4 統合パイプライン用。構造テンプレを生成し、JS が投稿に使う StructuredPost を返す。
+
+    入力 payload:
+      - mode: "trap" | "botnet" | "chain" | "macro" | "meme"
+      - lang: en, es, pt, ar, ko, ja
+      - kiba_snapshot: (trap 時) flow_signal, liquidity_signal, sentiment_signal
+      - botnet_result: (botnet/chain 時) detect_botnet の出力
+      - cq_metrics: (chain 時・任意) fetch_cq_btc の出力。省略時は自動取得
+      - post: (trap 時・任意) classify_trap 用の post dict
+
+    出力 StructuredPost:
+      - hook, bullets, structure_note, data_sources, cta_core, hashtags, visual_payload, psychology_tag
+      - chain_data, fusion_score (chain 時)
+    """
+    mode = (payload.get("mode") or "trap").strip().lower()
+    lang = _normalize_lang(payload.get("lang") or "en")
+    kiba_snapshot = payload.get("kiba_snapshot") or {}
+    botnet_result = payload.get("botnet_result")
+    cq_metrics = payload.get("cq_metrics")
+    post = payload.get("post") or {}
+
+    if mode == "chain" and botnet_result:
+        from kiba_chain_integration import kiba_chain_fusion, fetch_cq_btc
+        from botnet_detector import generate_botnet_demo
+
+        cq = cq_metrics if cq_metrics is not None else fetch_cq_btc()
+        fusion = kiba_chain_fusion(botnet_result, cq)
+        demo = generate_botnet_demo(
+            post_id=botnet_result.get("post_id", ""),
+            detection_result=botnet_result,
+            lang=lang,
+        )
+        burst = botnet_result.get("burst_factor_v42") or botnet_result.get("initial_boost_factor") or 0
+        chain_data = fusion.get("chain_data") or {}
+        cq_ts = cq_metrics.get("timestamp") if isinstance(cq_metrics, dict) else None
+        # CHAIN_RAID hook: 6言語
+        hook_by_lang = {
+            "en": f"BTC Chain OI spike + Bot {burst}x detected. Structure says:",
+            "ja": f"BTC OI急増 + ボット{burst}x検出。構造が示す:",
+            "ko": f"BTC 체인 OI 급등 + 봇 {burst}x 검출. 구조가 말해요:",
+            "es": f"Spike OI Chain BTC + Bot {burst}x detectado. La estructura dice:",
+            "pt": f"Spike OI Chain BTC + Bot {burst}x detectado. A estrutura diz:",
+            "ar": f"ارتفاع OI سلسلة BTC + بوت {burst}x مُكتشف. الهيكل يقول:",
+        }
+        hook = hook_by_lang.get(lang) or hook_by_lang["en"]
+        return {
+            "mode": "chain",
+            "lang": lang,
+            "hook": hook,
+            "bullets": demo.get("bullets", []),
+            "structure_note": demo.get("structure_note", ""),
+            "data_sources": demo.get("data_sources", []),
+            "cta_core": demo.get("cta", ""),
+            "hashtags": demo.get("hashtags", []),
+            "visual_payload": demo.get("visual_payload"),
+            "psychology_tag": fusion.get("psychology_tag", "BOTNET"),
+            "chain_data": chain_data,
+            "fusion_score": fusion.get("fusion_score"),
+            "cq_timestamp": cq_ts,
+            "botnet_cluster_id": demo.get("visual_payload", {}).get("botnet_cluster_id"),
+            "botnet_density": demo.get("visual_payload", {}).get("botnet_density"),
+            "botnet_coherence": demo.get("visual_payload", {}).get("botnet_coherence_score"),
+            "narrative_tag": _infer_narrative_tag(botnet_result, lang),
+            "psych_type": _infer_narrative_tag(botnet_result, lang),
+            "asset_class": (botnet_result or {}).get("asset_class") or "BTC",
+            "post_id": demo.get("post_id"),
+            "classification": "CHAIN_RAID_ALERT",
+        }
+
+    if mode == "botnet" and botnet_result:
+        from botnet_detector import generate_botnet_demo
+        demo = generate_botnet_demo(
+            post_id=botnet_result.get("post_id", ""),
+            detection_result=botnet_result,
+            lang=lang,
+        )
+        return {
+            "mode": "botnet",
+            "lang": lang,
+            "hook": demo.get("hook", ""),
+            "bullets": demo.get("bullets", []),
+            "structure_note": demo.get("structure_note", ""),
+            "data_sources": demo.get("data_sources", []),
+            "cta_core": demo.get("cta", ""),
+            "hashtags": demo.get("hashtags", []),
+            "visual_payload": demo.get("visual_payload"),
+            "psychology_tag": demo.get("psychology_tag", "BOTNET"),
+            "post_id": demo.get("post_id"),
+            "classification": demo.get("classification", "BOTNET_ALERT"),
+        }
+
+    # trap / macro / meme: KIBA ベース
+    if kiba_snapshot:
+        sent = (kiba_snapshot.get("sentiment_signal") or "").upper()
+        flow = (kiba_snapshot.get("flow_signal") or "").lower()
+        onchain = (kiba_snapshot.get("onchain_confirmation") or "").upper() == "TRUE"
+        if onchain and flow == "strong" and sent == "FOMO":
+            classification = "HYPE_WITH_FLOW"
+        elif onchain and flow == "strong" and sent == "FUD":
+            classification = "FEAR_WITH_FLOW"
+        else:
+            classification = "BAIT_NO_FLOW"
+    else:
+        classification, kiba_snapshot = classify_trap(post, kiba_snapshot)
+
+    if template_render:
+        # v3 テンプレで各部分を取得
+        from buzzweave_templates import (
+            QUESTION_HOOK_V3,
+            build_bullets,
+            structure_note as tpl_structure_note,
+            DATA_SOURCES_LABEL,
+            CTA_BY_LANG,
+            HASHTAGS_BY_LANG,
+            GLOBAL_HASHTAG,
+        )
+        tpl_lang = _tpl_normalize_lang(lang) if _tpl_normalize_lang else lang
+        qhook = QUESTION_HOOK_V3.get(classification, QUESTION_HOOK_V3["BAIT_NO_FLOW"])
+        hook = qhook.get(tpl_lang) or qhook.get("en") or ""
+        bullets = build_bullets(kiba_snapshot)
+        structure_note_str = tpl_structure_note(kiba_snapshot)
+        data_src = DATA_SOURCES_LABEL
+        cta = CTA_BY_LANG.get(tpl_lang) or CTA_BY_LANG["en"]
+        hashtag = (HASHTAGS_BY_LANG.get(tpl_lang) or HASHTAGS_BY_LANG["en"]) + " " + GLOBAL_HASHTAG
+    else:
+        hook_map = EMPATHY_HOOK_V2.get(classification, EMPATHY_HOOK_V2["BAIT_NO_FLOW"])
+        hook = hook_map.get(lang) or hook_map.get("en") or ""
+        bullets = _build_bullets(lang, kiba_snapshot)
+        structure_note_str = _structure_note(kiba_snapshot)
+        data_src = DATA_SOURCES_LABEL
+        cta = CTA_BY_LANG.get(lang) or CTA_BY_LANG["en"]
+        hashtag = (HASHTAGS_BY_LANG.get(lang) or HASHTAGS_BY_LANG["en"]) + " #TrapDefence"
+
+    psychology_tag = _classification_to_psychology(classification, kiba_snapshot)
+
+    return {
+        "mode": mode,
+        "lang": lang,
+        "classification": classification,
+        "hook": hook,
+        "bullets": bullets,
+        "structure_note": structure_note_str,
+        "data_sources": [data_src] if isinstance(data_src, str) else data_src,
+        "cta_core": cta,
+        "hashtags": hashtag.split() if isinstance(hashtag, str) else hashtag,
+        "visual_payload": None,
+        "psychology_tag": psychology_tag,
+    }
 
 
 # ---------------------------------------------------------------------------

@@ -9,7 +9,8 @@ const { getTweetMetrics } = require("../services/x/metrics");
 const {
   fetchUnprocessedQueue,
   markQueueProcessed,
-  insertTweetMetrics
+  insertTweetMetrics,
+  updateChainRaidPostKpiWithMetrics
 } = require("../utils/supabase");
 
 /** Vidalytics API（stub: 将来実装） */
@@ -65,6 +66,12 @@ module.exports = async function handler(req, res) {
       if (error) throw new Error(error);
       await markQueueProcessed(id);
       processed++;
+      await updateChainRaidPostKpiWithMetrics(tweet_id, {
+        impressions: impressionCount ?? null,
+        link_clicks: vid.clicks ?? null,
+        replies: pm.reply_count ?? null,
+        reposts: pm.retweet_count ?? null
+      });
       console.log(`[MetricsFetcher] ✅ ${tweet_id} impressions=${impressionCount}`);
     } catch (e) {
       console.warn(`[MetricsFetcher] ⚠️ ${tweet_id}: ${e.message}`);

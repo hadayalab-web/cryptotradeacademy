@@ -1,0 +1,26 @@
+{
+  "entries": [
+    {
+      "original_post_id": "demo_post",
+      "account": "",
+      "classification": "BOTNET_ALERT",
+      "generated_quote": "[BotNet] 1 cluster(s), boost 8.0x. 8 suspect(s).",
+      "kiba_snapshot": {
+        "flow_signal": "none",
+        "liquidity_signal": "neutral",
+        "sentiment_signal": "BOTNET",
+        "onchain_confirmation": "FALSE",
+        "botnet_clusters": 1,
+        "botnet_boost_factor": 8.0,
+        "botnet_raid_factor": 0
+      },
+      "timestamp": "2026-02-15T00:26:29Z",
+      "attach_visual": true,
+      "hashtag": "#Bitcoin #Crypto #BotNetAlert #TrapDefence",
+      "neutral_boosters": [
+        "@woonomic",
+        "@TedPillows"
+      ]
+    }
+  ]
+}

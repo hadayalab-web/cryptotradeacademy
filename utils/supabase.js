@@ -848,6 +848,103 @@ async function fetchBuzzweavePostLogsPendingMetrics(limit = 50, minAgeMinutes = 
   }
 }
 
+// ========== CHAIN_RAID KPI（v4.2+） ==========
+
+/**
+ * CHAIN_RAID 投稿時に chain_raid_post_kpi に 1 行挿入
+ * @param {Object} row - { postId, quotedTweetId, lang, burstFactor, fusionScore, cqSnapshotTs, clusterId?, mediaType?, fusionScoreBin?, postTiming? }
+ */
+async function insertChainRaidPostKpi(row) {
+  const sb = getSupabase();
+  if (!sb || !row?.postId) return { ok: false };
+  try {
+    const payload = {
+      post_id: String(row.postId),
+      quoted_tweet_id: String(row.quotedTweetId || ""),
+      lang: row.lang || "en",
+      psychology_tag: "CHAIN_RAID",
+      burst_factor: row.burstFactor ?? null,
+      fusion_score: row.fusionScore ?? null,
+      cq_snapshot_ts: row.cqSnapshotTs ?? null,
+      cluster_id: row.clusterId ?? null,
+      botnet_cluster_id: row.botnetClusterId ?? null,
+      botnet_density: row.botnetDensity ?? null,
+      botnet_coherence: row.botnetCoherence ?? null,
+      media_type: row.mediaType ?? null,
+      fusion_score_bin: row.fusionScoreBin ?? null,
+      post_timing: row.postTiming ?? null,
+      narrative_tag: row.narrativeTag ?? null,
+      asset_class: row.assetClass ?? null
+    };
+    const { error } = await sb.from("chain_raid_post_kpi").upsert(payload, { onConflict: "post_id" });
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    console.warn("[Supabase] insertChainRaidPostKpi error:", e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
+/**
+ * 金クラスタ一覧取得（v4.3: corr_botnet_ctr > 0.7, avg_ctr > 0.08, cluster_size >= 20）
+ */
+async function getGoldClusters(thresholds = {}) {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const { corrMin = 0.7, ctrMin = 0.08, sizeMin = 20 } = thresholds;
+  try {
+    const { data, error } = await sb
+      .from("mv_cluster_ctr_stats")
+      .select("cluster_id, lang, avg_ctr, corr_botnet_ctr, cluster_size")
+      .gte("corr_botnet_ctr", corrMin)
+      .gte("avg_ctr", ctrMin)
+      .gte("cluster_size", sizeMin);
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    try {
+      const { data } = await sb.from("view_cluster_ctr_stats").select("cluster_id, lang, avg_ctr, corr_botnet_ctr, cluster_size");
+      return (data || []).filter(
+        (r) =>
+          (r.corr_botnet_ctr ?? 0) >= corrMin &&
+          (r.avg_ctr ?? 0) >= ctrMin &&
+          (r.cluster_size ?? 0) >= sizeMin
+      );
+    } catch (_) {
+      return [];
+    }
+  }
+}
+
+/**
+ * chain_raid_post_kpi のメトリクスを更新（X API / Vidalytics ポーリング用）
+ */
+async function updateChainRaidPostKpiWithMetrics(postId, metrics) {
+  const sb = getSupabase();
+  if (!sb || !postId) return { ok: false };
+  try {
+    const update = {
+      metrics_updated_at: new Date().toISOString()
+    };
+    if (metrics.impressions != null) update.impressions = metrics.impressions;
+    if (metrics.link_clicks != null) update.link_clicks = metrics.link_clicks;
+    if (metrics.replies != null) update.replies = metrics.replies;
+    if (metrics.reposts != null) update.reposts = metrics.reposts;
+    if (metrics.bookmarks != null) update.bookmarks = metrics.bookmarks;
+    if (metrics.poll_yes != null) update.poll_yes = metrics.poll_yes;
+    if (metrics.poll_no != null) update.poll_no = metrics.poll_no;
+    if (metrics.demo_views != null) update.demo_views = metrics.demo_views;
+    if (metrics.tg_joins != null) update.tg_joins = metrics.tg_joins;
+    if (metrics.subs != null) update.subs = metrics.subs;
+    const { error } = await sb.from("chain_raid_post_kpi").update(update).eq("post_id", String(postId));
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    console.warn("[Supabase] updateChainRaidPostKpiWithMetrics error:", e.message);
+    return { ok: false };
+  }
+}
+
 /**
  * btcSnapshot を btc_snapshots に保存（Unified OS: 必須履歴）
  * @param {Object} row - snapshotToDbRow(snapshot) の戻り値
@@ -975,6 +1072,9 @@ module.exports = {
   insertBuzzweavePostLog,
   updateBuzzweavePostLogWithMetrics,
   fetchBuzzweavePostLogsPendingMetrics,
+  insertChainRaidPostKpi,
+  updateChainRaidPostKpiWithMetrics,
+  getGoldClusters,
   insertBtcSnapshot,
   getLastBtcSnapshot,
   getBtcSnapshotsHistory,

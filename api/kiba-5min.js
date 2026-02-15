@@ -9,6 +9,7 @@ require("../utils/suppressKnownWarnings");
 
 const { getKV } = require("../utils/kv");
 const { getCQDeepMetrics } = require("../services/cryptoquant/deepMetrics");
+const { writeCqLatest } = require("../services/snapshot/cqLatestWriter");
 const { analyzeXSentimentHighResolutionCompat } = require("../services/grok/highResolution");
 const { analyzeXSentimentLive } = require("../services/grok/client");
 const { runKibaOnce } = require("./kiba/run");
@@ -86,6 +87,9 @@ module.exports = async function handler(req, res) {
     let cqDeep = {};
     try {
       cqDeep = await getCQDeepMetrics("EN", { skipCache: true });
+      if (cqDeep && typeof cqDeep === "object") {
+        await writeCqLatest(kv, cqDeep);
+      }
     } catch (e) {
       console.warn("[kiba-5min] CQ fetch failed:", e?.message);
       cqDeep = btcSnapshot.cqDeep || {};
