@@ -803,11 +803,12 @@ async function collectBuzzCandidates(options = {}) {
     return { candidates, deadlineExceeded: true, clusters: {}, clusterScores: {}, postsFetched: 0 };
   }
 
-  // 1-1: slot.lang に合わせたクエリで直近 1〜5 分の投稿を取得（1言語のみ）
+  // 1-1: slot.lang に合わせたクエリで直近 window 分の投稿を取得（1言語のみ）
   const searchResult = await fetchCandidatesFromSearch(slotLang, {
     maxResults: 50,
     sortOrder: "recency",
-    windowMinutes: SEARCH_WINDOW_MINUTES
+    windowMinutes: SEARCH_WINDOW_MINUTES,
+    pagesPerBucket: SEARCH_PAGES_PER_BUCKET
   });
 
   if (searchResult.fatal402) {

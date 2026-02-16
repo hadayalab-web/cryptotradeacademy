@@ -105,6 +105,12 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 - **API_CALL_CAP**: 1 run あたりの投稿数上限（デフォルト 20）。**MAX_CAP_PER_RUN**（100）、火水木の **MAX_CAP_PER_RUN_WARP**（200）で上限制御。
 - **Safety guards**: `pqtPlanner.applySafetyAndSaturationGuards` で CTR 急落・停滞・言語過多・テンプレ分散に応じた補正（実装詳細は `ML_PQT_IMPLEMENTATION_PATCH_SPEC.md`）。
 
+### 4.6 検索ログの読み方（Copilot 解析用）
+
+- **pages/bucket**（ログ）: 1 クエリあたり**最大何ページまで取得するか**の上限。`BUZZWEAVE_SEARCH_PAGES_PER_BUCKET`（デフォルト 3）で、`collectBuzzCandidates` から `fetchCandidatesFromSearch` に `pagesPerBucket` で明示的に渡している。
+- **queryStats.pagesFetched**: そのクエリで**実際に取得したページ数**。X API が `next_token` を返さない（＝その時間帯にそれ以上ヒットがない）と 1 ページで終わる。したがって **pagesFetched=1 は「設定が効いていない」ではなく、15 分ウィンドウ内で 1 ページ分（maxResults=50）に満たないヒットしかなかった**ことを意味する。ヒットを増やしたい場合は検索ウィンドウ拡大（`BUZZWEAVE_SEARCH_WINDOW_MIN`）やクエリ見直しが有効。
+- **lowVolumeBackfillUsed**: **LOW_VOLUME_LANGS**（デフォルト `ar,ko,ja`）かつ、最初のウィンドウで 0 件だったときにのみ、拡張ウィンドウ（`BUZZWEAVE_LOW_VOLUME_SEARCH_WINDOW_MIN`、デフォルト 30 分）で再検索し、そのとき true になる。**es は LOW_VOLUME_LANGS に含まれない**ため、es run では常に false。候補を増やしたい場合は `BUZZWEAVE_LOW_VOLUME_LANGS` に `es` を追加するか、別途「候補数が閾値未満のときだけウィンドウ拡大」するロジックを検討する。
+
 ---
 
 ## 5. キーファイル一覧
@@ -157,14 +163,48 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 - **インプレ・CTR**: 投稿数が最大に近い日（例: 160投稿/日）で、期待インプレ 20–30万・CTR 2% 前後と実測のオーダーが合っているか。
 - **ガード**: 緊急停止・daily limit・interval が意図どおり効いているか。
 
-### 7.1 監視とロールバック（候補拡張パラメータ）
+### 7.1 Run 短報フォーマット（毎 run 収集）
 
-検索幅・フォールバック拡大後は以下をログで確認する。
+解析・PDCA 用に、以下を 1 run ごとに収集する（ログから抽出 or ツールで集約）。
 
-- **1 run ごと**: `posts_fetched` / `candidates` / `slots` / `cap` / `posted`、`windowMinutesUsed` / `lowVolumeBackfillUsed`
-- **品質**: CTR・CVR の急落、Safety guard によるテンプレ停止の有無
+| 項目 | 説明 |
+|------|------|
+| run_id | ログの `runId` |
+| lang | 実行言語 |
+| posts_fetched | 検索で取得した投稿数 |
+| pagesFetched | queryStats の各クエリの pagesFetched（配列 or 要約） |
+| lowVolumeBackfillUsed | 拡張ウィンドウを使用したか |
+| candidates | 候補数（median フィルタ後） |
+| slots | 選定スロット数 |
+| cap | その run の投稿 cap |
+| posted | 実際の投稿数 |
+| fill_rate | posted / cap（0〜1） |
+| top_alerts | 補足（deadline_exceeded / 402 / guard 発動など） |
 
-**ロールバックが必要な場合**（CTR 急落・guard の連続発動など）は、Vercel の環境変数で以下に戻す。
+テンプレ別 uses/clicks が取れる環境では、言語・template_id ごとの uses / clicks も収集する。
+
+### 7.2 検証指標と合格ライン（短期）
+
+- **posts_fetched**: 前 run 比で増加していることが望ましい。**2× を狙う場合は** `pagesPerBucket` の明示だけでは不十分で、**検索ヒット数を増やす必要がある**（`BUZZWEAVE_SEARCH_WINDOW_MIN` の拡大やクエリ見直し）。X API が next_token を返さない限り pagesFetched は 1 のまま。
+- **queryStats.pagesFetched**: 設定値（例: 3）以下であること。1 の場合は「その時間帯で 1 ページ分のヒットしかなかった」と解釈する（4.6 参照）。
+- **lowVolumeBackfillUsed**: LOW_VOLUME_LANGS かつ最初のウィンドウで 0 件のときに true。発生すればバックフィルは機能している。
+- **slots / posted**: `BUZZWEAVE_FALLBACK_SLOT_COUNT` を 3→5→10 に段階的に上げた場合、slots が増えることを期待する。
+
+**短期の合格ライン（目安）**: 1 run 後に **posts_fetched が前 run 比で増加**し、**posted が 1.5× 以上**（パラメータ変更をした場合）。posts_fetched 2× は「ウィンドウ拡大などでヒット数が増えた場合」の目標。
+
+### 7.3 監視とロールバック（候補拡張パラメータ）
+
+検索幅・フォールバック拡大後は 7.1 の項目を毎 run で確認する。あわせて **テンプレ別 CTR** と CVR を監視する。
+
+**ロールフォワード**: `pagesFetched` と lowVolumeBackfill が期待どおり動作し、fill_rate が改善するなら、`BUZZWEAVE_FALLBACK_SLOT_COUNT` を 5→10 に段階的に上げる。
+
+**ロールバックが必要な場合**（CTR が前 run 比 −40% 程度の急落、fill_rate 悪化、Safety guard の連続発動など）は、**次の順序**で戻す。
+
+1. `BUZZWEAVE_FALLBACK_SLOT_COUNT` を元の値（例: 3）に戻す  
+2. それでも問題なら `BUZZWEAVE_SEARCH_WINDOW_MIN` を縮める（例: 15→5）  
+3. さらに必要なら `BUZZWEAVE_SEARCH_PAGES_PER_BUCKET` を下げる（例: 3→2）
+
+**一括ロールバック例**（緊急時）:
 
 - `BUZZWEAVE_SEARCH_WINDOW_MIN=5`
 - `BUZZWEAVE_SEARCH_PAGES_PER_BUCKET=2`
