@@ -3,6 +3,7 @@
  * Vercel Cron または手動で呼び出し。metrics_fetched_at が null のログに対して
  * X API から自分の引用リポストの public_metrics を取得し、buzzweave_post_log に紐づけて保存する。
  */
+require("../utils/suppressKnownWarnings");
 const { fetchBuzzweavePostLogsPendingMetrics, updateBuzzweavePostLogWithMetrics } = require("../utils/supabase");
 const { getTweetMetrics } = require("../services/x/metrics");
 
