@@ -419,22 +419,16 @@ ${inflow >= 0 ? 'Liquidez de venta densa debajo del precio por ventas forzadas y
     lines.push('');
   }
   // Data-Backed Evidence (v2.8 — structural only, no action suggestions)
-  let trapScoreForEvidence = null;
-  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
-    trapScoreForEvidence = trapDetection.trapScore;
-  } else if (trapScore != null && trapScore > 0) {
-    trapScoreForEvidence = trapScore;
-  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
-    trapScoreForEvidence = trapRisk.trapRiskScore;
-  }
+  // Use one canonical Trap Score across all sections.
+  const trapScoreForEvidence = effectiveTrapScore;
   const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
   if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
     lines.push('━━━━━━━━━━━━━━━━━━━━');
     lines.push('📊 Evidencia Basada en Datos');
     lines.push('━━━━━━━━━━━━━━━━━━━━');
-    const trapScoreRounded = trapScoreForEvidence != null ? Math.round(trapScoreForEvidence) : (trapDetection?.trapScore != null ? Math.round(trapDetection.trapScore) : 0);
-    const isLowTrap = trapScoreRounded < 30;
-    const isHighTrap = trapScoreRounded >= 50;
+    const trapScoreRounded = trapScoreForEvidence != null ? Math.round(trapScoreForEvidence) : null;
+    const isLowTrap = trapScoreRounded != null && trapScoreRounded < 30;
+    const isHighTrap = trapScoreRounded != null && trapScoreRounded >= 50;
     if (trapScoreForEvidence !== null) {
       if (isHighTrap) {
         lines.push(`🎯 Trap Score ${trapScoreRounded}/100 → riesgo significativo de trampa`);
@@ -556,7 +550,7 @@ ${inflow >= 0 ? 'Liquidez de venta densa debajo del precio por ventas forzadas y
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
-  const displayTrapScore = trapDetection?.trapScore ?? trapScore ?? trapRisk?.trapRiskScore;
+  const displayTrapScore = effectiveTrapScore;
   if (displayTrapScore != null && displayTrapScore >= 0) {
     const trapScoreRounded = Math.round(displayTrapScore);
     const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 ALTO RIESGO' : displayTrapScore >= 40 ? '⚠️ MODERADO' : '✅ BAJO';

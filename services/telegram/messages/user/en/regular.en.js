@@ -470,22 +470,16 @@ ${inflow >= 0 ? 'Sell-side liquidity dense below price from forced selling and m
   // v2.2: On-chain insight — omit from report (行動示唆ゼロ; Gemini output often contains action suggestions)
   // sosovalueArticle kept for future structural-only Macro Engine output
   // Data-Backed Reasons（1ブロック、全言語共通ロジック）
-  let trapScoreForEvidence = null;
-  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
-    trapScoreForEvidence = trapDetection.trapScore;
-  } else if (trapScore != null && trapScore > 0) {
-    trapScoreForEvidence = trapScore;
-  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
-    trapScoreForEvidence = trapRisk.trapRiskScore;
-  }
+  // Use the same canonical score across all sections to avoid mismatched values.
+  const trapScoreForEvidence = effectiveTrapScore;
   const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
   if (trapScoreForEvidence !== null || trapDetection || trapAlert) {
     lines.push('━━━━━━━━━━━━━━━━━━━━');
     lines.push('📊 Data-Backed Evidence');
     lines.push('━━━━━━━━━━━━━━━━━━━━');
-    const trapScoreRounded = trapScoreForEvidence != null ? Math.round(trapScoreForEvidence) : (trapDetection?.trapScore != null ? Math.round(trapDetection.trapScore) : 0);
-    const isLowTrap = trapScoreRounded < 30;
-    const isHighTrap = trapScoreRounded >= 50;
+    const trapScoreRounded = trapScoreForEvidence != null ? Math.round(trapScoreForEvidence) : null;
+    const isLowTrap = trapScoreRounded != null && trapScoreRounded < 30;
+    const isHighTrap = trapScoreRounded != null && trapScoreRounded >= 50;
     if (trapScoreForEvidence !== null) {
       if (isHighTrap) {
         lines.push(`🎯 Trap Score ${trapScoreRounded}/100 → significant trap risk`);
@@ -611,7 +605,7 @@ ${inflow >= 0 ? 'Sell-side liquidity dense below price from forced selling and m
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
-  const displayTrapScore = trapDetection?.trapScore ?? trapScore ?? trapRisk?.trapRiskScore;
+  const displayTrapScore = effectiveTrapScore;
   if (displayTrapScore != null && displayTrapScore >= 0) {
     const trapScoreRounded = Math.round(displayTrapScore);
     const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 HIGH RISK' : displayTrapScore >= 40 ? '⚠️ MODERATE' : '✅ LOW';

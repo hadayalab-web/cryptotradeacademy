@@ -42,13 +42,23 @@ function scoreFromMetrics(metrics = {}) {
   return likes + 2 * retweets + 3 * quotes + replies;
 }
 
+function rankScore(candidate) {
+  if (!candidate || typeof candidate !== "object") return 0;
+  if (Number.isFinite(candidate.impressionScore)) {
+    // impressionScore is 0..1; scale to align with engagement-based ordering fallback
+    return Number(candidate.impressionScore) * 1000000;
+  }
+  if (Number.isFinite(candidate.engagementScore)) return Number(candidate.engagementScore);
+  return scoreFromMetrics(candidate?.post?.public_metrics || candidate?.public_metrics || {});
+}
+
 /**
  * 候補から Fisherman スロットを選定（engagement velocity 降順で上から targetCount 件）
  */
 function selectFishermanSlots(candidates, lang, targetCount, engagementThreshold = DEFAULT_ENGAGEMENT_THRESHOLD) {
   const filtered = (candidates || [])
     .filter((c) => isFishermanPost(c, lang, engagementThreshold))
-    .sort((a, b) => (b.engagementScore ?? 0) - (a.engagementScore ?? 0));
+    .sort((a, b) => rankScore(b) - rankScore(a));
   return filtered.slice(0, Math.max(0, targetCount));
 }
 
@@ -65,7 +75,7 @@ function selectFishermanSlotsTopPercent(candidates, lang, opts = {}) {
 
   const filtered = (candidates || [])
     .filter((c) => isFishermanPost(c, lang, engagementThreshold))
-    .sort((a, b) => (b.engagementScore ?? 0) - (a.engagementScore ?? 0));
+    .sort((a, b) => rankScore(b) - rankScore(a));
 
   const take = Math.max(1, Math.min(maxCount, Math.ceil(filtered.length * topPercent)));
   return filtered.slice(0, take);
@@ -75,7 +85,7 @@ function selectFishermanSlotsTopPercent(candidates, lang, opts = {}) {
  * Fisherman でない場合のフォールバック: 全候補を engagement 降順で targetCount 件
  */
 function selectSlotsFallback(candidates, targetCount) {
-  const sorted = (candidates || []).sort((a, b) => (b.engagementScore ?? 0) - (a.engagementScore ?? 0));
+  const sorted = (candidates || []).sort((a, b) => rankScore(b) - rankScore(a));
   return sorted.slice(0, Math.max(0, targetCount));
 }
 

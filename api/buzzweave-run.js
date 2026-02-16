@@ -130,7 +130,8 @@ async function handler(req, res) {
 
     console.log("[buzzweave-run] run started");
     const result = await runBuzzWeaveCycle({ dryRun, langFilter, btcSnapshot });
-    console.log("[buzzweave-run] run completed");
+    const posted = result && typeof result.posted === "number" ? result.posted : 0;
+    console.log("[buzzweave-run] run completed", "posted=" + posted, "runId=" + (result?.runId || ""), result?.message ? "message=" + result.message : "");
     await recordBuzzWeaveRun();
     return res.status(200).json(result);
   } catch (e) {

@@ -760,6 +760,53 @@ async function fetchBuzzweavePostLogsPendingMetrics(limit = 50, minAgeMinutes = 
   }
 }
 
+/**
+ * BuzzWeave 投稿ログの直近実績を集計（動的投稿目標の補正用）
+ * @param {number} lookbackHours - 参照時間（デフォルト 72h）
+ * @returns {Promise<{ok: boolean, since?: string, lookbackHours: number, posts: number, impressions: number, clicks: number, subs: number}>}
+ */
+async function getBuzzweaveRecentPostStats(lookbackHours = 72) {
+  const sb = getSupabase();
+  const hours = Math.max(1, Number(lookbackHours) || 72);
+  if (!sb) {
+    return { ok: false, lookbackHours: hours, posts: 0, impressions: 0, clicks: 0, subs: 0 };
+  }
+  try {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+    const { data, error } = await sb
+      .from("buzzweave_post_log")
+      .select("our_impressions, our_clicks, our_subs")
+      .gte("posted_at", since);
+    if (error) throw error;
+
+    const rows = data || [];
+    let impressions = 0;
+    let clicks = 0;
+    let subs = 0;
+    for (const row of rows) {
+      const imp = Number(row.our_impressions);
+      const clk = Number(row.our_clicks);
+      const sub = Number(row.our_subs);
+      if (Number.isFinite(imp)) impressions += imp;
+      if (Number.isFinite(clk)) clicks += clk;
+      if (Number.isFinite(sub)) subs += sub;
+    }
+
+    return {
+      ok: true,
+      since,
+      lookbackHours: hours,
+      posts: rows.length,
+      impressions,
+      clicks,
+      subs
+    };
+  } catch (e) {
+    console.warn("[Supabase] getBuzzweaveRecentPostStats error:", e.message);
+    return { ok: false, lookbackHours: hours, posts: 0, impressions: 0, clicks: 0, subs: 0 };
+  }
+}
+
 // ========== CHAIN_RAID KPI（v4.2+） ==========
 
 /**
@@ -982,6 +1029,7 @@ module.exports = {
   insertBuzzweavePostLog,
   updateBuzzweavePostLogWithMetrics,
   fetchBuzzweavePostLogsPendingMetrics,
+  getBuzzweaveRecentPostStats,
   insertChainRaidPostKpi,
   updateChainRaidPostKpiWithMetrics,
   getGoldClusters,

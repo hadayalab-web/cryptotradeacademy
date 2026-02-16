@@ -8,7 +8,6 @@ const { loadEnv } = require("../../utils/loadEnv");
 const { getKV } = require("../../utils/kv");
 loadEnv();
 
-const OpenAI = require("openai");
 const {
   searchPostsRecent,
   getUserByUsername,
@@ -37,7 +36,8 @@ const {
   insertQuotedTweets,
   insertBuzzweavePostLog,
   upsertBuzzweaveStatus402,
-  getBuzzweaveStatus
+  getBuzzweaveStatus,
+  getBuzzweaveRecentPostStats
 } = require("../../utils/supabase");
 const { buildStructuredPostFromSlot } = require("../textgen/buildStructuredPost");
 const { getBtcSnapshot } = require("../market/getBtcSnapshot");
@@ -49,8 +49,6 @@ const { orderedCandidatesWithTier3Cap, orderCandidatesByPerformanceTiers } = req
 const { scoreShiteshiCandidate } = require("./shiteshiScoring");
 const { pickBestFunnelLink } = require("../links");
 
-const MODEL = process.env.GPT_MODEL_X_POST || "gpt-4o";
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // バズ閾値（指示書準拠）
 const BUZZ_THRESHOLD = { influencer: 200, official: 500 };
@@ -88,6 +86,21 @@ let runLogCount = 0;
 const API_CALL_CAP = Number(process.env.BUZZWEAVE_API_CALL_CAP) || 20;
 const PQT_ONLY_MODE = process.env.BUZZWEAVE_PQT_ONLY === "true" || process.env.BUZZWEAVE_PQT_ONLY === "1";
 let runApiCallCount = 0;
+const DYNAMIC_TARGET_ENABLED = process.env.BUZZWEAVE_DYNAMIC_TARGET !== "false" && process.env.BUZZWEAVE_DYNAMIC_TARGET !== "0";
+const DAILY_CONVERSION_TARGET = Math.max(1, Number(process.env.BUZZWEAVE_DAILY_CONVERSION_TARGET || 100));
+const BASE_POSTS_PER_CONVERSION = Math.max(1, Number(process.env.BUZZWEAVE_BASE_POSTS_PER_CONVERSION || 5));
+const POSTS_PER_CONVERSION_MIN = Math.max(1, Number(process.env.BUZZWEAVE_POSTS_PER_CONVERSION_MIN || 2.5));
+const POSTS_PER_CONVERSION_MAX = Math.max(POSTS_PER_CONVERSION_MIN, Number(process.env.BUZZWEAVE_POSTS_PER_CONVERSION_MAX || 12));
+const DYNAMIC_LOOKBACK_DAYS = Math.max(1, Number(process.env.BUZZWEAVE_DYNAMIC_LOOKBACK_DAYS || 3));
+const DYNAMIC_FULL_TRUST_CONVERSIONS = Math.max(1, Number(process.env.BUZZWEAVE_DYNAMIC_FULL_TRUST_CONVERSIONS || 20));
+const RUNS_PER_DAY_FOR_TARGET = Math.max(1, Number(process.env.BUZZWEAVE_RUNS_PER_DAY_FOR_TARGET || 6));
+const MAX_CAP_PER_RUN = Math.max(1, Number(process.env.BUZZWEAVE_MAX_CAP_PER_RUN || 100));
+const MAX_CAP_PER_RUN_WARP = Math.max(MAX_CAP_PER_RUN, Number(process.env.BUZZWEAVE_MAX_CAP_PER_RUN_WARP || (MAX_CAP_PER_RUN * 2)));
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 function countApiCall() {
   runApiCallCount += 1;
   if (runApiCallCount > API_CALL_CAP) {
@@ -161,15 +174,143 @@ const SEARCH_KEYWORDS_BY_LANG = {
   ko: ["비트코인", "BTC", "암호화폐", "반감기", "ETF"],
   es: ["bitcoin", "btc", "crypto", "etf", "halving"],
   pt: ["bitcoin", "btc", "crypto", "etf", "halving"],
-  ar: ["bitcoin", "btc", "crypto"]
+  ar: [
+    "bitcoin",
+    "btc",
+    "crypto",
+    "بيتكوين",
+    "البيتكوين",
+    "كريبتو",
+    "عملات رقمية",
+    "عملات مشفرة",
+    "تنصيف البيتكوين",
+    "etf",
+    "btc usd"
+  ]
 };
 const SEARCH_WINDOW_MINUTES = Number(process.env.BUZZWEAVE_SEARCH_WINDOW_MIN || 5);
 const DYNAMIC_MEDIAN_MULTIPLIER = Number(process.env.BUZZWEAVE_MEDIAN_MULTIPLIER || 1.2);
+const SEARCH_QUERY_BUCKET_SIZE = Math.max(1, Number(process.env.BUZZWEAVE_QUERY_BUCKET_SIZE || 3));
+const SEARCH_PAGES_PER_BUCKET = Math.max(1, Number(process.env.BUZZWEAVE_SEARCH_PAGES_PER_BUCKET || 2));
+const SEARCH_QUERY_MAX_CHARS = Math.max(128, Number(process.env.BUZZWEAVE_SEARCH_QUERY_MAX_CHARS || 480));
+const LOW_VOLUME_LANGS = new Set(
+  String(process.env.BUZZWEAVE_LOW_VOLUME_LANGS || "ar")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+);
+const LOW_VOLUME_WINDOW_MINUTES = Math.max(
+  SEARCH_WINDOW_MINUTES,
+  Number(process.env.BUZZWEAVE_LOW_VOLUME_SEARCH_WINDOW_MIN || 30)
+);
+const SEARCH_USE_MIN_OPERATORS = process.env.BUZZWEAVE_USE_MIN_OPERATORS === "true" || process.env.BUZZWEAVE_USE_MIN_OPERATORS === "1";
+const SEARCH_MIN_FAVES = Math.max(0, Number(process.env.BUZZWEAVE_SEARCH_MIN_FAVES || 0));
+const SEARCH_MIN_RETWEETS = Math.max(0, Number(process.env.BUZZWEAVE_SEARCH_MIN_RETWEETS || 0));
+const SEARCH_MIN_REPLIES = Math.max(0, Number(process.env.BUZZWEAVE_SEARCH_MIN_REPLIES || 0));
+const IMPRESSION_WEIGHT_VELOCITY = Number(process.env.BUZZWEAVE_IMPRESSION_W_VELOCITY || 0.4);
+const IMPRESSION_WEIGHT_CONVERSATION = Number(process.env.BUZZWEAVE_IMPRESSION_W_CONVERSATION || 0.25);
+const IMPRESSION_WEIGHT_REPOST = Number(process.env.BUZZWEAVE_IMPRESSION_W_REPOST || 0.2);
+const IMPRESSION_WEIGHT_FRESHNESS = Number(process.env.BUZZWEAVE_IMPRESSION_W_FRESHNESS || 0.15);
+const MAX_SLOTS_PER_AUTHOR = Math.max(1, Number(process.env.BUZZWEAVE_MAX_SLOTS_PER_AUTHOR || 1));
+const MAX_CLUSTER_SHARE = Math.min(1, Math.max(0.2, Number(process.env.BUZZWEAVE_MAX_CLUSTER_SHARE || 0.4)));
 
-function buildSearchQuery(lang) {
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function buildSearchMetricOperators() {
+  if (!SEARCH_USE_MIN_OPERATORS) return [];
+  const ops = [];
+  if (SEARCH_MIN_FAVES > 0) ops.push(`min_faves:${SEARCH_MIN_FAVES}`);
+  if (SEARCH_MIN_RETWEETS > 0) ops.push(`min_retweets:${SEARCH_MIN_RETWEETS}`);
+  if (SEARCH_MIN_REPLIES > 0) ops.push(`min_replies:${SEARCH_MIN_REPLIES}`);
+  return ops;
+}
+
+function buildSearchQueries(lang) {
   const kw = SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en;
-  const orPart = kw.map((k) => (k.includes(" ") ? `"${k}"` : k)).join(" OR ");
-  return `${orPart} -is:retweet -is:reply`;
+  const metricOps = buildSearchMetricOperators();
+  const suffixParts = [`lang:${lang}`, "-is:retweet", "-is:reply", ...metricOps];
+  const suffix = suffixParts.join(" ");
+  const buckets = chunkArray(kw, SEARCH_QUERY_BUCKET_SIZE);
+  const queries = [];
+
+  for (const bucket of buckets) {
+    const terms = bucket.map((k) => (k.includes(" ") ? `"${k}"` : k));
+    while (terms.length > 0) {
+      const query = `(${terms.join(" OR ")}) ${suffix}`.trim();
+      if (query.length <= SEARCH_QUERY_MAX_CHARS) {
+        queries.push(query);
+        break;
+      }
+      terms.pop();
+    }
+  }
+
+  if (!queries.length) {
+    queries.push(`bitcoin ${suffix}`.trim());
+  }
+  return Array.from(new Set(queries));
+}
+
+function normalizeTextForDedup(text = "") {
+  return String(text)
+    .toLowerCase()
+    .replace(/https?:\/\/[^\s]+/gi, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function computeFreshnessScore(ageSec) {
+  if (!Number.isFinite(ageSec) || ageSec <= 0) return 0;
+  // 2〜7分窓の中心（約4分）に近いほど高スコア
+  const center = 240;
+  const halfRange = 180;
+  return clamp(1 - Math.abs(ageSec - center) / halfRange, 0, 1);
+}
+
+function computeImpressionScore(candidate, clusterScores, nowMs = Date.now()) {
+  const metrics = candidate?.post?.public_metrics || {};
+  const replies = Number(metrics.reply_count) || 0;
+  const retweets = Number(metrics.retweet_count) || 0;
+  const quotes = Number(metrics.quote_count) || 0;
+  const likes = Number(metrics.like_count) || 0;
+  const engagementBase = Math.max(1, replies + retweets + quotes + likes);
+  const createdMs = candidate?.post?.created_at ? new Date(candidate.post.created_at).getTime() : 0;
+  const ageSec = createdMs > 0 ? Math.max(1, (nowMs - createdMs) / 1000) : 999999;
+  const ageMin = Math.max(1, ageSec / 60);
+
+  const velocityRaw = (candidate?.engagementScore || 0) / ageMin;
+  const velocityNorm = clamp(Math.log10(1 + velocityRaw) / 3, 0, 1);
+  const conversationNorm = clamp(replies / engagementBase, 0, 1);
+  const repostNorm = clamp((retweets + quotes) / engagementBase, 0, 1);
+  const freshnessNorm = computeFreshnessScore(ageSec);
+
+  const clusterMax = Math.max(
+    1,
+    ...Object.values(clusterScores || {}).map((v) => Number(v) || 0)
+  );
+  const clusterNorm = clamp((Number(clusterScores?.[candidate?.cluster]) || 0) / clusterMax, 0, 1);
+  const repostWithCluster = clamp(repostNorm * 0.7 + clusterNorm * 0.3, 0, 1);
+
+  const weightSum =
+    IMPRESSION_WEIGHT_VELOCITY +
+    IMPRESSION_WEIGHT_CONVERSATION +
+    IMPRESSION_WEIGHT_REPOST +
+    IMPRESSION_WEIGHT_FRESHNESS;
+  const normalizedWeightSum = weightSum > 0 ? weightSum : 1;
+  const weighted =
+    IMPRESSION_WEIGHT_VELOCITY * velocityNorm +
+    IMPRESSION_WEIGHT_CONVERSATION * conversationNorm +
+    IMPRESSION_WEIGHT_REPOST * repostWithCluster +
+    IMPRESSION_WEIGHT_FRESHNESS * freshnessNorm;
+
+  return Number((weighted / normalizedWeightSum).toFixed(6));
 }
 
 // 話題クラスタ（2-1 準拠）：キーワードヒューリスティックで分類
@@ -207,6 +348,27 @@ function classifyDanger(text = "") {
   if (DANGER_EDUCATIONAL_KEYWORDS.some((k) => t.includes(k.toLowerCase()))) return "educational";
   if (DANGER_WHALE_TRAP_KEYWORDS.some((k) => t.includes(k.toLowerCase()))) return "whale_trap";
   return "neutral";
+}
+
+// 引用リポスト用・品質パターン（完全パターン化：GPTに頼らない）
+const QUOTE_QUALITY_BLOCKLIST = [
+  "follow me", "dm for", "link in bio", "click here", "airdrop", "free nft", "giveaway",
+  "retweet to win", "like and follow", "comment below", "tag 3 friends",
+  "subscribe to my", "check out my", "promo code", "discount code"
+];
+const MIN_POST_LENGTH = Number(process.env.BUZZWEAVE_MIN_POST_LENGTH || 20);
+const MAX_URLS_IN_POST = Number(process.env.BUZZWEAVE_MAX_URLS_IN_POST || 2);
+const MIN_REPLY_RETWEET_SUM = Math.max(0, Number(process.env.BUZZWEAVE_MIN_REPLY_RETWEET_SUM || 0));
+const MIN_TOTAL_INTERACTIONS = Math.max(0, Number(process.env.BUZZWEAVE_MIN_TOTAL_INTERACTIONS || 0));
+
+function passesQuoteQualityPattern(post) {
+  const text = String(post?.text || "").trim();
+  if (text.length < MIN_POST_LENGTH) return false;
+  const urlCount = (text.match(/https?:\/\/[^\s]+/gi) || []).length;
+  if (urlCount > MAX_URLS_IN_POST) return false;
+  const lower = text.toLowerCase();
+  if (QUOTE_QUALITY_BLOCKLIST.some((k) => lower.includes(k))) return false;
+  return true;
 }
 
 /**
@@ -313,45 +475,6 @@ async function fetchRecentPostsFromX(handle, options = {}) {
   } catch (e) {
     logWarn("fetchRecentPostsFromX error:", handle, e.message);
     return [];
-  }
-}
-
-/**
- * gpt-4o で投稿を topic/tone/lang に分類
- */
-async function classifyPostWithGpt4o(postText) {
-  if (!OPENAI_API_KEY || !postText || postText.length < 10) {
-    return { topic: "crypto", tone: "neutral", lang: "en" };
-  }
-  try {
-    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-    const completion = await openai.chat.completions.create({
-      model: MODEL,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Return ONLY a JSON object. Keys: topic (crypto/ai/finance/tech/general), tone (urgent/neutral/bullish/bearish/fear), lang (en/ja/es/pt/ko/ar). No markdown."
-        },
-        {
-          role: "user",
-          content: `Classify this X post:\n"${String(postText).slice(0, 500)}"\nJSON:`
-        }
-      ],
-      max_completion_tokens: 80,
-      temperature: 0.2
-    });
-    const raw = completion?.choices?.[0]?.message?.content?.trim() || "{}";
-    const cleaned = raw.replace(/```json?\n?/gi, "").replace(/```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
-    return {
-      topic: parsed.topic || "crypto",
-      tone: parsed.tone || "neutral",
-      lang: parsed.lang || "en"
-    };
-  } catch (e) {
-    logWarn("classifyPostWithGpt4o error:", e.message);
-    return { topic: "crypto", tone: "neutral", lang: "en" };
   }
 }
 
@@ -515,41 +638,135 @@ function pickBestBuzzCandidate(buzzCandidates, slot, clusterScores = {}) {
  * 402 発生時は即停止・再試行なし。fatal402 を返して run 全体を即 return する。
  */
 async function fetchCandidatesFromSearch(slotLang, options = {}) {
-  try {
-    countApiCall();
-    const now = Date.now();
-    const windowMin = options.windowMinutes ?? SEARCH_WINDOW_MINUTES;
-    const endTime = new Date(now - 10 * 1000); // API制約: 10秒以上前
-    const startTime = new Date(now - windowMin * 60 * 1000);
-    const query = buildSearchQuery(slotLang);
-    const res = await searchPostsRecent(query, {
-      maxResults: options.maxResults || 50,
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      sortOrder: options.sortOrder || "recency"
-    });
-    const data = Array.isArray(res?.data) ? res.data : [];
-    console.log("[BuzzWeave] BWE SCAN: X API accessed OK, posts fetched:", data.length, "| lang:", slotLang, "| query:", (query || "").slice(0, 60));
-    return {
-      data,
-      includes: res?.includes || {},
-      query,
-      slotLang
-    };
-  } catch (e) {
-    const msg = String(e?.message || "");
-    const statusMatch = msg.match(/X API Error: (\d+)/);
-    const status = statusMatch ? statusMatch[1] : null;
-    const is402 = msg.includes("402");
-    if (is402) {
-      console.warn("[BuzzWeave] search/recent 402 (Payment Required)", { slotLang });
-      logError("fetchCandidatesFromSearch 402: run aborted", slotLang);
-      return { data: [], includes: {}, query: "", slotLang, fatal402: true };
+  const now = Date.now();
+  const windowMin = Math.max(1, Number(options.windowMinutes ?? SEARCH_WINDOW_MINUTES));
+  const queries = Array.isArray(options.queries) && options.queries.length
+    ? options.queries
+    : buildSearchQueries(slotLang);
+  const pagesPerBucket = Math.max(1, Number(options.pagesPerBucket || SEARCH_PAGES_PER_BUCKET));
+  const maxResults = Math.min(100, Math.max(10, Number(options.maxResults || 50)));
+  const sortOrder = options.sortOrder || "recency";
+
+  async function runSearchPass(currentWindowMin) {
+    // X API: end_time は十分マージンを取る（clock skew / 端数秒対策）
+    const endTime = new Date(now - 30 * 1000);
+    const startTime = new Date(now - currentWindowMin * 60 * 1000);
+    const allPosts = [];
+    const usersById = {};
+    const queryStats = [];
+
+    for (const query of queries) {
+      let nextToken = null;
+      let pagesFetched = 0;
+      while (pagesFetched < pagesPerBucket) {
+        try {
+          countApiCall();
+          const res = await searchPostsRecent(query, {
+            maxResults,
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+            sortOrder,
+            nextToken
+          });
+          const pageData = Array.isArray(res?.data) ? res.data : [];
+          allPosts.push(...pageData);
+          for (const u of (res?.includes?.users || [])) {
+            if (u?.id) usersById[u.id] = u;
+          }
+          pagesFetched += 1;
+          nextToken = res?.meta?.next_token || null;
+          if (!nextToken) break;
+        } catch (e) {
+          const msg = String(e?.message || "");
+          const statusMatch = msg.match(/X API Error: (\d+)/);
+          const status = statusMatch ? statusMatch[1] : null;
+          const is402 = msg.includes("402");
+          if (is402) {
+            console.warn("[BuzzWeave] search/recent 402 (Payment Required)", { slotLang });
+            logError("fetchCandidatesFromSearch 402: run aborted", slotLang);
+            return { fatal402: true, data: [], usersById: {}, queryStats };
+          }
+          console.warn("[BuzzWeave] search/recent error", {
+            slotLang,
+            status,
+            message: msg.slice(0, 200),
+            query: query.slice(0, 80)
+          });
+          logWarn("fetchCandidatesFromSearch error:", slotLang, e.message);
+          break;
+        }
+      }
+      queryStats.push({ query: query.slice(0, 80), pagesFetched });
     }
-    console.warn("[BuzzWeave] search/recent error", { slotLang, status, message: msg.slice(0, 200) });
-    logWarn("fetchCandidatesFromSearch error:", slotLang, e.message);
-    return { data: [], includes: {}, query: "", slotLang };
+
+    const dedupMap = new Map();
+    for (const post of allPosts) {
+      if (post?.id && !dedupMap.has(post.id)) dedupMap.set(post.id, post);
+    }
+    return {
+      fatal402: false,
+      data: Array.from(dedupMap.values()),
+      usersById,
+      queryStats
+    };
   }
+
+  const slotLangKey = String(slotLang || "").toLowerCase();
+  const allowLowVolumeBackfill = options.enableLowVolumeBackfill !== false;
+  const windowsToTry = [windowMin];
+  if (
+    allowLowVolumeBackfill &&
+    LOW_VOLUME_LANGS.has(slotLangKey) &&
+    windowMin < LOW_VOLUME_WINDOW_MINUTES
+  ) {
+    windowsToTry.push(LOW_VOLUME_WINDOW_MINUTES);
+  }
+
+  let passResult = null;
+  let usedWindowMinutes = windowMin;
+  for (const win of windowsToTry) {
+    usedWindowMinutes = win;
+    passResult = await runSearchPass(win);
+    if (passResult?.fatal402) {
+      return {
+        data: [],
+        includes: {},
+        queries,
+        slotLang,
+        fatal402: true,
+        windowMinutesUsed: win
+      };
+    }
+    if ((passResult?.data || []).length > 0) break;
+  }
+
+  const data = passResult?.data || [];
+  const usersById = passResult?.usersById || {};
+  const queryStats = passResult?.queryStats || [];
+  const lowVolumeBackfillUsed =
+    windowsToTry.length > 1 && usedWindowMinutes !== windowsToTry[0];
+
+  console.log(
+    "[BuzzWeave] BWE SCAN: X API accessed OK, posts fetched:",
+    data.length,
+    "| lang:",
+    slotLang,
+    "| queries:",
+    queries.length,
+    "| pages/bucket:",
+    pagesPerBucket,
+    "| window_min:",
+    usedWindowMinutes
+  );
+  return {
+    data,
+    includes: { users: Object.values(usersById) },
+    queries,
+    queryStats,
+    slotLang,
+    windowMinutesUsed: usedWindowMinutes,
+    lowVolumeBackfillUsed
+  };
 }
 
 /**
@@ -600,7 +817,14 @@ async function collectBuzzCandidates(options = {}) {
     return { candidates: [], deadlineExceeded: false, clusters: {}, clusterScores: {}, fatal402: true, postsFetched: 0 };
   }
 
-  const { data: posts, includes, query } = searchResult;
+  const {
+    data: posts,
+    includes,
+    queries,
+    queryStats,
+    windowMinutesUsed,
+    lowVolumeBackfillUsed
+  } = searchResult;
 
   if (isDeadlineExceeded(startMs, deadlineMs)) {
     console.log("[BuzzWeave] BWE SCAN: deadline exceeded after search, posts_fetched=" + posts.length);
@@ -609,7 +833,16 @@ async function collectBuzzCandidates(options = {}) {
 
   if (!posts.length) {
     console.log("[BuzzWeave] BWE SCAN: 0 posts from search, no buzz candidates");
-    logInfo("candidate summary (search/recent)", { rawCandidates: 0, candidates: 0, clusters: {}, clusterScores: {} });
+    logInfo("candidate summary (search/recent)", {
+      rawCandidates: 0,
+      candidates: 0,
+      clusters: {},
+      clusterScores: {},
+      queries: Array.isArray(queries) ? queries.length : 0,
+      queryStats: queryStats || [],
+      windowMinutesUsed: windowMinutesUsed ?? SEARCH_WINDOW_MINUTES,
+      lowVolumeBackfillUsed: !!lowVolumeBackfillUsed
+    });
     return { candidates, deadlineExceeded: false, clusters: {}, clusterScores: {}, postsFetched: 0 };
   }
 
@@ -619,15 +852,30 @@ async function collectBuzzCandidates(options = {}) {
     return acc;
   }, {});
 
+  const seenPostIds = new Set();
+  const seenNormalizedTexts = new Set();
   for (const post of posts) {
+    const postId = String(post?.id || "");
+    if (!postId || seenPostIds.has(postId)) continue;
+    seenPostIds.add(postId);
     if (quotedIds.has(String(post.id))) continue;
+    if (!passesQuoteQualityPattern(post)) continue;
     const metrics = post.public_metrics || {};
+    const replies = Number(metrics.reply_count) || 0;
+    const retweets = Number(metrics.retweet_count) || 0;
+    const likes = Number(metrics.like_count) || 0;
+    const quotes = Number(metrics.quote_count) || 0;
+    if (replies + retweets < MIN_REPLY_RETWEET_SUM) continue;
+    if (likes + replies + retweets + quotes < MIN_TOTAL_INTERACTIONS) continue;
+    const normalizedText = normalizeTextForDedup(post.text);
+    if (normalizedText && seenNormalizedTexts.has(normalizedText)) continue;
+    if (normalizedText) seenNormalizedTexts.add(normalizedText);
     const score = scorePostByMetrics(metrics);
     const user = post.author_id ? usersById[post.author_id] : null;
     const handle = user?.username || post.author_id || "unknown";
     rawCandidates.push({
       target: { handle: String(handle).replace(/^@/, ""), org_type: null, lang: post.lang || slotLang, target_type: "flexible" },
-      post: { id: post.id, text: post.text, created_at: post.created_at, public_metrics: post.public_metrics || metrics },
+      post: { id: post.id, author_id: post.author_id || null, text: post.text, created_at: post.created_at, public_metrics: post.public_metrics || metrics },
       engagementScore: score
     });
   }
@@ -660,38 +908,40 @@ async function collectBuzzCandidates(options = {}) {
   for (const [cluster, items] of Object.entries(clusters)) {
     clusterScores[cluster] = computeClusterScore(items, nowMs);
   }
+  for (const c of filteredByMedian) {
+    c.clusterScore = clusterScores[c.cluster] || 0;
+    c.impressionScore = computeImpressionScore(c, clusterScores, nowMs);
+  }
 
   logInfo("clusterScore (search/recent)", clusterScores);
 
-  const toClassify = filteredByMedian.slice(0, Math.max(1, classifyTopN));
+  const rankedByImpression = [...filteredByMedian].sort((a, b) => {
+    const s = (b.impressionScore || 0) - (a.impressionScore || 0);
+    if (s !== 0) return s;
+    return (b.engagementScore || 0) - (a.engagementScore || 0);
+  });
+  const toClassify = rankedByImpression.slice(0, Math.max(1, classifyTopN));
   let deadlineExceeded = false;
-
-  if (isDeadlineExceeded(startMs, deadlineMs)) {
-    deadlineExceeded = true;
-    console.log("[BuzzWeave] BWE SCAN: deadline exceeded during classify, posts_fetched=" + posts.length + " buzz_candidates=" + toClassify.length);
-    for (const c of toClassify) {
-      candidates.push({ ...c, context: { topic: "crypto", tone: "neutral", lang: c.target?.lang || "en" } });
-    }
-  } else {
-    for (const c of toClassify) {
-      if (isDeadlineExceeded(startMs, deadlineMs)) {
-        deadlineExceeded = true;
-        break;
-      }
-      const context = await classifyPostWithGpt4o(c.post.text);
-      candidates.push({ ...c, context: { ...context, lang: context.lang || c.target?.lang || "en" } });
-    }
-    for (const c of toClassify.slice(candidates.length)) {
-      candidates.push({ ...c, context: { topic: "crypto", tone: "neutral", lang: c.target?.lang || "en" } });
-    }
+  // 完全パターン化: GPT は使わず context は固定
+  for (const c of toClassify) {
+    candidates.push({ ...c, context: { topic: "crypto", tone: "neutral", lang: c.target?.lang || slotLang || "en" } });
   }
 
-  candidates.sort((a, b) => b.engagementScore - a.engagementScore);
+  candidates.sort((a, b) => {
+    const s = (b.impressionScore || 0) - (a.impressionScore || 0);
+    if (s !== 0) return s;
+    return (b.engagementScore || 0) - (a.engagementScore || 0);
+  });
   console.log("[BuzzWeave] BWE SCAN: posts_fetched=" + posts.length + " buzz_candidates=" + candidates.length + " (median_filtered=" + filteredByMedian.length + ")");
   logInfo("candidate summary (search/recent)", {
     rawCandidates: rawCandidates.length,
     filteredByMedian: filteredByMedian.length,
     candidates: candidates.length,
+    topImpressionScore: candidates.length ? Number(candidates[0].impressionScore || 0).toFixed(4) : null,
+    queries: Array.isArray(queries) ? queries.length : 0,
+    queryStats: queryStats || [],
+    windowMinutesUsed: windowMinutesUsed ?? SEARCH_WINDOW_MINUTES,
+    lowVolumeBackfillUsed: !!lowVolumeBackfillUsed,
     clusterScores,
     deadlineExceeded
   });
@@ -797,6 +1047,140 @@ async function buildAndPostFromSlot(slot, btcSnapshot, options = {}) {
   }
 }
 
+function toUtcDateKey(daysAgo = 0) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - daysAgo);
+  return d.toISOString().split("T")[0];
+}
+
+async function getRecentConversionsFromKv(lookbackDays = DYNAMIC_LOOKBACK_DAYS) {
+  const kv = getKV();
+  if (!kv) {
+    return { available: false, source: "kv", lookbackDays, totalConversions: 0, byDay: [] };
+  }
+  try {
+    const byDay = [];
+    let totalConversions = 0;
+    for (let i = 0; i < lookbackDays; i++) {
+      const dateKey = toUtcDateKey(i);
+      const [minimalRaw, regularRaw] = await Promise.all([
+        kv.get(`conversion:minimal:${dateKey}:count`),
+        kv.get(`conversion:regular:${dateKey}:count`)
+      ]);
+      const minimal = Number(minimalRaw) || 0;
+      const regular = Number(regularRaw) || 0;
+      const total = minimal + regular;
+      byDay.push({ date: dateKey, minimal, regular, total });
+      totalConversions += total;
+    }
+    return { available: true, source: "kv_webhook", lookbackDays, totalConversions, byDay };
+  } catch (e) {
+    logWarn("getRecentConversionsFromKv error:", e?.message);
+    return { available: false, source: "kv", lookbackDays, totalConversions: 0, byDay: [] };
+  }
+}
+
+async function resolveDailyPqtTarget() {
+  const hardTarget = Number(process.env.BUZZWEAVE_DAILY_PQT_TARGET_HARD || 0);
+  const legacyTarget = Number(process.env.BUZZWEAVE_DAILY_PQT_TARGET || 0);
+  if (hardTarget > 0) {
+    return {
+      dailyTarget: Math.round(hardTarget),
+      postsPerConversion: null,
+      mode: "hard_override"
+    };
+  }
+
+  if (!DYNAMIC_TARGET_ENABLED) {
+    if (legacyTarget > 0) {
+      return {
+        dailyTarget: Math.round(legacyTarget),
+        postsPerConversion: null,
+        mode: "legacy_override"
+      };
+    }
+    return {
+      dailyTarget: Math.round(DAILY_CONVERSION_TARGET * BASE_POSTS_PER_CONVERSION),
+      postsPerConversion: BASE_POSTS_PER_CONVERSION,
+      mode: "dynamic_disabled_fallback"
+    };
+  }
+
+  const lookbackHours = DYNAMIC_LOOKBACK_DAYS * 24;
+  const [postStats, kvConversions] = await Promise.all([
+    getBuzzweaveRecentPostStats(lookbackHours),
+    getRecentConversionsFromKv(DYNAMIC_LOOKBACK_DAYS)
+  ]);
+
+  const posts = Number(postStats?.posts) || 0;
+  const conversionsFromKv = Number(kvConversions?.totalConversions) || 0;
+  const conversionsFromPostLog = Number(postStats?.subs) || 0;
+  const observedConversions = conversionsFromKv > 0 ? conversionsFromKv : conversionsFromPostLog;
+  const observedSource = conversionsFromKv > 0 ? "kv_webhook" : conversionsFromPostLog > 0 ? "post_log_subs" : "none";
+  const observedPostsPerConversion = observedConversions > 0 && posts > 0 ? posts / observedConversions : null;
+
+  let trust = 0;
+  let effectivePostsPerConversion = BASE_POSTS_PER_CONVERSION;
+  if (Number.isFinite(observedPostsPerConversion)) {
+    trust = clamp(observedConversions / DYNAMIC_FULL_TRUST_CONVERSIONS, 0, 1);
+    effectivePostsPerConversion =
+      BASE_POSTS_PER_CONVERSION * (1 - trust) + observedPostsPerConversion * trust;
+  }
+  effectivePostsPerConversion = clamp(
+    effectivePostsPerConversion,
+    POSTS_PER_CONVERSION_MIN,
+    POSTS_PER_CONVERSION_MAX
+  );
+
+  return {
+    dailyTarget: Math.max(1, Math.round(DAILY_CONVERSION_TARGET * effectivePostsPerConversion)),
+    postsPerConversion: Number(effectivePostsPerConversion.toFixed(2)),
+    mode: "dynamic",
+    observedPostsPerConversion: Number.isFinite(observedPostsPerConversion)
+      ? Number(observedPostsPerConversion.toFixed(2))
+      : null,
+    observedConversions,
+    observedPosts: posts,
+    observedSource,
+    lookbackDays: DYNAMIC_LOOKBACK_DAYS,
+    trust: Number(trust.toFixed(2))
+  };
+}
+
+function applyDiversityCaps(slots, opts = {}) {
+  const list = Array.isArray(slots) ? slots : [];
+  if (!list.length) return list;
+  const maxPerAuthor = Math.max(1, Number(opts.maxPerAuthor || MAX_SLOTS_PER_AUTHOR));
+  const maxClusterShare = clamp(Number(opts.maxClusterShare || MAX_CLUSTER_SHARE), 0.2, 1);
+  const maxPerCluster = Math.max(1, Math.floor(list.length * maxClusterShare));
+  const authorCounts = new Map();
+  const clusterCounts = new Map();
+  const filtered = [];
+
+  for (const slot of list) {
+    const authorKey = String(
+      slot?.post?.author_id ||
+      slot?.target?.handle ||
+      slot?.post?.id ||
+      "unknown"
+    ).toLowerCase();
+    const clusterKey = String(slot?.cluster || "other");
+    const authorUsed = authorCounts.get(authorKey) || 0;
+    const clusterUsed = clusterCounts.get(clusterKey) || 0;
+    if (authorUsed >= maxPerAuthor) continue;
+    if (clusterUsed >= maxPerCluster) continue;
+    filtered.push(slot);
+    authorCounts.set(authorKey, authorUsed + 1);
+    clusterCounts.set(clusterKey, clusterUsed + 1);
+  }
+
+  // 制約が強すぎて空に近づくのを避ける
+  if (filtered.length < Math.min(3, list.length)) {
+    return list;
+  }
+  return filtered;
+}
+
 /**
  * PQT-ONLY 1サイクル: スロット不要。Fisherman 検出 → 上位 5〜10% → 4要素テンプレ → 引用投稿のみ。
  * 投稿数 = trapScore + Fisherman 活動量。API クレジットで cap。
@@ -806,6 +1190,10 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   runApiCallCount = 0;
   const dryRun = options.dryRun !== false;
   const langFilter = options.langFilter || "en";
+  const ignoreXApiBlocked = options.ignoreXApiBlocked === true;
+  const collectSamples = options.collectSamples === true || dryRun;
+  const sampleLimit = Math.max(1, Number(options.sampleLimit || process.env.BUZZWEAVE_DRYRUN_SAMPLE_LIMIT || 8));
+  const generatedSamples = [];
   const snapshot = options.btcSnapshot || (await getBtcSnapshot());
   try {
     const { collectPerformanceMetricsForSnapshot } = require("./mlPqtMetrics");
@@ -817,8 +1205,11 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   logInfo("pqt-only cycle start", { runId, dryRun, langFilter });
 
   const status = await getBuzzweaveStatus();
-  if (status.x_api_blocked) {
+  if (status.x_api_blocked && !ignoreXApiBlocked) {
     return { ok: true, message: "X API blocked", posted: 0, runId, xApiBlocked: true };
+  }
+  if (status.x_api_blocked && ignoreXApiBlocked) {
+    logWarn("x_api_blocked ignored for dry-run collection", { runId, langFilter });
   }
 
   const collectResult = await collectBuzzCandidates({
@@ -835,18 +1226,31 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   const candidates = collectResult.candidates || [];
   const perLang = allocatePqtPerLanguageFromSchedule(snapshot);
   let cap = Math.max(1, Math.min(perLang[langFilter] || API_CALL_CAP, API_CALL_CAP));
-  const dailyTarget = Number(process.env.BUZZWEAVE_DAILY_PQT_TARGET);
-  const RUNS_PER_DAY_FOR_TARGET = 6;
-  if (dailyTarget > 0) {
-    cap = Math.min(Math.ceil(dailyTarget / RUNS_PER_DAY_FOR_TARGET), 50);
+  const targetResolution = await resolveDailyPqtTarget();
+  if (targetResolution?.dailyTarget > 0) {
+    cap = Math.min(Math.ceil(targetResolution.dailyTarget / RUNS_PER_DAY_FOR_TARGET), MAX_CAP_PER_RUN);
   } else {
     const volumeMult = Math.min(10, Math.max(1, Number(process.env.BUZZWEAVE_VOLUME_MULTIPLIER) || 1));
-    if (volumeMult > 1) cap = Math.min(Math.ceil(cap * volumeMult), 50);
+    if (volumeMult > 1) cap = Math.min(Math.ceil(cap * volumeMult), MAX_CAP_PER_RUN);
   }
+  logInfo("daily target resolved", {
+    mode: targetResolution?.mode || "unknown",
+    dailyTarget: targetResolution?.dailyTarget ?? null,
+    postsPerConversion: targetResolution?.postsPerConversion ?? null,
+    observedPostsPerConversion: targetResolution?.observedPostsPerConversion ?? null,
+    observedConversions: targetResolution?.observedConversions ?? null,
+    observedPosts: targetResolution?.observedPosts ?? null,
+    observedSource: targetResolution?.observedSource ?? null,
+    lookbackDays: targetResolution?.lookbackDays ?? null,
+    trust: targetResolution?.trust ?? null,
+    runsPerDayForTarget: RUNS_PER_DAY_FOR_TARGET,
+    maxCapPerRun: MAX_CAP_PER_RUN,
+    maxCapPerRunWarp: MAX_CAP_PER_RUN_WARP
+  });
   const utcDay = new Date().getUTCDay();
   const isTueWedThu = utcDay >= 2 && utcDay <= 4;
   const weekdayWarp = process.env.BUZZWEAVE_WEEKDAY_WARP === "true" || process.env.BUZZWEAVE_WEEKDAY_WARP === "1";
-  if (weekdayWarp && isTueWedThu) cap = Math.min(cap * 2, 100);
+  if (weekdayWarp && isTueWedThu) cap = Math.min(cap * 2, MAX_CAP_PER_RUN_WARP);
   const effectiveCap = cap;
   let slots = selectFishermanSlotsTopPercent(candidates, langFilter, { maxCount: cap });
   if (slots.length === 0) slots = selectSlotsFallback(candidates, Math.min(3, cap));
@@ -896,8 +1300,23 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   } else {
     slots = orderedCandidatesWithTier3Cap(slots, shiteshiStats, 2);
   }
+  const slotsBeforeDiversity = slots.length;
+  slots = applyDiversityCaps(slots, {
+    maxPerAuthor: MAX_SLOTS_PER_AUTHOR,
+    maxClusterShare: MAX_CLUSTER_SHARE
+  });
+  if (slots.length !== slotsBeforeDiversity) {
+    logInfo("slots diversity cap applied", {
+      before: slotsBeforeDiversity,
+      after: slots.length,
+      maxPerAuthor: MAX_SLOTS_PER_AUTHOR,
+      maxClusterShare: MAX_CLUSTER_SHARE
+    });
+  }
 
   const REPLY_FIRST_ALL_MAX_PCT = 0.3;
+  console.log("[BuzzWeave] pqt-only slots ready", "candidates=" + candidates.length, "slots=" + slots.length, "cap=" + effectiveCap, "runId=" + runId);
+  logInfo("pqt-only slots ready", { candidates: candidates.length, slots: slots.length, cap: effectiveCap, runId });
   let posted = 0;
   for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
     const slot = slots[slotIndex];
@@ -906,18 +1325,36 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     if (!sourceId) continue;
 
     let link = null;
+    let funnelType = null;
     try {
       const best = await pickBestFunnelLink({ lang: langFilter, narrative_tag: "FOMO", cta_type: "ATH_SURGE", weight: 1 });
       link = best?.url || pickVidalyticsLink(langFilter, "regular");
+      funnelType = best?.type || "vidalytics_regular";
     } catch (_) {
       link = pickVidalyticsLink(langFilter, "regular");
+      funnelType = "vidalytics_regular";
     }
     if (!link) continue;
 
     const coin = /BTC|bitcoin/i.test(slot?.post?.text || "") ? "BTC" : /ETH/i.test(slot?.post?.text || "") ? "ETH" : "BTC";
     const proofSnippet = buildProofSnippetFromSnapshot(snapshot, langFilter, slot);
-    const built = buildPqt(langFilter, { coin, proofSnippet, link, quotedText: slot?.post?.text });
+    const built = buildPqt(langFilter, { coin, proofSnippet, link, funnelType, quotedText: slot?.post?.text });
     if (!built || !built.text) continue;
+    if (collectSamples && generatedSamples.length < sampleLimit) {
+      const text = String(built.text || "");
+      const questionCount = (text.match(/[?？]/g) || []).length;
+      generatedSamples.push({
+        templateIndex: built.templateIndex,
+        funnelType,
+        cluster: slot.cluster || "pqt",
+        impressionScore: Number(slot.impressionScore || 0),
+        engagementScore: Number(slot.engagementScore || 0),
+        sourceTweetId: String(sourceId),
+        textLength: text.length,
+        questionCount,
+        text
+      });
+    }
 
     if (dryRun) {
       posted += 1;
@@ -944,13 +1381,18 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
           await insertBuzzweavePostLog({
             slotLang: langFilter,
             clusterLabel: slot.cluster || "pqt",
+            clusterScore: slot.clusterScore ?? 0,
             candidateTweetId: String(sourceId),
             engagementScore: slot.engagementScore ?? 0,
             postedAt: new Date().toISOString(),
             ourTweetId: postResult?.id ?? null,
             slotMode: "pqt_only",
-            buzzSummary: "PQT-only Reply-first QT",
-            usedMode: "pqt_only"
+            buzzSummary: `PQT-only Reply-first QT (imp=${Number(slot.impressionScore || 0).toFixed(4)})`,
+            usedMode: "pqt_only",
+            funnelType,
+            funnelUrl: link,
+            narrativeTag: "FOMO",
+            ctaType: "ATH_SURGE"
           });
         }
       } else {
@@ -962,13 +1404,18 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
         await insertBuzzweavePostLog({
           slotLang: langFilter,
           clusterLabel: slot.cluster || "pqt",
+          clusterScore: slot.clusterScore ?? 0,
           candidateTweetId: String(sourceId),
           engagementScore: slot.engagementScore ?? 0,
           postedAt: new Date().toISOString(),
           ourTweetId: postResult?.id ?? null,
           slotMode: "pqt_only",
-          buzzSummary: "PQT-only Fisherman",
-          usedMode: "pqt_only"
+          buzzSummary: `PQT-only Fisherman (imp=${Number(slot.impressionScore || 0).toFixed(4)})`,
+          usedMode: "pqt_only",
+          funnelType,
+          funnelUrl: link,
+          narrativeTag: "FOMO",
+          ctaType: "ATH_SURGE"
         });
       }
     } catch (e) {
@@ -976,7 +1423,27 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     }
   }
 
-  return { ok: true, posted, runId, pqtOnly: true };
+  const sampleSummary = generatedSamples.length
+    ? {
+        count: generatedSamples.length,
+        avgLength: Number(
+          (generatedSamples.reduce((sum, s) => sum + (s.textLength || 0), 0) / generatedSamples.length).toFixed(1)
+        ),
+        avgQuestionCount: Number(
+          (generatedSamples.reduce((sum, s) => sum + (s.questionCount || 0), 0) / generatedSamples.length).toFixed(2)
+        ),
+        overOneQuestionCount: generatedSamples.filter((s) => (s.questionCount || 0) > 1).length
+      }
+    : null;
+  if (sampleSummary) {
+    logInfo("pqt-only generated sample summary", {
+      runId,
+      langFilter,
+      ...sampleSummary
+    });
+  }
+
+  return { ok: true, posted, runId, pqtOnly: true, generatedSamples, sampleSummary };
 }
 
 /**
@@ -1026,7 +1493,6 @@ module.exports = {
   scorePostByMetrics,
   fetchRecentPostsFromX,
   fetchCandidatesFromSearch,
-  classifyPostWithGpt4o,
   generateSlotsForDay,
   cleanupOldSlots,
   pickBestBuzzCandidate,

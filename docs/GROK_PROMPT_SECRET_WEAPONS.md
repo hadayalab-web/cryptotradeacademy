@@ -75,7 +75,7 @@ algo_hacks / timing_secrets / format_secrets / engagement_triggers / one_liner_w
 | **Momentum threshold** — 50 likes/10min 以上のポストだけ QT 対象にする。 | FYP spy — 手動・スケールしない。 |
 | **Question prefix** — 書き出しを「Breakout if...?」「Hold above?」型にしたテンプレを追加。 | |
 | **Double linebreak** — 構成を [emoji]改行[hook]空行[CTA:link] に。 | |
-| **89-99 chars** — リンク前を 89–99 文字に収める（プレビュー切れ防止）。 | |
+| **89-99 chars** — Grok 提案だったが**不採用**。リンク前を 89–99 に切ると CTA が「Mi...」で切れて刺さらない。X Premium で字数制限なし。 | |
 | **Emoji mid-hook** — 3–5 語後に 🚀 を 1 つ。 | |
 | **No final period** — CTA 末尾に 。!? を付けない。 | |
 | **Mirror vocab** — 引用元の 2–3 語をそのままコメントに含める（スロット文から抽出）。 | |
@@ -93,7 +93,7 @@ algo_hacks / timing_secrets / format_secrets / engagement_triggers / one_liner_w
 | **2-7min window** | `buzzWeaveEngine.js` — 候補に `_ageSec` / `_in2_7Window` を付与し、2–7 分のスロットを優先。該当がいる場合のみその枠に絞る。 |
 | **Momentum** | `buzzWeaveEngine.js` — `post.public_metrics` を候補に付与し、`_likesPer10min` でソート。2-7min 内で momentum 順。 |
 | **Question prefix** | `pqtTemplates.js` — 各言語に「Breakout if…?」「この動き本物？」等の質問型バリアントを追加。 |
-| **Double linebreak / Link on new line / No final period / 89-99 chars** | `pqtSecretWeapons.js` の `applySecretWeaponsFormat`。`pqtCtaEngine.buildPqt` 内で適用。 |
+| **Double linebreak / Link on new line / No final period**（字数制限なし・X Premium） | `pqtSecretWeapons.js` の `applySecretWeaponsFormat`。89-99 chars は廃止（CTA 切れで刺さらない）。 |
 | **Mirror vocab** | `pqtSecretWeapons.js` の `extractMirrorWords`。`buildPqt` に `quotedText` を渡し、テンプレで `mirrorWords` を使用。 |
 | **Weekday warp** | `buzzWeaveEngine.js` — 火・水・木（UTC）は `effectiveCap` を 2 倍。`BUZZWEAVE_WEEKDAY_WARP=true` で有効。 |
 

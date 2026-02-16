@@ -18,7 +18,7 @@ We run a PQT-only (quote-tweet) strategy on crypto "fisherman" posts: short comm
 
 **Copy & format**
 - Static templates with Grok engagement tips: short agreement hooks (Spot on!, ¡Exacto!, その通りです), checklist/playbook CTA, question prefix (Breakout if…?), mirror vocab (2–3 words from quoted text).
-- Secret-weapons formatting: link on new line only, no trailing period, 89–99 chars before link, double linebreak. CTR bandit over 4–6 variants per language.
+- Secret-weapons formatting: link on new line only, no trailing period, double linebreak. No char limit (X Premium; 89–99 chars was Grok suggestion but dropped—truncated CTA, copy didn’t stick). CTR bandit over 4–6 variants per language.
 
 **Algo & selection**
 - 2–7min window: prefer QTs on originals posted 120–420 sec ago. Momentum sort (likes/10min). Fisherman top 5–10%, median filter.
@@ -70,7 +70,7 @@ Answer in JSON only (no other text). Structure:
     "impressions_lift_pct": 10,
     "engagement_lift_pct": 15,
     "ctr_lift_pct": 20,
-    "reason_one_line": "link on new line, 89-99 chars, mirror vocab, question prefix"
+    "reason_one_line": "link on new line, no char limit (X Premium), mirror vocab, question prefix"
   },
   "risks_and_caveats": ["caveat1", "caveat2"]
 }
@@ -89,7 +89,7 @@ Answer in JSON only (no other text). Structure:
 ```
 You are an expert on X (Twitter) and crypto/trading creator economy.
 
-We run a quote-tweet-only (QT) strategy: we quote influential crypto "fisherman" posts and add a short comment + one funnel link. Languages: EN, ES, PT, AR, KO, JA. We've optimized: cron at 6 runs/day at peak UTC hours, cap ~8 PQTs per run, engagement-optimized copy (agreement hooks, checklist CTA, question prefix, mirror vocab), format (link on new line, 89-99 chars before link), and we prefer QTs on originals posted 2-7 min ago with momentum sort. Optional: reply to original then QT that reply (reply-first), and 2x cap on Tue-Thu UTC.
+We run a quote-tweet-only (QT) strategy: we quote influential crypto "fisherman" posts and add a short comment + one funnel link. Languages: EN, ES, PT, AR, KO, JA. We've optimized: cron at 6 runs/day at peak UTC hours, cap ~8 PQTs per run, engagement-optimized copy (agreement hooks, checklist CTA, question prefix, mirror vocab), format (link on new line, no char limit; X Premium), and we prefer QTs on originals posted 2-7 min ago with momentum sort. Optional: reply to original then QT that reply (reply-first), and 2x cap on Tue-Thu UTC.
 
 Give your own estimate from first principles. We need daily numbers for two scenarios.
 
@@ -105,7 +105,7 @@ Output ONLY valid JSON (no markdown, no explanation). Keys: scenario_a_pqts_per_
 ```
 X（Twitter）とクリプト界隈の CT に詳しい立場で答えてほしい。
 
-私たちは「引用リポスト（QT）のみ」の運用をしている。インフルエンサーのバズ投稿を引用し、短いコメント＋導線リンク1本を付ける。6言語（EN/ES/PT/AR/KO/JA）。最適化済み: 1日6 run・ピーク UTC、1 run あたり cap 8、エンゲージメント向けコピー（同意フック・チェックリスト CTA・質問型・引用語のミラー）、フォーマット（リンク改行・89-99文字）、2-7分以内の元ポスト優先・momentum ソート。オプションでリプ先行 QT や火–木 2x cap あり。
+私たちは「引用リポスト（QT）のみ」の運用をしている。インフルエンサーのバズ投稿を引用し、短いコメント＋導線リンク1本を付ける。6言語（EN/ES/PT/AR/KO/JA）。最適化済み: 1日6 run・ピーク UTC、1 run あたり cap 8、エンゲージメント向けコピー（同意フック・チェックリスト CTA・質問型・引用語のミラー）、フォーマット（リンク改行・字数制限なし・X Premium）、2-7分以内の元ポスト優先・momentum ソート。オプションでリプ先行 QT や火–木 2x cap あり。
 
 第一原理からあなたの見積もりを出してほしい。
 

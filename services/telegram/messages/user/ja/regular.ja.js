@@ -324,22 +324,16 @@ ${inflow >= 0 ? '強制売却とマイナー配布(MPI ' + mpiDisplay + ')で価
     lines.push('');
   }
 
-  let trapScoreForEvidence = null;
-  if (trapDetection && trapDetection.trapScore != null && trapDetection.trapScore > 0) {
-    trapScoreForEvidence = trapDetection.trapScore;
-  } else if (trapScore != null && trapScore > 0) {
-    trapScoreForEvidence = trapScore;
-  } else if (trapRisk && trapRisk.trapRiskScore != null && trapRisk.trapRiskScore > 0) {
-    trapScoreForEvidence = trapRisk.trapRiskScore;
-  }
+  // すべてのセクションで同一の Trap Score を使用して表示の不整合を防ぐ
+  const trapScoreForEvidence = effectiveTrapScore;
   const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;
   if (trapScoreForEvidence != null || trapDetection || trapAlert) {
     lines.push('━━━━━━━━━━━━━━━━━━━━');
     lines.push('📊 データに基づく理由');
     lines.push('━━━━━━━━━━━━━━━━━━━━');
-    const trapScoreRounded = trapScoreForEvidence != null ? Math.round(trapScoreForEvidence) : (trapDetection?.trapScore != null ? Math.round(trapDetection.trapScore) : 0);
-    const isLowTrap = trapScoreRounded < 30;
-    const isHighTrap = trapScoreRounded >= 50;
+    const trapScoreRounded = trapScoreForEvidence != null ? Math.round(trapScoreForEvidence) : null;
+    const isLowTrap = trapScoreRounded != null && trapScoreRounded < 30;
+    const isHighTrap = trapScoreRounded != null && trapScoreRounded >= 50;
     if (trapScoreForEvidence != null) {
       if (isHighTrap) {
         lines.push(`🎯 Trap Score ${trapScoreRounded}/100 → トラップリスク高`);
@@ -461,7 +455,7 @@ ${inflow >= 0 ? '強制売却とマイナー配布(MPI ' + mpiDisplay + ')で価
   lines.push(flowLine);
   lines.push(mpiLine);
   lines.push(sentimentLine);
-  const displayTrapScore = trapDetection?.trapScore ?? trapScore ?? trapRisk?.trapRiskScore;
+  const displayTrapScore = effectiveTrapScore;
   if (displayTrapScore != null && displayTrapScore >= 0) {
     const trapScoreRounded = Math.round(displayTrapScore);
     const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 高リスク' : displayTrapScore >= 40 ? '⚠️ 中' : '✅ 低';

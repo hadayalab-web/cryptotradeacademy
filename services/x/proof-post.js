@@ -98,7 +98,7 @@ function maskMessageForProof(fullMessage, options = {}) {
     proofElements.push(`\n${socialProofText}`);
   }
 
-  // X投稿用テキストを構築（280文字制限内）
+  // X投稿用テキストを構築（X Premium前提: 280文字制限は適用しない）
   let proofText = '';
   
   if (lang === 'en') {
@@ -117,21 +117,6 @@ function maskMessageForProof(fullMessage, options = {}) {
     proofText += `📺 Full Intelligence Report available for members\n`;
     proofText += `🔗 cryptotradeacademy.io\n\n`;
     proofText += `#Bitcoin #TrapDefense #AI`;
-  }
-
-  // 280文字制限チェック
-  if (proofText.length > 280) {
-    // 最後の要素を削除して調整
-    const lines = proofText.split('\n');
-    while (proofText.length > 280 && lines.length > 3) {
-      lines.pop();
-      proofText = lines.join('\n');
-    }
-    
-    // それでも長い場合は切り詰め
-    if (proofText.length > 280) {
-      proofText = proofText.substring(0, 277) + '...';
-    }
   }
 
   return proofText;

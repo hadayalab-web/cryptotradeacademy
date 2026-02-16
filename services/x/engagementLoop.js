@@ -112,7 +112,7 @@ async function executeEngagementLoop(mainTweetId, lang, reportData = null) {
   setTimeout(async () => {
     try {
       const replyText1 = generateEngagementReplyText(lang, 0, reportData);
-      const result1 = await replyToTweet(replyText1.substring(0, 280), mainTweetId);
+      const result1 = await replyToTweet(replyText1, mainTweetId);
       results.push({ replyIndex: 0, success: true, tweetId: result1.id });
       console.log(`[Engagement Loop] ✅ Reply 1/3 posted for tweet ${mainTweetId}: ${result1.id}`);
       
@@ -121,7 +121,7 @@ async function executeEngagementLoop(mainTweetId, lang, reportData = null) {
       setTimeout(async () => {
         try {
           const replyText2 = generateEngagementReplyText(lang, 1, reportData);
-          const result2 = await replyToTweet(replyText2.substring(0, 280), mainTweetId);
+          const result2 = await replyToTweet(replyText2, mainTweetId);
           results.push({ replyIndex: 1, success: true, tweetId: result2.id });
           console.log(`[Engagement Loop] ✅ Reply 2/3 posted for tweet ${mainTweetId}: ${result2.id}`);
           
@@ -131,7 +131,7 @@ async function executeEngagementLoop(mainTweetId, lang, reportData = null) {
             setTimeout(async () => {
               try {
                 const replyText3 = generateEngagementReplyText(lang, 2, reportData);
-                const result3 = await replyToTweet(replyText3.substring(0, 280), mainTweetId);
+                const result3 = await replyToTweet(replyText3, mainTweetId);
                 results.push({ replyIndex: 2, success: true, tweetId: result3.id });
                 console.log(`[Engagement Loop] ✅ Reply 3/3 posted for tweet ${mainTweetId}: ${result3.id}`);
                 

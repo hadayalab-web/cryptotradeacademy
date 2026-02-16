@@ -490,8 +490,17 @@ async function uploadVideo(videoBuffer, options = {}) {
   // 4. STATUS: 処理完了を待機
 }
 
-/** Xプレミアム長文ポストの最大文字数（API上限） */
+/** Xプレミアム運用時も適用される X API のハード上限 */
 const X_LONG_POST_MAX_LENGTH = 25000;
+
+function assertWithinLongPostLimit(text, label) {
+  if (typeof text !== "string") return;
+  if (text.length <= X_LONG_POST_MAX_LENGTH) return;
+  throw new Error(
+    `[X API] ${label} length ${text.length} exceeds hard limit ${X_LONG_POST_MAX_LENGTH}. ` +
+      "X Premium removes 140/280 constraints, but API hard cap still applies."
+  );
+}
 
 /**
  * Xにツイートを投稿（リトライ対応）
@@ -506,13 +515,8 @@ async function postTweet(text, mediaIds = [], pollOptions = null, maxRetries = 3
     throw new Error("Tweet text is required");
   }
 
-  // 長文ポスト対応: API上限25,000文字を超える場合のみトリム（前担当者の280文字制限は廃止）
-  if (text.length > X_LONG_POST_MAX_LENGTH) {
-    console.warn(
-      `[X API] Tweet text exceeds ${X_LONG_POST_MAX_LENGTH} characters (${text.length}), truncating...`
-    );
-    text = text.substring(0, X_LONG_POST_MAX_LENGTH - 3) + "...";
-  }
+  // X Premium: 140/280 制限は無効。ローカルで勝手に切り詰めず、APIハード上限のみ検証
+  assertWithinLongPostLimit(text, "Tweet text");
 
   const body = {
     text: text.trim()
@@ -624,6 +628,7 @@ async function getUserTweets(userId, options = {}) {
  * @param {string} options.startTime - 開始時刻（ISO 8601形式）
  * @param {string} options.endTime - 終了時刻（ISO 8601形式）
  * @param {string} options.sortOrder - ソート順（"relevancy" | "recency"）
+ * @param {string} options.nextToken - ページネーション用トークン
  * @returns {Promise<Object>} 検索結果 {data, includes, meta}
  */
 async function searchPostsRecent(query, options = {}) {
@@ -641,6 +646,7 @@ async function searchPostsRecent(query, options = {}) {
   });
   if (options.startTime) params.set("start_time", options.startTime);
   if (options.endTime) params.set("end_time", options.endTime);
+  if (options.nextToken) params.set("next_token", options.nextToken);
 
   const bearer = process.env.X_API_BEARER_TOKEN;
   if (bearer) {
@@ -796,13 +802,8 @@ async function replyToTweet(text, inReplyToTweetId, mediaIds = []) {
     throw new Error("inReplyToTweetId is required");
   }
 
-  // 長文ポスト対応: API上限25,000文字を超える場合のみトリム（前担当者の280文字制限は廃止）
-  if (text.length > X_LONG_POST_MAX_LENGTH) {
-    console.warn(
-      `[X API] Reply text exceeds ${X_LONG_POST_MAX_LENGTH} characters (${text.length}), truncating...`
-    );
-    text = text.substring(0, X_LONG_POST_MAX_LENGTH - 3) + "...";
-  }
+  // X Premium: 140/280 制限は無効。ローカルで勝手に切り詰めず、APIハード上限のみ検証
+  assertWithinLongPostLimit(text, "Reply text");
 
   // X API v2では、in_reply_to_tweet_idは文字列である必要がある
   const tweetIdString = String(inReplyToTweetId).trim();
@@ -856,13 +857,8 @@ async function postQuoteTweet(text, quoteTweetId, mediaIds = [], maxRetries = 3)
     throw new Error("quoteTweetId is required");
   }
 
-  // 長文ポスト対応: 引用リポストもプレミアムで25,000文字まで可能（前担当者の140/280文字制限は廃止）
-  if (text.length > X_LONG_POST_MAX_LENGTH) {
-    console.warn(
-      `[X API] Quote tweet text exceeds ${X_LONG_POST_MAX_LENGTH} characters (${text.length}), truncating...`
-    );
-    text = text.substring(0, X_LONG_POST_MAX_LENGTH - 3) + "...";
-  }
+  // X Premium: 140/280 制限は無効。ローカルで勝手に切り詰めず、APIハード上限のみ検証
+  assertWithinLongPostLimit(text, "Quote tweet text");
 
   const body = {
     text: text.trim(),

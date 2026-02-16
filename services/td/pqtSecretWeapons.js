@@ -2,7 +2,7 @@
  * Grok Secret Weapons のフォーマット適用（config/grokSecretWeapons.json 準拠）
  * - Link on new line（リンクの後にテキストなし、15% click lift）
  * - No final period（CTA 末尾の 。!? を削除）
- * - 89-99 chars before link（プレビュー切れ防止・最適 dwell）
+ * - 字数制限なし（X Premium 想定。旧 89-99 chars は廃止）
  * - Mirror vocab: 引用元から 2-3 語を抽出
  */
 
@@ -10,7 +10,6 @@ const STOPWORDS_EN = new Set(["the", "a", "an", "is", "are", "was", "were", "to"
 const STOPWORDS_JA = new Set(["の", "に", "は", "を", "た", "が", "で", "と", "し", "れ", "さ", "ある", "いる", "も", "する", "から", "な", "こと", "として", "い", "や", "れる", "など", "なった", "ない", "その", "あれ", "それ"]);
 const MAX_MIRROR_WORDS = 3;
 const MIN_WORD_LEN = 2;
-const TARGET_CHARS_BEFORE_LINK = { min: 89, max: 99 };
 
 /**
  * 引用文から 2-3 語を抽出（Mirror vocab: semantic match で relevance 向上）
@@ -38,7 +37,7 @@ function extractMirrorWords(quotedText, lang = "en") {
  * ビルド済み PQT 本文に Secret Weapons フォーマットを適用
  * - リンクを最後の行に単独で置く（その後にテキストなし）
  * - リンク直前の行の末尾 . ! ? を削除
- * - リンク前の body を 89-99 文字に収める（長い場合は proof を短くする）
+ * - 字数制限なし（X Premium）
  * @param {string} text - テンプレ出力（… → ${link} を含む）
  * @param {string} link
  * @returns {string}
@@ -52,21 +51,10 @@ function applySecretWeaponsFormat(text, link) {
   const lastLine = lastLineIdx >= 0 ? body.slice(lastLineIdx + 1) : body;
   const trimmed = lastLine.replace(/[.!?。．！？]+$/, "").trim();
   body = lastLineIdx >= 0 ? body.slice(0, lastLineIdx + 1) + trimmed : trimmed;
-  if (body.length > TARGET_CHARS_BEFORE_LINK.max) {
-    const lines = body.split("\n");
-    if (lines.length >= 2) {
-      const rest = lines.slice(1).join("\n");
-      const restMax = TARGET_CHARS_BEFORE_LINK.max - lines[0].length - 2;
-      if (rest.length > Math.max(20, restMax)) body = lines[0] + "\n" + rest.slice(0, restMax - 3) + "...";
-    } else {
-      body = body.slice(0, TARGET_CHARS_BEFORE_LINK.max - 3) + "...";
-    }
-  }
   return body + "\n\n" + linkStr;
 }
 
 module.exports = {
   extractMirrorWords,
-  applySecretWeaponsFormat,
-  TARGET_CHARS_BEFORE_LINK
+  applySecretWeaponsFormat
 };
