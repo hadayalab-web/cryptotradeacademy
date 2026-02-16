@@ -566,16 +566,19 @@ async function upsertBuzzweaveStatus402() {
 
 async function getBuzzweaveStatus() {
   const sb = getSupabase();
-  if (!sb) return { x_api_blocked: false };
+  if (!sb) return { x_api_blocked: false, x_api_last_402_at: null };
   try {
     const { data } = await sb
       .from("buzzweave_status")
-      .select("x_api_blocked")
+      .select("x_api_blocked, x_api_last_402_at")
       .eq("id", "main")
       .maybeSingle();
-    return { x_api_blocked: !!data?.x_api_blocked };
+    return {
+      x_api_blocked: !!data?.x_api_blocked,
+      x_api_last_402_at: data?.x_api_last_402_at || null
+    };
   } catch (e) {
-    return { x_api_blocked: false };
+    return { x_api_blocked: false, x_api_last_402_at: null };
   }
 }
 

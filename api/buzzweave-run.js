@@ -17,6 +17,7 @@ const { assetSnapshotKvKey } = require("../services/snapshot/assetSnapshotSchema
 const {
   upsertBuzzweaveStatusEmergencyStop,
   getBuzzweaveStatus,
+  clearBuzzweaveStatusXApiBlocked,
   isSupabaseConfigured,
   getTodayRunCount,
   getLastRunTimestamp,
@@ -28,6 +29,14 @@ loadEnv();
 const BUZZWEAVE_LANGS = ["en", "es", "pt", "ja", "ko", "ar"];
 const MIN_RUN_INTERVAL_HOURS = Number(process.env.BUZZWEAVE_MIN_RUN_INTERVAL_HOURS) || 3;
 const MIN_RUN_INTERVAL_MS = MIN_RUN_INTERVAL_HOURS * 60 * 60 * 1000;
+/** 402 検知からこの時間（時間）経過で x_api_blocked を自動解除し run を試行。0 で無効（手動解除のみ） */
+const X_API_BLOCKED_AUTO_CLEAR_HOURS = Number(process.env.X_API_BLOCKED_AUTO_CLEAR_HOURS);
+const X_API_BLOCKED_AUTO_CLEAR_MS =
+  Number.isFinite(X_API_BLOCKED_AUTO_CLEAR_HOURS) && X_API_BLOCKED_AUTO_CLEAR_HOURS > 0
+    ? X_API_BLOCKED_AUTO_CLEAR_HOURS * 60 * 60 * 1000
+    : process.env.X_API_BLOCKED_AUTO_CLEAR_HOURS === "0"
+      ? Infinity
+      : 24 * 60 * 60 * 1000; // 未設定は 24h、0 は無効
 
 async function handler(req, res) {
   console.log("[buzzweave-run] handler start");
@@ -52,10 +61,23 @@ async function handler(req, res) {
     return res.status(200).json({ ok: true, message: "Emergency stop active", posted: 0 });
   }
 
-  const status = await getBuzzweaveStatus();
+  let status = await getBuzzweaveStatus();
   if (status.x_api_blocked) {
-    console.log("[buzzweave-run] early return: X API blocked flag active");
-    return res.status(200).json({ ok: true, message: "X API blocked flag active", posted: 0 });
+    const last402At = status.x_api_last_402_at ? new Date(status.x_api_last_402_at).getTime() : 0;
+    const elapsedMs = last402At > 0 ? Date.now() - last402At : X_API_BLOCKED_AUTO_CLEAR_MS + 1;
+    if (elapsedMs >= X_API_BLOCKED_AUTO_CLEAR_MS) {
+      const clearResult = await clearBuzzweaveStatusXApiBlocked();
+      if (clearResult.ok) {
+        console.log("[buzzweave-run] x_api_blocked auto-cleared (elapsed " + Math.round(elapsedMs / 3600000) + "h), proceeding");
+        status = await getBuzzweaveStatus();
+      } else {
+        console.log("[buzzweave-run] early return: X API blocked flag active (auto-clear failed)");
+        return res.status(200).json({ ok: true, message: "X API blocked flag active", posted: 0 });
+      }
+    } else {
+      console.log("[buzzweave-run] early return: X API blocked flag active");
+      return res.status(200).json({ ok: true, message: "X API blocked flag active", posted: 0 });
+    }
   }
 
   if (!isSupabaseConfigured()) {
