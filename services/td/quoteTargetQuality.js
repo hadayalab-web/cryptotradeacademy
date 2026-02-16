@@ -72,16 +72,18 @@ function topicFitScore(text) {
 }
 
 /**
- * Hype 含有は「伸びやすい」シグナルとしてボーナス（必須にしない）
+ * Hype 含有 = 仕手Botっぽい投稿。多いほどボーナスを強くして優先する（Botが集客したスレに乗る）
  */
 const HYPE_BONUS_KEYWORDS = [
-  "moon", "pump", "100x", "ath", "breakout", "fud", "dump", "crash",
-  "今すぐ", "乗り遅れるな", "絶対", "급등", "반등", "oportunidad", "sube"
+  "moon", "pump", "100x", "ath", "breakout", "fud", "dump", "crash", "don't miss", "last chance",
+  "今すぐ", "乗り遅れるな", "絶対", "急騰", "暴落", "新高", "급등", "반등", "oportunidad", "sube", "lua", "alta"
 ];
 function hypeBonus(text) {
   if (!text || typeof text !== "string") return 0;
   const t = text.toLowerCase();
-  return HYPE_BONUS_KEYWORDS.some((k) => t.includes(k.toLowerCase())) ? 0.2 : 0;
+  const hits = HYPE_BONUS_KEYWORDS.filter((k) => t.includes(k.toLowerCase()));
+  if (hits.length === 0) return 0;
+  return Math.min(1, 0.2 + hits.length * 0.18);
 }
 
 /**

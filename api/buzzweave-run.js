@@ -25,6 +25,13 @@ const { determineDailyRunTarget } = require("../services/td/autonomousSlotGenera
 loadEnv();
 
 const BUZZWEAVE_LANGS = ["en", "es", "pt", "ja", "ko", "ar"];
+// 6言語圏の時間に合わせる: UTC 時刻で言語を切り替え（0-3→ja, 4-7→ko, 8-11→en, 12-15→es, 16-19→pt, 20-23→ar）。BUZZWEAVE_LANG_BY_UTC=false で従来の分単位 round-robin に戻す。
+const LANGS_BY_UTC_HOUR_BLOCK = ["ja", "ko", "en", "es", "pt", "ar"];
+function getLangByUtcHour() {
+  const utcHour = new Date().getUTCHours();
+  const index = Math.floor(utcHour / 4) % LANGS_BY_UTC_HOUR_BLOCK.length;
+  return LANGS_BY_UTC_HOUR_BLOCK[index];
+}
 const MIN_RUN_INTERVAL_HOURS = Number(process.env.BUZZWEAVE_MIN_RUN_INTERVAL_HOURS) || 3;
 const MIN_RUN_INTERVAL_MS = MIN_RUN_INTERVAL_HOURS * 60 * 60 * 1000;
 
@@ -56,12 +63,20 @@ async function handler(req, res) {
     return res.status(503).json({ ok: false, message: "Supabase not configured", posted: 0 });
   }
 
-  const dryRun = req.query?.dry_run === "true" || req.query?.dry_run === "1";
+  // クエリで明示されていればそれを使う。未指定なら X_POSTING_DRY_RUN を参照（本番で投稿止めたいときは env で true にできる）
+  const dryRun =
+    req.query?.dry_run === "true" ||
+    req.query?.dry_run === "1" ||
+    process.env.X_POSTING_DRY_RUN === "true" ||
+    process.env.X_POSTING_DRY_RUN === "1";
   const assetParam = (req.query?.asset || "BTC").toUpperCase();
   const langParam = req.query?.lang;
+  const useLangByUtc = process.env.BUZZWEAVE_LANG_BY_UTC !== "false" && process.env.BUZZWEAVE_LANG_BY_UTC !== "0";
   const langFilter = langParam && BUZZWEAVE_LANGS.includes(langParam)
     ? langParam
-    : BUZZWEAVE_LANGS[Math.floor(Date.now() / 60000) % BUZZWEAVE_LANGS.length];
+    : useLangByUtc
+      ? getLangByUtcHour()
+      : BUZZWEAVE_LANGS[Math.floor(Date.now() / 60000) % BUZZWEAVE_LANGS.length];
 
   try {
     if (dryRun) {

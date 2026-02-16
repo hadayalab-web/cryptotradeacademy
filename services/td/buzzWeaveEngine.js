@@ -39,7 +39,7 @@ const {
 const { buildStructuredPostFromSlot } = require("../textgen/buildStructuredPost");
 const { getBtcSnapshot } = require("../market/getBtcSnapshot");
 const { selectFishermanSlotsTopPercent, selectSlotsFallback } = require("./fishermanDetector");
-const { quoteTargetQualityScore, selectByQualityScore, filterCandidatesByImpressionPotential } = require("./quoteTargetQuality");
+const { quoteTargetQualityScore, selectByQualityScore, filterCandidatesByImpressionPotential, hypeBonus } = require("./quoteTargetQuality");
 const { buildPqt, recordPqtUse } = require("./pqtCtaEngine");
 const { buildProofSnippetFromSnapshot } = require("./pqtProofSnippet");
 const { allocatePqtPerLanguageFromSchedule } = require("./pqtPlanner");
@@ -168,13 +168,13 @@ function scorePostByMetrics(metrics = {}) {
   return impressions * 1 + likes * 50 + retweets * 80 + quotes * 60 + replies * 40;
 }
 
-// 言語別キーワードセット（1-2 準拠：slot.lang に合わせたクエリ構築）
+// 仕手Bot攻略 → 提灯救済。Botが使いがちな語を検索に含め、Botが集客したスレを拾う。
 const SEARCH_KEYWORDS_BY_LANG = {
-  en: ["bitcoin", "btc", "crypto", "halving", "spot etf", "all time high"],
-  ja: ["ビットコイン", "BTC", "仮想通貨", "半減期", "ETF"],
-  ko: ["비트코인", "BTC", "암호화폐", "반감기", "ETF"],
-  es: ["bitcoin", "btc", "crypto", "etf", "halving"],
-  pt: ["bitcoin", "btc", "crypto", "etf", "halving"],
+  en: ["bitcoin", "btc", "crypto", "pump", "moon", "ath", "breakout", "halving", "spot etf", "all time high"],
+  ja: ["ビットコイン", "BTC", "仮想通貨", "急騰", "乗り遅れるな", "半減期", "ETF", "暴落", "新高"],
+  ko: ["비트코인", "BTC", "암호화폐", "급등", "반등", "반감기", "ETF", "상승"],
+  es: ["bitcoin", "btc", "crypto", "pump", "moon", "sube", "oportunidad", "etf", "halving"],
+  pt: ["bitcoin", "btc", "crypto", "pump", "lua", "alta", "etf", "halving"],
   ar: [
     "bitcoin",
     "btc",
@@ -182,6 +182,7 @@ const SEARCH_KEYWORDS_BY_LANG = {
     "بيتكوين",
     "البيتكوين",
     "كريبتو",
+    "صعود",
     "عملات رقمية",
     "عملات مشفرة",
     "تنصيف البيتكوين",
@@ -889,12 +890,23 @@ async function collectBuzzCandidates(options = {}) {
     });
   }
 
-  // 1-3: 動的中央値フィルタ（score >= median * 1.2）
-  const scores = rawCandidates.map((c) => c.engagementScore);
-  const median = scores.length ? (() => { const s = [...scores].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; })() : 0;
-  const threshold = Math.max(median * DYNAMIC_MEDIAN_MULTIPLIER, 500);
-  let filteredByMedian = rawCandidates.filter((c) => c.engagementScore >= threshold);
-  if (!filteredByMedian.length) filteredByMedian = rawCandidates.slice(0, 20);
+  // 1-3: 動的中央値フィルタ。シンプル選定デフォルト時（BUZZWEAVE_SIMPLE_SELECTION が false でない）または BUZZWEAVE_SKIP_MEDIAN_FILTER=true のときは使わず engagement 降順で上から maxCandidates まで
+  const skipMedianFilter =
+    process.env.BUZZWEAVE_SKIP_MEDIAN_FILTER === "true" ||
+    process.env.BUZZWEAVE_SKIP_MEDIAN_FILTER === "1" ||
+    (process.env.BUZZWEAVE_SIMPLE_SELECTION !== "false" && process.env.BUZZWEAVE_SIMPLE_SELECTION !== "0");
+  let filteredByMedian;
+  if (skipMedianFilter) {
+    filteredByMedian = [...rawCandidates]
+      .sort((a, b) => (b.engagementScore ?? 0) - (a.engagementScore ?? 0))
+      .slice(0, Math.max(maxCandidates, 20));
+  } else {
+    const scores = rawCandidates.map((c) => c.engagementScore);
+    const median = scores.length ? (() => { const s = [...scores].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; })() : 0;
+    const threshold = Math.max(median * DYNAMIC_MEDIAN_MULTIPLIER, 500);
+    filteredByMedian = rawCandidates.filter((c) => c.engagementScore >= threshold);
+    if (!filteredByMedian.length) filteredByMedian = rawCandidates.slice(0, 20);
+  }
 
   if (isDeadlineExceeded(startMs, deadlineMs)) {
     logWarn("deadline exceeded", { stage: "after-median-filter", ...deadlineSnapshot(startMs, deadlineMs) });
@@ -1258,13 +1270,13 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   if (weekdayWarp && isTueWedThu) cap = Math.min(cap * 2, MAX_CAP_PER_RUN_WARP);
   const effectiveCap = cap;
   const FALLBACK_SLOT_COUNT = Math.max(3, Math.min(15, Number(process.env.BUZZWEAVE_FALLBACK_SLOT_COUNT || 10)));
-  const useQualityScoreSelection = process.env.BUZZWEAVE_USE_QUALITY_SCORE_SELECTION === "true" || process.env.BUZZWEAVE_USE_QUALITY_SCORE_SELECTION === "1";
+  // シンプル選定をデフォルト。仕手系はゴロゴロ・提灯は群がる → engagement 降順で cap まで取る。BUZZWEAVE_SIMPLE_SELECTION=false で従来（Fisherman / 品質スコア）に戻す。
+  const useSimpleSelection = process.env.BUZZWEAVE_SIMPLE_SELECTION !== "false" && process.env.BUZZWEAVE_SIMPLE_SELECTION !== "0";
+  const useQualityScoreSelection = !useSimpleSelection && (process.env.BUZZWEAVE_USE_QUALITY_SCORE_SELECTION === "true" || process.env.BUZZWEAVE_USE_QUALITY_SCORE_SELECTION === "1");
   const fallbackFillCap = process.env.BUZZWEAVE_FALLBACK_FILL_CAP === "true" || process.env.BUZZWEAVE_FALLBACK_FILL_CAP === "1";
   const volumeTopUp = process.env.BUZZWEAVE_VOLUME_TOPUP !== "false" && process.env.BUZZWEAVE_VOLUME_TOPUP !== "0";
-  // 品質スコア選定時はインプレ足切りをデフォルト有効（BUZZWEAVE_IMPRESSION_FILTER=false で無効化可能）
   const impressionFilter = useQualityScoreSelection && (process.env.BUZZWEAVE_IMPRESSION_FILTER !== "false" && process.env.BUZZWEAVE_IMPRESSION_FILTER !== "0");
 
-  // インプレが伸びる候補だけに絞る（品質スコア選定時・BUZZWEAVE_IMPRESSION_FILTER 有効時）
   let candidatesForSlots = candidates;
   if (useQualityScoreSelection && impressionFilter) {
     const minVelocity = Math.max(0, Number(process.env.BUZZWEAVE_MIN_VELOCITY || 0));
@@ -1273,13 +1285,27 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     const filtered = filterCandidatesByImpressionPotential(candidates, { minVelocity, minTopicFit, minCopyFit }, Date.now());
     candidatesForSlots = filtered.passed;
     if (filtered.dropped > 0) {
-      logInfo("pqt impression filter applied", { before: candidates.length, after: filtered.passed.length, dropped: filtered.dropped, reasons: filtered.reasons, minVelocity, minTopicFit, minCopyFit });
+      logInfo("pqt impression filter applied", { before: candidates.length, after: filtered.passed.length, dropped: filtered.dropped, reasons: filtered.reasons });
     }
   }
 
-  // 100成約/日がノルマ。仕手・提灯にこだわらず volume 確保。Fisherman 0 件時は fallback で投稿数を確保する。
+  // 仕手Bot攻略 = 提灯救済に寄与。Bot相手なら遠慮なく攻める。engagement × (1 + hypeBoost×hypeBonus) で Bot が集客したスレを優先。
+  const HYPE_BOOST = Math.max(0, Math.min(2, Number(process.env.BUZZWEAVE_HYPE_BOOST) || 0.8));
   let slots;
-  if (useQualityScoreSelection) {
+  if (useSimpleSelection) {
+    slots = [...candidatesForSlots]
+      .map((c) => {
+        const text = c?.post?.text ?? c?.text ?? "";
+        return { ...c, _hype: hypeBonus(text) };
+      })
+      .sort((a, b) => {
+        const scoreA = (a.engagementScore ?? 0) * (1 + HYPE_BOOST * (a._hype ?? 0));
+        const scoreB = (b.engagementScore ?? 0) * (1 + HYPE_BOOST * (b._hype ?? 0));
+        return scoreB - scoreA;
+      })
+      .slice(0, cap);
+    logInfo("pqt slots by simple selection", { count: slots.length, cap: effectiveCap, mode: "simple_engagement_hype", hypeBoost: HYPE_BOOST });
+  } else if (useQualityScoreSelection) {
     slots = selectByQualityScore(candidatesForSlots, cap, Date.now());
     logInfo("pqt slots by quality score", { count: slots.length, cap: effectiveCap, mode: "quality_score" });
   } else {
@@ -1317,16 +1343,18 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     slot._inRisingWindow = slot._ageSec >= WINDOW_2_7MIN_SEC.min && slot._ageSec <= WINDOW_RISING_MAX_SEC;
     slot._quoteQualityScore = quoteTargetQualityScore(slot, nowMs);
   }
+  // 窓で捨てないをデフォルト。2〜7分（または rising）以外を捨てると投稿数が激減するため、未検証仮説の窓絞りはオフ。BUZZWEAVE_SKIP_WINDOW_NARROWING=false で従来の「窓内だけに絞る」に戻す。
+  const skipWindowNarrowing = useSimpleSelection || (process.env.BUZZWEAVE_SKIP_WINDOW_NARROWING !== "false" && process.env.BUZZWEAVE_SKIP_WINDOW_NARROWING !== "0");
   if (!useQualityScoreSelection) {
     const inWindow = slots.filter((s) => s._in2_7Window);
-    if (inWindow.length > 0) slots = inWindow;
+    if (!skipWindowNarrowing && inWindow.length > 0) slots = inWindow;
     slots.sort((a, b) => {
       if (a._in2_7Window !== b._in2_7Window) return a._in2_7Window ? -1 : 1;
       return (b._likesPer10min ?? 0) - (a._likesPer10min ?? 0);
     });
   } else {
     const inRising = slots.filter((s) => s._inRisingWindow);
-    if (inRising.length > 0) slots = inRising;
+    if (!skipWindowNarrowing && inRising.length > 0) slots = inRising;
     slots.sort((a, b) => (b._quoteQualityScore ?? 0) - (a._quoteQualityScore ?? 0));
   }
 
@@ -1372,7 +1400,8 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     });
   }
 
-  const REPLY_FIRST_ALL_MAX_PCT = 0.3;
+  // 仕手Bot利用: リプライしてから引用でスレに2回出る。デフォルトで有効、対象を run の 50% に拡大。
+  const REPLY_FIRST_ALL_MAX_PCT = process.env.BUZZWEAVE_REPLY_FIRST_PCT != null ? Math.min(1, Math.max(0.1, Number(process.env.BUZZWEAVE_REPLY_FIRST_PCT))) : 0.5;
   console.log("[BuzzWeave] pqt-only slots ready", "candidates=" + candidates.length, "slots=" + slots.length, "cap=" + effectiveCap, "runId=" + runId);
   logInfo("pqt-only slots ready", { candidates: candidates.length, slots: slots.length, cap: effectiveCap, runId });
   let posted = 0;
@@ -1454,8 +1483,8 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     });
 
     const replyFirstQtRaw = process.env.BUZZWEAVE_REPLY_FIRST_QT || "";
-    const replyFirstQt = replyFirstQtRaw === "true" || replyFirstQtRaw === "1" || replyFirstQtRaw === "all" || replyFirstQtRaw === "every";
-    const replyFirstQtEverySlot = replyFirstQtRaw === "all" || replyFirstQtRaw === "every";
+    const replyFirstQt = replyFirstQtRaw !== "false" && replyFirstQtRaw !== "0";
+    const replyFirstQtEverySlot = replyFirstQtRaw === "all" || replyFirstQtRaw === "every" || (replyFirstQtRaw !== "false" && replyFirstQtRaw !== "0");
     const isFirstSlot = posted === 0;
     const replyFirstWithinCap = replyFirstQtEverySlot ? slotIndex < Math.ceil(slots.length * REPLY_FIRST_ALL_MAX_PCT) : isFirstSlot;
     try {
