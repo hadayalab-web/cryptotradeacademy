@@ -35,8 +35,6 @@ const {
   getQuotedTweetIdsInLast30Days,
   insertQuotedTweets,
   insertBuzzweavePostLog,
-  upsertBuzzweaveStatus402,
-  getBuzzweaveStatus,
   getBuzzweaveRecentPostStats
 } = require("../../utils/supabase");
 const { buildStructuredPostFromSlot } = require("../textgen/buildStructuredPost");
@@ -1190,7 +1188,6 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   runApiCallCount = 0;
   const dryRun = options.dryRun !== false;
   const langFilter = options.langFilter || "en";
-  const ignoreXApiBlocked = options.ignoreXApiBlocked === true;
   const collectSamples = options.collectSamples === true || dryRun;
   const sampleLimit = Math.max(1, Number(options.sampleLimit || process.env.BUZZWEAVE_DRYRUN_SAMPLE_LIMIT || 8));
   const generatedSamples = [];
@@ -1204,14 +1201,6 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   const runId = `bw-pqt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   logInfo("pqt-only cycle start", { runId, dryRun, langFilter });
 
-  const status = await getBuzzweaveStatus();
-  if (status.x_api_blocked && !ignoreXApiBlocked) {
-    return { ok: true, message: "X API blocked", posted: 0, runId, xApiBlocked: true };
-  }
-  if (status.x_api_blocked && ignoreXApiBlocked) {
-    logWarn("x_api_blocked ignored for dry-run collection", { runId, langFilter });
-  }
-
   const collectResult = await collectBuzzCandidates({
     slotLang: langFilter,
     startMs,
@@ -1219,7 +1208,6 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     classifyTopN: BUZZWEAVE_GPT_CLASSIFY_TOP_N
   });
   if (collectResult.fatal402) {
-    upsertBuzzweaveStatus402().catch(() => {});
     return { ok: false, message: "X API 402", posted: 0, runId, fatal402: true };
   }
 

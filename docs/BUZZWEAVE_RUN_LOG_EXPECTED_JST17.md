@@ -25,18 +25,7 @@ JST 17:00 に Cron で `/api/buzzweave-run` が叩かれたとき、出ると想
 
 ---
 
-## 2. x_api_blocked を自動解除して run した場合
-
-402 検知から **24 時間以上**（または `X_API_BLOCKED_AUTO_CLEAR_HOURS` で指定した時間）経過していると、同じ run 内でフラグを解除して続行します。
-
-- `[buzzweave-run] x_api_blocked auto-cleared (elapsed N h), proceeding`
-- このあと通常どおり `run started` → BWE SCAN → `pqt-only slots ready` → `run completed` が出ます。
-
-※ `X_API_BLOCKED_AUTO_CLEAR_HOURS=0` にすると自動解除は行わず、手動解除のみになります。
-
----
-
-## 3. スキップされた場合（よくあるパターン）
+## 2. スキップされた場合（よくあるパターン）
 
 **スナップショットなし**
 - `[buzzweave-run] early return: SKIP_NO_SNAPSHOT (no btcSnapshot in KV)`
@@ -51,28 +40,25 @@ JST 17:00 に Cron で `/api/buzzweave-run` が叩かれたとき、出ると想
 **緊急停止**
 - `[buzzweave-run] early return: Emergency stop active`
 
-**X API ブロック**
-- `[buzzweave-run] early return: X API blocked flag active`
-
 **認証エラー**
 - `[buzzweave-run] early return: 401 Unauthorized ...`
 
 ---
 
-## 4. 検索で候補 0 の場合
+## 3. 検索で候補 0 の場合
 
 - `[BuzzWeave] BWE SCAN: 0 posts from search, no buzz candidates`
 - このあと `pqt-only slots ready` は `slots=0` になり、`run completed` `posted=0` になる。
 
 ---
 
-## 5. 投稿でエラーが出た場合
+## 4. 投稿でエラーが出た場合
 
 - `[BuzzWeave] pqt post failed` `sourceId` `e?.message`（logWarn。1 スロット失敗ごと）
 
 ---
 
-## 6. Vercel で見る手順（イメージ）
+## 5. Vercel で見る手順（イメージ）
 
 1. **Vercel Dashboard** → プロジェクト → **Logs**（または **Functions** → 該当 Function の Logs）。
 2. **時刻**: JST 17:00 前後（UTC 08:00 前後）に絞る。

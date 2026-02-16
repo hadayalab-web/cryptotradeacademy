@@ -44,6 +44,25 @@ PDCA を回すための共通理解用。ML-PQT Engine の役割・フロー・�
 5. **候補取得**: 1言語で search → Fisherman 検出 → 上位 5〜10% を `selectFishermanSlotsTopPercent` で選択。Tier1→Tier2→Tier3 順・Tier3 は最大 2 件など diversity cap を適用。
 6. 各スロットに対して: **buildPqt**（テンプレ選択＋Proof 挿入＋Link）→ **postQuoteTweet** → **recordPqtUse**。cap に達するまで繰り返し。
 
+### 3.3 Vercel でのドライラン手順
+
+本番／プレビュー環境で **投稿せず** 候補取得・スロット選定・サンプル生成まで実行して動作確認するには、`dry_run=true` を付けて呼ぶ。
+
+- **URL**: `GET https://<your-app>.vercel.app/api/buzzweave-run?dry_run=true`
+- **認証**: Vercel に `CRON_SECRET` を設定している場合は必須。`Authorization: Bearer <CRON_SECRET>` または `?cron_secret=<CRON_SECRET>`。
+- **オプション**: `?lang=en` で言語固定。`dry_run=1` も有効。
+
+**curl 例（CRON_SECRET あり）:**
+
+```bash
+curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
+  "https://your-app.vercel.app/api/buzzweave-run?dry_run=true&lang=en"
+```
+
+**注意**
+
+- ドライラン時は **X への投稿は一切行わない**（`postQuoteTweet` は呼ばれず、`recordPqtUse` とサンプル用ログのみ）。ログは Vercel Dashboard → Project → Logs で確認。`[buzzweave-run] dry_run=true` および `[BuzzWeave] buildAndPostFromSlot dryRun` 等が出力される。
+
 ---
 
 ## 4. 主要コンポーネント
@@ -72,11 +91,11 @@ PDCA を回すための共通理解用。ML-PQT Engine の役割・フロー・�
 
 ### 4.5 ガード・抑制
 
-- **緊急停止**: `BUZZWEAVE_EMERGENCY_STOP=true` で即 return。
-- **X API blocked**: Supabase の `buzzweave_status.x_api_blocked` が true なら SKIP。
+- **投稿を止めるブロックは使わない**。暴走しない設計（Cron 1日9回・間隔・日次上限）のため、402 が出てもその run だけ失敗し、次回は通常どおり試行する。
+- **緊急停止のみ**: `BUZZWEAVE_EMERGENCY_STOP=true` のときだけ即 return。
 - **daily_limit_reached**: その日の run 数が `determineDailyRunTarget` を超えたら SKIP。
 - **interval_not_reached**: 前回 run から MIN_RUN_INTERVAL_HOURS 未満なら SKIP。
-- **API_CALL_CAP**: 1 run あたりの投稿数上限（デフォルト 20）。**MAX_CAP_PER_RUN**（100）、火水木の **MAX_CAP_PER_RUN_WARP**（200）でさらに上限制御。
+- **API_CALL_CAP**: 1 run あたりの投稿数上限（デフォルト 20）。**MAX_CAP_PER_RUN**（100）、火水木の **MAX_CAP_PER_RUN_WARP**（200）で上限制御。
 - **Safety guards**: `pqtPlanner.applySafetyAndSaturationGuards` で CTR 急落・停滞・言語過多・テンプレ分散に応じた補正（実装詳細は `ML_PQT_IMPLEMENTATION_PATCH_SPEC.md`）。
 
 ---

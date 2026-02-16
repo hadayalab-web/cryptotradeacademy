@@ -25,6 +25,7 @@
     "test:vsl2-last-call": "node scripts/test-vsl2-last-call.js",
     "test:add-free-user": "node scripts/test-add-free-user.js",
     "test:buzzweave": "node scripts/test-buzzweave.js",
+    "buzzweave:unblock-and-run": "node scripts/buzzweave-unblock-and-run.js",
     "test:telegram-leads": "node scripts/test-telegram-lead-discovery.js",
     "preview:vsl1": "node scripts/preview-vsl1-message.js",
     "check:setup": "node scripts/check-vsl-workflow-setup.js",

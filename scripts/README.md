@@ -8,7 +8,7 @@ X 投稿ロジックは **BuzzWeave Engine のみ**で行われます。投稿�
 
 ### 運用スクリプト
 
-- **`clear-buzzweave-x-api-blocked.js`** — X API 402 で立った `x_api_blocked` フラグを手動解除する（Token 修正後など）。API: `GET /api/buzzweave-clear-x-api-blocked?cron_secret=xxx` でも解除可能。詳細は [docs/TRAP_DEFENCE_OS_X_API_401_BLOCKED_VERIFICATION.md](../docs/TRAP_DEFENCE_OS_X_API_401_BLOCKED_VERIFICATION.md) を参照。
+- **`buzzweave-unblock-and-run.js`** — Vercel 上の `/api/buzzweave-run` を CRON_SECRET で 1 回叩く。`npm run buzzweave:unblock-and-run` で実行。
 
 ## `_archive/` について
 

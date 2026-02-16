@@ -550,59 +550,6 @@ async function upsertBuzzweaveStatusEmergencyStop(reason = "env_flag") {
   } catch (_) {}
 }
 
-async function upsertBuzzweaveStatus402() {
-  const sb = getSupabase();
-  if (!sb) return;
-  try {
-    const now = new Date().toISOString();
-    await sb
-      .from("buzzweave_status")
-      .upsert(
-        { id: "main", x_api_blocked: true, x_api_last_402_at: now, updated_at: now },
-        { onConflict: "id" }
-      );
-  } catch (_) {}
-}
-
-async function getBuzzweaveStatus() {
-  const sb = getSupabase();
-  if (!sb) return { x_api_blocked: false, x_api_last_402_at: null };
-  try {
-    const { data } = await sb
-      .from("buzzweave_status")
-      .select("x_api_blocked, x_api_last_402_at")
-      .eq("id", "main")
-      .maybeSingle();
-    return {
-      x_api_blocked: !!data?.x_api_blocked,
-      x_api_last_402_at: data?.x_api_last_402_at || null
-    };
-  } catch (e) {
-    return { x_api_blocked: false, x_api_last_402_at: null };
-  }
-}
-
-/**
- * X API blocked フラグを手動解除する（Token 修正後などに使用）
- * @returns {Promise<{ok: boolean, error?: string}>}
- */
-async function clearBuzzweaveStatusXApiBlocked() {
-  const sb = getSupabase();
-  if (!sb) return { ok: false, error: "Supabase not configured" };
-  try {
-    const now = new Date().toISOString();
-    const { error } = await sb
-      .from("buzzweave_status")
-      .upsert(
-        { id: "main", x_api_blocked: false, updated_at: now },
-        { onConflict: "id" }
-      );
-    return error ? { ok: false, error: error.message } : { ok: true };
-  } catch (e) {
-    return { ok: false, error: e?.message || String(e) };
-  }
-}
-
 // ========== BuzzWeave run 回数・間隔（1日上限・3h 間隔） ==========
 
 /**
@@ -1026,9 +973,6 @@ module.exports = {
   cleanupOldTdPostSlots,
   getTdPostSlotsHealthStats,
   upsertBuzzweaveStatusEmergencyStop,
-  upsertBuzzweaveStatus402,
-  getBuzzweaveStatus,
-  clearBuzzweaveStatusXApiBlocked,
   insertBuzzweavePostLog,
   updateBuzzweavePostLogWithMetrics,
   fetchBuzzweavePostLogsPendingMetrics,

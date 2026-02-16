@@ -10,7 +10,6 @@ const {
   getTdOfficialAccounts,
   getTdPostSlotsInNextHour,
   getTdPostSlotsHealthStats,
-  getBuzzweaveStatus,
   isSupabaseConfigured
 } = require("../utils/supabase");
 require("../utils/suppressKnownWarnings");
@@ -33,7 +32,8 @@ module.exports = async function handler(req, res) {
   const supabaseConfigured = isSupabaseConfigured();
   let statusOk = false;
   try {
-    await getBuzzweaveStatus();
+    const sb = getSupabase();
+    if (sb) await sb.from("buzzweave_status").select("id").eq("id", "main").maybeSingle();
     statusOk = true;
   } catch (_) {}
 
