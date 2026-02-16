@@ -8,12 +8,14 @@ const { getTweetMetrics } = require("../services/x/metrics");
 
 module.exports = async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
-  try {
-    const limit = parseInt(req.query?.limit, 10) || 20;
-    const minAgeMinutes = parseInt(req.query?.minAgeMinutes, 10) || 5;
+  const limit = parseInt(req.query?.limit, 10) || 20;
+  const minAgeMinutes = parseInt(req.query?.minAgeMinutes, 10) || 5;
+  console.log("[buzzweave-metrics-poll] start limit=" + limit + " minAgeMinutes=" + minAgeMinutes);
 
+  try {
     const { ok, rows } = await fetchBuzzweavePostLogsPendingMetrics(limit, minAgeMinutes);
     if (!ok || !rows?.length) {
+      console.log("[buzzweave-metrics-poll] no pending metrics, rows=" + (rows?.length ?? 0));
       return res.status(200).json({
         ok: true,
         message: "No pending metrics",
@@ -22,6 +24,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    console.log("[buzzweave-metrics-poll] pending rows=" + rows.length + ", fetching X metrics");
     const results = [];
     const errors = [];
     for (const row of rows) {
@@ -53,6 +56,7 @@ module.exports = async function handler(req, res) {
       }
     }
 
+    console.log("[buzzweave-metrics-poll] done updated=" + results.length + " errors=" + errors.length);
     return res.status(200).json({
       ok: true,
       updated: results.length,
@@ -60,7 +64,7 @@ module.exports = async function handler(req, res) {
       errors: errors.length ? errors : undefined
     });
   } catch (e) {
-    console.error("[buzzweave-metrics-poll]", e.message);
+    console.error("[buzzweave-metrics-poll] error:", e.message);
     return res.status(500).json({ ok: false, error: e.message });
   }
 };

@@ -3,6 +3,7 @@
  * - Engagement velocity（経過時間あたりのエンゲージメント）
  * - Algorithm-weighted score（リプライ重視の重み）
  * - Topic fit（Trap Defence ニッチ：BTC/ETH/トレード/リスクとの適合）
+ * - Copy fit（このコピーが刺さる引用元か：速さ・追いかけ・罠・構造・手順・同調）
  * Grok/既存ドキュメントのしばりは使わず、文献・アルゴリズム知見に基づく。
  */
 
@@ -13,6 +14,21 @@ const TOPIC_KEYWORDS = [
   "risk", "volatility", "support", "resistance", "liquidation", "long", "short",
   "トレード", "相場", "リスク", "ボラティリティ", "サポート", "レジスタンス",
   "트레이딩", "리스크", "변동성", "mercado", "riesgo", "trading", "mercado"
+];
+
+/**
+ * PQT コピーが刺さる引用元のキーワード（テーマ: 速さ・追いかけ・勢い・罠・構造・手順・同調）
+ * docs/PQT_COPY_AND_TARGET_SPEC.md のテーマに対応
+ */
+const COPY_FIT_KEYWORDS = [
+  "move", "fast", "speed", "chase", "rush", "momentum", "pump", "jump", "ath", "breakout",
+  "trap", "invisible", "candle", "strong", "reversal", "drawdown", "loss", "avoid",
+  "structure", "support", "level", "map", "check", "verify", "confirm", "process", "timing",
+  "bias", "reaction", "fomo", "entry", "entry",
+  "勢い", "乗る", "追う", "確認", "構造", "地図", "手順", "変わり目", "失速", "罠", "前のめり",
+  "급등", "반등", "확인", "구조", "움직임",
+  "movimiento", "velocidad", "estructura", "confirmar", "reacción",
+  "movimento", "estrutura", "confirmar", "reação"
 ];
 
 /**
@@ -69,8 +85,21 @@ function hypeBonus(text) {
 }
 
 /**
+ * このコピーが刺さる引用元か（0..1）
+ * 引用元テキストが PQT テーマ（速さ・追いかけ・罠・構造・手順・同調）に触れているかでスコア化
+ */
+function copyTargetFitScore(text) {
+  if (!text || typeof text !== "string") return 0;
+  const t = text.toLowerCase();
+  const hits = COPY_FIT_KEYWORDS.filter((k) => t.includes(k.toLowerCase()));
+  if (hits.length === 0) return 0;
+  return Math.min(1, 0.15 + hits.length * 0.12);
+}
+
+/**
  * 合成品質スコア（ランキング用）
- * velocity 正規化 + algorithm 重み + topic fit + hype ボーナス
+ * velocity + algorithm + topic fit + copy fit（刺さるターゲット） + hype ボーナス
+ * ターゲットをぼやけさせないため copy fit を組み込み
  */
 function quoteTargetQualityScore(candidate, nowMs = Date.now()) {
   const post = candidate?.post ?? candidate;
@@ -78,10 +107,11 @@ function quoteTargetQualityScore(candidate, nowMs = Date.now()) {
   const vel = engagementVelocityScore(candidate, nowMs);
   const alg = algorithmWeightedScore(post?.public_metrics ?? candidate?.public_metrics ?? {});
   const topic = topicFitScore(text);
+  const copyFit = copyTargetFitScore(text);
   const hype = hypeBonus(text);
   const velocityNorm = Math.min(1, vel / 50);
   const algNorm = Math.min(1, alg / 500);
-  return velocityNorm * 0.35 + algNorm * 0.35 + topic * 0.25 + hype;
+  return velocityNorm * 0.30 + algNorm * 0.30 + topic * 0.20 + copyFit * 0.20 + hype;
 }
 
 /**
@@ -97,11 +127,50 @@ function selectByQualityScore(candidates, maxCount, nowMs = Date.now()) {
   return scored.slice(0, Math.max(0, maxCount));
 }
 
+/**
+ * インプレが伸びる候補だけに絞る（velocity / topic fit / copy fit の最小閾値）
+ * BUZZWEAVE_IMPRESSION_FILTER 有効時はエンジン側で呼ぶ
+ * @param {Array} candidates - 候補配列
+ * @param {{ minVelocity?: number, minTopicFit?: number, minCopyFit?: number }} options - 閾値（未指定は 0 = 足切りしない）
+ * @param {number} nowMs
+ * @returns {{ passed: Array, dropped: number, reasons: Record<string, number> }}
+ */
+function filterCandidatesByImpressionPotential(candidates, options = {}, nowMs = Date.now()) {
+  const minVelocity = Number(options.minVelocity) || 0;
+  const minTopicFit = Number(options.minTopicFit) || 0;
+  const minCopyFit = Number(options.minCopyFit) || 0;
+  const reasons = { velocity: 0, topicFit: 0, copyFit: 0 };
+  const passed = (candidates || []).filter((c) => {
+    const post = c?.post ?? c;
+    const text = post?.text ?? c?.text ?? "";
+    const vel = engagementVelocityScore(c, nowMs);
+    const topic = topicFitScore(text);
+    const copyFit = copyTargetFitScore(text);
+    let ok = true;
+    if (minVelocity > 0 && vel < minVelocity) {
+      reasons.velocity++;
+      ok = false;
+    }
+    if (minTopicFit > 0 && topic < minTopicFit) {
+      reasons.topicFit++;
+      ok = false;
+    }
+    if (minCopyFit > 0 && copyFit < minCopyFit) {
+      reasons.copyFit++;
+      ok = false;
+    }
+    return ok;
+  });
+  return { passed, dropped: (candidates?.length || 0) - passed.length, reasons };
+}
+
 module.exports = {
   algorithmWeightedScore,
   engagementVelocityScore,
   topicFitScore,
   hypeBonus,
+  copyTargetFitScore,
   quoteTargetQualityScore,
-  selectByQualityScore
+  selectByQualityScore,
+  filterCandidatesByImpressionPotential
 };

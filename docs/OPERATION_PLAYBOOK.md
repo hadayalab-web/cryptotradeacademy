@@ -22,6 +22,8 @@
 |------------|----------|------|
 | **run のあと** | 短報（posts_fetched, candidates, slots, cap, posted, fill_rate） | ログの `[buzzweave-run] short_report` または ML_PQT 7.1 |
 | **fill_rate が低い** | 原因は検索ヒット不足か → 次の1アクション | Gemini にログを投げる（下記プロンプト定型）。ML_PQT 7.2 合格ライン |
+| **Content Create が少ない（投稿が伸びない）** | run スキップ or 1 run あたり slots 不足 | [POST_VOLUME_NOT_GROWING.md](POST_VOLUME_NOT_GROWING.md) |
+| **インプレがほぼゼロ（1〜2件の表示）** | クリック以前。リーチ確保が先 | [IMPRESSIONS_NEAR_ZERO_WHAT_TO_DO.md](IMPRESSIONS_NEAR_ZERO_WHAT_TO_DO.md) |
 | **ログに GET ---** | どの API が落ちたか・対処 | docs/LOGS_TROUBLESHOOTING.md |
 | **パラメータを変える** | ロールフォワード順・ロールバック順 | ML_PQT 7.3 |
 | **Grok に意思決定を聞く** | 選択肢を明示してから聞く（自由記述だと誤レバー） | TRAP_DEFENCE_GROK_GEMINI_ROLES.md |

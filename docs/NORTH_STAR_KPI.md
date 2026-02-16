@@ -55,3 +55,6 @@
 | ML PQT 環境変数・検証項目 | `docs/ML_PQT_ENGINE_FOR_OPERATION_AND_VERIFICATION.md` |
 | **武器: X スキャン＋自前分析でアルゴを丸裸に** | `docs/WEAPON_X_SCAN_AND_ALGO_ANALYSIS.md` |
 | **投稿CTRをいかにクリックさせるか**（心理・フォーマット・クリック計測） | `docs/PQT_CTR_HOW_TO_GET_CLICKS.md` |
+| **投稿が伸びないとき**（Content Create 少・500/日へのレバー） | `docs/POST_VOLUME_NOT_GROWING.md` |
+| **インプレがほぼゼロのとき**（クリック以前・リーチ確保） | `docs/IMPRESSIONS_NEAR_ZERO_WHAT_TO_DO.md` |
+| **引用リポストのロジック差分**（検証に基づく volume トップアップ・fallback 拡張） | `docs/QUOTE_REPOST_LOGIC_DIFF_FROM_VERIFICATION.md` |

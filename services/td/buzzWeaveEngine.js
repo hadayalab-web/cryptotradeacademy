@@ -39,7 +39,7 @@ const {
 const { buildStructuredPostFromSlot } = require("../textgen/buildStructuredPost");
 const { getBtcSnapshot } = require("../market/getBtcSnapshot");
 const { selectFishermanSlotsTopPercent, selectSlotsFallback } = require("./fishermanDetector");
-const { quoteTargetQualityScore, selectByQualityScore } = require("./quoteTargetQuality");
+const { quoteTargetQualityScore, selectByQualityScore, filterCandidatesByImpressionPotential } = require("./quoteTargetQuality");
 const { buildPqt, recordPqtUse } = require("./pqtCtaEngine");
 const { buildProofSnippetFromSnapshot } = require("./pqtProofSnippet");
 const { allocatePqtPerLanguageFromSchedule } = require("./pqtPlanner");
@@ -77,6 +77,8 @@ const DEFAULT_DEADLINE_MS = Number(process.env.BUZZWEAVE_DEADLINE_MS || 55000);
 const BUZZWEAVE_MAX_TARGETS = Number(process.env.BUZZWEAVE_MAX_TARGETS || 12);
 const BUZZWEAVE_GPT_CLASSIFY_TOP_N = Number(process.env.BUZZWEAVE_GPT_CLASSIFY_TOP_N || 10);
 const BUZZWEAVE_ENOUGH_CANDIDATES = Number(process.env.BUZZWEAVE_ENOUGH_CANDIDATES || 24);
+/** 引用リポストのターゲット候補としてスロット選定に渡す最大件数。従来は classifyTopN(10) で打ち切っており Fisherman の母数が常に10だった。50 に引き上げて意図どおり抽出させる。 */
+const BUZZWEAVE_MAX_CANDIDATES = Math.max(10, Number(process.env.BUZZWEAVE_MAX_CANDIDATES || 50));
 const CLEANUP_OLDER_THAN_HOURS = Number(process.env.BUZZWEAVE_SLOT_RETENTION_HOURS || 48);
 const LOG_LEVEL = process.env.BUZZWEAVE_LOG_LEVEL || "info";
 const LOG_MAX_PER_RUN = 5;
@@ -792,6 +794,7 @@ async function collectBuzzCandidates(options = {}) {
   const startMs = Number(options.startMs || Date.now());
   const deadlineMs = Number(options.deadlineMs || DEFAULT_DEADLINE_MS);
   const classifyTopN = Number(options.classifyTopN || BUZZWEAVE_GPT_CLASSIFY_TOP_N);
+  const maxCandidates = Number(options.maxCandidates || BUZZWEAVE_MAX_CANDIDATES);
   const slotLang = options.slotLang || "en";
   const candidates = [];
   const rawCandidates = [];
@@ -895,8 +898,9 @@ async function collectBuzzCandidates(options = {}) {
 
   if (isDeadlineExceeded(startMs, deadlineMs)) {
     logWarn("deadline exceeded", { stage: "after-median-filter", ...deadlineSnapshot(startMs, deadlineMs) });
-    console.log("[BuzzWeave] BWE SCAN: deadline after median filter, posts_fetched=" + posts.length + " buzz_candidates=" + filteredByMedian.length);
-    return { candidates: filteredByMedian.slice(0, classifyTopN).map(c => ({ ...c, context: { topic: "crypto", tone: "neutral", lang: c.target?.lang || "en" }, cluster: classifyCluster(c.post?.text) })), deadlineExceeded: true, clusters: {}, clusterScores: {}, postsFetched: posts.length };
+    const take = Math.min(filteredByMedian.length, maxCandidates);
+    console.log("[BuzzWeave] BWE SCAN: deadline after median filter, posts_fetched=" + posts.length + " buzz_candidates=" + take);
+    return { candidates: filteredByMedian.slice(0, take).map(c => ({ ...c, context: { topic: "crypto", tone: "neutral", lang: c.target?.lang || "en" }, cluster: classifyCluster(c.post?.text) })), deadlineExceeded: true, clusters: {}, clusterScores: {}, postsFetched: posts.length };
   }
 
   // 2-1: トレンドクラスタリング + 危険度分類
@@ -926,7 +930,8 @@ async function collectBuzzCandidates(options = {}) {
     if (s !== 0) return s;
     return (b.engagementScore || 0) - (a.engagementScore || 0);
   });
-  const toClassify = rankedByImpression.slice(0, Math.max(1, classifyTopN));
+  // ターゲット抽出: 従来は classifyTopN(10) のみ渡しており Fisherman の母数が常に10だった。maxCandidates まで渡して意図どおり選定させる。
+  const toClassify = rankedByImpression.slice(0, Math.max(1, Math.min(rankedByImpression.length, maxCandidates)));
   let deadlineExceeded = false;
   // 完全パターン化: GPT は使わず context は固定
   for (const c of toClassify) {
@@ -1254,15 +1259,49 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   const effectiveCap = cap;
   const FALLBACK_SLOT_COUNT = Math.max(3, Math.min(15, Number(process.env.BUZZWEAVE_FALLBACK_SLOT_COUNT || 10)));
   const useQualityScoreSelection = process.env.BUZZWEAVE_USE_QUALITY_SCORE_SELECTION === "true" || process.env.BUZZWEAVE_USE_QUALITY_SCORE_SELECTION === "1";
+  const fallbackFillCap = process.env.BUZZWEAVE_FALLBACK_FILL_CAP === "true" || process.env.BUZZWEAVE_FALLBACK_FILL_CAP === "1";
+  const volumeTopUp = process.env.BUZZWEAVE_VOLUME_TOPUP !== "false" && process.env.BUZZWEAVE_VOLUME_TOPUP !== "0";
+  // 品質スコア選定時はインプレ足切りをデフォルト有効（BUZZWEAVE_IMPRESSION_FILTER=false で無効化可能）
+  const impressionFilter = useQualityScoreSelection && (process.env.BUZZWEAVE_IMPRESSION_FILTER !== "false" && process.env.BUZZWEAVE_IMPRESSION_FILTER !== "0");
+
+  // インプレが伸びる候補だけに絞る（品質スコア選定時・BUZZWEAVE_IMPRESSION_FILTER 有効時）
+  let candidatesForSlots = candidates;
+  if (useQualityScoreSelection && impressionFilter) {
+    const minVelocity = Math.max(0, Number(process.env.BUZZWEAVE_MIN_VELOCITY || 0));
+    const minTopicFit = Math.max(0, Math.min(1, Number(process.env.BUZZWEAVE_MIN_TOPIC_FIT || 0)));
+    const minCopyFit = Math.max(0, Math.min(1, Number(process.env.BUZZWEAVE_MIN_COPY_FIT || 0)));
+    const filtered = filterCandidatesByImpressionPotential(candidates, { minVelocity, minTopicFit, minCopyFit }, Date.now());
+    candidatesForSlots = filtered.passed;
+    if (filtered.dropped > 0) {
+      logInfo("pqt impression filter applied", { before: candidates.length, after: filtered.passed.length, dropped: filtered.dropped, reasons: filtered.reasons, minVelocity, minTopicFit, minCopyFit });
+    }
+  }
 
   // 100成約/日がノルマ。仕手・提灯にこだわらず volume 確保。Fisherman 0 件時は fallback で投稿数を確保する。
   let slots;
   if (useQualityScoreSelection) {
-    slots = selectByQualityScore(candidates, cap, Date.now());
+    slots = selectByQualityScore(candidatesForSlots, cap, Date.now());
     logInfo("pqt slots by quality score", { count: slots.length, cap: effectiveCap, mode: "quality_score" });
   } else {
     slots = selectFishermanSlotsTopPercent(candidates, langFilter, { maxCount: cap });
-    if (slots.length === 0) slots = selectSlotsFallback(candidates, Math.min(FALLBACK_SLOT_COUNT, cap));
+    if (slots.length === 0) {
+      const fallbackCount = fallbackFillCap ? effectiveCap : Math.min(FALLBACK_SLOT_COUNT, cap);
+      slots = selectSlotsFallback(candidates, fallbackCount);
+      logInfo("pqt slots fallback (Fisherman=0)", { count: slots.length, fallbackCount, fillCap: fallbackFillCap });
+    }
+  }
+
+  // 検証に基づく volume トップアップ: slots が cap に満たず候補が余っていれば、engagement 降順で埋める（インプレ・成約の機会を増やす）。
+  if (volumeTopUp && slots.length < effectiveCap && candidatesForSlots.length > slots.length) {
+    const selectedIds = new Set(slots.map((s) => s?.post?.id ?? s?.id).filter(Boolean));
+    const rest = candidatesForSlots.filter((c) => !selectedIds.has(c?.post?.id ?? c?.id));
+    const need = effectiveCap - slots.length;
+    if (rest.length > 0 && need > 0) {
+      rest.sort((a, b) => (b.engagementScore ?? 0) - (a.engagementScore ?? 0));
+      const topped = rest.slice(0, need);
+      slots = slots.concat(topped);
+      logInfo("pqt slots volume top-up", { added: topped.length, before: slots.length - topped.length, after: slots.length, cap: effectiveCap });
+    }
   }
 
   const nowMs = Date.now();

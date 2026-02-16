@@ -155,10 +155,13 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 | BUZZWEAVE_BASE_POSTS_PER_CONVERSION | 1成約あたり投稿数（フェルミ値） | 5 |
 | BUZZWEAVE_RUNS_PER_DAY_FOR_TARGET | ターゲットを割る run 数（Cron 実行回数と一致推奨） | 8 |
 | BUZZWEAVE_WEEKDAY_WARP | 火水木 2 倍 cap を使うか | 任意 |
+| BUZZWEAVE_MAX_CANDIDATES | スロット選定に渡すターゲット候補の最大件数（従来10で打ち切っていたのを50に拡張） | 50 |
 | BUZZWEAVE_SEARCH_WINDOW_MIN | 検索の直近何分まで取得するか（分） | 30（100成約KPI向けに拡大） |
 | BUZZWEAVE_SEARCH_PAGES_PER_BUCKET | クエリあたりの取得ページ数 | 3 |
 | BUZZWEAVE_LOW_VOLUME_LANGS | 少言語（検索 0 件時に長めウィンドウで再試行） | ar,ko,ja |
 | BUZZWEAVE_FALLBACK_SLOT_COUNT | Fisherman 0 件時のフォールバック最大スロット数 | 10 |
+| BUZZWEAVE_FALLBACK_FILL_CAP | true で Fisherman=0 のとき fallback を cap まで取る（100成約/日 volume 確保） | 未設定（false） |
+| BUZZWEAVE_VOLUME_TOPUP | false/0 で無効。未設定時は slots が cap に満たないとき候補から engagement 降順でトップアップ | 有効 |
 | BUZZWEAVE_USE_QUALITY_SCORE_SELECTION | true で品質スコア選定（velocity/topic fit/リプライ重み）。未設定なら従来 Fisherman＋8% | 未設定 |
 | BUZZWEAVE_RISING_WINDOW_MAX_SEC | 品質スコア選定時の「rising」ウィンドウ秒（2分〜この値）。60分なら 3600 | 420 |
 
