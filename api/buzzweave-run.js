@@ -128,6 +128,20 @@ async function handler(req, res) {
     const result = await runBuzzWeaveCycle({ dryRun, langFilter, btcSnapshot });
     const posted = result && typeof result.posted === "number" ? result.posted : 0;
     console.log("[buzzweave-run] run completed", "posted=" + posted, "runId=" + (result?.runId || ""), result?.message ? "message=" + result.message : "");
+    if (result?.shortReport) {
+      const s = result.shortReport;
+      console.log(
+        "[buzzweave-run] short_report",
+        "run_id=" + (s.run_id || ""),
+        "lang=" + (s.lang || ""),
+        "posts_fetched=" + (s.posts_fetched ?? ""),
+        "candidates=" + (s.candidates ?? ""),
+        "slots=" + (s.slots ?? ""),
+        "cap=" + (s.cap ?? ""),
+        "posted=" + (s.posted ?? ""),
+        "fill_rate=" + (s.fill_rate ?? "")
+      );
+    }
     await recordBuzzWeaveRun();
     return res.status(200).json(result);
   } catch (e) {

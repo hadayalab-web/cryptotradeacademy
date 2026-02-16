@@ -1433,7 +1433,26 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     });
   }
 
-  return { ok: true, posted, runId, pqtOnly: true, generatedSamples, sampleSummary };
+  const posts_fetched = collectResult.postsFetched ?? 0;
+  const fill_rate = effectiveCap > 0 ? posted / effectiveCap : 0;
+  return {
+    ok: true,
+    posted,
+    runId,
+    pqtOnly: true,
+    generatedSamples,
+    sampleSummary,
+    shortReport: {
+      run_id: runId,
+      lang: langFilter,
+      posts_fetched,
+      candidates: candidates.length,
+      slots: slots.length,
+      cap: effectiveCap,
+      posted,
+      fill_rate: Math.round(fill_rate * 10000) / 10000
+    }
+  };
 }
 
 /**

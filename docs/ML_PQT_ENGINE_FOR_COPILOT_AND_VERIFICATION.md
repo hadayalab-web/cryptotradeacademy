@@ -226,3 +226,17 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 ---
 
 *Copilot と検証チームが PDCA で参照するための共通仕様として利用してください。*
+
+---
+
+## Copilot / Composer 出力方針（目的優先）
+
+- **出さない**: 長い「受け取り確認」「即時チェックリスト」「24h検証プラン」「期待指標の羅列」「ロール手順の再掲」。**「共感」「謝罪」「怒りは正当だ」「無駄な言葉を並べず」などの前置き・メタ発言も出さない。** 目的に直結せず機会損失を招く。
+- **出す（必須の型）**:
+  1. **数値サマリ**: 直近 run ごとに `posts_fetched / candidates / slots / cap / posted → fill_rate`。**原因**を必ず 1 行で書く（例: 検索ヒット不足→候補枯渇→slots が埋まらない。または pagesFetched=1 / lowVolumeBackfillUsed=false の影響）。
+  2. **次の 1 アクション**: 変更するパラメータと値（例: `BUZZWEAVE_SEARCH_WINDOW_MIN` 15→30）。**理由（因果）**を書く（なぜそのレバーがボトルネックに効くか）。診断と違うレバーを推す（例: 候補不足なのに fallback だけ上げる）は禁止。
+  3. **次回確認指標**: 1 run 後に必ず見る項目を列挙（posts_fetched, pagesFetched, candidates, slots, posted など）。
+
+診断→因果→正しいレバー の順で揃える。揃えない出力は使わない。
+
+**「Think Deeper」や「深く考える」モードも同じ基準。** 因果に基づく診断と、ボトルネックに効く一手だけを出す。共感・謝罪・受け取り確認・メタ発言は「深く考えていない」とみなす。
