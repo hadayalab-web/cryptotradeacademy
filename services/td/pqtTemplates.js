@@ -750,4 +750,68 @@ ${cta} -> ${link}`;
   ]
 };
 
-module.exports = { PQT_TEMPLATES };
+/**
+ * 仕手Bot攻略用テンプレ（6言語×4パターン）
+ * - 冒頭「同意フック」（煽り・急騰に同意）→ 軸をずらして「ここだけ確認」
+ * - 短いのでリプライ280字以内＋リンク確実
+ * - mirrorWords があれば冒頭に織り込む
+ */
+const BOT_AGREEMENT_HOOKS = {
+  en: [
+    (ctx) => (ctx.mirrorWords ? `Yeah, ${ctx.mirrorWords} gets attention. ` : "Yeah, this kind of move gets attention. ") + "Before you jump — one structure check so you don't get caught wrong.",
+    () => "This move is hot. Before FOMO hits — check where it can flip so you're not on the wrong side.",
+    () => "Pump vibes are real. One quick check on structure and you're less likely to chase the top.",
+    () => "Numbers don't lie — they're moving. Before you add size, one level to verify keeps drawdowns smaller."
+  ],
+  ja: [
+    (ctx) => (ctx.mirrorWords ? `確かに${ctx.mirrorWords}、動いてますね。` : "確かに動いてますね。") + "その前にここだけ見ておくと損しにくいです。",
+    () => "勢い出てますね。乗る前に「どこでひっくり返るか」だけ押さえておくと安心です。",
+    () => "煽りじゃなく、順番です。構造を一回だけ見てから動くと取り返しが違います。",
+    () => "動きは出てる。そのまま飛び乗るより、変わり目を一つ確認してからの方が安全です。"
+  ],
+  es: [
+    (ctx) => (ctx.mirrorWords ? `Sí, ${ctx.mirrorWords} atrae. ` : "Sí, este tipo de movimiento atrae. ") + "Antes de entrar — una revisión de estructura para no pillar el lado equivocado.",
+    () => "El movimiento está fuerte. Antes de que el FOMO pegue — revisa dónde puede girar.",
+    () => "La bomba se siente. Una revisión rápida de estructura y es menos probable que persigas el techo.",
+    () => "Los números se mueven. Antes de sumar tamaño, un nivel que verificar reduce drawdowns."
+  ],
+  pt: [
+    (ctx) => (ctx.mirrorWords ? `Sim, ${ctx.mirrorWords} chama. ` : "Sim, esse tipo de movimento chama. ") + "Antes de entrar — uma checagem de estrutura para não ser pego do lado errado.",
+    () => "O movimento está quente. Antes do FOMO — confira onde pode virar.",
+    () => "A bomba é real. Uma checagem rápida de estrutura e você corre menos atrás do topo.",
+    () => "Os números se movem. Antes de aumentar tamanho, um nível para confirmar reduz drawdowns."
+  ],
+  ar: [
+    (ctx) => (ctx.mirrorWords ? `أجل، ${ctx.mirrorWords} يلفت الانتباه. ` : "أجل، هذا النوع من الحركة يلفت. ") + "قبل القفز — تحقق من البنية مرة واحدة حتى لا تُمسك بالجهة الخاطئة.",
+    () => "الحركة قوية. قبل أن يضرب FOMO — راجع أين يمكن أن تنعكس.",
+    () => "الإحساس بالضخ حقيقي. مراجعة سريعة للبنية وتقل احتمالية مطاردتك للقمة.",
+    () => "الأرقام تتحرك. قبل زيادة الحجم، مستوى واحد للتحقق يقلل التراجعات."
+  ],
+  ko: [
+    (ctx) => (ctx.mirrorWords ? `맞아요, ${ctx.mirrorWords} 반응 많죠. ` : "맞아요, 이런 움직임 반응 많죠. ") + "그 전에 여기만 확인해 두면 손해 덜 봅니다.",
+    () => "움직임 나오고 있어요. 타기 전에 ‘어디서 뒤집히는지’만 보고 가면 안전합니다.",
+    () => "선동이 아니라 순서예요. 구조 한 번만 보고 움직이면 결과가 달라집니다.",
+    () => "움직임은 나옵니다. 그대로 뛰어타기보다 변곡점 하나 확인하고 가는 게 안전해요."
+  ]
+};
+
+function buildBotTemplate(lang, templateIndex, ctx) {
+  const hooks = BOT_AGREEMENT_HOOKS[lang] || BOT_AGREEMENT_HOOKS.en;
+  const fn = hooks[templateIndex % hooks.length];
+  const hookLine = typeof fn === "function" ? fn(ctx) : String(fn);
+  const cta = resolveCta(lang, ctx.funnelType || "vidalytics_regular", templateIndex);
+  const link = ctx.link || "";
+  return hookLine + "\n" + actionLine(lang) + "\n" + cta + " -> " + link;
+}
+
+const PQT_TEMPLATES_BOT = {};
+for (const lang of Object.keys(PQT_TEMPLATES)) {
+  const hooks = BOT_AGREEMENT_HOOKS[lang] || BOT_AGREEMENT_HOOKS.en;
+  PQT_TEMPLATES_BOT[lang] = [];
+  for (let i = 0; i < hooks.length; i++) {
+    const idx = i;
+    PQT_TEMPLATES_BOT[lang].push((ctx) => buildBotTemplate(lang, idx, ctx));
+  }
+}
+
+module.exports = { PQT_TEMPLATES, PQT_TEMPLATES_BOT, buildBotTemplate };

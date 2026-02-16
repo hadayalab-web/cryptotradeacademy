@@ -1,7 +1,7 @@
 /**
  * TD BuzzWeave Engine — 引用リポスト最適化エンジン
  * 北極星: 100成約/日（KPI）。ここからすべて逆算。高インプレ・高エンゲ・高CVRは成約への経路指標。
- * フロー: Search → バズ抽出 → Fisherman スロット → テンプレ（buildPqt）→ 引用リポスト。旧 GPT 寄生コピー経路は廃止。
+ * フロー: Search → 候補抽出 → テンプレ（buildPqt）→ ターゲットへのリプライのみ。引用リポストは廃止（運用はリプライのみでスレ内で確実に見つけてもらう）。
  */
 const { loadEnv } = require("../../utils/loadEnv");
 const { getKV } = require("../../utils/kv");
@@ -39,7 +39,7 @@ const {
 const { buildStructuredPostFromSlot } = require("../textgen/buildStructuredPost");
 const { getBtcSnapshot } = require("../market/getBtcSnapshot");
 const { selectFishermanSlotsTopPercent, selectSlotsFallback } = require("./fishermanDetector");
-const { quoteTargetQualityScore, selectByQualityScore, filterCandidatesByImpressionPotential, hypeBonus } = require("./quoteTargetQuality");
+const { quoteTargetQualityScore, selectByQualityScore, filterCandidatesByImpressionPotential, hypeBonus, copyTargetFitScore } = require("./quoteTargetQuality");
 const { buildPqt, recordPqtUse } = require("./pqtCtaEngine");
 const { buildProofSnippetFromSnapshot } = require("./pqtProofSnippet");
 const { allocatePqtPerLanguageFromSchedule } = require("./pqtPlanner");
@@ -1289,22 +1289,33 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     }
   }
 
-  // 仕手Bot攻略 = 提灯救済に寄与。Bot相手なら遠慮なく攻める。engagement × (1 + hypeBoost×hypeBonus) で Bot が集客したスレを優先。
+  // 高インプレ優先＋CTR向上: impressionScore で乗せ先の伸びを優先、copyFit でリプライが刺さる投稿を優先。
   const HYPE_BOOST = Math.max(0, Math.min(2, Number(process.env.BUZZWEAVE_HYPE_BOOST) || 0.8));
+  const IMPRESSION_BOOST = Math.max(0, Math.min(2, Number(process.env.BUZZWEAVE_IMPRESSION_BOOST) || 0.6));
+  const CTR_BOOST = Math.max(0, Math.min(2, Number(process.env.BUZZWEAVE_CTR_BOOST) || 0.4));
   let slots;
   if (useSimpleSelection) {
     slots = [...candidatesForSlots]
       .map((c) => {
         const text = c?.post?.text ?? c?.text ?? "";
-        return { ...c, _hype: hypeBonus(text) };
+        const imp = Number(c.impressionScore) || 0;
+        const hype = hypeBonus(text);
+        const copyFit = copyTargetFitScore(text);
+        const engagement = Math.max(0, c.engagementScore ?? 0);
+        const base = engagement * (1 + IMPRESSION_BOOST * imp);
+        const score = base * (1 + HYPE_BOOST * hype) * (1 + CTR_BOOST * copyFit);
+        return { ...c, _hype: hype, _copyFit: copyFit, _selectionScore: score };
       })
-      .sort((a, b) => {
-        const scoreA = (a.engagementScore ?? 0) * (1 + HYPE_BOOST * (a._hype ?? 0));
-        const scoreB = (b.engagementScore ?? 0) * (1 + HYPE_BOOST * (b._hype ?? 0));
-        return scoreB - scoreA;
-      })
+      .sort((a, b) => (b._selectionScore ?? 0) - (a._selectionScore ?? 0))
       .slice(0, cap);
-    logInfo("pqt slots by simple selection", { count: slots.length, cap: effectiveCap, mode: "simple_engagement_hype", hypeBoost: HYPE_BOOST });
+    logInfo("pqt slots by simple selection", {
+      count: slots.length,
+      cap: effectiveCap,
+      mode: "impression_hype_copyFit",
+      hypeBoost: HYPE_BOOST,
+      impressionBoost: IMPRESSION_BOOST,
+      ctrBoost: CTR_BOOST
+    });
   } else if (useQualityScoreSelection) {
     slots = selectByQualityScore(candidatesForSlots, cap, Date.now());
     logInfo("pqt slots by quality score", { count: slots.length, cap: effectiveCap, mode: "quality_score" });
@@ -1343,9 +1354,11 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     slot._inRisingWindow = slot._ageSec >= WINDOW_2_7MIN_SEC.min && slot._ageSec <= WINDOW_RISING_MAX_SEC;
     slot._quoteQualityScore = quoteTargetQualityScore(slot, nowMs);
   }
-  // 窓で捨てないをデフォルト。2〜7分（または rising）以外を捨てると投稿数が激減するため、未検証仮説の窓絞りはオフ。BUZZWEAVE_SKIP_WINDOW_NARROWING=false で従来の「窓内だけに絞る」に戻す。
+  // 窓で捨てないをデフォルト。シンプル選定時は「高インプレ＋CTR」の順序を維持し、窓・momentum で上書きしない。
   const skipWindowNarrowing = useSimpleSelection || (process.env.BUZZWEAVE_SKIP_WINDOW_NARROWING !== "false" && process.env.BUZZWEAVE_SKIP_WINDOW_NARROWING !== "0");
-  if (!useQualityScoreSelection) {
+  if (useSimpleSelection) {
+    // 順序はすでに _selectionScore（impression × hype × copyFit）で決まっている。維持する。
+  } else if (!useQualityScoreSelection) {
     const inWindow = slots.filter((s) => s._in2_7Window);
     if (!skipWindowNarrowing && inWindow.length > 0) slots = inWindow;
     slots.sort((a, b) => {
@@ -1374,7 +1387,9 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     shiteshiStats[id] = { shiteshiScore: slot.shiteshiScore };
   }
 
-  if (snapshot?.performanceMetrics) {
+  if (useSimpleSelection) {
+    // 高インプレ×CTR の _selectionScore 順を維持。tier 並び替えは行わない。
+  } else if (snapshot?.performanceMetrics) {
     try {
       const { normalizePerformanceMetrics } = require("./mlPqtNormalizer");
       const normalized = normalizePerformanceMetrics(snapshot.performanceMetrics);
@@ -1400,10 +1415,10 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     });
   }
 
-  // 仕手Bot利用: リプライしてから引用でスレに2回出る。デフォルトで有効、対象を run の 50% に拡大。
-  const REPLY_FIRST_ALL_MAX_PCT = process.env.BUZZWEAVE_REPLY_FIRST_PCT != null ? Math.min(1, Math.max(0.1, Number(process.env.BUZZWEAVE_REPLY_FIRST_PCT))) : 0.5;
-  console.log("[BuzzWeave] pqt-only slots ready", "candidates=" + candidates.length, "slots=" + slots.length, "cap=" + effectiveCap, "runId=" + runId);
-  logInfo("pqt-only slots ready", { candidates: candidates.length, slots: slots.length, cap: effectiveCap, runId });
+  // 運用はリプライのみ。引用リポスト廃止。ターゲット投稿にリプライするだけ＝スレ内で確実に見つけてもらう。
+  const REPLY_MAX_LEN = 280;
+  console.log("[BuzzWeave] reply-only slots ready", "candidates=" + candidates.length, "slots=" + slots.length, "cap=" + effectiveCap, "runId=" + runId);
+  logInfo("reply-only slots ready", { candidates: candidates.length, slots: slots.length, cap: effectiveCap, runId });
   let posted = 0;
   for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
     const slot = slots[slotIndex];
@@ -1425,8 +1440,24 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
 
     const coin = /BTC|bitcoin/i.test(slot?.post?.text || "") ? "BTC" : /ETH/i.test(slot?.post?.text || "") ? "ETH" : "BTC";
     const proofSnippet = buildProofSnippetFromSnapshot(snapshot, langFilter, slot);
-    const built = buildPqt(langFilter, { coin, proofSnippet, link, funnelType, quotedText: slot?.post?.text });
+    const useBotTemplates = process.env.BUZZWEAVE_USE_BOT_TEMPLATES !== "false" && process.env.BUZZWEAVE_USE_BOT_TEMPLATES !== "0";
+    const built = buildPqt(langFilter, { coin, proofSnippet, link, funnelType, quotedText: slot?.post?.text, useBotTemplates });
     if (!built || !built.text) continue;
+    // リプライは280字制限。リンクを切らないよう「本文だけ詰めて末尾にリンク」にする
+    const fullText = built.text;
+    let replyText;
+    if (fullText.length <= REPLY_MAX_LEN) {
+      replyText = fullText;
+    } else if (link && fullText.includes(link)) {
+      const body = fullText.replace(link, "").replace(/\s*->\s*$/, "").trim();
+      const bodyMax = REPLY_MAX_LEN - link.length - 2;
+      replyText = (body.length > bodyMax ? body.slice(0, bodyMax - 3) + "..." : body) + " " + link;
+    } else if (link) {
+      const bodyMax = REPLY_MAX_LEN - link.length - 2;
+      replyText = fullText.slice(0, Math.max(0, bodyMax - 3)) + "..." + " " + link;
+    } else {
+      replyText = fullText.slice(0, REPLY_MAX_LEN - 3) + "...";
+    }
     if (collectSamples && generatedSamples.length < sampleLimit) {
       const text = String(built.text || "");
       const questionCount = (text.match(/[?？]/g) || []).length;
@@ -1445,102 +1476,43 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
 
     if (dryRun) {
       posted += 1;
-      recordPqtUse(langFilter, built.templateIndex);
+      recordPqtUse(langFilter, built.templateIndex, built.useBotTemplates ? langFilter + "_bot" : undefined);
       continue;
     }
 
-    logInfo("pqt_quote_target", {
+    logInfo("reply_only_target", {
       runId,
       slotIndex,
       lang: langFilter,
-      target_post: {
-        id: slot?.post?.id,
-        author_id: slot?.post?.author_id,
-        text: slot?.post?.text,
-        created_at: slot?.post?.created_at,
-        public_metrics: slot?.post?.public_metrics
-      },
-      target_account: slot?.target
-        ? {
-            handle: slot.target.handle,
-            lang: slot.target.lang,
-            author: slot.target.author,
-            org_type: slot.target.org_type,
-            target_type: slot.target.target_type
-          }
-        : { author_id: slot?.post?.author_id },
-      slot_metrics: {
-        engagementScore: slot?.engagementScore,
-        impressionScore: slot?.impressionScore,
-        cluster: slot?.cluster,
-        clusterScore: slot?.clusterScore,
-        shiteshiScore: slot?.shiteshiScore,
-        _ageSec: slot?._ageSec,
-        _likesPer10min: slot?._likesPer10min,
-        _in2_7Window: slot?._in2_7Window,
-        quoteQualityScore: slot?._quoteQualityScore
-      }
+      target_post: { id: slot?.post?.id, author_id: slot?.post?.author_id },
+      target_handle: slot?.target?.handle
     });
 
-    const replyFirstQtRaw = process.env.BUZZWEAVE_REPLY_FIRST_QT || "";
-    const replyFirstQt = replyFirstQtRaw !== "false" && replyFirstQtRaw !== "0";
-    const replyFirstQtEverySlot = replyFirstQtRaw === "all" || replyFirstQtRaw === "every" || (replyFirstQtRaw !== "false" && replyFirstQtRaw !== "0");
-    const isFirstSlot = posted === 0;
-    const replyFirstWithinCap = replyFirstQtEverySlot ? slotIndex < Math.ceil(slots.length * REPLY_FIRST_ALL_MAX_PCT) : isFirstSlot;
     try {
-      if (replyFirstQt && replyToTweet && replyFirstWithinCap) {
-        const oneLiner = langFilter === "en" ? "Key level most miss 👇" : langFilter === "ja" ? "要チェック 👇" : "Key level 👇";
-        countApiCall();
-        const replyResult = await replyToTweet(oneLiner, sourceId);
-        const replyId = replyResult?.data?.id ?? replyResult?.id;
-        if (replyId) {
-          countApiCall();
-          const postResult = await postQuoteTweet(built.text, replyId);
-          posted += 1;
-          recordPqtUse(langFilter, built.templateIndex);
-          await insertQuotedTweets([{ tweet_id: String(sourceId), lang: langFilter }]);
-          await insertBuzzweavePostLog({
-            slotLang: langFilter,
-            clusterLabel: slot.cluster || "pqt",
-            clusterScore: slot.clusterScore ?? 0,
-            candidateTweetId: String(sourceId),
-            engagementScore: slot.engagementScore ?? 0,
-            postedAt: new Date().toISOString(),
-            ourTweetId: postResult?.id ?? null,
-            slotMode: "pqt_only",
-            buzzSummary: `PQT-only Reply-first QT (imp=${Number(slot.impressionScore || 0).toFixed(4)})`,
-            usedMode: "pqt_only",
-            funnelType,
-            funnelUrl: link,
-            narrativeTag: "FOMO",
-            ctaType: "ATH_SURGE"
-          });
-        }
-      } else {
-        countApiCall();
-        const postResult = await postQuoteTweet(built.text, sourceId);
-        posted += 1;
-        recordPqtUse(langFilter, built.templateIndex);
-        await insertQuotedTweets([{ tweet_id: String(sourceId), lang: langFilter }]);
-        await insertBuzzweavePostLog({
-          slotLang: langFilter,
-          clusterLabel: slot.cluster || "pqt",
-          clusterScore: slot.clusterScore ?? 0,
-          candidateTweetId: String(sourceId),
-          engagementScore: slot.engagementScore ?? 0,
-          postedAt: new Date().toISOString(),
-          ourTweetId: postResult?.id ?? null,
-          slotMode: "pqt_only",
-          buzzSummary: `PQT-only Fisherman (imp=${Number(slot.impressionScore || 0).toFixed(4)})`,
-          usedMode: "pqt_only",
-          funnelType,
-          funnelUrl: link,
-          narrativeTag: "FOMO",
-          ctaType: "ATH_SURGE"
-        });
-      }
+      countApiCall();
+      const replyResult = await replyToTweet(replyText, sourceId);
+      const ourTweetId = replyResult?.data?.id ?? replyResult?.id ?? null;
+      posted += 1;
+      recordPqtUse(langFilter, built.templateIndex, built.useBotTemplates ? langFilter + "_bot" : undefined);
+      await insertQuotedTweets([{ tweet_id: String(sourceId), lang: langFilter }]);
+      await insertBuzzweavePostLog({
+        slotLang: langFilter,
+        clusterLabel: slot.cluster || "pqt",
+        clusterScore: slot.clusterScore ?? 0,
+        candidateTweetId: String(sourceId),
+        engagementScore: slot.engagementScore ?? 0,
+        postedAt: new Date().toISOString(),
+        ourTweetId,
+        slotMode: "reply_only",
+        buzzSummary: `Reply-only (imp=${Number(slot.impressionScore || 0).toFixed(4)})`,
+        usedMode: "reply_only",
+        funnelType,
+        funnelUrl: link,
+        narrativeTag: "FOMO",
+        ctaType: "ATH_SURGE"
+      });
     } catch (e) {
-      logWarn("pqt post failed", sourceId, e?.message);
+      logWarn("reply post failed", sourceId, e?.message);
     }
   }
 
