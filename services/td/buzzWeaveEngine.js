@@ -1,7 +1,6 @@
 /**
  * TD BuzzWeave Engine — 引用リポスト最適化エンジン
- * 目的: 高インプレッション・高エンゲージメント・高CVR（すべて逆算）
- *
+ * 北極星: 100成約/日（KPI）。ここからすべて逆算。高インプレ・高エンゲ・高CVRは成約への経路指標。
  * フロー: Search → バズ抽出 → Fisherman スロット → テンプレ（buildPqt）→ 引用リポスト。旧 GPT 寄生コピー経路は廃止。
  */
 const { loadEnv } = require("../../utils/loadEnv");
@@ -1256,6 +1255,7 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   const FALLBACK_SLOT_COUNT = Math.max(3, Math.min(15, Number(process.env.BUZZWEAVE_FALLBACK_SLOT_COUNT || 10)));
   const useQualityScoreSelection = process.env.BUZZWEAVE_USE_QUALITY_SCORE_SELECTION === "true" || process.env.BUZZWEAVE_USE_QUALITY_SCORE_SELECTION === "1";
 
+  // 100成約/日がノルマ。仕手・提灯にこだわらず volume 確保。Fisherman 0 件時は fallback で投稿数を確保する。
   let slots;
   if (useQualityScoreSelection) {
     slots = selectByQualityScore(candidates, cap, Date.now());

@@ -3,6 +3,8 @@
 Grok の「投稿数・割合・時間帯の数字」は**一切使わない**。  
 **6言語 × Fisherman 検出 × 市場ボラ × CTR 学習**のみで、1日 200〜350 投稿レンジで CTR 最大化しつつアルゴに溶け込む。
 
+**「いかにクリックさせるか」**（コピー・心理・フォーマット・クリック計測の接続）は別ドキュメントにまとめた → [PQT_CTR_HOW_TO_GET_CLICKS.md](PQT_CTR_HOW_TO_GET_CLICKS.md)。
+
 ---
 
 ## 1. 全体アーキテクチャ
@@ -76,7 +78,8 @@ Grok の「投稿数・割合・時間帯の数字」は**一切使わない**�
 ## 6. CTR ログ記録
 
 - **投稿時**: `recordPqtUse(lang, templateIndex)` で uses += 1。
-- **クリック反映**: 導線別クリック数を取得する仕組み（例: 短縮 URL クリックログや Whop/Vidalytics のレポート）ができたら `recordPqtResult(lang, templateIndex, clicks)` で更新。テンプレ選択が CTR に基づいて最適化される。
+- **クリック反映**: 導線別クリック数を取得する仕組み（例: 短縮 URL クリックログや Whop/Vidalytics のレポート、または `buzzweave_post_log.our_clicks` を templateIndex 付きで集計）ができたら `recordPqtResult(lang, templateIndex, clicks)` で更新。テンプレ選択が CTR に基づいて最適化される。
+- **「いかにクリックさせるか」**（心理・コピー・フォーマット・クリック計測の接続）: [PQT_CTR_HOW_TO_GET_CLICKS.md](PQT_CTR_HOW_TO_GET_CLICKS.md)。
 
 ---
 
