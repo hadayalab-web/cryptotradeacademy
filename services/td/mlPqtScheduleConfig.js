@@ -1,6 +1,10 @@
 /**
- * ML-PQT Engine スケジュール設定（Grok JSON をそのまま保持）
+ * ML-PQT Engine スケジュール設定
  * 日次合計 DAILY_PQT_TARGET は OS が 200〜400 で決定。時間・言語は本 JSON の比率で配分。
+ *
+ * TIME_DISTRIBUTION: 全球ターゲット（EN/ES/PT/AR/KO/JA）向け。X のエンゲージメントピークは
+ * 「現地 8–9 時前後の朝」が強いため、UTC で 06–10（欧州朝）、12–16（米国朝）、00（アジア朝）を
+ * やや重めに配分。Cron は 0,3,6,9,12,15,18,21 UTC で 8 run/日・3h 等間隔。
  */
 const GLOBAL_LIMITS = {
   max_pqt_per_day: 500,
@@ -8,12 +12,12 @@ const GLOBAL_LIMITS = {
 };
 
 const TIME_DISTRIBUTION = [
-  { utc_window: "00:00-04:00", relative_intensity: 0.25 },
-  { utc_window: "04:00-08:00", relative_intensity: 0.15 },
-  { utc_window: "08:00-12:00", relative_intensity: 0.10 },
-  { utc_window: "12:00-16:00", relative_intensity: 0.20 },
-  { utc_window: "16:00-20:00", relative_intensity: 0.20 },
-  { utc_window: "20:00-00:00", relative_intensity: 0.10 }
+  { utc_window: "00:00-04:00", relative_intensity: 0.20 },  // アジア朝 (JST 9–13時)
+  { utc_window: "04:00-08:00", relative_intensity: 0.18 },  // 欧州早朝〜朝
+  { utc_window: "08:00-12:00", relative_intensity: 0.12 },  // 欧州朝〜昼
+  { utc_window: "12:00-16:00", relative_intensity: 0.22 },  // 米国朝・欧州昼（ピーク重視）
+  { utc_window: "16:00-20:00", relative_intensity: 0.18 },  // 米国昼・中南米・中東夕方
+  { utc_window: "20:00-00:00", relative_intensity: 0.10 }   // 米国夕方・アジア深夜
 ];
 
 const LANGUAGE_ALLOCATION = [

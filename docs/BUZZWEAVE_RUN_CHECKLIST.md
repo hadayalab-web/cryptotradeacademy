@@ -16,7 +16,7 @@
 
 ## Cron（Vercel）
 
-- **buzzweave-run**: `0 0,1,8,13,14,15,16,20,21 * * *`（UTC の 0,1,8,13,14,15,16,20,21 時ちょうど）。1日 9 回。2時間のうちに走るのは最大 2 回（例: 13:00 と 14:00）。
+- **buzzweave-run**: `0 0,3,6,9,12,15,18,21 * * *`（UTC の 0,3,6,9,12,15,18,21 時ちょうど）。1日 8 回・3 時間等間隔。根拠は `docs/ML_PQT_ENGINE_FOR_COPILOT_AND_VERIFICATION.md` の 3.3 参照。
 - **buzzweave-slots**: 日1回（例: 15:00 UTC）→ PQT-only では未使用。
 
 ---

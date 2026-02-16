@@ -11,6 +11,7 @@ PDCA を回すための共通理解用。ML-PQT Engine の役割・フロー・�
 - **やること**: バズっている「釣り師」投稿に寄生する形で、**4要素テンプレ**（Agree / Proof / Soft CTA / Link）の引用リポストを **6言語** で投稿する。
 - **やらないこと**: Grok の「投稿数・割合・時間帯」の数字は使わない。通常ポスト（非引用）の量産はしない。固定投稿数・固定スケジュールに依存しない。
 - **設計思想**: **1成約 ≒ 5投稿** を目安に、日次ターゲットを 200〜400 のレンジで決定し、trapScore・Fisherman 活動量・API クレジットで cap する。CTR の高いテンプレを優先する簡易バンディットで学習する。
+- **コピー設計**: 投稿した分だけ反応（インプレ・エンゲージメント）が返ってくる前提のコピーが搭載されている。投稿量を増やせば反応もスケールする設計。
 
 ---
 
@@ -32,19 +33,25 @@ PDCA を回すための共通理解用。ML-PQT Engine の役割・フロー・�
 
 - **API**: `GET` または `POST` `/api/buzzweave-run`
 - **認証**: `Authorization: Bearer ${CRON_SECRET}` または `?cron_secret=...`
-- **Cron**: `vercel.json` で **1日 9回**（UTC 0, 1, 8, 13, 14, 15, 16, 20, 21 時）。1 run あたり **1言語**（`lang` は round-robin または query で指定）。
+- **Cron**: `vercel.json` で **1日 8回**（UTC **0, 3, 6, 9, 12, 15, 18, 21** 時・3h 等間隔）。1 run あたり **1言語**（`lang` は round-robin または query で指定）。スケジュール根拠は「3.4 投稿スケジュールの根拠」を参照。
 - **常に PQT-only**: `runBuzzWeaveCycle` は内部で **runBuzzWeaveCyclePqtOnly** に委譲。通常ポスト経路は使わない。
 
 ### 3.2 1 run の流れ（要約）
 
 1. KV から **btcSnapshot** 取得。無ければ SKIP。
-2. **dailyLimit**（1日の run 上限）を `determineDailyRunTarget(snapshot)` で決定。**low=6, medium=7, high=8**。今日の run 数がこれに達していたら SKIP。
+2. **dailyLimit**（1日の run 上限）を `determineDailyRunTarget(snapshot)` で決定。**low=6, medium=7, high=8**。Cron は 8 回/日なので high 時は全 run 実行。今日の run 数が dailyLimit に達していたら SKIP。
 3. **MIN_RUN_INTERVAL_HOURS**（デフォルト 3）を満たしていなければ SKIP。
 4. **日次 PQT ターゲット** を `resolveDailyPqtTarget()` で解決（目標成約×投稿/成約 or 固定ターゲット）。**cap** = min(その言語の配分, API_CALL_CAP, MAX_CAP_PER_RUN)。
 5. **候補取得**: 1言語で search → Fisherman 検出 → 上位 5〜10% を `selectFishermanSlotsTopPercent` で選択。Tier1→Tier2→Tier3 順・Tier3 は最大 2 件など diversity cap を適用。
 6. 各スロットに対して: **buildPqt**（テンプレ選択＋Proof 挿入＋Link）→ **postQuoteTweet** → **recordPqtUse**。cap に達するまで繰り返し。
 
-### 3.3 Vercel でのドライラン手順
+### 3.3 投稿スケジュールの根拠
+
+- **Cron 時刻**: UTC 0, 3, 6, 9, 12, 15, 18, 21（**3 時間等間隔・8 run/日**）。X のエンゲージメントは「現地 8–9 時前後の朝」にピークが出やすいという一般的な知見に合わせ、全球（EN/ES/PT/AR/KO/JA）でいずれかのタイムゾーンの朝〜昼に当たるように均等にばらした。
+- **TIME_DISTRIBUTION**（`mlPqtScheduleConfig.js`）: 00–04 UTC をやや強め（アジア朝）、12–16 UTC を強め（米国朝・欧州昼）、16–20 を強め（米国昼・中南米）。それ以外はやや弱め。合計 1.0 で日次ターゲットを 6 ウィンドウに配分。
+- **RUNS_PER_DAY_FOR_TARGET**: デフォルト 8（Cron の実行回数と一致）。日次ターゲットを 8 で割って 1 run あたりの cap を算出。
+
+### 3.4 Vercel でのドライラン手順
 
 本番／プレビュー環境で **投稿せず** 候補取得・スロット選定・サンプル生成まで実行して動作確認するには、`dry_run=true` を付けて呼ぶ。
 
@@ -71,12 +78,12 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 
 - **日次ターゲット**: `pqtPlanner.getDailyPqtTargetFromSnapshot(snapshot)` または `resolveDailyPqtTarget()`。200〜400 レンジ。trapScore が high のとき 350〜400 に寄せる。
 - **言語配分**: `mlPqtScheduleConfig.js` の **LANGUAGE_ALLOCATION**（EN 40%, ES 20%, PT 15%, AR 10%, KO 8%, JA 7%）。`allocatePqtPerLanguageFromSchedule(snapshot)` で 1 run あたりの cap に反映。
-- **1日 run 数**: `autonomousSlotGenerator.determineDailyRunTarget(snapshot)`。ボラティリティで 6 / 7 / 8。Cron は 9 回叩くが、この上限で打ち切り。
+- **1日 run 数**: `autonomousSlotGenerator.determineDailyRunTarget(snapshot)`。ボラティリティで 6 / 7 / 8。Cron は 8 回/日で叩き、この上限で打ち切り。
 
 ### 4.2 スケジュール（時間帯）
 
-- **TIME_DISTRIBUTION**（`mlPqtScheduleConfig.js`）: 00–04 UTC 0.25, 04–08 0.15, 08–12 0.10, 12–16 0.20, 16–20 0.20, 20–24 0.10。
-- 実装上は **1 run あたりの cap** が言語別に決まり、Cron の「9回/日」が時間帯の分布に相当。ウィンドウ別 cap は `getCurrentWindowSchedule` 等で参照可能だが、現行 PQT-only では run 単位 cap が主。
+- **TIME_DISTRIBUTION**（`mlPqtScheduleConfig.js`）: 00–04 UTC 0.20, 04–08 0.18, 08–12 0.12, 12–16 0.22, 16–20 0.18, 20–24 0.10（全球ピーク考慮・3.3 参照）。
+- 実装上は **1 run あたりの cap** が言語別に決まり、Cron の「8回/日」が時間帯の分布に相当。ウィンドウ別 cap は `getCurrentWindowSchedule` 等で参照可能だが、現行 PQT-only では run 単位 cap が主。
 
 ### 4.3 コピー（テンプレ・4要素）
 
@@ -91,7 +98,7 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 
 ### 4.5 ガード・抑制
 
-- **投稿を止めるブロックは使わない**。暴走しない設計（Cron 1日9回・間隔・日次上限）のため、402 が出てもその run だけ失敗し、次回は通常どおり試行する。
+- **投稿を止めるブロックは使わない**。暴走しない設計（Cron 1日8回・3h間隔・日次上限）のため、402 が出てもその run だけ失敗し、次回は通常どおり試行する。
 - **緊急停止のみ**: `BUZZWEAVE_EMERGENCY_STOP=true` のときだけ即 return。
 - **daily_limit_reached**: その日の run 数が `determineDailyRunTarget` を超えたら SKIP。
 - **interval_not_reached**: 前回 run から MIN_RUN_INTERVAL_HOURS 未満なら SKIP。
@@ -126,25 +133,45 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 | BUZZWEAVE_PQT_ONLY | PQT-only 有効（常に true 相当で委譲） | true |
 | BUZZWEAVE_MIN_RUN_INTERVAL_HOURS | 同一 run 間の最小間隔（時間） | 3 |
 | BUZZWEAVE_DAILY_RUN_LOW / MEDIUM / HIGH | 1日の run 上限（low/medium/high ボラ時） | 6 / 7 / 8 |
-| BUZZWEAVE_API_CALL_CAP | 1 run あたりの投稿数上限 | 20 |
-| BUZZWEAVE_MAX_CAP_PER_RUN | 1 run の絶対上限 | 100 |
-| BUZZWEAVE_MAX_CAP_PER_RUN_WARP | 火水木の 2 倍時上限 | 200 |
+| BUZZWEAVE_API_CALL_CAP | 1 run あたりの投稿数上限 | 100 |
+| BUZZWEAVE_MAX_CAP_PER_RUN | 1 run の絶対上限 | 200 |
+| BUZZWEAVE_MAX_CAP_PER_RUN_WARP | 火水木の 2 倍時上限 | 400 |
 | BUZZWEAVE_DAILY_CONVERSION_TARGET | 目標成約/日（投稿ターゲット算出用） | 100 |
 | BUZZWEAVE_BASE_POSTS_PER_CONVERSION | 1成約あたり投稿数（フェルミ値） | 5 |
-| BUZZWEAVE_RUNS_PER_DAY_FOR_TARGET | ターゲットを割る run 数 | 6 |
+| BUZZWEAVE_RUNS_PER_DAY_FOR_TARGET | ターゲットを割る run 数（Cron 実行回数と一致推奨） | 8 |
 | BUZZWEAVE_WEEKDAY_WARP | 火水木 2 倍 cap を使うか | 任意 |
+| BUZZWEAVE_SEARCH_WINDOW_MIN | 検索の直近何分まで取得するか（分） | 15 |
+| BUZZWEAVE_SEARCH_PAGES_PER_BUCKET | クエリあたりの取得ページ数 | 3 |
+| BUZZWEAVE_LOW_VOLUME_LANGS | 少言語（検索 0 件時に長めウィンドウで再試行） | ar,ko,ja |
+| BUZZWEAVE_FALLBACK_SLOT_COUNT | Fisherman 0 件時のフォールバック最大スロット数 | 10 |
 
 ---
 
 ## 7. 検証・PDCA で見るポイント
 
-- **Run が走っているか**: Cron が 9 回/日で叩いているか。ログで `daily_limit_reached` / `interval_not_reached` / `SKIP_NO_SNAPSHOT` の有無。
-- **1 run あたりの投稿数**: cap が API_CALL_CAP（20）や日次ターゲット/run で制限されているか。実際の post 数がログに残っているか。
+- **Run が走っているか**: Cron が 8 回/日（0,3,6,9,12,15,18,21 UTC）で叩いているか。ログで `daily_limit_reached` / `interval_not_reached` / `SKIP_NO_SNAPSHOT` の有無。
+- **1 run あたりの投稿数**: cap が API_CALL_CAP（100）や日次ターゲット/run で制限されているか。実際の post 数がログに残っているか。
 - **言語ローテーション**: 6言語が round-robin または指定 `lang` で均等に回っているか。
 - **テンプレ選択**: pickTemplateIndex が言語ごとに uses/clicks を参照しているか。recordPqtUse が投稿後に呼ばれているか。
 - **成約との対応**: 1成約 ≒ 5投稿の設計で、Minimal/Regular の成約数が想定（例: 32成約グロス、7:3 配分）に近いか。Whop Webhook と KV/Supabase の成約集計と突き合わせる。
 - **インプレ・CTR**: 投稿数が最大に近い日（例: 160投稿/日）で、期待インプレ 20–30万・CTR 2% 前後と実測のオーダーが合っているか。
-- **ガード**: 緊急停止・X API blocked・daily limit・interval が意図どおり効いているか。
+- **ガード**: 緊急停止・daily limit・interval が意図どおり効いているか。
+
+### 7.1 監視とロールバック（候補拡張パラメータ）
+
+検索幅・フォールバック拡大後は以下をログで確認する。
+
+- **1 run ごと**: `posts_fetched` / `candidates` / `slots` / `cap` / `posted`、`windowMinutesUsed` / `lowVolumeBackfillUsed`
+- **品質**: CTR・CVR の急落、Safety guard によるテンプレ停止の有無
+
+**ロールバックが必要な場合**（CTR 急落・guard の連続発動など）は、Vercel の環境変数で以下に戻す。
+
+- `BUZZWEAVE_SEARCH_WINDOW_MIN=5`
+- `BUZZWEAVE_SEARCH_PAGES_PER_BUCKET=2`
+- `BUZZWEAVE_FALLBACK_SLOT_COUNT=3`
+- （必要なら）`BUZZWEAVE_LOW_VOLUME_LANGS=ar` のみに戻す
+
+様子見でフォールバックを抑えたい場合は、まず `BUZZWEAVE_FALLBACK_SLOT_COUNT=5` で運用し、問題なければ 10 に上げる。
 
 ---
 

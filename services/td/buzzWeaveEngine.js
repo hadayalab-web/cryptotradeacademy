@@ -81,7 +81,7 @@ const LOG_LEVEL = process.env.BUZZWEAVE_LOG_LEVEL || "info";
 const LOG_MAX_PER_RUN = 5;
 let runLogCount = 0;
 
-const API_CALL_CAP = Number(process.env.BUZZWEAVE_API_CALL_CAP) || 20;
+const API_CALL_CAP = Number(process.env.BUZZWEAVE_API_CALL_CAP) || 100;
 const PQT_ONLY_MODE = process.env.BUZZWEAVE_PQT_ONLY === "true" || process.env.BUZZWEAVE_PQT_ONLY === "1";
 let runApiCallCount = 0;
 const DYNAMIC_TARGET_ENABLED = process.env.BUZZWEAVE_DYNAMIC_TARGET !== "false" && process.env.BUZZWEAVE_DYNAMIC_TARGET !== "0";
@@ -91,8 +91,8 @@ const POSTS_PER_CONVERSION_MIN = Math.max(1, Number(process.env.BUZZWEAVE_POSTS_
 const POSTS_PER_CONVERSION_MAX = Math.max(POSTS_PER_CONVERSION_MIN, Number(process.env.BUZZWEAVE_POSTS_PER_CONVERSION_MAX || 12));
 const DYNAMIC_LOOKBACK_DAYS = Math.max(1, Number(process.env.BUZZWEAVE_DYNAMIC_LOOKBACK_DAYS || 3));
 const DYNAMIC_FULL_TRUST_CONVERSIONS = Math.max(1, Number(process.env.BUZZWEAVE_DYNAMIC_FULL_TRUST_CONVERSIONS || 20));
-const RUNS_PER_DAY_FOR_TARGET = Math.max(1, Number(process.env.BUZZWEAVE_RUNS_PER_DAY_FOR_TARGET || 6));
-const MAX_CAP_PER_RUN = Math.max(1, Number(process.env.BUZZWEAVE_MAX_CAP_PER_RUN || 100));
+const RUNS_PER_DAY_FOR_TARGET = Math.max(1, Number(process.env.BUZZWEAVE_RUNS_PER_DAY_FOR_TARGET || 8));
+const MAX_CAP_PER_RUN = Math.max(1, Number(process.env.BUZZWEAVE_MAX_CAP_PER_RUN || 200));
 const MAX_CAP_PER_RUN_WARP = Math.max(MAX_CAP_PER_RUN, Number(process.env.BUZZWEAVE_MAX_CAP_PER_RUN_WARP || (MAX_CAP_PER_RUN * 2)));
 
 function clamp(value, min, max) {
@@ -186,13 +186,13 @@ const SEARCH_KEYWORDS_BY_LANG = {
     "btc usd"
   ]
 };
-const SEARCH_WINDOW_MINUTES = Number(process.env.BUZZWEAVE_SEARCH_WINDOW_MIN || 5);
+const SEARCH_WINDOW_MINUTES = Number(process.env.BUZZWEAVE_SEARCH_WINDOW_MIN || 15);
 const DYNAMIC_MEDIAN_MULTIPLIER = Number(process.env.BUZZWEAVE_MEDIAN_MULTIPLIER || 1.2);
 const SEARCH_QUERY_BUCKET_SIZE = Math.max(1, Number(process.env.BUZZWEAVE_QUERY_BUCKET_SIZE || 3));
-const SEARCH_PAGES_PER_BUCKET = Math.max(1, Number(process.env.BUZZWEAVE_SEARCH_PAGES_PER_BUCKET || 2));
+const SEARCH_PAGES_PER_BUCKET = Math.max(1, Number(process.env.BUZZWEAVE_SEARCH_PAGES_PER_BUCKET || 3));
 const SEARCH_QUERY_MAX_CHARS = Math.max(128, Number(process.env.BUZZWEAVE_SEARCH_QUERY_MAX_CHARS || 480));
 const LOW_VOLUME_LANGS = new Set(
-  String(process.env.BUZZWEAVE_LOW_VOLUME_LANGS || "ar")
+  String(process.env.BUZZWEAVE_LOW_VOLUME_LANGS || "ar,ko,ja")
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean)
@@ -1240,8 +1240,9 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   const weekdayWarp = process.env.BUZZWEAVE_WEEKDAY_WARP === "true" || process.env.BUZZWEAVE_WEEKDAY_WARP === "1";
   if (weekdayWarp && isTueWedThu) cap = Math.min(cap * 2, MAX_CAP_PER_RUN_WARP);
   const effectiveCap = cap;
+  const FALLBACK_SLOT_COUNT = Math.max(3, Math.min(15, Number(process.env.BUZZWEAVE_FALLBACK_SLOT_COUNT || 10)));
   let slots = selectFishermanSlotsTopPercent(candidates, langFilter, { maxCount: cap });
-  if (slots.length === 0) slots = selectSlotsFallback(candidates, Math.min(3, cap));
+  if (slots.length === 0) slots = selectSlotsFallback(candidates, Math.min(FALLBACK_SLOT_COUNT, cap));
 
   const nowMs = Date.now();
   const WINDOW_2_7MIN_SEC = { min: 120, max: 420 };
