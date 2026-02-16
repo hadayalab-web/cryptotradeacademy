@@ -40,11 +40,9 @@ const {
 const { buildStructuredPostFromSlot } = require("../textgen/buildStructuredPost");
 const { getBtcSnapshot } = require("../market/getBtcSnapshot");
 const { selectFishermanSlotsTopPercent, selectSlotsFallback } = require("./fishermanDetector");
-const { quoteTargetQualityScore, selectByQualityScore } = require("./quoteTargetQuality");
 const { buildPqt, recordPqtUse } = require("./pqtCtaEngine");
 const { buildProofSnippetFromSnapshot } = require("./pqtProofSnippet");
 const { allocatePqtPerLanguageFromSchedule } = require("./pqtPlanner");
-const { GLOBAL_LIMITS } = require("./mlPqtScheduleConfig");
 const { orderedCandidatesWithTier3Cap, orderCandidatesByPerformanceTiers } = require("./fishermanPriority");
 const { scoreShiteshiCandidate } = require("./shiteshiScoring");
 const { pickBestFunnelLink } = require("../links");
@@ -188,7 +186,7 @@ const SEARCH_KEYWORDS_BY_LANG = {
     "btc usd"
   ]
 };
-const SEARCH_WINDOW_MINUTES = Number(process.env.BUZZWEAVE_SEARCH_WINDOW_MIN || 30);
+const SEARCH_WINDOW_MINUTES = Number(process.env.BUZZWEAVE_SEARCH_WINDOW_MIN || 15);
 const DYNAMIC_MEDIAN_MULTIPLIER = Number(process.env.BUZZWEAVE_MEDIAN_MULTIPLIER || 1.2);
 const SEARCH_QUERY_BUCKET_SIZE = Math.max(1, Number(process.env.BUZZWEAVE_QUERY_BUCKET_SIZE || 3));
 const SEARCH_PAGES_PER_BUCKET = Math.max(1, Number(process.env.BUZZWEAVE_SEARCH_PAGES_PER_BUCKET || 3));
@@ -805,12 +803,11 @@ async function collectBuzzCandidates(options = {}) {
     return { candidates, deadlineExceeded: true, clusters: {}, clusterScores: {}, postsFetched: 0 };
   }
 
-  // 1-1: slot.lang に合わせたクエリで直近 window 分の投稿を取得（1言語のみ）
+  // 1-1: slot.lang に合わせたクエリで直近 1〜5 分の投稿を取得（1言語のみ）
   const searchResult = await fetchCandidatesFromSearch(slotLang, {
     maxResults: 50,
     sortOrder: "recency",
-    windowMinutes: SEARCH_WINDOW_MINUTES,
-    pagesPerBucket: SEARCH_PAGES_PER_BUCKET
+    windowMinutes: SEARCH_WINDOW_MINUTES
   });
 
   if (searchResult.fatal402) {
@@ -875,13 +872,7 @@ async function collectBuzzCandidates(options = {}) {
     const user = post.author_id ? usersById[post.author_id] : null;
     const handle = user?.username || post.author_id || "unknown";
     rawCandidates.push({
-      target: {
-        handle: String(handle).replace(/^@/, ""),
-        org_type: null,
-        lang: post.lang || slotLang,
-        target_type: "flexible",
-        author: user ? { id: user.id, name: user.name, username: user.username, description: user.description, profile_image_url: user.profile_image_url, public_metrics: user.public_metrics } : null
-      },
+      target: { handle: String(handle).replace(/^@/, ""), org_type: null, lang: post.lang || slotLang, target_type: "flexible" },
       post: { id: post.id, author_id: post.author_id || null, text: post.text, created_at: post.created_at, public_metrics: post.public_metrics || metrics },
       engagementScore: score
     });
@@ -1139,12 +1130,8 @@ async function resolveDailyPqtTarget() {
     POSTS_PER_CONVERSION_MAX
   );
 
-  const kpiFloor = DAILY_CONVERSION_TARGET * BASE_POSTS_PER_CONVERSION;
-  const rawTarget = Math.max(1, Math.round(DAILY_CONVERSION_TARGET * effectivePostsPerConversion));
-  const dailyTarget = Math.min(GLOBAL_LIMITS.max_pqt_per_day, Math.max(rawTarget, kpiFloor));
-
   return {
-    dailyTarget,
+    dailyTarget: Math.max(1, Math.round(DAILY_CONVERSION_TARGET * effectivePostsPerConversion)),
     postsPerConversion: Number(effectivePostsPerConversion.toFixed(2)),
     mode: "dynamic",
     observedPostsPerConversion: Number.isFinite(observedPostsPerConversion)
@@ -1254,20 +1241,11 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   if (weekdayWarp && isTueWedThu) cap = Math.min(cap * 2, MAX_CAP_PER_RUN_WARP);
   const effectiveCap = cap;
   const FALLBACK_SLOT_COUNT = Math.max(3, Math.min(15, Number(process.env.BUZZWEAVE_FALLBACK_SLOT_COUNT || 10)));
-  const useQualityScoreSelection = process.env.BUZZWEAVE_USE_QUALITY_SCORE_SELECTION === "true" || process.env.BUZZWEAVE_USE_QUALITY_SCORE_SELECTION === "1";
-
-  let slots;
-  if (useQualityScoreSelection) {
-    slots = selectByQualityScore(candidates, cap, Date.now());
-    logInfo("pqt slots by quality score", { count: slots.length, cap: effectiveCap, mode: "quality_score" });
-  } else {
-    slots = selectFishermanSlotsTopPercent(candidates, langFilter, { maxCount: cap });
-    if (slots.length === 0) slots = selectSlotsFallback(candidates, Math.min(FALLBACK_SLOT_COUNT, cap));
-  }
+  let slots = selectFishermanSlotsTopPercent(candidates, langFilter, { maxCount: cap });
+  if (slots.length === 0) slots = selectSlotsFallback(candidates, Math.min(FALLBACK_SLOT_COUNT, cap));
 
   const nowMs = Date.now();
   const WINDOW_2_7MIN_SEC = { min: 120, max: 420 };
-  const WINDOW_RISING_MAX_SEC = Number(process.env.BUZZWEAVE_RISING_WINDOW_MAX_SEC || 420);
   const MOMENTUM_LIKES_PER_10MIN = 50;
   for (const slot of slots) {
     const createdAt = slot?.post?.created_at ? new Date(slot.post.created_at).getTime() : 0;
@@ -1275,21 +1253,13 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     const likeCount = Number(slot?.post?.public_metrics?.like_count) || 0;
     slot._likesPer10min = slot._ageSec > 0 ? (likeCount / (slot._ageSec / 60)) * 10 : 0;
     slot._in2_7Window = slot._ageSec >= WINDOW_2_7MIN_SEC.min && slot._ageSec <= WINDOW_2_7MIN_SEC.max;
-    slot._inRisingWindow = slot._ageSec >= WINDOW_2_7MIN_SEC.min && slot._ageSec <= WINDOW_RISING_MAX_SEC;
-    slot._quoteQualityScore = quoteTargetQualityScore(slot, nowMs);
   }
-  if (!useQualityScoreSelection) {
-    const inWindow = slots.filter((s) => s._in2_7Window);
-    if (inWindow.length > 0) slots = inWindow;
-    slots.sort((a, b) => {
-      if (a._in2_7Window !== b._in2_7Window) return a._in2_7Window ? -1 : 1;
-      return (b._likesPer10min ?? 0) - (a._likesPer10min ?? 0);
-    });
-  } else {
-    const inRising = slots.filter((s) => s._inRisingWindow);
-    if (inRising.length > 0) slots = inRising;
-    slots.sort((a, b) => (b._quoteQualityScore ?? 0) - (a._quoteQualityScore ?? 0));
-  }
+  const inWindow = slots.filter((s) => s._in2_7Window);
+  if (inWindow.length > 0) slots = inWindow;
+  slots.sort((a, b) => {
+    if (a._in2_7Window !== b._in2_7Window) return a._in2_7Window ? -1 : 1;
+    return (b._likesPer10min ?? 0) - (a._likesPer10min ?? 0);
+  });
 
   const shiteshiStats = {};
   const VELOCITY_SCALE = 500;
@@ -1380,40 +1350,6 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
       recordPqtUse(langFilter, built.templateIndex);
       continue;
     }
-
-    logInfo("pqt_quote_target", {
-      runId,
-      slotIndex,
-      lang: langFilter,
-      target_post: {
-        id: slot?.post?.id,
-        author_id: slot?.post?.author_id,
-        text: slot?.post?.text,
-        created_at: slot?.post?.created_at,
-        public_metrics: slot?.post?.public_metrics
-      },
-      target_account: slot?.target
-        ? {
-            handle: slot.target.handle,
-            lang: slot.target.lang,
-            author: slot.target.author,
-            org_type: slot.target.org_type,
-            target_type: slot.target.target_type
-          }
-        : { author_id: slot?.post?.author_id },
-      slot_metrics: {
-        engagementScore: slot?.engagementScore,
-        impressionScore: slot?.impressionScore,
-        cluster: slot?.cluster,
-        clusterScore: slot?.clusterScore,
-        shiteshiScore: slot?.shiteshiScore,
-        _ageSec: slot?._ageSec,
-        _likesPer10min: slot?._likesPer10min,
-        _in2_7Window: slot?._in2_7Window,
-        quoteQualityScore: slot?._quoteQualityScore
-      }
-    });
-
     const replyFirstQtRaw = process.env.BUZZWEAVE_REPLY_FIRST_QT || "";
     const replyFirstQt = replyFirstQtRaw === "true" || replyFirstQtRaw === "1" || replyFirstQtRaw === "all" || replyFirstQtRaw === "every";
     const replyFirstQtEverySlot = replyFirstQtRaw === "all" || replyFirstQtRaw === "every";
@@ -1496,26 +1432,7 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     });
   }
 
-  const posts_fetched = collectResult.postsFetched ?? 0;
-  const fill_rate = effectiveCap > 0 ? posted / effectiveCap : 0;
-  return {
-    ok: true,
-    posted,
-    runId,
-    pqtOnly: true,
-    generatedSamples,
-    sampleSummary,
-    shortReport: {
-      run_id: runId,
-      lang: langFilter,
-      posts_fetched,
-      candidates: candidates.length,
-      slots: slots.length,
-      cap: effectiveCap,
-      posted,
-      fill_rate: Math.round(fill_rate * 10000) / 10000
-    }
-  };
+  return { ok: true, posted, runId, pqtOnly: true, generatedSamples, sampleSummary };
 }
 
 /**

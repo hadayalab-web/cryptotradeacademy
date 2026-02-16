@@ -5,22 +5,22 @@
 const { LANGUAGE_CONFIG } = require("./languageConfig");
 
 const BASE_MIN = 200;
-const BASE_MAX = 350;
+const BASE_MAX = 500;
 
 /**
  * スナップショットからグローバルな PQT レンジ（min, max）を決定
- * trap_score が高いほど多めに撃つ（OS 側チューニング前提）
+ * trap_score が高いほど多めに撃つ。KPI 100成約/日 ≒ 500投稿 を上限に寄せる。
  */
 function decideGlobalPqtRangeFromSnapshot(snapshot) {
   const trap_score = String(snapshot?.trap_score ?? snapshot?.trapScore ?? "").toLowerCase();
   const funding_state = String(snapshot?.funding_state ?? snapshot?.fundingRate ?? "").toLowerCase();
   const liquidation_bias = String(snapshot?.liquidation_bias ?? snapshot?.liquidationBias ?? "").toLowerCase();
 
-  if (trap_score === "high" || trap_score === "elevated") return { min: 280, max: BASE_MAX };
+  if (trap_score === "high" || trap_score === "elevated") return { min: 350, max: BASE_MAX };
   if (trap_score === "medium" || funding_state === "high" || liquidation_bias === "long" || liquidation_bias === "short") {
-    return { min: 230, max: 320 };
+    return { min: 280, max: 400 };
   }
-  return { min: BASE_MIN, max: 260 };
+  return { min: BASE_MIN, max: 320 };
 }
 
 /**
@@ -64,7 +64,7 @@ function getDailyPqtTargetFromSnapshot(snapshot) {
   const mid = Math.round((rMin + rMax) / 2);
   const trap_score = String(snapshot?.trap_score ?? snapshot?.trapScore ?? "").toLowerCase();
   const isHigh = trap_score === "high" || trap_score === "elevated";
-  const baseTarget = isHigh ? Math.max(350, Math.min(400, mid)) : mid;
+  const baseTarget = isHigh ? Math.max(400, Math.min(max, mid + 80)) : mid;
   const clamped = Math.max(min, Math.min(max, baseTarget));
   return refineDailyTarget(clamped, snapshot || {});
 }

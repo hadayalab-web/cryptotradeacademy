@@ -8,7 +8,7 @@
  */
 const GLOBAL_LIMITS = {
   max_pqt_per_day: 500,
-  recommended_range_per_day: { min: 200, max: 500 }
+  recommended_range_per_day: { min: 200, max: 400 }
 };
 
 const TIME_DISTRIBUTION = [

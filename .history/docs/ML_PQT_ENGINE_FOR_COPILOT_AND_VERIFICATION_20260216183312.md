@@ -1,6 +1,6 @@
-# ML-PQT Engine 説明ドキュメント（運用・検証用）
+# ML-PQT Engine 説明ドキュメント（Copilot・検証チーム用）
 
-PDCA を回すための共通理解用。ML-PQT Engine の役割・フロー・主要ファイル・検証ポイントをまとめる。Composer や検証担当が参照する。
+PDCA を回すための共通理解用。ML-PQT Engine の役割・フロー・主要ファイル・検証ポイントをまとめる。
 
 ---
 
@@ -12,15 +12,6 @@ PDCA を回すための共通理解用。ML-PQT Engine の役割・フロー・�
 - **やらないこと**: Grok の「投稿数・割合・時間帯」の数字は使わない。通常ポスト（非引用）の量産はしない。固定投稿数・固定スケジュールに依存しない。
 - **設計思想**: **1成約 ≒ 5投稿** を目安に、日次ターゲットを 200〜400 のレンジで決定し、trapScore・Fisherman 活動量・API クレジットで cap する。CTR の高いテンプレを優先する簡易バンディットで学習する。
 - **コピー設計**: 投稿した分だけ反応（インプレ・エンゲージメント）が返ってくる前提のコピーが搭載されている。投稿量を増やせば反応もスケールする設計。
-
-**KPI達成の前提（3条件）**  
-次の3点が実行されていれば、KPIは自然と達成される。
-
-1. **引用リポストの対象が高品質** — Fisherman 厳選（上位 5〜10%・2〜7分ウィンドウ・Tier・多様性）が効いていること。
-2. **テンプレが正確に反映されている** — 6言語×8テンプレの4要素（Agree→Proof→CTA→Link）が欠けずに出ていること。
-3. **投稿数が予定通りの見込みとなる** — 8 run/日・cap・日次ターゲットに沿って実際の posted が積み上がっていること。
-
-検証時はこの3条件の達成度を優先して確認する。
 
 ---
 
@@ -42,7 +33,7 @@ PDCA を回すための共通理解用。ML-PQT Engine の役割・フロー・�
 
 - **API**: `GET` または `POST` `/api/buzzweave-run`
 - **認証**: `Authorization: Bearer ${CRON_SECRET}` または `?cron_secret=...`
-- **Cron**: `vercel.json` で **1日 8回**（UTC **0, 3, 6, 9, 12, 15, 18, 21** 時・3h 等間隔）。1 run あたり **1言語**（`lang` は round-robin または query で指定）。スケジュール根拠は「3.3 投稿スケジュールの根拠」を参照。
+- **Cron**: `vercel.json` で **1日 8回**（UTC **0, 3, 6, 9, 12, 15, 18, 21** 時・3h 等間隔）。1 run あたり **1言語**（`lang` は round-robin または query で指定）。スケジュール根拠は「3.4 投稿スケジュールの根拠」を参照。
 - **常に PQT-only**: `runBuzzWeaveCycle` は内部で **runBuzzWeaveCyclePqtOnly** に委譲。通常ポスト経路は使わない。
 
 ### 3.2 1 run の流れ（要約）
@@ -96,8 +87,8 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 
 ### 4.3 コピー（テンプレ・4要素）
 
-- **pqtTemplates.js**: 6言語 × 複数バリアント（CTR 寄り / CVR 寄り等）。各テンプレは **Agree（乗る）→ Proof（構造視点）→ Soft CTA（導線）→ Link（Vidalytics / Whop）** を組み立てる関数。口語トーン・損失回避・問題解決の固定行動指針で統一。
-- **pqtProofSnippet.js**: `buildProofSnippetFromSnapshot(snapshot, lang, slot)` で trap / funding / netflow の 1〜2 行を生成。Proof は trap・funding・netflow のみで組み立てる（Dr.Grok セールスレターは廃止）。
+- **pqtTemplates.js**: 6言語 × 複数バリアント（CTR 寄り / CVR 寄り等）。各テンプレは **Agree / Proof / Soft CTA / Link** を組み立てる関数。
+- **pqtProofSnippet.js**: `buildProofSnippetFromSnapshot(snapshot, lang, slot)` で trap / funding / netflow 等の 1〜2 行を生成。
 - **pqtSecretWeapons**: リンク改行・末尾句点削除・Mirror vocab。X Premium で字数制限はかけない。
 
 ### 4.4 テンプレ選択（CTR バンディット）
@@ -111,14 +102,8 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 - **緊急停止のみ**: `BUZZWEAVE_EMERGENCY_STOP=true` のときだけ即 return。
 - **daily_limit_reached**: その日の run 数が `determineDailyRunTarget` を超えたら SKIP。
 - **interval_not_reached**: 前回 run から MIN_RUN_INTERVAL_HOURS 未満なら SKIP。
-- **API_CALL_CAP**: 1 run あたりの投稿数上限（デフォルト 100）。**MAX_CAP_PER_RUN**（200）、火水木の **MAX_CAP_PER_RUN_WARP**（400）で上限制御。
+- **API_CALL_CAP**: 1 run あたりの投稿数上限（デフォルト 20）。**MAX_CAP_PER_RUN**（100）、火水木の **MAX_CAP_PER_RUN_WARP**（200）で上限制御。
 - **Safety guards**: `pqtPlanner.applySafetyAndSaturationGuards` で CTR 急落・停滞・言語過多・テンプレ分散に応じた補正（実装詳細は `ML_PQT_IMPLEMENTATION_PATCH_SPEC.md`）。
-
-### 4.6 検索ログの読み方（解析用）
-
-- **pages/bucket**（ログ）: 1 クエリあたり**最大何ページまで取得するか**の上限。`BUZZWEAVE_SEARCH_PAGES_PER_BUCKET`（デフォルト 3）で、`collectBuzzCandidates` から `fetchCandidatesFromSearch` に `pagesPerBucket` で明示的に渡している。
-- **queryStats.pagesFetched**: そのクエリで**実際に取得したページ数**。X API が `next_token` を返さない（＝その時間帯にそれ以上ヒットがない）と 1 ページで終わる。したがって **pagesFetched=1 は「設定が効いていない」ではなく、15 分ウィンドウ内で 1 ページ分（maxResults=50）に満たないヒットしかなかった**ことを意味する。ヒットを増やしたい場合は検索ウィンドウ拡大（`BUZZWEAVE_SEARCH_WINDOW_MIN`）やクエリ見直しが有効。
-- **lowVolumeBackfillUsed**: **LOW_VOLUME_LANGS**（デフォルト `ar,ko,ja`）かつ、最初のウィンドウで 0 件だったときにのみ、拡張ウィンドウ（`BUZZWEAVE_LOW_VOLUME_SEARCH_WINDOW_MIN`、デフォルト 30 分）で再検索し、そのとき true になる。**es は LOW_VOLUME_LANGS に含まれない**ため、es run では常に false。候補を増やしたい場合は `BUZZWEAVE_LOW_VOLUME_LANGS` に `es` を追加するか、別途「候補数が閾値未満のときだけウィンドウ拡大」するロジックを検討する。
 
 ---
 
@@ -155,25 +140,10 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 | BUZZWEAVE_BASE_POSTS_PER_CONVERSION | 1成約あたり投稿数（フェルミ値） | 5 |
 | BUZZWEAVE_RUNS_PER_DAY_FOR_TARGET | ターゲットを割る run 数（Cron 実行回数と一致推奨） | 8 |
 | BUZZWEAVE_WEEKDAY_WARP | 火水木 2 倍 cap を使うか | 任意 |
-| BUZZWEAVE_SEARCH_WINDOW_MIN | 検索の直近何分まで取得するか（分） | 30（100成約KPI向けに拡大） |
+| BUZZWEAVE_SEARCH_WINDOW_MIN | 検索の直近何分まで取得するか（分） | 15 |
 | BUZZWEAVE_SEARCH_PAGES_PER_BUCKET | クエリあたりの取得ページ数 | 3 |
 | BUZZWEAVE_LOW_VOLUME_LANGS | 少言語（検索 0 件時に長めウィンドウで再試行） | ar,ko,ja |
 | BUZZWEAVE_FALLBACK_SLOT_COUNT | Fisherman 0 件時のフォールバック最大スロット数 | 10 |
-| BUZZWEAVE_USE_QUALITY_SCORE_SELECTION | true で品質スコア選定（velocity/topic fit/リプライ重み）。未設定なら従来 Fisherman＋8% | 未設定 |
-| BUZZWEAVE_RISING_WINDOW_MAX_SEC | 品質スコア選定時の「rising」ウィンドウ秒（2分〜この値）。60分なら 3600 | 420 |
-
-### 6.1 1日成約100 KPI 逆算（投稿500/日）
-
-**KPI**: 1日の成約数 **100**。**1成約 ≒ 5投稿** から **日次投稿ターゲット = 500**。
-
-実施済みの逆算対応:
-
-- **日次ターゲット**: `recommended_range_per_day.max = 500`、`getDailyPqtTargetFromSnapshot` で high trap 時 400〜500。`resolveDailyPqtTarget` の dynamic 時は **最低 500 をフロア**（100×5）で確保。
-- **1 run あたり cap**: 500 ÷ 8 run ≒ **63**。`MAX_CAP_PER_RUN`（200）で上限制御。
-- **検索供給**: `BUZZWEAVE_SEARCH_WINDOW_MIN` デフォルト **30 分** に変更し、posts_fetched → candidates → slots を増やしやすくした。
-- **オプション**: `BUZZWEAVE_DAILY_PQT_TARGET_HARD=500` で日次を固定。`BUZZWEAVE_WEEKDAY_WARP=true` で火水木 2 倍 cap（1 run あたり最大 400 まで）でスループット増。
-
-short_report で **posted** の合計が 500 に近づいているか・fill_rate を毎 run 確認する。
 
 ---
 
@@ -187,48 +157,14 @@ short_report で **posted** の合計が 500 に近づいているか・fill_rat
 - **インプレ・CTR**: 投稿数が最大に近い日（例: 160投稿/日）で、期待インプレ 20–30万・CTR 2% 前後と実測のオーダーが合っているか。
 - **ガード**: 緊急停止・daily limit・interval が意図どおり効いているか。
 
-### 7.1 Run 短報フォーマット（毎 run 収集）
+### 7.1 監視とロールバック（候補拡張パラメータ）
 
-解析・PDCA 用に、以下を 1 run ごとに収集する。**ログには `[buzzweave-run] short_report` が 1 run 完了ごとに 1 行で出力される**（run_id, lang, posts_fetched, candidates, slots, cap, posted, fill_rate）。それ以外の項目はログから抽出 or ツールで集約。
+検索幅・フォールバック拡大後は以下をログで確認する。
 
-| 項目 | 説明 |
-|------|------|
-| run_id | ログの `runId` |
-| lang | 実行言語 |
-| posts_fetched | 検索で取得した投稿数 |
-| pagesFetched | queryStats の各クエリの pagesFetched（配列 or 要約） |
-| lowVolumeBackfillUsed | 拡張ウィンドウを使用したか |
-| candidates | 候補数（median フィルタ後） |
-| slots | 選定スロット数 |
-| cap | その run の投稿 cap |
-| posted | 実際の投稿数 |
-| fill_rate | posted / cap（0〜1） |
-| top_alerts | 補足（deadline_exceeded / 402 / guard 発動など） |
+- **1 run ごと**: `posts_fetched` / `candidates` / `slots` / `cap` / `posted`、`windowMinutesUsed` / `lowVolumeBackfillUsed`
+- **品質**: CTR・CVR の急落、Safety guard によるテンプレ停止の有無
 
-テンプレ別 uses/clicks が取れる環境では、言語・template_id ごとの uses / clicks も収集する。
-
-### 7.2 検証指標と合格ライン（短期）
-
-- **posts_fetched**: 前 run 比で増加していることが望ましい。**2× を狙う場合は** `pagesPerBucket` の明示だけでは不十分で、**検索ヒット数を増やす必要がある**（`BUZZWEAVE_SEARCH_WINDOW_MIN` の拡大やクエリ見直し）。X API が next_token を返さない限り pagesFetched は 1 のまま。
-- **queryStats.pagesFetched**: 設定値（例: 3）以下であること。1 の場合は「その時間帯で 1 ページ分のヒットしかなかった」と解釈する（4.6 参照）。
-- **lowVolumeBackfillUsed**: LOW_VOLUME_LANGS かつ最初のウィンドウで 0 件のときに true。発生すればバックフィルは機能している。
-- **slots / posted**: `BUZZWEAVE_FALLBACK_SLOT_COUNT` を 3→5→10 に段階的に上げた場合、slots が増えることを期待する。
-
-**短期の合格ライン（目安）**: 1 run 後に **posts_fetched が前 run 比で増加**し、**posted が 1.5× 以上**（パラメータ変更をした場合）。posts_fetched 2× は「ウィンドウ拡大などでヒット数が増えた場合」の目標。
-
-### 7.3 監視とロールバック（候補拡張パラメータ）
-
-検索幅・フォールバック拡大後は 7.1 の項目を毎 run で確認する。あわせて **テンプレ別 CTR** と CVR を監視する。
-
-**ロールフォワード**: `pagesFetched` と lowVolumeBackfill が期待どおり動作し、fill_rate が改善するなら、`BUZZWEAVE_FALLBACK_SLOT_COUNT` を 5→10 に段階的に上げる。
-
-**ロールバックが必要な場合**（CTR が前 run 比 −40% 程度の急落、fill_rate 悪化、Safety guard の連続発動など）は、**次の順序**で戻す。
-
-1. `BUZZWEAVE_FALLBACK_SLOT_COUNT` を元の値（例: 3）に戻す  
-2. それでも問題なら `BUZZWEAVE_SEARCH_WINDOW_MIN` を縮める（例: 15→5）  
-3. さらに必要なら `BUZZWEAVE_SEARCH_PAGES_PER_BUCKET` を下げる（例: 3→2）
-
-**一括ロールバック例**（緊急時）:
+**ロールバックが必要な場合**（CTR 急落・guard の連続発動など）は、Vercel の環境変数で以下に戻す。
 
 - `BUZZWEAVE_SEARCH_WINDOW_MIN=5`
 - `BUZZWEAVE_SEARCH_PAGES_PER_BUCKET=2`
@@ -249,18 +185,4 @@ short_report で **posted** の合計が 500 に近づいているか・fill_rat
 
 ---
 
-*運用・検証が PDCA で参照するための共通仕様として利用してください。*
-
----
-
-## Composer / 解析AI 出力方針（目的優先）
-
-- **出さない**: 長い「受け取り確認」「即時チェックリスト」「24h検証プラン」「期待指標の羅列」「ロール手順の再掲」。**「共感」「謝罪」「怒りは正当だ」「無駄な言葉を並べず」などの前置き・メタ発言も出さない。** 目的に直結せず機会損失を招く。
-- **出す（必須の型）**:
-  1. **数値サマリ**: 直近 run ごとに `posts_fetched / candidates / slots / cap / posted → fill_rate`。**原因**を必ず 1 行で書く（例: 検索ヒット不足→候補枯渇→slots が埋まらない。または pagesFetched=1 / lowVolumeBackfillUsed=false の影響）。
-  2. **次の 1 アクション**: 変更するパラメータと値（例: `BUZZWEAVE_SEARCH_WINDOW_MIN` 15→30）。**理由（因果）**を書く（なぜそのレバーがボトルネックに効くか）。診断と違うレバーを推す（例: 候補不足なのに fallback だけ上げる）は禁止。
-  3. **次回確認指標**: 1 run 後に必ず見る項目を列挙（posts_fetched, pagesFetched, candidates, slots, posted など）。
-
-診断→因果→正しいレバー の順で揃える。揃えない出力は使わない。
-
-**「Think Deeper」や「深く考える」モードも同じ基準。** 因果に基づく診断と、ボトルネックに効く一手だけを出す。共感・謝罪・受け取り確認・メタ発言は「深く考えていない」とみなす。
+*Copilot と検証チームが PDCA で参照するための共通仕様として利用してください。*

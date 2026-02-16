@@ -165,7 +165,7 @@ function refineDailyTarget(baseTarget, snapshot) {
   const trapScore = snapshot?.trapScore;
   const trapHigh = trapScore === "high" || trapScore === "elevated" ||
     (typeof trapScore === "number" && trapScore > 0.7);
-  if (trapHigh) target = Math.max(350, Math.min(400, target));
+  if (trapHigh) target = Math.max(350, Math.min(GLOBAL_LIMITS.recommended_range_per_day.max, target));
 
   const totalFisherman = Number(snapshot?.totalFishermanDetected);
   if (Number.isFinite(totalFisherman) && totalFisherman > FISHERMAN_DENSITY_THRESHOLD) {
@@ -174,7 +174,7 @@ function refineDailyTarget(baseTarget, snapshot) {
 
   const vol = Number(snapshot?.marketVolatilityIndex);
   if (Number.isFinite(vol) && vol > VOLATILITY_THRESHOLD) {
-    target = Math.max(250, Math.min(400, target));
+    target = Math.max(250, Math.min(GLOBAL_LIMITS.recommended_range_per_day.max, target));
   }
 
   const priorCtr = Number(snapshot?.priorDayCtrAverage);

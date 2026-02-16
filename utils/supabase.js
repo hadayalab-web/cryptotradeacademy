@@ -757,6 +757,29 @@ async function getBuzzweaveRecentPostStats(lookbackHours = 72) {
   }
 }
 
+/**
+ * 自投稿バズ検証用: 直近の buzzweave_post_log を全列で取得
+ * @param {string} sinceIso - この日時以降（ISO）
+ * @param {number} limit - 最大件数
+ */
+async function getBuzzweavePostLogsRecent(sinceIso, limit = 2000) {
+  const sb = getSupabase();
+  if (!sb) return { ok: false, rows: [] };
+  try {
+    const { data, error } = await sb
+      .from("buzzweave_post_log")
+      .select("id, slot_lang, cluster_label, cluster_score, candidate_tweet_id, engagement_score, posted_at, our_tweet_id, our_impressions, our_likes, our_retweets, our_quotes, our_replies, our_clicks, our_subs, metrics_fetched_at, funnel_type, danger_label, used_mode")
+      .gte("posted_at", sinceIso)
+      .order("posted_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return { ok: true, rows: data || [] };
+  } catch (e) {
+    console.warn("[Supabase] getBuzzweavePostLogsRecent error:", e.message);
+    return { ok: false, rows: [] };
+  }
+}
+
 // ========== CHAIN_RAID KPI（v4.2+） ==========
 
 /**
@@ -977,6 +1000,7 @@ module.exports = {
   updateBuzzweavePostLogWithMetrics,
   fetchBuzzweavePostLogsPendingMetrics,
   getBuzzweaveRecentPostStats,
+  getBuzzweavePostLogsRecent,
   insertChainRaidPostKpi,
   updateChainRaidPostKpiWithMetrics,
   getGoldClusters,

@@ -19,12 +19,14 @@ CREATE TABLE IF NOT EXISTS buzzweave_post_log (
   trap_defence_insight TEXT,
   danger_label TEXT,
   used_mode TEXT,
-  -- 後続ポーリングで取得する public_metrics
+  -- 後続ポーリングで取得する public_metrics（100成約/日 KPI 用に subs/clicks も取得推奨）
   our_impressions BIGINT,
   our_likes INT,
   our_retweets INT,
   our_quotes INT,
   our_replies INT,
+  our_clicks INT,
+  our_subs INT,
   metrics_fetched_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -38,3 +40,6 @@ CREATE INDEX IF NOT EXISTS idx_buzzweave_post_log_metrics_pending ON buzzweave_p
 -- 既存テーブルに danger_label, used_mode を追加する場合:
 -- ALTER TABLE buzzweave_post_log ADD COLUMN IF NOT EXISTS danger_label TEXT;
 -- ALTER TABLE buzzweave_post_log ADD COLUMN IF NOT EXISTS used_mode TEXT;
+-- 100成約/日 KPI 用に our_clicks, our_subs を追加する場合:
+-- ALTER TABLE buzzweave_post_log ADD COLUMN IF NOT EXISTS our_clicks INT;
+-- ALTER TABLE buzzweave_post_log ADD COLUMN IF NOT EXISTS our_subs INT;
