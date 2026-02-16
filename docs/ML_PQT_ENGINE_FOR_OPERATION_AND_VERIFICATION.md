@@ -1,6 +1,6 @@
-# ML-PQT Engine 説明ドキュメント（Copilot・検証チーム用）
+# ML-PQT Engine 説明ドキュメント（運用・検証用）
 
-PDCA を回すための共通理解用。ML-PQT Engine の役割・フロー・主要ファイル・検証ポイントをまとめる。
+PDCA を回すための共通理解用。ML-PQT Engine の役割・フロー・主要ファイル・検証ポイントをまとめる。Composer や検証担当が参照する。
 
 ---
 
@@ -33,7 +33,7 @@ PDCA を回すための共通理解用。ML-PQT Engine の役割・フロー・�
 
 - **API**: `GET` または `POST` `/api/buzzweave-run`
 - **認証**: `Authorization: Bearer ${CRON_SECRET}` または `?cron_secret=...`
-- **Cron**: `vercel.json` で **1日 8回**（UTC **0, 3, 6, 9, 12, 15, 18, 21** 時・3h 等間隔）。1 run あたり **1言語**（`lang` は round-robin または query で指定）。スケジュール根拠は「3.4 投稿スケジュールの根拠」を参照。
+- **Cron**: `vercel.json` で **1日 8回**（UTC **0, 3, 6, 9, 12, 15, 18, 21** 時・3h 等間隔）。1 run あたり **1言語**（`lang` は round-robin または query で指定）。スケジュール根拠は「3.3 投稿スケジュールの根拠」を参照。
 - **常に PQT-only**: `runBuzzWeaveCycle` は内部で **runBuzzWeaveCyclePqtOnly** に委譲。通常ポスト経路は使わない。
 
 ### 3.2 1 run の流れ（要約）
@@ -87,8 +87,8 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 
 ### 4.3 コピー（テンプレ・4要素）
 
-- **pqtTemplates.js**: 6言語 × 複数バリアント（CTR 寄り / CVR 寄り等）。各テンプレは **Agree / Proof / Soft CTA / Link** を組み立てる関数。
-- **pqtProofSnippet.js**: `buildProofSnippetFromSnapshot(snapshot, lang, slot)` で trap / funding / netflow 等の 1〜2 行を生成。
+- **pqtTemplates.js**: 6言語 × 複数バリアント（CTR 寄り / CVR 寄り等）。各テンプレは **Agree（乗る）→ Proof（構造視点）→ Soft CTA（導線）→ Link（Vidalytics / Whop）** を組み立てる関数。口語トーン・損失回避・問題解決の固定行動指針で統一。
+- **pqtProofSnippet.js**: `buildProofSnippetFromSnapshot(snapshot, lang, slot)` で trap / funding / netflow の 1〜2 行を生成。Proof は trap・funding・netflow のみで組み立てる（Dr.Grok セールスレターは廃止）。
 - **pqtSecretWeapons**: リンク改行・末尾句点削除・Mirror vocab。X Premium で字数制限はかけない。
 
 ### 4.4 テンプレ選択（CTR バンディット）
@@ -102,10 +102,10 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 - **緊急停止のみ**: `BUZZWEAVE_EMERGENCY_STOP=true` のときだけ即 return。
 - **daily_limit_reached**: その日の run 数が `determineDailyRunTarget` を超えたら SKIP。
 - **interval_not_reached**: 前回 run から MIN_RUN_INTERVAL_HOURS 未満なら SKIP。
-- **API_CALL_CAP**: 1 run あたりの投稿数上限（デフォルト 20）。**MAX_CAP_PER_RUN**（100）、火水木の **MAX_CAP_PER_RUN_WARP**（200）で上限制御。
+- **API_CALL_CAP**: 1 run あたりの投稿数上限（デフォルト 100）。**MAX_CAP_PER_RUN**（200）、火水木の **MAX_CAP_PER_RUN_WARP**（400）で上限制御。
 - **Safety guards**: `pqtPlanner.applySafetyAndSaturationGuards` で CTR 急落・停滞・言語過多・テンプレ分散に応じた補正（実装詳細は `ML_PQT_IMPLEMENTATION_PATCH_SPEC.md`）。
 
-### 4.6 検索ログの読み方（Copilot 解析用）
+### 4.6 検索ログの読み方（解析用）
 
 - **pages/bucket**（ログ）: 1 クエリあたり**最大何ページまで取得するか**の上限。`BUZZWEAVE_SEARCH_PAGES_PER_BUCKET`（デフォルト 3）で、`collectBuzzCandidates` から `fetchCandidatesFromSearch` に `pagesPerBucket` で明示的に渡している。
 - **queryStats.pagesFetched**: そのクエリで**実際に取得したページ数**。X API が `next_token` を返さない（＝その時間帯にそれ以上ヒットがない）と 1 ページで終わる。したがって **pagesFetched=1 は「設定が効いていない」ではなく、15 分ウィンドウ内で 1 ページ分（maxResults=50）に満たないヒットしかなかった**ことを意味する。ヒットを増やしたい場合は検索ウィンドウ拡大（`BUZZWEAVE_SEARCH_WINDOW_MIN`）やクエリ見直しが有効。
@@ -165,7 +165,7 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 
 ### 7.1 Run 短報フォーマット（毎 run 収集）
 
-解析・PDCA 用に、以下を 1 run ごとに収集する（ログから抽出 or ツールで集約）。
+解析・PDCA 用に、以下を 1 run ごとに収集する。**ログには `[buzzweave-run] short_report` が 1 run 完了ごとに 1 行で出力される**（run_id, lang, posts_fetched, candidates, slots, cap, posted, fill_rate）。それ以外の項目はログから抽出 or ツールで集約。
 
 | 項目 | 説明 |
 |------|------|
@@ -225,11 +225,11 @@ curl -s -H "Authorization: Bearer YOUR_CRON_SECRET" \
 
 ---
 
-*Copilot と検証チームが PDCA で参照するための共通仕様として利用してください。*
+*運用・検証が PDCA で参照するための共通仕様として利用してください。*
 
 ---
 
-## Copilot / Composer 出力方針（目的優先）
+## Composer / 解析AI 出力方針（目的優先）
 
 - **出さない**: 長い「受け取り確認」「即時チェックリスト」「24h検証プラン」「期待指標の羅列」「ロール手順の再掲」。**「共感」「謝罪」「怒りは正当だ」「無駄な言葉を並べず」などの前置き・メタ発言も出さない。** 目的に直結せず機会損失を招く。
 - **出す（必須の型）**:

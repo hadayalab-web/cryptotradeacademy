@@ -31,7 +31,7 @@
 
 | 欲しいもの | ファイル |
 |------------|----------|
-| run 解析の型（原因・次の1アクション・理由だけ） | ML_PQT_ENGINE_FOR_COPILOT_AND_VERIFICATION.md § Copilot/Composer 出力方針 |
+| run 解析の型（原因・次の1アクション・理由だけ） | ML_PQT_ENGINE_FOR_OPERATION_AND_VERIFICATION.md § Composer/解析AI 出力方針 |
 | run 短報の項目定義 | 同上 § 7.1 Run 短報フォーマット |
 | 検証指標・合格ライン・ロールバック順 | 同上 § 7.2, 7.3 |
 | 検索ログの読み方（pagesFetched, lowVolumeBackfill） | 同上 § 4.6 |
