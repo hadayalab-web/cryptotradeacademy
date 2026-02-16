@@ -460,13 +460,6 @@ ${inflow >= 0 ? 'Sell-side liquidity dense below price from forced selling and m
   lines.push('');
 
   // ----- 5. Data-Backed Evidence / Gemini -----
-  if (hasGeminiContent) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 【Data Presentation】NanoBanana Infographic');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('🎬 Check attached image/video!');
-    lines.push('');
-  }
   // v2.2: On-chain insight — omit from report (行動示唆ゼロ; Gemini output often contains action suggestions)
   // sosovalueArticle kept for future structural-only Macro Engine output
   // Data-Backed Reasons（1ブロック、全言語共通ロジック）

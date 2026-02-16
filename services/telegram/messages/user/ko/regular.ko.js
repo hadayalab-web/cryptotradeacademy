@@ -290,14 +290,6 @@ ${inflow >= 0 ? '강제 매도와 채굴자 분배(MPI ' + mpiDisplay + ')로 �
   scenarioBullets.slice(0, 5).forEach(b => lines.push(b));
   lines.push('');
 
-  if (hasGeminiContent) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 【Data Presentation】NanoBanana 인포그래픽');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('🎬 첨부된 미디어를 확인하세요!');
-    lines.push('');
-  }
-
   // 모든 섹션에서 동일한 Trap Score를 사용해 브리핑 내 불일치를 방지
   const trapScoreForEvidence = effectiveTrapScore;
   const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;

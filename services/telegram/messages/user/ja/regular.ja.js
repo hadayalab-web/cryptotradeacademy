@@ -316,14 +316,6 @@ ${inflow >= 0 ? '強制売却とマイナー配布(MPI ' + mpiDisplay + ')で価
   scenarioBullets.slice(0, 5).forEach(b => lines.push(b));
   lines.push('');
 
-  if (hasGeminiContent) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 【Data Presentation】NanoBananaインフォグラフィック');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('🎬 添付画像/動画をチェック！');
-    lines.push('');
-  }
-
   // すべてのセクションで同一の Trap Score を使用して表示の不整合を防ぐ
   const trapScoreForEvidence = effectiveTrapScore;
   const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;

@@ -115,7 +115,8 @@ async function runKibaOnce(kv, options = {}) {
     };
   }
 
-  const writeResult = await buildAndWriteKibaSnapshot(kv, {
+  const writeKv = options.dryRun ? null : kv;
+  const writeResult = await buildAndWriteKibaSnapshot(writeKv, {
     runResult,
     btcSnapshot,
     macroSnapshot,
@@ -135,9 +136,10 @@ async function runKibaOnce(kv, options = {}) {
   return {
     success: true,
     triggered: true,
+    dryRun: Boolean(options.dryRun),
     source,
     impact: runResult.impact,
-    kv: {
+    kv: options.dryRun ? undefined : {
       latestKey: writeResult.latestKey,
       historyKey: writeResult.historyKey,
       saved: writeResult.ok

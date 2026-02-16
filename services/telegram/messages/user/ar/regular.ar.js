@@ -401,13 +401,6 @@ ${inflow >= 0 ? 'سيولة بيع كثيفة أسفل السعر من مبيع�
   scenarioBullets.slice(0, 5).forEach(b => lines.push(b));
   lines.push('');
 
-  if (hasGeminiContent) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 【Data Presentation】رسم بياني NanoBanana');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('🎬 تحقق من الصورة/الفيديو المرفق!');
-    lines.push('');
-  }
   // استخدم قيمة Trap Score موحّدة عبر جميع الأقسام لمنع عدم الاتساق داخل نفس النشرة.
   const trapScoreForEvidence = effectiveTrapScore;
   const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;

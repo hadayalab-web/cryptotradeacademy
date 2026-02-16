@@ -1,6 +1,7 @@
 /**
  * Trap Defence OS v5.0 — 言語別トーンアダプタ
  * FUD/FOMO/ATH を言語心理に合わせて調整
+ * X Premium 運用: 字数制限なし。hook/body の切り詰めは行わない（投稿途中切れ防止）。
  */
 
 /**
@@ -34,8 +35,7 @@ function adaptToneByLang(base, lang) {
       break;
 
     case "ar":
-      out.hook = (out.hook || "").slice(0, 80);
-      out.body = (out.body || "").slice(0, 160);
+      // 旧仕様: hook 80 / body 160 で切り詰め → 廃止（X Premium・投稿途中切れ防止）
       break;
 
     default:

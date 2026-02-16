@@ -411,13 +411,6 @@ ${inflow >= 0 ? 'Liquidez de venta densa debajo del precio por ventas forzadas y
   lines.push('');
 
   // ----- 5. Data-Backed Evidence / Gemini -----
-  if (hasGeminiContent) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 【Data Presentation】Infografía NanoBanana');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('🎬 ¡Revisa la imagen/vídeo adjunto!');
-    lines.push('');
-  }
   // Data-Backed Evidence (v2.8 — structural only, no action suggestions)
   // Use one canonical Trap Score across all sections.
   const trapScoreForEvidence = effectiveTrapScore;

@@ -636,7 +636,7 @@ async function generateQuoteRepostText(
             `BTC Price: $${reportData?.priceUsd?.toLocaleString("en-US", { maximumFractionDigits: 0 }) || "N/A"}\n` +
             `Telegram Deep Link: ${deepLink}${minimalVersionContext}${optimizationContext}\n\n` +
             `Requirements (2026 X Algorithm + High Engagement CVR Optimization - Grok×Gemini Optimized):\n` +
-            `- Maximum 140 characters (quote repost limit)\n` +
+            `- No character limit (X Premium: long posts supported up to 25,000 chars). Write full hook + value + CTA + link; do NOT truncate (e.g. avoid ending with "Mi..." or cut-off words).\n` +
             `- Engaging and attention-grabbing\n` +
             `- PRIORITY 1: MUST include an open-ended question CTA at the end (e.g., "これ試した人いる？結果教えて！", "What do you think?", "You joining the pump? Reply Y/N") - REQUIRED for algorithm optimization. Question CTA should be 20-30% of the post, naturally placed. End 70-80% of posts with open questions to spike replies 3-5x.\n` +
             `- PRIORITY 2: MUST include Telegram Deep Link - REQUIRED for opt-in funnel (users must be able to click to join free Minimal Version). Do NOT include Whop.com or checkout URLs; we append them as link-only after your text.\n` +
@@ -653,7 +653,7 @@ async function generateQuoteRepostText(
             `Generate the quote repost text:`
         }
       ],
-      max_tokens: 300,
+      max_tokens: 800,
       temperature: 0.7
     });
 

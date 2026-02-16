@@ -398,13 +398,6 @@ ${inflow >= 0 ? 'Liquidez de venda densa abaixo do preço por vendas forçadas e
   scenarioBullets.slice(0, 5).forEach(b => lines.push(b));
   lines.push('');
 
-  if (hasGeminiContent) {
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('📊 【Data Presentation】Infográfico NanoBanana');
-    lines.push('━━━━━━━━━━━━━━━━━━━━');
-    lines.push('🎬 Verifique a imagem/vídeo anexo!');
-    lines.push('');
-  }
   // Usa uma única fonte canônica de Trap Score para evitar inconsistências no mesmo briefing.
   const trapScoreForEvidence = effectiveTrapScore;
   const trapTypeForEvidence = trapDetection?.trapType || trapAlert?.type || null;

@@ -1,6 +1,6 @@
 /**
  * PQT CTR 最大化: テンプレ選択（簡易バンディット）＋ buildPqt ＋ 結果記録
- * Grok Secret Weapons: applySecretWeaponsFormat（link 改行・末尾句点削除・89-99 chars）、Mirror vocab
+ * Grok Secret Weapons: applySecretWeaponsFormat（link 改行・末尾句点削除・字数制限なし X Premium）、Mirror vocab
  */
 const { PQT_TEMPLATES } = require("./pqtTemplates");
 const { extractMirrorWords, applySecretWeaponsFormat } = require("./pqtSecretWeapons");
@@ -31,6 +31,10 @@ function pickTemplateIndex(lang) {
   return bestIdx;
 }
 
+/**
+ * テンプレは手書きのため、本文を切り詰めずそのまま投稿する（X Premium・字数制限なし）。
+ * applySecretWeaponsFormat はリンク改行・末尾句点削除のみで、文字数制限は行わない。
+ */
 function buildPqt(lang, context) {
   const templates = PQT_TEMPLATES[lang];
   if (!templates || templates.length === 0) return null;
