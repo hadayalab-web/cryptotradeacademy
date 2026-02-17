@@ -59,10 +59,25 @@ const ACTION_GUIDANCE = {
   ko: "멈춤 → 확인 → 조건 일치 시 행동"
 };
 
+/** 有料導線リプライ用：50%オフ・クーポンコードの案内（DEFEND50 の意味が伝わるように） */
+const PROMO_LINE_BY_LANG = {
+  en: " 50% off with code DEFEND50",
+  ja: " 50%オフ: コード DEFEND50",
+  es: " 50% dto con código DEFEND50",
+  pt: " 50% off com código DEFEND50",
+  ar: " خصم 50% برمز DEFEND50",
+  ko: " 50% 할인 코드 DEFEND50"
+};
+
 function normalizeLangKey(lang) {
   const key = String(lang || "en").toLowerCase();
   if (key === "pt-br") return "pt";
   return key;
+}
+
+function getPromoLine(lang) {
+  const langKey = normalizeLangKey(lang);
+  return PROMO_LINE_BY_LANG[langKey] || PROMO_LINE_BY_LANG.en;
 }
 
 function resolveCta(lang, funnelType, index = 0) {
@@ -814,4 +829,4 @@ for (const lang of Object.keys(PQT_TEMPLATES)) {
   }
 }
 
-module.exports = { PQT_TEMPLATES, PQT_TEMPLATES_BOT, buildBotTemplate };
+module.exports = { PQT_TEMPLATES, PQT_TEMPLATES_BOT, buildBotTemplate, getPromoLine };
