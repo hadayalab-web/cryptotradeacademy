@@ -3,7 +3,7 @@
  * node scripts/preview-four-funnels-en.js
  */
 const { buildPqt } = require("../services/td/pqtCtaEngine");
-const { getPromoLine } = require("../services/td/pqtTemplates");
+const { getPromoLine, getMinimalLine } = require("../services/td/pqtTemplates");
 const { pickVidalyticsLink } = require("../config/buzzweaveLinks");
 const path = require("path");
 const fs = require("fs");
@@ -21,10 +21,16 @@ const FUNNELS = [
 const proofSnippet = "Structure suggests one clear level to watch before adding risk.";
 const REPLY_MAX_LEN = 280;
 
-function appendPromoIfRegular(text, funnelType, lang) {
+function appendFunnelLine(text, funnelType, lang) {
   const isRegular = funnelType === "vidalytics_regular" || funnelType === "whop_regular";
-  const promoLine = getPromoLine(lang);
-  if (isRegular && text.length + promoLine.length <= REPLY_MAX_LEN) return text + promoLine;
+  const isMinimal = funnelType === "vidalytics_leadmagnet" || funnelType === "whop_minimal";
+  if (isRegular) {
+    const line = getPromoLine(lang);
+    if (text.length + line.length <= REPLY_MAX_LEN) return text + line;
+  } else if (isMinimal) {
+    const line = getMinimalLine(lang);
+    if (text.length + line.length <= REPLY_MAX_LEN) return text + line;
+  }
   return text;
 }
 
@@ -44,7 +50,7 @@ for (const f of FUNNELS) {
     continue;
   }
   let replyText = built.text;
-  replyText = appendPromoIfRegular(replyText, f.funnelType, "en");
+  replyText = appendFunnelLine(replyText, f.funnelType, "en");
   console.log(`--- ${f.name} ---`);
   console.log(replyText);
   console.log(`\n( length: ${replyText.length}${replyText.length > REPLY_MAX_LEN ? " — 要短縮" : ""} )\n`);

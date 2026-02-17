@@ -41,7 +41,7 @@ const { getBtcSnapshot } = require("../market/getBtcSnapshot");
 const { selectFishermanSlotsTopPercent, selectSlotsFallback } = require("./fishermanDetector");
 const { quoteTargetQualityScore, selectByQualityScore, filterCandidatesByImpressionPotential, hypeBonus, copyTargetFitScore } = require("./quoteTargetQuality");
 const { buildPqt, recordPqtUse } = require("./pqtCtaEngine");
-const { getPromoLine } = require("./pqtTemplates");
+const { getPromoLine, getMinimalLine } = require("./pqtTemplates");
 const { buildProofSnippetFromSnapshot } = require("./pqtProofSnippet");
 const { allocatePqtPerLanguageFromSchedule } = require("./pqtPlanner");
 const { GLOBAL_LIMITS } = require("./mlPqtScheduleConfig");
@@ -1461,11 +1461,15 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     } else {
       replyText = fullText.slice(0, REPLY_MAX_LEN - 3) + "...";
     }
-    // 有料導線（Vidalytics経由・Whop直）のリプライに50%オフ・クーポン案内を明記（WhopはURLパラメータでプロモ未対応のため本文で案内）
+    // 有料導線：50%オフ・クーポン・1日無料トライアル / 無料導線：メール登録で利用開始
     const isRegularFunnel = funnelType === "vidalytics_regular" || funnelType === "whop_regular";
-    const promoLine = getPromoLine(langFilter);
-    if (isRegularFunnel && replyText.length + promoLine.length <= REPLY_MAX_LEN) {
-      replyText += promoLine;
+    const isMinimalFunnel = funnelType === "vidalytics_leadmagnet" || funnelType === "whop_minimal";
+    if (isRegularFunnel) {
+      const promoLine = getPromoLine(langFilter);
+      if (replyText.length + promoLine.length <= REPLY_MAX_LEN) replyText += promoLine;
+    } else if (isMinimalFunnel) {
+      const minimalLine = getMinimalLine(langFilter);
+      if (replyText.length + minimalLine.length <= REPLY_MAX_LEN) replyText += minimalLine;
     }
     if (collectSamples && generatedSamples.length < sampleLimit) {
       const text = String(built.text || "");

@@ -59,14 +59,24 @@ const ACTION_GUIDANCE = {
   ko: "멈춤 → 확인 → 조건 일치 시 행동"
 };
 
-/** 有料導線リプライ用：50%オフ・クーポンコードの案内（DEFEND50 の意味が伝わるように） */
+/** 有料導線リプライ用：50%オフ・クーポン・1日無料トライアルの案内 */
 const PROMO_LINE_BY_LANG = {
-  en: " 50% off with code DEFEND50",
-  ja: " 50%オフ: コード DEFEND50",
-  es: " 50% dto con código DEFEND50",
-  pt: " 50% off com código DEFEND50",
-  ar: " خصم 50% برمز DEFEND50",
-  ko: " 50% 할인 코드 DEFEND50"
+  en: " 50% off code DEFEND50. 1-day free trial",
+  ja: " 50%オフ コード DEFEND50・1日無料トライアル",
+  es: " 50% dto código DEFEND50. Prueba 1 día gratis.",
+  pt: " 50% off código DEFEND50. Teste 1 dia grátis.",
+  ar: " خصم 50% برمز DEFEND50. تجربة يوم مجاني.",
+  ko: " 50% 할인 코드 DEFEND50. 1일 무료 체험."
+};
+
+/** 無料導線リプライ用：メール登録で利用開始の案内 */
+const MINIMAL_LINE_BY_LANG = {
+  en: " Start with email — free.",
+  ja: " メール登録で利用開始・無料",
+  es: " Empieza con email — gratis.",
+  pt: " Comece com email — grátis.",
+  ar: " ابدأ بالإيميل — مجاني.",
+  ko: " 이메일로 시작 — 무료."
 };
 
 function normalizeLangKey(lang) {
@@ -78,6 +88,11 @@ function normalizeLangKey(lang) {
 function getPromoLine(lang) {
   const langKey = normalizeLangKey(lang);
   return PROMO_LINE_BY_LANG[langKey] || PROMO_LINE_BY_LANG.en;
+}
+
+function getMinimalLine(lang) {
+  const langKey = normalizeLangKey(lang);
+  return MINIMAL_LINE_BY_LANG[langKey] || MINIMAL_LINE_BY_LANG.en;
 }
 
 function resolveCta(lang, funnelType, index = 0) {
@@ -829,4 +844,4 @@ for (const lang of Object.keys(PQT_TEMPLATES)) {
   }
 }
 
-module.exports = { PQT_TEMPLATES, PQT_TEMPLATES_BOT, buildBotTemplate, getPromoLine };
+module.exports = { PQT_TEMPLATES, PQT_TEMPLATES_BOT, buildBotTemplate, getPromoLine, getMinimalLine };
