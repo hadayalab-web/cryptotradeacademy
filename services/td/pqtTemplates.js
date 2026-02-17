@@ -79,24 +79,56 @@ const MINIMAL_LINE_BY_LANG = {
   ko: " 이메일로 시작 — 무료."
 };
 
-/** ローリング希少性：先着50名でこのリンクは閉じる（承認済み方針・枠のみ） */
+/** ローリング希少性：48h限定＋先着50名（フォーマット統一） */
 const SCARCITY_LINE_BY_LANG = {
-  en: " First 50 only — then this link closes.",
-  ja: " 先着50名でこのリンクは閉じる。",
-  es: " Solo 50 plazas — luego se cierra este enlace.",
-  pt: " Apenas 50 — depois este link fecha.",
-  ar: " أول 50 فقط — ثم يُغلق هذا الرابط.",
-  ko: " 선착 50명 — 이후 이 링크 마감."
+  en: " 48h only — first 50, then this link closes.",
+  ja: " 48h限定・先着50名でこのリンクは閉じる。",
+  es: " Solo 48h — 50 plazas, luego se cierra este enlace.",
+  pt: " Apenas 48h — 50 vagas, depois este link fecha.",
+  ar: " 48 ساعة فقط — أول 50، ثم يُغلق هذا الرابط.",
+  ko: " 48시간 한정 — 선착 50명, 이후 이 링크 마감."
 };
 
-/** あと〇枠（slotsLeft 指定時。CAMPAIGN_SLOTS_LEFT で渡す） */
+/** あと〇枠・48h限定（slotsLeft 指定時。CAMPAIGN_SLOTS_LEFT で渡す） */
 const SLOTS_LEFT_LINE_BY_LANG = {
-  en: (n) => ` Only ${n} spots left.`,
-  ja: (n) => ` あと${n}枠。`,
-  es: (n) => ` Quedan ${n} plazas.`,
-  pt: (n) => ` Restam ${n} vagas.`,
-  ar: (n) => ` متبقٍ ${n} مقعد.`,
-  ko: (n) => ` 잔여 ${n}자리.`
+  en: (n) => ` Only ${n} spots left. 48h only.`,
+  ja: (n) => ` あと${n}枠・48h限定。`,
+  es: (n) => ` Quedan ${n} plazas. Solo 48h.`,
+  pt: (n) => ` Restam ${n} vagas. 48h só.`,
+  ar: (n) => ` متبقٍ ${n} مقعد. 48 ساعة فقط.`,
+  ko: (n) => ` 잔여 ${n}자리. 48시간 한정.`
+};
+
+/**
+ * 希少性コピー 3パターン（Gemini 作成・Bot投稿タイプに合わせて使い分け）
+ * CAMPAIGN_SCARCITY_VARIANT=fear|authority|elitism で切り替え
+ * @see docs/PQT_SCARCITY_3PATTERNS_GEMINI.md
+ */
+const SCARCITY_VARIANTS = {
+  fear: {
+    en: " WARNING: Secure your \"Shield\" before the dump. 48h window to protect your assets. Don't get trapped. [First 50 only]",
+    ja: " 警告：値崩れ前の「緊急避難ルート」確保は済んでいますか？ 手遅れになる前の48時間限定公開。資産を守る【先着50名】",
+    es: " AVISO: Asegura tu \"escudo\" antes del dump. 48h para proteger activos. [Primeros 50]",
+    pt: " AVISO: Proteja seu \"escudo\" antes do dump. Janela de 48h. [Primeiros 50]",
+    ar: " تحذير: احمِ أصولك قبل الانهيار. 48 ساعة. [أول 50 فقط]",
+    ko: " 경고: 덤프 전에 \"실드\" 확보. 48시간. 자산 보호. [선착 50명]"
+  },
+  authority: {
+    en: " Access the \"Structure Analysis\" that validates the noise. Professional grade intel open for 48h. [Last few spots available]",
+    ja: " 騒乱を静観する「機関レベルの構造分析」へ招待。 一般アクセスは48時間のみ許可されます。真実を確認する【残り数枠】",
+    es: " Accede al \"análisis estructural\" que valida el ruido. Intel profesional 48h. [Últimas plazas]",
+    pt: " Acesse a \"análise estrutural\" que valida o ruído. Intel profissional 48h. [Últimas vagas]",
+    ar: " الوصول لـ\"تحليل البنية\" الذي يتحقق من الضجيج. 48 ساعة. [آخر الأماكن]",
+    ko: " 노이즈를 검증하는 \"구조 분석\" 접근. 프로급 인텔 48h. [잔여 소수]"
+  },
+  elitism: {
+    en: " Don't be exit liquidity. Claim your \"Survivor Slot\" used by the top 5%. Verify before you ape in. 48h limit. [50 spots left]",
+    ja: " 養分回避。カモにされない上位5%だけの「生存者枠」を確保してください。 エントリー条件を確認する48時間。【残り50枠】",
+    es: " No seas liquidez de salida. \"Slot superviviente\" del 5% superior. Verifica antes de entrar. 48h. [50 plazas]",
+    pt: " Não seja liquidez de saída. \"Vaga sobrevivente\" do top 5%. Verifique antes de entrar. 48h. [50 vagas]",
+    ar: " لا تكن سيولة خروج. \"مقعد الناجين\" لأفضل 5%. تحقق قبل الدخول. 48 ساعة. [50 مقعد]",
+    ko: " 출구 유동성 되지 마세요. 상위 5% \"생존자 슬롯\". 진입 전 확인. 48h. [50자리]"
+  }
 };
 
 function normalizeLangKey(lang) {
@@ -115,9 +147,22 @@ function getMinimalLine(lang) {
   return MINIMAL_LINE_BY_LANG[langKey] || MINIMAL_LINE_BY_LANG.en;
 }
 
-/** ローリング希少性：slotsLeft があれば「あと〇枠」、なければ「先着50名でこのリンクは閉じる」 */
+/** ローリング希少性（48h限定）。CAMPAIGN_SCARCITY_VARIANT=fear|authority|elitism で3パターン切り替え */
 function getScarcityLine(lang, slotsLeft) {
   const langKey = normalizeLangKey(lang);
+  const variant = (process.env.CAMPAIGN_SCARCITY_VARIANT || "").toLowerCase();
+  const variantMap = variant && SCARCITY_VARIANTS[variant] ? SCARCITY_VARIANTS[variant] : null;
+
+  if (variantMap && (variantMap[langKey] || variantMap.en)) {
+    const base = variantMap[langKey] || variantMap.en;
+    if (typeof slotsLeft === "number" && slotsLeft > 0) {
+      const fn = SLOTS_LEFT_LINE_BY_LANG[langKey] || SLOTS_LEFT_LINE_BY_LANG.en;
+      const suffix = typeof fn === "function" ? fn(slotsLeft) : SLOTS_LEFT_LINE_BY_LANG.en(slotsLeft);
+      return base + suffix;
+    }
+    return base;
+  }
+
   if (typeof slotsLeft === "number" && slotsLeft > 0) {
     const fn = SLOTS_LEFT_LINE_BY_LANG[langKey] || SLOTS_LEFT_LINE_BY_LANG.en;
     return typeof fn === "function" ? fn(slotsLeft) : SLOTS_LEFT_LINE_BY_LANG.en(slotsLeft);
