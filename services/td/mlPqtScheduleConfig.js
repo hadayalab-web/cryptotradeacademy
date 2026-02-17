@@ -7,8 +7,8 @@
  * やや重めに配分。Cron は 0,3,6,9,12,15,18,21 UTC で 8 run/日・3h 等間隔。
  */
 const GLOBAL_LIMITS = {
-  max_pqt_per_day: 500,
-  recommended_range_per_day: { min: 200, max: 500 }
+  max_pqt_per_day: 99999,
+  recommended_range_per_day: { min: 200, max: 99999 }
 };
 
 const TIME_DISTRIBUTION = [
@@ -27,6 +27,21 @@ const LANGUAGE_ALLOCATION = [
   { language: "ar", share_ratio: 0.10 },
   { language: "ko", share_ratio: 0.08 },
   { language: "ja", share_ratio: 0.07 }
+];
+
+/**
+ * 戦略的 UTC→言語 割り当て（24要素、index=UTC時）。
+ * 根拠: docs/BUZZWEAVE_STRATEGIC_LANG_SCHEDULE_RATIONALE.md
+ * - Run 数: LANGUAGE_ALLOCATION の share_ratio に基づく（en 9, es 5, pt 4, ar 2, ko 2, ja 2）。
+ * - 時間帯: 各言語の現地ピーク（JST/KST 朝、欧州・米国朝、LATAM/ブラジル、中東）に合わせて UTC を割り当て。
+ */
+const STRATEGIC_UTC_TO_LANG = [
+  "ja", "ko", "ko", "ja",   // 0-3: アジア朝 (JST/KST)
+  "en", "en", "ar", "ar",   // 4-7: 欧州早朝・中東
+  "en", "en", "en", "en",   // 8-11: 欧州朝〜昼
+  "en", "en", "en", "es",   // 12-15: 米国朝・欧州昼
+  "es", "es", "pt", "pt",   // 16-19: 中南米ピーク
+  "pt", "es", "es", "pt"    // 20-23: 米国夕方・ブラジル
 ];
 
 /** Grok JSON そのまま。日次ターゲット・ウィンドウ・言語・Fisherman優先・CTR・ガードの refinement ルール */
@@ -291,6 +306,7 @@ module.exports = {
   GLOBAL_LIMITS,
   TIME_DISTRIBUTION,
   LANGUAGE_ALLOCATION,
+  STRATEGIC_UTC_TO_LANG,
   ML_PQT_REFINEMENT_CONFIG,
   PERFORMANCE_REFINEMENT_CONFIG,
   SHITESHI_PARASITIC_MODEL

@@ -177,14 +177,15 @@ function refineDailyTarget(baseTarget, snapshot) {
     target = Math.max(250, Math.min(GLOBAL_LIMITS.recommended_range_per_day.max, target));
   }
 
+  const maxCap = GLOBAL_LIMITS.recommended_range_per_day.max;
   const priorCtr = Number(snapshot?.priorDayCtrAverage);
   if (Number.isFinite(priorCtr) && priorCtr < PRIOR_CTR_LOW) {
-    target = Math.min(target, 300);
+    target = Math.min(target, maxCap);
   }
 
   const apiCredit = Number(snapshot?.apiCreditRemaining);
   if (Number.isFinite(apiCredit) && apiCredit < API_CREDIT_THRESHOLD) {
-    target = Math.min(target, 300);
+    target = Math.min(target, maxCap);
   }
 
   if (snapshot?.performanceMetrics && typeof normalizePerformanceMetrics === "function") {
@@ -192,7 +193,7 @@ function refineDailyTarget(baseTarget, snapshot) {
     if (norm.aggregateCtrNormalized > 0.7) target = Math.max(target, 350);
     if (norm.impressionsMomentum > 0.7) target = Math.max(target, 300);
     if (norm.tier1SuccessRateNormalized > 0.8) target = Math.max(target, 350);
-    if (norm.saturationIndexNormalized > 0.7) target = Math.min(target, 300);
+    if (norm.saturationIndexNormalized > 0.7) target = Math.min(target, maxCap);
   }
 
   return clampDailyTarget(target);

@@ -5,7 +5,7 @@
 const { LANGUAGE_CONFIG } = require("./languageConfig");
 
 const BASE_MIN = 200;
-const BASE_MAX = 500;
+const BASE_MAX = 99999;
 
 /**
  * スナップショットからグローバルな PQT レンジ（min, max）を決定
@@ -18,9 +18,9 @@ function decideGlobalPqtRangeFromSnapshot(snapshot) {
 
   if (trap_score === "high" || trap_score === "elevated") return { min: 350, max: BASE_MAX };
   if (trap_score === "medium" || funding_state === "high" || liquidation_bias === "long" || liquidation_bias === "short") {
-    return { min: 280, max: 400 };
+    return { min: 280, max: BASE_MAX };
   }
-  return { min: BASE_MIN, max: 320 };
+  return { min: BASE_MIN, max: BASE_MAX };
 }
 
 /**

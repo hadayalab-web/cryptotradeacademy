@@ -24,18 +24,23 @@ const {
 const { determineDailyRunTarget } = require("../services/td/autonomousSlotGenerator");
 loadEnv();
 
+const { getLangByUtcHour: getLangByUtcHourFromSchedule } = require("../services/td/buzzWeaveSchedulePlan");
+
 const BUZZWEAVE_LANGS = ["en", "es", "pt", "ja", "ko", "ar"];
-// 6言語圏の時間に合わせる: UTC 時刻で言語を切り替え（0-3→ja, 4-7→ko, 8-11→en, 12-15→es, 16-19→pt, 20-23→ar）。BUZZWEAVE_LANG_BY_UTC=false で従来の分単位 round-robin に戻す。
-const LANGS_BY_UTC_HOUR_BLOCK = ["ja", "ko", "en", "es", "pt", "ar"];
+// 言語は戦略的 UTC→言語 テーブルで決定（share_ratio・地域ピーク考慮）。BUZZWEAVE_LANG_BY_UTC=false で分単位 round-robin に戻す。
 function getLangByUtcHour() {
   const utcHour = new Date().getUTCHours();
-  const index = Math.floor(utcHour / 4) % LANGS_BY_UTC_HOUR_BLOCK.length;
-  return LANGS_BY_UTC_HOUR_BLOCK[index];
+  return getLangByUtcHourFromSchedule(utcHour);
 }
-// キャンペーン時（CAMPAIGN_PAID_FOCUS=true）は 1h、通常は 3h
+// 対象枯渇を防ぐため 15 分ごとに区切る（キャンペーン時デフォルト）。Cron は */15 に変更済み。
+// BUZZWEAVE_RUN_INTERVAL_MINUTES=60 で 1h に戻す。通常時は 3h。
+const campaign = process.env.CAMPAIGN_PAID_FOCUS === "true" || process.env.CAMPAIGN_PAID_FOCUS === "1";
+const RUN_INTERVAL_MINUTES =
+  Number(process.env.BUZZWEAVE_RUN_INTERVAL_MINUTES) || (campaign ? 15 : 0);
 const MIN_RUN_INTERVAL_HOURS =
-  Number(process.env.BUZZWEAVE_MIN_RUN_INTERVAL_HOURS) ||
-  (process.env.CAMPAIGN_PAID_FOCUS === "true" || process.env.CAMPAIGN_PAID_FOCUS === "1" ? 1 : 3);
+  RUN_INTERVAL_MINUTES > 0
+    ? RUN_INTERVAL_MINUTES / 60
+    : Number(process.env.BUZZWEAVE_MIN_RUN_INTERVAL_HOURS) || (campaign ? 1 : 3);
 const MIN_RUN_INTERVAL_MS = MIN_RUN_INTERVAL_HOURS * 60 * 60 * 1000;
 
 async function handler(req, res) {

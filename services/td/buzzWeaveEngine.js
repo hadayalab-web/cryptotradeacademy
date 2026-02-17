@@ -85,7 +85,7 @@ const LOG_LEVEL = process.env.BUZZWEAVE_LOG_LEVEL || "info";
 const LOG_MAX_PER_RUN = 5;
 let runLogCount = 0;
 
-const API_CALL_CAP = Number(process.env.BUZZWEAVE_API_CALL_CAP) || 100;
+const API_CALL_CAP = Number(process.env.BUZZWEAVE_API_CALL_CAP) || 9999;
 const PQT_ONLY_MODE = process.env.BUZZWEAVE_PQT_ONLY === "true" || process.env.BUZZWEAVE_PQT_ONLY === "1";
 let runApiCallCount = 0;
 const DYNAMIC_TARGET_ENABLED = process.env.BUZZWEAVE_DYNAMIC_TARGET !== "false" && process.env.BUZZWEAVE_DYNAMIC_TARGET !== "0";
@@ -95,9 +95,23 @@ const POSTS_PER_CONVERSION_MIN = Math.max(1, Number(process.env.BUZZWEAVE_POSTS_
 const POSTS_PER_CONVERSION_MAX = Math.max(POSTS_PER_CONVERSION_MIN, Number(process.env.BUZZWEAVE_POSTS_PER_CONVERSION_MAX || 12));
 const DYNAMIC_LOOKBACK_DAYS = Math.max(1, Number(process.env.BUZZWEAVE_DYNAMIC_LOOKBACK_DAYS || 3));
 const DYNAMIC_FULL_TRUST_CONVERSIONS = Math.max(1, Number(process.env.BUZZWEAVE_DYNAMIC_FULL_TRUST_CONVERSIONS || 20));
-const RUNS_PER_DAY_FOR_TARGET = Math.max(1, Number(process.env.BUZZWEAVE_RUNS_PER_DAY_FOR_TARGET || 8));
-const MAX_CAP_PER_RUN = Math.max(1, Number(process.env.BUZZWEAVE_MAX_CAP_PER_RUN || 200));
+const RUNS_PER_DAY_FOR_TARGET = Math.max(
+  1,
+  Number(process.env.BUZZWEAVE_RUNS_PER_DAY_FOR_TARGET) ||
+  (() => {
+    const campaign = process.env.CAMPAIGN_PAID_FOCUS === "true" || process.env.CAMPAIGN_PAID_FOCUS === "1";
+    if (!campaign) return 8;
+    const intervalMin = Number(process.env.BUZZWEAVE_RUN_INTERVAL_MINUTES) || 15;
+    return intervalMin <= 15 ? 96 : 24;
+  })()
+);
+const MAX_CAP_PER_RUN = Math.max(1, Number(process.env.BUZZWEAVE_MAX_CAP_PER_RUN || 9999));
 const MAX_CAP_PER_RUN_WARP = Math.max(MAX_CAP_PER_RUN, Number(process.env.BUZZWEAVE_MAX_CAP_PER_RUN_WARP || (MAX_CAP_PER_RUN * 2)));
+// 2日で1500〜2000リプKPI（デフォルト有効）。日次 750〜1000 に相当。dailyTarget のフロア/シーリングに使用
+const KPI_48H_REPLY_MIN = Number(process.env.BUZZWEAVE_48H_REPLY_KPI_MIN || 1500);
+const KPI_48H_REPLY_MAX = Number(process.env.BUZZWEAVE_48H_REPLY_KPI_MAX || 2000);
+const KPI_DAILY_REPLY_FLOOR = Math.round(KPI_48H_REPLY_MIN / 2);
+const KPI_DAILY_REPLY_CEILING = Math.round(KPI_48H_REPLY_MAX / 2);
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -1245,12 +1259,16 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   const perLang = allocatePqtPerLanguageFromSchedule(snapshot);
   let cap = Math.max(1, Math.min(perLang[langFilter] || API_CALL_CAP, API_CALL_CAP));
   const targetResolution = await resolveDailyPqtTarget();
+  // 2日1500〜2000リプKPI: 日次フロア750・シーリング1000を dailyTarget に適用
+  let dailyTargetForCap = Math.max(0, targetResolution?.dailyTarget ?? 0);
+  if (KPI_DAILY_REPLY_FLOOR > 0) dailyTargetForCap = Math.max(dailyTargetForCap, KPI_DAILY_REPLY_FLOOR);
+  if (KPI_DAILY_REPLY_CEILING > 0) dailyTargetForCap = Math.min(dailyTargetForCap, KPI_DAILY_REPLY_CEILING);
   const useLangSpecificCap = process.env.BUZZWEAVE_USE_LANG_SPECIFIC_CAP === "true" || process.env.BUZZWEAVE_USE_LANG_SPECIFIC_CAP === "1";
-  if (targetResolution?.dailyTarget > 0) {
+  if (dailyTargetForCap > 0) {
     if (useLangSpecificCap && perLang[langFilter] != null) {
       cap = Math.min(Math.max(1, perLang[langFilter]), MAX_CAP_PER_RUN);
     } else {
-      cap = Math.min(Math.ceil(targetResolution.dailyTarget / RUNS_PER_DAY_FOR_TARGET), MAX_CAP_PER_RUN);
+      cap = Math.min(Math.ceil(dailyTargetForCap / RUNS_PER_DAY_FOR_TARGET), MAX_CAP_PER_RUN);
     }
   } else {
     const volumeMult = Math.min(10, Math.max(1, Number(process.env.BUZZWEAVE_VOLUME_MULTIPLIER) || 1));
@@ -1259,6 +1277,8 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   logInfo("daily target resolved", {
     mode: targetResolution?.mode || "unknown",
     dailyTarget: targetResolution?.dailyTarget ?? null,
+    dailyTargetForCap: dailyTargetForCap || undefined,
+    kpi48hReply: KPI_48H_REPLY_MIN > 0 ? [KPI_48H_REPLY_MIN, KPI_48H_REPLY_MAX] : undefined,
     langFilter,
     cap,
     useLangSpecificCap: useLangSpecificCap || undefined,
@@ -1456,7 +1476,14 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
 
     const coin = /BTC|bitcoin/i.test(slot?.post?.text || "") ? "BTC" : /ETH/i.test(slot?.post?.text || "") ? "ETH" : "BTC";
     const proofSnippet = buildProofSnippetFromSnapshot(snapshot, langFilter, slot);
-    const useBotTemplates = process.env.BUZZWEAVE_USE_BOT_TEMPLATES !== "false" && process.env.BUZZWEAVE_USE_BOT_TEMPLATES !== "0";
+    // 効果的投下: 煽り系(whale_trap)は Bot テンプレ（同意＋短い本文）、それ以外は通常テンプレ。env で明示時は env 優先。
+    const envBot = process.env.BUZZWEAVE_USE_BOT_TEMPLATES;
+    const useBotTemplates =
+      envBot === "true" || envBot === "1"
+        ? true
+        : envBot === "false" || envBot === "0"
+          ? false
+          : slot?.dangerLabel === "whale_trap";
     const built = buildPqt(langFilter, { coin, proofSnippet, link, funnelType, quotedText: slot?.post?.text, useBotTemplates });
     if (!built || !built.text) continue;
     // リプライは280字制限。リンクを切らないよう「本文だけ詰めて末尾にリンク」にする

@@ -28,19 +28,20 @@ function getVolatilityFromSnapshot(snapshot) {
  * low=6（6言語1周）, medium=7, high=8（窓いっぱい）。env で上書き可。
  */
 function determineDailyRunTarget(snapshot) {
-  // キャンペーン時: 1h 間隔で最大 24 Run（CAMPAIGN_PAID_FOCUS=true）
+  // キャンペーン時: 15 分間隔なら 96 Run/日（4/h）、1h 間隔なら 24。BUZZWEAVE_DAILY_RUN_CAMPAIGN で上書き可。
   if (process.env.CAMPAIGN_PAID_FOCUS === "true" || process.env.CAMPAIGN_PAID_FOCUS === "1") {
-    const campaignCap = Number(process.env.BUZZWEAVE_DAILY_RUN_CAMPAIGN) || 24;
-    return Math.min(24, campaignCap);
+    const intervalMin = Number(process.env.BUZZWEAVE_RUN_INTERVAL_MINUTES) || 15;
+    const defaultCap = intervalMin <= 15 ? 96 : 24;
+    return Number(process.env.BUZZWEAVE_DAILY_RUN_CAMPAIGN) || defaultCap;
   }
   const low = Number(process.env.BUZZWEAVE_DAILY_RUN_LOW) || 6;
   const medium = Number(process.env.BUZZWEAVE_DAILY_RUN_MEDIUM) || 7;
   const high = Number(process.env.BUZZWEAVE_DAILY_RUN_HIGH) || 8;
   const vol = snapshot?.volatility ?? getVolatilityFromSnapshot(snapshot);
-  const cap = 8; // 3h 間隔の物理上限
-  if (vol === "high") return Math.min(high, cap);
-  if (vol === "medium") return Math.min(medium, cap);
-  return Math.min(low, cap);
+  // 通常時も上限外し。env で渡した値そのまま（未設定時は low/medium/high）
+  if (vol === "high") return high;
+  if (vol === "medium") return medium;
+  return low;
 }
 
 /**

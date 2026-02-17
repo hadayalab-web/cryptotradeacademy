@@ -164,10 +164,10 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
         console.error("⚠️ CRYPTOQUANT_API_KEY is not set in .env.local");
         return null;
     }
-    // /stablecoin/* は token 必須。CQ は小文字 "usdt" を期待することがある
+    // /stablecoin/* は token 必須。CQ によっては USDT を期待（大文字で試す）
     const path = String(endpoint || "").toLowerCase();
     if (path.includes("stablecoin") && (params.token == null || params.token === "")) {
-      params = { ...params, token: "usdt" };
+      params = { ...params, token: "USDT" };
     }
     if (!validateCQParams(endpoint, params)) {
       return null;

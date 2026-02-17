@@ -17,19 +17,16 @@ function getDefaultParamsForPath(apiPath) {
   const p = String(apiPath || "").toLowerCase();
   const base = { exchange: "all_exchange", window: "day", limit: 1 };
   if (p.includes("/stablecoin/")) {
-    return { ...base, token: "usdt" };
+    return { ...base, token: "USDT" };
   }
   if (p.includes("funding-rates")) {
     return { exchange: "all_exchange", window: "8hour", limit: 1 };
   }
-  if (p.includes("miner-flows") || p.includes("miner-supply-ratio") || p.includes("miner-data/")) {
+  if (p.includes("miner-flows") || p.includes("miner-supply-ratio")) {
     return { ...base, miner: "all_miner" };
   }
   if (p.includes("fund-data/")) {
     return { ...base, symbol: "btc" };
-  }
-  if (p.includes("/alt/")) {
-    return { ...base, token: "btc" };
   }
   return base;
 }
@@ -51,7 +48,9 @@ const SKIP_PATHS = [
   "/btc/inter-entity-flows/miner-to-exchange",
   "/btc/inter-entity-flows/miner-to-miner",
   "/btc/mempool/stats-by-relative-fee",
-  "/btc/mempool/stats-in-total"
+  "/btc/mempool/stats-in-total",
+  "/btc/miner-data/companies",
+  "/alt/market-data/price-ohlcv"
 ];
 function shouldSkipPath(endpoint) {
   const p = String(endpoint || "").toLowerCase();
