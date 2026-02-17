@@ -38,40 +38,60 @@ function resolveMinimalChatId(lang) {
 const { getMinimalVersionCheckoutUrl, getWhopProductUrl, getPromoCode } = require("../services/telegram/whop-links");
 const { pickVidalyticsLink } = require("../config/buzzweaveLinks");
 
-/** 有料版（Regular Briefing）アップセル文言：Vidalytics・Whop・クーポンコード */
+/** 有料版（Regular Briefing）アップセル文言：3行構成（見出し／視聴／申し込み） */
 function getUpsellBlock(lang = "en") {
   const vidUrl = pickVidalyticsLink(lang === "pt-br" ? "pt" : lang, "regular");
   const whopUrl = getWhopProductUrl(lang);
   const code = (getPromoCode() || "defend50").toUpperCase();
-  const labels = {
-    en: "⬆️ Upgrade to Regular Briefing: full structure + 5-min pulse (KIBA). Watch →",
-    es: "⬆️ Pásate a Regular: estructura completa + pulso 5min (KIBA). Ver →",
-    "pt-br": "⬆️ Upgrade para Regular: estrutura completa + pulso 5min (KIBA). Ver →",
-    ar: "⬆️ ترقية لـ Regular: هيكل كامل + نبض 5 دقائق (KIBA). شاهد →",
-    ja: "⬆️ Regularへ: 構造全体＋5分パルス（KIBA）。視聴 →",
-    ko: "⬆️ Regular 업그레이드: 전체 구조 + 5분 펄스 (KIBA). 시청 →"
+  const heading = {
+    en: "⬆️ Upgrade: Regular Briefing — full structure + 5-min pulse (KIBA)",
+    es: "⬆️ Upgrade: Regular Briefing — estructura completa + pulso 5min (KIBA)",
+    "pt-br": "⬆️ Upgrade: Regular Briefing — estrutura completa + pulso 5min (KIBA)",
+    ar: "⬆️ ترقية: Regular Briefing — هيكل كامل + نبض 5 دقائق (KIBA)",
+    ja: "⬆️ 有料版（Regular Briefing）：構造全体＋5分パルス（KIBA）",
+    ko: "⬆️ 업그레이드: Regular Briefing — 전체 구조 + 5분 펄스 (KIBA)"
   };
-  const getLabel = { en: "Get access →", es: "Acceso →", "pt-br": "Acesso →", ar: "الدخول →", ja: "アクセス →", ko: "접속 →" };
-  const line = (labels[lang] || labels.en) + " " + vidUrl + " | " + (getLabel[lang] || getLabel.en) + " " + whopUrl + " | Code: " + code;
-  return line;
+  const watchLabel = { en: "▶ Watch →", es: "▶ Ver →", "pt-br": "▶ Ver →", ar: "▶ شاهد →", ja: "▶ 視聴 →", ko: "▶ 시청 →" };
+  const accessLabel = {
+    en: "▶ Get access (50% off) →",
+    es: "▶ Acceso (50% dto) →",
+    "pt-br": "▶ Acesso (50% off) →",
+    ar: "▶ الدخول (خصم 50%) →",
+    ja: "▶ 申し込み（50%オフ）→",
+    ko: "▶ 접속 (50% 할인) →"
+  };
+  const h = heading[lang] || heading.en;
+  const w = (watchLabel[lang] || watchLabel.en) + " " + vidUrl;
+  const a = (accessLabel[lang] || accessLabel.en) + " " + whopUrl + "  Code: " + code;
+  return [h, w, a].join("\n");
 }
 
+const HASHTAG = "#TrapDefence";
+
+/** ツイート文言テンプレート（@trapdefence 言及 + ハッシュタグ） */
+const TWEET_TEMPLATES = {
+  en: "Trap Defence BTC is helping me avoid traps. @trapdefence " + HASHTAG,
+  es: "Trap Defence BTC me está ayudando a evitar trampas. @trapdefence " + HASHTAG,
+  "pt-br": "Trap Defence BTC está me ajudando a evitar armadilhas. @trapdefence " + HASHTAG,
+  ar: "Trap Defence BTC يساعدني على تجنب الفخاخ. @trapdefence " + HASHTAG,
+  ja: "Trap Defence BTC、トラップ回避の視点が役に立っています。@trapdefence " + HASHTAG,
+  ko: "Trap Defence BTC 덕분에 함정 피해가고 있어요. @trapdefence " + HASHTAG
+};
+
+/** ボタン1つのみ：Xで仲間と共有する（コミュニティ訴求） */
 function getSocialProofButton(lang = "en") {
-  const texts = {
-    en: "🔥 I'm Safe (Trap Avoided)",
-    es: "🔥 Estoy Seguro (Trampa Evitada)",
-    "pt-br": "🔥 Estou Seguro (Armadilha Evitada)",
-    ar: "🔥 أنا آمن (تم تجنب الفخ)",
-    ja: "🔥 安全です（トラップ回避済み）",
-    ko: "🔥 안전합니다 (함정 회피됨)"
+  const buttonLabels = {
+    en: "Share with the community on X →",
+    es: "Comparte con la comunidad en X →",
+    "pt-br": "Compartilhe com a comunidade no X →",
+    ar: "شارك مع المجتمع على X →",
+    ja: "Xで仲間と共有する →",
+    ko: "X에서 커뮤니티와 공유하기 →"
   };
-  const ctaTexts = { en: "Free: Get the edge →", es: "Gratis →", "pt-br": "Grátis →", ar: "مجاني →", ja: "無料でエッジ →", ko: "무료 엣지 →" };
-  const regularCta = { en: "Get Regular (50% off) →", es: "Regular 50% dto →", "pt-br": "Regular 50% off →", ar: "Regular خصم 50% →", ja: "Regular 50%オフ →", ko: "Regular 50% 할인 →" };
+  const text = TWEET_TEMPLATES[lang] || TWEET_TEMPLATES.en;
+  const intentUrl = "https://x.com/intent/tweet?text=" + encodeURIComponent(text);
   return {
-    inline_keyboard: [
-      [{ text: texts[lang] || texts.en, callback_data: "action_saved" }, { text: ctaTexts[lang] || ctaTexts.en, url: getMinimalVersionCheckoutUrl(lang) }],
-      [{ text: regularCta[lang] || regularCta.en, url: getWhopProductUrl(lang) }]
-    ]
+    inline_keyboard: [[{ text: buttonLabels[lang] || buttonLabels.en, url: intentUrl }]]
   };
 }
 

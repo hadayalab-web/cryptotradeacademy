@@ -8,6 +8,9 @@
 // VIDALYTICS_LINKS（12本：Regular/Minimal × 6言語）
 // 環境変数 VID_LINK_REGULAR_XX / VID_LINK_MINIMAL_XX から読み込み
 // ========================================
+// OGP（Telegram等のリンクプレビュー）: 各URLのVidalytics動画ページで og:image / twitter:image を
+// 設定すること。JA版は設定済みでサムネが正しく表示される。EN・ES・PT・AR・KO も同様に
+// Vidalyticsダッシュボードで該当動画のOGP画像を設定すれば、プレビューが意図どおり表示される。
 const VID_ENV_KEYS = {
   en: { reg: "VID_LINK_REGULAR_EN", min: "VID_LINK_MINIMAL_EN" },
   es: { reg: "VID_LINK_REGULAR_ES", min: "VID_LINK_MINIMAL_ES" },

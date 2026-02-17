@@ -217,20 +217,30 @@ function getSocialProofButton(lang = "en") {
   };
 }
 
-/** 有料版（Regular Briefing）配信専用: Whop リンク・I'm Safe は不要。X に投稿誘導のみ（エンタメ性のある表現） */
-const X_HOME_URL = "https://x.com/home";
+/** 有料版（Regular Briefing）配信専用: ボタン設置を無料版と統一 — 1ボタンのみ・Xで仲間と共有する・intent/tweet */
+const X_SHARE_HASHTAG = "#TrapDefence";
+const X_SHARE_TEMPLATES = {
+  en: "Trap Defence BTC is helping me avoid traps. @trapdefence " + X_SHARE_HASHTAG,
+  es: "Trap Defence BTC me está ayudando a evitar trampas. @trapdefence " + X_SHARE_HASHTAG,
+  "pt-br": "Trap Defence BTC está me ajudando a evitar armadilhas. @trapdefence " + X_SHARE_HASHTAG,
+  ar: "Trap Defence BTC يساعدني على تجنب الفخاخ. @trapdefence " + X_SHARE_HASHTAG,
+  ja: "Trap Defence BTC、トラップ回避の視点が役に立っています。@trapdefence " + X_SHARE_HASHTAG,
+  ko: "Trap Defence BTC 덕분에 함정 피해가고 있어요. @trapdefence " + X_SHARE_HASHTAG
+};
+const X_SHARE_BUTTON_LABELS = {
+  en: "Share with the community on X →",
+  es: "Comparte con la comunidad en X →",
+  "pt-br": "Compartilhe com a comunidade no X →",
+  ar: "شارك مع المجتمع على X →",
+  ja: "Xで仲間と共有する →",
+  ko: "X에서 커뮤니티와 공유하기 →"
+};
 function getRegularBriefingButton(lang = "en") {
-  const tweetCtaTexts = {
-    en: "Drop your take on X 🔥",
-    es: "Suelta tu take en X 🔥",
-    "pt-br": "Manda seu take no X 🔥",
-    ar: "انشر رأيك على X 🔥",
-    ja: "Xで一言かましていく 🚀",
-    ko: "X에 한줄 남기기 🚀"
-  };
-  const text = tweetCtaTexts[lang] || tweetCtaTexts.en;
+  const label = X_SHARE_BUTTON_LABELS[lang] || X_SHARE_BUTTON_LABELS.en;
+  const tweetText = X_SHARE_TEMPLATES[lang] || X_SHARE_TEMPLATES.en;
+  const intentUrl = "https://x.com/intent/tweet?text=" + encodeURIComponent(tweetText);
   return {
-    inline_keyboard: [[{ text, url: X_HOME_URL }]]
+    inline_keyboard: [[{ text: label, url: intentUrl }]]
   };
 }
 let stateManager, evaluateTrigger;
