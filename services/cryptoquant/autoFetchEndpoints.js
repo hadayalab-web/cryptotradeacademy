@@ -11,17 +11,27 @@ const MAX_ENDPOINTS_PER_RUN = Number(process.env.KIBA_CQ_AUTO_MAX_PER_RUN) || 80
 
 /**
  * パスに応じたデフォルトクエリパラメータ
- * CQ API は window, limit を必須にしていることが多い
+ * CQ API は window, limit のほか miner / symbol / token 等が必須のことがある
  */
 function getDefaultParamsForPath(apiPath) {
   const p = String(apiPath || "").toLowerCase();
+  const base = { exchange: "all_exchange", window: "day", limit: 1 };
   if (p.includes("/stablecoin/")) {
-    return { exchange: "all_exchange", window: "day", limit: 1, token: "USDT" };
+    return { ...base, token: "usdt" };
   }
   if (p.includes("funding-rates")) {
     return { exchange: "all_exchange", window: "8hour", limit: 1 };
   }
-  return { exchange: "all_exchange", window: "day", limit: 1 };
+  if (p.includes("miner-flows") || p.includes("miner-supply-ratio") || p.includes("miner-data/")) {
+    return { ...base, miner: "all_miner" };
+  }
+  if (p.includes("fund-data/")) {
+    return { ...base, symbol: "btc" };
+  }
+  if (p.includes("/alt/")) {
+    return { ...base, token: "btc" };
+  }
+  return base;
 }
 
 /**
@@ -30,6 +40,22 @@ function getDefaultParamsForPath(apiPath) {
 function toClientEndpoint(path) {
   const s = String(path || "").replace(/^\/v1\/?/, "").replace(/\/+/g, "/").trim() || "";
   return s.startsWith("/") ? s : `/${s}`;
+}
+
+/** リファレンスにはあるが 404 または必須パラメータが複雑でスキップするパス */
+const SKIP_PATHS = [
+  "/btc/lightning-network/stats-in-total",
+  "/btc/lightning-network-statistics/stats-in-total",
+  "/btc/inter-entity-flows/exchange-to-exchange",
+  "/btc/inter-entity-flows/exchange-to-miner",
+  "/btc/inter-entity-flows/miner-to-exchange",
+  "/btc/inter-entity-flows/miner-to-miner",
+  "/btc/mempool/stats-by-relative-fee",
+  "/btc/mempool/stats-in-total"
+];
+function shouldSkipPath(endpoint) {
+  const p = String(endpoint || "").toLowerCase();
+  return SKIP_PATHS.some((skip) => p.includes(skip.replace(/^\//, "").toLowerCase()));
 }
 
 /**
@@ -55,7 +81,7 @@ async function fetchAllEndpointsFromReference(options = {}) {
 
   const assetPrefixes = ["/btc/", "/eth/", "/stablecoin/", "/xrp/", "/trx/", "/alt/", "/erc20/"];
   const normalized = [...new Set(paths.map(toClientEndpoint))].filter(
-    (p) => p && p !== "/" && assetPrefixes.some((pref) => p.startsWith(pref))
+    (p) => p && p !== "/" && assetPrefixes.some((pref) => p.startsWith(pref)) && !shouldSkipPath(p)
   );
   const toFetch = normalized.slice(0, maxEndpoints);
   const byPath = {};

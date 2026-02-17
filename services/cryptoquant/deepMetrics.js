@@ -309,7 +309,7 @@ async function getStablecoinMetrics() {
   const baseParams = { exchange: 'all_exchange', window: 'day', limit: 1 };
   for (const p of paths) {
     try {
-      const params = p.startsWith('/stablecoin/') ? { ...baseParams, token: 'USDT' } : baseParams;
+      const params = p.startsWith('/stablecoin/') ? { ...baseParams, token: 'usdt' } : baseParams;
       const data = await fetchCQWithRetry(p, params);
       const point = data?.result?.data?.[0];
       if (point && typeof point === 'object') {
