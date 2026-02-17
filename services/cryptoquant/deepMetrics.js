@@ -232,12 +232,14 @@ async function getLTHNUPL() {
 async function getFundingRate() {
   try {
     const data = await fetchCQWithRetry('/btc/market-data/funding-rates', { exchange: 'all_exchange', window: '8hour', limit: 1 });
+    if (!data) return null; // 403/400 等で client が null を返した場合
     const point = data?.result?.data?.[0];
     const v = Number(point?.value ?? point?.funding_rate ?? point?.rate ?? 0);
     return Number.isFinite(v) ? v : null;
   } catch (e) {
-    if (e.message && String(e.message).includes('404')) {
-      try { require('../utils/logger').Logger.debug('deepMetrics', 'Funding funding-rates 404', {}); } catch (_) {}
+    const msg = String(e?.message || '');
+    if (msg.includes('404') || msg.includes('403')) {
+      try { require('../utils/logger').Logger.debug('deepMetrics', 'Funding funding-rates 404/403 (plan limit)', {}); } catch (_) {}
     } else {
       console.warn('[deepMetrics] Funding fetch error:', e.message);
     }
