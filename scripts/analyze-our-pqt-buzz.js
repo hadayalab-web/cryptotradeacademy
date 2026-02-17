@@ -3,6 +3,9 @@
  * 北極星: 100成約/日。成約（our_subs）が取れていれば条件別の成約数を最優先で集計し、
  * なければインプレ・クリックで「どの条件がファネルに効くか」を proxy として出す。
  *
+ * リプのインプレ: our_impressions（metrics-poll で取得）を集計 → 1リプあたり平均・総インプレを表示。
+ * 引用元（仕手Bot投稿）のインプレ: X API では他ユーザの impression_count は取得不可（自ツイートのみ）。
+ *
  * 実行: node scripts/analyze-our-pqt-buzz.js [--days=7] [--csv]
  */
 const { getBuzzweavePostLogsRecent } = require("../utils/supabase");
@@ -134,7 +137,10 @@ async function main() {
   const withTweetId = rows.filter((r) => r.our_tweet_id);
   const withMetrics = withTweetId.filter((r) => r.our_impressions != null && Number.isFinite(Number(r.our_impressions)));
   const totalSubs = withMetrics.reduce((s, r) => s + (Number(r.our_subs) || 0), 0);
+  const totalOurImp = withMetrics.reduce((s, r) => s + (Number(r.our_impressions) || 0), 0);
+  const avgImpPerReply = withMetrics.length ? totalOurImp / withMetrics.length : 0;
   console.log("Total rows: " + rows.length + ", with our_tweet_id: " + withTweetId.length + ", with impressions: " + withMetrics.length + ", 成約合計(subs): " + totalSubs);
+  console.log("[リプライ] 期間内 総インプレ: " + Math.round(totalOurImp).toLocaleString() + " | 1リプあたり平均: " + Math.round(avgImpPerReply) + " (n=" + withMetrics.length + ")");
 
   if (withMetrics.length === 0) {
     console.log("No rows with our_impressions. Run GET /api/buzzweave-metrics-poll to fill metrics, or wait for cron.");

@@ -1244,8 +1244,13 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   const perLang = allocatePqtPerLanguageFromSchedule(snapshot);
   let cap = Math.max(1, Math.min(perLang[langFilter] || API_CALL_CAP, API_CALL_CAP));
   const targetResolution = await resolveDailyPqtTarget();
+  const useLangSpecificCap = process.env.BUZZWEAVE_USE_LANG_SPECIFIC_CAP === "true" || process.env.BUZZWEAVE_USE_LANG_SPECIFIC_CAP === "1";
   if (targetResolution?.dailyTarget > 0) {
-    cap = Math.min(Math.ceil(targetResolution.dailyTarget / RUNS_PER_DAY_FOR_TARGET), MAX_CAP_PER_RUN);
+    if (useLangSpecificCap && perLang[langFilter] != null) {
+      cap = Math.min(Math.max(1, perLang[langFilter]), MAX_CAP_PER_RUN);
+    } else {
+      cap = Math.min(Math.ceil(targetResolution.dailyTarget / RUNS_PER_DAY_FOR_TARGET), MAX_CAP_PER_RUN);
+    }
   } else {
     const volumeMult = Math.min(10, Math.max(1, Number(process.env.BUZZWEAVE_VOLUME_MULTIPLIER) || 1));
     if (volumeMult > 1) cap = Math.min(Math.ceil(cap * volumeMult), MAX_CAP_PER_RUN);
@@ -1253,13 +1258,10 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
   logInfo("daily target resolved", {
     mode: targetResolution?.mode || "unknown",
     dailyTarget: targetResolution?.dailyTarget ?? null,
-    postsPerConversion: targetResolution?.postsPerConversion ?? null,
-    observedPostsPerConversion: targetResolution?.observedPostsPerConversion ?? null,
-    observedConversions: targetResolution?.observedConversions ?? null,
-    observedPosts: targetResolution?.observedPosts ?? null,
-    observedSource: targetResolution?.observedSource ?? null,
-    lookbackDays: targetResolution?.lookbackDays ?? null,
-    trust: targetResolution?.trust ?? null,
+    langFilter,
+    cap,
+    useLangSpecificCap: useLangSpecificCap || undefined,
+    perLangCap: useLangSpecificCap ? perLang[langFilter] : undefined,
     runsPerDayForTarget: RUNS_PER_DAY_FOR_TARGET,
     maxCapPerRun: MAX_CAP_PER_RUN,
     maxCapPerRunWarp: MAX_CAP_PER_RUN_WARP

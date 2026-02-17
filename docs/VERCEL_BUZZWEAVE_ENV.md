@@ -52,6 +52,7 @@ Cron が期待どおり動くために、必要に応じて Vercel に追加し�
 | BUZZWEAVE_FALLBACK_FILL_CAP | 無効 | true で Fisherman=0 時 cap まで fallback |
 | **BUZZWEAVE_IMPRESSION_BOOST** | `0.6` | シンプル選定で impressionScore の効かせ方（0〜2）。高インプレに乗せる強さ。 |
 | **BUZZWEAVE_CTR_BOOST** | `0.4` | シンプル選定で copyFit の効かせ方（0〜2）。刺さる投稿を優先して CTR 向上。 |
+| **BUZZWEAVE_USE_LANG_SPECIFIC_CAP** | 未設定 | `true`/`1` で言語別投稿数最適化。EN 40%・ES 20%・PT 15%・AR 10%・KO 8%・JA 7%（mlPqtScheduleConfig）で 1 run あたりの cap を設定。 |
 | BUZZWEAVE_EMERGENCY_STOP | 未設定 | true で buzzweave-run 即停止 |
 
 X API・Supabase・KV など、引用リポスト以外で使っている変数も、Vercel の Environment Variables に同じように設定してください（本ドキュメントでは省略）。
