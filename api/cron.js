@@ -1,4 +1,6 @@
 // api/cron.js
+// Trap Defence コア: Regular TG 定期配信（1日4回）。Vercel Cron は 0 0,6,12,18 * * *（UTC）。
+// CQ は kiba-5min が 5 分ごとに cq:latest に書くものを参照（Regular / Minimal / KIBA 共通の 5 分データ）。緊急アラート廃止のため 15 分起動は廃止。
 require("../utils/suppressKnownWarnings");
 
 // --- Imports ----------------------------------------------------
@@ -1305,54 +1307,8 @@ module.exports = async function handler(req, res) {
     });
     const deliveryMode = deliveryResult.mode;
     const deliveryMeta = deliveryResult.meta || {};
-    let kibaResult = null;
-
-    if (ENABLE_KIBA) {
-      try {
-        const { getKV } = require("../utils/kv");
-        const { runKibaOnce } = require("./kiba/run");
-        const kv = getKV();
-        if (kv) {
-          kibaResult = await runKibaOnce(kv, {
-            btcSnapshot,
-            nasdaqSnapshot,
-            goldSnapshot,
-            asset: "BTC"
-          });
-          console.log("[kiba] run completed:", {
-            triggered: Boolean(kibaResult?.triggered),
-            level: kibaResult?.impact?.level || "NONE"
-          });
-        } else {
-          console.warn("[kiba] Skipped: KV not available");
-        }
-      } catch (error) {
-        console.warn("[kiba] Run failed:", error?.message);
-      }
-    } else {
-      kibaResult = { enabled: false, reason: "ENABLE_KIBA=false" };
-    }
-
-    const ALERT_LANGS = ["en", "ja", "es", "ko", "pt-br", "ar"];
-    if (
-      ENABLE_KIBA &&
-      kibaResult?.triggered &&
-      kibaResult?.dispatchPayload?.alerts &&
-      ENABLE_TELEGRAM
-    ) {
-      const alerts = kibaResult.dispatchPayload.alerts;
-      for (const lang of ALERT_LANGS) {
-        const text = alerts[lang];
-        if (!text || typeof text !== "string") continue;
-        try {
-          const marketCode = getMarketCode(lang);
-          await sendMessageToChannel(text, "BTC", marketCode);
-          console.log("[kiba] Telegram sent for", lang);
-        } catch (e) {
-          console.warn("[kiba] Telegram send failed for", lang, e?.message);
-        }
-      }
-    }
+    // KIBA 実行・アラートは /api/kiba-5min（5分周期）に一本化。cron では実行しない（二重アラート防止）
+    const kibaResult = { delegated: "kiba-5min", impact: { level: "NONE", intensity: "none" } };
 
     // 早期 return: minimal かつ定期枠外かつ force なしの場合は送信ブロックをスキップ
     if (!force && !isRegularSlot && deliveryMode === "minimal") {
