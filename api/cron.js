@@ -188,7 +188,7 @@ const ENABLE_X_PROOF_POST = process.env.ENABLE_X_PROOF_POST === "true";
 const X_PROOF_USE_CARTOON = process.env.X_PROOF_USE_CARTOON === "true"; // 風刺画を追加するか
 const CTA_LINK_REGEX = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
 const { getWhopProductUrl } = require("../services/telegram/whop-links");
-// 言語別のソーシャルプルーフ＋CTA（I'm Safe タップでカウント、Get the edge で Whop 誘導）
+// 言語別のソーシャルプルーフ＋CTA（Minimal 配信用: I'm Safe タップでカウント、Get the edge で Whop 誘導）
 function getSocialProofButton(lang = "en") {
   const buttonTexts = {
     en: "🔥 I'm Safe (Trap Avoided)",
@@ -214,6 +214,23 @@ function getSocialProofButton(lang = "en") {
     inline_keyboard: [
       [{ text: buttonText, callback_data: "action_saved" }, { text: ctaText, url: ctaUrl }]
     ]
+  };
+}
+
+/** 有料版（Regular Briefing）配信専用: Whop リンク・I'm Safe は不要。X に投稿誘導のみ（エンタメ性のある表現） */
+const X_HOME_URL = "https://x.com/home";
+function getRegularBriefingButton(lang = "en") {
+  const tweetCtaTexts = {
+    en: "Drop your take on X 🔥",
+    es: "Suelta tu take en X 🔥",
+    "pt-br": "Manda seu take no X 🔥",
+    ar: "انشر رأيك على X 🔥",
+    ja: "Xで一言かましていく 🚀",
+    ko: "X에 한줄 남기기 🚀"
+  };
+  const text = tweetCtaTexts[lang] || tweetCtaTexts.en;
+  return {
+    inline_keyboard: [[{ text, url: X_HOME_URL }]]
   };
 }
 let stateManager, evaluateTrigger;
@@ -1562,20 +1579,20 @@ module.exports = async function handler(req, res) {
             const channelIdEnvVar = `TELEGRAM_CHAT_ID_${series}_${marketCodeEnv}`;
             if (process.env[channelIdEnvVar]) {
               // 新しい方式: シリーズ+市場コードでチャンネル指定
-              // 言語別のボタンテキストを使用
-              const socialProofButton = getSocialProofButton(targetLang);
+              // 有料版配信は Whop/I'm Safe なし・X にツイート誘導のみ
+              const regularButton = getRegularBriefingButton(targetLang);
               regularSendResult = await sendMessageToChannel(regularText, series, marketCode, {
-                reply_markup: socialProofButton
+                reply_markup: regularButton
               });
               console.log(
                 `[Telegram] REGULAR message sent to ${series}/${marketCode} (${targetLang})`
               );
             } else if (process.env.TELEGRAM_CHAT_ID) {
               // 後方互換性: 既存のTELEGRAM_CHAT_IDを使用
-              // 言語別のボタンテキストを使用
-              const socialProofButton = getSocialProofButton(targetLang);
+              // 有料版配信は Whop/I'm Safe なし・X にツイート誘導のみ
+              const regularButton = getRegularBriefingButton(targetLang);
               regularSendResult = await sendMessage(regularText, {
-                reply_markup: socialProofButton
+                reply_markup: regularButton
               });
               console.log(`[Telegram] REGULAR message sent to default channel (${targetLang})`);
             } else {

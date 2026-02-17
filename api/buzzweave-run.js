@@ -32,7 +32,10 @@ function getLangByUtcHour() {
   const index = Math.floor(utcHour / 4) % LANGS_BY_UTC_HOUR_BLOCK.length;
   return LANGS_BY_UTC_HOUR_BLOCK[index];
 }
-const MIN_RUN_INTERVAL_HOURS = Number(process.env.BUZZWEAVE_MIN_RUN_INTERVAL_HOURS) || 3;
+// キャンペーン時（CAMPAIGN_PAID_FOCUS=true）は 1h、通常は 3h
+const MIN_RUN_INTERVAL_HOURS =
+  Number(process.env.BUZZWEAVE_MIN_RUN_INTERVAL_HOURS) ||
+  (process.env.CAMPAIGN_PAID_FOCUS === "true" || process.env.CAMPAIGN_PAID_FOCUS === "1" ? 1 : 3);
 const MIN_RUN_INTERVAL_MS = MIN_RUN_INTERVAL_HOURS * 60 * 60 * 1000;
 
 async function handler(req, res) {

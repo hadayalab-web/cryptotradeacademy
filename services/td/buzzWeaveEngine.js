@@ -41,13 +41,13 @@ const { getBtcSnapshot } = require("../market/getBtcSnapshot");
 const { selectFishermanSlotsTopPercent, selectSlotsFallback } = require("./fishermanDetector");
 const { quoteTargetQualityScore, selectByQualityScore, filterCandidatesByImpressionPotential, hypeBonus, copyTargetFitScore } = require("./quoteTargetQuality");
 const { buildPqt, recordPqtUse } = require("./pqtCtaEngine");
-const { getPromoLine, getMinimalLine } = require("./pqtTemplates");
+const { getPromoLine, getMinimalLine, getScarcityLine } = require("./pqtTemplates");
 const { buildProofSnippetFromSnapshot } = require("./pqtProofSnippet");
 const { allocatePqtPerLanguageFromSchedule } = require("./pqtPlanner");
 const { GLOBAL_LIMITS } = require("./mlPqtScheduleConfig");
 const { orderedCandidatesWithTier3Cap, orderCandidatesByPerformanceTiers } = require("./fishermanPriority");
 const { scoreShiteshiCandidate } = require("./shiteshiScoring");
-const { pickBestFunnelLink } = require("../links");
+const { pickBestFunnelLink, getLinksByLang } = require("../links");
 
 
 // バズ閾値（指示書準拠）
@@ -1431,13 +1431,26 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
 
     let link = null;
     let funnelType = null;
-    try {
-      const best = await pickBestFunnelLink({ lang: langFilter, narrative_tag: "FOMO", cta_type: "ATH_SURGE", weight: 1 });
-      link = best?.url || pickVidalyticsLink(langFilter, "regular");
-      funnelType = best?.type || "vidalytics_regular";
-    } catch (_) {
-      link = pickVidalyticsLink(langFilter, "regular");
-      funnelType = "vidalytics_regular";
+    const campaignPaidFocus = process.env.CAMPAIGN_PAID_FOCUS === "true" || process.env.CAMPAIGN_PAID_FOCUS === "1";
+    if (campaignPaidFocus) {
+      // 有料2導線のみ・主(Vidalytics) 85% / 従(Whop直) 15%
+      if (Math.random() < 0.85) {
+        link = pickVidalyticsLink(langFilter, "regular");
+        funnelType = "vidalytics_regular";
+      } else {
+        const whop = getLinksByLang(langFilter).find((c) => c.type === "whop_regular");
+        link = whop?.url || pickVidalyticsLink(langFilter, "regular");
+        funnelType = "whop_regular";
+      }
+    } else {
+      try {
+        const best = await pickBestFunnelLink({ lang: langFilter, narrative_tag: "FOMO", cta_type: "ATH_SURGE", weight: 1 });
+        link = best?.url || pickVidalyticsLink(langFilter, "regular");
+        funnelType = best?.type || "vidalytics_regular";
+      } catch (_) {
+        link = pickVidalyticsLink(langFilter, "regular");
+        funnelType = "vidalytics_regular";
+      }
     }
     if (!link) continue;
 
@@ -1467,6 +1480,12 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     if (isRegularFunnel) {
       const promoLine = getPromoLine(langFilter);
       if (replyText.length + promoLine.length <= REPLY_MAX_LEN) replyText += promoLine;
+      // キャンペーン時：ローリング希少性（先着50名 / あと〇枠）
+      if (campaignPaidFocus) {
+        const slotsLeft = process.env.CAMPAIGN_SLOTS_LEFT != null ? Number(process.env.CAMPAIGN_SLOTS_LEFT) : null;
+        const scarcityLine = getScarcityLine(langFilter, slotsLeft);
+        if (scarcityLine && replyText.length + scarcityLine.length <= REPLY_MAX_LEN) replyText += scarcityLine;
+      }
     } else if (isMinimalFunnel) {
       const minimalLine = getMinimalLine(langFilter);
       if (replyText.length + minimalLine.length <= REPLY_MAX_LEN) replyText += minimalLine;

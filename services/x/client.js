@@ -206,8 +206,19 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
           }
         }
 
-        // 401/403エラーの詳細ログ（OAuth署名エラーの可能性）
-        if (response.status === 401 || response.status === 403) {
+        // 403: リプ先ツイート削除/非表示の場合は認証エラーと区別してログ
+        const detailStr = (errorData?.detail && String(errorData.detail)) || "";
+        const isTargetUnavailable =
+          response.status === 403 &&
+          (detailStr.includes("deleted or not visible") || detailStr.includes("deleted") && detailStr.includes("not visible"));
+        if (isTargetUnavailable) {
+          console.warn(`[X API] Reply skipped (403): target tweet deleted or not visible.`, {
+            endpoint,
+            method,
+            detail: errorData.detail
+          });
+        } else if (response.status === 401 || response.status === 403) {
+          // 401/403 のその他: OAuth署名エラー等の可能性
           console.error(`[X API] ❌ Authentication/Authorization Error (${response.status}):`, {
             endpoint,
             method,

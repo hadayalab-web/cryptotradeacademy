@@ -79,6 +79,26 @@ const MINIMAL_LINE_BY_LANG = {
   ko: " 이메일로 시작 — 무료."
 };
 
+/** ローリング希少性：先着50名でこのリンクは閉じる（承認済み方針・枠のみ） */
+const SCARCITY_LINE_BY_LANG = {
+  en: " First 50 only — then this link closes.",
+  ja: " 先着50名でこのリンクは閉じる。",
+  es: " Solo 50 plazas — luego se cierra este enlace.",
+  pt: " Apenas 50 — depois este link fecha.",
+  ar: " أول 50 فقط — ثم يُغلق هذا الرابط.",
+  ko: " 선착 50명 — 이후 이 링크 마감."
+};
+
+/** あと〇枠（slotsLeft 指定時。CAMPAIGN_SLOTS_LEFT で渡す） */
+const SLOTS_LEFT_LINE_BY_LANG = {
+  en: (n) => ` Only ${n} spots left.`,
+  ja: (n) => ` あと${n}枠。`,
+  es: (n) => ` Quedan ${n} plazas.`,
+  pt: (n) => ` Restam ${n} vagas.`,
+  ar: (n) => ` متبقٍ ${n} مقعد.`,
+  ko: (n) => ` 잔여 ${n}자리.`
+};
+
 function normalizeLangKey(lang) {
   const key = String(lang || "en").toLowerCase();
   if (key === "pt-br") return "pt";
@@ -93,6 +113,16 @@ function getPromoLine(lang) {
 function getMinimalLine(lang) {
   const langKey = normalizeLangKey(lang);
   return MINIMAL_LINE_BY_LANG[langKey] || MINIMAL_LINE_BY_LANG.en;
+}
+
+/** ローリング希少性：slotsLeft があれば「あと〇枠」、なければ「先着50名でこのリンクは閉じる」 */
+function getScarcityLine(lang, slotsLeft) {
+  const langKey = normalizeLangKey(lang);
+  if (typeof slotsLeft === "number" && slotsLeft > 0) {
+    const fn = SLOTS_LEFT_LINE_BY_LANG[langKey] || SLOTS_LEFT_LINE_BY_LANG.en;
+    return typeof fn === "function" ? fn(slotsLeft) : SLOTS_LEFT_LINE_BY_LANG.en(slotsLeft);
+  }
+  return SCARCITY_LINE_BY_LANG[langKey] || SCARCITY_LINE_BY_LANG.en;
 }
 
 function resolveCta(lang, funnelType, index = 0) {
@@ -844,4 +874,4 @@ for (const lang of Object.keys(PQT_TEMPLATES)) {
   }
 }
 
-module.exports = { PQT_TEMPLATES, PQT_TEMPLATES_BOT, buildBotTemplate, getPromoLine, getMinimalLine };
+module.exports = { PQT_TEMPLATES, PQT_TEMPLATES_BOT, buildBotTemplate, getPromoLine, getMinimalLine, getScarcityLine };

@@ -296,6 +296,7 @@ async function getMinerFlows() {
 
 /**
  * Stablecoin metrics取得（CQ: /stablecoin/exchange-flows/reserve 等）
+ * /stablecoin/* は token 必須。USDT を指定。
  * @returns {Promise<Object|null>}
  */
 async function getStablecoinMetrics() {
@@ -303,9 +304,10 @@ async function getStablecoinMetrics() {
     '/stablecoin/exchange-flows/reserve',
     '/btc/exchange-flows/reserve',
   ];
-  const params = { exchange: 'all_exchange', window: 'day', limit: 1 };
+  const baseParams = { exchange: 'all_exchange', window: 'day', limit: 1 };
   for (const p of paths) {
     try {
+      const params = p.startsWith('/stablecoin/') ? { ...baseParams, token: 'USDT' } : baseParams;
       const data = await fetchCQWithRetry(p, params);
       const point = data?.result?.data?.[0];
       if (point && typeof point === 'object') {
