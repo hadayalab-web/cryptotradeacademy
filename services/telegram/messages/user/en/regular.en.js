@@ -531,7 +531,7 @@ ${inflow >= 0 ? 'Sell-side liquidity dense below price from forced selling and m
   }
   if (!hasGrokData || isGrokOffline) {
     // v2.1 Grok null fallback: "sentiment silence" with structural meaning
-    lines.push('📱 X Sentiment: "Sentiment silence" — Data missing is meaningful. When retail freezes from fear, posting drops. Market enters psychological vacuum—conditions where algos move most freely.');
+    lines.push('📱 X Sentiment: "Sentiment silence" (no live X feed; interpretation only) — Data missing is meaningful. When retail freezes from fear, posting drops. Market enters psychological vacuum—conditions where algos move most freely.');
     lines.push('');
   }
 
@@ -553,7 +553,9 @@ ${inflow >= 0 ? 'Sell-side liquidity dense below price from forced selling and m
     );
     const rawAdvice = psychologicalSupport.psychologicalAdvice || '';
     const hasJapaneseInAdvice = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(rawAdvice);
-    const adviceLine = hasJapaneseInAdvice ? englishAdvice : (rawAdvice ? rawAdvice.slice(0, 120) + (rawAdvice.length > 120 ? '…' : '') : englishAdvice);
+    const maxAdviceLen = 150;
+    const truncated = (s) => (s && s.length > maxAdviceLen ? s.slice(0, maxAdviceLen) + '…' : s || '');
+    const adviceLine = hasJapaneseInAdvice ? truncated(englishAdvice) : (rawAdvice ? truncated(rawAdvice) || truncated(englishAdvice) : truncated(englishAdvice));
     lines.push(`   💡 ${adviceLine}`);
     let mentalNote = '';
     if (psychologicalSupport.psychologicalState === 'FOMO' && psychologicalSupport.psychologicalRisk === 'CRITICAL') {
@@ -592,23 +594,25 @@ ${inflow >= 0 ? 'Sell-side liquidity dense below price from forced selling and m
   lines.push('• CQ × X × 3AI integration — unified analysis of market mechanics');
   lines.push('');
 
-  // ===== Snapshot（5項目に絞る: Price, Netflow, MPI, Sentiment, Trap Score） =====
-  lines.push('📋 Snapshot');
-  lines.push(priceLine);
-  lines.push(flowLine);
-  lines.push(mpiLine);
-  lines.push(sentimentLine);
+  // ===== Today's takeaway（要約のみ。数値は Key Metrics に一本化） =====
+  lines.push('📋 Today\'s takeaway');
+  const structureSummary = inflow >= 0 ? 'Exchange inflow → short-term selling pressure' : 'Outflow → holders securing assets';
+  lines.push(`• Structure: ${structureSummary}`);
   const displayTrapScore = effectiveTrapScore;
   if (displayTrapScore != null && displayTrapScore >= 0) {
     const trapScoreRounded = Math.round(displayTrapScore);
-    const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 HIGH RISK' : displayTrapScore >= 40 ? '⚠️ MODERATE' : '✅ LOW';
-    lines.push(`🎯 Trap Score: ${trapScoreRounded}/100 ${trapScoreEmoji}`);
+    const trapRiskTier = displayTrapScore >= 60 ? 'HIGH' : displayTrapScore >= 40 ? 'MODERATE' : 'LOW';
+    lines.push(`• Trap risk: ${trapRiskTier} (${trapScoreRounded}/100)`);
+    const actionLine = displayTrapScore >= 60 ? 'Reduce exposure; no new entries.' : displayTrapScore >= 40 ? 'Stay alert; avoid leverage.' : 'Structure supportive; patience pays.';
+    lines.push(`• Action: ${actionLine}`);
+  } else {
+    lines.push('• Trap risk: N/A');
+    lines.push('• Action: Stay disciplined; wait for clarity.');
   }
   if (diff && diff.summaryText) {
     lines.push(`📊 Diff: ${diff.summaryText}`);
   }
   lines.push('');
-  
   lines.push('');
 
   // Phase1-Product: Exit Map表示（簡略化：最大8行）- Snapshot外で必要時に表示

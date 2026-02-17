@@ -161,7 +161,7 @@ function buildGrokOnlyPrompt({ lang, reportData, painAngleSeed }) {
 - Opener: "Trap Score X/100 — el número que dice que la estabilidad es un disfraz." or "expone la estabilidad como disfraz"
 - Block 2: "Atrapado en el bucle de 'solo mirar', esperando una confirmación que nunca llega." (never leave the loop line alone)
 - Block 3: "El mercado observa tu duda." (use "duda" not "hesitación" — more natural and ad-effective in Spanish). Then data: "X/100 + Whale Ratio Y + flujo negativo — la firma de distribución que solo ves después de la caída." or "que solo reconoces tarde." (short, sharp; avoid long "visible solo en retrospectiva")
-- Block 4: "Regular. Alertas cada 15 min. Exit Map. DEFEND50 te da acceso. Decide antes de que el mercado decida por ti." (use "cada" for natural rhythm)
+- Block 4: "Regular. Monitoreo 5min (KIBA) + Exit Map. DEFEND50 te da acceso. Decide antes de que el mercado decida por ti." (use "cada" for natural rhythm)
 - Mandatory in ES: "No intuición — datos." / "el mercado observa tu duda" / "decide antes de que el mercado decida por ti"`
       : "";
 
@@ -172,7 +172,7 @@ function buildGrokOnlyPrompt({ lang, reportData, painAngleSeed }) {
 - Opener: "Trap Score X/100 — o número que diz que a estabilidade é um disfarce." or "expõe a estabilidade como disfarce"
 - Block 2: "Preso no loop de 'só assistir', esperando uma confirmação que nunca vem." (never leave the loop line alone)
 - Block 3: "O mercado observa sua dúvida." (use "dúvida" — natural and ad-effective in PT-BR). Then data: "X/100 + Whale Ratio Y + fluxo negativo — a assinatura de distribuição que você só reconhece depois da queda." or "visível apenas depois da queda." (short, sharp; avoid long "visível só em retrospecto")
-- Block 4: "Regular. Alertas a cada 15 min. + Exit Map. DEFEND50 te dá acesso. Decida antes que o mercado decida por você." (use "+" before Exit Map for ad rhythm)
+- Block 4: "Regular. Monitoramento 5min (KIBA) + Exit Map. DEFEND50 te dá acesso. Decida antes que o mercado decida por você." (use "+" before Exit Map for ad rhythm)
 - Mandatory in PT-BR: "Não intuição — dados." / "o mercado observa sua dúvida" / "decida antes que o mercado decida por você"`
       : "";
 
@@ -183,7 +183,7 @@ function buildGrokOnlyPrompt({ lang, reportData, painAngleSeed }) {
 - Opener: "Trap Score X/100 — الرقم الذي يكشف أن الاستقرار مجرد قناع." or "الرقم الذي يكشف أن الاستقرار تمويه." (short, cold, sharp — avoid literary "الاستقرار قناعًا")
 - Block 2: "حبيس حلقة «المشاهدة فقط»، بانتظار تأكيد لا يأتي أبدًا." (never leave the loop line alone)
 - Block 3: "السوق يراقب ترددك." Then data: "X/100 + Whale Ratio Y + تدفق سلبي — توقيع التوزيع الذي لا تلاحظه إلا بعد الهبوط." or "الذي لا يظهر إلا بعد الهبوط. ليست حدسًا — بيانات." (short, sharp; avoid long "الذي لا يُرى إلا بعد الهبوط")
-- Block 4: "ريجولار. تنبيهات كل 15 دقيقة. + Exit Map. DEFEND50 يفتح لك الباب. قرر قبل أن يقرر السوق عنك." (use "+" before Exit Map for ad rhythm)
+- Block 4: "ريجولار. نبض 5 دقائق (KIBA) + Exit Map. DEFEND50 يفتح لك الباب. قرر قبل أن يقرر السوق عنك." (use "+" before Exit Map for ad rhythm)
 - Mandatory in AR: "ليست حدسًا — بيانات." / "السوق يراقب ترددك" / "قرر قبل أن يقرر السوق عنك"`
       : "";
 
@@ -194,7 +194,7 @@ function buildGrokOnlyPrompt({ lang, reportData, painAngleSeed }) {
 - Opener: Use contrast that works in KO ads. Prefer "트랩 스코어 X/100 — '안정'이 사실은 위장된 분배라는 신호." or "안정처럼 보이지만 분배를 숨기는 숫자." (avoid stiff "안정이 분배를 위장한 숫자"; "보이지만 / 사실은" contrast is punchy)
 - Block 2: Avoid mechanical "루프에 갇혀". Prefer "'그냥 보기'만 반복하며, 오지 않을 확인만 기다리는 사이." or "'지켜보기'만 하며 멈춰 있는 사이" — "반복 / 멈춤 / 지켜보기" punch.
 - Block 3: "시장은 당신의 망설임을 지켜본다." Then data: "X/100 + Whale Ratio Y + 순유입 마이너스 — 항상 뒤늦게만 보이는 분배 신호." or "하락하고 나서야 보이는 분배 신호. 직감이 아니다 — 데이터." (short, sharp; "항상 뒤늦게만" is ad-punchy)
-- Block 4: "레귤러. 15분 알림. + Exit Map. DEFEND50으로 진입하세요. 시장이 결정하기 전에 당신이 결정하라." (use "진입하세요" or "바로 접근 가능" — more action than "시작하세요")
+- Block 4: "레귤러. 5분 펄스 (KIBA) + Exit Map. DEFEND50으로 진입하세요. 시장이 결정하기 전에 당신이 결정하라." (use "진입하세요" or "바로 접근 가능" — more action than "시작하세요")
 - Mandatory in KO: "직감이 아니다 — 데이터." / "시장은 당신의 망설임을 지켜본다" / "시장이 결정하기 전에 당신이 결정하라"`
       : "";
 
@@ -205,7 +205,7 @@ function buildGrokOnlyPrompt({ lang, reportData, painAngleSeed }) {
 - Opener: Avoid explanatory "安定を装った分配のサイン". Use contrast. Prefer "トラップスコア X/100 — 「安定」が実は分配の仮面だというサイン." or "安定に見えて実は「分配」を隠す数字." ("見えて / 実は" contrast is punchy in JA ads)
 - Block 2: Avoid mechanical "ループに陥り". Prefer "「見てるだけ」を繰り返し、来ない確認を待ち続ける." or "「見てるだけ」のまま固まり、来ない確認を待つ." ("固まる" is psychologically punchy)
 - Block 3: "市場はあなたの躊躇を観察している." Then data: "X/100 + Whale Ratio Y + 純流入マイナス — いつも後になって気づく分配サイン." or "下落して初めて見える分配サイン. 直感ではない — データ." (short, sharp; avoid long "下落後しか見えない分配のサイン")
-- Block 4: "レギュラー. 15分アラート. + Exit Map. DEFEND50で即アクセス. 市場が決める前にあなたが決めろ." (use "即アクセス" or "アクセス可能" — stronger than "参加")
+- Block 4: "レギュラー. 5分パルス（KIBA）+ Exit Map. DEFEND50で即アクセス. 市場が決める前にあなたが決めろ." (use "即アクセス" or "アクセス可能" — stronger than "参加")
 - Mandatory in JA: "直感ではない — データ." / "市場はあなたの躊躇を観察している" / "市場が決める前にあなたが決めろ"`
       : "";
 

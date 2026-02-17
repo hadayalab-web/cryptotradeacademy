@@ -187,7 +187,8 @@ const ENABLE_TELEGRAM = process.env.ENABLE_TELEGRAM !== "false"; // デフォル
 const ENABLE_X_PROOF_POST = process.env.ENABLE_X_PROOF_POST === "true";
 const X_PROOF_USE_CARTOON = process.env.X_PROOF_USE_CARTOON === "true"; // 風刺画を追加するか
 const CTA_LINK_REGEX = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
-// 言語別のソーシャルプルーフボタンテキスト
+const { getWhopProductUrl } = require("../services/telegram/whop-links");
+// 言語別のソーシャルプルーフ＋CTA（I'm Safe タップでカウント、Get the edge で Whop 誘導）
 function getSocialProofButton(lang = "en") {
   const buttonTexts = {
     en: "🔥 I'm Safe (Trap Avoided)",
@@ -197,11 +198,22 @@ function getSocialProofButton(lang = "en") {
     ja: "🔥 安全です（トラップ回避済み）",
     ko: "🔥 안전합니다 (함정 회피됨)"
   };
-
+  const ctaTexts = {
+    en: "Get the edge →",
+    es: "Consigue la ventaja →",
+    "pt-br": "Garanta o edge →",
+    ar: "احصل على الميزة →",
+    ja: "エッジを取る →",
+    ko: "엣지 받기 →"
+  };
   const buttonText = buttonTexts[lang] || buttonTexts["en"];
+  const ctaText = ctaTexts[lang] || ctaTexts["en"];
+  const ctaUrl = getWhopProductUrl(lang);
 
   return {
-    inline_keyboard: [[{ text: buttonText, callback_data: "action_saved" }]]
+    inline_keyboard: [
+      [{ text: buttonText, callback_data: "action_saved" }, { text: ctaText, url: ctaUrl }]
+    ]
   };
 }
 let stateManager, evaluateTrigger;

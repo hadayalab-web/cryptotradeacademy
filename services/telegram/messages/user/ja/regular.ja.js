@@ -442,16 +442,19 @@ ${inflow >= 0 ? '強制売却とマイナー配布(MPI ' + mpiDisplay + ')で価
   lines.push('• CQ × X × 3AI統合 — 市場メカニズムの統合分析');
   lines.push('');
 
-  lines.push('📋 スナップショット');
-  lines.push(priceLine);
-  lines.push(flowLine);
-  lines.push(mpiLine);
-  lines.push(sentimentLine);
+  lines.push('📋 本日の要点');
+  const structureSummaryJa = inflow >= 0 ? '取引所流入 → 短期売り圧力' : '流出 → ホルダーが資産を保持';
+  lines.push(`• 構造: ${structureSummaryJa}`);
   const displayTrapScore = effectiveTrapScore;
   if (displayTrapScore != null && displayTrapScore >= 0) {
     const trapScoreRounded = Math.round(displayTrapScore);
-    const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 高リスク' : displayTrapScore >= 40 ? '⚠️ 中' : '✅ 低';
-    lines.push(`🎯 トラップスコア: ${trapScoreRounded}/100 ${trapScoreEmoji}`);
+    const trapRiskTierJa = displayTrapScore >= 60 ? '高' : displayTrapScore >= 40 ? '中' : '低';
+    lines.push(`• トラップリスク: ${trapRiskTierJa} (${trapScoreRounded}/100)`);
+    const actionLineJa = displayTrapScore >= 60 ? 'エクスポージャーを減らす。新規エントリーは控える。' : displayTrapScore >= 40 ? '注意を保ち、レバレッジは避ける。' : '構造は支えている。忍耐が報われる。';
+    lines.push(`• アクション: ${actionLineJa}`);
+  } else {
+    lines.push('• トラップリスク: N/A');
+    lines.push('• アクション: 規律を保ち、状況が明確になるまで待つ。');
   }
   lines.push('');
 

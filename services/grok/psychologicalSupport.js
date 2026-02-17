@@ -1,5 +1,5 @@
 // services/grok/psychologicalSupport.js
-// Grok役割: Xのセンチメント/アルゴリズム解析 → Dr. Grok心理サポート（X解析からユーザーセンチメント診断）
+// プロンプトに基づく Grok 出力で Dr. Grok 心理サポート文言を生成。Grok は X を直接スキャンしない。
 
 const { analyzeXSentimentLive } = require('./client');
 const { analyzeXSentimentHighResolutionCompat } = require('./highResolution');

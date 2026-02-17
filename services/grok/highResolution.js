@@ -1,5 +1,5 @@
 // services/grok/highResolution.js
-// Grok役割: Xのセンチメント/アルゴリズム解析（高解像度＝複数クエリ並列・大口/リテール分析）
+// プロンプトに基づく Grok のセンチメント風出力（高解像度＝複数クエリ並列）。Grok は X に直接アクセスしない。
 
 const { analyzeXSentimentLive } = require('./client');
 

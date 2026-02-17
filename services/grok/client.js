@@ -1,5 +1,6 @@
 // services/grok/client.js
-// Grok役割: Xのセンチメント/アルゴリズム解析（引用リポスト・Regular配信のX解析・Dr. Grok心理サポート）
+// Grok役割: プロンプトに基づくセンチメント風出力の生成（Regular/KIBA の文言・ナラティブ用）。
+// 注意: Grok は LLM であり X に直接アクセスしない。X を「スキャン」しているわけではない。→ docs/GROK_X_SENTIMENT_DISCLAIMER.md
 
 const OpenAI = require("openai");
 const { getMarketProfile } = require("../../api/config/marketProfiles");
@@ -328,7 +329,7 @@ async function analyzeXSentimentLive(prompt, lang = "en") {
           role: "system",
           content:
             'You are the Trap Defence X Sentiment Engine (Dr. Grok). ' +
-            "You scan X (Twitter) for BTC trader chatter and analyze retail sentiment from a psychological perspective. " +
+            "Based on the user query and your knowledge, produce a BTC trader sentiment analysis from a psychological perspective (you do not have live access to X). " +
             "Output Trap Defence X Engine format. Return ONLY JSON. No markdown. No code fences. " +
             'Schema: {"whaleBias":number,"retailFomo":number,"newsImpact":number,"summary":string,"sources":[{"handle":string,"note":string}],"mentalBlocks":["FOMO"|"FEAR"|"GREED"|"ALWAYS_TRADING"|"WAITING_IS_WEAKNESS"],"psychologicalPattern":string,"coachingAdvice":string,' +
             '"sentiment_state":string,"emotional_bias":string,"retail_behavior":string,"psychological_traps":string} ' +
@@ -343,7 +344,7 @@ async function analyzeXSentimentLive(prompt, lang = "en") {
             `Query: ${prompt}\n` +
             `Output: sentiment_state, emotional_bias, retail_behavior, psychological_traps (Trap Defence format). ` +
             `Detect mental blocks (FOMO/FEAR/GREED). Identify herd behavior and psychological traps. ` +
-            `If live data unavailable, return JSON with summary="Live Search unavailable", sentiment_state="Data unavailable", empty sources.`
+            `If you cannot infer sentiment, return JSON with summary="Inference unavailable", sentiment_state="Data unavailable", empty sources.`
         }
       ],
       max_tokens: 600,

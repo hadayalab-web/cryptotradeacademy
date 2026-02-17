@@ -526,16 +526,19 @@ ${inflow >= 0 ? 'سيولة بيع كثيفة أسفل السعر من مبيع�
   lines.push('• تكامل CQ × X × 3AI — تحليل موحد لميكانيكيات السوق');
   lines.push('');
 
-  lines.push('📋 لقطة');
-  lines.push(priceLine);
-  lines.push(flowLine);
-  lines.push(mpiLine);
-  lines.push(sentimentLine);
+  lines.push('📋 ملخص اليوم');
+  const structureSummaryAr = inflow >= 0 ? 'تدفق للبورصات → ضغط بيع قصير الأجل' : 'تدفق خارج → الحائزون يؤمنون الأصول';
+  lines.push(`• الهيكل: ${structureSummaryAr}`);
   const displayTrapScore = effectiveTrapScore;
   if (displayTrapScore != null && displayTrapScore >= 0) {
     const trapScoreRounded = Math.round(displayTrapScore);
-    const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 مخاطر عالية' : displayTrapScore >= 40 ? '⚠️ متوسطة' : '✅ منخفضة';
-    lines.push(`🎯 درجة الفخ: ${trapScoreRounded}/100 ${trapScoreEmoji}`);
+    const trapRiskTierAr = displayTrapScore >= 60 ? 'عالي' : displayTrapScore >= 40 ? 'متوسط' : 'منخفض';
+    lines.push(`• خطر الفخ: ${trapRiskTierAr} (${trapScoreRounded}/100)`);
+    const actionLineAr = displayTrapScore >= 60 ? 'قلل التعرض؛ لا دخول جديد.' : displayTrapScore >= 40 ? 'كن متيقظاً؛ تجنب الرافعة.' : 'الهيكل داعم؛ الصبر ينجح.';
+    lines.push(`• إجراء: ${actionLineAr}`);
+  } else {
+    lines.push('• خطر الفخ: N/A');
+    lines.push('• إجراء: حافظ على الانضباط؛ انتظر الوضوح.');
   }
   lines.push('');
 

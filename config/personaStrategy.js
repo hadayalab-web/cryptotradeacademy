@@ -40,12 +40,12 @@ const CORE_PHRASES = {
     ko: "$50k 손실의 0.2% = 방어 프레임워크. 한 번 실수 = $10k. $99 = 방어."
   },
   minimalToRegular: {
-    en: "Got gut vs data from Minimal? Regular = 15min Alerts + Exit Map. No more missed windows.",
-    ja: "Minimalでgut vs data知った？Regularで15分Alert+Exit Map=見逃しゼロ。",
-    es: "¿Tienes gut vs data de Minimal? Regular = Alertas 15min + Exit Map. Sin ventanas perdidas.",
-    "pt-br": "Tem gut vs data do Minimal? Regular = Alertas 15min + Exit Map. Sem janelas perdidas.",
-    ar: "لديك gut vs data من Minimal؟ Regular = تنبيهات 15 دقيقة + Exit Map. لا مزيد من الفرص الضائعة.",
-    ko: "Minimal에서 gut vs data 얻었어? Regular = 15분 알림 + Exit Map. 놓친 기회 없음."
+    en: "Got gut vs data from Minimal? Regular = 5-min pulse (KIBA) + Exit Map. No more missed windows.",
+    ja: "Minimalでgut vs data知った？Regularで5分パルス（KIBA）+ Exit Map=見逃しゼロ。",
+    es: "¿Tienes gut vs data de Minimal? Regular = pulso 5min (KIBA) + Exit Map. Sin ventanas perdidas.",
+    "pt-br": "Tem gut vs data do Minimal? Regular = pulso 5min (KIBA) + Exit Map. Sem janelas perdidas.",
+    ar: "لديك gut vs data من Minimal؟ Regular = نبض 5 دقائق (KIBA) + Exit Map. لا مزيد من الفرص الضائعة.",
+    ko: "Minimal에서 gut vs data 얻었어? Regular = 5분 펄스 (KIBA) + Exit Map. 놓친 기회 없음."
   },
   psych: {
     en: "Score 25/100? Wait. Don't revenge-trade.",

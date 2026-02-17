@@ -139,7 +139,19 @@ async function handler(req, res) {
       } catch (_) {}
     }
 
-    console.log("[buzzweave-run] run started");
+    // KIBA 活動度（仕手Bot活発化との同期検証用）— 5分データを参照
+    let kibaActivity = null;
+    try {
+      const raw = kv ? await kv.get("kiba:activity:latest") : null;
+      if (raw && typeof raw === "object") kibaActivity = raw;
+      else if (typeof raw === "string") {
+        try {
+          kibaActivity = JSON.parse(raw);
+        } catch (_) {}
+      }
+    } catch (_) {}
+
+    console.log("[buzzweave-run] run started", kibaActivity ? `kiba=${kibaActivity.level}` : "");
     const result = await runBuzzWeaveCycle({ dryRun, langFilter, btcSnapshot });
     const posted = result && typeof result.posted === "number" ? result.posted : 0;
     console.log("[buzzweave-run] run completed", "posted=" + posted, "runId=" + (result?.runId || ""), result?.message ? "message=" + result.message : "");
@@ -158,6 +170,17 @@ async function handler(req, res) {
       );
     }
     await recordBuzzWeaveRun();
+
+    if (result && typeof result === "object" && kibaActivity) {
+      result.kibaActivity = kibaActivity;
+    }
+
+    // リプライ投稿後にメトリクス取得 + MV/lang_penalty を実行（非同期・待たない）
+    const { runBuzzweaveMetricsPollAndRefresh } = require("./buzzweave-metrics-poll");
+    runBuzzweaveMetricsPollAndRefresh({ skipRefresh: false }).catch((err) =>
+      console.warn("[buzzweave-run] post-run metrics/mv failed:", err?.message)
+    );
+
     return res.status(200).json(result);
   } catch (e) {
     console.error("[buzzweave-run] ❌ Error in runBuzzWeave", e.message);

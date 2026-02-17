@@ -21,7 +21,7 @@
 | 責務 | 説明 | 担当 Cron / API |
 |------|------|-----------------|
 | **ラン（実行）** | 仕手 Bot 投稿へのリプライ（PQT）実行 | `/api/buzzweave-run`（3時間ごと） |
-| **ログ/データ管理** | メトリクスポール（buzzweave_post_log）＋ MV 更新・lang_penalty（BuzzWeave 言語重み用） | `/api/buzzweave-metrics-poll`（15分・統合） |
+| **ログ/データ管理** | メトリクスポール（buzzweave_post_log）＋ MV 更新・lang_penalty | **buzzweave-run の直後に自動実行**（Cron なし）。手動は `/api/buzzweave-metrics-poll` |
 
 ML-PQT は「投稿実行」と「そのログ・メトリクスの収集」に専念し、TG 定期配信や KIBA アラートはコアに任せる。
 

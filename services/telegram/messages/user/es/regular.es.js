@@ -538,19 +538,22 @@ ${inflow >= 0 ? 'Liquidez de venta densa debajo del precio por ventas forzadas y
   lines.push('• Integración CQ × X × 3AI — análisis unificado de mecánicas del mercado');
   lines.push('');
 
-  lines.push('📋 Snapshot');
-  lines.push(priceLine);
-  lines.push(flowLine);
-  lines.push(mpiLine);
-  lines.push(sentimentLine);
+  lines.push('📋 Resumen del día');
+  const structureSummaryEs = inflow >= 0 ? 'Flujo a exchanges → presión vendedora a corto plazo' : 'Salida → tenedores asegurando activos';
+  lines.push(`• Estructura: ${structureSummaryEs}`);
   const displayTrapScore = effectiveTrapScore;
   if (displayTrapScore != null && displayTrapScore >= 0) {
     const trapScoreRounded = Math.round(displayTrapScore);
-    const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 ALTO RIESGO' : displayTrapScore >= 40 ? '⚠️ MODERADO' : '✅ BAJO';
-    lines.push(`🎯 Puntuación de Trampa: ${trapScoreRounded}/100 ${trapScoreEmoji}`);
+    const trapRiskTierEs = displayTrapScore >= 60 ? 'ALTO' : displayTrapScore >= 40 ? 'MODERADO' : 'BAJO';
+    lines.push(`• Riesgo de trampa: ${trapRiskTierEs} (${trapScoreRounded}/100)`);
+    const actionLineEs = displayTrapScore >= 60 ? 'Reducir exposición; no nuevas entradas.' : displayTrapScore >= 40 ? 'Mantente alerta; evita apalancamiento.' : 'Estructura favorable; la paciencia paga.';
+    lines.push(`• Acción: ${actionLineEs}`);
+  } else {
+    lines.push('• Riesgo de trampa: N/A');
+    lines.push('• Acción: Mantén la disciplina; espera claridad.');
   }
   lines.push('');
-  
+
   // Phase1-Product: Exit Map表示（簡略化：最大8行）
   if (exitMap && exitMap.hasActivePosition) {
     lines.push('');

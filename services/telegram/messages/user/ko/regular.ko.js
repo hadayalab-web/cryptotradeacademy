@@ -414,16 +414,19 @@ ${inflow >= 0 ? '강제 매도와 채굴자 분배(MPI ' + mpiDisplay + ')로 �
   lines.push('• CQ × X × 3AI 통합 — 시장 메커니즘 통합 분석');
   lines.push('');
 
-  lines.push('📋 스냅샷');
-  lines.push(priceLine);
-  lines.push(flowLine);
-  lines.push(mpiLine);
-  lines.push(sentimentLine);
+  lines.push('📋 오늘의 요약');
+  const structureSummaryKo = inflow >= 0 ? '거래소 유입 → 단기 매도 압력' : '유출 → 보유자 자산 보호';
+  lines.push(`• 구조: ${structureSummaryKo}`);
   const displayTrapScore = effectiveTrapScore;
   if (displayTrapScore != null && displayTrapScore >= 0) {
     const trapScoreRounded = Math.round(displayTrapScore);
-    const trapScoreEmoji = displayTrapScore >= 60 ? '🚨 고위험' : displayTrapScore >= 40 ? '⚠️ 중간' : '✅ 낮음';
-    lines.push(`🎯 트랩 점수: ${trapScoreRounded}/100 ${trapScoreEmoji}`);
+    const trapRiskTierKo = displayTrapScore >= 60 ? '높음' : displayTrapScore >= 40 ? '중간' : '낮음';
+    lines.push(`• 트랩 위험: ${trapRiskTierKo} (${trapScoreRounded}/100)`);
+    const actionLineKo = displayTrapScore >= 60 ? '노출 축소; 신규 진입 금지.' : displayTrapScore >= 40 ? '경계 유지; 레버리지 피하기.' : '구조 지지; 인내가 보답.';
+    lines.push(`• 액션: ${actionLineKo}`);
+  } else {
+    lines.push('• 트랩 위험: N/A');
+    lines.push('• 액션: 규율 유지; 명확해질 때까지 대기.');
   }
   lines.push('');
 

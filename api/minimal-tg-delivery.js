@@ -35,6 +35,27 @@ function resolveMinimalChatId(lang) {
   return process.env.TELEGRAM_CHAT_ID_MINIMAL_EN || process.env.TELEGRAM_CHAT_ID_MINIMAL || null;
 }
 
+const { getMinimalVersionCheckoutUrl, getWhopProductUrl, getPromoCode } = require("../services/telegram/whop-links");
+const { pickVidalyticsLink } = require("../config/buzzweaveLinks");
+
+/** 有料版（Regular Briefing）アップセル文言：Vidalytics・Whop・クーポンコード */
+function getUpsellBlock(lang = "en") {
+  const vidUrl = pickVidalyticsLink(lang === "pt-br" ? "pt" : lang, "regular");
+  const whopUrl = getWhopProductUrl(lang);
+  const code = (getPromoCode() || "defend50").toUpperCase();
+  const labels = {
+    en: "⬆️ Upgrade to Regular Briefing: full structure + 5-min pulse (KIBA). Watch →",
+    es: "⬆️ Pásate a Regular: estructura completa + pulso 5min (KIBA). Ver →",
+    "pt-br": "⬆️ Upgrade para Regular: estrutura completa + pulso 5min (KIBA). Ver →",
+    ar: "⬆️ ترقية لـ Regular: هيكل كامل + نبض 5 دقائق (KIBA). شاهد →",
+    ja: "⬆️ Regularへ: 構造全体＋5分パルス（KIBA）。視聴 →",
+    ko: "⬆️ Regular 업그레이드: 전체 구조 + 5분 펄스 (KIBA). 시청 →"
+  };
+  const getLabel = { en: "Get access →", es: "Acceso →", "pt-br": "Acesso →", ar: "الدخول →", ja: "アクセス →", ko: "접속 →" };
+  const line = (labels[lang] || labels.en) + " " + vidUrl + " | " + (getLabel[lang] || getLabel.en) + " " + whopUrl + " | Code: " + code;
+  return line;
+}
+
 function getSocialProofButton(lang = "en") {
   const texts = {
     en: "🔥 I'm Safe (Trap Avoided)",
@@ -44,8 +65,13 @@ function getSocialProofButton(lang = "en") {
     ja: "🔥 安全です（トラップ回避済み）",
     ko: "🔥 안전합니다 (함정 회피됨)"
   };
+  const ctaTexts = { en: "Free: Get the edge →", es: "Gratis →", "pt-br": "Grátis →", ar: "مجاني →", ja: "無料でエッジ →", ko: "무료 엣지 →" };
+  const regularCta = { en: "Get Regular (50% off) →", es: "Regular 50% dto →", "pt-br": "Regular 50% off →", ar: "Regular خصم 50% →", ja: "Regular 50%オフ →", ko: "Regular 50% 할인 →" };
   return {
-    inline_keyboard: [[{ text: texts[lang] || texts.en, callback_data: "action_saved" }]]
+    inline_keyboard: [
+      [{ text: texts[lang] || texts.en, callback_data: "action_saved" }, { text: ctaTexts[lang] || ctaTexts.en, url: getMinimalVersionCheckoutUrl(lang) }],
+      [{ text: regularCta[lang] || regularCta.en, url: getWhopProductUrl(lang) }]
+    ]
   };
 }
 
@@ -113,7 +139,8 @@ module.exports = async function handler(req, res) {
         continue;
       }
       // Phase 3: formatMinimalBriefing(snapshot, lang) - accepts btcSnapshot or legacy payload
-      const minimalText = formatMinimal(payload, targetLang);
+      let minimalText = formatMinimal(payload, targetLang);
+      minimalText = minimalText + "\n\n" + getUpsellBlock(targetLang);
 
       const chatId = resolveMinimalChatId(targetLang);
       if (!chatId) {

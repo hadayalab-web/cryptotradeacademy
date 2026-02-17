@@ -39,16 +39,16 @@ const MINIMAL_LINK_EXPLANATION = {
 
 /**
  * 有料版（Regular Briefing）リンクの説明（引用リポストでリンクの直前に置く・丁寧表現）
- * 仕様: 15分アラート・出口マップ付き有料版を案内し、プロモコードで50%オフとなる旨を明示する。
+ * 仕様: 5分パルス（KIBA）・出口マップ付き有料版を案内し、プロモコードで50%オフとなる旨を明示する。
  */
 const REGULAR_LINK_EXPLANATION = {
-  ja: "15分アラートと出口マップ付きの有料版は、下記リンクからご案内しております。コード入力で50%オフとなります。",
-  en: "The paid plan (15min alerts + exit map) is available via the link below. Enter the code for 50% off.",
-  es: "El plan de pago (alertas 15min + mapa de salida) está en el enlace de abajo. Introduzca el código para 50% off.",
+  ja: "5分パルス（KIBA）と出口マップ付きの有料版は、下記リンクからご案内しております。コード入力で50%オフとなります。",
+  en: "The paid plan (5-min pulse KIBA + exit map) is available via the link below. Enter the code for 50% off.",
+  es: "El plan de pago (pulso 5min KIBA + mapa de salida) está en el enlace de abajo. Introduzca el código para 50% off.",
   "pt-br":
-    "O plano pago (alertas 15min + mapa de saída) está no link abaixo. Insira o código para 50% off.",
-  ar: "الخطة المدفوعة (تنبيهات 15 دقيقة + خريطة خروج) متوفرة عبر الرابط أدناه. أدخل الكود لخصم 50%.",
-  ko: "유료 플랜(15분 알림+출구 맵)은 아래 링크에서 안내드립니다. 코드 입력 시 50% 할인됩니다."
+    "O plano pago (pulso 5min KIBA + mapa de saída) está no link abaixo. Insira o código para 50% off.",
+  ar: "الخطة المدفوعة (نبض 5 دقائق KIBA + خريطة خروج) متوفرة عبر الرابط أدناه. أدخل الكود لخصم 50%.",
+  ko: "유료 플랜(5분 펄스 KIBA+출구 맵)은 아래 링크에서 안내드립니다. 코드 입력 시 50% 할인됩니다."
 };
 
 /** 反論処理の定型（Gemini廃止・分析に基づく固定文） */

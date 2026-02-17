@@ -780,6 +780,89 @@ async function getBuzzweavePostLogsRecent(sinceIso, limit = 2000) {
   }
 }
 
+/**
+ * リプライ投稿の集計（指定期間）。24h / 7d 分析用
+ * @param {string} sinceIso - この日時以降（ISO）
+ * @returns {Promise<{ ok: boolean, since: string, posts: number, impressions: number, likes: number, retweets: number, quotes: number, replies: number, clicks: number, subs: number, byLang: Record<string, { posts, impressions, likes, retweets, quotes, replies }> }>}
+ */
+async function getBuzzweaveReplyAnalytics(sinceIso) {
+  const sb = getSupabase();
+  if (!sb) return { ok: false, since: sinceIso, posts: 0, impressions: 0, likes: 0, retweets: 0, quotes: 0, replies: 0, clicks: 0, subs: 0, byLang: {} };
+  try {
+    const { data, error } = await sb
+      .from("buzzweave_post_log")
+      .select("slot_lang, our_impressions, our_likes, our_retweets, our_quotes, our_replies, our_clicks, our_subs")
+      .gte("posted_at", sinceIso);
+    if (error) throw error;
+
+    const rows = data || [];
+    const byLang = {};
+    let impressions = 0;
+    let likes = 0;
+    let retweets = 0;
+    let quotes = 0;
+    let replies = 0;
+    let clicks = 0;
+    let subs = 0;
+
+    for (const row of rows) {
+      const lang = row.slot_lang || "unknown";
+      if (!byLang[lang]) {
+        byLang[lang] = { posts: 0, impressions: 0, likes: 0, retweets: 0, quotes: 0, replies: 0 };
+      }
+      byLang[lang].posts += 1;
+
+      const imp = Number(row.our_impressions);
+      const l = Number(row.our_likes);
+      const rt = Number(row.our_retweets);
+      const q = Number(row.our_quotes);
+      const rp = Number(row.our_replies);
+      const clk = Number(row.our_clicks);
+      const sub = Number(row.our_subs);
+
+      if (Number.isFinite(imp)) {
+        byLang[lang].impressions += imp;
+        impressions += imp;
+      }
+      if (Number.isFinite(l)) {
+        byLang[lang].likes += l;
+        likes += l;
+      }
+      if (Number.isFinite(rt)) {
+        byLang[lang].retweets += rt;
+        retweets += rt;
+      }
+      if (Number.isFinite(q)) {
+        byLang[lang].quotes += q;
+        quotes += q;
+      }
+      if (Number.isFinite(rp)) {
+        byLang[lang].replies += rp;
+        replies += rp;
+      }
+      if (Number.isFinite(clk)) clicks += clk;
+      if (Number.isFinite(sub)) subs += sub;
+    }
+
+    return {
+      ok: true,
+      since: sinceIso,
+      posts: rows.length,
+      impressions,
+      likes,
+      retweets,
+      quotes,
+      replies,
+      clicks,
+      subs,
+      byLang
+    };
+  } catch (e) {
+    console.warn("[Supabase] getBuzzweaveReplyAnalytics error:", e.message);
+    return { ok: false, since: sinceIso, posts: 0, impressions: 0, likes: 0, retweets: 0, quotes: 0, replies: 0, clicks: 0, subs: 0, byLang: {} };
+  }
+}
+
 // ========== CHAIN_RAID KPI（v4.2+） ==========
 
 /**
@@ -1001,6 +1084,7 @@ module.exports = {
   fetchBuzzweavePostLogsPendingMetrics,
   getBuzzweaveRecentPostStats,
   getBuzzweavePostLogsRecent,
+  getBuzzweaveReplyAnalytics,
   insertChainRaidPostKpi,
   updateChainRaidPostKpiWithMetrics,
   getGoldClusters,
