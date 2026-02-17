@@ -1,4 +1,5 @@
 {
+  "_DISCLAIMER": "expected_reach, expected_reach_at_max_volume および assumptions_one_line の数値・希釈・rate limit 表記は未検証で根拠がない。投稿数上限やインプレ希釈の根拠として参照しないこと。",
   "shiteshi_activity_peaks": [
     { "start_hour_utc": 0, "end_hour_utc": 4, "weight": 0.9, "reason": "Asia (KO/JA) shiteshi pumps during local prime evening hours" },
     { "start_hour_utc": 8, "end_hour_utc": 12, "weight": 0.75, "reason": "AR/ME shiteshi morning activity overlap with Asia" },
