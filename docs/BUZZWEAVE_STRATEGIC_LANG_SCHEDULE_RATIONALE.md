@@ -4,6 +4,14 @@ BuzzWeave の **STRATEGIC_UTC_TO_LANG**（UTC 時間→言語の 1 時間単位�
 
 ---
 
+## 0. 目的と Cron の現状（要約）
+
+- **目的**: **リプライの高インプレ獲得** と **高 CTR 獲得**。この 2 つからブレていない（選定スコア・スケジュール・キーワードはいずれもこの目的に紐づいている）。
+- **Cron の現状**: Vercel では **4 本の Cron**（CMO 推奨どおり）。en は 15 分ごと、asia/latam は 30 分ごと、ar は 60 分ごと。各 Cron は `/api/buzzweave-cron-en` 等のラッパー経由で `buzzweave-run` を `?lang=xx` または `?region=asia` で呼ぶ。region 指定時は API 内で **STRATEGIC_UTC_TO_LANG** に基づき言語を 1 つ選択。
+- **言語別配信スケジュール**: region を使う asia/latam では「何時（UTC）にどの言語か」は **STRATEGIC_UTC_TO_LANG** で決まる。en と ar は固定で lang=en / lang=ar。
+
+---
+
 ## 1. Run 数配分の根拠：share_ratio（LANGUAGE_ALLOCATION）
 
 言語別 Run 数は **mlPqtScheduleConfig.js の LANGUAGE_ALLOCATION** の `share_ratio` に従う。
@@ -54,8 +62,51 @@ X のエンゲージメントは **現地の「朝〜昼」で伸びやすい** 
 
 ---
 
-## 4. 関連ドキュメント
+## 4. 言語別に分けた Cron（CMO 推奨・実装済み）
+
+- **経緯**: CSO/CMO 戦略セッションで CMO が「4 本の Cron で言語・地域を分割」を推奨（en 15 分、asia 30 分、latam 30 分、emea 60 分）。
+- **実装**: Vercel の Cron は **4 本** に分割済み。単一の `*/30` は廃止。
+  - **cron-en**: `*/15` → `/api/buzzweave-cron-en`（`?lang=en`）
+  - **cron-asia**: `*/30` → `/api/buzzweave-cron-asia`（`?region=asia` → API 内で ja/ko を UTC から選択）
+  - **cron-latam**: `*/30` → `/api/buzzweave-cron-latam`（`?region=latam` → es/pt を選択）
+  - **cron-emea**: `0 * * * *` → `/api/buzzweave-cron-emea`（`?lang=ar`）
+- **詳細**: `docs/BUZZWEAVE_CMO_IMPLEMENTATION_COMPLETE.md` を参照。
+
+---
+
+## 5. 言語別配信スケジュール（UTC 時間 → 言語）
+
+30 分ごと 48 Run/日のうち、**各 UTC 時** に割り当たる言語は次のとおり（:00 と :30 の 2 Run とも同じ言語）。
+
+| UTC 時 | 言語 | 備考 |
+|--------|------|------|
+| 0, 3 | ja | アジア朝（JST 9–12 時） |
+| 1, 2 | ko | アジア朝（KST） |
+| 4, 5 | en | 欧州早朝 |
+| 6, 7 | ar | 中東朝 |
+| 8–15 | en | 欧州〜米国朝（en が最多のため幅広く配置） |
+| 15–17, 21, 22 | es | スペイン・LATAM |
+| 18–20, 23 | pt | ブラジル中心 |
+
+※ 正確な 24 コマは `services/td/mlPqtScheduleConfig.js` の **STRATEGIC_UTC_TO_LANG** を参照。
+
+---
+
+## 6. 目的との整合（高インプレ・高 CTR）
+
+| レイヤー | 目的との対応 |
+|----------|----------------|
+| **スケジュール** | 各言語の現地ピークに Run を割り当て → スレが盛り上がる時間に寄生し、**リプライのインプレ** を最大化。 |
+| **選定スコア** | Freshness / Velocity / Author Reach で「伸びる投稿」を優先 → インプレ最大化。CopyFit > Hype で「刺さる文脈」を優先 → **CTR 最大化**（Gemini CMO 推奨・BUZZWEAVE_STRATEGY_RATIONALE.md）。 |
+| **キーワード・窓** | 言語別キーワードと時間窓でヒット数と質を確保 → インプレの母数と CTR の分母の両方に効く。 |
+
+目的（リプライの高インプレ獲得・高 CTR 獲得）からブレていない。
+
+---
+
+## 7. 関連ドキュメント
 
 - **BUZZWEAVE_DAILY_POST_TARGET_RATIONALE.md** — 日次 Run 数・上限の根拠
 - **BUZZWEAVE_ML_PQT_SCHEDULE_SPEC.md** — TIME_DISTRIBUTION・LANGUAGE_ALLOCATION の仕様
+- **BUZZWEAVE_STRATEGY_RATIONALE.md** — Gemini CMO 推奨（選定重み・HYPE/CTR・キーワード）と根拠
 - **CAMPAIGN_72H_PAID_FOCUS.md** — キャンペーン時の 1h 間隔・48h 希少性

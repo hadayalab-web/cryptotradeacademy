@@ -18,6 +18,18 @@ function getLangByUtcHour(utcHour) {
   return fallback[Math.floor(h / 4) % fallback.length];
 }
 
+/** CMO 推奨: region パラメータ用。asia=ja/ko, latam=es/pt, emea=ar。UTC 時に該当言語を 1 つ返す */
+const REGION_LANGS = { asia: ["ja", "ko"], latam: ["es", "pt"], emea: ["ar"] };
+function getLangForRegion(region, utcHour) {
+  const r = String(region || "").toLowerCase();
+  const langs = REGION_LANGS[r];
+  if (!langs || !langs.length) return getLangByUtcHour(utcHour);
+  const h = Math.floor(Number(utcHour)) % 24;
+  const strategic = Array.isArray(STRATEGIC_UTC_TO_LANG) && STRATEGIC_UTC_TO_LANG[h];
+  if (strategic && langs.includes(strategic)) return strategic;
+  return langs[h % langs.length];
+}
+
 /**
  * 環境変数から日次 Run 数・cap/run・KPI を取得（buzzWeaveEngine と同期）
  */
@@ -147,4 +159,4 @@ function getSchedulePlan() {
   };
 }
 
-module.exports = { getSchedulePlan, getScheduleParams, getLangByUtcHour };
+module.exports = { getSchedulePlan, getScheduleParams, getLangByUtcHour, getLangForRegion };

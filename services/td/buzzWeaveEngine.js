@@ -50,6 +50,16 @@ const { orderedCandidatesWithTier3Cap, orderCandidatesByPerformanceTiers } = req
 const { scoreShiteshiCandidate } = require("./shiteshiScoring");
 const { pickBestFunnelLink, getLinksByLang } = require("../links");
 
+/** CMO 推奨: リプライリンクに UTM を付与し template_id ごとの CTR を計測可能にする */
+function appendBuzzweaveUtm(url, lang, templateId = "default") {
+  if (!url || typeof url !== "string") return url;
+  const sep = url.includes("?") ? "&" : "?";
+  const params = new URLSearchParams();
+  params.set("utm_source", "twitter_bot");
+  params.set("utm_lang", String(lang || "en"));
+  params.set("utm_content", String(templateId || "default").replace(/[^a-zA-Z0-9_-]/g, "_"));
+  return url + sep + params.toString();
+}
 
 // バズ閾値（指示書準拠）
 const BUZZ_THRESHOLD = { influencer: 200, official: 500 };
@@ -185,26 +195,40 @@ function scorePostByMetrics(metrics = {}) {
   return impressions * 1 + likes * 50 + retweets * 80 + quotes * 60 + replies * 40;
 }
 
-// 仕手Bot攻略 → 提灯救済。Botが使いがちな語を検索に含め、Botが集客したスレを拾う。
+// 戦略: 全言語で存在する仕手Bot（多額集客の煽り投稿）に寄生し、インプレ・CTRを最大限稼ぐ。群がるトレーダーは当救済（構造確認・手遅れ回避）で救う。
+// 検索: Botが使いがちな語＋CTAが刺さるスレの語を全言語でカバー。
 const SEARCH_KEYWORDS_BY_LANG = {
-  en: ["bitcoin", "btc", "crypto", "pump", "moon", "ath", "breakout", "halving", "spot etf", "all time high"],
-  ja: ["ビットコイン", "BTC", "仮想通貨", "急騰", "乗り遅れるな", "半減期", "ETF", "暴落", "新高"],
-  ko: ["비트코인", "BTC", "암호화폐", "급등", "반등", "반감기", "ETF", "상승"],
-  es: ["bitcoin", "btc", "crypto", "pump", "moon", "sube", "oportunidad", "etf", "halving"],
-  pt: ["bitcoin", "btc", "crypto", "pump", "lua", "alta", "etf", "halving"],
+  en: [
+    "bitcoin", "btc", "crypto", "pump", "moon", "ath", "breakout", "halving", "spot etf", "all time high",
+    "don't miss", "last chance", "buy now", "100x", "to the moon", "next 100x", "going to the moon", "pump it now",
+    "gem", "alpha", "next pump", "dyor", "$SOL", "$ETH"
+  ],
+  ja: [
+    "ビットコイン", "BTC", "仮想通貨", "急騰", "乗り遅れるな", "半減期", "ETF", "暴落", "新高",
+    "今すぐ", "最後のチャンス", "100倍", "月まで", "買え", "絶対上がる", "逃すな",
+    "養分", "靴磨き", "エアドロ", "ギブアウェイ", "爆益", "魔界", "銘柄", "アルト"
+  ],
+  ko: [
+    "비트코인", "BTC", "암호화폐", "급등", "반등", "반감기", "ETF", "상승",
+    "지금 사세요", "마지막 기회", "100배", "달까지", "폼핑", "놓치지", "급등주",
+    "김프", "구조대", "가즈아", "떡상", "코인", "매수"
+  ],
+  es: [
+    "bitcoin", "btc", "crypto", "pump", "moon", "sube", "oportunidad", "etf", "halving",
+    "compra ya", "no te pierdas", "última oportunidad", "subida inminente", "a la luna", "pump en marcha", "gana con cripto",
+    "estafa", "gemas"
+  ],
+  pt: [
+    "bitcoin", "btc", "crypto", "pump", "lua", "alta", "etf", "halving",
+    "última chance", "não perca", "compre agora", "pump agora", "lucro rápido", "vai explodir", "sinal vip", "cripto milionário"
+  ],
   ar: [
-    "bitcoin",
-    "btc",
-    "crypto",
-    "بيتكوين",
-    "البيتكوين",
-    "كريبتو",
-    "صعود",
-    "عملات رقمية",
-    "عملات مشفرة",
-    "تنصيف البيتكوين",
-    "etf",
-    "btc usd"
+    "bitcoin", "btc", "crypto", "pump", "moon",
+    "بيتكوين", "البيتكوين", "كريبتو", "صعود", "فرصة", "سعر", "ارتفاع",
+    "عملات رقمية", "عملات مشفرة", "تنصيف البيتكوين", "etf", "btc usd",
+    "ضخ", "شراء الآن", "لا تفوت", "فرصة ذهبية", "استثمر الآن",
+    "حلال", "نصب", "تداول", "توصية",
+    "$BTC", "$ETH", "$SOL"
   ]
 };
 const SEARCH_WINDOW_MINUTES = Number(process.env.BUZZWEAVE_SEARCH_WINDOW_MIN || 30);
@@ -212,24 +236,32 @@ const DYNAMIC_MEDIAN_MULTIPLIER = Number(process.env.BUZZWEAVE_MEDIAN_MULTIPLIER
 const SEARCH_QUERY_BUCKET_SIZE = Math.max(1, Number(process.env.BUZZWEAVE_QUERY_BUCKET_SIZE || 3));
 const SEARCH_PAGES_PER_BUCKET = Math.max(1, Number(process.env.BUZZWEAVE_SEARCH_PAGES_PER_BUCKET || 3));
 const SEARCH_QUERY_MAX_CHARS = Math.max(128, Number(process.env.BUZZWEAVE_SEARCH_QUERY_MAX_CHARS || 480));
+// Gemini: ja は反応が早いので 30 分窓、ar は Bot 頻度低いので 90 分窓。ko は 60 分。
 const LOW_VOLUME_LANGS = new Set(
-  String(process.env.BUZZWEAVE_LOW_VOLUME_LANGS || "ar,ko,ja")
+  String(process.env.BUZZWEAVE_LOW_VOLUME_LANGS || "ar,ko")
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean)
 );
 const LOW_VOLUME_WINDOW_MINUTES = Math.max(
   SEARCH_WINDOW_MINUTES,
-  Number(process.env.BUZZWEAVE_LOW_VOLUME_SEARCH_WINDOW_MIN || 30)
+  Number(process.env.BUZZWEAVE_LOW_VOLUME_SEARCH_WINDOW_MIN || 60)
 );
+// ar のみ 90 分窓（Gemini: 取りこぼし防止）。環境変数 BUZZWEAVE_AR_WINDOW_MIN で上書き可
+const LANGUAGE_WINDOW_OVERRIDE_MINUTES = {
+  ar: Number(process.env.BUZZWEAVE_AR_WINDOW_MIN || 90)
+};
 const SEARCH_USE_MIN_OPERATORS = process.env.BUZZWEAVE_USE_MIN_OPERATORS === "true" || process.env.BUZZWEAVE_USE_MIN_OPERATORS === "1";
 const SEARCH_MIN_FAVES = Math.max(0, Number(process.env.BUZZWEAVE_SEARCH_MIN_FAVES || 0));
 const SEARCH_MIN_RETWEETS = Math.max(0, Number(process.env.BUZZWEAVE_SEARCH_MIN_RETWEETS || 0));
 const SEARCH_MIN_REPLIES = Math.max(0, Number(process.env.BUZZWEAVE_SEARCH_MIN_REPLIES || 0));
-const IMPRESSION_WEIGHT_VELOCITY = Number(process.env.BUZZWEAVE_IMPRESSION_W_VELOCITY || 0.4);
-const IMPRESSION_WEIGHT_CONVERSATION = Number(process.env.BUZZWEAVE_IMPRESSION_W_CONVERSATION || 0.25);
-const IMPRESSION_WEIGHT_REPOST = Number(process.env.BUZZWEAVE_IMPRESSION_W_REPOST || 0.2);
-const IMPRESSION_WEIGHT_FRESHNESS = Number(process.env.BUZZWEAVE_IMPRESSION_W_FRESHNESS || 0.15);
+// デフォルトは Gemini CMO 推奨（docs/ai-analysis-results/BUZZWEAVE_CMO_STRATEGY_*.md）: 初速・鮮度で寄生、先行者利益
+const IMPRESSION_WEIGHT_VELOCITY = Number(process.env.BUZZWEAVE_IMPRESSION_W_VELOCITY || 0.5);
+const IMPRESSION_WEIGHT_CONVERSATION = Number(process.env.BUZZWEAVE_IMPRESSION_W_CONVERSATION || 0.1);
+const IMPRESSION_WEIGHT_REPOST = Number(process.env.BUZZWEAVE_IMPRESSION_W_REPOST || 0.1);
+const IMPRESSION_WEIGHT_FRESHNESS = Number(process.env.BUZZWEAVE_IMPRESSION_W_FRESHNESS || 0.3);
+// 仕手Bot寄生: 集客力の大きいアカウント（フォロワー数）の投稿を優先。Gemini 推奨 0.3（X Reply Priority）
+const IMPRESSION_WEIGHT_AUTHOR_REACH = Number(process.env.BUZZWEAVE_IMPRESSION_W_AUTHOR_REACH || 0.3);
 const MAX_SLOTS_PER_AUTHOR = Math.max(1, Number(process.env.BUZZWEAVE_MAX_SLOTS_PER_AUTHOR || 1));
 const MAX_CLUSTER_SHARE = Math.min(1, Math.max(0.2, Number(process.env.BUZZWEAVE_MAX_CLUSTER_SHARE || 0.4)));
 
@@ -250,6 +282,37 @@ function buildSearchMetricOperators() {
   return ops;
 }
 
+// CMO 推奨: 言語別品質フィルター（en/ja/ar は High〜Ultra、es/pt は Low で量優先）。環境変数で上書き可
+const LANG_QUALITY_FILTER = {
+  en: { minFollowers: Number(process.env.BUZZWEAVE_EN_MIN_FOLLOWERS) || 1000, minReplyCount: Number(process.env.BUZZWEAVE_EN_MIN_REPLIES) || 5 },
+  ja: { minFollowers: Number(process.env.BUZZWEAVE_JA_MIN_FOLLOWERS) || 3000, minReplyCount: Number(process.env.BUZZWEAVE_JA_MIN_REPLIES) || 3 },
+  ko: { maxAgeMinutes: Number(process.env.BUZZWEAVE_KO_MAX_AGE_MIN) || 20 },
+  ar: { minFollowers: Number(process.env.BUZZWEAVE_AR_MIN_FOLLOWERS) || 1000, minReplyCount: Number(process.env.BUZZWEAVE_AR_MIN_REPLIES) || 3 },
+  es: {},
+  pt: {}
+};
+
+function applyPerLangQualityFilter(candidates, slotLang) {
+  const cfg = LANG_QUALITY_FILTER[slotLang] || {};
+  if (!cfg.minFollowers && !cfg.minReplyCount && !cfg.maxAgeMinutes) return candidates;
+  const nowMs = Date.now();
+  return candidates.filter((c) => {
+    if (cfg.minFollowers) {
+      const followers = Number(c?.target?.author?.public_metrics?.followers_count) || 0;
+      if (followers < cfg.minFollowers) return false;
+    }
+    if (cfg.minReplyCount) {
+      const replies = Number(c?.post?.public_metrics?.reply_count) || 0;
+      if (replies < cfg.minReplyCount) return false;
+    }
+    if (cfg.maxAgeMinutes && c?.post?.created_at) {
+      const ageMin = (nowMs - new Date(c.post.created_at).getTime()) / 60000;
+      if (ageMin > cfg.maxAgeMinutes) return false;
+    }
+    return true;
+  });
+}
+
 function buildSearchQueries(lang) {
   const kw = SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en;
   const metricOps = buildSearchMetricOperators();
@@ -257,6 +320,17 @@ function buildSearchQueries(lang) {
   const suffix = suffixParts.join(" ");
   const buckets = chunkArray(kw, SEARCH_QUERY_BUCKET_SIZE);
   const queries = [];
+
+  if (lang === "ar") {
+    const arIds = process.env.BUZZWEAVE_AR_INFLUENCER_IDS;
+    if (arIds && typeof arIds === "string") {
+      const ids = arIds.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 10);
+      if (ids.length) {
+        const fromQuery = `(from:${ids.join(" OR from:")}) ${suffix}`.trim();
+        if (fromQuery.length <= SEARCH_QUERY_MAX_CHARS) queries.push(fromQuery);
+      }
+    }
+  }
 
   for (const bucket of buckets) {
     const terms = bucket.map((k) => (k.includes(" ") ? `"${k}"` : k));
@@ -317,17 +391,23 @@ function computeImpressionScore(candidate, clusterScores, nowMs = Date.now()) {
   const clusterNorm = clamp((Number(clusterScores?.[candidate?.cluster]) || 0) / clusterMax, 0, 1);
   const repostWithCluster = clamp(repostNorm * 0.7 + clusterNorm * 0.3, 0, 1);
 
-  const weightSum =
+  // 投稿者リーチ: フォロワー数が多い＝集客力の大きい仕手Botに寄生するとリプライインプレが伸びる（log で正規化、約100万で1）
+  const followers = Number(candidate?.target?.author?.public_metrics?.followers_count) || 0;
+  const authorReachNorm = followers > 0 ? clamp(Math.log10(1 + followers) / 6, 0, 1) : 0;
+
+  let weightSum =
     IMPRESSION_WEIGHT_VELOCITY +
     IMPRESSION_WEIGHT_CONVERSATION +
     IMPRESSION_WEIGHT_REPOST +
     IMPRESSION_WEIGHT_FRESHNESS;
+  if (authorReachNorm > 0) weightSum += IMPRESSION_WEIGHT_AUTHOR_REACH;
   const normalizedWeightSum = weightSum > 0 ? weightSum : 1;
-  const weighted =
+  let weighted =
     IMPRESSION_WEIGHT_VELOCITY * velocityNorm +
     IMPRESSION_WEIGHT_CONVERSATION * conversationNorm +
     IMPRESSION_WEIGHT_REPOST * repostWithCluster +
     IMPRESSION_WEIGHT_FRESHNESS * freshnessNorm;
+  if (authorReachNorm > 0) weighted += IMPRESSION_WEIGHT_AUTHOR_REACH * authorReachNorm;
 
   return Number((weighted / normalizedWeightSum).toFixed(6));
 }
@@ -732,13 +812,11 @@ async function fetchCandidatesFromSearch(slotLang, options = {}) {
 
   const slotLangKey = String(slotLang || "").toLowerCase();
   const allowLowVolumeBackfill = options.enableLowVolumeBackfill !== false;
-  const windowsToTry = [windowMin];
-  if (
-    allowLowVolumeBackfill &&
-    LOW_VOLUME_LANGS.has(slotLangKey) &&
-    windowMin < LOW_VOLUME_WINDOW_MINUTES
-  ) {
-    windowsToTry.push(LOW_VOLUME_WINDOW_MINUTES);
+  let windowsToTry = [windowMin];
+  const langOverrideWindow = LANGUAGE_WINDOW_OVERRIDE_MINUTES[slotLangKey];
+  if (allowLowVolumeBackfill && (langOverrideWindow || (LOW_VOLUME_LANGS.has(slotLangKey) && LOW_VOLUME_WINDOW_MINUTES > windowMin))) {
+    const firstWindow = langOverrideWindow > 0 ? langOverrideWindow : LOW_VOLUME_WINDOW_MINUTES;
+    if (firstWindow > windowMin) windowsToTry = [firstWindow, windowMin];
   }
 
   let passResult = null;
@@ -907,6 +985,9 @@ async function collectBuzzCandidates(options = {}) {
     });
   }
 
+  const afterLangFilter = applyPerLangQualityFilter(rawCandidates, slotLang);
+  const rawForMedian = afterLangFilter.length > 0 ? afterLangFilter : rawCandidates;
+
   // 1-3: 動的中央値フィルタ。シンプル選定デフォルト時（BUZZWEAVE_SIMPLE_SELECTION が false でない）または BUZZWEAVE_SKIP_MEDIAN_FILTER=true のときは使わず engagement 降順で上から maxCandidates まで
   const skipMedianFilter =
     process.env.BUZZWEAVE_SKIP_MEDIAN_FILTER === "true" ||
@@ -914,15 +995,15 @@ async function collectBuzzCandidates(options = {}) {
     (process.env.BUZZWEAVE_SIMPLE_SELECTION !== "false" && process.env.BUZZWEAVE_SIMPLE_SELECTION !== "0");
   let filteredByMedian;
   if (skipMedianFilter) {
-    filteredByMedian = [...rawCandidates]
+    filteredByMedian = [...rawForMedian]
       .sort((a, b) => (b.engagementScore ?? 0) - (a.engagementScore ?? 0))
       .slice(0, Math.max(maxCandidates, 20));
   } else {
-    const scores = rawCandidates.map((c) => c.engagementScore);
+    const scores = rawForMedian.map((c) => c.engagementScore);
     const median = scores.length ? (() => { const s = [...scores].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; })() : 0;
     const threshold = Math.max(median * DYNAMIC_MEDIAN_MULTIPLIER, 500);
-    filteredByMedian = rawCandidates.filter((c) => c.engagementScore >= threshold);
-    if (!filteredByMedian.length) filteredByMedian = rawCandidates.slice(0, 20);
+    filteredByMedian = rawForMedian.filter((c) => c.engagementScore >= threshold);
+    if (!filteredByMedian.length) filteredByMedian = rawForMedian.slice(0, 20);
   }
 
   if (isDeadlineExceeded(startMs, deadlineMs)) {
@@ -1314,10 +1395,10 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     }
   }
 
-  // 高インプレ優先＋CTR向上: impressionScore で乗せ先の伸びを優先、copyFit でリプライが刺さる投稿を優先。
-  const HYPE_BOOST = Math.max(0, Math.min(2, Number(process.env.BUZZWEAVE_HYPE_BOOST) || 0.8));
+  // Gemini CMO 推奨: CopyFit 優先（文脈一致で CTR）、Hype は下げてノイズ除外。根拠: Ad Relevance / 確証バイアス
+  const HYPE_BOOST = Math.max(0, Math.min(2, Number(process.env.BUZZWEAVE_HYPE_BOOST) || 0.5));
   const IMPRESSION_BOOST = Math.max(0, Math.min(2, Number(process.env.BUZZWEAVE_IMPRESSION_BOOST) || 0.6));
-  const CTR_BOOST = Math.max(0, Math.min(2, Number(process.env.BUZZWEAVE_CTR_BOOST) || 0.4));
+  const CTR_BOOST = Math.max(0, Math.min(2, Number(process.env.BUZZWEAVE_CTR_BOOST) || 0.9));
   let slots;
   if (useSimpleSelection) {
     slots = [...candidatesForSlots]
@@ -1469,6 +1550,7 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
       }
     }
     if (!link) continue;
+    link = appendBuzzweaveUtm(link, langFilter, slot?.dangerLabel || "default");
 
     const coin = /BTC|bitcoin/i.test(slot?.post?.text || "") ? "BTC" : /ETH/i.test(slot?.post?.text || "") ? "ETH" : "BTC";
     const proofSnippet = buildProofSnippetFromSnapshot(snapshot, langFilter, slot);
@@ -1481,7 +1563,8 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
         : envBot === "false" || envBot === "0"
           ? false
           : slot?.dangerLabel === "whale_trap";
-    const built = buildPqt(langFilter, { coin, proofSnippet, link, funnelType, quotedText: slot?.post?.text, useBotTemplates, dangerLabel: slot?.dangerLabel });
+    const copyVariant = langFilter === "en" ? (Math.random() < 0.5 ? "urgency" : "authority") : undefined;
+    const built = buildPqt(langFilter, { coin, proofSnippet, link, funnelType, quotedText: slot?.post?.text, useBotTemplates, dangerLabel: slot?.dangerLabel, copyVariant });
     if (!built || !built.text) continue;
     // リプライは280字制限。リンクを切らないよう「本文だけ詰めて末尾にリンク」にする
     const fullText = built.text;

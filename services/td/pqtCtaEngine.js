@@ -42,6 +42,16 @@ function buildPqt(lang, context) {
   const mirrorWords = context.mirrorWords ?? (context.quotedText ? extractMirrorWords(context.quotedText, lang) : "");
   const ctx = { ...context, mirrorWords };
 
+  if (lang === "en" && (context.copyVariant === "urgency" || context.copyVariant === "authority")) {
+    const pattern = context.copyVariant === "urgency" ? "fear" : "authority";
+    const byPattern = PQT_TEMPLATES_3PATTERNS.en;
+    const templateFn = byPattern[pattern];
+    if (templateFn && typeof templateFn === "function") {
+      let text = templateFn(ctx);
+      if (context.link && text) text = applySecretWeaponsFormat(text, context.link);
+      return { text, templateIndex: 0, useBotTemplates: false, pattern };
+    }
+  }
   if (context.dangerLabel != null && context.dangerLabel !== "") {
     const pattern = getPatternFromDangerLabelWithJitter(context.dangerLabel);
     const byPattern = PQT_TEMPLATES_3PATTERNS[lang] || PQT_TEMPLATES_3PATTERNS.en;

@@ -84,6 +84,10 @@ function buildFullSnapshot(params) {
  * @param {Object} snapshot - btcSnapshot
  * @returns {Object} row for Supabase
  */
+/**
+ * btc_snapshots テーブルに diff カラムがないため insert からは除外。
+ * 将来カラムを追加したら diff: snapshot.diff ?? null を戻す。
+ */
 function snapshotToDbRow(snapshot) {
   return {
     snapshot_id: snapshot.snapshot_id,
@@ -103,8 +107,7 @@ function snapshotToDbRow(snapshot) {
     market_score: snapshot.market_score ?? null,
     trade_signal: snapshot.tradeSignal ?? null,
     meta: snapshot.meta ?? null,
-    market_regime: snapshot.marketRegime ?? null,
-    diff: snapshot.diff ?? null
+    market_regime: snapshot.marketRegime ?? null
   };
 }
 

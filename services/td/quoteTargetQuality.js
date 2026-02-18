@@ -1,5 +1,6 @@
 /**
  * 引用リポスト・ターゲット投稿の品質スコア（研究ベース）
+ * 戦略: 仕手Botの煽り投稿に寄生し、そこに群がるトレーダーへ救済（構造確認・手遅れ回避）を届け、インプレ・CTRを最大化する。
  * - Engagement velocity（経過時間あたりのエンゲージメント）
  * - Algorithm-weighted score（リプライ重視の重み）
  * - Topic fit（Trap Defence ニッチ：BTC/ETH/トレード/リスクとの適合）
@@ -9,26 +10,30 @@
 
 const VELOCITY_MIN_AGE_MINUTES = 0.5;
 
+// インプレ・CTR 最大化: 全言語でトピック適合を評価し、Trap Defence ニッチに近いスレを逃さない
 const TOPIC_KEYWORDS = [
   "btc", "bitcoin", "eth", "ethereum", "crypto", "trading", "trade", "market",
   "risk", "volatility", "support", "resistance", "liquidation", "long", "short",
   "トレード", "相場", "リスク", "ボラティリティ", "サポート", "レジスタンス",
-  "트레이딩", "리스크", "변동성", "mercado", "riesgo", "trading", "mercado"
+  "트레이딩", "리스크", "변동성", "mercado", "riesgo", "mercado", "trading",
+  "تداول", "سوق", "مخاطرة", "دعم", "مقاومة", "عملات"
 ];
 
 /**
  * PQT コピーが刺さる引用元のキーワード（テーマ: 速さ・追いかけ・勢い・罠・構造・手順・同調）
  * docs/PQT_COPY_AND_TARGET_SPEC.md のテーマに対応
  */
+// CTA が刺さる引用元（速さ・追いかけ・勢い・罠・構造・手順・同調）→ CTR 最大化
 const COPY_FIT_KEYWORDS = [
   "move", "fast", "speed", "chase", "rush", "momentum", "pump", "jump", "ath", "breakout",
   "trap", "invisible", "candle", "strong", "reversal", "drawdown", "loss", "avoid",
   "structure", "support", "level", "map", "check", "verify", "confirm", "process", "timing",
-  "bias", "reaction", "fomo", "entry", "entry",
+  "bias", "reaction", "fomo", "entry",
   "勢い", "乗る", "追う", "確認", "構造", "地図", "手順", "変わり目", "失速", "罠", "前のめり",
-  "급등", "반등", "확인", "구조", "움직임",
-  "movimiento", "velocidad", "estructura", "confirmar", "reacción",
-  "movimento", "estrutura", "confirmar", "reação"
+  "급등", "반등", "확인", "구조", "움직임", "진입", "기회",
+  "movimiento", "velocidad", "estructura", "confirmar", "reacción", "entrada", "oportunidad",
+  "movimento", "estrutura", "confirmar", "reação", "entrada", "oportunidade",
+  "حركة", "سرعة", "هيكل", "تأكيد", "فرصة", "دخول", "صعود"
 ];
 
 /**
@@ -74,9 +79,14 @@ function topicFitScore(text) {
 /**
  * Hype 含有 = 仕手Botっぽい投稿。多いほどボーナスを強くして優先する（Botが集客したスレに乗る）
  */
+// 仕手Botっぽい投稿を優先 → インプレ最大化（Bot が集客したスレに寄生）
 const HYPE_BONUS_KEYWORDS = [
-  "moon", "pump", "100x", "ath", "breakout", "fud", "dump", "crash", "don't miss", "last chance",
-  "今すぐ", "乗り遅れるな", "絶対", "急騰", "暴落", "新高", "급등", "반등", "oportunidad", "sube", "lua", "alta"
+  "moon", "pump", "100x", "ath", "breakout", "fud", "dump", "crash", "don't miss", "last chance", "buy now",
+  "今すぐ", "乗り遅れるな", "絶対", "急騰", "暴落", "新高", "最後のチャンス", "100倍", "月まで",
+  "급등", "반등", "지금 사세요", "마지막 기회", "100배", "달까지", "폼핑",
+  "oportunidad", "sube", "lua", "alta", "compra ya", "no te pierdas", "última oportunidad", "a la luna",
+  "última chance", "não perca", "compre agora", "lucro rápido", "vai explodir",
+  "ضخ", "فرصة", "شراء الآن", "لا تفوت", "صعود", "ارتفاع"
 ];
 function hypeBonus(text) {
   if (!text || typeof text !== "string") return 0;

@@ -24,13 +24,19 @@ const {
 const { determineDailyRunTarget } = require("../services/td/autonomousSlotGenerator");
 loadEnv();
 
-const { getLangByUtcHour: getLangByUtcHourFromSchedule } = require("../services/td/buzzWeaveSchedulePlan");
+const { getLangByUtcHour: getLangByUtcHourFromSchedule, getLangForRegion } = require("../services/td/buzzWeaveSchedulePlan");
 
 const BUZZWEAVE_LANGS = ["en", "es", "pt", "ja", "ko", "ar"];
 // 言語は戦略的 UTC→言語 テーブルで決定（share_ratio・地域ピーク考慮）。BUZZWEAVE_LANG_BY_UTC=false で分単位 round-robin に戻す。
 function getLangByUtcHour() {
   const utcHour = new Date().getUTCHours();
   return getLangByUtcHourFromSchedule(utcHour);
+}
+// CMO 推奨: region=asia|latam|emea のとき、UTC 時に該当地域の言語を 1 つ返す
+function resolveLangFromRegion(region) {
+  if (!region || typeof region !== "string") return null;
+  const utcHour = new Date().getUTCHours();
+  return getLangForRegion(region.trim().toLowerCase(), utcHour);
 }
 // キャンペーン時は 30 分間隔（Cron */30）。BUZZWEAVE_RUN_INTERVAL_MINUTES で上書き可（60=1h 等）。通常時は 3h。
 const campaign = process.env.CAMPAIGN_PAID_FOCUS === "true" || process.env.CAMPAIGN_PAID_FOCUS === "1";
@@ -78,13 +84,19 @@ async function handler(req, res) {
     process.env.X_POSTING_DRY_RUN === "1";
   const assetParam = (req.query?.asset || "BTC").toUpperCase();
   let langParam = (req.query?.lang || "").toString().toLowerCase().trim() || null;
+  const regionParam = (req.query?.region || "").toString().toLowerCase().trim() || null;
   if (langParam === "pt-br") langParam = "pt"; // 他モジュール（cron / Regular Briefing）は pt-br を使うことがあるので正規化
   const useLangByUtc = process.env.BUZZWEAVE_LANG_BY_UTC !== "false" && process.env.BUZZWEAVE_LANG_BY_UTC !== "0";
-  const langFilter = langParam && BUZZWEAVE_LANGS.includes(langParam)
-    ? langParam
-    : useLangByUtc
-      ? getLangByUtcHour()
-      : BUZZWEAVE_LANGS[Math.floor(Date.now() / 60000) % BUZZWEAVE_LANGS.length];
+  let langFilter;
+  if (regionParam && ["asia", "latam", "emea"].includes(regionParam)) {
+    langFilter = resolveLangFromRegion(regionParam);
+  } else if (langParam && BUZZWEAVE_LANGS.includes(langParam)) {
+    langFilter = langParam;
+  } else if (useLangByUtc) {
+    langFilter = getLangByUtcHour();
+  } else {
+    langFilter = BUZZWEAVE_LANGS[Math.floor(Date.now() / 60000) % BUZZWEAVE_LANGS.length];
+  }
 
   try {
     if (dryRun) {
