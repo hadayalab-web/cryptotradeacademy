@@ -2,7 +2,7 @@
  * PQT CTR 最大化: テンプレ選択（簡易バンディット）＋ buildPqt ＋ 結果記録
  * Grok Secret Weapons: applySecretWeaponsFormat（link 改行・末尾句点削除・字数制限なし X Premium）、Mirror vocab
  */
-const { PQT_TEMPLATES, PQT_TEMPLATES_BOT } = require("./pqtTemplates");
+const { PQT_TEMPLATES, PQT_TEMPLATES_BOT, PQT_TEMPLATES_3PATTERNS, getPatternFromDangerLabelWithJitter } = require("./pqtTemplates");
 const { extractMirrorWords, applySecretWeaponsFormat } = require("./pqtSecretWeapons");
 
 const templateStats = {};
@@ -34,18 +34,30 @@ function pickTemplateIndex(lang, templates, statsKey) {
 }
 
 /**
- * テンプレは手書きのため、本文を切り詰めずそのまま投稿する（X Premium・字数制限なし）。
- * applySecretWeaponsFormat はリンク改行・末尾句点削除のみで、文字数制限は行わない。
- * context.useBotTemplates === true のときは仕手Bot攻略用テンプレ（同意フック＋短い本文）を使用。
+ * テンプレ設計: docs/PQT_DESIGN_BASED_ON_GEMINI_ANALYSIS.md に基づく。対象はすべて仕手Bot投稿へのリプライ。
+ * dangerLabel あり → 3パターン集約（パターン=1メッセージ）: fear/authority/elitism のいずれか1本を選択。
+ * dangerLabel なし → 従来: useBotTemplates で PQT_TEMPLATES_BOT（4本） or PQT_TEMPLATES（8本）からバンディット選択。
  */
 function buildPqt(lang, context) {
+  const mirrorWords = context.mirrorWords ?? (context.quotedText ? extractMirrorWords(context.quotedText, lang) : "");
+  const ctx = { ...context, mirrorWords };
+
+  if (context.dangerLabel != null && context.dangerLabel !== "") {
+    const pattern = getPatternFromDangerLabelWithJitter(context.dangerLabel);
+    const byPattern = PQT_TEMPLATES_3PATTERNS[lang] || PQT_TEMPLATES_3PATTERNS.en;
+    const templateFn = byPattern[pattern] || byPattern.elitism;
+    if (templateFn && typeof templateFn === "function") {
+      let text = templateFn(ctx);
+      if (context.link && text) text = applySecretWeaponsFormat(text, context.link);
+      return { text, templateIndex: 0, useBotTemplates: false, pattern };
+    }
+  }
+
   const useBot = context.useBotTemplates === true;
   const templates = useBot && PQT_TEMPLATES_BOT[lang]
     ? PQT_TEMPLATES_BOT[lang]
     : PQT_TEMPLATES[lang];
   if (!templates || templates.length === 0) return null;
-  const mirrorWords = context.mirrorWords ?? (context.quotedText ? extractMirrorWords(context.quotedText, lang) : "");
-  const ctx = { ...context, mirrorWords };
   const statsKey = useBot ? lang + "_bot" : undefined;
   const idx = pickTemplateIndex(lang, templates, statsKey);
   let text = templates[idx](ctx);

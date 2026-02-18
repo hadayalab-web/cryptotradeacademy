@@ -16,6 +16,7 @@ const {
   replyToTweet
 } = require("../x/client");
 const { pickVidalyticsLink } = require("../../config/buzzweaveLinks");
+const { getWhopProductUrl } = require("../telegram/whop-links");
 const { sortSlotsByWeight } = require("../scheduler/peakClusterScheduler");
 const { buildBestSlot } = require("./autonomousSlotGenerator");
 const {
@@ -1453,15 +1454,9 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
     let funnelType = null;
     const campaignPaidFocus = process.env.CAMPAIGN_PAID_FOCUS === "true" || process.env.CAMPAIGN_PAID_FOCUS === "1";
     if (campaignPaidFocus) {
-      // 有料2導線のみ・主(Vidalytics) 85% / 従(Whop直) 15%
-      if (Math.random() < 0.85) {
-        link = pickVidalyticsLink(langFilter, "regular");
-        funnelType = "vidalytics_regular";
-      } else {
-        const whop = getLinksByLang(langFilter).find((c) => c.type === "whop_regular");
-        link = whop?.url || pickVidalyticsLink(langFilter, "regular");
-        funnelType = "whop_regular";
-      }
+      // 導線を 6言語×Whop 有料版（Regular Briefing）に集中。フックは希少性・緊急性・1日無料トライアル。
+      link = getWhopProductUrl(langFilter);
+      funnelType = "whop_regular";
     } else {
       try {
         const best = await pickBestFunnelLink({ lang: langFilter, narrative_tag: "FOMO", cta_type: "ATH_SURGE", weight: 1 });
@@ -1476,7 +1471,8 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
 
     const coin = /BTC|bitcoin/i.test(slot?.post?.text || "") ? "BTC" : /ETH/i.test(slot?.post?.text || "") ? "ETH" : "BTC";
     const proofSnippet = buildProofSnippetFromSnapshot(snapshot, langFilter, slot);
-    // 効果的投下: 煽り系(whale_trap)は Bot テンプレ（同意＋短い本文）、それ以外は通常テンプレ。env で明示時は env 優先。
+    // テンプレ設計: docs/PQT_DESIGN_BASED_ON_GEMINI_ANALYSIS.md に基づく。仕手Bot投稿のニュアンスで本文・希少性を選択。
+    // 煽り強(whale_trap)は同意フック短文案（PQT_TEMPLATES_BOT）、それ以外の仕手Botは8バリアント（PQT_TEMPLATES）。env で明示時は env 優先。
     const envBot = process.env.BUZZWEAVE_USE_BOT_TEMPLATES;
     const useBotTemplates =
       envBot === "true" || envBot === "1"
@@ -1484,7 +1480,7 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
         : envBot === "false" || envBot === "0"
           ? false
           : slot?.dangerLabel === "whale_trap";
-    const built = buildPqt(langFilter, { coin, proofSnippet, link, funnelType, quotedText: slot?.post?.text, useBotTemplates });
+    const built = buildPqt(langFilter, { coin, proofSnippet, link, funnelType, quotedText: slot?.post?.text, useBotTemplates, dangerLabel: slot?.dangerLabel });
     if (!built || !built.text) continue;
     // リプライは280字制限。リンクを切らないよう「本文だけ詰めて末尾にリンク」にする
     const fullText = built.text;
@@ -1510,7 +1506,7 @@ async function runBuzzWeaveCyclePqtOnly(options = {}) {
       // キャンペーン時：ローリング希少性（先着50名 / あと〇枠）
       if (campaignPaidFocus) {
         const slotsLeft = process.env.CAMPAIGN_SLOTS_LEFT != null ? Number(process.env.CAMPAIGN_SLOTS_LEFT) : null;
-        const scarcityLine = getScarcityLine(langFilter, slotsLeft);
+        const scarcityLine = getScarcityLine(langFilter, slotsLeft, built.pattern != null ? built.pattern : slot?.dangerLabel);
         if (scarcityLine && replyText.length + scarcityLine.length <= REPLY_MAX_LEN) replyText += scarcityLine;
       }
     } else if (isMinimalFunnel) {

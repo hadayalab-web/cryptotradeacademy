@@ -1,8 +1,9 @@
 /**
  * PQT 本文テンプレート
- * - 6言語 × 8バリアント
- * - 口語トーン / 防衛・教育軸
- * - 損失回避 + ツァイガルニク + 問題解決（固定行動指針）
+ * 設計の根拠: docs/PQT_DESIGN_BASED_ON_GEMINI_ANALYSIS.md（Gemini の行動経済学分析に基づく統一）
+ * - すべて仕手Bot投稿へのリプライ用。6言語 × 8バリアント（煽り強以外）＋ 6言語×4（煽り強＝同意フック短文案）。
+ * - 口語トーン / 防衛・教育軸。損失回避 + ツァイガルニク + 問題解決（固定行動指針）。
+ * - 希少性3パターン（fear/authority/elitism）は同 doc および PQT_SCARCITY_3PATTERNS_GEMINI.md の Gemini 出力を採用。
  */
 
 const CTA_BY_LANG = {
@@ -52,21 +53,45 @@ const CTA_BY_LANG = {
 
 const ACTION_GUIDANCE = {
   en: "Pause → Verify → Act only when conditions align",
-  ja: "止まる → 確認 → 条件一致で行動",
-  es: "Pausa → Verifica → Actúa solo cuando las condiciones coincidan",
-  pt: "Pare → Confira → Aja só quando as condições coincidirem",
-  ar: "توقف → تحقق → تحرك فقط عند تطابق الشروط",
-  ko: "멈춤 → 확인 → 조건 일치 시 행동"
+  ja: "一旦停止 → 確認 → 条件一致で行動",
+  es: "Pausa Estratégica → Verifica → Actúa solo cuando las condiciones coincidan",
+  pt: "Pausa Tática → Valide → Aja só quando as condições coincidirem",
+  ar: "تريث → تحقق → تحرك فقط عند تطابق الشروط",
+  ko: "일시 정지 → 팩트 체크 → 조건 일치 시 행동"
 };
 
-/** 有料導線リプライ用：50%オフ・クーポン・1日無料トライアルの案内 */
-const PROMO_LINE_BY_LANG = {
-  en: " 50% off code DEFEND50. 1-day free trial",
-  ja: " 50%オフ コード DEFEND50・1日無料トライアル",
-  es: " 50% dto código DEFEND50. Prueba 1 día gratis.",
-  pt: " 50% off código DEFEND50. Teste 1 dia grátis.",
-  ar: " خصم 50% برمز DEFEND50. تجربة يوم مجاني.",
-  ko: " 50% 할인 코드 DEFEND50. 1일 무료 체험."
+/** 有料導線リプライ用：フック＝希少性・緊急性・1日無料トライアル（Whop Regular 集中）。3バリアントでランダム化しスパム/シャドバンリスクを低減。 */
+const PROMO_LINE_VARIANTS_BY_LANG = {
+  en: [
+    " 1-day free trial. 48h only — first 50 spots. 50% off code DEFEND50.",
+    " 48h window. First 50 spots. Code DEFEND50 for 50% off. 1-day trial.",
+    " DEFEND50 = 50% off. 1-day free trial. 48h — 50 spots only."
+  ],
+  ja: [
+    " 1日無料トライアル。48h限定・先着50枠。コード DEFEND50 で50%オフ。",
+    " 48h・先着50枠。DEFEND50で50%オフ。1日無料トライアル。",
+    " コード DEFEND50 で50%オフ。1日無料。48h限定・50枠。"
+  ],
+  es: [
+    " Prueba 1 día gratis. Solo 48h — 50 plazas. 50% dto código DEFEND50.",
+    " 48h — 50 plazas. Código DEFEND50 50% dto. Prueba 1 día gratis.",
+    " DEFEND50 50% dto. 1 día gratis. Solo 48h, 50 plazas."
+  ],
+  pt: [
+    " Teste 1 dia grátis. 48h só — 50 vagas. 50% off código DEFEND50.",
+    " 48h — 50 vagas. Código DEFEND50 50% off. Teste 1 dia grátis.",
+    " DEFEND50 50% off. 1 dia grátis. 48h só, 50 vagas."
+  ],
+  ar: [
+    " تجربة يوم مجاني. 48 ساعة فقط — أول 50. خصم 50% برمز DEFEND50.",
+    " 48 ساعة — أول 50. رمز DEFEND50 خصم 50%. تجربة يوم مجاني.",
+    " DEFEND50 خصم 50%. يوم مجاني. 48 ساعة، 50 مقعد."
+  ],
+  ko: [
+    " 1일 무료 체험. 48시간 한정 — 선착 50명. 50% 할인 코드 DEFEND50.",
+    " 48시간 — 선착 50명. 코드 DEFEND50 50% 할인. 1일 무료 체험.",
+    " DEFEND50 50% 할인. 1일 무료. 48시간 한정 50명."
+  ]
 };
 
 /** 無料導線リプライ用：メール登録で利用開始の案内 */
@@ -79,30 +104,29 @@ const MINIMAL_LINE_BY_LANG = {
   ko: " 이메일로 시작 — 무료."
 };
 
-/** ローリング希少性：48h限定＋先着50名（フォーマット統一） */
+/** ローリング希少性＋緊急性：48h限定＋先着50名（Whop Regular フック統一） */
 const SCARCITY_LINE_BY_LANG = {
-  en: " 48h only — first 50, then this link closes.",
-  ja: " 48h限定・先着50名でこのリンクは閉じる。",
-  es: " Solo 48h — 50 plazas, luego se cierra este enlace.",
-  pt: " Apenas 48h — 50 vagas, depois este link fecha.",
-  ar: " 48 ساعة فقط — أول 50، ثم يُغلق هذا الرابط.",
-  ko: " 48시간 한정 — 선착 50명, 이후 이 링크 마감."
+  en: " Urgent: 48h only. First 50 — then link closes.",
+  ja: " 緊急：48h限定。先着50名でリンク閉鎖。",
+  es: " Urgente: solo 48h. Primeros 50 — luego se cierra.",
+  pt: " Urgente: 48h só. 50 vagas — depois fecha.",
+  ar: " عاجل: 48 ساعة فقط. أول 50 — ثم يُغلق الرابط.",
+  ko: " 긴급: 48시간 한정. 선착 50명 — 이후 링크 마감."
 };
 
-/** あと〇枠・48h限定（slotsLeft 指定時。CAMPAIGN_SLOTS_LEFT で渡す） */
+/** あと〇枠・48h限定（slotsLeft 指定時。CAMPAIGN_SLOTS_LEFT で渡す）希少性＋緊急性 */
 const SLOTS_LEFT_LINE_BY_LANG = {
-  en: (n) => ` Only ${n} spots left. 48h only.`,
-  ja: (n) => ` あと${n}枠・48h限定。`,
-  es: (n) => ` Quedan ${n} plazas. Solo 48h.`,
-  pt: (n) => ` Restam ${n} vagas. 48h só.`,
-  ar: (n) => ` متبقٍ ${n} مقعد. 48 ساعة فقط.`,
-  ko: (n) => ` 잔여 ${n}자리. 48시간 한정.`
+  en: (n) => ` Only ${n} spots left. 48h urgent.`,
+  ja: (n) => ` 残り${n}枠・48h緊急。`,
+  es: (n) => ` Quedan ${n} plazas. 48h urgente.`,
+  pt: (n) => ` Restam ${n} vagas. 48h urgente.`,
+  ar: (n) => ` متبقٍ ${n} مقعد. 48 ساعة عاجل.`,
+  ko: (n) => ` 잔여 ${n}자리. 48시간 긴급.`
 };
 
 /**
- * 希少性コピー 3パターン（Gemini 作成・Bot投稿タイプに合わせて使い分け）
- * CAMPAIGN_SCARCITY_VARIANT=fear|authority|elitism で切り替え
- * @see docs/PQT_SCARCITY_3PATTERNS_GEMINI.md
+ * 希少性コピー 3パターン（Gemini 作成・docs/PQT_SCARCITY_3PATTERNS_GEMINI.md）
+ * CAMPAIGN_SCARCITY_VARIANT=fear|authority|elitism で切り替え。メッセージは Gemini 出力をそのまま使用。
  */
 const SCARCITY_VARIANTS = {
   fear: {
@@ -123,10 +147,10 @@ const SCARCITY_VARIANTS = {
   },
   elitism: {
     en: " Don't be exit liquidity. Claim your \"Survivor Slot\" used by the top 5%. Verify before you ape in. 48h limit. [50 spots left]",
-    ja: " 養分回避。カモにされない上位5%だけの「生存者枠」を確保してください。 エントリー条件を確認する48時間。【残り50枠】",
+    ja: " 「養分」回避。カモにされない上位5%だけの「生存者枠」を確保してください。 エントリー条件を確認する48時間。【残り50枠】",
     es: " No seas liquidez de salida. \"Slot superviviente\" del 5% superior. Verifica antes de entrar. 48h. [50 plazas]",
     pt: " Não seja liquidez de saída. \"Vaga sobrevivente\" do top 5%. Verifique antes de entrar. 48h. [50 vagas]",
-    ar: " لا تكن سيولة خروج. \"مقعد الناجين\" لأفضل 5%. تحقق قبل الدخول. 48 ساعة. [50 مقعد]",
+    ar: " لا تكن ضحية للتصريف. \"مقعد الناجين\" لأفضل 5%. تحقق قبل الدخول. 48 ساعة. [50 مقعد]",
     ko: " 출구 유동성 되지 마세요. 상위 5% \"생존자 슬롯\". 진입 전 확인. 48h. [50자리]"
   }
 };
@@ -139,7 +163,8 @@ function normalizeLangKey(lang) {
 
 function getPromoLine(lang) {
   const langKey = normalizeLangKey(lang);
-  return PROMO_LINE_BY_LANG[langKey] || PROMO_LINE_BY_LANG.en;
+  const variants = PROMO_LINE_VARIANTS_BY_LANG[langKey] || PROMO_LINE_VARIANTS_BY_LANG.en;
+  return variants[Math.floor(Math.random() * variants.length)];
 }
 
 function getMinimalLine(lang) {
@@ -147,10 +172,180 @@ function getMinimalLine(lang) {
   return MINIMAL_LINE_BY_LANG[langKey] || MINIMAL_LINE_BY_LANG.en;
 }
 
-/** ローリング希少性（48h限定）。CAMPAIGN_SCARCITY_VARIANT=fear|authority|elitism で3パターン切り替え */
-function getScarcityLine(lang, slotsLeft) {
+/** 仕手Bot投稿の dangerLabel から希少性・本文パターン（Gemini 3パターン）を選択 */
+const DANGER_LABEL_TO_SCARCITY = {
+  whale_trap: "fear",    // 煽り投稿 → 恐怖訴求（値崩れ前の盾）
+  educational: "authority", // 情報質を謳う投稿 → 権威訴求（構造分析）
+  neutral: "elitism"     // その他・群がり → 選民訴求（生存者枠）
+};
+
+/** ゆらぎ（Jitter）: ラベル固定だとスパム判定・Ad fatigue のリスク。20〜30%で他パターンを混ぜる。Gemini 投下戦略。 */
+const DANGER_LABEL_PATTERN_WEIGHTS = {
+  whale_trap: { fear: 0.70, authority: 0.20, elitism: 0.10 },
+  educational: { fear: 0.20, authority: 0.60, elitism: 0.20 },
+  neutral: { fear: 0.20, authority: 0.30, elitism: 0.50 }
+};
+const PATTERNS = ["fear", "authority", "elitism"];
+
+/** パターン = 1メッセージに集約。3パターン（fear / authority / elitism）のみ。設計: PQT_DESIGN_BASED_ON_GEMINI_ANALYSIS.md */
+const PQT_TEMPLATES_3PATTERNS = {
+  en: {
+    fear: (ctx) => {
+      const hook = ctx.mirrorWords && String(ctx.mirrorWords).trim()
+        ? `Yeah, ${ctx.mirrorWords} gets attention. `
+        : "Yeah, this kind of move gets attention. ";
+      const line = hook + "Before you jump — one structure check so you don't get rekt.";
+      const cta = resolveCta("en", ctx.funnelType || "whop_regular", 0);
+      return line + "\n" + actionLine("en") + "\n" + cta + " -> " + (ctx.link || "");
+    },
+    authority: (ctx) => {
+      const cta = resolveCta("en", ctx.funnelType || "whop_regular", 0);
+      return `Access the "Structure Analysis" that validates the noise. One clear checkpoint can separate avoidable losses from the rest.
+
+${ctx.proofSnippet || ""}
+
+Professional grade intel. ${actionLine("en")}
+${cta} -> ${ctx.link || ""}`;
+    },
+    elitism: (ctx) => {
+      const cta = resolveCta("en", ctx.funnelType || "whop_regular", 0);
+      return `Don't be exit liquidity. Claim your "Survivor Slot" — the top 5% verify before they add size.
+
+${ctx.proofSnippet || ""}
+
+One level worth confirming. ${actionLine("en")}
+${cta} -> ${ctx.link || ""}`;
+    }
+  },
+  ja: {
+    fear: (ctx) => {
+      const hook = ctx.mirrorWords && String(ctx.mirrorWords).trim()
+        ? `確かに${ctx.mirrorWords}、動いてますね。`
+        : "確かに動いてますね。";
+      const line = hook + "その前にここだけ見ておくと損しにくいです。";
+      const cta = resolveCta("ja", ctx.funnelType || "whop_regular", 0);
+      return line + "\n" + actionLine("ja") + "\n" + cta + " -> " + (ctx.link || "");
+    },
+    authority: (ctx) => {
+      const cta = resolveCta("ja", ctx.funnelType || "whop_regular", 0);
+      return `騒乱を静観する「機関レベルの構造分析」へ。一つだけ確認しておくと、手遅れの損失を避けやすいです。
+
+${ctx.proofSnippet || ""}
+
+プロ級の情報。${actionLine("ja")}
+${cta} -> ${ctx.link || ""}`;
+    },
+    elitism: (ctx) => {
+      const cta = resolveCta("ja", ctx.funnelType || "whop_regular", 0);
+      return `「養分」回避。カモにされない上位5%だけが「変わり目」を確認してからサイズを足す。
+
+${ctx.proofSnippet || ""}
+
+確認すべきレベルが一つ。${actionLine("ja")}
+${cta} -> ${ctx.link || ""}`;
+    }
+  },
+  es: {
+    fear: (ctx) => {
+      const hook = ctx.mirrorWords && String(ctx.mirrorWords).trim() ? `Sí, ${ctx.mirrorWords} atrae. ` : "Sí, este movimiento atrae. ";
+      const line = hook + "Antes de entrar — una revisión de estructura para no quedar atrapado en la cima.";
+      const cta = resolveCta("es", ctx.funnelType || "whop_regular", 0);
+      return line + "\n" + actionLine("es") + "\n" + cta + " -> " + (ctx.link || "");
+    },
+    authority: (ctx) => {
+      const cta = resolveCta("es", ctx.funnelType || "whop_regular", 0);
+      return `Accede al "análisis estructural" que valida el ruido. Un punto claro evita pérdidas evitables.\n\n${ctx.proofSnippet || ""}\n\nIntel profesional. ${actionLine("es")}\n${cta} -> ${ctx.link || ""}`;
+    },
+    elitism: (ctx) => {
+      const cta = resolveCta("es", ctx.funnelType || "whop_regular", 0);
+      return `No seas liquidez de salida. El 5% superior verifica antes de aumentar la apuesta.\n\n${ctx.proofSnippet || ""}\n\nUn nivel que confirmar. ${actionLine("es")}\n${cta} -> ${ctx.link || ""}`;
+    }
+  },
+  pt: {
+    fear: (ctx) => {
+      const hook = ctx.mirrorWords && String(ctx.mirrorWords).trim() ? `Sim, ${ctx.mirrorWords} chama. ` : "Sim, esse movimento chama. ";
+      const line = hook + "Antes de entrar — uma checagem de estrutura para não ficar preso no topo.";
+      const cta = resolveCta("pt", ctx.funnelType || "whop_regular", 0);
+      return line + "\n" + actionLine("pt") + "\n" + cta + " -> " + (ctx.link || "");
+    },
+    authority: (ctx) => {
+      const cta = resolveCta("pt", ctx.funnelType || "whop_regular", 0);
+      return `Acesse a "análise estrutural" que valida o ruído. Um ponto claro evita perdas evitáveis.\n\n${ctx.proofSnippet || ""}\n\nIntel profissional. ${actionLine("pt")}\n${cta} -> ${ctx.link || ""}`;
+    },
+    elitism: (ctx) => {
+      const cta = resolveCta("pt", ctx.funnelType || "whop_regular", 0);
+      return `Não seja liquidez de saída. O top 5% verifica antes de aumentar a mão.\n\n${ctx.proofSnippet || ""}\n\nUm nível a confirmar. ${actionLine("pt")}\n${cta} -> ${ctx.link || ""}`;
+    }
+  },
+  ar: {
+    fear: (ctx) => {
+      const hook = ctx.mirrorWords && String(ctx.mirrorWords).trim() ? `أجل، ${ctx.mirrorWords} يلفت. ` : "أجل، هذه الحركة يلفت. ";
+      const line = hook + "قبل القفز — تحقق من البنية مرة واحدة.";
+      const cta = resolveCta("ar", ctx.funnelType || "whop_regular", 0);
+      return line + "\n" + actionLine("ar") + "\n" + cta + " -> " + (ctx.link || "");
+    },
+    authority: (ctx) => {
+      const cta = resolveCta("ar", ctx.funnelType || "whop_regular", 0);
+      return `الوصول لـ"تحليل البنية" الذي يتحقق من الضجيج. نقطة واحدة تقلل الخسائر.\n\n${ctx.proofSnippet || ""}\n\nاحترافي. ${actionLine("ar")}\n${cta} -> ${ctx.link || ""}`;
+    },
+    elitism: (ctx) => {
+      const cta = resolveCta("ar", ctx.funnelType || "whop_regular", 0);
+      return `لا تكن ضحية للتصريف. أفضل 5% يتحققون قبل زيادة الحجم.\n\n${ctx.proofSnippet || ""}\n\nمستوى واحد للتأكيد. ${actionLine("ar")}\n${cta} -> ${ctx.link || ""}`;
+    }
+  },
+  ko: {
+    fear: (ctx) => {
+      const hook = ctx.mirrorWords && String(ctx.mirrorWords).trim() ? `맞아요, ${ctx.mirrorWords} 반응 많죠. ` : "맞아요, 이런 움직임 반응 많죠. ";
+      const line = hook + "그 전에 여기만 확인해 두면 고점에 물리지 마세요.";
+      const cta = resolveCta("ko", ctx.funnelType || "whop_regular", 0);
+      return line + "\n" + actionLine("ko") + "\n" + cta + " -> " + (ctx.link || "");
+    },
+    authority: (ctx) => {
+      const cta = resolveCta("ko", ctx.funnelType || "whop_regular", 0);
+      return `노이즈를 검증하는 "구조 분석" 접근. 한 가지 확인으로 손실을 줄입니다.\n\n${ctx.proofSnippet || ""}\n\n프로급 인텔. ${actionLine("ko")}\n${cta} -> ${ctx.link || ""}`;
+    },
+    elitism: (ctx) => {
+      const cta = resolveCta("ko", ctx.funnelType || "whop_regular", 0);
+      return `출구 유동성 되지 마세요. 상위 5%는 비중 싣기 전 확인합니다.\n\n${ctx.proofSnippet || ""}\n\n확인할 한 레벨. ${actionLine("ko")}\n${cta} -> ${ctx.link || ""}`;
+    }
+  }
+};
+
+function getPatternFromDangerLabel(dangerLabel) {
+  return DANGER_LABEL_TO_SCARCITY[dangerLabel] || "elitism";
+}
+
+/**
+ * dangerLabel に応じた重み付きランダムでパターンを選択（ゆらぎ＝Jitter）。スパム・Ad fatigue 低減。
+ * @param {string} dangerLabel - whale_trap | educational | neutral
+ * @returns {string} "fear" | "authority" | "elitism"
+ */
+function getPatternFromDangerLabelWithJitter(dangerLabel) {
+  const key = String(dangerLabel || "").toLowerCase().trim() || "neutral";
+  const weights = DANGER_LABEL_PATTERN_WEIGHTS[key] || DANGER_LABEL_PATTERN_WEIGHTS.neutral;
+  const r = Math.random();
+  let acc = 0;
+  for (const p of PATTERNS) {
+    acc += weights[p] || 0;
+    if (r < acc) return p;
+  }
+  return "elitism";
+}
+
+/**
+ * ローリング希少性（48h限定）。
+ * - 第3引数が fear|authority|elitism のときはそのパターンをそのまま使用（本文と一致させるため）。
+ * - 第3引数が dangerLabel（whale_trap 等）のときは Jitter でパターンを決定。
+ * - CAMPAIGN_SCARCITY_VARIANT 指定時: 環境変数で全スロット共通に上書き。
+ */
+function getScarcityLine(lang, slotsLeft, dangerLabelOrPattern = null) {
   const langKey = normalizeLangKey(lang);
-  const variant = (process.env.CAMPAIGN_SCARCITY_VARIANT || "").toLowerCase();
+  const envVariant = (process.env.CAMPAIGN_SCARCITY_VARIANT || "").toLowerCase();
+  const isResolvedPattern = dangerLabelOrPattern && PATTERNS.includes(dangerLabelOrPattern);
+  const variantByInput = dangerLabelOrPattern
+    ? (isResolvedPattern ? dangerLabelOrPattern : getPatternFromDangerLabelWithJitter(dangerLabelOrPattern))
+    : null;
+  const variant = (envVariant && SCARCITY_VARIANTS[envVariant]) ? envVariant : variantByInput;
   const variantMap = variant && SCARCITY_VARIANTS[variant] ? SCARCITY_VARIANTS[variant] : null;
 
   if (variantMap && (variantMap[langKey] || variantMap.en)) {
@@ -863,7 +1058,7 @@ ${cta} -> ${link}`;
  */
 const BOT_AGREEMENT_HOOKS = {
   en: [
-    (ctx) => (ctx.mirrorWords ? `Yeah, ${ctx.mirrorWords} gets attention. ` : "Yeah, this kind of move gets attention. ") + "Before you jump — one structure check so you don't get caught wrong.",
+    (ctx) => (ctx.mirrorWords ? `Yeah, ${ctx.mirrorWords} gets attention. ` : "Yeah, this kind of move gets attention. ") + "Before you jump — one structure check so you don't get rekt.",
     () => "This move is hot. Before FOMO hits — check where it can flip so you're not on the wrong side.",
     () => "Pump vibes are real. One quick check on structure and you're less likely to chase the top.",
     () => "Numbers don't lie — they're moving. Before you add size, one level to verify keeps drawdowns smaller."
@@ -919,4 +1114,14 @@ for (const lang of Object.keys(PQT_TEMPLATES)) {
   }
 }
 
-module.exports = { PQT_TEMPLATES, PQT_TEMPLATES_BOT, buildBotTemplate, getPromoLine, getMinimalLine, getScarcityLine };
+module.exports = {
+  PQT_TEMPLATES,
+  PQT_TEMPLATES_BOT,
+  PQT_TEMPLATES_3PATTERNS,
+  getPatternFromDangerLabel,
+  getPatternFromDangerLabelWithJitter,
+  buildBotTemplate,
+  getPromoLine,
+  getMinimalLine,
+  getScarcityLine
+};
