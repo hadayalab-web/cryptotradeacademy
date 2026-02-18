@@ -77,7 +77,8 @@ async function handler(req, res) {
     process.env.X_POSTING_DRY_RUN === "true" ||
     process.env.X_POSTING_DRY_RUN === "1";
   const assetParam = (req.query?.asset || "BTC").toUpperCase();
-  const langParam = req.query?.lang;
+  let langParam = (req.query?.lang || "").toString().toLowerCase().trim() || null;
+  if (langParam === "pt-br") langParam = "pt"; // 他モジュール（cron / Regular Briefing）は pt-br を使うことがあるので正規化
   const useLangByUtc = process.env.BUZZWEAVE_LANG_BY_UTC !== "false" && process.env.BUZZWEAVE_LANG_BY_UTC !== "0";
   const langFilter = langParam && BUZZWEAVE_LANGS.includes(langParam)
     ? langParam
