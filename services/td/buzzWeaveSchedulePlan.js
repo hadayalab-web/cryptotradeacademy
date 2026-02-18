@@ -24,10 +24,14 @@ function getLangByUtcHour(utcHour) {
 function getScheduleParams() {
   const campaign =
     process.env.CAMPAIGN_PAID_FOCUS === "true" || process.env.CAMPAIGN_PAID_FOCUS === "1";
-  const intervalMin = Number(process.env.BUZZWEAVE_RUN_INTERVAL_MINUTES) || (campaign ? 15 : 0);
+  const intervalMin = Number(process.env.BUZZWEAVE_RUN_INTERVAL_MINUTES) || (campaign ? 30 : 0);
   const runsPerDay =
     Number(process.env.BUZZWEAVE_RUNS_PER_DAY_FOR_TARGET) ||
-    (campaign ? (intervalMin <= 15 ? 96 : 24) : 8);
+    (campaign
+      ? intervalMin > 0
+        ? Math.min(96, Math.max(24, Math.round(1440 / intervalMin)))
+        : 24
+      : 8);
   const kpiMin = Number(process.env.BUZZWEAVE_48H_REPLY_KPI_MIN || 1500);
   const kpiMax = Number(process.env.BUZZWEAVE_48H_REPLY_KPI_MAX || 2000);
   const dailyFloor = Math.round(kpiMin / 2);

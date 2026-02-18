@@ -28,10 +28,10 @@ function getVolatilityFromSnapshot(snapshot) {
  * low=6（6言語1周）, medium=7, high=8（窓いっぱい）。env で上書き可。
  */
 function determineDailyRunTarget(snapshot) {
-  // キャンペーン時: 15 分間隔なら 96 Run/日（4/h）、1h 間隔なら 24。BUZZWEAVE_DAILY_RUN_CAMPAIGN で上書き可。
+  // キャンペーン時: 間隔に応じて Run/日（15分→96, 30分→48, 1h→24）。BUZZWEAVE_DAILY_RUN_CAMPAIGN で上書き可。
   if (process.env.CAMPAIGN_PAID_FOCUS === "true" || process.env.CAMPAIGN_PAID_FOCUS === "1") {
-    const intervalMin = Number(process.env.BUZZWEAVE_RUN_INTERVAL_MINUTES) || 15;
-    const defaultCap = intervalMin <= 15 ? 96 : 24;
+    const intervalMin = Number(process.env.BUZZWEAVE_RUN_INTERVAL_MINUTES) || 30;
+    const defaultCap = intervalMin > 0 ? Math.min(96, Math.max(24, Math.round(1440 / intervalMin))) : 24;
     return Number(process.env.BUZZWEAVE_DAILY_RUN_CAMPAIGN) || defaultCap;
   }
   const low = Number(process.env.BUZZWEAVE_DAILY_RUN_LOW) || 6;

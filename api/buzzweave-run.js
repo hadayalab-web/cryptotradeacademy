@@ -32,11 +32,10 @@ function getLangByUtcHour() {
   const utcHour = new Date().getUTCHours();
   return getLangByUtcHourFromSchedule(utcHour);
 }
-// 対象枯渇を防ぐため 15 分ごとに区切る（キャンペーン時デフォルト）。Cron は */15 に変更済み。
-// BUZZWEAVE_RUN_INTERVAL_MINUTES=60 で 1h に戻す。通常時は 3h。
+// キャンペーン時は 30 分間隔（Cron */30）。BUZZWEAVE_RUN_INTERVAL_MINUTES で上書き可（60=1h 等）。通常時は 3h。
 const campaign = process.env.CAMPAIGN_PAID_FOCUS === "true" || process.env.CAMPAIGN_PAID_FOCUS === "1";
 const RUN_INTERVAL_MINUTES =
-  Number(process.env.BUZZWEAVE_RUN_INTERVAL_MINUTES) || (campaign ? 15 : 0);
+  Number(process.env.BUZZWEAVE_RUN_INTERVAL_MINUTES) || (campaign ? 30 : 0);
 const MIN_RUN_INTERVAL_HOURS =
   RUN_INTERVAL_MINUTES > 0
     ? RUN_INTERVAL_MINUTES / 60

@@ -102,8 +102,9 @@ const RUNS_PER_DAY_FOR_TARGET = Math.max(
   (() => {
     const campaign = process.env.CAMPAIGN_PAID_FOCUS === "true" || process.env.CAMPAIGN_PAID_FOCUS === "1";
     if (!campaign) return 8;
-    const intervalMin = Number(process.env.BUZZWEAVE_RUN_INTERVAL_MINUTES) || 15;
-    return intervalMin <= 15 ? 96 : 24;
+    const intervalMin = Number(process.env.BUZZWEAVE_RUN_INTERVAL_MINUTES) || 30;
+    if (intervalMin <= 0) return 24;
+    return Math.min(96, Math.max(24, Math.round(1440 / intervalMin)));
   })()
 );
 const MAX_CAP_PER_RUN = Math.max(1, Number(process.env.BUZZWEAVE_MAX_CAP_PER_RUN || 9999));
