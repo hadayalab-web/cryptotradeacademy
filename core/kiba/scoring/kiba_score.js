@@ -1,13 +1,14 @@
 /**
  * KIBA score (crypto-weighted). Internal only.
+ * Algo 未実装の間は algo の 0.10 を liquidity に振り、異常時の流動性シグナルを強化。
  */
 function computeKibaScore(detectors) {
   const w = {
     flow: 0.25,
-    liquidity: 0.1,
+    liquidity: 0.2,
     sentiment: 0.2,
     whale: 0.3,
-    algo: 0.1,
+    algo: 0,
     retail: 0.05
   };
   const d = detectors || {};

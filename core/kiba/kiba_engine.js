@@ -14,7 +14,7 @@ const { evaluateKibaImpact } = require("./evaluator/kiba_trigger");
 const SUPPRESSION_WINDOW_MS = 60 * 60 * 1000; // 1h cooldown
 const LOW_VOLATILITY_THRESHOLD = 0.5; // |change24h| < this → suppress
 const X_VOLUME_MIN = 10; // avgVolume or postVolume below → suppress
-const WHALE_SIGMA = 0.5; // normalized whale imbalance within threshold → suppress
+const WHALE_SIGMA = 0.4; // normalized whale imbalance within threshold → suppress (0.4 = allow ~40% bias)
 
 function toNum(v, fallback) {
   const n = Number(v);
@@ -44,8 +44,11 @@ function snapshotToDetectorInputs(btcSnapshot) {
   const bullishDrop = toNum(x.bullishDrop ?? x.retailBias, 0);
 
   const change24h = toNum(raw.change24h, 0);
+  const change5min = toNum(raw.change5min ?? raw.change_5m, NaN);
   const netflowChange = 0;
-  const priceImpact = Math.min(1, Math.abs(change24h) / 10);
+  const priceImpact = Number.isFinite(change5min)
+    ? Math.min(1, Math.abs(change5min) * 20)
+    : Math.min(1, Math.abs(change24h) / 10);
   const flowTotal = Math.abs(inflow) + Math.abs(outflow);
   const volumeSpike = flowTotal > 0 ? Math.min(1, Math.log10(flowTotal + 1) / 8) : 0;
 
@@ -129,13 +132,17 @@ function runKibaEngine({ btcSnapshot = null, macroSnapshot = null, lastKibaSnaps
   if (triggered && lastKibaSnapshot && typeof lastKibaSnapshot === "object") {
     const lastTime = new Date(lastKibaSnapshot.as_of_utc || 0).getTime();
     const nowTime = new Date(btcSnapshot.as_of_utc || Date.now()).getTime();
-    if (
+    const withinCooldown =
       Number.isFinite(lastTime) &&
       Number.isFinite(nowTime) &&
       nowTime - lastTime >= 0 &&
-      nowTime - lastTime < SUPPRESSION_WINDOW_MS
-    ) {
-      triggered = false;
+      nowTime - lastTime < SUPPRESSION_WINDOW_MS;
+    if (withinCooldown) {
+      const levelRank = { CRITICAL: 3, HIGH: 2, ELEVATED: 1, NONE: 0 };
+      const lastLevel = String(lastKibaSnapshot.level || "NONE").toUpperCase();
+      const currentRank = levelRank[impact.level] ?? 0;
+      const lastRank = levelRank[lastLevel] ?? 0;
+      if (currentRank <= lastRank) triggered = false;
     }
   }
 

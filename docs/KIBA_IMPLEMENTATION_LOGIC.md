@@ -14,7 +14,7 @@ btcSnapshot (+ NASDAQ/GOLD) 取得
   → applySuppressionFilters(score, inputs)   // 条件付きで 30 キャップ
   → evaluateKibaImpact(kibaScore)           // スコア → level / intensity
   → triggered = (level が CRITICAL/HIGH/ELEVATED) かつ kibaScore >= 65
-  → 時間窓サプレッション: 直近 lastKiba から 1h 以内なら triggered = false
+  → 時間窓サプレッション: 直近 lastKiba から 1h 以内なら triggered = false（ただし今回の level が前回より高い場合は発火許可）
   → triggered 時のみ KV 保存 + dispatchPayload.alerts 生成 → cron が Telegram 送信
 ```
 
@@ -30,7 +30,7 @@ btcSnapshot (+ NASDAQ/GOLD) 取得
 | **whale** | whaleIn, whaleOut, mean=0, std=1 | inflow / outflow（同上） |
 | **sentiment** | postVolume, avgVolume, fearScore | xSentiment.postVolume/volume, avgVolume/postVolume。fearScore = raw.fng から 0〜1（25以下→1, 75以上→0, それ以外は (75-fng)/50） |
 | **retail** | panicKeywords, bullishDrop | xSentiment.panicKeywords/panicRatio, bullishDrop/retailBias |
-| **liquidity** | netflowChange=0, priceImpact, volumeSpike | priceImpact = min(1, \|change24h\|/10)。volumeSpike = flowTotal から log10 スケールで 0〜1（flowTotal が 0 のとき 0） |
+| **liquidity** | netflowChange=0, priceImpact, volumeSpike | priceImpact = raw.change5min があれば min(1, \|change5min\|×20)、なければ min(1, \|change24h\|/10)。volumeSpike = flowTotal から log10 スケールで 0〜1 |
 | **algo** | flowPriceCorr=0, periodicWhale=0 | 現状は常に 0（将来用） |
 
 **メタ（サプレッション用）**
@@ -85,19 +85,20 @@ btcSnapshot (+ NASDAQ/GOLD) 取得
 
 ## 4. スコア集約（computeKibaScore）
 
-**重み（crypto-weighted）**
+**重み（crypto-weighted）**  
+Algo 未実装の間は algo の 0.10 を liquidity に振り、流動性シグナルを強化。
 
 | 検知器 | 重み |
 |--------|------|
 | flow | 0.25 |
 | whale | 0.30 |
 | sentiment | 0.20 |
-| liquidity | 0.10 |
-| algo | 0.10 |
+| liquidity | 0.20 |
+| algo | 0 |
 | retail | 0.05 |
 
 **式**:  
-`score = flow×0.25 + liquidity×0.1 + sentiment×0.2 + whale×0.3 + algo×0.1 + retail×0.05`  
+`score = flow×0.25 + liquidity×0.2 + sentiment×0.2 + whale×0.3 + algo×0 + retail×0.05`  
 各検知器は 0〜5 なので加重合計は 0〜5。これを **×20** して **0〜100** にスケールし、clamp(0, 100) する。
 
 ---
@@ -108,14 +109,14 @@ btcSnapshot (+ NASDAQ/GOLD) 取得
 
 - `LOW_VOLATILITY_THRESHOLD = 0.5` … \|change24h\| < 0.5 なら低ボラとみなす
 - `X_VOLUME_MIN = 10` … postVolume または avgVolume が 10 未満なら X ボリューム不足
-- `WHALE_SIGMA = 0.5` … whaleImbalanceNorm が 0.5 以下ならホエール偏り小
+- `WHALE_SIGMA = 0.4` … whaleImbalanceNorm が 0.4 以下ならホエール偏り小
 
 **ロジック**: 以下のいずれかを満たす場合、スコアを **min(score, 30)** にキャップする。
 
 1. `!hasCq` … CQ データなし
 2. `avgVolume < 10 || postVolume < 10`
 3. `|change24h| < 0.5`
-4. `whaleImbalanceNorm <= 0.5`
+4. `whaleImbalanceNorm <= 0.4`
 
 → 誤検出を抑え、スコアが高く出ても 30 以下に抑える。
 
@@ -145,8 +146,8 @@ btcSnapshot (+ NASDAQ/GOLD) 取得
 **時間窓サプレッション**:
 
 - `SUPPRESSION_WINDOW_MS = 60 * 60 * 1000`（1 時間）
-- `lastKibaSnapshot` が存在し、その `as_of_utc` と現在の `btcSnapshot.as_of_utc` の差が **1 時間未満** なら、`triggered` を **false** に上書き。
-- 直近 1 時間以内の重複アラートを防ぐ。
+- `lastKibaSnapshot` が存在し、その `as_of_utc` と現在の `btcSnapshot.as_of_utc` の差が **1 時間未満** のとき、原則として `triggered` を **false** に上書き（重複アラート防止）。
+- **例外**: 今回の `impact.level` が前回の `lastKibaSnapshot.level` より**高い**場合は、クールダウンを無視して発火する（例: 15 分前に ELEVATED 配信済みでも、今回 CRITICAL なら即時配信）。
 
 ---
 
@@ -168,7 +169,7 @@ btcSnapshot (+ NASDAQ/GOLD) 取得
 | SUPPRESSION_WINDOW_MS | 3600000 (1h) | kiba_engine.js |
 | LOW_VOLATILITY_THRESHOLD | 0.5 | kiba_engine.js |
 | X_VOLUME_MIN | 10 | kiba_engine.js |
-| WHALE_SIGMA | 0.5 | kiba_engine.js |
+| WHALE_SIGMA | 0.4 | kiba_engine.js |
 | 発火スコア閾値 | 65 | kiba_engine.js (triggered), kiba_trigger.js (ELEVATED 下限) |
 | CRITICAL 下限 | 85 | kiba_trigger.js |
 | HIGH 下限 | 75 | kiba_trigger.js |
