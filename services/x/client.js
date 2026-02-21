@@ -1,8 +1,7 @@
 // services/x/client.js
 // X (Twitter) API v2 クライアント - OAuth 1.0a User Context認証
 //
-// 【OS 原則】X への write（postTweet / replyToTweet / postQuoteTweet）は
-// services/td/buzzWeaveEngine.js 経由（api/buzzweave-run.js）のみで行う。
+// 【OS 原則】X への write は postTweet（スタンドアロン投稿）のみ。引用リポスト・リプライは廃止。DM はアフィリスカウト用に別実装。
 // 他の呼び出し元を追加しないこと。
 
 const OAuth = require("oauth-1.0a");
@@ -799,164 +798,6 @@ function isRetryableError(error) {
 }
 
 /**
- * ツイートにリプライを投稿
- * @param {string} text - リプライ本文
- * @param {string} inReplyToTweetId - リプライ先のツイートID
- * @param {string[]} mediaIds - 添付するメディアIDの配列 (オプション)
- * @returns {Promise<Object>} 投稿結果 {id, text}
- */
-async function replyToTweet(text, inReplyToTweetId, mediaIds = []) {
-  if (!text || text.trim().length === 0) {
-    throw new Error("Reply text is required");
-  }
-  if (!inReplyToTweetId) {
-    throw new Error("inReplyToTweetId is required");
-  }
-
-  // X Premium: 140/280 制限は無効。ローカルで勝手に切り詰めず、APIハード上限のみ検証
-  assertWithinLongPostLimit(text, "Reply text");
-
-  // X API v2では、in_reply_to_tweet_idは文字列である必要がある
-  const tweetIdString = String(inReplyToTweetId).trim();
-  if (!tweetIdString || tweetIdString === "null" || tweetIdString === "undefined") {
-    throw new Error(`Invalid inReplyToTweetId: ${inReplyToTweetId}`);
-  }
-
-  const body = {
-    text: text.trim(),
-    reply: {
-      in_reply_to_tweet_id: tweetIdString
-    }
-  };
-
-  if (mediaIds && mediaIds.length > 0) {
-    body.media = {
-      media_ids: mediaIds
-    };
-  }
-
-  try {
-    const response = await xApiRequest("/tweets", {
-      method: "POST",
-      body
-    });
-
-    console.log(`[X API] Reply posted successfully: ${response.data?.id}`);
-    return {
-      id: response.data?.id,
-      text: response.data?.text
-    };
-  } catch (error) {
-    console.error("[X API] Failed to reply to tweet:", error.message);
-    throw error;
-  }
-}
-
-/**
- * ツイートに引用リポストを投稿（リトライ対応）
- * @param {string} text - 引用リポスト本文
- * @param {string} quoteTweetId - 引用するツイートID
- * @param {string[]} mediaIds - 添付するメディアIDの配列 (オプション)
- * @param {number} maxRetries - 最大リトライ回数（デフォルト: 3）
- * @returns {Promise<Object>} 投稿結果 {id, text}
- */
-async function postQuoteTweet(text, quoteTweetId, mediaIds = [], maxRetries = 3) {
-  if (!text || text.trim().length === 0) {
-    throw new Error("Quote tweet text is required");
-  }
-  if (!quoteTweetId) {
-    throw new Error("quoteTweetId is required");
-  }
-
-  // X Premium: 140/280 制限は無効。ローカルで勝手に切り詰めず、APIハード上限のみ検証
-  assertWithinLongPostLimit(text, "Quote tweet text");
-
-  const body = {
-    text: text.trim(),
-    quote_tweet_id: quoteTweetId
-  };
-
-  if (mediaIds && mediaIds.length > 0) {
-    body.media = {
-      media_ids: mediaIds
-    };
-  }
-
-  try {
-    const response = await xApiRequest(
-      "/tweets",
-      {
-        method: "POST",
-        body
-      },
-      maxRetries
-    );
-
-    // 🔍 重要: レスポンスの検証を強化（空振りを検出）
-    // P0 FIX: レスポンス構造とエラーフィールドを厳密に検証
-    if (!response) {
-      console.error(`[X API] ❌ Empty response from xApiRequest:`, {
-        body,
-        timestamp: new Date().toISOString()
-      });
-      throw new Error(`Empty response from xApiRequest`);
-    }
-
-    // X API v2のエラーレスポンス形式を確認（xApiRequestで既にチェック済みだが、念のため）
-    if (response.errors && Array.isArray(response.errors) && response.errors.length > 0) {
-      const errorMessages = response.errors.map((e) => `${e.code}: ${e.message}`).join(", ");
-      console.error(`[X API] ❌ Response contains errors field:`, {
-        errors: response.errors,
-        fullResponse: response,
-        body,
-        timestamp: new Date().toISOString()
-      });
-      throw new Error(`X API Response Errors: ${errorMessages} - ${JSON.stringify(response)}`);
-    }
-
-    if (!response.data) {
-      console.error(`[X API] ❌ Invalid response structure (missing data field):`, {
-        response,
-        body,
-        timestamp: new Date().toISOString()
-      });
-      throw new Error(
-        `Invalid response structure (missing data field): ${JSON.stringify(response)}`
-      );
-    }
-
-    if (!response.data.id) {
-      console.error(`[X API] ❌ Response missing tweet ID:`, {
-        response,
-        body,
-        timestamp: new Date().toISOString()
-      });
-      throw new Error(`Response missing tweet ID: ${JSON.stringify(response)}`);
-    }
-
-    console.log(`[X API] ✅ Quote tweet posted successfully:`, {
-      tweetId: response.data.id,
-      text: response.data.text,
-      timestamp: new Date().toISOString(),
-      fullResponse: response // デバッグ用に完全なレスポンスをログに記録
-    });
-
-    return {
-      id: response.data.id,
-      text: response.data.text
-    };
-  } catch (error) {
-    console.error("[X API] ❌ Failed to post quote tweet:", {
-      error: error.message,
-      stack: error.stack?.substring(0, 500),
-      body,
-      timestamp: new Date().toISOString()
-    });
-    throw error;
-  }
-}
-
-/**
  * トレンドを取得（X API v1.1を使用）
  * @param {number} woeid - Where On Earth ID（1 = 全世界、23424856 = 日本など）
  * @returns {Promise<Array>} トレンド情報の配列
@@ -1031,8 +872,6 @@ async function checkXApiCredits() {
 module.exports = {
   xApiRequest,
   postTweet,
-  replyToTweet,
-  postQuoteTweet,
   uploadMedia,
   uploadVideo,
   getUserByUsername,

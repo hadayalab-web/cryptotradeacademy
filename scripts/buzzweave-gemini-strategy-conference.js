@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * BuzzWeave：Gemini（CMO）と「仕手Botに負けず、彼らを利用する」戦略協議
+ * 【Gemini CMO 役割は終了】通常運用では使わない。必要時のみ手動実行。→ docs/BUZZWEAVE_GEMINI_CMO_ENDED.md
  * 実行: node scripts/buzzweave-gemini-strategy-conference.js
  * 出力: docs/ai-analysis-results/BUZZWEAVE_CMO_STRATEGY_CONFERENCE_YYYY-MM-DDTHH-mm-ss.md
  */

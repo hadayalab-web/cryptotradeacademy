@@ -3509,15 +3509,17 @@ Trap Defense BTCの強さは、単発機能でなく**Porterの活動システ�
 
 ---
 
-## 🤝 アフィリエイト戦略（MCPサーバー最大限活用）
+## 🤝 アフィリエイト戦略
 
-### MCPアフィリエイター発掘システム
+**メイン戦略（2026 大幅アップデート）**: **X で EN/ES/PT/AR/KO/JA の高品質アフィリエイターを DM でスカウト → FirstPromoter に順次登録 → Whop プロダクトを販売してもらう**。詳細は **[AFFILIATE_STRATEGY_X_DM_FIRSTPROMOTER_WHOP.md](./AFFILIATE_STRATEGY_X_DM_FIRSTPROMOTER_WHOP.md)** を参照。設定・文案は `config/affiliateScoutConfig.js` と `config/affiliateScoutDmTemplates.js`。
+
+### MCPアフィリエイター発掘システム（従来・補助）
 
 **3つのMCPサーバー連携**:
 
 1. **whop-affiliate-monitor MCP**: 候補検索・CVRスコア計算
 2. **telegram-affiliate-dm MCP**: 言語別DM送信
-3. **phase7-affiliate MCP**: 統合実行（Notion保存、Whop連動、進捗Database作成）
+3. **phase7-affiliate MCP**: 統合実行（Supabase/KV 保存、Whop連動、進捗DB作成）。※ Notion は利用しない。
 
 ### バッチ検索戦略
 
@@ -3536,9 +3538,9 @@ candidates = mcp_whop-affiliate-monitor_monitor_affiliates_batch(
 
 ```python
 top_100 = mcp_whop-affiliate-monitor_generate_cvr_top100(
-    database_id=notion_affiliate_db_id,
+    database_id=affiliate_db_id,  # Supabase 等
     top_n=100,
-    update_notion=True
+    update_db=True
 )
 # 優先順位: CVR 9-10（最優先）→ 7-8（高優先）→ 5-6（中優先）→ 3-4（低優先）
 ```
@@ -3548,7 +3550,7 @@ top_100 = mcp_whop-affiliate-monitor_generate_cvr_top100(
 1. **日次バッチ検索**（Vercel Cron）
 2. **CVRスコア計算・ランキング更新**（自動）
 3. **優先順位別DM送信**（telegram-affiliate-dm MCP）
-4. **進捗トラッキング**（Notion Database）
+4. **進捗トラッキング**（Supabase / KV）
 5. **アフィリエイトリンク生成・配布**（Whop MCP）
 
 ---

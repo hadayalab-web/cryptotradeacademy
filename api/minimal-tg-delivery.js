@@ -35,12 +35,11 @@ function resolveMinimalChatId(lang) {
   return process.env.TELEGRAM_CHAT_ID_MINIMAL_EN || process.env.TELEGRAM_CHAT_ID_MINIMAL || null;
 }
 
-const { getMinimalVersionCheckoutUrl, getWhopProductUrl, getPromoCode } = require("../services/telegram/whop-links");
-const { pickVidalyticsLink } = require("../config/buzzweaveLinks");
+const { getMinimalVersionCheckoutUrl, getWhopProductUrl, getPromoCode, getVidalyticsLink } = require("../services/telegram/whop-links");
 
 /** 有料版（Regular Briefing）アップセル文言：3行構成（見出し／視聴／申し込み） */
 function getUpsellBlock(lang = "en") {
-  const vidUrl = pickVidalyticsLink(lang === "pt-br" ? "pt" : lang, "regular");
+  const vidUrl = getVidalyticsLink(lang === "pt-br" ? "pt" : lang, "regular");
   const whopUrl = getWhopProductUrl(lang);
   const code = (getPromoCode() || "defend50").toUpperCase();
   const heading = {

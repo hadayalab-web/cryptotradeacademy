@@ -6,60 +6,6 @@
  *   node scripts/test_critical_functions.js
  */
 
-const { replyToTweet } = require("../services/x/client");
-
-/**
- * replyToTweet関数の引数順序テスト
- */
-async function testReplyToTweetArguments() {
-  console.log("🔍 replyToTweet関数の引数順序をテスト...\n");
-
-  // モック関数（実際のAPI呼び出しはしない）
-  const originalReplyToTweet = replyToTweet;
-  let lastCallArgs = null;
-
-  // 関数をモック
-  const mockReplyToTweet = async (text, inReplyToTweetId) => {
-    lastCallArgs = { text, inReplyToTweetId };
-    return { success: true };
-  };
-
-  // テストケース1: 正しい順序
-  console.log("テストケース1: 正しい順序 (text, inReplyToTweetId)");
-  await mockReplyToTweet("Test reply", "1234567890");
-
-  if (lastCallArgs.text === "Test reply" && lastCallArgs.inReplyToTweetId === "1234567890") {
-    console.log("   ✅ OK: 引数の順序が正しい");
-  } else {
-    console.error("   ❌ FAIL: 引数の順序が間違っている");
-    console.error(`   期待値: text='Test reply', inReplyToTweetId='1234567890'`);
-    console.error(
-      `   実際: text='${lastCallArgs.text}', inReplyToTweetId='${lastCallArgs.inReplyToTweetId}'`
-    );
-    return false;
-  }
-
-  // テストケース2: 間違った順序の検出能力を確認
-  // モックで (tweetId, text) の順で呼ぶと、検出機構で引数がスワップされていると判定できることを確認
-  console.log("\nテストケース2: 間違った順序 (inReplyToTweetId, text) - 検出能力の確認");
-  lastCallArgs = null;
-
-  await mockReplyToTweet("1234567890", "Test reply"); // 間違った順序でシミュレート
-
-  // 検出成功: 第1引数がtweetId形式（数値のみ）になっていれば、誤用パターンを検出できた証拠
-  const detectedWrongOrder =
-    lastCallArgs.text === "1234567890" && lastCallArgs.inReplyToTweetId === "Test reply";
-
-  if (detectedWrongOrder) {
-    console.log("   ✅ OK: 間違った順序を正しく検出できることを確認");
-  } else {
-    console.error("   ❌ FAIL: 間違った順序の検出が期待通りに動作していません");
-    return false;
-  }
-
-  return true;
-}
-
 /**
  * 定数の一貫性テスト
  * BuzzWeave 単体OS: x-post-free-report.js は廃止のためスキップ。ファイルが存在する場合のみ検証。
@@ -113,19 +59,9 @@ async function testCriticalFunctions() {
 
   const results = [];
 
-  // 1. replyToTweet関数の引数順序テスト
   try {
-    const result1 = await testReplyToTweetArguments();
-    results.push({ name: "replyToTweet引数順序", passed: result1 });
-  } catch (error) {
-    console.error("❌ エラー:", error.message);
-    results.push({ name: "replyToTweet引数順序", passed: false, error: error.message });
-  }
-
-  // 2. 定数の一貫性テスト
-  try {
-    const result2 = testConstantsConsistency();
-    results.push({ name: "定数の一貫性", passed: result2 });
+    const result1 = testConstantsConsistency();
+    results.push({ name: "定数の一貫性", passed: result1 });
   } catch (error) {
     console.error("❌ エラー:", error.message);
     results.push({ name: "定数の一貫性", passed: false, error: error.message });

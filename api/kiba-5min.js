@@ -127,21 +127,6 @@ module.exports = async function handler(req, res) {
       asset: "BTC"
     });
 
-    // BuzzWeave 同期用: 毎回活動度を KV に書き、リプライ run が「仕手Bot活発窓」を参照できるようにする
-    const KIBA_ACTIVITY_KV_KEY = "kiba:activity:latest";
-    const KIBA_ACTIVITY_TTL = 15 * 60; // 15分
-    try {
-      await kv.set(
-        KIBA_ACTIVITY_KV_KEY,
-        JSON.stringify({
-          score: cqOnlyResult.kibaScore ?? 0,
-          level: cqOnlyResult.impact?.level ?? "NONE",
-          as_of_utc: btcSnapshot?.as_of_utc || new Date().toISOString()
-        }),
-        { ex: KIBA_ACTIVITY_TTL }
-      );
-    } catch (_) {}
-
     const cqAnomaly = (cqOnlyResult.kibaScore || 0) >= CQ_ANOMALY_KIBA_SCORE_THRESHOLD;
     if (!cqAnomaly) {
       return res.status(200).json({

@@ -130,14 +130,16 @@ async function handlePurchaseEvent(event) {
       timestamp: new Date().toISOString(),
     });
     
-    // 購入情報を抽出
+    // 購入情報を抽出（checkout / membership / payment / invoice に対応）
     const checkout = data?.checkout || data;
     const membership = data?.membership || data?.membership_data;
-    const user = data?.user || checkout?.user || membership?.user;
+    const payment = data?.payment;
+    const invoice = data?.invoice;
+    const user = data?.user || checkout?.user || membership?.user || payment?.user || invoice?.user;
     
     // UTMパラメータを取得（referrer_urlまたはmetadataから）
     const referrerUrl = checkout?.referrer_url || checkout?.metadata?.referrer_url;
-    const metadata = checkout?.metadata || membership?.metadata || {};
+    const metadata = checkout?.metadata || membership?.metadata || payment?.metadata || invoice?.metadata || {};
     
     // UTMパラメータを解析
     let utmSource = null;
@@ -145,6 +147,7 @@ async function handlePurchaseEvent(event) {
     let utmCampaign = null;
     let utmContent = null;
     
+    let refIdFromReferrer = null;
     if (referrerUrl) {
       try {
         const url = new URL(referrerUrl);
@@ -152,10 +155,15 @@ async function handlePurchaseEvent(event) {
         utmMedium = url.searchParams.get('utm_medium');
         utmCampaign = url.searchParams.get('utm_campaign');
         utmContent = url.searchParams.get('utm_content');
+        refIdFromReferrer = url.searchParams.get('ref') || url.searchParams.get('ref_id');
       } catch (urlError) {
         console.warn('[Whop Webhook] ⚠️ Failed to parse referrer URL:', urlError.message);
       }
     }
+    
+    // FirstPromoter 用: ref_id / promo_code（紹介紐付け）
+    const refId = metadata.ref_id || metadata.ref || refIdFromReferrer;
+    const promoCode = checkout?.promo_code || membership?.promo_code || payment?.promo_code || invoice?.promo_code || metadata.promo_code;
     
     // metadataからもUTMパラメータを取得
     if (!utmSource && metadata.utm_source) utmSource = metadata.utm_source;
@@ -166,17 +174,18 @@ async function handlePurchaseEvent(event) {
     // X投稿情報を抽出
     const xPostInfo = extractXPostInfoFromUtm(utmContent);
     
-    // コンバージョン情報を構築
+    // コンバージョン情報を構築（payment / invoice の amount も取得）
+    const amountRaw = checkout?.total ?? membership?.renewal_price ?? payment?.amount ?? invoice?.amount ?? payment?.total ?? invoice?.total;
     const conversionData = {
       eventType: type,
-      checkoutId: checkout?.id || membership?.checkout_id,
-      membershipId: membership?.id,
+      checkoutId: checkout?.id || membership?.checkout_id || payment?.checkout_id || invoice?.checkout_id,
+      membershipId: membership?.id || payment?.membership_id || invoice?.membership_id,
       userId: user?.id,
       userEmail: user?.email,
-      planId: checkout?.plan_id || membership?.plan_id,
-      productId: checkout?.product_id || membership?.product_id,
-      amount: checkout?.total || membership?.renewal_price,
-      currency: checkout?.currency || membership?.currency || 'USD',
+      planId: checkout?.plan_id || membership?.plan_id || payment?.plan_id || invoice?.plan_id,
+      productId: checkout?.product_id || membership?.product_id || payment?.product_id || invoice?.product_id,
+      amount: amountRaw,
+      currency: checkout?.currency || membership?.currency || payment?.currency || invoice?.currency || 'USD',
       utmSource,
       utmMedium,
       utmCampaign,
@@ -213,6 +222,33 @@ async function handlePurchaseEvent(event) {
       console.log(`[Whop Webhook] ✅ KPI conversion recorded: ${conversionType} on ${dateString}`);
     } catch (kpiError) {
       console.warn(`[Whop Webhook] ⚠️ Failed to record KPI conversion:`, kpiError.message);
+    }
+    
+    // FirstPromoter: 紹介売上がある場合のみ track/sale（ref_id または promo_code が取れたとき）
+    const amountNum = Number(conversionData.amount);
+    if ((refId || promoCode) && amountNum > 0) {
+      try {
+        const { trackSale } = require('../services/firstpromoter/trackSale');
+        const currency = (conversionData.currency || 'USD').toUpperCase();
+        const amountForFp = currency === 'JPY' ? Math.round(amountNum) : Math.round(amountNum * 100);
+        const eventId = conversionData.checkoutId || conversionData.membershipId || `whop_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        const fpResult = await trackSale({
+          event_id: String(eventId),
+          amount: amountForFp,
+          email: conversionData.userEmail || undefined,
+          ref_id: refId || undefined,
+          promo_code: promoCode || undefined,
+          currency,
+          plan: conversionData.planId || undefined
+        });
+        if (fpResult.ok) {
+          console.log('[Whop Webhook] ✅ FirstPromoter track/sale sent:', fpResult.status, eventId);
+        } else {
+          console.warn('[Whop Webhook] FirstPromoter track/sale failed:', fpResult.error);
+        }
+      } catch (fpErr) {
+        console.warn('[Whop Webhook] FirstPromoter track/sale error:', fpErr?.message);
+      }
     }
     
     // KVストレージに保存（コンバージョン追跡）
@@ -373,12 +409,15 @@ async function handler(req, res) {
       timestamp: new Date().toISOString(),
     });
     
-    // 購入イベントを処理
+    // 購入イベントを処理（ドット形式とアンダースコア形式の両方に対応。Whop の仕様に応じて追加可能）
     const purchaseEventTypes = [
       'checkout.completed',
       'membership.created',
       'membership.renewed',
       'membership.activated',
+      'membership_activated',
+      'payment_succeeded',
+      'invoice_paid',
     ];
     
     if (purchaseEventTypes.includes(event.type)) {

@@ -3,13 +3,17 @@
 **作成日時**: 2026-01-17 14:07:03  
 **作成日**: 2026-01-17  
 
-## X 投稿は BuzzWeave Engine のみ
-**→ [X_POSTING_BUZZWEAVE_ONLY.md](./X_POSTING_BUZZWEAVE_ONLY.md)**  
-Trap Defence の X 投稿ロジックは **BuzzWeave Engine 単体OS** で、`/api/buzzweave-run`（毎分）のみが投稿を行う。その他の X 投稿経路は廃止済み。
+## X 運用はアフィリスカウトに全振り
+**→ [AFFILIATE_STRATEGY_X_DM_FIRSTPROMOTER_WHOP.md](./AFFILIATE_STRATEGY_X_DM_FIRSTPROMOTER_WHOP.md)**  
+X 上の運用は **アフィリエイターの DM スカウト** に集約。**引用リポスト・リプライの実装は全削除済み**。検索は `services/td/affiliateScoutSearch.js`、DM 送信は `services/x/dmClient.js` と **`/api/affiliate-scout-run`**（15 分 Cron）で実装済み。環境変数と FirstPromoter/Whop 設定後に稼働可能。詳細は [INTEGRATION_WHOP_X_FIRSTPROMOTER.md](./INTEGRATION_WHOP_X_FIRSTPROMOTER.md) の「稼働手順」を参照。
 
-## 運用で管理する配信（2系統だけ）
+## 運用で管理する配信
 **→ [MANAGED_DELIVERIES.md](./MANAGED_DELIVERIES.md)**  
-(1) 無料版・有料版のTG配信ライン (2) Grok引用リポストライン。この2系統のみ。
+無料版・有料版の TG 配信ライン。
+
+## アフィリエイト戦略（X DM スカウト → FirstPromoter → Whop）
+**→ [AFFILIATE_STRATEGY_X_DM_FIRSTPROMOTER_WHOP.md](./AFFILIATE_STRATEGY_X_DM_FIRSTPROMOTER_WHOP.md)**  
+EN/ES/PT/AR/KO/JA の高品質アフィリエイターを X DM でスカウトし、FirstPromoter に登録してもらい Whop プロダクトを販売してもらう戦略。設定: `config/affiliateScoutConfig.js`, `config/affiliateScoutDmTemplates.js`。
 
 ## Overview
 Automated BTC signal bot that combines on-chain whale data (CryptoQuant) and AI analysis (Grok) to generate high-conviction trading signals and trap alerts.[file:91][file:113]  
@@ -37,7 +41,7 @@ Signals are evaluated every 15 minutes on Vercel Cron and delivered via Telegram
 - **services/**  
   - `services/cryptoquant/client.js`: Thin HTTP client for CryptoQuant API using `CRYPTOQUANT_API_KEY`.[file:112]  
   - `services/cryptoquant/endpoints/btc.js`: BTC-specific helpers `getExchangeInflow`, `getMinerPositionIndex` used by `api/cron.js`.[file:113][file:91]  
-  - `services/grok/client.js`: Grok役割＝**Xのセンチメント/アルゴリズム解析**（`analyzeXSentimentLive`, 引用リポスト, Dr. Grok心理サポート）.[file:91]  
+  - `services/grok/client.js`: Grok役割＝**Xのセンチメント/アルゴリズム解析**（`analyzeXSentimentLive`, Dr. Grok心理サポート）.[file:91]  
   - `services/gpt/client.js`: GPT役割＝**CQデータを基に「次に何が起こるか」を解析**（Trapアラート・定期分析）.[file:91]  
   - `services/gemini/sosovalueArticle.js`: Gemini役割＝**次のアクションを指示してくれる記事**を書く（SoSoValue風）.[file:91]  
   - `services/telegram/bot.js`: Minimal Telegram sender used by `api/cron.js`.[file:91]  
@@ -47,7 +51,7 @@ Signals are evaluated every 15 minutes on Vercel Cron and delivered via Telegram
 | AI | 役割 | 主な用途 |
 |----|------|----------|
 | **GPT** | CQデータを基に「次に何が起こるか」を解析 | 定期配信分析・15分緊急Trapシグナル・メンタルトレーニング |
-| **Grok** | Xのセンチメント/アルゴリズム解析 | X Live検索・高解像度センチメント・引用リポスト・Dr. Grok心理サポート |
+| **Grok** | Xのセンチメント/アルゴリズム解析 | X Live検索・高解像度センチメント・Dr. Grok心理サポート |
 | **Gemini** | 次のアクションを指示してくれる記事を書く | SoSoValue風記事（推奨アクション・避けるべきこと・注目水準を明示） |  
 
 ## Deployment & Runtime

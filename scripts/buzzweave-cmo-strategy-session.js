@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * BuzzWeave 戦略：CSO（Cursor）が Gemini（CMO）を呼び出し、推奨ごとに根拠を求める。
+ * 【Gemini CMO 役割は終了】通常運用では使わない。→ docs/BUZZWEAVE_GEMINI_CMO_ENDED.md
  * 「思い込みで適当に対応」を防ぎ、Copilot レポート同様に根拠なき主張にしないため。
  *
  * 実行: node scripts/buzzweave-cmo-strategy-session.js

@@ -41,15 +41,15 @@ try {
   failed++;
 }
 
-// 3. BuzzWeave が X クライアントを利用しているか（実投稿は test-buzzweave-post.js で検証）
+// 3. アフィリスカウト検索が X クライアントを利用しているか
 try {
-  const bwePath = path.join(__dirname, "../services/td/buzzWeaveEngine.js");
-  const bweSrc = require("fs").readFileSync(bwePath, "utf8");
-  const usesX = bweSrc.includes("postTweet") || bweSrc.includes("postQuote") || bweSrc.includes("client");
-  if (log("BWE X usage", usesX, usesX ? "BWE references X post path" : "BWE X path not found")) passed++;
+  const scoutPath = path.join(__dirname, "../services/td/affiliateScoutSearch.js");
+  const scoutSrc = require("fs").readFileSync(scoutPath, "utf8");
+  const usesX = scoutSrc.includes("searchPostsRecent") && scoutSrc.includes("client");
+  if (log("Affiliate scout X usage", usesX, usesX ? "Scout references X search" : "Scout X path not found")) passed++;
   else failed++;
 } catch (e) {
-  log("BWE X usage", false, e.message);
+  log("Affiliate scout X usage", false, e.message);
   failed++;
 }
 

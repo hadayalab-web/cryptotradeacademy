@@ -2,9 +2,25 @@
 // 言語別Whopリンクの取得ユーティリティ
 // 有料版: trapdefence/btc-regular-{lang} | 無料版: checkout/plan_* (Minimal)
 
-const { getMonthlyPriceForLang } = require("../../config/quoteRepostVariantGCopy");
-
 const SUPPORTED_LANGS = ["en", "es", "pt-br", "ar", "ja", "ko"];
+
+/** 言語別月額表示価格（Regular CTA 用）。環境変数 WHOP_PRICE_* で上書き可。 */
+function getMonthlyPriceForLang(lang) {
+  const key = (lang || "en").toLowerCase().replace("-", "_");
+  const envKey = `WHOP_PRICE_${key.toUpperCase()}`;
+  if (process.env[envKey]) return process.env[envKey];
+  const defaults = { en: "9", es: "9", pt_br: "9", pt: "9", ar: "9", ja: "9", ko: "9" };
+  return defaults[key] || defaults.en;
+}
+
+/** Vidalytics / VSL リンク（Minimal 配信・Regular アップセル用）。環境変数 VIDALYTICS_LINK_EN 等で上書き。 */
+function getVidalyticsLink(lang, mode = "regular") {
+  const n = (lang || "en").toLowerCase().replace("-", "_");
+  const key = `VIDALYTICS_LINK_${n.toUpperCase()}`;
+  if (process.env[key]) return process.env[key];
+  if (process.env.VIDALYTICS_LINK) return process.env.VIDALYTICS_LINK;
+  return process.env.VIDALYTICS_LINK_EN || "https://trapdefence.com";
+}
 
 /** プロモコード（ユーザー入力用）。環境変数 WHOP_PROMO_CODE で上書き可能。 */
 const DEFAULT_PROMO_CODE = process.env.WHOP_PROMO_CODE || "defend50";
@@ -171,5 +187,7 @@ module.exports = {
   getPromoCode,
   getRegularTrialCta,
   getRegularWhopLinkOnly,
+  getMonthlyPriceForLang,
+  getVidalyticsLink,
   DEFAULT_PROMO_CODE
 };

@@ -158,7 +158,7 @@ function ensureHashtagAndEmoji(text) {
  * @returns {Promise<{body: string, variant: string}>}
  */
 async function generateXPost(opts = {}) {
-  // GPT-4o 投稿文書生成は廃止。本番は pqtTemplates のみ使用。呼び出し元は固定文を返す。
+  // 引用リポスト・リプライは廃止。X 運用はアフィリスカウトに集約。
   const vidUrl = String(opts.video_url || "").trim();
   const fallback = vidUrl
     ? `[X post generation deprecated. PQT uses templates only.] ${vidUrl}`

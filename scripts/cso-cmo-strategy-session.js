@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * CSO（戦略責任者＝Cursor の AI、CTO 兼務）と CMO（Gemini / マーケティング責任者）の戦略セッション。
+ * 【Gemini CMO 役割は終了】通常運用では使わない。→ docs/BUZZWEAVE_GEMINI_CMO_ENDED.md
  * CSO がブリーフを渡し、Gemini を CMO として API で呼び出し、2 ラウンドで戦略を深掘りする。
  *
  * 実行: node scripts/cso-cmo-strategy-session.js

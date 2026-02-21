@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * BuzzWeave 現状を Gemini（CMO）に報告し、「成果ゼロのうえで現状で回してよいか」を確認する。
+ * 【Gemini CMO 役割は終了】通常運用では使わない。必要時のみ手動実行。→ docs/BUZZWEAVE_GEMINI_CMO_ENDED.md
  * 実行: node scripts/buzzweave-report-to-gemini.js
  * 出力: docs/ai-analysis-results/BUZZWEAVE_CMO_REPORT_CONFIRM_YYYY-MM-DDTHH-mm-ss.md
  */

@@ -19,18 +19,12 @@ const path = require("path");
 // 注意: オプション引数は除外し、必須引数の順序のみをチェック
 const EXPECTED_FUNCTION_SIGNATURES = {
   "services/x/client.js": {
-    replyToTweet: {
-      requiredParams: ["text", "inReplyToTweetId"], // 必須引数のみ
-      paramTypes: ["string", "string"],
-      description: "リプライ投稿（textが先、inReplyToTweetIdが後）"
-    },
     postTweet: {
-      requiredParams: ["text"], // 必須引数のみ
+      requiredParams: ["text"],
       paramTypes: ["string"],
-      description: "ツイート投稿"
+      description: "ツイート投稿（引用リポスト・リプライは廃止）"
     }
-  },
-  // velocityBooster.js は BuzzWeave 単体OS にて削除済み
+  }
 };
 
 // 定数の一貫性チェック
@@ -90,20 +84,6 @@ function validateFunctionCall(filePath, functionName, expectedSignature) {
     const firstArg = actualRequiredArgs[0];
     const secondArg = actualRequiredArgs[1];
 
-    // replyToTweetの場合、第1引数がtext（文字列リテラルまたは変数）、第2引数がtweetId（数値または変数）
-    if (functionName === "replyToTweet") {
-      // 第1引数がtweetIdっぽい（数値のみ）場合はエラー
-      if (/^\d+$/.test(firstArg) && secondArg && !secondArg.match(/^\d+$/)) {
-        errors.push({
-          file: filePath,
-          function: functionName,
-          line: call.line,
-          error: `引数の順序が間違っています: 第1引数がtweetId（数値）になっています。正しい順序: replyToTweet(text, inReplyToTweetId)`,
-          call: call.fullMatch,
-          expected: `replyToTweet(${expectedSignature.requiredParams[0]}, ${expectedSignature.requiredParams[1]})`
-        });
-      }
-    }
   }
 
   return errors;
@@ -184,11 +164,7 @@ function validateErrorHandling(filePath) {
     // console.warnのみでエラーを処理している場合を検出
     if (catchBlock.includes("console.warn") && !catchBlock.includes("console.error")) {
       // 重要なエラー（API呼び出しなど）の場合はconsole.errorを使用すべき
-      if (
-        match[1].includes("replyToTweet") ||
-        match[1].includes("postTweet") ||
-        match[1].includes("API")
-      ) {
+      if (match[1].includes("postTweet") || match[1].includes("API")) {
         errors.push({
           file: filePath,
           line,
@@ -265,8 +241,7 @@ function validateImplementation() {
   // 3. エラーハンドリングを検証
   console.log("\n📋 3. エラーハンドリングを検証...");
   const criticalFiles = [
-    "api/buzzweave-run.js",
-    "services/td/buzzWeaveEngine.js",
+    "services/td/affiliateScoutSearch.js",
     "services/x/client.js"
   ];
 
