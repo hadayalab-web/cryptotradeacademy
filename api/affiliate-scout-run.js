@@ -73,6 +73,44 @@ module.exports = async function handler(req, res) {
     req.query?.secret === process.env.CRON_SECRET;
   const willSend = auth && !dryRun;
 
+  // 指定ハンドルへのテスト送信（?targetHandle=xxx + 認証必須）
+  const targetHandle = (req.query?.targetHandle || req.body?.targetHandle || "").trim().replace(/^@/, "");
+  if (targetHandle && auth) {
+    const lang = req.query?.lang || req.body?.lang || "ja";
+    const inviteUrl = getFirstPromoterInviteUrl(lang);
+    const whopUrl = getWhopAffiliateProgramUrl(lang);
+    const text = fillScoutDmTemplate(lang, {
+      inviteUrl,
+      whopAffiliateUrl: whopUrl,
+      handle: targetHandle
+    });
+    if (dryRun) {
+      return res.status(200).json({
+        ok: true,
+        dryRun: true,
+        targetHandle: true,
+        wouldSend: { handle: targetHandle, lang, textLength: text.length }
+      });
+    }
+    const sendResult = await sendScoutDm(targetHandle, text);
+    if (sendResult?.error) {
+      return res.status(200).json({
+        ok: false,
+        reason: "dm_send_failed",
+        handle: targetHandle,
+        error: sendResult.error
+      });
+    }
+    return res.status(200).json({
+      ok: true,
+      sent: 1,
+      handle: targetHandle,
+      lang,
+      targetHandle: true,
+      dmEventId: sendResult.dmEventId
+    });
+  }
+
   const now = new Date();
   const dateStr = now.toISOString().split("T")[0];
   const utcHour = now.getUTCHours();
