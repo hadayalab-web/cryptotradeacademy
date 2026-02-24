@@ -46,9 +46,9 @@ const SEARCH_KEYWORDS_BY_LANG = {
   ]
 };
 
-/** アフィリエイトリクルート用: user.fields 拡張（スコアリングに必要） */
+/** アフィリエイトリクルート用: user.fields 拡張（スコアリングに必要。url＝リンクなしボーナス用） */
 const AFFILIATE_RECRUIT_USER_FIELDS =
-  "id,name,username,public_metrics,description,created_at";
+  "id,name,username,public_metrics,description,created_at,url";
 
 const SEARCH_WINDOW_MINUTES = Number(process.env.BUZZWEAVE_SEARCH_WINDOW_MIN || 30);
 const SEARCH_QUERY_BUCKET_SIZE = Math.max(1, Number(process.env.BUZZWEAVE_QUERY_BUCKET_SIZE || 3));

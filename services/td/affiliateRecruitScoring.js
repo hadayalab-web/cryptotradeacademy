@@ -8,7 +8,8 @@
  * Phase 1: ER・Bio・フォロワーで基本スコア
  * Phase 2: 煽り/hype 系投稿ボーナス
  * Phase 3: 泥臭さ・努力系プロフィールボーナス、泥臭ゾーン(100–3000)・初心者ファイターゾーン(30–1500)
- * Phase 4: 除外条件（FF比、年齢、bio空、プロフィール除外キーワード）
+ * Phase 4: リンクなしボーナス（初心者ファイター強シグナル）・行動ログボーナス
+ * Phase 5: 除外条件（FF比、年齢、bio空、プロフィール除外キーワード）
  */
 
 /** 煽り/hype 系キーワード。投稿に含まれると「痛みを抱える候補」としてボーナス（隠された敵戦略） */
@@ -58,6 +59,15 @@ const PROFILE_EXCLUDE_KEYWORDS = [
   "forex trader", "crypto signals", "mlm"
 ];
 
+/** 行動ログ系キーワード（投稿に含まれると初心者ファイターの証拠 — FIGHTER_CONDITIONS / BRICS） */
+const ACTION_LOG_KEYWORDS = [
+  "today i", "today's", "day 1", "day 2", "progress", "learned", "did today", "what i did",
+  "daily", "building in public", "shipping", "posted today", "wrote",
+  "今日の", "学び", "作業", "進捗", "反省", "日次",
+  "aprendí", "hoje aprendi", "empezando día", "día 1",
+  "오늘", "오늘의", "배움", "진행"
+];
+
 /** 除外: FF比の閾値（followers/following） */
 const FF_RATIO_MAX = 10;
 const FF_RATIO_MIN = 0.1;
@@ -82,13 +92,15 @@ const BEGINNER_FIGHTER_ZONE_MIN = 30;
 const BEGINNER_FIGHTER_ZONE_MAX = 1500;
 
 /** スコアウェイト（0–100 正規化） */
-const WEIGHT_ER = 0.2;
+const WEIGHT_ER = 0.1;
 const WEIGHT_BIO = 0.2;
 const WEIGHT_FOLLOWERS = 0.2;
-const WEIGHT_HYPE_PAIN = 0.15;
+const WEIGHT_HYPE_PAIN = 0.1;
 const WEIGHT_HUSTLE_PROFILE = 0.1;
 const WEIGHT_HUSTLE_ZONE = 0.1;
 const WEIGHT_BEGINNER_ZONE = 0.05;
+const WEIGHT_NO_LINK = 0.05;
+const WEIGHT_ACTION_LOG = 0.05;
 
 function checkExclusions(user, erPct) {
   const metrics = user?.public_metrics || {};
@@ -189,6 +201,27 @@ function scoreBeginnerZone(followers) {
   return 0;
 }
 
+/** リンクなし: プロフィールに URL がなければ 1（売るものがない＝動ける初心者ファイター強シグナル） */
+function scoreNoLink(user) {
+  const url = user?.url;
+  if (url === undefined || url === null) return 1;
+  if (typeof url !== "string" || !url.trim()) return 1;
+  return 0;
+}
+
+/** 行動ログ: 投稿に「今日の学び・作業・進捗」系の文言があれば 1 */
+function scoreActionLog(userTweets = []) {
+  const texts = (userTweets || [])
+    .map((t) => (typeof t?.text === "string" ? t.text : ""))
+    .join(" ")
+    .toLowerCase();
+  if (!texts) return 0;
+  for (const kw of ACTION_LOG_KEYWORDS) {
+    if (texts.includes(kw.toLowerCase())) return 1;
+  }
+  return 0;
+}
+
 function scoreHypePain(userTweets = []) {
   const texts = (userTweets || [])
     .map((t) => (typeof t?.text === "string" ? t.text : ""))
@@ -248,6 +281,8 @@ function computeCandidateScore(user, userTweets = []) {
   const norm_hustle_profile = scoreHustleProfile(description);
   const norm_hustle_zone = scoreHustleZone(followers);
   const norm_beginner_zone = scoreBeginnerZone(followers);
+  const norm_no_link = scoreNoLink(user);
+  const norm_action_log = scoreActionLog(userTweets);
 
   const score = Math.round(
     WEIGHT_ER * norm_er * 100 +
@@ -256,7 +291,9 @@ function computeCandidateScore(user, userTweets = []) {
       WEIGHT_HYPE_PAIN * norm_hype_pain * 100 +
       WEIGHT_HUSTLE_PROFILE * norm_hustle_profile * 100 +
       WEIGHT_HUSTLE_ZONE * norm_hustle_zone * 100 +
-      WEIGHT_BEGINNER_ZONE * norm_beginner_zone * 100
+      WEIGHT_BEGINNER_ZONE * norm_beginner_zone * 100 +
+      WEIGHT_NO_LINK * norm_no_link * 100 +
+      WEIGHT_ACTION_LOG * norm_action_log * 100
   );
 
   return {
@@ -270,6 +307,8 @@ function computeCandidateScore(user, userTweets = []) {
       norm_hustle_profile,
       norm_hustle_zone,
       norm_beginner_zone,
+      norm_no_link,
+      norm_action_log,
       erPct,
       followers
     },
@@ -287,8 +326,11 @@ module.exports = {
   scoreHustleProfile,
   scoreHustleZone,
   scoreBeginnerZone,
+  scoreNoLink,
+  scoreActionLog,
   HYPE_PAIN_KEYWORDS,
   BIO_KEYWORDS,
+  ACTION_LOG_KEYWORDS,
   PROFILE_HUSTLE_KEYWORDS,
   PROFILE_EXCLUDE_KEYWORDS,
   FF_RATIO_MAX,

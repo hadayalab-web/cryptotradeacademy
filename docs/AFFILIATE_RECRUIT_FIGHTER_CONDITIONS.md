@@ -3,7 +3,8 @@
 **目的**: アフィリエイト経験・実績・スキルを問わず、**「動く人間」だけ**を世界6言語圏から抽出する。  
 プロじゃなくていい。実績ゼロ〜少ないが、モチベだけ異常に高いファイターが Trap Defence の拡散モデルに最も相性が良い層。
 
-ベース: [AFFILIATE_RECRUIT_SCREENING_PRINCIPLES.md](./AFFILIATE_RECRUIT_SCREENING_PRINCIPLES.md)（泥臭さスクリーニング）と併用。
+ベース: [AFFILIATE_RECRUIT_SCREENING_PRINCIPLES.md](./AFFILIATE_RECRUIT_SCREENING_PRINCIPLES.md)（泥臭さスクリーニング）と併用。  
+**ターゲット**: [AFFILIATE_RECRUIT_BRICS_TARGET.md](./AFFILIATE_RECRUIT_BRICS_TARGET.md)（BRICS圏＋周辺＝人材鉱山・密度ランキング）
 
 ---
 

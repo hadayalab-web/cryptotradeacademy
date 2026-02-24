@@ -1,7 +1,8 @@
 # 国別・泥臭いアフィリエイター スクリーニング条件
 
 Trap Defence リクルート用。国ごとに「泥臭さの基準」が違うため、**国別の最適フィルター**をまとめる。  
-ベース: [AFFILIATE_RECRUIT_SCREENING_PRINCIPLES.md](./AFFILIATE_RECRUIT_SCREENING_PRINCIPLES.md)
+ベース: [AFFILIATE_RECRUIT_SCREENING_PRINCIPLES.md](./AFFILIATE_RECRUIT_SCREENING_PRINCIPLES.md)  
+**ターゲット戦略**: [AFFILIATE_RECRUIT_BRICS_TARGET.md](./AFFILIATE_RECRUIT_BRICS_TARGET.md)（BRICS圏＋周辺＝人材鉱山・S/A/Bランキング・最初に攻める国）
 
 ---
 

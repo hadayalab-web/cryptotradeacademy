@@ -194,9 +194,11 @@ DMを送る前に、行動量が高く、売る商品がなく、泥臭く動け
 
 ## 実装との対応
 
-- 現行スコアリング: `services/td/affiliateRecruitScoring.js`（Bio キーワード・フォロワー帯・ER・hype 系）
-- プロフィール「泥臭さキーワード」と「除外キーワード」は上記原理に合わせて同ファイルで拡張可能
-- 過去7日ポスト数・引用RT数・リンク生死は X API の取得範囲次第で追加実装
+- 現行スコアリング: `services/td/affiliateRecruitScoring.js`（Bio・フォロワー帯・ER・hype・泥臭さ・努力系・泥臭ゾーン・初心者ゾーン・**リンクなしボーナス**・**行動ログボーナス**）
+- プロフィール「泥臭さキーワード」と「除外キーワード」は上記原理に合わせて同ファイルで拡張済み
+- **リンクなし**: user の `url` が空/未設定ならボーナス（user.fields に `url` を追加して取得）
+- **行動ログ**: 投稿本文に「今日の学び・作業・進捗」系キーワードがあればボーナス
+- 過去7日ポスト数・引用RT数は X API の取得範囲次第で将来拡張
 
 **関連**
 - [AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md](./AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md)（国別条件）
