@@ -232,19 +232,37 @@ async function handlePurchaseEvent(event) {
         const currency = (conversionData.currency || 'USD').toUpperCase();
         const amountForFp = currency === 'JPY' ? Math.round(amountNum) : Math.round(amountNum * 100);
         const eventId = conversionData.checkoutId || conversionData.membershipId || `whop_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-        const fpResult = await trackSale({
-          event_id: String(eventId),
-          amount: amountForFp,
-          email: conversionData.userEmail || undefined,
-          ref_id: refId || undefined,
-          promo_code: promoCode || undefined,
-          currency,
-          plan: conversionData.planId || undefined
-        });
-        if (fpResult.ok) {
-          console.log('[Whop Webhook] ✅ FirstPromoter track/sale sent:', fpResult.status, eventId);
-        } else {
-          console.warn('[Whop Webhook] FirstPromoter track/sale failed:', fpResult.error);
+
+        // 重複送信防止: 同一購入で checkout.completed / membership.activated 等が複数届く場合、
+        // checkoutId または membershipId が既に送信済みならスキップ（詳細: docs/FIRSTPROMOTER_WHOP_INTEGRATION_AUDIT.md）
+        const fpDedupKeys = [conversionData.checkoutId, conversionData.membershipId].filter(Boolean).map((id) => `fp_sent:${id}`);
+        let shouldSendFp = true;
+        if (kv && fpDedupKeys.length > 0) {
+          const sentValues = await Promise.all(fpDedupKeys.map((k) => kv.get(k)));
+          shouldSendFp = !sentValues.some((v) => !!v);
+          if (!shouldSendFp) {
+            console.log('[Whop Webhook] ℹ️ FirstPromoter track/sale skipped (already sent for this purchase):', eventId);
+          }
+        }
+
+        if (shouldSendFp) {
+          const fpResult = await trackSale({
+            event_id: String(eventId),
+            amount: amountForFp,
+            email: conversionData.userEmail || undefined,
+            ref_id: refId || undefined,
+            promo_code: promoCode || undefined,
+            currency,
+            plan: conversionData.planId || undefined
+          });
+          if (fpResult.ok) {
+            console.log('[Whop Webhook] ✅ FirstPromoter track/sale sent:', fpResult.status, eventId);
+            if (kv && fpDedupKeys.length > 0) {
+              await Promise.all(fpDedupKeys.map((k) => kv.set(k, '1', { ex: 86400 * 7 }))).catch((e) => console.warn('[Whop Webhook] fp dedup kv set:', e?.message));
+            }
+          } else {
+            console.warn('[Whop Webhook] FirstPromoter track/sale failed:', fpResult.error);
+          }
         }
       } catch (fpErr) {
         console.warn('[Whop Webhook] FirstPromoter track/sale error:', fpErr?.message);
@@ -400,9 +418,19 @@ async function handler(req, res) {
       return res.status(401).json({ error: 'Missing signature header' });
     }
     
-    // イベントデータをパース
-    const event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    
+    // イベントデータをパース（rawBody 優先: getRawBody 成功時は req.body が空になりうるため）
+    let event;
+    try {
+      event = rawBody ? JSON.parse(rawBody) : (typeof req.body === 'string' ? JSON.parse(req.body) : req.body);
+    } catch (parseErr) {
+      console.warn('[Whop Webhook] Failed to parse event:', parseErr?.message);
+      return res.status(400).json({ error: 'Invalid JSON body' });
+    }
+    if (!event || typeof event !== 'object') {
+      console.warn('[Whop Webhook] Empty or invalid event payload');
+      return res.status(200).json({ received: false, error: 'Invalid payload' });
+    }
+
     console.log('[Whop Webhook] 📨 Received webhook event:', {
       type: event.type,
       dataKeys: event.data ? Object.keys(event.data) : [],
