@@ -8,15 +8,19 @@ const { kv } = require('../utils/kv');
 
 // Whop Webhook Secret（署名検証用、環境変数から取得）
 const WHOP_WEBHOOK_SECRET = process.env.WHOP_WEBHOOK_SECRET;
+// Whop ダッシュボードの「Test webhook」は署名を送らないため、テスト時に1を設定してスキップ可能
+const WHOP_SKIP_SIGNATURE_FOR_TEST = process.env.WHOP_SKIP_SIGNATURE_FOR_TEST === '1';
 
 /**
  * Whop Webhook署名を検証
+ * x-whop-* 形式 または Standard Webhooks（webhook-signature 等）対応
  * @param {string} signature - Whopから送信された署名
  * @param {string} body - リクエストボディ（文字列）
  * @param {string} timestamp - タイムスタンプ
+ * @param {string} [webhookId] - Standard Webhooks の webhook-id（あれば）
  * @returns {boolean} 署名が有効な場合true
  */
-function verifyWhopWebhookSignature(signature, body, timestamp) {
+function verifyWhopWebhookSignature(signature, body, timestamp, webhookId) {
   const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
   
   if (!WHOP_WEBHOOK_SECRET) {
@@ -45,22 +49,22 @@ function verifyWhopWebhookSignature(signature, body, timestamp) {
       return false;
     }
     
-    // Whop Webhook署名形式: HMAC SHA-256
-    // 署名文字列: timestamp + "." + raw_body
-    const signatureString = `${timestamp}.${body}`;
+    // 署名形式: x-whop-* は timestamp.body / Standard Webhooks は webhook_id.timestamp.body
+    const signatureString = webhookId
+      ? `${webhookId}.${timestamp}.${body}`
+      : `${timestamp}.${body}`;
+    const rawSignature = signature.replace(/^v1,/, '').trim();
     
-    // HMAC SHA-256ハッシュを生成
     const hmac = crypto.createHmac('sha256', WHOP_WEBHOOK_SECRET);
     hmac.update(signatureString);
     const expectedSignature = hmac.digest('hex');
     
-    // タイミング攻撃対策: crypto.timingSafeEqualを使用
-    if (signature.length !== expectedSignature.length) {
+    if (rawSignature.length !== expectedSignature.length) {
       console.warn('[Whop Webhook] ⚠️ Signature length mismatch');
       return false;
     }
     
-    const sigBuffer = Buffer.from(signature, 'hex');
+    const sigBuffer = Buffer.from(rawSignature, 'hex');
     const expectedBuffer = Buffer.from(expectedSignature, 'hex');
     
     if (sigBuffer.length !== expectedBuffer.length) {
@@ -72,7 +76,7 @@ function verifyWhopWebhookSignature(signature, body, timestamp) {
     
     if (!isValid) {
       console.warn('[Whop Webhook] ⚠️ Invalid signature:', {
-        received: signature.substring(0, 20) + '...',
+        received: rawSignature.substring(0, 20) + '...',
         expected: expectedSignature.substring(0, 20) + '...',
       });
     }
@@ -389,14 +393,19 @@ async function handler(req, res) {
       }
     }
     
-    // 署名ヘッダーを取得
-    const signature = req.headers['x-whop-signature'] || req.headers['X-Whop-Signature'];
-    const timestamp = req.headers['x-whop-timestamp'] || req.headers['X-Whop-Timestamp'] || String(Math.floor(Date.now() / 1000));
+    // 署名ヘッダーを取得（x-whop-* と Standard Webhooks の webhook-* 両対応）
+    const signature = req.headers['x-whop-signature'] || req.headers['X-Whop-Signature']
+      || req.headers['webhook-signature'];
+    const timestamp = req.headers['x-whop-timestamp'] || req.headers['X-Whop-Timestamp']
+      || req.headers['webhook-timestamp'] || String(Math.floor(Date.now() / 1000));
+    const webhookId = req.headers['webhook-id'];
     
-    // 署名検証
+    // 署名検証（WHOP_SKIP_SIGNATURE_FOR_TEST=1 時は署名なしを許可：Whop ダッシュボードの Test 用）
     const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
-    if (signature && WHOP_WEBHOOK_SECRET) {
-      const isValid = verifyWhopWebhookSignature(signature, rawBody, timestamp);
+    if (WHOP_SKIP_SIGNATURE_FOR_TEST && !signature) {
+      console.log('[Whop Webhook] ℹ️ Signature verification skipped (WHOP_SKIP_SIGNATURE_FOR_TEST=1, test mode)');
+    } else if (signature && WHOP_WEBHOOK_SECRET) {
+      const isValid = verifyWhopWebhookSignature(signature, rawBody, timestamp, webhookId);
       
       console.log('[Whop Webhook] 🔐 Signature verification:', {
         hasSignature: !!signature,
@@ -413,7 +422,7 @@ async function handler(req, res) {
         }
         console.warn('[Whop Webhook] ⚠️ Invalid signature, but continuing (development mode)');
       }
-    } else if (isProduction && !signature) {
+    } else if (isProduction && !signature && !WHOP_SKIP_SIGNATURE_FOR_TEST) {
       console.error('[Whop Webhook] ❌ CRITICAL: Missing signature header in production');
       return res.status(401).json({ error: 'Missing signature header' });
     }

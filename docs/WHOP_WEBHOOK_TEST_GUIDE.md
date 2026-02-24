@@ -42,6 +42,7 @@ Vercel の **Project Settings** → **Environment Variables** で以下を設定
 | 変数名 | 説明 | 必須 |
 |--------|------|------|
 | `WHOP_WEBHOOK_SECRET` | Whop Webhook の Signing Secret | 本番必須 |
+| `WHOP_SKIP_SIGNATURE_FOR_TEST` | `1` にすると署名なしリクエストを許可（Whop ダッシュボードの「Test webhook」用）。**テスト後は必ず削除** | テスト時のみ |
 | `FIRSTPROMOTER_API_KEY` | FirstPromoter Track Sale 用 | ref_id/promo 連携時 |
 | `KV_REST_API_URL` | Vercel KV（重複防止・コンバージョン保存） | 推奨 |
 | `KV_REST_API_TOKEN` | Vercel KV トークン | 推奨 |
@@ -87,6 +88,7 @@ curl -X POST "https://cryptotradeacademy.vercel.app/api/whop-webhook" `
 | 現象 | 確認・対応 |
 |------|------------|
 | 署名検証失敗 | `WHOP_WEBHOOK_SECRET` が正しく設定されているか。Whop の Signing Secret と一致するか |
+| **Test webhook で 401 "Missing signature header"** | Whop ダッシュボードの Test は署名を送らない。Vercel に `WHOP_SKIP_SIGNATURE_FOR_TEST=1` を一時的に設定してテスト可能。**テスト完了後は削除** |
 | ref_id が取れない | Whop の checkout metadata / referrer_url に ref が含まれるか。実機 Webhook ペイロードをログで確認 |
 | FirstPromoter に送らない | `(refId \|\| promoCode) && amount > 0` の条件を満たしているか。紹介なしの購入は 204 相当で送らない設計 |
 | 重複送信 | KV が有効か。`fp_sent:{checkoutId}` で重複防止済み。同一購入で複数イベントが来ても 1 回のみ送信 |
