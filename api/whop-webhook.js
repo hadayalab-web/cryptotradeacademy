@@ -13,18 +13,20 @@ const WHOP_SKIP_SIGNATURE_FOR_TEST = process.env.WHOP_SKIP_SIGNATURE_FOR_TEST ==
 
 /**
  * WHOP_WEBHOOK_SECRET から HMAC 用キーの候補を返す
- * - whsec_xxx → base64 デコード
- * - それ以外 → そのまま + base64 デコード試行（Whop が btoa(secret) で渡す場合）
+ * Whop 公式: "use the webhook_secret as-is (keep the whsec_ prefix)" を最優先
+ * - whsec_ 付きのまま文字列で使用
+ * - whsec_ 除去 + base64 デコード（Standard Webhooks スタイル）
+ * - そのまま + base64 デコード試行
  */
 function getWebhookSigningKeyVariants(secret) {
   if (!secret) return [];
   const keys = [];
+  keys.push(secret); // as-is（whsec_ 含む）を最優先
   if (secret.startsWith('whsec_')) {
     try {
       keys.push(Buffer.from(secret.slice(6), 'base64'));
     } catch (_) { /* ignore */ }
   }
-  keys.push(secret); // 生文字列
   try {
     const decoded = Buffer.from(secret, 'base64');
     if (decoded.length > 0) keys.push(decoded);
@@ -85,6 +87,14 @@ function verifyWhopWebhookSignature(signatureHeader, body, timestamp, webhookId)
           } catch (_) { /* ignore */ }
         }
       }
+    }
+    if (process.env.WHOP_WEBHOOK_DEBUG === '1') {
+      console.log('[Whop Webhook] DEBUG paste to Whop:', JSON.stringify({
+        'webhook-id': webhookId || null,
+        'webhook-timestamp': ts,
+        'webhook-signature': signatureHeader,
+        body: body,
+      }));
     }
     console.warn('[Whop Webhook] ⚠️ Invalid signature (tried hex and base64, multiple key/payload variants)');
     return false;
