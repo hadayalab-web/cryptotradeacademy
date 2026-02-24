@@ -33,6 +33,8 @@ function getWhopAffiliateProgramUrl(lang = "en") {
 /** DM 送信レート制限: 1日あたりの最大送信数。60 にすると言語別最適化を有効にしやすい */
 const AFFILIATE_DM_DAILY_CAP = Number(process.env.AFFILIATE_DM_DAILY_CAP || 15);
 
+/** Cron: 1時間に1回（0 * * * *）。15分間隔だとログが多すぎるため整理済み。vercel.json 参照。 */
+
 /**
  * 1日60本時の言語別配分（合計 60）。AFFILIATE_DM_DAILY_CAP=60 のとき参照。
  * 出典: docs/AFFILIATE_SCOUT_60DM_OPTIMIZATION.md（調査プール比率に基づく案A）
