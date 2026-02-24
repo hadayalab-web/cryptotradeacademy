@@ -473,7 +473,9 @@ async function handler(req, res) {
       'membership.activated',
       'membership_activated',
       'payment_succeeded',
+      'payment.succeeded',
       'invoice_paid',
+      'invoice.paid',
     ];
     
     if (purchaseEventTypes.includes(event.type)) {
