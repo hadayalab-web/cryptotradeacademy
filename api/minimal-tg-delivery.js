@@ -171,8 +171,9 @@ module.exports = async function handler(req, res) {
       const sendResult = await sendMessageToAsset(minimalText, "MINIMAL", langCode, {
         reply_markup: getSocialProofButton(targetLang)
       });
-      results.sent.push({ lang: targetLang, message_id: sendResult?.message_id });
-      console.log(`[Minimal TG] Sent ${targetLang}:`, sendResult?.message_id || "N/A");
+      const messageId = sendResult?.result?.message_id ?? sendResult?.message_id;
+      results.sent.push({ lang: targetLang, message_id: messageId });
+      console.log(`[Minimal TG] Sent ${targetLang}:`, messageId ?? "N/A");
     } catch (err) {
       console.error(`[Minimal TG] Error ${targetLang}:`, err.message);
       results.errors.push({ lang: targetLang, error: err.message });

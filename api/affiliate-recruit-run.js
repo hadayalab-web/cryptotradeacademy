@@ -242,15 +242,13 @@ module.exports = async function handler(req, res) {
       : forceMode === "slot"
         ? false
         : EN_RECRUIT_HOURS.includes(utcHour) && utcMinute === 0;
+  const hourSent = await getHourSentCount(dateStr, utcHour);
+  const slotsThisHour = SLOTS_BY_UTC_HOUR[utcHour];
   const lang = isEnBatchRun
     ? "en"
-    : (() => {
-        const slotsThisHour = SLOTS_BY_UTC_HOUR[utcHour];
-        const hourSent = await getHourSentCount(dateStr, utcHour);
-        return slotsThisHour && hourSent < slotsThisHour.length
-          ? getNextRecruitLangForUtcHour(utcHour, hourSent)
-          : null;
-      })();
+    : slotsThisHour && hourSent < slotsThisHour.length
+      ? getNextRecruitLangForUtcHour(utcHour, hourSent)
+      : null;
 
   if (!lang) {
     return res.status(200).json({
