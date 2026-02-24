@@ -12,76 +12,85 @@ const WHOP_WEBHOOK_SECRET = process.env.WHOP_WEBHOOK_SECRET;
 const WHOP_SKIP_SIGNATURE_FOR_TEST = process.env.WHOP_SKIP_SIGNATURE_FOR_TEST === '1';
 
 /**
+ * WHOP_WEBHOOK_SECRET から HMAC 用キーを取得
+ * Standard Webhooks: whsec_ + base64 形式の場合はデコードして使用
+ */
+function getWebhookSigningKey(secret) {
+  if (!secret) return null;
+  if (secret.startsWith('whsec_')) {
+    try {
+      return Buffer.from(secret.slice(6), 'base64');
+    } catch {
+      return secret;
+    }
+  }
+  return secret;
+}
+
+/**
  * Whop Webhook署名を検証
- * x-whop-* 形式 または Standard Webhooks（webhook-signature 等）対応
- * @param {string} signature - Whopから送信された署名
+ * Standard Webhooks（base64署名）と hex 形式の両対応
+ * @param {string} signatureHeader - webhook-signature ヘッダ（"v1,sig1 v1,sig2" 形式可）
  * @param {string} body - リクエストボディ（文字列）
  * @param {string} timestamp - タイムスタンプ
- * @param {string} [webhookId] - Standard Webhooks の webhook-id（あれば）
+ * @param {string} [webhookId] - webhook-id（Standard Webhooks 必須）
  * @returns {boolean} 署名が有効な場合true
  */
-function verifyWhopWebhookSignature(signature, body, timestamp, webhookId) {
+function verifyWhopWebhookSignature(signatureHeader, body, timestamp, webhookId) {
   const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
-  
+
   if (!WHOP_WEBHOOK_SECRET) {
     if (isProduction) {
       console.error('[Whop Webhook] ❌ CRITICAL: WHOP_WEBHOOK_SECRET not set in production');
       return false;
     }
     console.warn('[Whop Webhook] WHOP_WEBHOOK_SECRET not set, skipping signature verification (development mode)');
-    return true; // 開発環境でのみ検証をスキップ
+    return true;
   }
 
   try {
-    // タイムスタンプのリプレイ攻撃対策（±5分の許容ウィンドウ）
     const timestampNum = parseInt(timestamp, 10);
     const now = Math.floor(Date.now() / 1000);
     const timeDiff = Math.abs(now - timestampNum);
-    const MAX_TIME_DIFF = 5 * 60; // 5分
-    
+    const MAX_TIME_DIFF = 5 * 60;
     if (isNaN(timestampNum) || timeDiff > MAX_TIME_DIFF) {
-      console.warn('[Whop Webhook] ⚠️ Timestamp out of range:', {
-        timestamp,
-        now,
-        diff: timeDiff,
-        maxDiff: MAX_TIME_DIFF,
-      });
+      console.warn('[Whop Webhook] ⚠️ Timestamp out of range:', { timestamp, diff: timeDiff });
       return false;
     }
-    
-    // 署名形式: x-whop-* は timestamp.body / Standard Webhooks は webhook_id.timestamp.body
-    const signatureString = webhookId
+
+    const key = getWebhookSigningKey(WHOP_WEBHOOK_SECRET);
+    // Standard Webhooks: webhook_id.timestamp.body
+    const signedPayload = webhookId
       ? `${webhookId}.${timestamp}.${body}`
       : `${timestamp}.${body}`;
-    const rawSignature = signature.replace(/^v1,/, '').trim();
-    
-    const hmac = crypto.createHmac('sha256', WHOP_WEBHOOK_SECRET);
-    hmac.update(signatureString);
-    const expectedSignature = hmac.digest('hex');
-    
-    if (rawSignature.length !== expectedSignature.length) {
-      console.warn('[Whop Webhook] ⚠️ Signature length mismatch');
-      return false;
+    const hmac = crypto.createHmac('sha256', key);
+    hmac.update(signedPayload);
+
+    const expectedHex = hmac.digest('hex');
+    const expectedBase64 = hmac.digest('base64');
+
+    // ヘッダーは "v1,sig1 v1,sig2" の形式（複数可）
+    const parts = String(signatureHeader).split(/\s+/);
+    for (const part of parts) {
+      const match = part.match(/^v1,(.+)$/);
+      if (!match) continue;
+      const rawSig = match[1].trim();
+      if (!rawSig) continue;
+
+      // hex 比較（64文字）
+      if (rawSig.length === 64 && /^[a-fA-F0-9]+$/.test(rawSig)) {
+        if (rawSig === expectedHex) return true;
+        continue;
+      }
+      // base64 比較（Standard Webhooks）
+      try {
+        const sigBuf = Buffer.from(rawSig, 'base64');
+        const expBuf = Buffer.from(expectedBase64, 'base64');
+        if (sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf)) return true;
+      } catch (_) { /* ignore */ }
     }
-    
-    const sigBuffer = Buffer.from(rawSignature, 'hex');
-    const expectedBuffer = Buffer.from(expectedSignature, 'hex');
-    
-    if (sigBuffer.length !== expectedBuffer.length) {
-      console.warn('[Whop Webhook] ⚠️ Signature length mismatch (after hex decode)');
-      return false;
-    }
-    
-    const isValid = crypto.timingSafeEqual(sigBuffer, expectedBuffer);
-    
-    if (!isValid) {
-      console.warn('[Whop Webhook] ⚠️ Invalid signature:', {
-        received: rawSignature.substring(0, 20) + '...',
-        expected: expectedSignature.substring(0, 20) + '...',
-      });
-    }
-    
-    return isValid;
+    console.warn('[Whop Webhook] ⚠️ Invalid signature (tried hex and base64)');
+    return false;
   } catch (error) {
     console.error('[Whop Webhook] ❌ Signature verification error:', error.message);
     return false;
@@ -398,7 +407,7 @@ async function handler(req, res) {
       || req.headers['webhook-signature'];
     const timestamp = req.headers['x-whop-timestamp'] || req.headers['X-Whop-Timestamp']
       || req.headers['webhook-timestamp'] || String(Math.floor(Date.now() / 1000));
-    const webhookId = req.headers['webhook-id'];
+    const webhookId = req.headers['webhook-id'] || req.headers['Webhook-Id'];
     
     // 署名検証（WHOP_SKIP_SIGNATURE_FOR_TEST=1 時は署名なしを許可：Whop ダッシュボードの Test 用）
     const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';

@@ -87,7 +87,8 @@ curl -X POST "https://cryptotradeacademy.vercel.app/api/whop-webhook" `
 
 | 現象 | 確認・対応 |
 |------|------------|
-| 署名検証失敗 | `WHOP_WEBHOOK_SECRET` が正しく設定されているか。Whop の Signing Secret と一致するか |
+| 署名検証失敗 | `WHOP_WEBHOOK_SECRET` が正しく設定されているか。Whop の Signing Secret と一致するか。Whop が `whsec_xxx` 形式で渡す場合はそのまま使用可能 |
+| **Invalid signature / Signature length mismatch** | Whop は Standard Webhooks（base64 署名）を使用。コードは hex/base64 両対応済み。`webhook-id` ヘッダが必須の場合は Whop が送っているか確認 |
 | **Test webhook で 401 "Missing signature header"** | Whop ダッシュボードの Test は署名を送らない。Vercel に `WHOP_SKIP_SIGNATURE_FOR_TEST=1` を一時的に設定してテスト可能。**テスト完了後は削除** |
 | ref_id が取れない | Whop の checkout metadata / referrer_url に ref が含まれるか。実機 Webhook ペイロードをログで確認 |
 | FirstPromoter に送らない | `(refId \|\| promoCode) && amount > 0` の条件を満たしているか。紹介なしの購入は 204 相当で送らない設計 |
