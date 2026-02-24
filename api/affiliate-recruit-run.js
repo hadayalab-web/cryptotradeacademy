@@ -19,7 +19,14 @@ const {
   SLOTS_BY_UTC_HOUR,
   getNextRecruitLangForUtcHour
 } = require("../config/affiliateRecruitConfig");
-const { computeCandidateScore } = require("../services/td/affiliateRecruitScoring");
+const {
+  computeCandidateScore,
+  getRegionCoefficientByLang,
+  getRiskFactor,
+  hasProfileLink,
+  hasNigeriaKeyword,
+  PRIORITY_MIN_SEND
+} = require("../services/td/affiliateRecruitScoring");
 
 const KV_KEY_DAILY_COUNT = (dateStr) => `affiliate_recruit:daily_count:${dateStr}`;
 const KV_KEY_SENT_HANDLE = (handle) => `affiliate_recruit:sent:${handle.toLowerCase()}`;
@@ -198,9 +205,27 @@ module.exports = async function handler(req, res) {
         if (!u?.username) continue;
         const tweets = tweetsByAuthor[uid] || [];
         const { score, excluded, reason, breakdown } = computeCandidateScore(u, tweets);
-        candidates.push({ author_id: uid, username: u.username, user: u, score, excluded, reason, breakdown });
+        const priority =
+          !excluded && score != null
+            ? (score / 100) * getRegionCoefficientByLang(lang) * 1.0 * getRiskFactor(u, tweets, lang)
+            : 0;
+        candidates.push({
+          author_id: uid,
+          username: u.username,
+          user: u,
+          tweets,
+          score,
+          excluded,
+          reason,
+          breakdown,
+          priority
+        });
       }
-      const eligible = candidates.filter((c) => !c.excluded).sort((a, b) => (b.score || 0) - (a.score || 0));
+      const ngFilter = (c) =>
+        lang !== "en" || !hasProfileLink(c.user) || !hasNigeriaKeyword(c.user?.description || "");
+      const eligible = candidates
+        .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND && ngFilter(c))
+        .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
       const inviteUrl = getFirstPromoterInviteUrl(lang);
       const whopUrl = getWhopAffiliateProgramUrl(lang);
       let sentForPart = 0;
@@ -303,20 +328,28 @@ module.exports = async function handler(req, res) {
     if (!u?.username) continue;
     const tweets = tweetsByAuthor[uid] || [];
     const { score, excluded, reason, breakdown } = computeCandidateScore(u, tweets);
+    const priority =
+      !excluded && score != null
+        ? (score / 100) * getRegionCoefficientByLang(lang) * 1.0 * getRiskFactor(u, tweets, lang)
+        : 0;
     candidates.push({
       author_id: uid,
       username: u.username,
       user: u,
+      tweets,
       score,
       excluded,
       reason,
-      breakdown
+      breakdown,
+      priority
     });
   }
 
+  const ngFilter = (c) =>
+    lang !== "en" || !hasProfileLink(c.user) || !hasNigeriaKeyword(c.user?.description || "");
   const eligible = candidates
-    .filter((c) => !c.excluded)
-    .sort((a, b) => (b.score || 0) - (a.score || 0));
+    .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND && ngFilter(c))
+    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
   const inviteUrl = getFirstPromoterInviteUrl(lang);
   const whopUrl = getWhopAffiliateProgramUrl(lang);
@@ -355,6 +388,7 @@ module.exports = async function handler(req, res) {
         lang,
         textLength: text.length,
         score: c.score,
+        priority: c.priority,
         breakdown: c.breakdown,
         dmVariant: variant,
         dmVariantName: variantName

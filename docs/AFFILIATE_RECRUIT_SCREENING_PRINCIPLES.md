@@ -194,11 +194,13 @@ DMを送る前に、行動量が高く、売る商品がなく、泥臭く動け
 
 ## 実装との対応
 
-- 現行スコアリング: `services/td/affiliateRecruitScoring.js`（Bio・フォロワー帯・ER・hype・泥臭さ・努力系・泥臭ゾーン・初心者ゾーン・**リンクなしボーナス**・**行動ログボーナス**）
-- プロフィール「泥臭さキーワード」と「除外キーワード」は上記原理に合わせて同ファイルで拡張済み
-- **リンクなし**: user の `url` が空/未設定ならボーナス（user.fields に `url` を追加して取得）
-- **行動ログ**: 投稿本文に「今日の学び・作業・進捗」系キーワードがあればボーナス
-- 過去7日ポスト数・引用RT数は X API の取得範囲次第で将来拡張
+- 現行スコアリング: `services/td/affiliateRecruitScoring.js`
+  - Bio・フォロワー帯・ER・hype・泥臭さ・努力系・泥臭ゾーン・初心者ゾーン・リンクなし・行動ログ
+  - **擬似継続力**（`scoreConsistencyFromRecentTweets`）: タイムラインの日付ばらつき・いいね0〜3の割合で「反応ゼロでも投稿継続」を近似
+  - **痛み＋行動ログボーナス**: hype/痛みキーワードと行動ログの両方がある候補を加点（自己啓発だけより本当に動きたい層を優先）
+  - **REGION_COEFFICIENT**: 将来 lang/region 連携時に掛ける地域係数（IN/PH/BR 等）を定数で定義済み・未使用
+- **DM優先度の目安**（スコア 0–100）: 70以上→即DM、50〜69→保留、49以下→送らない。将来 `priority = score * qualityFactor * regionCoefficient` の階層化を検討可
+- **検証**: 言語圏別のスコア分布・返信率をログすると「どの言語圏がファイター率高いか」を仮説検証しやすい
 
 **関連**
 - [AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md](./AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md)（国別条件）

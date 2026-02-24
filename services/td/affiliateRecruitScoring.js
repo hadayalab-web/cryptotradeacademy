@@ -8,8 +8,11 @@
  * Phase 1: ER・Bio・フォロワーで基本スコア
  * Phase 2: 煽り/hype 系投稿ボーナス
  * Phase 3: 泥臭さ・努力系プロフィールボーナス、泥臭ゾーン(100–3000)・初心者ファイターゾーン(30–1500)
- * Phase 4: リンクなしボーナス（初心者ファイター強シグナル）・行動ログボーナス
- * Phase 5: 除外条件（FF比、年齢、bio空、プロフィール除外キーワード）
+ * Phase 4: リンクなしボーナス・行動ログボーナス
+ * Phase 5: 擬似継続力（タイムラインの日付ばらつき・低エンゲージメント率）・痛み＋行動ログボーナス
+ * Phase 6: 除外条件（FF比、年齢、bio空、プロフィール除外キーワード）
+ *
+ * 将来: lang/region 連携時は REGION_COEFFICIENT でスコア補正。DM優先度は priority = score * qualityFactor の階層化を検討。
  */
 
 /** 煽り/hype 系キーワード。投稿に含まれると「痛みを抱える候補」としてボーナス（隠された敵戦略） */
@@ -91,16 +94,110 @@ const HUSTLE_ZONE_FOLLOWERS_MAX = 3000;
 const BEGINNER_FIGHTER_ZONE_MIN = 30;
 const BEGINNER_FIGHTER_ZONE_MAX = 1500;
 
+/**
+ * 地域係数（国別）。検索言語＝その国の候補とみなして C を掛ける。
+ * BRICS＋周辺の「最初に攻める国」優先度に合わせた設計。
+ */
+const REGION_COEFFICIENT = {
+  IN: 1.2,
+  PH: 1.2,
+  BR: 1.15,
+  MX: 1.1,
+  VN: 1.05,
+  NG: 1.0,
+  CO: 1.0,
+  SA: 1.0,
+  RU: 0.9,
+  ZA: 0.9
+};
+
+/** 検索言語 → 国係数 C（EN=IN/PH混合等）。Priority = S×C×L×R で使用 */
+const COEFFICIENT_BY_LANG = {
+  en: 1.15,
+  pt: 1.15,
+  es: 1.1,
+  ar: 1.0,
+  ja: 1.0,
+  ko: 1.0
+};
+
+/** リスク補正 R=0.6（怪しい・ほぼ除外）— 詐欺系・宗教・政治・過激系 */
+const RISK_KEYWORDS_06 = [
+  "crypto signals", "forex trader", "mlm",
+  "religion", "god", "jesus", "allah", "politics", "conservative", "liberal", "patriot",
+  "freedom fighter", "resistance", "jihad", "martyr", "army", "military", "soldier"
+];
+
+/** リスク補正 R=0.8（グレー・注意） */
+const RISK_KEYWORDS_08 = ["get rich", "make $100/day", "investing", "entrepreneur"];
+
+/** BR（PT）用: Hotmart系詐欺商材 → R=0.6 */
+const BR_HOTMART_KEYWORDS = [
+  "hotmart", "eduzz", "monetizze", "produtor digital", "lançamento", "fórmula",
+  "7 em 7", "6 em 7", "milionário"
+];
+
 /** スコアウェイト（0–100 正規化） */
-const WEIGHT_ER = 0.1;
+const WEIGHT_ER = 0.06;
 const WEIGHT_BIO = 0.2;
 const WEIGHT_FOLLOWERS = 0.2;
-const WEIGHT_HYPE_PAIN = 0.1;
+const WEIGHT_HYPE_PAIN = 0.07;
 const WEIGHT_HUSTLE_PROFILE = 0.1;
 const WEIGHT_HUSTLE_ZONE = 0.1;
 const WEIGHT_BEGINNER_ZONE = 0.05;
 const WEIGHT_NO_LINK = 0.05;
 const WEIGHT_ACTION_LOG = 0.05;
+const WEIGHT_CONSISTENCY = 0.03;
+const WEIGHT_PAIN_ACTION = 0.03;
+
+/**
+ * 検索言語から国係数 C を返す。Priority = S×C×L×R で使用。
+ * 検索言語＝その国の候補とみなす運用。
+ */
+function getRegionCoefficientByLang(lang) {
+  if (!lang || typeof lang !== "string") return 1.0;
+  const key = lang.toLowerCase().trim();
+  return COEFFICIENT_BY_LANG[key] ?? 1.0;
+}
+
+/**
+ * リスク補正 R（0.6 | 0.8 | 1.0）。プロフィール＋投稿から算出。
+ * 0.6=怪しい、0.8=グレー、1.0=クリーン。
+ */
+function getRiskFactor(user, userTweets = [], lang) {
+  const desc = (user?.description || "").toLowerCase();
+  const tweetTexts = (userTweets || [])
+    .map((t) => (typeof t?.text === "string" ? t.text : ""))
+    .join(" ")
+    .toLowerCase();
+  const text = `${desc} ${tweetTexts}`;
+
+  for (const kw of RISK_KEYWORDS_06) {
+    if (text.includes(kw.toLowerCase())) return 0.6;
+  }
+  if (lang && String(lang).toLowerCase() === "pt") {
+    for (const kw of BR_HOTMART_KEYWORDS) {
+      if (text.includes(kw.toLowerCase())) return 0.6;
+    }
+  }
+  for (const kw of RISK_KEYWORDS_08) {
+    if (text.includes(kw.toLowerCase())) return 0.8;
+  }
+  return 1.0;
+}
+
+/** プロフィールにURLがあるか（NGリンク即除外・Priority用） */
+function hasProfileLink(user) {
+  const url = user?.url;
+  if (url === undefined || url === null) return false;
+  return typeof url === "string" && url.trim().length > 0;
+}
+
+/** NG（ナイジェリア）推定: プロフィールに nigeria/naija/lagos があるか */
+function hasNigeriaKeyword(description) {
+  if (!description || typeof description !== "string") return false;
+  return /nigeria|naija|lagos/i.test(description);
+}
 
 function checkExclusions(user, erPct) {
   const metrics = user?.public_metrics || {};
@@ -222,6 +319,30 @@ function scoreActionLog(userTweets = []) {
   return 0;
 }
 
+/**
+ * 擬似・継続力スコア（タイムラインからの近似）
+ * 反応ゼロでも投稿継続・日付のばらつきを見る。7日分が取れない前提の近似。
+ */
+function scoreConsistencyFromRecentTweets(userTweets = []) {
+  const tweets = userTweets || [];
+  if (tweets.length < 2) return 0;
+  const days = new Set();
+  let lowEngagementCount = 0;
+  for (const t of tweets) {
+    const created = t?.created_at;
+    if (created) {
+      const day = created.slice(0, 10);
+      days.add(day);
+    }
+    const likes = Number(t?.public_metrics?.like_count) ?? 0;
+    if (likes <= 3) lowEngagementCount += 1;
+  }
+  const uniqueDays = days.size;
+  const daySpreadNorm = uniqueDays >= 3 ? 1 : uniqueDays >= 2 ? 0.7 : uniqueDays >= 1 ? 0.3 : 0;
+  const lowEngagementRatio = Math.min(1, lowEngagementCount / tweets.length);
+  return (daySpreadNorm + lowEngagementRatio) / 2;
+}
+
 function scoreHypePain(userTweets = []) {
   const texts = (userTweets || [])
     .map((t) => (typeof t?.text === "string" ? t.text : ""))
@@ -283,6 +404,9 @@ function computeCandidateScore(user, userTweets = []) {
   const norm_beginner_zone = scoreBeginnerZone(followers);
   const norm_no_link = scoreNoLink(user);
   const norm_action_log = scoreActionLog(userTweets);
+  const norm_consistency = scoreConsistencyFromRecentTweets(userTweets);
+  const norm_pain_action =
+    norm_hype_pain >= 0.5 && norm_action_log === 1 ? 1 : 0;
 
   const score = Math.round(
     WEIGHT_ER * norm_er * 100 +
@@ -293,7 +417,9 @@ function computeCandidateScore(user, userTweets = []) {
       WEIGHT_HUSTLE_ZONE * norm_hustle_zone * 100 +
       WEIGHT_BEGINNER_ZONE * norm_beginner_zone * 100 +
       WEIGHT_NO_LINK * norm_no_link * 100 +
-      WEIGHT_ACTION_LOG * norm_action_log * 100
+      WEIGHT_ACTION_LOG * norm_action_log * 100 +
+      WEIGHT_CONSISTENCY * norm_consistency * 100 +
+      WEIGHT_PAIN_ACTION * norm_pain_action * 100
   );
 
   return {
@@ -309,6 +435,8 @@ function computeCandidateScore(user, userTweets = []) {
       norm_beginner_zone,
       norm_no_link,
       norm_action_log,
+      norm_consistency,
+      norm_pain_action,
       erPct,
       followers
     },
@@ -316,9 +444,18 @@ function computeCandidateScore(user, userTweets = []) {
   };
 }
 
+/** Priority 閾値（Copilot 決定版）: 0.4未満はDM送らない、0.6以上で送信 */
+const PRIORITY_MIN_SEND = 0.4;
+const PRIORITY_TIER_HIGH = 0.8;
+const PRIORITY_TIER_NORMAL = 0.6;
+
 module.exports = {
   computeCandidateScore,
   checkExclusions,
+  getRegionCoefficientByLang,
+  getRiskFactor,
+  hasProfileLink,
+  hasNigeriaKeyword,
   scoreBio,
   scoreFollowers,
   scoreEr,
@@ -328,6 +465,12 @@ module.exports = {
   scoreBeginnerZone,
   scoreNoLink,
   scoreActionLog,
+  scoreConsistencyFromRecentTweets,
+  REGION_COEFFICIENT,
+  COEFFICIENT_BY_LANG,
+  PRIORITY_MIN_SEND,
+  PRIORITY_TIER_HIGH,
+  PRIORITY_TIER_NORMAL,
   HYPE_PAIN_KEYWORDS,
   BIO_KEYWORDS,
   ACTION_LOG_KEYWORDS,

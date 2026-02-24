@@ -3,7 +3,7 @@
 **結論**: 「実績ゼロ〜少ないが、モチベだけ異常に高いファイター」は、世界的に **BRICS圏＋周辺国に圧倒的に集中**している。  
 BRICS＝経済圏の話ではなく、**SNS行動量 × 副業文化 × 若年層の熱量 × 稼ぐ系の成熟度** という「Trap Defence のアフィリエイトに最適な条件」が揃っている＝**人材鉱山**。
 
-関連: [AFFILIATE_RECRUIT_FIGHTER_CONDITIONS.md](./AFFILIATE_RECRUIT_FIGHTER_CONDITIONS.md) | [AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md](./AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md)
+関連: [AFFILIATE_RECRUIT_FIGHTER_CONDITIONS.md](./AFFILIATE_RECRUIT_FIGHTER_CONDITIONS.md) | [AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md](./AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md) | **[AFFILIATE_RECRUIT_BRICS_SCORING_AND_PRIORITY.md](./AFFILIATE_RECRUIT_BRICS_SCORING_AND_PRIORITY.md)**（100点モデル・DM優先度・国別プロンプト）
 
 ---
 
@@ -78,12 +78,15 @@ Trap Defence OS に最も相性が良い順。
 
 ## 最初に攻めるべき国の優先順位
 
-リソースを集中させるなら、**Sランク → Aランク** の順で投入するのが効率的。
+**スタートダッシュの最適4カ国**（構造で決まる答え）: **🇮🇳 インド → 🇵🇭 フィリピン → 🇧🇷 ブラジル → 🇲🇽 メキシコ**  
+この4本柱に最初の血流を集中させるのが、Trap Defence のOSとして最もきれいな答え。BRICSの泥臭さ × 英語効率 × LATAMの熱量をほぼカバーする。
 
-1. **IN / PH / BR / NG**（S）— 最強の採掘場。NG はスクリーニング厳しめ。
-2. **MX / VN / CO / SA**（A）— 安定して強い。継続力・宗教系除外を忘れずに。
+1. **IN / PH / BR / MX** — 最優先（上記4カ国）
+2. **NG**（Sランクだがリスク高）— スクリーニング厳しめで追加
+3. **VN / CO / SA**（Aランク）— 第二波。継続力・宗教系除外を忘れずに。
 
-国別の必須・除外・フォロワー帯は [AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md](./AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md) の第2層〜第4層を参照。
+国別の必須・除外・フォロワー帯は [AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md](./AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md) の第2層〜第4層を参照。  
+スコアリング・優先度式・国別プロンプトは [AFFILIATE_RECRUIT_BRICS_SCORING_AND_PRIORITY.md](./AFFILIATE_RECRUIT_BRICS_SCORING_AND_PRIORITY.md) を参照。
 
 ---
 
