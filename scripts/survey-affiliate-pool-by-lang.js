@@ -15,7 +15,7 @@
 const { loadEnv } = require("../utils/loadEnv");
 loadEnv();
 
-const { fetchCandidatesFromSearch } = require("../services/td/affiliateScoutSearch");
+const { fetchCandidatesFromSearch } = require("../services/td/affiliateRecruitSearch");
 const AFFILIATE_SCOUT_LANGS = ["en", "es", "pt", "ar", "ko", "ja"];
 
 const WINDOW_MINUTES = Math.max(10, parseInt(process.env.SURVEY_WINDOW_MINUTES || "30", 10));

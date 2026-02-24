@@ -43,13 +43,13 @@ try {
 
 // 3. アフィリスカウト検索が X クライアントを利用しているか
 try {
-  const scoutPath = path.join(__dirname, "../services/td/affiliateScoutSearch.js");
+  const scoutPath = path.join(__dirname, "../services/td/affiliateRecruitSearch.js");
   const scoutSrc = require("fs").readFileSync(scoutPath, "utf8");
   const usesX = scoutSrc.includes("searchPostsRecent") && scoutSrc.includes("client");
-  if (log("Affiliate scout X usage", usesX, usesX ? "Scout references X search" : "Scout X path not found")) passed++;
+  if (log("Affiliate recruit X usage", usesX, usesX ? "Recruit references X search" : "Recruit X path not found")) passed++;
   else failed++;
 } catch (e) {
-  log("Affiliate scout X usage", false, e.message);
+  log("Affiliate recruit X usage", false, e.message);
   failed++;
 }
 

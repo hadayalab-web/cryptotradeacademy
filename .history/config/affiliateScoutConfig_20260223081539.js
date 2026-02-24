@@ -33,12 +33,6 @@ function getWhopAffiliateProgramUrl(lang = "en") {
 /** DM 送信レート制限: 1日あたりの最大送信数。60 にすると言語別最適化を有効にしやすい */
 const AFFILIATE_DM_DAILY_CAP = Number(process.env.AFFILIATE_DM_DAILY_CAP || 15);
 
-/** Cron: 0,30 * * * *。EN は 3 時間ごと 8 回・5 人ずつ（別枠）。vercel.json 参照。 */
-
-/** EN 専用: 3 時間ごと 1 日 8 回（0,3,6,9,12,15,18,21 UTC）、1 回 5 人で計 40 人/日。API コスト抑え。 */
-const EN_SCOUT_HOURS = [0, 3, 6, 9, 12, 15, 18, 21];
-const EN_SCOUT_BATCH_SIZE = 5;
-
 /**
  * 1日60本時の言語別配分（合計 60）。AFFILIATE_DM_DAILY_CAP=60 のとき参照。
  * 出典: docs/AFFILIATE_SCOUT_60DM_OPTIMIZATION.md（調査プール比率に基づく案A）
@@ -57,21 +51,30 @@ const AFFILIATE_DM_MIN_INTERVAL_MS = Number(process.env.AFFILIATE_DM_MIN_INTERVA
 
 /**
  * 言語別ピークに寄せた送付スケジュール（UTC 時 → その時間帯に送る言語の並び）。
- * EN は別枠（EN_SCOUT_HOURS）。1時間あたり最大2スロット（:00 / :30）。
- * 構成: AR5、南米ES5+南米PT5、JA3+KO3。ヨーロッパなし。
+ * 60 は目安のため、案A配分を満たす 62 枠を推奨。出典: docs/AFFILIATE_SCOUT_60DM_OPTIMIZATION.md §2.3
  */
 const SLOTS_BY_UTC_HOUR = {
-  0: ["es", "pt"],
-  11: ["ja", "ko"],
-  12: ["ja", "ko"],
-  13: ["ja", "ko"],
-  16: ["ar", "ar"],
-  17: ["ar", "ar"],
-  18: ["ar"],
-  20: ["es", "pt"],
-  21: ["es", "pt"],
-  22: ["es", "pt"],
-  23: ["es", "pt"]
+  0: ["ja", "ja", "ja", "ja"],
+  1: ["ja", "ja", "ja", "ja"],
+  2: ["ja", "ja", "ja"],
+  3: ["ja", "ja", "ja"],
+  4: ["ja", "ja", "ja"],
+  5: ["ja", "ja"],
+  6: ["ko", "ko", "ko"],
+  7: ["ar"],
+  8: ["ar"],
+  9: ["ar"],
+  10: ["ar"],
+  11: ["en", "en"],
+  12: ["en", "en", "en"],
+  13: ["en", "en", "en"],
+  14: ["en", "es", "en", "es", "es"],
+  15: ["en", "es", "en", "es"],
+  16: ["en", "es", "en", "es"],
+  17: ["en", "es", "en"],
+  18: ["en", "es", "en", "pt"],
+  19: ["en", "es", "en", "pt"],
+  20: ["en", "es", "pt", "pt"]
 };
 
 /**
@@ -123,8 +126,6 @@ module.exports = {
   getFirstPromoterInviteUrl,
   getWhopAffiliateProgramUrl,
   AFFILIATE_DM_DAILY_CAP,
-  EN_SCOUT_HOURS,
-  EN_SCOUT_BATCH_SIZE,
   DAILY_CAP_BY_LANG_60,
   AFFILIATE_DM_MIN_INTERVAL_MS,
   SLOTS_BY_UTC_HOUR,

@@ -241,7 +241,7 @@ function validateImplementation() {
   // 3. エラーハンドリングを検証
   console.log("\n📋 3. エラーハンドリングを検証...");
   const criticalFiles = [
-    "services/td/affiliateScoutSearch.js",
+    "services/td/affiliateRecruitSearch.js",
     "services/x/client.js"
   ];
 

@@ -28,6 +28,8 @@ const DEFAULT_PROMO_CODE = process.env.WHOP_PROMO_CODE || "defend50";
 function normalizeLang(rawLang) {
   if (!rawLang) return "en";
   const baseLang = rawLang.toLowerCase().split(".")[0].split("_")[0];
+  // affiliateRecruitConfig 等で "pt" が使われるため pt-br に正規化
+  if (baseLang === "pt") return "pt-br";
   return SUPPORTED_LANGS.includes(baseLang) ? baseLang : "en";
 }
 

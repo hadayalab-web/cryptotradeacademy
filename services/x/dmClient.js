@@ -1,5 +1,5 @@
 /**
- * X DM 送信（アフィリエイトスカウト用）
+ * X DM 送信（アフィリエイトリクルート用）
  * FirstPromoter 招待 URL 入りメッセージを候補に送る。
  * 戦略: docs/AFFILIATE_STRATEGY_X_DM_FIRSTPROMOTER_WHOP.md
  */
@@ -11,7 +11,7 @@ const { xApiRequest, getUserByUsername, isRateLimitError } = require("./client")
  * @param {string} text - 送信するメッセージ本文（10000 文字以内）
  * @returns {Promise<{ dmEventId?: string; conversationId?: string; error?: string }>}
  */
-async function sendScoutDm(handle, text) {
+async function sendRecruitDm(handle, text) {
   const normalizedHandle = String(handle || "").replace(/^@/, "").trim();
   if (!normalizedHandle) {
     return { error: "handle is required" };
@@ -51,5 +51,5 @@ async function sendScoutDm(handle, text) {
 }
 
 module.exports = {
-  sendScoutDm
+  sendRecruitDm
 };

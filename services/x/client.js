@@ -646,12 +646,13 @@ async function searchPostsRecent(query, options = {}) {
     throw new Error("Search query is required");
   }
   const maxResults = Math.min(Math.max(10, options.maxResults || 50), 100);
+  const userFields = options.userFields || "id,name,username";
   const params = new URLSearchParams({
     query: query.trim(),
     max_results: String(maxResults),
     "tweet.fields": "id,text,author_id,created_at,public_metrics,lang",
     expansions: "author_id",
-    "user.fields": "id,name,username",
+    "user.fields": userFields,
     sort_order: options.sortOrder || "relevancy"
   });
   if (options.startTime) params.set("start_time", options.startTime);

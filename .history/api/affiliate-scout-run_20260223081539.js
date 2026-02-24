@@ -14,6 +14,7 @@ const {
   SLOTS_BY_UTC_HOUR,
   getNextScoutLangForUtcHour
 } = require("../config/affiliateScoutConfig");
+const { getMinimalTgLink } = require("../config/affiliateLeadMagnetLinks");
 
 const KV_KEY_DAILY_COUNT = (dateStr) => `affiliate_scout:daily_count:${dateStr}`;
 const KV_KEY_SENT_HANDLE = (handle) => `affiliate_scout:sent:${handle.toLowerCase()}`;
@@ -79,10 +80,12 @@ module.exports = async function handler(req, res) {
     const lang = req.query?.lang || req.body?.lang || "ja";
     const inviteUrl = getFirstPromoterInviteUrl(lang);
     const whopUrl = getWhopAffiliateProgramUrl(lang);
-    const text = fillScoutDmTemplate(lang, {
+    const minimalTgLink = getMinimalTgLink(lang);
+    const { text } = fillScoutDmTemplate(lang, {
       inviteUrl,
       whopAffiliateUrl: whopUrl,
-      handle: targetHandle
+      handle: targetHandle,
+      minimalTgLink
     });
     if (dryRun) {
       return res.status(200).json({
@@ -158,22 +161,41 @@ module.exports = async function handler(req, res) {
   for (const u of usersList) {
     if (u?.id) usersById[u.id] = u;
   }
-  const authors = [];
-  const seen = new Set();
+
+  const tweetsByAuthor = {};
   for (const p of posts) {
     const uid = p?.author_id;
-    if (!uid || seen.has(uid)) continue;
-    seen.add(uid);
-    const u = usersById[uid] || {};
-    const username = u?.username;
-    if (username) authors.push({ author_id: uid, username });
+    if (!uid) continue;
+    if (!tweetsByAuthor[uid]) tweetsByAuthor[uid] = [];
+    tweetsByAuthor[uid].push(p);
   }
 
+  const candidates = [];
+  for (const uid of Object.keys(tweetsByAuthor)) {
+    const u = usersById[uid];
+    if (!u?.username) continue;
+    const tweets = tweetsByAuthor[uid] || [];
+    const { score, excluded, reason, breakdown } = computeCandidateScore(u, tweets);
+    candidates.push({
+      author_id: uid,
+      username: u.username,
+      user: u,
+      score,
+      excluded,
+      reason,
+      breakdown
+    });
+  }
+
+  const eligible = candidates
+    .filter((c) => !c.excluded)
+    .sort((a, b) => (b.score || 0) - (a.score || 0));
+
   let chosen = null;
-  for (const a of authors) {
-    const already = await isAlreadySent(a.username);
+  for (const c of eligible) {
+    const already = await isAlreadySent(c.username);
     if (!already) {
-      chosen = a;
+      chosen = c;
       break;
     }
   }
@@ -183,7 +205,8 @@ module.exports = async function handler(req, res) {
       ok: false,
       reason: "no_eligible_candidate",
       lang,
-      candidatesChecked: authors.length,
+      totalCandidates: candidates.length,
+      eligibleCount: eligible.length,
       sentToday,
       dailyCap
     });
@@ -191,17 +214,27 @@ module.exports = async function handler(req, res) {
 
   const inviteUrl = getFirstPromoterInviteUrl(lang);
   const whopUrl = getWhopAffiliateProgramUrl(lang);
-  const text = fillScoutDmTemplate(lang, {
+  const minimalTgLink = getMinimalTgLink(lang);
+  const { text, variant, variantName } = fillScoutDmTemplate(lang, {
     inviteUrl,
     whopAffiliateUrl: whopUrl,
-    handle: chosen.username
+    handle: chosen.username,
+    minimalTgLink
   });
 
   if (!willSend) {
     return res.status(200).json({
       ok: true,
       dryRun: true,
-      wouldSend: { handle: chosen.username, lang, textLength: text.length },
+      wouldSend: {
+        handle: chosen.username,
+        lang,
+        textLength: text.length,
+        score: chosen.score,
+        breakdown: chosen.breakdown,
+        dmVariant: variant,
+        dmVariantName: variantName
+      },
       sentToday,
       dailyCap,
       note: !auth ? "Set CRON_SECRET or ?secret= for actual send" : "dryRun"
@@ -229,6 +262,9 @@ module.exports = async function handler(req, res) {
     sent: 1,
     handle: chosen.username,
     lang,
+    score: chosen.score,
+    dmVariant: variant,
+    dmVariantName: variantName,
     dmEventId: sendResult.dmEventId,
     sentToday: sentToday + 1,
     dailyCap

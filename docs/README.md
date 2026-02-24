@@ -5,7 +5,7 @@
 
 ## X 運用はアフィリスカウトに全振り
 **→ [AFFILIATE_STRATEGY_X_DM_FIRSTPROMOTER_WHOP.md](./AFFILIATE_STRATEGY_X_DM_FIRSTPROMOTER_WHOP.md)**  
-X 上の運用は **アフィリエイターの DM スカウト** に集約。**引用リポスト・リプライの実装は全削除済み**。検索は `services/td/affiliateScoutSearch.js`、DM 送信は `services/x/dmClient.js` と **`/api/affiliate-scout-run`**（15 分 Cron）で実装済み。環境変数と FirstPromoter/Whop 設定後に稼働可能。詳細は [INTEGRATION_WHOP_X_FIRSTPROMOTER.md](./INTEGRATION_WHOP_X_FIRSTPROMOTER.md) の「稼働手順」を参照。
+X 上の運用は **アフィリエイターの DM リクルート** に集約。**引用リポスト・リプライの実装は全削除済み**。検索は `services/td/affiliateRecruitSearch.js`、DM 送信は `services/x/dmClient.js` と **`/api/affiliate-recruit-run`**（Cron: en / regions の2本）で実装済み。環境変数と FirstPromoter/Whop 設定後に稼働可能。詳細は [INTEGRATION_WHOP_X_FIRSTPROMOTER.md](./INTEGRATION_WHOP_X_FIRSTPROMOTER.md) の「稼働手順」を参照。
 
 ## 運用で管理する配信
 **→ [MANAGED_DELIVERIES.md](./MANAGED_DELIVERIES.md)**  
@@ -13,7 +13,7 @@ X 上の運用は **アフィリエイターの DM スカウト** に集約。**
 
 ## アフィリエイト戦略（X DM スカウト → FirstPromoter → Whop）
 **→ [AFFILIATE_STRATEGY_X_DM_FIRSTPROMOTER_WHOP.md](./AFFILIATE_STRATEGY_X_DM_FIRSTPROMOTER_WHOP.md)**  
-EN/ES/PT/AR/KO/JA の高品質アフィリエイターを X DM でスカウトし、FirstPromoter に登録してもらい Whop プロダクトを販売してもらう戦略。設定: `config/affiliateScoutConfig.js`, `config/affiliateScoutDmTemplates.js`。
+EN/ES/PT/AR/KO/JA の高品質アフィリエイターを X DM でスカウトし、FirstPromoter に登録してもらい Whop プロダクトを販売してもらう戦略。設定: `config/affiliateRecruitConfig.js`, `config/affiliateRecruitDmTemplates.js`。
 
 ## Overview
 Automated BTC signal bot that combines on-chain whale data (CryptoQuant) and AI analysis (Grok) to generate high-conviction trading signals and trap alerts.[file:91][file:113]  

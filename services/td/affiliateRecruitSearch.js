@@ -1,34 +1,39 @@
 /**
- * アフィリエイトスカウト用 X 検索のみ。引用リポスト・リプライは行わない。
- * fetchCandidatesFromSearch を提供（survey-affiliate-pool-by-lang.js および今後の DM スカウトで利用）。
+ * アフィリエイトリクルート用 X 検索のみ。引用リポスト・リプライは行わない。
+ * fetchCandidatesFromSearch を提供（survey-affiliate-pool-by-lang.js および DM リクルートで利用）。
  */
 const { searchPostsRecent } = require("../x/client");
 
-// 検索キーワード（6 言語・クリプト/トレード系。アフィリエイター候補の投稿を拾う想定）
+// 検索キーワード（6 言語・クリプト/トレード系。隠された敵戦略: 煽り商材を紹介している候補＝転換ニーズ高い）
 const SEARCH_KEYWORDS_BY_LANG = {
   en: [
     "bitcoin", "btc", "crypto", "pump", "moon", "ath", "breakout", "halving", "spot etf", "all time high",
     "don't miss", "last chance", "buy now", "100x", "to the moon", "next 100x", "going to the moon", "pump it now",
-    "gem", "alpha", "next pump", "dyor", "$SOL", "$ETH"
+    "gem", "alpha", "next pump", "dyor", "$SOL", "$ETH",
+    "affiliate", "referral", "signals", "vip calls", "course", "alpha pass"
   ],
   ja: [
     "ビットコイン", "BTC", "仮想通貨", "急騰", "乗り遅れるな", "半減期", "ETF", "暴落", "新高",
     "今すぐ", "最後のチャンス", "100倍", "月まで", "買え", "絶対上がる", "逃すな",
-    "養分", "靴磨き", "エアドロ", "ギブアウェイ", "爆益", "魔界", "銘柄", "アルト"
+    "養分", "靴磨き", "エアドロ", "ギブアウェイ", "爆益", "魔界", "銘柄", "アルト",
+    "アフィリエイト", "紹介", "シグナル", "有料", "アルファ"
   ],
   ko: [
     "비트코인", "BTC", "암호화폐", "급등", "반등", "반감기", "ETF", "상승",
     "지금 사세요", "마지막 기회", "100배", "달까지", "폼핑", "놓치지", "급등주",
-    "김프", "구조대", "가즈아", "떡상", "코인", "매수"
+    "김프", "구조대", "가즈아", "떡상", "코인", "매수",
+    "제휴", "시그널", "VIP", "알파", "유료"
   ],
   es: [
     "bitcoin", "btc", "crypto", "pump", "moon", "sube", "oportunidad", "etf", "halving",
     "compra ya", "no te pierdas", "última oportunidad", "subida inminente", "a la luna", "pump en marcha", "gana con cripto",
-    "estafa", "gemas"
+    "estafa", "gemas",
+    "afiliado", "referido", "señales", "curso", "vip"
   ],
   pt: [
     "bitcoin", "btc", "crypto", "pump", "lua", "alta", "etf", "halving",
-    "última chance", "não perca", "compre agora", "pump agora", "lucro rápido", "vai explodir", "sinal vip", "cripto milionário"
+    "última chance", "não perca", "compre agora", "pump agora", "lucro rápido", "vai explodir", "sinal vip", "cripto milionário",
+    "afiliado", "indicado", "sinais", "curso", "vip"
   ],
   ar: [
     "bitcoin", "btc", "crypto", "pump", "moon",
@@ -36,14 +41,19 @@ const SEARCH_KEYWORDS_BY_LANG = {
     "عملات رقمية", "عملات مشفرة", "تنصيف البيتكوين", "etf", "btc usd",
     "ضخ", "شراء الآن", "لا تفوت", "فرصة ذهبية", "استثمر الآن",
     "حلال", "نصب", "تداول", "توصية",
-    "$BTC", "$ETH", "$SOL"
+    "$BTC", "$ETH", "$SOL",
+    "شراكة", "إحالة", "إشارات", "دورة", "vip"
   ]
 };
+
+/** アフィリエイトリクルート用: user.fields 拡張（スコアリングに必要） */
+const AFFILIATE_RECRUIT_USER_FIELDS =
+  "id,name,username,public_metrics,description,created_at";
 
 const SEARCH_WINDOW_MINUTES = Number(process.env.BUZZWEAVE_SEARCH_WINDOW_MIN || 30);
 const SEARCH_QUERY_BUCKET_SIZE = Math.max(1, Number(process.env.BUZZWEAVE_QUERY_BUCKET_SIZE || 3));
 const SEARCH_PAGES_PER_BUCKET = Math.max(1, Number(process.env.BUZZWEAVE_SEARCH_PAGES_PER_BUCKET || 3));
-const SEARCH_QUERY_MAX_CHARS = Math.max(128, Number(process.env.BUZZWEAVE_SEARCH_QUERY_MAX_CHARS || 480));
+const SEARCH_QUERY_MAX_CHARS = Math.max(128, Number(process.env.BUZZWEAVE_QUERY_MAX_CHARS || 480));
 const LOW_VOLUME_LANGS = new Set(
   String(process.env.BUZZWEAVE_LOW_VOLUME_LANGS || "ar,ko").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
 );
@@ -96,12 +106,6 @@ function buildSearchQueries(lang) {
   return Array.from(new Set(queries));
 }
 
-/**
- * search/recent で指定言語の投稿を取得。アフィリエイト候補調査・キュー補充用。
- * @param {string} slotLang - 言語コード (en, ja, es, pt, ar, ko)
- * @param {{ windowMinutes?: number, maxResults?: number, pagesPerBucket?: number, sortOrder?: string, queries?: string[], enableLowVolumeBackfill?: boolean }} options
- * @returns {Promise<{ data: object[], includes: { users: object[] }, queries: string[], slotLang: string, fatal402?: boolean, windowMinutesUsed?: number, lowVolumeBackfillUsed?: boolean }>}
- */
 async function fetchCandidatesFromSearch(slotLang, options = {}) {
   const now = Date.now();
   const windowMin = Math.max(1, Number(options.windowMinutes ?? SEARCH_WINDOW_MINUTES));
@@ -124,12 +128,15 @@ async function fetchCandidatesFromSearch(slotLang, options = {}) {
       let pagesFetched = 0;
       while (pagesFetched < pagesPerBucket) {
         try {
+          const userFields =
+            options.userFields === false ? undefined : options.userFields || AFFILIATE_RECRUIT_USER_FIELDS;
           const res = await searchPostsRecent(query, {
             maxResults,
             startTime: startTime.toISOString(),
             endTime: endTime.toISOString(),
             sortOrder,
-            nextToken
+            nextToken,
+            ...(userFields ? { userFields } : {})
           });
           const pageData = Array.isArray(res?.data) ? res.data : [];
           allPosts.push(...pageData);
@@ -142,10 +149,10 @@ async function fetchCandidatesFromSearch(slotLang, options = {}) {
         } catch (e) {
           const msg = String(e?.message || "");
           if (msg.includes("402")) {
-            console.warn("[affiliateScoutSearch] search/recent 402 (Payment Required)", { slotLang });
+            console.warn("[affiliateRecruitSearch] search/recent 402 (Payment Required)", { slotLang });
             return { fatal402: true, data: [], usersById: {}, queryStats };
           }
-          console.warn("[affiliateScoutSearch] search/recent error", { slotLang, message: msg.slice(0, 200) });
+          console.warn("[affiliateRecruitSearch] search/recent error", { slotLang, message: msg.slice(0, 200) });
           break;
         }
       }
