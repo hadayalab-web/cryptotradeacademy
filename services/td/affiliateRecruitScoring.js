@@ -3,10 +3,11 @@
  * 出典: docs/AFFILIATE_RECRUIT_3AI_SYNTHESIS.md, docs/AFFILIATE_RECRUIT_SCREENING_PRINCIPLES.md
  * 戦略: 「隠された敵」×「島への招待」ハイブリッド — 煽り商材を紹介している候補（痛みを抱えている）を優先
  * 泥臭さ: プロフィールの hustle/affiliate/DM open 等はボーナス、coach/consultant 等は除外
+ * ファイター: 実績ゼロ〜少ないがモチベ高い層 — 努力系ワード・30–1500フォロワー帯（docs/AFFILIATE_RECRUIT_FIGHTER_CONDITIONS.md）
  *
  * Phase 1: ER・Bio・フォロワーで基本スコア
  * Phase 2: 煽り/hype 系投稿ボーナス
- * Phase 3: 泥臭さプロフィールボーナス・フォロワー泥臭ゾーン(100–3000)ボーナス
+ * Phase 3: 泥臭さ・努力系プロフィールボーナス、泥臭ゾーン(100–3000)・初心者ファイターゾーン(30–1500)
  * Phase 4: 除外条件（FF比、年齢、bio空、プロフィール除外キーワード）
  */
 
@@ -40,16 +41,21 @@ const BIO_KEYWORDS = [
   "discord"
 ];
 
-/** 泥臭さプロフィールキーワード（焦り・野心・行動量）。含むとボーナス — docs/AFFILIATE_RECRUIT_SCREENING_PRINCIPLES.md */
+/** 泥臭さ・努力系プロフィールキーワード（焦り・野心・行動量・初心者モチベ）。含むとボーナス — SCREENING_PRINCIPLES + FIGHTER_CONDITIONS */
 const PROFILE_HUSTLE_KEYWORDS = [
   "hustle", "grind", "affiliate", "dm open", "make money", "side income",
-  "entrepreneur", "building", "learning", "side hustle", "extra income",
-  "afiliado", "renda extra", "dinero", "ingresos", "dm abierto", "open dm", "online income"
+  "entrepreneur", "building", "learning", "improving", "trying", "beginner", "new journey",
+  "side hustle", "extra income", "open dm", "online income",
+  "afiliado", "renda extra", "dinero", "ingresos", "dm abierto",
+  "aprendiendo", "empezando", "aprendendo", "iniciante",
+  "시작합니다", "배우는 중", "부업",
+  "初心者", "勉強中", "副業"
 ];
 
-/** 除外: プロフィールに含むと動かない・プライド高い・返信率低い — 同上 */
+/** 除外: プロフィールに含むと動かない・プライド高い・詐欺系 — SCREENING_PRINCIPLES + アフリカ/中東等 FIGHTER 条件 */
 const PROFILE_EXCLUDE_KEYWORDS = [
-  "growth hacker", "seo expert", "consultant", "coach", "agency owner", "mentor"
+  "growth hacker", "seo expert", "consultant", "coach", "agency owner", "mentor", "guru",
+  "forex trader", "crypto signals", "mlm"
 ];
 
 /** 除外: FF比の閾値（followers/following） */
@@ -71,13 +77,18 @@ const OPTIMAL_FOLLOWERS_MAX = 50000;
 const HUSTLE_ZONE_FOLLOWERS_MIN = 100;
 const HUSTLE_ZONE_FOLLOWERS_MAX = 3000;
 
+/** 初心者ファイターゾーン（30–1500は伸びたい初心者ファイターの密集帯 — FIGHTER_CONDITIONS） */
+const BEGINNER_FIGHTER_ZONE_MIN = 30;
+const BEGINNER_FIGHTER_ZONE_MAX = 1500;
+
 /** スコアウェイト（0–100 正規化） */
-const WEIGHT_ER = 0.25;
+const WEIGHT_ER = 0.2;
 const WEIGHT_BIO = 0.2;
 const WEIGHT_FOLLOWERS = 0.2;
 const WEIGHT_HYPE_PAIN = 0.15;
 const WEIGHT_HUSTLE_PROFILE = 0.1;
 const WEIGHT_HUSTLE_ZONE = 0.1;
+const WEIGHT_BEGINNER_ZONE = 0.05;
 
 function checkExclusions(user, erPct) {
   const metrics = user?.public_metrics || {};
@@ -172,6 +183,12 @@ function scoreHustleZone(followers) {
   return 0;
 }
 
+/** 初心者ファイターゾーン: フォロワー 30〜1500 なら 1（伸びたい初心者ファイターの密集帯） */
+function scoreBeginnerZone(followers) {
+  if (followers >= BEGINNER_FIGHTER_ZONE_MIN && followers <= BEGINNER_FIGHTER_ZONE_MAX) return 1;
+  return 0;
+}
+
 function scoreHypePain(userTweets = []) {
   const texts = (userTweets || [])
     .map((t) => (typeof t?.text === "string" ? t.text : ""))
@@ -230,6 +247,7 @@ function computeCandidateScore(user, userTweets = []) {
   const norm_hype_pain = scoreHypePain(userTweets);
   const norm_hustle_profile = scoreHustleProfile(description);
   const norm_hustle_zone = scoreHustleZone(followers);
+  const norm_beginner_zone = scoreBeginnerZone(followers);
 
   const score = Math.round(
     WEIGHT_ER * norm_er * 100 +
@@ -237,7 +255,8 @@ function computeCandidateScore(user, userTweets = []) {
       WEIGHT_FOLLOWERS * norm_followers * 100 +
       WEIGHT_HYPE_PAIN * norm_hype_pain * 100 +
       WEIGHT_HUSTLE_PROFILE * norm_hustle_profile * 100 +
-      WEIGHT_HUSTLE_ZONE * norm_hustle_zone * 100
+      WEIGHT_HUSTLE_ZONE * norm_hustle_zone * 100 +
+      WEIGHT_BEGINNER_ZONE * norm_beginner_zone * 100
   );
 
   return {
@@ -250,6 +269,7 @@ function computeCandidateScore(user, userTweets = []) {
       norm_hype_pain,
       norm_hustle_profile,
       norm_hustle_zone,
+      norm_beginner_zone,
       erPct,
       followers
     },
@@ -266,6 +286,7 @@ module.exports = {
   scoreHypePain,
   scoreHustleProfile,
   scoreHustleZone,
+  scoreBeginnerZone,
   HYPE_PAIN_KEYWORDS,
   BIO_KEYWORDS,
   PROFILE_HUSTLE_KEYWORDS,
@@ -276,5 +297,7 @@ module.exports = {
   OPTIMAL_FOLLOWERS_MIN,
   OPTIMAL_FOLLOWERS_MAX,
   HUSTLE_ZONE_FOLLOWERS_MIN,
-  HUSTLE_ZONE_FOLLOWERS_MAX
+  HUSTLE_ZONE_FOLLOWERS_MAX,
+  BEGINNER_FIGHTER_ZONE_MIN,
+  BEGINNER_FIGHTER_ZONE_MAX
 };

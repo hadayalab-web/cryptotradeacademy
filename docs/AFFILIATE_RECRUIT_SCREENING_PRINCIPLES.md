@@ -198,4 +198,6 @@ DMを送る前に、行動量が高く、売る商品がなく、泥臭く動け
 - プロフィール「泥臭さキーワード」と「除外キーワード」は上記原理に合わせて同ファイルで拡張可能
 - 過去7日ポスト数・引用RT数・リンク生死は X API の取得範囲次第で追加実装
 
-関連: [AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md](./AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md)（国別条件）
+**関連**
+- [AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md](./AFFILIATE_RECRUIT_SCREENING_BY_COUNTRY.md)（国別条件）
+- [AFFILIATE_RECRUIT_FIGHTER_CONDITIONS.md](./AFFILIATE_RECRUIT_FIGHTER_CONDITIONS.md)（実績ゼロ〜少ない・モチベ高いファイター向け条件・6言語補正）
