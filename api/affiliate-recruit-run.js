@@ -214,7 +214,7 @@ module.exports = async function handler(req, res) {
   const utcHour = now.getUTCHours();
   const utcMinute = now.getUTCMinutes();
 
-  const dailyCap = Math.max(1, AFFILIATE_DM_DAILY_CAP);
+  const dailyCap = AFFILIATE_DM_DAILY_CAP > 0 ? AFFILIATE_DM_DAILY_CAP : Infinity;
   const sentToday = await getTodaySentCount();
   if (sentToday >= dailyCap) {
     return res.status(200).json({

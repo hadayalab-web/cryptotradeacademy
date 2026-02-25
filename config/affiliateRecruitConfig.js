@@ -36,7 +36,8 @@ function getWhopAffiliateProgramUrl(lang = "en") {
   return base + langParam;
 }
 
-const AFFILIATE_DM_DAILY_CAP = Number(process.env.AFFILIATE_DM_DAILY_CAP || 15);
+/** 日次 DM 送信上限。0 または未設定 = 制限なし。正の数でキャップをかける（過去の 15 は廃止） */
+const AFFILIATE_DM_DAILY_CAP = Number(process.env.AFFILIATE_DM_DAILY_CAP || 0);
 const EN_RECRUIT_HOURS = [0, 3, 6, 9, 12, 15, 18, 21];
 const EN_RECRUIT_BATCH_SIZE = 5;
 
