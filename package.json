@@ -4,7 +4,7 @@
   "description": "AI-driven Crypto Signal Bot with Whale Analysis",
   "main": "api/cron.js",
   "engines": {
-    "node": ">=20.0.0"
+    "node": "20.x"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
