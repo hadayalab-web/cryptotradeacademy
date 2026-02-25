@@ -234,7 +234,7 @@ module.exports = async function handler(req, res) {
         if (await isAlreadySent(c.username)) continue;
         if (await isDmNg(c.author_id)) continue;
         const { text } = fillRecruitDmTemplate(lang, { inviteUrl, whopAffiliateUrl: whopUrl, handle: c.username });
-        const sendResult = await sendRecruitDm(c.username, text);
+        const sendResult = await sendRecruitDm(c.username, text, { participantId: c.author_id });
         if (sendResult?.error) {
           const is403 = String(sendResult.error).includes("403") || String(sendResult.error).toLowerCase().includes("permission to dm");
           if (is403) {
@@ -414,7 +414,7 @@ module.exports = async function handler(req, res) {
       whopAffiliateUrl: whopUrl,
       handle: c.username
     });
-    const sendResult = await sendRecruitDm(c.username, text);
+    const sendResult = await sendRecruitDm(c.username, text, { participantId: c.author_id });
 
     if (sendResult?.error) {
       const is403 =
