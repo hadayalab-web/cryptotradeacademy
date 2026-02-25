@@ -205,19 +205,22 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
           }
         }
 
-        // 403: リプ先ツイート削除/非表示の場合は認証エラーと区別してログ
+        // 403: 想定内パターンは短くログし、それ以外のみ error で詳細出力
         const detailStr = (errorData?.detail && String(errorData.detail)) || "";
         const isTargetUnavailable =
           response.status === 403 &&
           (detailStr.includes("deleted or not visible") || detailStr.includes("deleted") && detailStr.includes("not visible"));
+        const isDmNotAllowed =
+          response.status === 403 && detailStr.includes("permission to DM");
         if (isTargetUnavailable) {
           console.warn(`[X API] Reply skipped (403): target tweet deleted or not visible.`, {
             endpoint,
             method,
             detail: errorData.detail
           });
+        } else if (isDmNotAllowed) {
+          console.warn(`[X API] DM 403: recipient not open to DMs (${endpoint})`);
         } else if (response.status === 401 || response.status === 403) {
-          // 401/403 のその他: OAuth署名エラー等の可能性
           console.error(`[X API] ❌ Authentication/Authorization Error (${response.status}):`, {
             endpoint,
             method,
@@ -374,13 +377,14 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
       clearTimeout(timeoutId);
 
       // 最後の試行またはリトライ不可エラーの場合
+      const isDmPermissionError = error?.message && String(error.message).includes("permission to DM");
       if (attempt === maxRetries) {
-        console.error("[X API] Request failed after retries:", error.message);
+        if (!isDmPermissionError) console.error("[X API] Request failed after retries:", error.message);
         throw error;
       }
 
-      // その他のエラーは即座にスロー
-      console.error("[X API] Request failed:", error.message);
+      // その他のエラーは即座にスロー（DM 403 は上で既に短くログ済み）
+      if (!isDmPermissionError) console.error("[X API] Request failed:", error.message);
       throw error;
     }
   }

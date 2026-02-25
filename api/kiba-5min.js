@@ -10,7 +10,6 @@ require("../utils/suppressKnownWarnings");
 const { getKV } = require("../utils/kv");
 const { getCQDeepMetrics } = require("../services/cryptoquant/deepMetrics");
 const { writeCqLatest } = require("../services/snapshot/cqLatestWriter");
-const { analyzeXSentimentHighResolutionCompat } = require("../services/grok/highResolution");
 const { analyzeXSentimentLive } = require("../services/grok/client");
 const { runKibaOnce } = require("./kiba/run");
 const { runKibaEngine } = require("../core/kiba/kiba_engine");
@@ -130,14 +129,11 @@ module.exports = async function handler(req, res) {
 
     console.log("[kiba-5min] CQ anomaly detected (score=" + cqOnlyResult.kibaScore + "), calling Grok");
 
+    const grokPrompt = "latest BTC price action, funding, liquidations, whale activity, ETF flows on X";
     let xSentiment = { whaleBias: 0, retailFomo: 50, newsImpact: 0 };
-    let highResX = null;
+    let highResX = btcSnapshot?.highResX || null;
     try {
-      const grokSent = await analyzeXSentimentHighResolutionCompat(
-        "latest BTC price action, funding, liquidations, whale activity, ETF flows on X",
-        "en"
-      );
-      highResX = grokSent?._highResolution || null;
+      const grokSent = await analyzeXSentimentLive(grokPrompt, "en");
       if (grokSent && typeof grokSent === "object") {
         xSentiment = {
           whaleBias: Number(grokSent.whaleBias) || 0,
@@ -146,19 +142,7 @@ module.exports = async function handler(req, res) {
         };
       }
     } catch (e) {
-      console.warn("[kiba-5min] Grok high-res failed:", e?.message);
-      try {
-        const fallback = await analyzeXSentimentLive(
-          "latest BTC price action, funding, liquidations, whale activity, ETF flows on X"
-        );
-        if (fallback && typeof fallback === "object") {
-          xSentiment = {
-            whaleBias: Number(fallback.whaleBias) || 0,
-            retailFomo: Number(fallback.retailFomo) || 50,
-            newsImpact: Number(fallback.newsImpact) || 0
-          };
-        }
-      } catch (_) {}
+      console.warn("[kiba-5min] Grok failed:", e?.message);
     }
 
     const mergedSnapshot = {

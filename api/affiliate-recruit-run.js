@@ -241,11 +241,14 @@ module.exports = async function handler(req, res) {
   if (isSlotBlockRun) {
     const crConfig = await getCrConfig();
     const block = SLOT_BLOCKS[utcHour] || [];
+    const blockSummary = block.map((p) => `${p.lang}=${p.count}`).join(", ");
+    console.log("[affiliate-recruit-run] slot block utcHour=" + utcHour + " parts=[" + blockSummary + "]");
     let totalSent = 0;
     const sentHandles = [];
     for (const part of block) {
       if (sentToday + totalSent >= dailyCap) break;
       const { lang, count } = part;
+      console.log("[affiliate-recruit-run] slot part lang=" + lang + " count=" + count);
       let result;
       try {
         result = await fetchCandidatesFromSearch(lang, { maxResults: 30, pagesPerBucket: 1 });
