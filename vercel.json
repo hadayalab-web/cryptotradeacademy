@@ -14,7 +14,6 @@
     { "path": "/api/minimal-upsell-promo", "schedule": "0 20 * * *" },
     { "path": "/api/affiliate-recruit-en", "schedule": "0 0,3,6,9,12,15,18,21 * * *" },
     { "path": "/api/affiliate-recruit-regions", "schedule": "0 12,17,21 * * *" },
-    { "path": "/api/kiba-5min", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron-premium-alerts", "schedule": "*/5 * * * *" }
+    { "path": "/api/kiba-5min", "schedule": "*/5 * * * *" }
   ]
 }
