@@ -1095,12 +1095,19 @@ module.exports = async function handler(req, res) {
           firstTargetLang
         );
 
-        // エラーメッセージが含まれていないか確認
+        // エラーメッセージが含まれていないか確認（「error」単体は除外＝通常の分析で使う表現に反応しすぎるため）
         if (gptRegularAnalysis && typeof gptRegularAnalysis === "string") {
-          const errorKeywords = ["api error", "unavailable", "error", "failed", "timeout"];
-          const isError = errorKeywords.some((keyword) =>
-            gptRegularAnalysis.toLowerCase().includes(keyword)
-          );
+          const errorPatterns = [
+            "api error",
+            "service unavailable",
+            "request failed",
+            "timed out",
+            "timeout",
+            "openai error",
+            "rate limit"
+          ];
+          const lower = gptRegularAnalysis.toLowerCase();
+          const isError = errorPatterns.some((p) => lower.includes(p));
           if (isError) {
             console.warn("[GPT] Error message detected in analysis, setting to null");
             gptRegularAnalysis = null;
