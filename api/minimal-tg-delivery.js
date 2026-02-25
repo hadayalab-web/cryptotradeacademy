@@ -158,8 +158,8 @@ module.exports = async function handler(req, res) {
         continue;
       }
       // Phase 3: formatMinimalBriefing(snapshot, lang) - accepts btcSnapshot or legacy payload
-      let minimalText = formatMinimal(payload, targetLang);
-      minimalText = minimalText + "\n\n" + getUpsellBlock(targetLang);
+      // 無料版なので末尾のアップセル（Upgrade / Whop CTA）は付けない
+      const minimalText = formatMinimal(payload, targetLang);
 
       const chatId = resolveMinimalChatId(targetLang);
       if (!chatId) {
