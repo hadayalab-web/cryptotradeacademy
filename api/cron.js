@@ -1356,9 +1356,8 @@ module.exports = async function handler(req, res) {
     // KIBA 実行・アラートは /api/kiba-5min（5分周期）に一本化。cron では実行しない（二重アラート防止）
     const kibaResult = { delegated: "kiba-5min", impact: { level: "NONE", intensity: "none" } };
 
-    // 早期 return: minimal かつ定期枠外かつ force なしの場合は送信ブロックをスキップ
+    // 早期 return: minimal かつ定期枠外かつ force なし → 送信は minimal 用クローン（minimal-tg-delivery）に任せる
     if (!force && !isRegularSlot && deliveryMode === "minimal") {
-      console.log(`[Phase 2] Skipping send (deliveryMode=minimal): ${deliveryResult.reason}`);
       return res.status(200).json({
         success: true,
         sentMessages: 0,

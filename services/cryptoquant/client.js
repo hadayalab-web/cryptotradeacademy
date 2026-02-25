@@ -223,6 +223,9 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
             console.warn(`[CQ Client] 404 Not Found: ${endpoint} — returning null (fallback)`);
             return null;
           }
+          if (response.status === 403) {
+            return null;
+          }
           if (response.status === 400) {
             let body = null;
             try {

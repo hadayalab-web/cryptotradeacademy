@@ -225,29 +225,6 @@ async function getLTHNUPL() {
 }
 
 /**
- * Funding Rate取得（CQ: /btc/market-data/funding-rates）
- * 404の場合はnull、取得可能なら値（小数、例: 0.0001 = 0.01%）
- * @returns {Promise<number|null>}
- */
-async function getFundingRate() {
-  try {
-    const data = await fetchCQWithRetry('/btc/market-data/funding-rates', { exchange: 'all_exchange', window: '8hour', limit: 1 });
-    if (!data) return null; // 403/400 等で client が null を返した場合
-    const point = data?.result?.data?.[0];
-    const v = Number(point?.value ?? point?.funding_rate ?? point?.rate ?? 0);
-    return Number.isFinite(v) ? v : null;
-  } catch (e) {
-    const msg = String(e?.message || '');
-    if (msg.includes('404') || msg.includes('403')) {
-      try { require('../utils/logger').Logger.debug('deepMetrics', 'Funding funding-rates 404/403 (plan limit)', {}); } catch (_) {}
-    } else {
-      console.warn('[deepMetrics] Funding fetch error:', e.message);
-    }
-    return null;
-  }
-}
-
-/**
  * Open Interest取得（CQ: /btc/market-data/open-interest）
  * 404の場合はnull、取得可能なら値（USD）
  * @returns {Promise<number|null>}
@@ -536,46 +513,6 @@ function deriveBaseFromHighRes(highResCQ) {
 }
 
 /**
- * CQ Pro 共通フィールド取得（未使用・パイプライン廃止。getCQDeepMetrics では呼ばず null をセット）
- * 404のものはnullでスキップ。並列取得。
- * @returns {Promise<Object>}
- */
-async function fetchCQProCommonFields() {
-  const [
-    sopr, sopr30d, nupl, lthNupl, funding, openInterest, liquidations, minerFlows, liquidity,
-    stablecoinMetrics, etfFlows, exchangeFlowsDetailed,
-  ] = await Promise.all([
-    getSOPR().catch(() => null),
-    getSOPR30d().catch(() => null),
-    getNUPL().catch(() => null),
-    getLTHNUPL().catch(() => null),
-    getFundingRate().catch(() => null),
-    getOpenInterest().catch(() => null),
-    getLiquidations().catch(() => ({ longLiquidations: 0, shortLiquidations: 0, totalLiquidations: 0 })),
-    getMinerFlows().catch(() => null),
-    getLiquidity().catch(() => null),
-    getStablecoinMetrics().catch(() => null),
-    getETFFlows().catch(() => null),
-    getExchangeFlowsDetailed().catch(() => null),
-  ]);
-  const out = {
-    sopr: sopr != null && Number.isFinite(sopr) ? sopr : null,
-    sopr30d: sopr30d != null && Number.isFinite(sopr30d) ? sopr30d : null,
-    nupl: nupl != null && Number.isFinite(nupl) ? nupl : null,
-    lthNupl: lthNupl != null && Number.isFinite(lthNupl) ? lthNupl : null,
-    funding: funding != null && Number.isFinite(funding) ? funding : null,
-    openInterest: openInterest != null && Number.isFinite(openInterest) ? openInterest : null,
-    liquidations: liquidations && typeof liquidations === 'object' ? liquidations : null,
-    minerFlows: minerFlows && typeof minerFlows === 'object' ? minerFlows : null,
-    liquidity: liquidity && typeof liquidity === 'object' ? liquidity : null,
-    stablecoinMetrics: stablecoinMetrics && typeof stablecoinMetrics === 'object' ? stablecoinMetrics : null,
-    etfFlows: etfFlows && typeof etfFlows === 'object' ? etfFlows : null,
-    exchangeFlowsDetailed: exchangeFlowsDetailed && typeof exchangeFlowsDetailed === 'object' ? exchangeFlowsDetailed : null,
-  };
-  return out;
-}
-
-/**
  * 市場別深掘りデータ取得（Phase 2）
  * Step 2-4: EMERGENCY判定指標のキャッシュバイパス対応
  * CQ Pro 100%: sopr, sopr30d, nupl, funding, openInterest, minerFlows, liquidity を全市場で受け皿として含む
@@ -724,14 +661,12 @@ module.exports = {
   getLTHNUPL,
   getSOPR,
   getSOPR30d,
-  getFundingRate,
   getOpenInterest,
   getMinerFlows,
   getLiquidity,
   getStablecoinMetrics,
   getETFFlows,
   getExchangeFlowsDetailed,
-  fetchCQProCommonFields,
   calculateTrapScore,
   calculateRiskReward,
 };
