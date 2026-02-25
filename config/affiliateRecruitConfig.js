@@ -81,13 +81,13 @@ const AFFILIATE_DM_MIN_INTERVAL_MS = Number(process.env.AFFILIATE_DM_MIN_INTERVA
 
 const SLOT_BLOCK_HOURS = [12, 17, 21];
 const SLOT_BLOCKS = {
-  12: [{ lang: "ja", count: 3 }, { lang: "ko", count: 3 }],
+  12: [{ lang: "ja", count: 5 }, { lang: "ko", count: 5 }],
   17: [{ lang: "ar", count: 5 }],
   21: [{ lang: "es", count: 5 }, { lang: "pt", count: 5 }]
 };
 
 const SLOTS_BY_UTC_HOUR = {
-  12: ["ja", "ja", "ja", "ko", "ko", "ko"],
+  12: ["ja", "ja", "ja", "ja", "ja", "ko", "ko", "ko", "ko", "ko"],
   17: ["ar", "ar", "ar", "ar", "ar"],
   21: ["es", "es", "es", "es", "es", "pt", "pt", "pt", "pt", "pt"]
 };
