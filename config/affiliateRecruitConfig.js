@@ -16,10 +16,18 @@ const AFFILIATE_LANG_NAMES = {
   ja: "Japanese"
 };
 
-function getFirstPromoterInviteUrl(lang = "en") {
+/**
+ * FirstPromoter 招待 URL。ref を渡すと DM→登録の紐づけ用にクエリに付与する（v2.0 ref対応）
+ * @param {string} [lang="en"]
+ * @param {{ ref?: string }} [options] - ref: X の author_id（送信先識別子）
+ */
+function getFirstPromoterInviteUrl(lang = "en", options = {}) {
   const base = process.env.FIRSTPROMOTER_INVITE_URL || "https://firstpromoter.com";
-  const langParam = lang && lang !== "en" ? `?lang=${lang}` : "";
-  return base + langParam;
+  const params = new URLSearchParams();
+  if (lang && lang !== "en") params.set("lang", lang);
+  if (options.ref) params.set("ref", String(options.ref));
+  const qs = params.toString();
+  return qs ? `${base}${base.includes("?") ? "&" : "?"}${qs}` : base;
 }
 
 function getWhopAffiliateProgramUrl(lang = "en") {

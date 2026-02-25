@@ -27,13 +27,40 @@ const {
   hasNigeriaKeyword,
   PRIORITY_MIN_SEND
 } = require("../services/td/affiliateRecruitScoring");
+const { getCrConfig } = require("../services/td/affiliateRecruitCrConfig");
 
 const KV_KEY_DAILY_COUNT = (dateStr) => `affiliate_recruit:daily_count:${dateStr}`;
 const KV_KEY_SENT_HANDLE = (handle) => `affiliate_recruit:sent:${handle.toLowerCase()}`;
 const KV_KEY_HOUR_SENT = (dateStr, hour) => `affiliate_recruit:hour_sent:${dateStr}:${hour}`;
 const KV_KEY_DM_NG = (userId) => `affiliate_recruit:dm_ng:${userId}`;
+const KV_KEY_REF_SENT = (authorId) => `affiliate_recruit:ref_sent:${authorId}`;
+const KV_KEY_STATS_LANG = (lang) => `affiliate_recruit:stats:lang:${lang}`;
+const KV_KEY_STATS_LANG_BAND = (lang, band) => `affiliate_recruit:stats:lang:${lang}:band:${band}`;
 const SENT_TTL = 86400 * 90; // 90日（同一 handle に再送しない期間）
 const DM_NG_TTL = 86400 * 90; // 90日（403 だったユーザーに再送しない期間）
+const REF_SENT_TTL = 86400 * 90; // 90日（DM→登録紐づけ用）
+
+const RECRUIT_STATS_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
+const SCORE_BANDS = ["0-49", "50-64", "65-79", "80-100"];
+
+function getScoreBand(score) {
+  if (score == null || typeof score !== "number") return "0-49";
+  if (score < 50) return "0-49";
+  if (score < 65) return "50-64";
+  if (score < 80) return "65-79";
+  return "80-100";
+}
+
+/** 送信数集計（言語×スコア帯）。観測ダッシュボード用。失敗しても送信処理は続行 */
+async function incrementSentStats(lang, score) {
+  if (!kv || !lang) return;
+  try {
+    await kv.incr(KV_KEY_STATS_LANG(lang));
+    await kv.incr(KV_KEY_STATS_LANG_BAND(lang, getScoreBand(score)));
+  } catch (e) {
+    console.warn("[affiliate-recruit-run] incrementSentStats failed:", e?.message);
+  }
+}
 
 async function getTodaySentCount() {
   if (!kv) return 0;
@@ -57,9 +84,46 @@ async function isAlreadySent(handle) {
   return !!v;
 }
 
-async function markSent(handle) {
+/**
+ * 送信済みマーク。payload を渡すと送信ログとして lang/score/priority/author_id を保存（返信率・登録率の国×言語×スコア帯観測用）
+ * @param {string} handle - 送信先 @username
+ * @param {{ lang?: string; score?: number; priority?: number; author_id?: string }} [payload] - 検索時の言語・スコア・優先度・author_id
+ */
+async function markSent(handle, payload = {}) {
   if (!kv) return;
-  await kv.set(KV_KEY_SENT_HANDLE(handle), Date.now().toString(), { ex: SENT_TTL });
+  const ts = Date.now();
+  const value =
+    Object.keys(payload).length > 0
+      ? JSON.stringify({
+          ts,
+          handle: (handle || "").toLowerCase(),
+          lang: payload.lang ?? null,
+          score: payload.score ?? null,
+          priority: payload.priority ?? null,
+          author_id: payload.author_id ?? null
+        })
+      : String(ts);
+  await kv.set(KV_KEY_SENT_HANDLE(handle), value, { ex: SENT_TTL });
+}
+
+/** ref 紐づけ用: 送信時に author_id をキーに lang/score を保存。FirstPromoter 登録時の ref と突き合わせ可能にする */
+async function saveRefSent(authorId, data) {
+  if (!kv || !authorId) return;
+  try {
+    await kv.set(
+      KV_KEY_REF_SENT(String(authorId)),
+      JSON.stringify({
+        handle: data.handle ?? null,
+        lang: data.lang ?? null,
+        score: data.score ?? null,
+        priority: data.priority ?? null,
+        ts: Date.now()
+      }),
+      { ex: REF_SENT_TTL }
+    );
+  } catch (e) {
+    console.warn("[affiliate-recruit-run] saveRefSent failed:", e?.message);
+  }
 }
 
 async function isDmNg(userId) {
@@ -175,6 +239,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (isSlotBlockRun) {
+    const crConfig = await getCrConfig();
     const block = SLOT_BLOCKS[utcHour] || [];
     let totalSent = 0;
     const sentHandles = [];
@@ -205,9 +270,11 @@ module.exports = async function handler(req, res) {
         if (!u?.username) continue;
         const tweets = tweetsByAuthor[uid] || [];
         const { score, excluded, reason, breakdown } = computeCandidateScore(u, tweets);
+        const C = crConfig.C[lang] ?? getRegionCoefficientByLang(lang);
+        const B = crConfig.B[getScoreBand(score)] ?? 1.0;
         const priority =
           !excluded && score != null
-            ? (score / 100) * getRegionCoefficientByLang(lang) * 1.0 * getRiskFactor(u, tweets, lang)
+            ? (score / 100) * C * getRiskFactor(u, tweets, lang) * B
             : 0;
         candidates.push({
           author_id: uid,
@@ -226,13 +293,13 @@ module.exports = async function handler(req, res) {
       const eligible = candidates
         .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND && ngFilter(c))
         .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
-      const inviteUrl = getFirstPromoterInviteUrl(lang);
       const whopUrl = getWhopAffiliateProgramUrl(lang);
       let sentForPart = 0;
       for (const c of eligible) {
         if (sentForPart >= count || sentToday + totalSent >= dailyCap) break;
         if (await isAlreadySent(c.username)) continue;
         if (await isDmNg(c.author_id)) continue;
+        const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
         const { text } = fillRecruitDmTemplate(lang, { inviteUrl, whopAffiliateUrl: whopUrl, handle: c.username });
         const sendResult = await sendRecruitDm(c.username, text, { participantId: c.author_id });
         if (sendResult?.error) {
@@ -243,7 +310,14 @@ module.exports = async function handler(req, res) {
           }
           break;
         }
-        await markSent(c.username);
+        await markSent(c.username, {
+          lang,
+          score: c.score,
+          priority: c.priority,
+          author_id: c.author_id
+        });
+        await saveRefSent(c.author_id, { handle: c.username, lang, score: c.score, priority: c.priority });
+        await incrementSentStats(lang, c.score);
         await incrementTodaySentCount();
         sentForPart++;
         totalSent++;
@@ -299,6 +373,7 @@ module.exports = async function handler(req, res) {
     });
   }
 
+  const crConfig = await getCrConfig();
   let result;
   try {
     result = await fetchCandidatesFromSearch(lang, { maxResults: 30, pagesPerBucket: 1 });
@@ -328,9 +403,11 @@ module.exports = async function handler(req, res) {
     if (!u?.username) continue;
     const tweets = tweetsByAuthor[uid] || [];
     const { score, excluded, reason, breakdown } = computeCandidateScore(u, tweets);
+    const C = crConfig.C[lang] ?? getRegionCoefficientByLang(lang);
+    const B = crConfig.B[getScoreBand(score)] ?? 1.0;
     const priority =
       !excluded && score != null
-        ? (score / 100) * getRegionCoefficientByLang(lang) * 1.0 * getRiskFactor(u, tweets, lang)
+        ? (score / 100) * C * getRiskFactor(u, tweets, lang) * B
         : 0;
     candidates.push({
       author_id: uid,
@@ -351,7 +428,6 @@ module.exports = async function handler(req, res) {
     .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND && ngFilter(c))
     .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
-  const inviteUrl = getFirstPromoterInviteUrl(lang);
   const whopUrl = getWhopAffiliateProgramUrl(lang);
 
   if (!willSend) {
@@ -375,8 +451,9 @@ module.exports = async function handler(req, res) {
         enBatch: isEnBatchRun
       });
     }
+    const inviteUrlDryRun = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
     const { text, variant, variantName } = fillRecruitDmTemplate(lang, {
-      inviteUrl,
+      inviteUrl: inviteUrlDryRun,
       whopAffiliateUrl: whopUrl,
       handle: c.username
     });
@@ -409,6 +486,7 @@ module.exports = async function handler(req, res) {
     if (await isAlreadySent(c.username)) continue;
     if (await isDmNg(c.author_id)) continue;
 
+    const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
     const { text, variant, variantName } = fillRecruitDmTemplate(lang, {
       inviteUrl,
       whopAffiliateUrl: whopUrl,
@@ -443,7 +521,14 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    await markSent(c.username);
+    await markSent(c.username, {
+      lang,
+      score: c.score,
+      priority: c.priority,
+      author_id: c.author_id
+    });
+    await saveRefSent(c.author_id, { handle: c.username, lang, score: c.score, priority: c.priority });
+    await incrementSentStats(lang, c.score);
     await incrementTodaySentCount();
     if (!isEnBatchRun) await incrementHourSent(dateStr, utcHour);
     sentCount += 1;
