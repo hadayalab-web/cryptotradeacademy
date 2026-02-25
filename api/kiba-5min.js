@@ -24,6 +24,9 @@ const BTC_SNAPSHOT_KEYS = ["asset:snapshot:BTC", "btc:snapshot"];
 const ALERT_LANGS = ["en", "ja", "es", "ko", "pt-br", "ar"];
 /** CQ のみでこのスコア以上なら「異常」とみなし、Grok を呼ぶ */
 const CQ_ANOMALY_KIBA_SCORE_THRESHOLD = 40;
+/** 同一発火が続くとき、この分数だけ Telegram 送信をスキップ（連打防止） */
+const ALERT_COOLDOWN_MINUTES = Number(process.env.KIBA_ALERT_COOLDOWN_MINUTES) || 60;
+const KIBA_LAST_ALERT_SENT_KEY = "kiba:last_alert_sent_at:BTC";
 
 function getMarketCode(lang) {
   const m = { en: "EN", ja: "JA", ko: "KO", es: "ES", "pt-br": "PT-BR", ar: "AR" };
@@ -197,17 +200,30 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    if (ENABLE_TELEGRAM && kibaResult.dispatchPayload?.alerts) {
-      const alerts = kibaResult.dispatchPayload.alerts;
-      for (const lang of ALERT_LANGS) {
-        const text = alerts[lang];
-        if (!text || typeof text !== "string") continue;
-        try {
-          await sendMessageToChannel(text, "BTC", getMarketCode(lang));
-          console.log("[kiba-5min] Telegram sent for", lang);
-        } catch (e) {
-          console.warn("[kiba-5min] Telegram failed for", lang, e?.message);
+    // 発火 → 有料版（Regular Briefing）と同じ6言語TGに配信。連打防止のためクールダウンのみ適用。
+    const alerts = kibaResult.dispatchPayload?.alerts || {};
+    if (ENABLE_TELEGRAM && Object.keys(alerts).length > 0) {
+      const now = Date.now();
+      const cooldownMs = ALERT_COOLDOWN_MINUTES * 60 * 1000;
+      let lastSentAt = null;
+      try {
+        const raw = await kv.get(KIBA_LAST_ALERT_SENT_KEY);
+        if (raw != null) lastSentAt = Number(raw);
+      } catch (_) {}
+      const inCooldown = lastSentAt != null && Number.isFinite(lastSentAt) && now - lastSentAt < cooldownMs;
+      if (!inCooldown) {
+        for (const lang of ALERT_LANGS) {
+          const text = alerts[lang];
+          if (!text || typeof text !== "string") continue;
+          try {
+            await sendMessageToChannel(text, "BTC", getMarketCode(lang));
+          } catch (e) {
+            console.warn("[kiba-5min] TG failed", lang, e?.message);
+          }
         }
+        try {
+          await kv.set(KIBA_LAST_ALERT_SENT_KEY, String(now));
+        } catch (_) {}
       }
     }
 
