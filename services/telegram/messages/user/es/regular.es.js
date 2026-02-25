@@ -300,7 +300,7 @@ function formatRegularBriefingCore({
       const hasEnglishOnly = !hasSpanishChars && !hasSpanishWords && !hasJapaneseChars && gptNewsText.length > 50;
       if (hasJapaneseChars || (hasEnglishOnly && !hasSpanishChars && !hasSpanishWords)) {
         // 日本語または英語のみが含まれている場合はnullに設定してスペイン語フォールバックを使用
-        console.warn('[Regular ES] Non-Spanish language detected in GPT analysis, using fallback');
+        console.info('[Regular ES] Non-Spanish language detected in GPT analysis, using fallback');
         gptNewsText = null;
       } else if (!hasSpanishChars && !hasSpanishWords && gptNewsText.length > 50) {
         // スペイン語が含まれていない場合はnullに設定してスペイン語フォールバックを使用

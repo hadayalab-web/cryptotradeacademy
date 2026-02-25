@@ -246,6 +246,9 @@ async function handlePurchaseEvent(event) {
     
     // FirstPromoter: 紹介売上がある場合のみ track/sale（ref_id または promo_code が取れたとき）
     const amountNum = Number(conversionData.amount);
+    if (amountNum > 0 && !refId && !promoCode) {
+      console.warn('[Whop Webhook] ⚠️ FirstPromoter: 成約ありだが ref_id/promo_code なし。アフィリエイターに紐づきません。referrer_url/metadata を確認:', { hasReferrerUrl: !!referrerUrl, metadataKeys: Object.keys(metadata) });
+    }
     if ((refId || promoCode) && amountNum > 0) {
       try {
         const { trackSale } = require('../services/firstpromoter/trackSale');

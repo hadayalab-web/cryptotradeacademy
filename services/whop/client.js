@@ -447,6 +447,42 @@ async function terminateMembership(membershipId) {
   }
 }
 
+/**
+ * チェックアウトセッションを作成（FirstPromoter ref 紐づけ用）
+ * Whop サポート推奨: ref はセッション作成時に metadata で渡す。Webhook で metadata が届く。
+ * @param {Object} params
+ * @param {string} params.plan_id - プランID（例: plan_xxx）
+ * @param {string} params.ref - FirstPromoter の紹介ID（アフィリエイター識別子）
+ * @param {string} [params.redirect_url] - 購入完了後のリダイレクト先
+ * @returns {Promise<{ purchase_url: string, id: string }>} purchase_url にリダイレクトする
+ */
+async function createCheckoutSession(params) {
+  const { plan_id, ref, redirect_url } = params;
+  if (!plan_id || !ref) {
+    throw new Error('createCheckoutSession requires plan_id and ref');
+  }
+  try {
+    const body = {
+      plan_id,
+      metadata: { ref: String(ref), ref_id: String(ref) },
+    };
+    if (redirect_url) body.redirect_url = redirect_url;
+    const response = await whopApiRequest('/checkout_sessions', {
+      method: 'POST',
+      body,
+    });
+    const data = response.data || response;
+    const purchase_url = data.purchase_url || data.checkout_url;
+    if (!purchase_url) {
+      throw new Error('Whop API did not return purchase_url');
+    }
+    return { purchase_url, id: data.id };
+  } catch (error) {
+    console.error('[Whop API] createCheckoutSession failed:', error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   whopApiRequest,
   getPromoCode,
@@ -470,4 +506,5 @@ module.exports = {
   updateMembership,
   cancelMembership,
   terminateMembership,
+  createCheckoutSession,
 };

@@ -220,7 +220,7 @@ function formatRegularBriefingCore({
     } else {
       const hasJapaneseChars = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(gptNewsText);
       if (!hasJapaneseChars && gptNewsText.length > 50) {
-        console.warn('[Regular JA] Non-Japanese language detected in GPT analysis, using fallback');
+        console.info('[Regular JA] Non-Japanese language detected in GPT analysis, using fallback');
         gptNewsText = null;
       }
     }
@@ -377,7 +377,7 @@ ${inflow >= 0 ? '強制売却とマイナー配布(MPI ' + mpiDisplay + ')で価
       lines.push(`📱 X Sentiment: ${grokXDisplay}`);
       lines.push('');
     } else {
-      console.warn('[Regular JA] 日本語以外検出 in grokXAnalysis, skipping');
+      console.info('[Regular JA] 日本語以外検出 in grokXAnalysis, skipping');
     }
   }
   if (!hasGrokData || isGrokOffline) {

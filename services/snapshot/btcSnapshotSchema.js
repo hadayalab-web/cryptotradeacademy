@@ -105,9 +105,8 @@ function snapshotToDbRow(snapshot) {
     trap_alert: snapshot.trapAlert ?? null,
     divergence_signal: snapshot.divergenceSignal ?? null,
     market_score: snapshot.market_score ?? null,
-    trade_signal: snapshot.tradeSignal ?? null,
-    meta: snapshot.meta ?? null
-    // market_regime は btc_snapshots に未追加のため insert では送らない。読取時は dbRowToBtcSnapshot で row.market_regime を参照可。
+    trade_signal: snapshot.tradeSignal ?? null
+    // meta / market_regime は btc_snapshots に未追加のため insert では送らない。読取時は dbRowToBtcSnapshot で参照可。
   };
 }
 

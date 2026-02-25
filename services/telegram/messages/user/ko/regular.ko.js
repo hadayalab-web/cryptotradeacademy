@@ -194,7 +194,7 @@ function formatRegularBriefingCore({
       const hasJapaneseChars = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(gptNewsText);
       const hasEnglishOnly = !hasKoreanChars && !hasJapaneseChars && gptNewsText.length > 50;
       if (hasJapaneseChars || (hasEnglishOnly && !hasKoreanChars) || (!hasKoreanChars && gptNewsText.length > 50)) {
-        console.warn('[Regular KO] Non-Korean language detected in GPT analysis, using fallback');
+        console.info('[Regular KO] Non-Korean language detected in GPT analysis, using fallback');
         gptNewsText = null;
       }
     }
