@@ -12,9 +12,6 @@ const { computeKibaScore } = require("./scoring/kiba_score");
 const { evaluateKibaImpact } = require("./evaluator/kiba_trigger");
 
 const SUPPRESSION_WINDOW_MS = 60 * 60 * 1000; // 1h cooldown
-const LOW_VOLATILITY_THRESHOLD = 0.5; // |change24h| < this → suppress
-const X_VOLUME_MIN = 5; // avgVolume or postVolume below → suppress (was 10, relaxed so KIBA can fire)
-const WHALE_SIGMA = 0.4; // normalized whale imbalance within threshold → suppress (0.4 = allow ~40% bias)
 const TRIGGER_SCORE_MIN = 55; // kibaScore >= this and impact ELEVATED+ → fire (was 65)
 
 function toNum(v, fallback) {
@@ -74,18 +71,19 @@ function snapshotToDetectorInputs(btcSnapshot) {
 }
 
 /**
- * 誤検出防止: score を 0〜30 に抑制する条件
- * @returns {{ score: number, reasons: string[] }} capped score and which filters applied
+ * 誤検出防止: CQ が無いときだけ 30 にキャップ（それ以外の条件は廃止＝常にキャップで発火しなかったため）
+ * @returns {{ score: number, reasons: string[] }}
  */
 function applySuppressionFilters(score, inputs) {
   const m = inputs._meta || {};
   let capped = score;
   const reasons = [];
 
-  if (!m.hasCq) { capped = Math.min(capped, 30); reasons.push("noCq"); }
-  if (m.avgVolume < X_VOLUME_MIN || m.postVolume < X_VOLUME_MIN) { capped = Math.min(capped, 30); reasons.push("lowXVolume"); }
-  if (Math.abs(m.change24h) < LOW_VOLATILITY_THRESHOLD) { capped = Math.min(capped, 30); reasons.push("lowVolatility"); }
-  if ((m.whaleImbalanceNorm || 0) <= WHALE_SIGMA) { capped = Math.min(capped, 30); reasons.push("whaleBalance"); }
+  if (!m.hasCq) {
+    capped = Math.min(capped, 30);
+    reasons.push("noCq");
+  }
+  // lowXVolume / lowVolatility / whaleBalance は廃止（キャップしすぎて KIBA が一度も発火しなかったため）
 
   return { score: capped, reasons };
 }
