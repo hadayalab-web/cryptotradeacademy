@@ -16,8 +16,11 @@ const MAX_ENDPOINTS_PER_RUN = Number(process.env.KIBA_CQ_AUTO_MAX_PER_RUN) || 80
 function getDefaultParamsForPath(apiPath) {
   const p = String(apiPath || "").toLowerCase();
   const base = { exchange: "all_exchange", window: "day", limit: 1 };
-  if (p.includes("/stablecoin/")) {
+  if (p.includes("/stablecoin/") || p.includes("/erc20/")) {
     return { ...base, token: "USDT" };
+  }
+  if (p.includes("entity-list")) {
+    return { ...base, type: "exchange" };
   }
   if (p.includes("funding-rates")) {
     return { exchange: "all_exchange", window: "8hour", limit: 1 };

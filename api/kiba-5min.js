@@ -9,7 +9,6 @@ require("../utils/suppressKnownWarnings");
 
 const { getKV } = require("../utils/kv");
 const { getCQDeepMetrics } = require("../services/cryptoquant/deepMetrics");
-const { fetchAllEndpointsFromReference } = require("../services/cryptoquant/autoFetchEndpoints");
 const { writeCqLatest } = require("../services/snapshot/cqLatestWriter");
 const { analyzeXSentimentHighResolutionCompat } = require("../services/grok/highResolution");
 const { analyzeXSentimentLive } = require("../services/grok/client");
@@ -97,19 +96,6 @@ module.exports = async function handler(req, res) {
     } catch (e) {
       console.warn("[kiba-5min] CQ fetch failed:", e?.message);
       cqDeep = btcSnapshot.cqDeep || {};
-    }
-
-    // 自律拡張: リファレンス一覧から CQ エンドポイントを自動取得（KIBA_CQ_AUTO_ENDPOINTS=true 時）
-    const autoEndpointsEnabled = process.env.KIBA_CQ_AUTO_ENDPOINTS === "true" || process.env.KIBA_CQ_AUTO_ENDPOINTS === "1";
-    if (autoEndpointsEnabled) {
-      try {
-        const autoResult = await fetchAllEndpointsFromReference({ skipCache: false });
-        if (autoResult.fetched > 0 && Object.keys(autoResult.byPath).length > 0) {
-          cqDeep = { ...cqDeep, autoEndpoints: autoResult.byPath };
-        }
-      } catch (e) {
-        console.warn("[kiba-5min] CQ auto-endpoints fetch failed:", e?.message);
-      }
     }
 
     const snapshotCqOnly = {
@@ -221,6 +207,7 @@ module.exports = async function handler(req, res) {
             console.warn("[kiba-5min] TG failed", lang, e?.message);
           }
         }
+        console.log("[kiba-5min] sent to 6 TG channels (Regular Briefing)");
         try {
           await kv.set(KIBA_LAST_ALERT_SENT_KEY, String(now));
         } catch (_) {}
