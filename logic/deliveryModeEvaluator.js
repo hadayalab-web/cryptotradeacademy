@@ -228,8 +228,9 @@ function evaluateDeliveryMode(snapshot, context = {}) {
 
   if (isRegularSlot) return { mode: "regular", reason: "regular_slot", meta };
 
-  const regularEvent = evaluateRegularEventDriven(snapshot, lastSnapshot);
-  if (regularEvent.fire) return { mode: "regular", reason: `event_driven: ${regularEvent.reason}`, meta };
+  // Regular は定期枠（1日4回）のみ。イベント駆動で regular に昇格しない（意図しない時間帯の配信を防ぐ）
+  // const regularEvent = evaluateRegularEventDriven(snapshot, lastSnapshot);
+  // if (regularEvent.fire) return { mode: "regular", ... };
 
   return { mode: "minimal", reason: "default", meta };
 }

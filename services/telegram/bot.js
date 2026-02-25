@@ -61,8 +61,15 @@ function resolveMinimalChatId(langCode) {
   return TELEGRAM_CHAT_ID_MINIMAL;
 }
 
-if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-  console.warn("⚠️ TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set in environment variables");
+// 警告: 無印 TELEGRAM_CHAT_ID は旧仕様。Regular 配信は TELEGRAM_CHAT_ID_BTC_JA 等を使う
+function hasAnyRegularChannelId() {
+  const codes = ["EN", "JA", "ES", "KO", "PT_BR", "AR"];
+  return codes.some((c) => process.env[`TELEGRAM_CHAT_ID_BTC_${c}`]);
+}
+if (!TELEGRAM_BOT_TOKEN) {
+  console.warn("⚠️ TELEGRAM_BOT_TOKEN is not set — Telegram送信はスキップされます");
+} else if (!TELEGRAM_CHAT_ID && !hasAnyRegularChannelId()) {
+  console.warn("⚠️ TELEGRAM_CHAT_ID および TELEGRAM_CHAT_ID_BTC_* が未設定 — チャンネル送信できません");
 }
 
 /**
