@@ -3,9 +3,18 @@
 **使い方:** 各 ## 見出しの下の Content をコピーし、FirstPromoter → Assets → Add Asset → Text で貼り付け。
 Asset name は ## 見出しの名前と同じにする。
 
+## X プロフィール用 URL（FirstPromoter に飛ばす）
+
+**X の「ウェブサイト」欄に貼るリンク。** クリックで FirstPromoter 招待ページへ。出所は `utm_source=x_profile` で識別。
+
+- **取得方法:** 環境変数 `FIRSTPROMOTER_INVITE_URL` を設定している場合、その URL に `?utm_source=x_profile`（既に `?` があれば `&utm_source=x_profile`）を付けたものがプロフィール用。
+- **コード:** `config/affiliateRecruitConfig.js` の `getFirstPromoterProfileUrl()` で同じURLを取得可能。
+
+---
+
 ## X DM（6言語・Copilot 最適化）
 
-**単一ソース:** `config/affiliateScoutDmTemplates.js`。痛み→救済→CTA。DM→LP→登録後 の一本血流。
+**単一ソース:** `config/affiliateRecruitDmTemplates.js`（リクルート） / `config/affiliateScoutDmTemplates.js`（スカウト）。痛み→救済→CTA。DM→LP→登録後 の一本血流。
 
 ---
 

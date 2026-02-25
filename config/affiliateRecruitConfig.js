@@ -17,14 +17,28 @@ const AFFILIATE_LANG_NAMES = {
 };
 
 /**
+ * 言語別 FirstPromoter 招待 URL の env キー（Vercel で FIRSTPROMOTER_INVITE_URL_EN 等を設定している場合に使用）
+ */
+function getFirstPromoterInviteUrlEnvKey(lang) {
+  if (!lang || typeof lang !== "string") return null;
+  const key = `FIRSTPROMOTER_INVITE_URL_${lang.toUpperCase()}`;
+  return process.env[key] ? key : null;
+}
+
+/**
  * FirstPromoter 招待 URL。ref を渡すと DM→登録の紐づけ用にクエリに付与する（v2.0 ref対応）
+ * 優先: FIRSTPROMOTER_INVITE_URL_XX（言語別）→ FIRSTPROMOTER_INVITE_URL → firstpromoter.com
  * @param {string} [lang="en"]
  * @param {{ ref?: string }} [options] - ref: X の author_id（送信先識別子）
  */
 function getFirstPromoterInviteUrl(lang = "en", options = {}) {
-  const base = process.env.FIRSTPROMOTER_INVITE_URL || "https://firstpromoter.com";
+  const langKey = getFirstPromoterInviteUrlEnvKey(lang);
+  const base =
+    (langKey && process.env[langKey]) ||
+    process.env.FIRSTPROMOTER_INVITE_URL ||
+    "https://firstpromoter.com";
   const params = new URLSearchParams();
-  if (lang && lang !== "en") params.set("lang", lang);
+  if (!langKey && lang && lang !== "en") params.set("lang", lang);
   if (options.ref) params.set("ref", String(options.ref));
   const qs = params.toString();
   return qs ? `${base}${base.includes("?") ? "&" : "?"}${qs}` : base;
@@ -34,6 +48,19 @@ function getWhopAffiliateProgramUrl(lang = "en") {
   const base = process.env.WHOP_AFFILIATE_PROGRAM_URL || "https://whop.com/affiliates";
   const langParam = lang && lang !== "en" ? `?lang=${lang}` : "";
   return base + langParam;
+}
+
+/**
+ * X プロフィールの「ウェブサイト」欄に貼る FirstPromoter 招待 URL（1本のみ）。
+ * 優先: FIRSTPROMOTER_INVITE_URL_EN → FIRSTPROMOTER_INVITE_URL → firstpromoter.com。utm_source=x_profile で出所識別。
+ */
+function getFirstPromoterProfileUrl() {
+  const base =
+    process.env.FIRSTPROMOTER_INVITE_URL_EN ||
+    process.env.FIRSTPROMOTER_INVITE_URL ||
+    "https://firstpromoter.com";
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}utm_source=x_profile`;
 }
 
 /** 日次 DM 送信上限。0 または未設定 = 制限なし。正の数でキャップをかける（過去の 15 は廃止） */
@@ -98,6 +125,7 @@ module.exports = {
   AFFILIATE_RECRUIT_LANGS,
   AFFILIATE_LANG_NAMES,
   getFirstPromoterInviteUrl,
+  getFirstPromoterProfileUrl,
   getWhopAffiliateProgramUrl,
   AFFILIATE_DM_DAILY_CAP,
   EN_RECRUIT_HOURS,
