@@ -4,45 +4,37 @@
  */
 const { searchPostsRecent } = require("../x/client");
 
-// 検索キーワード（6 言語・クリプト/トレード系。隠された敵戦略: 煽り商材を紹介している候補＝転換ニーズ高い）
+// 検索: すでにアフィリエイター＋DMで案件募集中。ノイズは徹底排除（煽り系なし）。
 const SEARCH_KEYWORDS_BY_LANG = {
   en: [
-    "bitcoin", "btc", "crypto", "pump", "moon", "ath", "breakout", "halving", "spot etf", "all time high",
-    "don't miss", "last chance", "buy now", "100x", "to the moon", "next 100x", "going to the moon", "pump it now",
-    "gem", "alpha", "next pump", "dyor", "$SOL", "$ETH",
-    "affiliate", "referral", "signals", "vip calls", "course", "alpha pass"
+    "affiliate", "dm open", "open dm", "dm for collab", "dm for partnership", "looking for affiliate", "open to collab",
+    "referral", "link in bio", "dm for link", "my link", "referral link", "whop affiliate",
+    "bitcoin", "btc", "crypto", "etf", "halving"
   ],
   ja: [
-    "ビットコイン", "BTC", "仮想通貨", "急騰", "乗り遅れるな", "半減期", "ETF", "暴落", "新高",
-    "今すぐ", "最後のチャンス", "100倍", "月まで", "買え", "絶対上がる", "逃すな",
-    "養分", "靴磨き", "エアドロ", "ギブアウェイ", "爆益", "魔界", "銘柄", "アルト",
-    "アフィリエイト", "紹介", "シグナル", "有料", "アルファ"
+    "アフィリエイト", "DM募集中", "DMで募集", "DMオープン", "案件募集中", "紹介パートナー募集",
+    "紹介", "プロフィールにリンク", "DMでリンク", "紹介リンク", "whop",
+    "ビットコイン", "BTC", "仮想通貨", "ETF", "半減期"
   ],
   ko: [
-    "비트코인", "BTC", "암호화폐", "급등", "반등", "반감기", "ETF", "상승",
-    "지금 사세요", "마지막 기회", "100배", "달까지", "폼핑", "놓치지", "급등주",
-    "김프", "구조대", "가즈아", "떡상", "코인", "매수",
-    "제휴", "시그널", "VIP", "알파", "유료"
+    "제휴", "DM 오픈", "DM으로 문의", "제휴 문의", "협찬 DM", "파트너십 DM",
+    "리퍼럴", "프로필 링크", "DM으로 링크", "제휴 링크", "whop",
+    "비트코인", "BTC", "암호화폐", "ETF", "반감기"
   ],
   es: [
-    "bitcoin", "btc", "crypto", "pump", "moon", "sube", "oportunidad", "etf", "halving",
-    "compra ya", "no te pierdas", "última oportunidad", "subida inminente", "a la luna", "pump en marcha", "gana con cripto",
-    "estafa", "gemas",
-    "afiliado", "referido", "señales", "curso", "vip"
+    "afiliado", "dm abierto", "dm para colaborar", "busco afiliados", "colab por dm", "dm para parceria",
+    "referido", "link en bio", "dm por link", "mi link", "link de referido", "whop",
+    "bitcoin", "btc", "crypto", "etf", "halving"
   ],
   pt: [
-    "bitcoin", "btc", "crypto", "pump", "lua", "alta", "etf", "halving",
-    "última chance", "não perca", "compre agora", "pump agora", "lucro rápido", "vai explodir", "sinal vip", "cripto milionário",
-    "afiliado", "indicado", "sinais", "curso", "vip"
+    "afiliado", "dm aberto", "dm para parceria", "busco afiliados", "colab no dm", "parceria por dm",
+    "indicado", "link na bio", "dm para link", "meu link", "link de indicação", "whop",
+    "bitcoin", "btc", "crypto", "etf", "halving"
   ],
   ar: [
-    "bitcoin", "btc", "crypto", "pump", "moon",
-    "بيتكوين", "البيتكوين", "كريبتو", "صعود", "فرصة", "سعر", "ارتفاع",
-    "عملات رقمية", "عملات مشفرة", "تنصيف البيتكوين", "etf", "btc usd",
-    "ضخ", "شراء الآن", "لا تفوت", "فرصة ذهبية", "استثمر الآن",
-    "حلال", "نصب", "تداول", "توصية",
-    "$BTC", "$ETH", "$SOL",
-    "شراكة", "إحالة", "إشارات", "دورة", "vip"
+    "شراكة", "DM مفتوح", "DM للتعاون", "أبحث عن شركاء", "تعاون عبر DM",
+    "إحالة", "الرابط في البايو", "DM للرابط", "رابط الإحالة", "whop",
+    "بيتكوين", "كريبتو", "etf", "تنصيف"
   ]
 };
 

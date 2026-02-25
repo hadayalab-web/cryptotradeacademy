@@ -1,7 +1,7 @@
 /**
  * アフィリエイトリクルート 1 本送信（Cron または手動 POST）
- * 言語別スロットに従い候補を検索し、FirstPromoter 招待 URL 入り DM を 1 通送る。
- * 認証: CRON_SECRET または手動テスト用に ?dryRun=1 で送信スキップ。
+ * フォーカス: (1) すでにアフィリエイター (2) DMで案件募集中 (3) ノイズ徹底排除 (4) 403は追いかけない（DM_NG 90日）
+ * 言語別スロットで候補検索 → FirstPromoter 招待 URL 入り DM を 1 通。認証: CRON_SECRET / ?dryRun=1 で送信スキップ。
  */
 require("../utils/suppressKnownWarnings");
 const { kv } = require("../utils/kv");

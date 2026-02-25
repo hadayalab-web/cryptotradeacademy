@@ -1,18 +1,11 @@
 /**
  * アフィリエイトリクルート候補のスコアリングと除外
- * 出典: docs/AFFILIATE_RECRUIT_3AI_SYNTHESIS.md, docs/AFFILIATE_RECRUIT_SCREENING_PRINCIPLES.md
- * 戦略: 「隠された敵」×「島への招待」ハイブリッド — 煽り商材を紹介している候補（痛みを抱えている）を優先
- * 泥臭さ: プロフィールの hustle/affiliate/DM open 等はボーナス、coach/consultant 等は除外
- * ファイター: 実績ゼロ〜少ないがモチベ高い層 — 努力系ワード・30–1500フォロワー帯（docs/AFFILIATE_RECRUIT_FIGHTER_CONDITIONS.md）
  *
- * Phase 1: ER・Bio・フォロワーで基本スコア
- * Phase 2: 煽り/hype 系投稿ボーナス
- * Phase 3: 泥臭さ・努力系プロフィールボーナス、泥臭ゾーン(100–3000)・初心者ファイターゾーン(30–1500)
- * Phase 4: リンクなしボーナス・行動ログボーナス
- * Phase 5: 擬似継続力（タイムラインの日付ばらつき・低エンゲージメント率）・痛み＋行動ログボーナス
- * Phase 6: 除外条件（FF比、年齢、bio空、プロフィール除外キーワード）
- *
- * 将来: lang/region 連携時は REGION_COEFFICIENT でスコア補正。DM優先度は priority = score * qualityFactor の階層化を検討。
+ * フォーカス（この4つだけ）:
+ * 1. すでにアフィリエイターとして活動中
+ * 2. アフィリエイト案件をDMで募集中
+ * 3. ノイズになる条件は徹底排除
+ * 4. 403 DM拒否は追いかけない（呼び出し元 affiliate-recruit-run で 90 日再送しない）
  */
 
 /** 煽り/hype 系キーワード。投稿に含まれると「痛みを抱える候補」としてボーナス（隠された敵戦略） */
@@ -45,6 +38,51 @@ const BIO_KEYWORDS = [
   "discord"
 ];
 
+/** フォーカス1・2: すでにアフィリエイター＋DMで案件募集中（Bio に含まれると高スコア） */
+const ACTIVE_AFFILIATE_KEYWORDS = [
+  "link in bio",
+  "link in my bio",
+  "dm for link",
+  "dm me for link",
+  "dm open",
+  "open dm",
+  "dm for collab",
+  "dm for partnership",
+  "looking for affiliate",
+  "open to collab",
+  "dm to promote",
+  "referral link",
+  "my link",
+  "affiliate link",
+  "whop",
+  "linktree",
+  "link below",
+  "プロフィールにリンク",
+  "DMでリンク",
+  "DM募集中",
+  "DMで募集",
+  "DMオープン",
+  "案件募集中",
+  "紹介リンク",
+  "프로필 링크",
+  "DM으로 링크",
+  "DM 오픈",
+  "제휴 링크",
+  "협찬 DM",
+  "link en bio",
+  "dm por link",
+  "dm abierto",
+  "dm para colaborar",
+  "link na bio",
+  "dm para link",
+  "dm aberto",
+  "dm para parceria",
+  "الرابط في البايو",
+  "DM للرابط",
+  "DM مفتوح",
+  "DM للتعاون"
+];
+
 /** 泥臭さ・努力系プロフィールキーワード（焦り・野心・行動量・初心者モチベ）。含むとボーナス — SCREENING_PRINCIPLES + FIGHTER_CONDITIONS */
 const PROFILE_HUSTLE_KEYWORDS = [
   "hustle", "grind", "affiliate", "dm open", "make money", "side income",
@@ -56,10 +94,10 @@ const PROFILE_HUSTLE_KEYWORDS = [
   "初心者", "勉強中", "副業"
 ];
 
-/** 除外: プロフィールに含むと動かない・プライド高い・詐欺系 — SCREENING_PRINCIPLES + アフリカ/中東等 FIGHTER 条件 */
+/** 除外: 動かない・詐欺系のみ（フォーカス3: ノイズ徹底排除） */
 const PROFILE_EXCLUDE_KEYWORDS = [
   "growth hacker", "seo expert", "consultant", "coach", "agency owner", "mentor", "guru",
-  "forex trader", "crypto signals", "mlm"
+  "forex trader", "mlm"
 ];
 
 /** 行動ログ系キーワード（投稿に含まれると初心者ファイターの証拠 — FIGHTER_CONDITIONS / BRICS） */
@@ -121,9 +159,9 @@ const COEFFICIENT_BY_LANG = {
   ko: 1.0
 };
 
-/** リスク補正 R=0.6（怪しい・ほぼ除外）— 詐欺系・宗教・政治・過激系 */
+/** リスク補正 R=0.6（怪しい・ほぼ除外）。crypto signals は廃止（アフィリエイターと被る） */
 const RISK_KEYWORDS_06 = [
-  "crypto signals", "forex trader", "mlm",
+  "forex trader", "mlm",
   "religion", "god", "jesus", "allah", "politics", "conservative", "liberal", "patriot",
   "freedom fighter", "resistance", "jihad", "martyr", "army", "military", "soldier"
 ];
@@ -137,18 +175,19 @@ const BR_HOTMART_KEYWORDS = [
   "7 em 7", "6 em 7", "milionário"
 ];
 
-/** スコアウェイト（0–100 正規化） */
-const WEIGHT_ER = 0.06;
+/** スコアウェイト。フォーカス4本柱に合わせノイズは0（hype/action_log/consistency/pain/no_link/beginner_zone） */
+const WEIGHT_ER = 0.08;
 const WEIGHT_BIO = 0.2;
 const WEIGHT_FOLLOWERS = 0.2;
-const WEIGHT_HYPE_PAIN = 0.07;
-const WEIGHT_HUSTLE_PROFILE = 0.1;
-const WEIGHT_HUSTLE_ZONE = 0.1;
-const WEIGHT_BEGINNER_ZONE = 0.05;
-const WEIGHT_NO_LINK = 0.05;
-const WEIGHT_ACTION_LOG = 0.05;
-const WEIGHT_CONSISTENCY = 0.03;
-const WEIGHT_PAIN_ACTION = 0.03;
+const WEIGHT_HYPE_PAIN = 0;
+const WEIGHT_HUSTLE_PROFILE = 0.06;
+const WEIGHT_HUSTLE_ZONE = 0.06;
+const WEIGHT_BEGINNER_ZONE = 0;
+const WEIGHT_NO_LINK = 0;
+const WEIGHT_ACTION_LOG = 0;
+const WEIGHT_CONSISTENCY = 0;
+const WEIGHT_PAIN_ACTION = 0;
+const WEIGHT_ACTIVE_AFFILIATE = 0.4;
 
 /**
  * 検索言語から国係数 C を返す。Priority = S×C×L×R で使用。
@@ -306,6 +345,19 @@ function scoreNoLink(user) {
   return 0;
 }
 
+/** 既存アフィリエイター: Bio に「link in bio」「dm for link」「referral link」「whop」等があれば 1。すでに紹介活動している層 */
+function scoreActiveAffiliate(description) {
+  if (!description || typeof description !== "string") return 0;
+  const text = description.toLowerCase();
+  let matches = 0;
+  for (const kw of ACTIVE_AFFILIATE_KEYWORDS) {
+    if (text.includes(kw.toLowerCase())) matches += 1;
+  }
+  if (matches >= 2) return 1;
+  if (matches >= 1) return 0.7;
+  return 0;
+}
+
 /** 行動ログ: 投稿に「今日の学び・作業・進捗」系の文言があれば 1 */
 function scoreActionLog(userTweets = []) {
   const texts = (userTweets || [])
@@ -407,6 +459,7 @@ function computeCandidateScore(user, userTweets = []) {
   const norm_consistency = scoreConsistencyFromRecentTweets(userTweets);
   const norm_pain_action =
     norm_hype_pain >= 0.5 && norm_action_log === 1 ? 1 : 0;
+  const norm_active_affiliate = scoreActiveAffiliate(description);
 
   const score = Math.round(
     WEIGHT_ER * norm_er * 100 +
@@ -419,7 +472,8 @@ function computeCandidateScore(user, userTweets = []) {
       WEIGHT_NO_LINK * norm_no_link * 100 +
       WEIGHT_ACTION_LOG * norm_action_log * 100 +
       WEIGHT_CONSISTENCY * norm_consistency * 100 +
-      WEIGHT_PAIN_ACTION * norm_pain_action * 100
+      WEIGHT_PAIN_ACTION * norm_pain_action * 100 +
+      WEIGHT_ACTIVE_AFFILIATE * norm_active_affiliate * 100
   );
 
   return {
@@ -437,6 +491,7 @@ function computeCandidateScore(user, userTweets = []) {
       norm_action_log,
       norm_consistency,
       norm_pain_action,
+      norm_active_affiliate,
       erPct,
       followers
     },
@@ -464,6 +519,7 @@ module.exports = {
   scoreHustleZone,
   scoreBeginnerZone,
   scoreNoLink,
+  scoreActiveAffiliate,
   scoreActionLog,
   scoreConsistencyFromRecentTweets,
   REGION_COEFFICIENT,
@@ -473,6 +529,7 @@ module.exports = {
   PRIORITY_TIER_NORMAL,
   HYPE_PAIN_KEYWORDS,
   BIO_KEYWORDS,
+  ACTIVE_AFFILIATE_KEYWORDS,
   ACTION_LOG_KEYWORDS,
   PROFILE_HUSTLE_KEYWORDS,
   PROFILE_EXCLUDE_KEYWORDS,
