@@ -13,8 +13,9 @@ const { evaluateKibaImpact } = require("./evaluator/kiba_trigger");
 
 const SUPPRESSION_WINDOW_MS = 60 * 60 * 1000; // 1h cooldown
 const LOW_VOLATILITY_THRESHOLD = 0.5; // |change24h| < this → suppress
-const X_VOLUME_MIN = 10; // avgVolume or postVolume below → suppress
+const X_VOLUME_MIN = 5; // avgVolume or postVolume below → suppress (was 10, relaxed so KIBA can fire)
 const WHALE_SIGMA = 0.4; // normalized whale imbalance within threshold → suppress (0.4 = allow ~40% bias)
+const TRIGGER_SCORE_MIN = 55; // kibaScore >= this and impact ELEVATED+ → fire (was 65)
 
 function toNum(v, fallback) {
   const n = Number(v);
@@ -74,17 +75,19 @@ function snapshotToDetectorInputs(btcSnapshot) {
 
 /**
  * 誤検出防止: score を 0〜30 に抑制する条件
+ * @returns {{ score: number, reasons: string[] }} capped score and which filters applied
  */
 function applySuppressionFilters(score, inputs) {
   const m = inputs._meta || {};
   let capped = score;
+  const reasons = [];
 
-  if (!m.hasCq) capped = Math.min(capped, 30);
-  if (m.avgVolume < X_VOLUME_MIN || m.postVolume < X_VOLUME_MIN) capped = Math.min(capped, 30);
-  if (Math.abs(m.change24h) < LOW_VOLATILITY_THRESHOLD) capped = Math.min(capped, 30);
-  if ((m.whaleImbalanceNorm || 0) <= WHALE_SIGMA) capped = Math.min(capped, 30);
+  if (!m.hasCq) { capped = Math.min(capped, 30); reasons.push("noCq"); }
+  if (m.avgVolume < X_VOLUME_MIN || m.postVolume < X_VOLUME_MIN) { capped = Math.min(capped, 30); reasons.push("lowXVolume"); }
+  if (Math.abs(m.change24h) < LOW_VOLATILITY_THRESHOLD) { capped = Math.min(capped, 30); reasons.push("lowVolatility"); }
+  if ((m.whaleImbalanceNorm || 0) <= WHALE_SIGMA) { capped = Math.min(capped, 30); reasons.push("whaleBalance"); }
 
-  return capped;
+  return { score: capped, reasons };
 }
 
 function runKibaEngine({ btcSnapshot = null, macroSnapshot = null, lastKibaSnapshot = null }) {
@@ -122,12 +125,23 @@ function runKibaEngine({ btcSnapshot = null, macroSnapshot = null, lastKibaSnaps
 
   const detectors = { flow, liquidity, sentiment, whale, algo, retail };
   const rawScore = computeKibaScore(detectors);
-  const kibaScore = applySuppressionFilters(rawScore, inputs);
+  const { score: kibaScore, reasons: suppressionReasons } = applySuppressionFilters(rawScore, inputs);
   const impact = evaluateKibaImpact(kibaScore);
 
   let triggered =
     (impact.level === "CRITICAL" || impact.level === "HIGH" || impact.level === "ELEVATED") &&
-    kibaScore >= 65;
+    kibaScore >= TRIGGER_SCORE_MIN;
+
+  if (typeof process !== "undefined" && process.env?.VERCEL_ENV) {
+    console.log("[KIBA]", {
+      rawScore: Math.round(rawScore * 10) / 10,
+      kibaScore,
+      impact: impact.level,
+      triggered,
+      suppression: suppressionReasons.length ? suppressionReasons : null,
+      meta: { hasCq: inputs._meta?.hasCq, postVol: inputs._meta?.postVolume, avgVol: inputs._meta?.avgVolume, change24h: inputs._meta?.change24h }
+    });
+  }
 
   if (triggered && lastKibaSnapshot && typeof lastKibaSnapshot === "object") {
     const lastTime = new Date(lastKibaSnapshot.as_of_utc || 0).getTime();
