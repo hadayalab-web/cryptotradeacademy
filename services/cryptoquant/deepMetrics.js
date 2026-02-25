@@ -536,7 +536,7 @@ function deriveBaseFromHighRes(highResCQ) {
 }
 
 /**
- * CQ Pro 共通フィールド取得（derivatives, liquidity, miner flows, LTH, stablecoin, exchange flows, ETF flows）
+ * CQ Pro 共通フィールド取得（未使用・パイプライン廃止。getCQDeepMetrics では呼ばず null をセット）
  * 404のものはnullでスキップ。並列取得。
  * @returns {Promise<Object>}
  */
@@ -619,9 +619,12 @@ async function getCQDeepMetrics(market, options = {}) {
       activeAddresses: 0,
     };
 
-    // CQ Pro 共通フィールド（全市場で受け皿を用意、404はnull）
-    const cqPro = await fetchCQProCommonFields();
-    Object.assign(baseResult, cqPro);
+    // CQ Pro 共通パイプラインは使用しない（403/400 多発・不要のため）。受け皿のみ null でセット
+    Object.assign(baseResult, {
+      sopr: null, sopr30d: null, nupl: null, lthNupl: null,
+      funding: null, openInterest: null, liquidations: null, minerFlows: null,
+      liquidity: null, stablecoinMetrics: null, etfFlows: null, exchangeFlowsDetailed: null,
+    });
 
     switch (market) {
       case 'EN': {
