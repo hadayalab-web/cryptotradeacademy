@@ -363,6 +363,7 @@ module.exports = async function handler(req, res) {
   const batchSize = isEnBatchRun
     ? Math.min(EN_RECRUIT_BATCH_SIZE, Math.max(0, dailyCap - sentToday))
     : 1;
+  console.log("[affiliate-recruit-run] mode:", forceMode || (isEnBatchRun ? "en" : "slot"), "utcHour:", utcHour, "lang:", lang, "batchSize:", batchSize);
   if (isEnBatchRun && batchSize <= 0) {
     return res.status(200).json({
       ok: false,
@@ -532,6 +533,7 @@ module.exports = async function handler(req, res) {
     await incrementTodaySentCount();
     if (!isEnBatchRun) await incrementHourSent(dateStr, utcHour);
     sentCount += 1;
+    console.log("[affiliate-recruit-run] sent:", c.username, "lang:", lang);
     if (isEnBatchRun) sentHandles.push(c.username);
     if (!isEnBatchRun) {
       return res.status(200).json({

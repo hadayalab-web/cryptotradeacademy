@@ -168,31 +168,35 @@ async function generateXPost(opts = {}) {
 
 const ALERT_I18N = {
   en: {
-    titleCritical: "KIBA — Critical market alert",
-    titleHigh: "KIBA — High structural stress",
-    titleElevated: "KIBA — Elevated structure",
+    titleCritical: "KIBA — Critical: trend reversal detected",
+    titleHigh: "KIBA — High likelihood of trend reversal detected",
+    titleElevated: "KIBA — Possible trend reversal detected",
+    lead: "Unusual imbalance in exchange flow and whale in/out detected. Short-term trend reversal is more likely — treat as material to get ahead, not as a signal.",
     marketContext: "Market context",
+    contextSummary: "→ Broader market direction is mixed; BTC flow stands out.",
     btcLine: (price, change, regime) =>
       `• BTC ${price != null ? `$${Number(price).toFixed(0)}` : "N/A"} / 24h ${change != null ? `${Number(change).toFixed(2)}%` : "N/A"} / Regime ${regime || "N/A"}`,
     macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / GOLD ${gb || "N/A"} / Macro ${mo || "N/A"}`,
-    note: "Use as directional context, not as a direct buy/sell signal.",
+    note: "This is not a buy/sell signal. Use as supplementary material for position sizing.",
     regularBenefit: "The BTC edition of KIBA is available exclusively to Regular users.\nAnd now—from altcoins and memes\nto stock indices that could become \"the next NVIDIA,\"\nand commodities that could become \"the next Gold\"──\n\nWhich KIBA will bare its fangs next?\nRight now, KIBAs across every domain\nare entering silent launch mode as weapons in your arsenal."
   },
   ja: {
-    titleCritical: "KIBA — 重要マーケットアラート",
-    titleHigh: "KIBA — 構造ストレス高",
-    titleElevated: "KIBA — 構造変化注意",
+    titleCritical: "KIBA — 重要：トレンド転換が高い状態を検知",
+    titleHigh: "KIBA — トレンド転換の可能性が高い状態を検知",
+    titleElevated: "KIBA — トレンド転換に注意を要する状態を検知",
+    lead: "取引所フローと大口の流入出に、通常と異なる偏りが発生しています。短期的にトレンド転換が起きやすい環境なので、先回りの材料として扱ってください。",
     marketContext: "市場の文脈",
+    contextSummary: "→ 市場全体の方向感が揃っていない状態で、BTCのフロー変化が際立っています。",
     btcLine: (price, change, regime) =>
       `• BTC ${price != null ? `$${Number(price).toFixed(0)}` : "N/A"} / 24h ${change != null ? `${Number(change).toFixed(2)}%` : "N/A"} / レジーム ${regime || "N/A"}`,
     macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / GOLD ${gb || "N/A"} / マクロ ${mo || "N/A"}`,
-    note: "具体的な売買シグナルではなく、ポジションの材料として使ってください。",
+    note: "これは具体的な売買シグナルではありません。ポジション判断の補助材料として活用してください。",
     regularBenefit: "BTC版のKIBAは Regularユーザ限定で配信中。\nそして今、アルト・ミームから\n\"次のエヌビデア\"になり得る株式指数、\n\"次のゴールド\"になり得るコモディティまで──\n\n次に牙をむくのはどのKIBAか。\n今、あらゆる領域のKIBAが、あなたの武器庫として\n次々と起動準備に入っている。"
   },
-  es: { titleCritical: "KIBA — Alerta de mercado crítica", titleHigh: "KIBA — Estrés estructural alto", titleElevated: "KIBA — Estructura elevada", marketContext: "Contexto de mercado", btcLine: (p, c, r) => `• BTC ${p != null ? `$${Number(p).toFixed(0)}` : "N/A"} / 24h ${c != null ? `${Number(c).toFixed(2)}%` : "N/A"} / Régimen ${r || "N/A"}`, macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / ORO ${gb || "N/A"} / Macro ${mo || "N/A"}`, note: "Úsalo como contexto direccional, no como señal directa.", regularBenefit: "La edición BTC de KIBA está disponible exclusivamente para usuarios Regular.\nY ahora, desde altcoins y memes\nhasta índices bursátiles que podrían ser \"el próximo NVIDIA\"\ny materias primas que podrían ser \"el próximo Oro\"──\n\n¿Qué KIBA mostrará sus colmillos después?\nEn este momento, KIBAs de todos los ámbitos\nestán entrando en modo de activación como armas de tu arsenal." },
-  "pt-br": { titleCritical: "KIBA — Alerta crítica de mercado", titleHigh: "KIBA — Estresse estrutural alto", titleElevated: "KIBA — Estrutura elevada", marketContext: "Contexto de mercado", btcLine: (p, c, r) => `• BTC ${p != null ? `$${Number(p).toFixed(0)}` : "N/A"} / 24h ${c != null ? `${Number(c).toFixed(2)}%` : "N/A"} / Regime ${r || "N/A"}`, macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / OURO ${gb || "N/A"} / Macro ${mo || "N/A"}`, note: "Use como contexto de direção, não como sinal direto.", regularBenefit: "A edição BTC do KIBA está disponível exclusivamente para usuários Regular.\nE agora, desde altcoins e memes\naté índices que podem se tornar \"a próxima NVIDIA\"\ne commodities que podem ser \"o próximo Ouro\"──\n\nQual KIBA mostrará suas presas a seguir?\nNeste momento, KIBAs de todas as áreas\nestão entrando em modo de ativação como armas do seu arsenal." },
-  ko: { titleCritical: "KIBA — 중요 시장 알림", titleHigh: "KIBA — 구조적 스트레스 높음", titleElevated: "KIBA — 구조 변화 주의", marketContext: "시장 맥락", btcLine: (p, c, r) => `• BTC ${p != null ? `$${Number(p).toFixed(0)}` : "N/A"} / 24h ${c != null ? `${Number(c).toFixed(2)}%` : "N/A"} / 레짐 ${r || "N/A"}`, macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / GOLD ${gb || "N/A"} / 매크로 ${mo || "N/A"}`, note: "직접 매수/매도 신호가 아니라, 방향 판단 재료로 사용하세요.", regularBenefit: "BTC 버전 KIBA는 Regular 사용자에게만 제공됩니다.\n그리고 지금, 알트·밈부터\n'다음 엔비디아'가 될 수 있는 주가지수,\n'다음 골드'가 될 수 있는 원자재까지──\n\n다음으로 이빨을 드러낼 KIBA는 무엇일까.\n지금 이 순간, 모든 영역의 KIBA가\n당신의 무기고로서 조용히 기동 준비에 들어가고 있다." },
-  ar: { titleCritical: "KIBA — تنبيه السوق الحرج", titleHigh: "KIBA — ضغط هيكلي مرتفع", titleElevated: "KIBA — هيكل مرتفع", marketContext: "سياق السوق", btcLine: (p, c, r) => `• BTC ${p != null ? `$${Number(p).toFixed(0)}` : "N/A"} / 24h ${c != null ? `${Number(c).toFixed(2)}%` : "N/A"} / النظام ${r || "N/A"}`, macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / GOLD ${gb || "N/A"} / الماكرو ${mo || "N/A"}`, note: "استخدمه كسياق اتجاه وليس كاشارة شراء/بيع مباشرة.", regularBenefit: "إصدار KIBA الخاص بالبيتكوين متاح حصريًا لمستخدمي Regular.\nوالآن، من العملات البديلة والميم\nإلى مؤشرات الأسهم التي قد تصبح \"إنفيديا التالية\"،\nوالسلع التي قد تصبح \"الذهب التالي\"──\n\nأيّ KIBA سيكشف أنيابه بعد ذلك؟\nفي هذه اللحظة، تستعد KIBA في مختلف المجالات\nللانطلاق كجزء من ترسانتك." }
+  es: { titleCritical: "KIBA — Crítico: cambio de tendencia detectado", titleHigh: "KIBA — Alta probabilidad de cambio de tendencia detectada", titleElevated: "KIBA — Posible cambio de tendencia detectado", lead: "Detectamos una desviación inusual en flujos de exchange y entrada/salida de ballenas. Entorno propicio a cambio de tendencia a corto plazo — trátalo como material para adelantarte, no como señal.", marketContext: "Contexto de mercado", contextSummary: "→ La dirección del mercado es mixta; el flujo de BTC destaca.", btcLine: (p, c, r) => `• BTC ${p != null ? `$${Number(p).toFixed(0)}` : "N/A"} / 24h ${c != null ? `${Number(c).toFixed(2)}%` : "N/A"} / Régimen ${r || "N/A"}`, macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / ORO ${gb || "N/A"} / Macro ${mo || "N/A"}`, note: "No es señal de compra/venta. Úsalo como material complementario para el tamaño de posición.", regularBenefit: "La edición BTC de KIBA está disponible exclusivamente para usuarios Regular.\nY ahora, desde altcoins y memes\nhasta índices bursátiles que podrían ser \"el próximo NVIDIA\"\ny materias primas que podrían ser \"el próximo Oro\"──\n\n¿Qué KIBA mostrará sus colmillos después?\nEn este momento, KIBAs de todos los ámbitos\nestán entrando en modo de activación como armas de tu arsenal." },
+  "pt-br": { titleCritical: "KIBA — Crítico: reversão de tendência detectada", titleHigh: "KIBA — Alta chance de reversão de tendência detectada", titleElevated: "KIBA — Possível reversão de tendência detectada", lead: "Detectamos desvio incomum no fluxo de exchanges e entrada/saída de baleias. Ambiente propício a reversão no curto prazo — use como material para se antecipar, não como sinal.", marketContext: "Contexto de mercado", contextSummary: "→ Direção do mercado mista; fluxo de BTC se destaca.", btcLine: (p, c, r) => `• BTC ${p != null ? `$${Number(p).toFixed(0)}` : "N/A"} / 24h ${c != null ? `${Number(c).toFixed(2)}%` : "N/A"} / Regime ${r || "N/A"}`, macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / OURO ${gb || "N/A"} / Macro ${mo || "N/A"}`, note: "Não é sinal de compra/venda. Use como material complementar para tamanho de posição.", regularBenefit: "A edição BTC do KIBA está disponível exclusivamente para usuários Regular.\nE agora, desde altcoins e memes\naté índices que podem se tornar \"a próxima NVIDIA\"\ne commodities que podem ser \"o próximo Ouro\"──\n\nQual KIBA mostrará suas presas a seguir?\nNeste momento, KIBAs de todas as áreas\nestão entrando em modo de ativação como armas do seu arsenal." },
+  ko: { titleCritical: "KIBA — 중요: 추세 전환 감지", titleHigh: "KIBA — 추세 전환 가능성 높은 상태 감지", titleElevated: "KIBA — 추세 전환 주의 필요 상태 감지", lead: "거래소 플로우와 대형물량 유입·유출에 평소와 다른 편차가 발생했습니다. 단기적으로 추세 전환이 일어나기 쉬운 환경이니 선제적 자료로 활용하세요.", marketContext: "시장 맥락", contextSummary: "→ 시장 전체 방향감이 맞지 않는 상태에서 BTC 플로우 변화가 두드러집니다.", btcLine: (p, c, r) => `• BTC ${p != null ? `$${Number(p).toFixed(0)}` : "N/A"} / 24h ${c != null ? `${Number(c).toFixed(2)}%` : "N/A"} / 레짐 ${r || "N/A"}`, macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / GOLD ${gb || "N/A"} / 매크로 ${mo || "N/A"}`, note: "구체적인 매수/매도 신호가 아닙니다. 포지션 판단의 보조 자료로 활용하세요.", regularBenefit: "BTC 버전 KIBA는 Regular 사용자에게만 제공됩니다.\n그리고 지금, 알트·밈부터\n'다음 엔비디아'가 될 수 있는 주가지수,\n'다음 골드'가 될 수 있는 원자재까지──\n\n다음으로 이빨을 드러낼 KIBA는 무엇일까.\n지금 이 순간, 모든 영역의 KIBA가\n당신의 무기고로서 조용히 기동 준비에 들어가고 있다." },
+  ar: { titleCritical: "KIBA — حرج: انعكاس الاتجاه مكتشف", titleHigh: "KIBA — احتمال انعكاس الاتجاه مرتفع مكتشف", titleElevated: "KIBA — انتباه لانعكاس الاتجاه مكتشف", lead: "رصدنا انحرافاً غير اعتيادي في تدفقات البورصات ودخول/خروج الحيتان. بيئة مؤاتية لانعكاس قصير الأمد — عامله مادة للتقدم، وليس إشارة.", marketContext: "سياق السوق", contextSummary: "→ اتجاه السوق الأوسع مختلط؛ تدفق BTC يبرز.", btcLine: (p, c, r) => `• BTC ${p != null ? `$${Number(p).toFixed(0)}` : "N/A"} / 24h ${c != null ? `${Number(c).toFixed(2)}%` : "N/A"} / النظام ${r || "N/A"}`, macroLine: (nr, gb, mo) => `• NASDAQ ${nr || "N/A"} / GOLD ${gb || "N/A"} / الماكرو ${mo || "N/A"}`, note: "ليست إشارة شراء/بيع. استخدمه مادة مكملة لحجم المركز.", regularBenefit: "إصدار KIBA الخاص بالبيتكوين متاح حصريًا لمستخدمي Regular.\nوالآن، من العملات البديلة والميم\nإلى مؤشرات الأسهم التي قد تصبح \"إنفيديا التالية\"،\nوالسلع التي قد تصبح \"الذهب التالي\"──\n\nأيّ KIBA سيكشف أنيابه بعد ذلك؟\nفي هذه اللحظة، تستعد KIBA في مختلف المجالات\nللانطلاق كجزء من ترسانتك." }
 };
 
 function normalizeAlertLang(lang) {
@@ -201,17 +205,43 @@ function normalizeAlertLang(lang) {
   return ALERT_I18N[n] ? n : "en";
 }
 
-/** KIBA alert: title (with KIBA prefix) + market context + note. */
+/** Escape for Telegram legacy Markdown so _ * ` [ do not break parse_mode. */
+function escapeMarkdownLegacy(str) {
+  if (str == null) return "N/A";
+  return String(str).replace(/\*/g, "\\*").replace(/_/g, "\\_").replace(/`/g, "\\`").replace(/\[/g, "\\[");
+}
+
+/** KIBA alert: clean UI for Telegram (bold title, bold section, bullets, separator). Escapes dynamic values for Markdown. */
 function formatCriticalAlert(snapshot, lang = "en") {
   const s = snapshot && typeof snapshot === "object" ? snapshot : {};
   const resolvedLang = normalizeAlertLang(lang);
   const i18n = ALERT_I18N[resolvedLang] || ALERT_I18N.en;
   const level = String(s.level || "NONE").toUpperCase();
   const title = level === "CRITICAL" ? i18n.titleCritical : level === "HIGH" ? i18n.titleHigh : i18n.titleElevated;
+  const lead = i18n.lead != null ? i18n.lead : (ALERT_I18N.en.lead || "");
   const btc = s.btcContext || {};
   const macro = s.macroContext || {};
+  const safeRegime = escapeMarkdownLegacy(btc.regime ?? "N/A");
+  const safeNr = escapeMarkdownLegacy(macro.nasdaqRegime ?? "N/A");
+  const safeGb = escapeMarkdownLegacy(macro.goldWhaleBias ?? "N/A");
+  const safeMo = escapeMarkdownLegacy(macro.macroRiskOnOff ?? "N/A");
+  const btcLine = i18n.btcLine(btc.priceUsd, btc.change24h, safeRegime);
+  const macroLine = i18n.macroLine(safeNr, safeGb, safeMo);
+  const contextSummary = i18n.contextSummary != null ? i18n.contextSummary : "";
   const regularBenefit = i18n.regularBenefit != null ? i18n.regularBenefit : (ALERT_I18N.en.regularBenefit || "");
-  return [title, `${i18n.marketContext}:`, i18n.btcLine(btc.priceUsd, btc.change24h, btc.regime), i18n.macroLine(macro.nasdaqRegime, macro.goldWhaleBias, macro.macroRiskOnOff), i18n.note, regularBenefit].filter(Boolean).join("\n");
+  const alertBlock = [
+    `*${title}*`,
+    lead,
+    "",
+    `*${i18n.marketContext}*`,
+    btcLine,
+    macroLine,
+    contextSummary,
+    "",
+    `• ${i18n.note}`
+  ].filter(Boolean).join("\n");
+  const sep = "\n\n───\n\n";
+  return regularBenefit ? alertBlock + sep + regularBenefit : alertBlock;
 }
 
 /** @deprecated Use formatCriticalAlert. Normalizes legacy snapshot (shiftType/confidence) to level. */
