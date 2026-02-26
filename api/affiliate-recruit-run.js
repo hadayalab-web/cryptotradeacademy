@@ -1,11 +1,11 @@
 /**
  * アフィリエイトリクルート 1 本送信（Cron または手動 POST）
- * フォーカス: (1) すでにアフィリエイター (2) DMで案件募集中 (3) ノイズ徹底排除 (4) 403は追いかけない（DM_NG 90日）
+ * フォーカス: (1) すでにアフィリエイター (2) ノイズ徹底排除 (3) 403は追いかけない（DM_NG 90日）。DM募集中条件は廃止。
  * 言語別スロットで候補検索 → FirstPromoter 招待 URL 入り DM を 1 通。認証: CRON_SECRET / ?dryRun=1 で送信スキップ。
  */
 require("../utils/suppressKnownWarnings");
 const { kv } = require("../utils/kv");
-const { fetchCandidatesFromSearch } = require("../services/td/affiliateRecruitSearch");
+const { fetchOneSearchPage, fetchCandidatesFromSearch } = require("../services/td/affiliateRecruitSearch");
 const { sendRecruitDm } = require("../services/x/dmClient");
 const { fillRecruitDmTemplate } = require("../config/affiliateRecruitDmTemplates");
 const {
@@ -14,6 +14,7 @@ const {
   AFFILIATE_DM_DAILY_CAP,
   EN_RECRUIT_HOURS,
   EN_RECRUIT_BATCH_SIZE,
+  RECRUIT_BATCH_SIZE_DEFAULT,
   SLOT_BLOCK_HOURS,
   SLOT_BLOCKS,
   SLOTS_BY_UTC_HOUR,
@@ -365,8 +366,9 @@ module.exports = async function handler(req, res) {
 
   const batchSize = isEnBatchRun
     ? Math.min(EN_RECRUIT_BATCH_SIZE, Math.max(0, dailyCap - sentToday))
-    : 1;
-  console.log("[affiliate-recruit-run] mode:", forceMode || (isEnBatchRun ? "en" : "slot"), "utcHour:", utcHour, "lang:", lang, "batchSize:", batchSize);
+    : RECRUIT_BATCH_SIZE_DEFAULT;
+  const maxReadPages = Math.max(1, Number(process.env.AFFILIATE_RECRUIT_MAX_READ_PAGES || 5));
+  console.log("[affiliate-recruit-run] mode:", forceMode || (isEnBatchRun ? "en" : "slot"), "utcHour:", utcHour, "lang:", lang, "batchSize:", batchSize, "maxReadPages:", maxReadPages);
   if (isEnBatchRun && batchSize <= 0) {
     return res.status(200).json({
       ok: false,
@@ -378,213 +380,211 @@ module.exports = async function handler(req, res) {
   }
 
   const crConfig = await getCrConfig();
-  let result;
-  try {
-    result = await fetchCandidatesFromSearch(lang, { maxResults: 30, pagesPerBucket: 1 });
-  } catch (e) {
-    console.error("[affiliate-recruit-run] fetchCandidatesFromSearch error:", e?.message);
-    return res.status(500).json({ ok: false, reason: "search_failed", error: e?.message });
-  }
-
-  const posts = result?.data || [];
-  const usersList = result?.includes?.users || [];
-  const usersById = {};
-  for (const u of usersList) {
-    if (u?.id) usersById[u.id] = u;
-  }
-
-  const tweetsByAuthor = {};
-  for (const p of posts) {
-    const uid = p?.author_id;
-    if (!uid) continue;
-    if (!tweetsByAuthor[uid]) tweetsByAuthor[uid] = [];
-    tweetsByAuthor[uid].push(p);
-  }
-
-  const candidates = [];
-  for (const uid of Object.keys(tweetsByAuthor)) {
-    const u = usersById[uid];
-    if (!u?.username) continue;
-    const tweets = tweetsByAuthor[uid] || [];
-    const { score, excluded, reason, breakdown } = computeCandidateScore(u, tweets);
-    const C = crConfig.C[lang] ?? getRegionCoefficientByLang(lang);
-    const B = crConfig.B[getScoreBand(score)] ?? 1.0;
-    const priority =
-      !excluded && score != null
-        ? (score / 100) * C * getRiskFactor(u, tweets, lang) * B
-        : 0;
-    candidates.push({
-      author_id: uid,
-      username: u.username,
-      user: u,
-      tweets,
-      score,
-      excluded,
-      reason,
-      breakdown,
-      priority
-    });
-  }
-
+  const whopUrl = getWhopAffiliateProgramUrl(lang);
   const ngFilter = (c) =>
     lang !== "en" || !hasProfileLink(c.user) || !hasNigeriaKeyword(c.user?.description || "");
-  const eligible = candidates
-    .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND && ngFilter(c))
-    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
-  const whopUrl = getWhopAffiliateProgramUrl(lang);
-
-  if (!willSend) {
-    const wouldSendList = [];
-    for (const c of eligible) {
-      if (wouldSendList.length >= batchSize) break;
-      const already = await isAlreadySent(c.username);
-      const isNg = await isDmNg(c.author_id);
-      if (!already && !isNg) wouldSendList.push(c);
+  function buildCandidatesFromPosts(posts, usersById) {
+    const tweetsByAuthor = {};
+    for (const p of posts) {
+      const uid = p?.author_id;
+      if (!uid) continue;
+      if (!tweetsByAuthor[uid]) tweetsByAuthor[uid] = [];
+      tweetsByAuthor[uid].push(p);
     }
-    const c = wouldSendList[0];
-    if (!c) {
-      return res.status(200).json({
-        ok: false,
-        reason: "no_eligible_candidate",
-        lang,
-        totalCandidates: candidates.length,
-        eligibleCount: eligible.length,
-        sentToday,
-        dailyCap,
-        enBatch: isEnBatchRun
+    const candidates = [];
+    for (const uid of Object.keys(tweetsByAuthor)) {
+      const u = usersById[uid];
+      if (!u?.username) continue;
+      const tweets = tweetsByAuthor[uid] || [];
+      const { score, excluded, reason, breakdown } = computeCandidateScore(u, tweets);
+      const C = crConfig.C[lang] ?? getRegionCoefficientByLang(lang);
+      const B = crConfig.B[getScoreBand(score)] ?? 1.0;
+      const priority =
+        !excluded && score != null
+          ? (score / 100) * C * getRiskFactor(u, tweets, lang) * B
+          : 0;
+      candidates.push({
+        author_id: uid,
+        username: u.username,
+        user: u,
+        tweets,
+        score,
+        excluded,
+        reason,
+        breakdown,
+        priority
       });
     }
-    const inviteUrlDryRun = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
-    const { text, variant, variantName } = fillRecruitDmTemplate(lang, {
-      inviteUrl: inviteUrlDryRun,
-      whopAffiliateUrl: whopUrl,
-      handle: c.username
-    });
-    return res.status(200).json({
-      ok: true,
-      dryRun: true,
-      wouldSend: {
-        handle: c.username,
-        lang,
-        textLength: text.length,
-        score: c.score,
-        priority: c.priority,
-        breakdown: c.breakdown,
-        dmVariant: variant,
-        dmVariantName: variantName
-      },
-      wouldSendCount: isEnBatchRun ? wouldSendList.length : 1,
-      enBatch: isEnBatchRun,
-      sentToday,
-      dailyCap,
-      note: !auth ? "Set CRON_SECRET or ?secret= for actual send" : "dryRun"
-    });
+    return candidates
+      .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND && ngFilter(c))
+      .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
   }
 
+  let allPosts = [];
+  let usersById = {};
+  let nextToken = null;
+  let pagesFetched = 0;
   let tried403 = [];
   let sentCount = 0;
   const sentHandles = [];
-  for (const c of eligible) {
-    if (sentCount >= batchSize) break;
-    if (await isAlreadySent(c.username)) continue;
-    if (await isDmNg(c.author_id)) continue;
 
-    const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
-    const { text, variant, variantName } = fillRecruitDmTemplate(lang, {
-      inviteUrl,
-      whopAffiliateUrl: whopUrl,
-      handle: c.username
-    });
-    const sendResult = await sendRecruitDm(c.username, text, { participantId: c.author_id });
-
-    if (sendResult?.error) {
-      const is403 =
-        String(sendResult.error).includes("403") ||
-        String(sendResult.error).toLowerCase().includes("permission to dm");
-      if (is403) {
-        await markDmNg(c.author_id, {
-          username: c.username,
-          score: c.score,
-          lang,
-          breakdown: c.breakdown,
-        });
-        tried403.push(c.username);
-        console.warn("[affiliate-recruit-run] DM 403, next candidate:", c.username, c.author_id);
-        continue;
-      }
-      return res.status(200).json({
-        ok: false,
-        reason: "dm_send_failed",
-        handle: c.username,
-        error: sendResult.error,
-        sentToday: sentToday + sentCount,
-        dailyCap,
-        enBatch: isEnBatchRun,
-        sentInThisRun: sentCount
+  while (pagesFetched < maxReadPages) {
+    try {
+      const pageResult = await fetchOneSearchPage(lang, {
+        nextToken: nextToken || undefined,
+        maxResults: 30
       });
+      if (pageResult?.fatal402) {
+        console.warn("[affiliate-recruit-run] search 402, stopping");
+        break;
+      }
+      const pageData = pageResult?.data || [];
+      const pageUsers = pageResult?.includes?.users || [];
+      allPosts = allPosts.concat(pageData);
+      for (const u of pageUsers) {
+        if (u?.id) usersById[u.id] = u;
+      }
+      nextToken = pageResult?.nextToken || null;
+      pagesFetched += 1;
+      console.log("[affiliate-recruit-run] Read page", pagesFetched, "posts:", pageData.length, "nextToken:", !!nextToken);
+    } catch (e) {
+      console.error("[affiliate-recruit-run] fetchOneSearchPage error:", e?.message);
+      return res.status(500).json({ ok: false, reason: "search_failed", error: e?.message });
     }
 
-    await markSent(c.username, {
-      lang,
-      score: c.score,
-      priority: c.priority,
-      author_id: c.author_id
-    });
-    await saveRefSent(c.author_id, { handle: c.username, lang, score: c.score, priority: c.priority });
-    await incrementSentStats(lang, c.score);
-    await incrementTodaySentCount();
-    if (!isEnBatchRun) await incrementHourSent(dateStr, utcHour);
-    sentCount += 1;
-    console.log("[affiliate-recruit-run] sent:", c.username, "lang:", lang);
-    if (isEnBatchRun) sentHandles.push(c.username);
-    if (!isEnBatchRun) {
+    const eligible = buildCandidatesFromPosts(allPosts, usersById);
+
+    if (!willSend) {
+      const wouldSendList = [];
+      for (const c of eligible) {
+        if (wouldSendList.length >= batchSize) break;
+        const already = await isAlreadySent(c.username);
+        const isNg = await isDmNg(c.author_id);
+        if (!already && !isNg) wouldSendList.push(c);
+      }
+      const c = wouldSendList[0];
+      if (!c) {
+        return res.status(200).json({
+          ok: false,
+          reason: "no_eligible_candidate",
+          lang,
+          totalCandidates: eligible.length,
+          eligibleCount: eligible.length,
+          sentToday,
+          dailyCap,
+          enBatch: isEnBatchRun,
+          readPages: pagesFetched
+        });
+      }
+      const inviteUrlDryRun = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
+      const { text, variant, variantName } = fillRecruitDmTemplate(lang, {
+        inviteUrl: inviteUrlDryRun,
+        whopAffiliateUrl: whopUrl,
+        handle: c.username
+      });
       return res.status(200).json({
         ok: true,
-        sent: 1,
-        handle: c.username,
-        lang,
-        score: c.score,
-        dmVariant: variant,
-        dmVariantName: variantName,
-        dmEventId: sendResult.dmEventId,
-        sentToday: sentToday + 1,
+        dryRun: true,
+        wouldSend: {
+          handle: c.username,
+          lang,
+          textLength: text.length,
+          score: c.score,
+          priority: c.priority,
+          breakdown: c.breakdown,
+          dmVariant: variant,
+          dmVariantName: variantName
+        },
+        wouldSendCount: wouldSendList.length,
+        enBatch: isEnBatchRun,
+        sentToday,
         dailyCap,
-        tried403Count: tried403.length
+        readPages: pagesFetched,
+        note: !auth ? "Set CRON_SECRET or ?secret= for actual send" : "dryRun"
       });
     }
+
+    for (const c of eligible) {
+      if (sentCount >= batchSize) break;
+      if (await isAlreadySent(c.username)) continue;
+      if (await isDmNg(c.author_id)) continue;
+
+      const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
+      const { text, variant, variantName } = fillRecruitDmTemplate(lang, {
+        inviteUrl,
+        whopAffiliateUrl: whopUrl,
+        handle: c.username
+      });
+      const sendResult = await sendRecruitDm(c.username, text, { participantId: c.author_id });
+
+      if (sendResult?.error) {
+        const is403 =
+          String(sendResult.error).includes("403") ||
+          String(sendResult.error).toLowerCase().includes("permission to dm");
+        if (is403) {
+          await markDmNg(c.author_id, {
+            username: c.username,
+            score: c.score,
+            lang,
+            breakdown: c.breakdown,
+          });
+          tried403.push(c.username);
+          console.warn("[affiliate-recruit-run] DM 403, next candidate:", c.username, c.author_id);
+          continue;
+        }
+        return res.status(200).json({
+          ok: false,
+          reason: "dm_send_failed",
+          handle: c.username,
+          error: sendResult.error,
+          sentToday: sentToday + sentCount,
+          dailyCap,
+          enBatch: isEnBatchRun,
+          sentInThisRun: sentCount,
+          readPages: pagesFetched
+        });
+      }
+
+      await markSent(c.username, {
+        lang,
+        score: c.score,
+        priority: c.priority,
+        author_id: c.author_id
+      });
+      await saveRefSent(c.author_id, { handle: c.username, lang, score: c.score, priority: c.priority });
+      await incrementSentStats(lang, c.score);
+      await incrementTodaySentCount();
+      if (!isEnBatchRun) await incrementHourSent(dateStr, utcHour);
+      sentCount += 1;
+      console.log("[affiliate-recruit-run] sent:", c.username, "lang:", lang);
+      sentHandles.push(c.username);
+    }
+
+    if (sentCount >= batchSize) break;
+    if (!nextToken) break;
   }
 
-  if (isEnBatchRun && sentCount > 0) {
+  if (sentCount > 0) {
     return res.status(200).json({
       ok: true,
       sent: sentCount,
-      lang: "en",
-      enBatch: true,
-      handles: sentHandles,
+      lang,
+      ...(isEnBatchRun ? { enBatch: true, handles: sentHandles } : {}),
       sentToday: sentToday + sentCount,
       dailyCap,
-      tried403Count: tried403.length
+      tried403Count: tried403.length,
+      readPages: pagesFetched
     });
   }
-  if (isEnBatchRun && sentCount === 0) {
-    return res.status(200).json({
-      ok: false,
-      reason: "no_eligible_or_all_403",
-      lang: "en",
-      enBatch: true,
-      tried403,
-      sentToday,
-      dailyCap
-    });
-  }
-
   return res.status(200).json({
     ok: false,
-    reason: "dm_send_failed",
-    message: "all_eligible_tried",
+    reason: "no_eligible_or_all_403",
+    lang,
+    ...(isEnBatchRun ? { enBatch: true } : {}),
     tried403,
     sentToday,
-    dailyCap
+    dailyCap,
+    readPages: pagesFetched
   });
 };

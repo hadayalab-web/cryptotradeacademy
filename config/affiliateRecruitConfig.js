@@ -66,7 +66,10 @@ function getFirstPromoterProfileUrl() {
 /** 日次 DM 送信上限。0 または未設定 = 制限なし。正の数でキャップをかける（過去の 15 は廃止） */
 const AFFILIATE_DM_DAILY_CAP = Number(process.env.AFFILIATE_DM_DAILY_CAP || 0);
 const EN_RECRUIT_HOURS = [0, 4, 8, 12, 16, 20]; // 4時間ごと（UTC）
-const EN_RECRUIT_BATCH_SIZE = 6;
+/** 全言語共通: スロットあたりの送信成功目標。403 は次候補へ進み、この数だけ成功するまで試行（Read 1・多ページで候補確保） */
+const RECRUIT_BATCH_SIZE_DEFAULT = 10;
+/** EN スロット用 */
+const EN_RECRUIT_BATCH_SIZE = Number(process.env.EN_RECRUIT_BATCH_SIZE || RECRUIT_BATCH_SIZE_DEFAULT);
 
 const DAILY_CAP_BY_LANG_60 = {
   en: 19,
@@ -79,17 +82,22 @@ const DAILY_CAP_BY_LANG_60 = {
 
 const AFFILIATE_DM_MIN_INTERVAL_MS = Number(process.env.AFFILIATE_DM_MIN_INTERVAL_MS || 5 * 60 * 1000);
 
-const SLOT_BLOCK_HOURS = [12, 17, 21];
+/** regions スロット: 各言語とも成功 10 まで試行。JA/KO・ES/PT は時間ずらして 15/15min に収める */
+const SLOT_BLOCK_HOURS = [12, 13, 17, 21, 22];
 const SLOT_BLOCKS = {
-  12: [{ lang: "ja", count: 5 }, { lang: "ko", count: 5 }],
-  17: [{ lang: "ar", count: 5 }],
-  21: [{ lang: "es", count: 5 }, { lang: "pt", count: 5 }]
+  12: [{ lang: "ja", count: RECRUIT_BATCH_SIZE_DEFAULT }],
+  13: [{ lang: "ko", count: RECRUIT_BATCH_SIZE_DEFAULT }],
+  17: [{ lang: "ar", count: RECRUIT_BATCH_SIZE_DEFAULT }],
+  21: [{ lang: "es", count: RECRUIT_BATCH_SIZE_DEFAULT }],
+  22: [{ lang: "pt", count: RECRUIT_BATCH_SIZE_DEFAULT }]
 };
 
 const SLOTS_BY_UTC_HOUR = {
-  12: ["ja", "ja", "ja", "ja", "ja", "ko", "ko", "ko", "ko", "ko"],
-  17: ["ar", "ar", "ar", "ar", "ar"],
-  21: ["es", "es", "es", "es", "es", "pt", "pt", "pt", "pt", "pt"]
+  12: Array(10).fill("ja"),
+  13: Array(10).fill("ko"),
+  17: Array(10).fill("ar"),
+  21: Array(10).fill("es"),
+  22: Array(10).fill("pt")
 };
 
 function getNextRecruitLangForUtcHour(utcHour, indexInHour) {
@@ -130,6 +138,7 @@ module.exports = {
   AFFILIATE_DM_DAILY_CAP,
   EN_RECRUIT_HOURS,
   EN_RECRUIT_BATCH_SIZE,
+  RECRUIT_BATCH_SIZE_DEFAULT,
   SLOT_BLOCK_HOURS,
   SLOT_BLOCKS,
   DAILY_CAP_BY_LANG_60,

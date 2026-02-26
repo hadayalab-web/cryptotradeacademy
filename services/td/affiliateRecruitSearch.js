@@ -4,36 +4,30 @@
  */
 const { searchPostsRecent } = require("../x/client");
 
-// 検索: すでにアフィリエイター＋DMで案件募集中。ノイズは徹底排除（煽り系なし）。
+// 検索: すでにアフィリエイターとして活動中。DM募集中は条件から外す（XのDM設定と一致しないため）。
 const SEARCH_KEYWORDS_BY_LANG = {
   en: [
-    "affiliate", "dm open", "open dm", "dm for collab", "dm for partnership", "looking for affiliate", "open to collab",
-    "referral", "link in bio", "dm for link", "my link", "referral link", "whop affiliate",
+    "affiliate", "referral", "link in bio", "my link", "referral link", "whop affiliate",
     "bitcoin", "btc", "crypto", "etf", "halving"
   ],
   ja: [
-    "アフィリエイト", "DM募集中", "DMで募集", "DMオープン", "案件募集中", "紹介パートナー募集",
-    "紹介", "プロフィールにリンク", "DMでリンク", "紹介リンク", "whop",
+    "アフィリエイト", "紹介", "プロフィールにリンク", "紹介リンク", "whop",
     "ビットコイン", "BTC", "仮想通貨", "ETF", "半減期"
   ],
   ko: [
-    "제휴", "DM 오픈", "DM으로 문의", "제휴 문의", "협찬 DM", "파트너십 DM",
-    "리퍼럴", "프로필 링크", "DM으로 링크", "제휴 링크", "whop",
+    "제휴", "리퍼럴", "프로필 링크", "제휴 링크", "whop",
     "비트코인", "BTC", "암호화폐", "ETF", "반감기"
   ],
   es: [
-    "afiliado", "dm abierto", "dm para colaborar", "busco afiliados", "colab por dm", "dm para parceria",
-    "referido", "link en bio", "dm por link", "mi link", "link de referido", "whop",
+    "afiliado", "referido", "link en bio", "mi link", "link de referido", "whop",
     "bitcoin", "btc", "crypto", "etf", "halving"
   ],
   pt: [
-    "afiliado", "dm aberto", "dm para parceria", "busco afiliados", "colab no dm", "parceria por dm",
-    "indicado", "link na bio", "dm para link", "meu link", "link de indicação", "whop",
+    "afiliado", "indicado", "link na bio", "meu link", "link de indicação", "whop",
     "bitcoin", "btc", "crypto", "etf", "halving"
   ],
   ar: [
-    "شراكة", "DM مفتوح", "DM للتعاون", "أبحث عن شركاء", "تعاون عبر DM",
-    "إحالة", "الرابط في البايو", "DM للرابط", "رابط الإحالة", "whop",
+    "شراكة", "إحالة", "الرابط في البايو", "رابط الإحالة", "whop",
     "بيتكوين", "كريبتو", "etf", "تنصيف"
   ]
 };
@@ -44,8 +38,11 @@ const AFFILIATE_RECRUIT_USER_FIELDS =
 
 const SEARCH_WINDOW_MINUTES = Number(process.env.BUZZWEAVE_SEARCH_WINDOW_MIN || 30);
 const SEARCH_QUERY_BUCKET_SIZE = Math.max(1, Number(process.env.BUZZWEAVE_QUERY_BUCKET_SIZE || 3));
-const SEARCH_PAGES_PER_BUCKET = Math.max(1, Number(process.env.BUZZWEAVE_SEARCH_PAGES_PER_BUCKET || 3));
+// Read 抑制: 1 クエリで多ページ取得するためデフォルト 8（候補数を確保し Create を伸ばす）
+const SEARCH_PAGES_PER_BUCKET = Math.max(1, Number(process.env.BUZZWEAVE_SEARCH_PAGES_PER_BUCKET || 8));
 const SEARCH_QUERY_MAX_CHARS = Math.max(128, Number(process.env.BUZZWEAVE_QUERY_MAX_CHARS || 480));
+/** true なら 1 言語 1 クエリ（Read 最小化）。false なら従来のバケット分割 */
+const SINGLE_QUERY_PER_LANG = process.env.AFFILIATE_RECRUIT_SINGLE_QUERY !== "0";
 const LOW_VOLUME_LANGS = new Set(
   String(process.env.BUZZWEAVE_LOW_VOLUME_LANGS || "ar,ko").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
 );
@@ -65,7 +62,23 @@ function chunkArray(items, size) {
   return chunks;
 }
 
-function buildSearchQueries(lang) {
+/**
+ * 1 言語 1 クエリを組み立て（Read 最小化）。全キーワードを 1 つの OR にまとめ、文字数制限まで。
+ */
+function buildSearchQueriesSingle(lang) {
+  const kw = SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en;
+  const suffix = [`lang:${lang}`, "-is:retweet", "-is:reply"].join(" ");
+  let terms = kw.map((k) => (k.includes(" ") ? `"${k}"` : k));
+  while (terms.length > 0) {
+    const query = `(${terms.join(" OR ")}) ${suffix}`.trim();
+    if (query.length <= SEARCH_QUERY_MAX_CHARS) return [query];
+    terms.pop();
+  }
+  return [`bitcoin ${suffix}`.trim()];
+}
+
+/** 従来: バケット分割で複数クエリ（Read 多め） */
+function buildSearchQueriesBucketed(lang) {
   const kw = SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en;
   const suffix = [`lang:${lang}`, "-is:retweet", "-is:reply"].join(" ");
   const buckets = chunkArray(kw, SEARCH_QUERY_BUCKET_SIZE);
@@ -96,6 +109,54 @@ function buildSearchQueries(lang) {
 
   if (!queries.length) queries.push(`bitcoin ${suffix}`.trim());
   return Array.from(new Set(queries));
+}
+
+function buildSearchQueries(lang) {
+  return SINGLE_QUERY_PER_LANG ? buildSearchQueriesSingle(lang) : buildSearchQueriesBucketed(lang);
+}
+
+/**
+ * 1 クエリで 1 ページだけ取得し、nextToken を返す。Read 抑制用（ラン側で必要になるまで次のページを呼ばない）。
+ * @param {string} slotLang - 言語
+ * @param {{ nextToken?: string, maxResults?: number, windowMinutes?: number }} [options]
+ * @returns {Promise<{ data: object[], includes: { users: object[] }, nextToken?: string, fatal402?: boolean }>}
+ */
+async function fetchOneSearchPage(slotLang, options = {}) {
+  const queries = buildSearchQueries(slotLang);
+  const query = queries && queries[0];
+  if (!query) {
+    return { data: [], includes: { users: [] } };
+  }
+  const now = Date.now();
+  const windowMin = Math.max(1, Number(options.windowMinutes ?? SEARCH_WINDOW_MINUTES));
+  const endTime = new Date(now - 30 * 1000);
+  const startTime = new Date(now - windowMin * 60 * 1000);
+  const maxResults = Math.min(100, Math.max(10, Number(options.maxResults || 30)));
+
+  try {
+    const res = await searchPostsRecent(query, {
+      maxResults,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      sortOrder: options.sortOrder || "recency",
+      nextToken: options.nextToken || undefined,
+      userFields: options.userFields === false ? undefined : options.userFields || AFFILIATE_RECRUIT_USER_FIELDS
+    });
+    const pageData = Array.isArray(res?.data) ? res.data : [];
+    const users = res?.includes?.users || [];
+    const nextToken = res?.meta?.next_token || null;
+    return {
+      data: pageData,
+      includes: { users },
+      ...(nextToken ? { nextToken } : {})
+    };
+  } catch (e) {
+    const msg = String(e?.message || "");
+    if (msg.includes("402")) {
+      return { data: [], includes: { users: [] }, fatal402: true };
+    }
+    throw e;
+  }
 }
 
 async function fetchCandidatesFromSearch(slotLang, options = {}) {
@@ -192,6 +253,7 @@ async function fetchCandidatesFromSearch(slotLang, options = {}) {
 
 module.exports = {
   fetchCandidatesFromSearch,
+  fetchOneSearchPage,
   buildSearchQueries,
   SEARCH_KEYWORDS_BY_LANG
 };
