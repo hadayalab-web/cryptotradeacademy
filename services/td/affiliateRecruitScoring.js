@@ -1,11 +1,10 @@
 /**
  * アフィリエイトリクルート候補のスコアリングと除外
  *
- * フォーカス（この4つだけ）:
- * 1. すでにアフィリエイターとして活動中
- * 2. アフィリエイト案件をDMで募集中
- * 3. ノイズになる条件は徹底排除
- * 4. 403 DM拒否は追いかけない（呼び出し元 affiliate-recruit-run で 90 日再送しない）
+ * フォーカス:
+ * 1. すでにアフィリエイターとして活動中（DM募集中は廃止・Xの設定と一致しないため）
+ * 2. ノイズになる条件は徹底排除
+ * 3. 403 DM拒否は追いかけない（呼び出し元で 90 日再送しない）
  */
 
 /** 煽り/hype 系キーワード。投稿に含まれると「痛みを抱える候補」としてボーナス（隠された敵戦略） */
@@ -38,19 +37,10 @@ const BIO_KEYWORDS = [
   "discord"
 ];
 
-/** フォーカス1・2: すでにアフィリエイター＋DMで案件募集中（Bio に含まれると高スコア） */
+/** フォーカス1: すでにアフィリエイターとして活動中（Bio に含まれると高スコア）。DM募集中は廃止（Xの設定と一致しないため） */
 const ACTIVE_AFFILIATE_KEYWORDS = [
   "link in bio",
   "link in my bio",
-  "dm for link",
-  "dm me for link",
-  "dm open",
-  "open dm",
-  "dm for collab",
-  "dm for partnership",
-  "looking for affiliate",
-  "open to collab",
-  "dm to promote",
   "referral link",
   "my link",
   "affiliate link",
@@ -58,37 +48,26 @@ const ACTIVE_AFFILIATE_KEYWORDS = [
   "linktree",
   "link below",
   "プロフィールにリンク",
-  "DMでリンク",
-  "DM募集中",
-  "DMで募集",
-  "DMオープン",
-  "案件募集中",
   "紹介リンク",
   "프로필 링크",
-  "DM으로 링크",
-  "DM 오픈",
   "제휴 링크",
-  "협찬 DM",
   "link en bio",
-  "dm por link",
-  "dm abierto",
-  "dm para colaborar",
   "link na bio",
-  "dm para link",
-  "dm aberto",
-  "dm para parceria",
   "الرابط في البايو",
-  "DM للرابط",
-  "DM مفتوح",
-  "DM للتعاون"
+  "رابط الإحالة"
 ];
 
-/** 泥臭さ・努力系プロフィールキーワード（焦り・野心・行動量・初心者モチベ）。含むとボーナス — SCREENING_PRINCIPLES + FIGHTER_CONDITIONS */
+/** 競合・プラットフォーム: Bio または URL に含まれると「すでに商材を扱っている」強シグナル（Whop 戦略） */
+const COMPETITOR_PLATFORM_KEYWORDS = [
+  "gumroad", "clickbank", "digistore24", "stan store", "linktree", "discord", "telegram"
+];
+
+/** 泥臭さ・努力系プロフィールキーワード。DM募集中系は廃止（dm open / open dm / dm abierto 削除） */
 const PROFILE_HUSTLE_KEYWORDS = [
-  "hustle", "grind", "affiliate", "dm open", "make money", "side income",
+  "hustle", "grind", "affiliate", "make money", "side income",
   "entrepreneur", "building", "learning", "improving", "trying", "beginner", "new journey",
-  "side hustle", "extra income", "open dm", "online income",
-  "afiliado", "renda extra", "dinero", "ingresos", "dm abierto",
+  "side hustle", "extra income", "online income",
+  "afiliado", "renda extra", "dinero", "ingresos",
   "aprendiendo", "empezando", "aprendendo", "iniciante",
   "시작합니다", "배우는 중", "부업",
   "初心者", "勉強中", "副業"
@@ -131,6 +110,10 @@ const HUSTLE_ZONE_FOLLOWERS_MAX = 3000;
 /** 初心者ファイターゾーン（30–1500は伸びたい初心者ファイターの密集帯 — FIGHTER_CONDITIONS） */
 const BEGINNER_FIGHTER_ZONE_MIN = 30;
 const BEGINNER_FIGHTER_ZONE_MAX = 1500;
+
+/** マイクロ・ナノインフルエンサー帯（1K〜10K: Whop 商材と親和性が高い） */
+const MICRO_NANO_FOLLOWERS_MIN = 1000;
+const MICRO_NANO_FOLLOWERS_MAX = 10000;
 
 /**
  * 地域係数（国別）。検索言語＝その国の候補とみなして C を掛ける。
@@ -188,6 +171,8 @@ const WEIGHT_ACTION_LOG = 0;
 const WEIGHT_CONSISTENCY = 0;
 const WEIGHT_PAIN_ACTION = 0;
 const WEIGHT_ACTIVE_AFFILIATE = 0.4;
+const WEIGHT_COMPETITOR_PLATFORM = 0.1;
+const WEIGHT_MICRO_NANO = 0.06;
 
 /**
  * 検索言語から国係数 C を返す。Priority = S×C×L×R で使用。
@@ -337,6 +322,23 @@ function scoreBeginnerZone(followers) {
   return 0;
 }
 
+/** マイクロ・ナノ帯: フォロワー 1K〜10K なら 1（Whop 商材とコンバージョン率が高い層） */
+function scoreMicroNanoZone(followers) {
+  if (followers >= MICRO_NANO_FOLLOWERS_MIN && followers <= MICRO_NANO_FOLLOWERS_MAX) return 1;
+  return 0;
+}
+
+/** 競合・プラットフォーム: description または url に Gumroad / ClickBank / Discord / Telegram 等があれば 1 */
+function scoreCompetitorPlatform(user) {
+  const desc = (user?.description || "").toLowerCase();
+  const url = (user?.url || "").toLowerCase();
+  const combined = `${desc} ${url}`;
+  for (const kw of COMPETITOR_PLATFORM_KEYWORDS) {
+    if (combined.includes(kw.toLowerCase())) return 1;
+  }
+  return 0;
+}
+
 /** リンクなし: プロフィールに URL がなければ 1（売るものがない＝動ける初心者ファイター強シグナル） */
 function scoreNoLink(user) {
   const url = user?.url;
@@ -460,6 +462,8 @@ function computeCandidateScore(user, userTweets = []) {
   const norm_pain_action =
     norm_hype_pain >= 0.5 && norm_action_log === 1 ? 1 : 0;
   const norm_active_affiliate = scoreActiveAffiliate(description);
+  const norm_competitor_platform = scoreCompetitorPlatform(user);
+  const norm_micro_nano = scoreMicroNanoZone(followers);
 
   const score = Math.round(
     WEIGHT_ER * norm_er * 100 +
@@ -473,7 +477,9 @@ function computeCandidateScore(user, userTweets = []) {
       WEIGHT_ACTION_LOG * norm_action_log * 100 +
       WEIGHT_CONSISTENCY * norm_consistency * 100 +
       WEIGHT_PAIN_ACTION * norm_pain_action * 100 +
-      WEIGHT_ACTIVE_AFFILIATE * norm_active_affiliate * 100
+      WEIGHT_ACTIVE_AFFILIATE * norm_active_affiliate * 100 +
+      WEIGHT_COMPETITOR_PLATFORM * norm_competitor_platform * 100 +
+      WEIGHT_MICRO_NANO * norm_micro_nano * 100
   );
 
   return {
@@ -492,6 +498,8 @@ function computeCandidateScore(user, userTweets = []) {
       norm_consistency,
       norm_pain_action,
       norm_active_affiliate,
+      norm_competitor_platform,
+      norm_micro_nano,
       erPct,
       followers
     },
@@ -518,6 +526,8 @@ module.exports = {
   scoreHustleProfile,
   scoreHustleZone,
   scoreBeginnerZone,
+  scoreMicroNanoZone,
+  scoreCompetitorPlatform,
   scoreNoLink,
   scoreActiveAffiliate,
   scoreActionLog,
@@ -541,5 +551,8 @@ module.exports = {
   HUSTLE_ZONE_FOLLOWERS_MIN,
   HUSTLE_ZONE_FOLLOWERS_MAX,
   BEGINNER_FIGHTER_ZONE_MIN,
-  BEGINNER_FIGHTER_ZONE_MAX
+  BEGINNER_FIGHTER_ZONE_MAX,
+  MICRO_NANO_FOLLOWERS_MIN,
+  MICRO_NANO_FOLLOWERS_MAX,
+  COMPETITOR_PLATFORM_KEYWORDS
 };

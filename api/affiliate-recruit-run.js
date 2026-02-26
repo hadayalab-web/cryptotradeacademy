@@ -24,8 +24,6 @@ const {
   computeCandidateScore,
   getRegionCoefficientByLang,
   getRiskFactor,
-  hasProfileLink,
-  hasNigeriaKeyword,
   PRIORITY_MIN_SEND
 } = require("../services/td/affiliateRecruitScoring");
 const { getCrConfig } = require("../services/td/affiliateRecruitCrConfig");
@@ -292,10 +290,8 @@ module.exports = async function handler(req, res) {
           priority
         });
       }
-      const ngFilter = (c) =>
-        lang !== "en" || !hasProfileLink(c.user) || !hasNigeriaKeyword(c.user?.description || "");
       const eligible = candidates
-        .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND && ngFilter(c))
+        .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND)
         .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
       const whopUrl = getWhopAffiliateProgramUrl(lang);
       let sentForPart = 0;
@@ -381,8 +377,6 @@ module.exports = async function handler(req, res) {
 
   const crConfig = await getCrConfig();
   const whopUrl = getWhopAffiliateProgramUrl(lang);
-  const ngFilter = (c) =>
-    lang !== "en" || !hasProfileLink(c.user) || !hasNigeriaKeyword(c.user?.description || "");
 
   function buildCandidatesFromPosts(posts, usersById) {
     const tweetsByAuthor = {};
@@ -417,7 +411,7 @@ module.exports = async function handler(req, res) {
       });
     }
     return candidates
-      .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND && ngFilter(c))
+      .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND)
       .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
   }
 
