@@ -4,10 +4,8 @@
  */
 const { searchPostsRecent } = require("../x/client");
 
-// 検索: すでにアフィリエイターとして活動中。DM募集中は条件から外す（XのDM設定と一致しないため）。
-// es/pt: LatAm 稼ぐ系（ganar dinero, ingresos pasivos 等）。en: APAC P2E 系（play to earn, scholarship 等）。
-// 並び順: 戦略キーワード（アフィリ・P2E・稼ぐ系）を前に、crypto 系を後ろに。480字超過時は末尾から削られるため、戦略キーワードが残る。
-// id を言語スロットで追加する場合: affiliateRecruitConfig / cron / affiliateRecruitDmTemplates / run の stats を要追加。
+// 検索: すでにアフィリエイターとして活動中。DM募集中は条件から外す。
+// 並び: アフィリ・P2E・稼ぐ系を前、crypto を後（480字超過で末尾から削られるため）。
 const SEARCH_KEYWORDS_BY_LANG = {
   en: [
     "affiliate", "referral", "link in bio", "my link", "referral link", "whop affiliate",

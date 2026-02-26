@@ -1,6 +1,7 @@
 # アフィリエイトリクルート 現状スクリーニング条件
 
-フォーカス4本柱: (1) すでにアフィリエイター (2) DMで案件募集中 (3) ノイズ徹底排除 (4) 403は追いかけない
+フォーカス: (1) すでにアフィリエイターとして活動中 (2) ノイズ徹底排除 (3) 403は追いかけない  
+※「DM募集中」は条件から廃止（XのDM設定と一致せず403が多いため）
 
 ---
 
@@ -9,16 +10,16 @@
 **ファイル**: `services/td/affiliateRecruitSearch.js`
 
 - **検索クエリ**: 言語別キーワード + `lang:XX` + `-is:retweet` + `-is:reply`
-- **キーワード方針**: すでにアフィリエイター＋DMで案件募集中。煽り系は入れていない。
+- **キーワード方針**: すでにアフィリエイターとして活動中（link in bio, referral link, whop 等）。DM募集中系は廃止（Xの設定と一致しないため）。
 
-| 言語 | 前面（DM募集中・活動表明） | 後面（クリプト文脈） |
-|------|---------------------------|----------------------|
-| EN  | affiliate, dm open, open dm, dm for collab, dm for partnership, looking for affiliate, open to collab, referral, link in bio, dm for link, my link, referral link, whop affiliate | bitcoin, btc, crypto, etf, halving |
-| JA  | アフィリエイト, DM募集中, DMで募集, DMオープン, 案件募集中, 紹介パートナー募集, 紹介, プロフィールにリンク, DMでリンク, 紹介リンク, whop | ビットコイン, BTC, 仮想通貨, ETF, 半減期 |
-| KO  | 제휴, DM 오픈, DM으로 문의, 제휴 문의, 협찬 DM, 파트너십 DM, 리퍼럴, 프로필 링크, DM으로 링크, 제휴 링크, whop | 비트코인, BTC, 암호화폐, ETF, 반감기 |
-| ES  | afiliado, dm abierto, dm para colaborar, busco afiliados, colab por dm, dm para parceria, referido, link en bio, dm por link, mi link, link de referido, whop | bitcoin, btc, crypto, etf, halving |
-| PT  | afiliado, dm aberto, dm para parceria, busco afiliados, colab no dm, parceria por dm, indicado, link na bio, dm para link, meu link, link de indicação, whop | bitcoin, btc, crypto, etf, halving |
-| AR  | شراكة, DM مفتوح, DM للتعاون, أبحث عن شركاء, تعاون عبر DM, إحالة, الرابط في البايو, DM للرابط, رابط الإحالة, whop | بيتكوين, كريبتو, etf, تنصيف |
+| 言語 | 前面（アフィリエイター活動） | 後面（クリプト文脈） |
+|------|-----------------------------|----------------------|
+| EN  | affiliate, referral, link in bio, my link, referral link, whop affiliate | bitcoin, btc, crypto, etf, halving |
+| JA  | アフィリエイト, 紹介, プロフィールにリンク, 紹介リンク, whop | ビットコイン, BTC, 仮想通貨, ETF, 半減期 |
+| KO  | 제휴, 리퍼럴, 프로필 링크, 제휴 링크, whop | 비트코인, BTC, 암호화폐, ETF, 반감기 |
+| ES  | afiliado, referido, link en bio, mi link, link de referido, whop | bitcoin, btc, crypto, etf, halving |
+| PT  | afiliado, indicado, link na bio, meu link, link de indicação, whop | bitcoin, btc, crypto, etf, halving |
+| AR  | شراكة, إحالة, الرابط في البايو, رابط الإحالة, whop | بيتكوين, كريبتو, etf, تنصيف |
 
 - **検索窓**: デフォルト 30 分（`BUZZWEAVE_SEARCH_WINDOW_MIN`）。ar/ko は LOW_VOLUME で 60 分、ar は 90 分オーバーライド可。
 - **AR のみ**: `BUZZWEAVE_AR_INFLUENCER_IDS` があれば `from:id1 OR from:id2...` クエリを追加。
@@ -93,14 +94,13 @@
 
 ---
 
-## 5. まとめ（4本柱との対応）
+## 5. まとめ（フォーカスとの対応）
 
 | フォーカス | 現状の実装 |
 |------------|------------|
-| 1. すでにアフィリエイター | 検索: affiliate / link in bio / whop 等。スコア: ACTIVE_AFFILIATE 0.4 + BIO 0.2 |
-| 2. DMで案件募集中 | 検索: dm open, DM募集中, dm for collab 等。スコア: ACTIVE_AFFILIATE に dm open, DM募集中 等を含む |
-| 3. ノイズ徹底排除 | 煽り検索なし。HYPE_PAIN / ACTION_LOG / CONSISTENCY / NO_LINK / BEGINNER_ZONE ウェイト 0。除外は consultant, mlm 等のみ |
-| 4. 403は追いかけない | 403 時に markDmNg。isDmNg で 90 日間スキップ。再送しない |
+| 1. すでにアフィリエイター | 検索: affiliate / link in bio / referral link / whop 等。スコア: ACTIVE_AFFILIATE 0.4 + BIO 0.2（DM募集中キーワードは廃止） |
+| 2. ノイズ徹底排除 | 煽り検索なし。HYPE_PAIN / ACTION_LOG 等ウェイト 0。除外は consultant, mlm 等のみ |
+| 3. 403は追いかけない | 403 時に markDmNg。isDmNg で 90 日間スキップ。再送しない |
 
 ---
 
