@@ -65,8 +65,8 @@ function getFirstPromoterProfileUrl() {
 
 /** 日次 DM 送信上限。0 または未設定 = 制限なし。正の数でキャップをかける（過去の 15 は廃止） */
 const AFFILIATE_DM_DAILY_CAP = Number(process.env.AFFILIATE_DM_DAILY_CAP || 0);
-const EN_RECRUIT_HOURS = [0, 3, 6, 9, 12, 15, 18, 21];
-const EN_RECRUIT_BATCH_SIZE = 5;
+const EN_RECRUIT_HOURS = [0, 4, 8, 12, 16, 20]; // 4時間ごと（UTC）
+const EN_RECRUIT_BATCH_SIZE = 6;
 
 const DAILY_CAP_BY_LANG_60 = {
   en: 19,
