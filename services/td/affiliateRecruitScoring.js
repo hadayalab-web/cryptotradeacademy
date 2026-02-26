@@ -62,11 +62,12 @@ const COMPETITOR_PLATFORM_KEYWORDS = [
   "gumroad", "clickbank", "digistore24", "stan store", "linktree", "discord", "telegram"
 ];
 
-/** 泥臭さ・努力系プロフィールキーワード。DM募集中系は廃止（dm open / open dm / dm abierto 削除） */
+/** 泥臭さ・努力系プロフィールキーワード。DM募集中系は廃止。P2E/LatAm 稼ぐ系は Whop 戦略でボーナス。 */
 const PROFILE_HUSTLE_KEYWORDS = [
   "hustle", "grind", "affiliate", "make money", "side income",
   "entrepreneur", "building", "learning", "improving", "trying", "beginner", "new journey",
   "side hustle", "extra income", "online income",
+  "play to earn", "scholarship", "ganar dinero", "renda passiva",
   "afiliado", "renda extra", "dinero", "ingresos",
   "aprendiendo", "empezando", "aprendendo", "iniciante",
   "시작합니다", "배우는 중", "부업",
