@@ -50,6 +50,44 @@ function getScoreBand(score) {
   return "80-100";
 }
 
+/** 検索結果＋ユーザーから送信候補を構築。EN/regions 共通で同じ条件にする */
+function buildEligibleCandidates(allPosts, usersById, lang, crConfig) {
+  const tweetsByAuthor = {};
+  for (const p of allPosts) {
+    const uid = p?.author_id;
+    if (!uid) continue;
+    if (!tweetsByAuthor[uid]) tweetsByAuthor[uid] = [];
+    tweetsByAuthor[uid].push(p);
+  }
+  const candidates = [];
+  for (const uid of Object.keys(tweetsByAuthor)) {
+    const u = usersById[uid];
+    if (!u?.username) continue;
+    const tweets = tweetsByAuthor[uid] || [];
+    const { score, excluded, reason, breakdown } = computeCandidateScore(u, tweets);
+    const C = crConfig.C?.[lang] ?? getRegionCoefficientByLang(lang);
+    const B = crConfig.B?.[getScoreBand(score)] ?? 1.0;
+    const priority =
+      !excluded && score != null
+        ? (score / 100) * C * getRiskFactor(u, tweets, lang) * B
+        : 0;
+    candidates.push({
+      author_id: uid,
+      username: u.username,
+      user: u,
+      tweets,
+      score,
+      excluded,
+      reason,
+      breakdown,
+      priority
+    });
+  }
+  return candidates
+    .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND)
+    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+}
+
 /** 送信数集計（言語×スコア帯）。観測ダッシュボード用。失敗しても送信処理は続行 */
 async function incrementSentStats(lang, score) {
   if (!kv || !lang) return;
@@ -239,89 +277,77 @@ module.exports = async function handler(req, res) {
 
   if (isSlotBlockRun) {
     const crConfig = await getCrConfig();
+    const maxReadPages = Math.max(1, Number(process.env.AFFILIATE_RECRUIT_MAX_READ_PAGES || 5));
     const block = SLOT_BLOCKS[utcHour] || [];
     const blockSummary = block.map((p) => `${p.lang}=${p.count}`).join(", ");
-    console.log("[affiliate-recruit-run] slot block utcHour=" + utcHour + " parts=[" + blockSummary + "]");
+    console.log("[affiliate-recruit-run] slot block utcHour=" + utcHour + " parts=[" + blockSummary + "] maxReadPages=" + maxReadPages);
     let totalSent = 0;
     const sentHandles = [];
     for (const part of block) {
       if (sentToday + totalSent >= dailyCap) break;
       const { lang, count } = part;
       console.log("[affiliate-recruit-run] slot part lang=" + lang + " count=" + count);
-      let result;
-      try {
-        result = await fetchCandidatesFromSearch(lang, { maxResults: 30, pagesPerBucket: 1 });
-      } catch (e) {
-        console.error("[affiliate-recruit-run] slot block fetch error:", lang, e?.message);
-        continue;
-      }
-      const posts = result?.data || [];
-      const usersList = result?.includes?.users || [];
-      const usersById = {};
-      for (const u of usersList) if (u?.id) usersById[u.id] = u;
-      const tweetsByAuthor = {};
-      for (const p of posts) {
-        const uid = p?.author_id;
-        if (!uid) continue;
-        if (!tweetsByAuthor[uid]) tweetsByAuthor[uid] = [];
-        tweetsByAuthor[uid].push(p);
-      }
-      const candidates = [];
-      for (const uid of Object.keys(tweetsByAuthor)) {
-        const u = usersById[uid];
-        if (!u?.username) continue;
-        const tweets = tweetsByAuthor[uid] || [];
-        const { score, excluded, reason, breakdown } = computeCandidateScore(u, tweets);
-        const C = crConfig.C[lang] ?? getRegionCoefficientByLang(lang);
-        const B = crConfig.B[getScoreBand(score)] ?? 1.0;
-        const priority =
-          !excluded && score != null
-            ? (score / 100) * C * getRiskFactor(u, tweets, lang) * B
-            : 0;
-        candidates.push({
-          author_id: uid,
-          username: u.username,
-          user: u,
-          tweets,
-          score,
-          excluded,
-          reason,
-          breakdown,
-          priority
-        });
-      }
-      const eligible = candidates
-        .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND)
-        .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
       const whopUrl = getWhopAffiliateProgramUrl(lang);
+      let allPosts = [];
+      let usersById = {};
+      let nextToken = null;
+      let pagesFetched = 0;
       let sentForPart = 0;
-      for (const c of eligible) {
-        if (sentForPart >= count || sentToday + totalSent >= dailyCap) break;
-        if (await isAlreadySent(c.username)) continue;
-        if (await isDmNg(c.author_id)) continue;
-        const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
-        const { text } = fillRecruitDmTemplate(lang, { inviteUrl, whopAffiliateUrl: whopUrl, handle: c.username });
-        const sendResult = await sendRecruitDm(c.username, text, { participantId: c.author_id });
-        if (sendResult?.error) {
-          const is403 = String(sendResult.error).includes("403") || String(sendResult.error).toLowerCase().includes("permission to dm");
-          if (is403) {
-            await markDmNg(c.author_id, { username: c.username, score: c.score, lang, breakdown: c.breakdown });
-            continue;
-          }
+      while (pagesFetched < maxReadPages) {
+        let pageResult;
+        try {
+          pageResult = await fetchOneSearchPage(lang, {
+            nextToken: nextToken || undefined,
+            maxResults: 30
+          });
+        } catch (e) {
+          console.error("[affiliate-recruit-run] slot fetchOneSearchPage error:", lang, e?.message);
           break;
         }
-        await markSent(c.username, {
-          lang,
-          score: c.score,
-          priority: c.priority,
-          author_id: c.author_id
-        });
-        await saveRefSent(c.author_id, { handle: c.username, lang, score: c.score, priority: c.priority });
-        await incrementSentStats(lang, c.score);
-        await incrementTodaySentCount();
-        sentForPart++;
-        totalSent++;
-        sentHandles.push(c.username);
+        if (pageResult?.fatal402) {
+          console.warn("[affiliate-recruit-run] search 402, stopping");
+          break;
+        }
+        const pageData = pageResult?.data || [];
+        const pageUsers = pageResult?.includes?.users || [];
+        allPosts = allPosts.concat(pageData);
+        for (const u of pageUsers) {
+          if (u?.id) usersById[u.id] = u;
+        }
+        nextToken = pageResult?.nextToken || null;
+        pagesFetched += 1;
+        console.log("[affiliate-recruit-run] Read page", pagesFetched, "posts:", pageData.length, "nextToken:", !!nextToken);
+        const eligible = buildEligibleCandidates(allPosts, usersById, lang, crConfig);
+        for (const c of eligible) {
+          if (sentForPart >= count || sentToday + totalSent >= dailyCap) break;
+          if (await isAlreadySent(c.username)) continue;
+          if (await isDmNg(c.author_id)) continue;
+          const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
+          const { text } = fillRecruitDmTemplate(lang, { inviteUrl, whopAffiliateUrl: whopUrl, handle: c.username });
+          const sendResult = await sendRecruitDm(c.username, text, { participantId: c.author_id });
+          if (sendResult?.error) {
+            const is403 = String(sendResult.error).includes("403") || String(sendResult.error).toLowerCase().includes("permission to dm");
+            if (is403) {
+              await markDmNg(c.author_id, { username: c.username, score: c.score, lang, breakdown: c.breakdown });
+              continue;
+            }
+            break;
+          }
+          await markSent(c.username, {
+            lang,
+            score: c.score,
+            priority: c.priority,
+            author_id: c.author_id
+          });
+          await saveRefSent(c.author_id, { handle: c.username, lang, score: c.score, priority: c.priority });
+          await incrementSentStats(lang, c.score);
+          await incrementTodaySentCount();
+          sentForPart++;
+          totalSent++;
+          sentHandles.push(c.username);
+        }
+        if (sentForPart >= count) break;
+        if (!nextToken) break;
       }
     }
     return res.status(200).json({
@@ -378,43 +404,6 @@ module.exports = async function handler(req, res) {
   const crConfig = await getCrConfig();
   const whopUrl = getWhopAffiliateProgramUrl(lang);
 
-  function buildCandidatesFromPosts(posts, usersById) {
-    const tweetsByAuthor = {};
-    for (const p of posts) {
-      const uid = p?.author_id;
-      if (!uid) continue;
-      if (!tweetsByAuthor[uid]) tweetsByAuthor[uid] = [];
-      tweetsByAuthor[uid].push(p);
-    }
-    const candidates = [];
-    for (const uid of Object.keys(tweetsByAuthor)) {
-      const u = usersById[uid];
-      if (!u?.username) continue;
-      const tweets = tweetsByAuthor[uid] || [];
-      const { score, excluded, reason, breakdown } = computeCandidateScore(u, tweets);
-      const C = crConfig.C[lang] ?? getRegionCoefficientByLang(lang);
-      const B = crConfig.B[getScoreBand(score)] ?? 1.0;
-      const priority =
-        !excluded && score != null
-          ? (score / 100) * C * getRiskFactor(u, tweets, lang) * B
-          : 0;
-      candidates.push({
-        author_id: uid,
-        username: u.username,
-        user: u,
-        tweets,
-        score,
-        excluded,
-        reason,
-        breakdown,
-        priority
-      });
-    }
-    return candidates
-      .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND)
-      .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
-  }
-
   let allPosts = [];
   let usersById = {};
   let nextToken = null;
@@ -447,7 +436,7 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ ok: false, reason: "search_failed", error: e?.message });
     }
 
-    const eligible = buildCandidatesFromPosts(allPosts, usersById);
+    const eligible = buildEligibleCandidates(allPosts, usersById, lang, crConfig);
 
     if (!willSend) {
       const wouldSendList = [];

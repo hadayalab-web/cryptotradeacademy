@@ -1,19 +1,21 @@
 # アフィリエイトリクルート スロット調整
 
-EN は別枠（3h×8回・5人ずつ＝40人/日）。スロットは **1日3回のみ**（南米・JA+KO・AR の各時間帯で1回）。
+EN は別枠（`/api/affiliate-recruit-en`）。地域別は `/api/affiliate-recruit-regions` で **1日5回**（各言語 1 時間帯・各 10 件目標）。
 
-## スロット = 1日3回
+## スロット = 1日5回（各言語 1 本）
 
-| 実行時刻 (UTC) | 時間帯 | 内容 | 本数 |
-|----------------|--------|------|------|
-| **12:00** | JA+KO | ja 3 + ko 3 | 6 |
-| **17:00** | AR | ar 5 | 5 |
-| **21:00** | 南米 ES+PT | es 5 + pt 5 | 10 |
-| **合計** | | | **21本/日** |
+| 実行時刻 (UTC) | 言語 | 目標本数 |
+|----------------|------|----------|
+| **12:00** | ja | 10 |
+| **13:00** | ko | 10 |
+| **17:00** | ar | 10 |
+| **21:00** | es | 10 |
+| **22:00** | pt | 10 |
 
-Cron: `0 12,17,21 * * *`（`/api/affiliate-recruit-regions` がこの3回だけ動く）。
+**Cron:** `0 12,13,17,21,22 * * *`（`/api/affiliate-recruit-regions`）。**22 を含めること。** 含めないと PT が実行されない。
 
 ## 実装
 
 - `config/affiliateRecruitConfig.js`: `SLOT_BLOCK_HOURS`, `SLOT_BLOCKS`
-- `api/affiliate-recruit-regions.js`: 地域別（南米・JA+KO・AR）で上記3時刻に一括送信
+- `api/affiliate-recruit-regions.js`: `mode=slot` で上記 5 時刻のいずれかに実行
+- `vercel.json`: `affiliate-recruit-regions` の schedule に **12, 13, 17, 21, 22** すべて必要
