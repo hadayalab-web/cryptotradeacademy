@@ -16,6 +16,9 @@ const {
   REGION_SEARCH_WINDOW_MINUTES,
   EN_RECRUIT_BATCH_SIZE,
   RECRUIT_BATCH_SIZE_DEFAULT,
+  EN_QUEUE_LIST_HOURS_UTC,
+  EN_QUEUE_DAILY_CAP,
+  EN_QUEUE_403_BREAKER_PER_15MIN,
   SLOTS_BY_UTC_HOUR,
   getNextRecruitLangForUtcHour
 } = require("../config/affiliateRecruitConfig");
@@ -28,6 +31,13 @@ const KV_KEY_DM_NG = (userId) => `affiliate_recruit:dm_ng:${userId}`;
 const KV_KEY_REF_SENT = (authorId) => `affiliate_recruit:ref_sent:${authorId}`;
 const KV_KEY_STATS_LANG = (lang) => `affiliate_recruit:stats:lang:${lang}`;
 const KV_KEY_STATS_LANG_BAND = (lang, band) => `affiliate_recruit:stats:lang:${lang}:band:${band}`;
+const KV_KEY_QUEUE_EN = "affiliate_recruit:queue:en";
+const KV_KEY_QUEUE_REGION = (lang) => `affiliate_recruit:queue:${lang}`;
+const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${dateStr}:${slot15}`;
+/** 地域キュー対応言語（EN は別キュー）。送信順。 */
+const REGION_QUEUE_LANGS = ["ja", "ko", "ar", "es", "pt"];
+/** 他地域リスト取得: 言語ごとの取得時刻（UTC）。1日1ページずつ、時間帯を地域に合わせる。 */
+const REGION_LIST_HOUR_BY_LANG = { ja: 12, ko: 13, ar: 17, es: 21, pt: 22 };
 // DM→登録紐づけ用 KV の有効期限。90 日は送信から登録までの想定期間をカバーしつつストレージを抑える目安。運用指示で固定。短縮したい場合はコードまたは env で変更可。
 const REF_SENT_TTL = 86400 * 90;
 
@@ -236,6 +246,235 @@ module.exports = async function handler(req, res) {
     });
   }
 
+  const forceMode = req.query?.mode || req.body?.mode;
+
+  // ----- EN キューライン: 6h ごとリスト取得（1 ページ → キュー投入） -----
+  if (forceMode === "en-queue-list") {
+    const now = new Date();
+    const utcHour = now.getUTCHours();
+    if (!EN_QUEUE_LIST_HOURS_UTC.includes(utcHour)) {
+      return res.status(200).json({
+        ok: true,
+        reason: "en_queue_list_skip_hour",
+        utcHour,
+        message: "Run only at 0,6,12,18 UTC"
+      });
+    }
+    try {
+      const windowMinutes = EN_SEARCH_WINDOW_MINUTES;
+      const pageResult = await fetchOneSearchPage("en", { maxResults: 100, windowMinutes });
+      if (pageResult?.fatal402) {
+        return res.status(200).json({ ok: false, reason: "search_402", enQueueList: true });
+      }
+      const pageData = pageResult?.data || [];
+      const pageUsers = pageResult?.includes?.users || [];
+      const usersById = {};
+      for (const u of pageUsers) {
+        if (u?.id) usersById[u.id] = u;
+      }
+      const eligible = buildEligibleCandidates(pageData, usersById, "en");
+      const toEnqueue = [];
+      for (const c of eligible) {
+        if (await isAlreadySent(c.username)) continue;
+        if (await isDmNg(c.author_id)) continue;
+        toEnqueue.push({
+          author_id: c.author_id,
+          username: c.username,
+          score: c.score,
+          breakdown: c.breakdown
+        });
+      }
+      // 6h ごとにそのブロック用でキューを上書き（リスト鮮度・キュー肥大化防止）
+      const queue = toEnqueue;
+      await kv.set(KV_KEY_QUEUE_EN, JSON.stringify(queue), { ex: 86400 * 2 });
+      return res.status(200).json({
+        ok: true,
+        enQueueList: true,
+        added: toEnqueue.length,
+        queueLength: queue.length,
+        readPage: 1
+      });
+    } catch (e) {
+      console.error("[affiliate-recruit-run] en-queue-list error:", e?.message);
+      return res.status(500).json({ ok: false, reason: "en_queue_list_failed", error: e?.message });
+    }
+  }
+
+  // ----- 他地域キューライン: リスト取得（1日1ページ/言語・言語ごとの時間帯で取得 → キュー上書き。1日かけて枯渇まで送信） -----
+  if (forceMode === "regions-queue-list") {
+    const now = new Date();
+    const utcHour = now.getUTCHours();
+    const lang = Object.keys(REGION_LIST_HOUR_BY_LANG).find((l) => REGION_LIST_HOUR_BY_LANG[l] === utcHour);
+    if (!lang) {
+      return res.status(200).json({
+        ok: true,
+        reason: "regions_queue_list_skip_hour",
+        utcHour,
+        message: "Run at 12(ja), 13(ko), 17(ar), 21(es), 22(pt) UTC"
+      });
+    }
+    try {
+      const windowMinutes = REGION_SEARCH_WINDOW_MINUTES;
+      const pageResult = await fetchOneSearchPage(lang, { maxResults: 100, windowMinutes });
+      if (pageResult?.fatal402) {
+        return res.status(200).json({ ok: false, reason: "search_402", regionsQueueList: true, lang });
+      }
+      const pageData = pageResult?.data || [];
+      const pageUsers = pageResult?.includes?.users || [];
+      const usersById = {};
+      for (const u of pageUsers) {
+        if (u?.id) usersById[u.id] = u;
+      }
+      const eligible = buildEligibleCandidates(pageData, usersById, lang);
+      const toEnqueue = [];
+      for (const c of eligible) {
+        if (await isAlreadySent(c.username)) continue;
+        if (await isDmNg(c.author_id)) continue;
+        toEnqueue.push({
+          author_id: c.author_id,
+          username: c.username,
+          score: c.score,
+          breakdown: c.breakdown
+        });
+      }
+      await kv.set(KV_KEY_QUEUE_REGION(lang), JSON.stringify(toEnqueue), { ex: 86400 * 2 });
+      return res.status(200).json({
+        ok: true,
+        regionsQueueList: true,
+        lang,
+        utcHour,
+        added: toEnqueue.length,
+        queueLength: toEnqueue.length,
+        readPage: 1
+      });
+    } catch (e) {
+      console.error("[affiliate-recruit-run] regions-queue-list error:", e?.message);
+      return res.status(500).json({ ok: false, reason: "regions_queue_list_failed", lang, error: e?.message });
+    }
+  }
+
+  // ----- EN ＋ 地域 キュー送信: 15 分ごと（EN 優先で枯渇まで。15 成功/窓・403 ブレーカー 20 はアカウント共通） -----
+  if (forceMode === "en-queue-send") {
+    const now = new Date();
+    const dateStr = now.toISOString().split("T")[0];
+    const utcMinute = now.getUTCMinutes();
+    const slot15 = [0, 15, 30, 45].find((m) => utcMinute >= m && utcMinute < m + 15) ?? 0;
+    const key403 = KV_KEY_403_WINDOW_EN(dateStr, slot15);
+    const MAX_SUCCESS_PER_15MIN = 15;
+    let sentToday = await getTodaySentCount();
+    const dailyCapActive = EN_QUEUE_DAILY_CAP > 0;
+    if (dailyCapActive && sentToday >= EN_QUEUE_DAILY_CAP) {
+      return res.status(200).json({
+        ok: true,
+        reason: "en_queue_send_cap",
+        sentToday,
+        cap: EN_QUEUE_DAILY_CAP
+      });
+    }
+    let count403 = parseInt(await kv.get(key403), 10) || 0;
+    if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) {
+      return res.status(200).json({
+        ok: true,
+        reason: "en_queue_send_breaker",
+        count403,
+        breaker: EN_QUEUE_403_BREAKER_PER_15MIN
+      });
+    }
+    const raw = await kv.get(KV_KEY_QUEUE_EN);
+    let queue = Array.isArray(raw) ? raw : (typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch (_) { return []; } })() : []);
+    const lang = "en";
+    const whopUrl = getWhopAffiliateProgramUrl(lang);
+    let sentThisWindow = 0;
+    const sentHandles = [];
+    while (
+      (!dailyCapActive || sentToday < EN_QUEUE_DAILY_CAP) &&
+      sentThisWindow < MAX_SUCCESS_PER_15MIN &&
+      count403 < EN_QUEUE_403_BREAKER_PER_15MIN &&
+      queue.length > 0
+    ) {
+      const item = queue.shift();
+      if (!item?.username) continue;
+      const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: item.author_id });
+      const { text } = fillRecruitDmTemplate(lang, { inviteUrl, whopAffiliateUrl: whopUrl, handle: item.username });
+      const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
+      if (sendResult?.error) {
+        const is403 =
+          String(sendResult.error).includes("403") ||
+          String(sendResult.error).toLowerCase().includes("permission to dm");
+        if (is403) {
+          await markDmNg(item.author_id, { username: item.username, score: item.score, lang, breakdown: item.breakdown });
+          count403 += 1;
+          await kv.set(key403, String(count403), { ex: 1200 });
+          if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) break;
+          continue;
+        }
+        queue.unshift(item);
+        break;
+      }
+      await markSent(item.username, { lang, score: item.score, priority: item.score != null ? item.score / 100 : 0, author_id: item.author_id });
+      await saveRefSent(item.author_id, { handle: item.username, lang, score: item.score, priority: item.score != null ? item.score / 100 : 0 });
+      await incrementSentStats(lang, item.score);
+      await incrementTodaySentCount();
+      sentThisWindow += 1;
+      sentToday += 1;
+      sentHandles.push(item.username);
+    }
+    await kv.set(KV_KEY_QUEUE_EN, JSON.stringify(queue), { ex: 86400 * 2 });
+
+    // 同一 15/15min・20 ブレーカーで地域キューも消化（EN の残り枠で）
+    for (const regionLang of REGION_QUEUE_LANGS) {
+      if (sentThisWindow >= MAX_SUCCESS_PER_15MIN || count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) break;
+      if (dailyCapActive && sentToday >= EN_QUEUE_DAILY_CAP) break;
+      const rawR = await kv.get(KV_KEY_QUEUE_REGION(regionLang));
+      let rQueue = Array.isArray(rawR) ? rawR : (typeof rawR === "string" ? (() => { try { return JSON.parse(rawR); } catch (_) { return []; } })() : []);
+      while (
+        (!dailyCapActive || sentToday < EN_QUEUE_DAILY_CAP) &&
+        sentThisWindow < MAX_SUCCESS_PER_15MIN &&
+        count403 < EN_QUEUE_403_BREAKER_PER_15MIN &&
+        rQueue.length > 0
+      ) {
+        const item = rQueue.shift();
+        if (!item?.username) continue;
+        const inviteUrl = getFirstPromoterInviteUrl(regionLang, { ref: item.author_id });
+        const whopUrlR = getWhopAffiliateProgramUrl(regionLang);
+        const { text } = fillRecruitDmTemplate(regionLang, { inviteUrl, whopAffiliateUrl: whopUrlR, handle: item.username });
+        const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
+        if (sendResult?.error) {
+          const is403 =
+            String(sendResult.error).includes("403") ||
+            String(sendResult.error).toLowerCase().includes("permission to dm");
+          if (is403) {
+            await markDmNg(item.author_id, { username: item.username, score: item.score, lang: regionLang, breakdown: item.breakdown });
+            count403 += 1;
+            await kv.set(key403, String(count403), { ex: 1200 });
+            if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) break;
+            continue;
+          }
+          rQueue.unshift(item);
+          break;
+        }
+        await markSent(item.username, { lang: regionLang, score: item.score, priority: item.score != null ? item.score / 100 : 0, author_id: item.author_id });
+        await saveRefSent(item.author_id, { handle: item.username, lang: regionLang, score: item.score, priority: item.score != null ? item.score / 100 : 0 });
+        await incrementSentStats(regionLang, item.score);
+        await incrementTodaySentCount();
+        sentThisWindow += 1;
+        sentToday += 1;
+        sentHandles.push(`${item.username}(${regionLang})`);
+      }
+      await kv.set(KV_KEY_QUEUE_REGION(regionLang), JSON.stringify(rQueue), { ex: 86400 * 2 });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      enQueueSend: true,
+      sent: sentHandles.length,
+      handles: sentHandles,
+      sentToday,
+      queueLength: queue.length,
+      count403ThisWindow: count403
+    });
+  }
+
   const now = new Date();
   const dateStr = now.toISOString().split("T")[0];
   const utcHour = now.getUTCHours();
@@ -243,7 +482,6 @@ module.exports = async function handler(req, res) {
 
   const sentToday = await getTodaySentCount();
 
-  const forceMode = req.query?.mode || req.body?.mode;
   const isEnBatchRun =
     forceMode === "en" ? true : forceMode === "slot" ? false : EN_RECRUIT_HOURS.includes(utcHour) && utcMinute === 0;
   const hourSent = await getHourSentCount(dateStr, utcHour);
