@@ -71,8 +71,8 @@ const EN_QUEUE_LIST_HOURS_UTC = [0, 6, 12, 18];
 /** 0 = キャップなし（枯渇まで送信）。正の値で日次成功数上限。 */
 const EN_QUEUE_DAILY_CAP = Number(process.env.EN_RECRUIT_DAILY_CAP || 0);
 const EN_QUEUE_403_BREAKER_PER_15MIN = Number(process.env.EN_RECRUIT_403_BREAKER || 20);
-/** EN: 4時間ごと実行 → 窓4時間で1日を隙間なくカバー。docs/AFFILIATE_RECRUIT_SEARCH_WINDOW_BY_SCHEDULE.md */
-const EN_SEARCH_WINDOW_MINUTES = Number(process.env.EN_SEARCH_WINDOW_MIN || 240);
+/** EN: 6時間ごとリスト取得に合わせ窓6時間。直近6hの投稿を取得。 */
+const EN_SEARCH_WINDOW_MINUTES = Number(process.env.EN_SEARCH_WINDOW_MIN || 360);
 /** 他地域: 1日1回実行 → EN同様「1回の窓で1日分をカバー」に揃え、24時間。 */
 const REGION_SEARCH_WINDOW_MINUTES = Number(process.env.REGION_SEARCH_WINDOW_MIN || 1440);
 /** 全言語共通: スロットあたりの送信成功目標。403 は次候補へ進み、この数だけ成功するまで試行（Read 1・多ページで候補確保） */
