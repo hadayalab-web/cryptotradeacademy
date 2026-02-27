@@ -1,6 +1,6 @@
 /**
  * アフィリエイトリクルート用 X 検索のみ。引用リポスト・リプライは行わない。
- * fetchCandidatesFromSearch を提供（survey-affiliate-pool-by-lang.js および DM リクルートで利用）。
+ * fetchOneSearchPage を run がループで利用。buildSearchQueries は 1 クエリ目を run が使用。
  */
 const { searchPostsRecent } = require("../x/client");
 
@@ -9,29 +9,29 @@ const { searchPostsRecent } = require("../x/client");
 const SEARCH_KEYWORDS_BY_LANG = {
   en: [
     "affiliate", "referral", "link in bio", "my link", "referral link", "whop affiliate",
-    "play to earn", "scholarship", "airdrop", "bounty hunter",
+    "play to earn", "scholarship", "airdrop", "bounty hunter", "passive income", "side hustle",
     "bitcoin", "btc", "crypto", "etf", "halving"
   ],
   ja: [
-    "アフィリエイト", "紹介", "プロフィールにリンク", "紹介リンク", "whop",
+    "アフィリエイト", "紹介", "プロフィールにリンク", "紹介リンク", "whop", "副業",
     "ビットコイン", "BTC", "仮想通貨", "ETF", "半減期"
   ],
   ko: [
-    "제휴", "리퍼럴", "프로필 링크", "제휴 링크", "whop",
+    "제휴", "리퍼럴", "프로필 링크", "제휴 링크", "whop", "부업",
     "비트코인", "BTC", "암호화폐", "ETF", "반감기"
   ],
   es: [
     "afiliado", "referido", "link en bio", "mi link", "link de referido", "whop",
-    "ganar dinero", "ingresos pasivos", "marketing de afiliados", "libertad financiera",
+    "ganar dinero", "ingresos pasivos", "marketing de afiliados", "libertad financiera", "ingresos extra",
     "bitcoin", "btc", "crypto", "etf", "halving"
   ],
   pt: [
     "afiliado", "indicado", "link na bio", "meu link", "link de indicação", "whop",
-    "ganhar dinheiro", "renda passiva", "marketing de afiliados",
+    "ganhar dinheiro", "renda passiva", "marketing de afiliados", "renda extra",
     "bitcoin", "btc", "crypto", "etf", "halving"
   ],
   ar: [
-    "شراكة", "إحالة", "الرابط في البايو", "رابط الإحالة", "whop",
+    "شراكة", "إحالة", "الرابط في البايو", "رابط الإحالة", "whop", "دخل إضافي",
     "بيتكوين", "كريبتو", "etf", "تنصيف"
   ]
 };
@@ -40,23 +40,14 @@ const SEARCH_KEYWORDS_BY_LANG = {
 const AFFILIATE_RECRUIT_USER_FIELDS =
   "id,name,username,public_metrics,description,created_at,url";
 
+/** 検索窓の幅（分）。直近に投稿した人を狙うため短め。ヒット数と鮮度のバランスで 30 分をデフォルト。要調整時は BUZZWEAVE_SEARCH_WINDOW_MIN で上書き。 */
 const SEARCH_WINDOW_MINUTES = Number(process.env.BUZZWEAVE_SEARCH_WINDOW_MIN || 30);
+// 従来モード（AFFILIATE_RECRUIT_SINGLE_QUERY=0）時のみ使用。1 クエリが MAX_CHARS を超えないようバケット分割するときのサイズ。3 は 1 クエリに収まりやすい目安。通常は 1 言語 1 クエリのため未使用。env BUZZWEAVE_QUERY_BUCKET_SIZE で上書き可。
 const SEARCH_QUERY_BUCKET_SIZE = Math.max(1, Number(process.env.BUZZWEAVE_QUERY_BUCKET_SIZE || 3));
-// Read 抑制: 1 クエリで多ページ取得するためデフォルト 8（候補数を確保し Create を伸ばす）
-const SEARCH_PAGES_PER_BUCKET = Math.max(1, Number(process.env.BUZZWEAVE_SEARCH_PAGES_PER_BUCKET || 8));
+// X API v2 GET /2/tweets/search/recent: Essential/Elevated でクエリ上限 512 文字。480 はその範囲内の安全値（env BUZZWEAVE_QUERY_MAX_CHARS で上書き可）。
 const SEARCH_QUERY_MAX_CHARS = Math.max(128, Number(process.env.BUZZWEAVE_QUERY_MAX_CHARS || 480));
 /** true なら 1 言語 1 クエリ（Read 最小化）。false なら従来のバケット分割 */
 const SINGLE_QUERY_PER_LANG = process.env.AFFILIATE_RECRUIT_SINGLE_QUERY !== "0";
-const LOW_VOLUME_LANGS = new Set(
-  String(process.env.BUZZWEAVE_LOW_VOLUME_LANGS || "ar,ko").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
-);
-const LOW_VOLUME_WINDOW_MINUTES = Math.max(
-  SEARCH_WINDOW_MINUTES,
-  Number(process.env.BUZZWEAVE_LOW_VOLUME_SEARCH_WINDOW_MIN || 60)
-);
-const LANGUAGE_WINDOW_OVERRIDE_MINUTES = {
-  ar: Number(process.env.BUZZWEAVE_AR_WINDOW_MIN || 90)
-};
 
 function chunkArray(items, size) {
   const chunks = [];
@@ -68,11 +59,12 @@ function chunkArray(items, size) {
 
 /**
  * 1 言語 1 クエリを組み立て（Read 最小化）。全キーワードを 1 つの OR にまとめ、文字数制限まで。
+ * 引用符は使わず部分一致で拾い、候補を増やす。ノイズはスコアリングで落とす。
  */
 function buildSearchQueriesSingle(lang) {
   const kw = SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en;
   const suffix = [`lang:${lang}`, "-is:retweet", "-is:reply"].join(" ");
-  let terms = kw.map((k) => (k.includes(" ") ? `"${k}"` : k));
+  let terms = kw.map((k) => k);
   while (terms.length > 0) {
     const query = `(${terms.join(" OR ")}) ${suffix}`.trim();
     if (query.length <= SEARCH_QUERY_MAX_CHARS) return [query];
@@ -100,7 +92,7 @@ function buildSearchQueriesBucketed(lang) {
   }
 
   for (const bucket of buckets) {
-    const terms = bucket.map((k) => (k.includes(" ") ? `"${k}"` : k));
+    const terms = bucket.map((k) => k);
     while (terms.length > 0) {
       const query = `(${terms.join(" OR ")}) ${suffix}`.trim();
       if (query.length <= SEARCH_QUERY_MAX_CHARS) {
@@ -133,7 +125,7 @@ async function fetchOneSearchPage(slotLang, options = {}) {
   }
   const now = Date.now();
   const windowMin = Math.max(1, Number(options.windowMinutes ?? SEARCH_WINDOW_MINUTES));
-  const endTime = new Date(now - 30 * 1000);
+  const endTime = new Date(now - 30 * 1000); // 検索 API のインデックス遅延を避けるため直近 30 秒を除外
   const startTime = new Date(now - windowMin * 60 * 1000);
   const maxResults = Math.min(100, Math.max(10, Number(options.maxResults || 30)));
 
@@ -163,100 +155,7 @@ async function fetchOneSearchPage(slotLang, options = {}) {
   }
 }
 
-async function fetchCandidatesFromSearch(slotLang, options = {}) {
-  const now = Date.now();
-  const windowMin = Math.max(1, Number(options.windowMinutes ?? SEARCH_WINDOW_MINUTES));
-  const queries = Array.isArray(options.queries) && options.queries.length
-    ? options.queries
-    : buildSearchQueries(slotLang);
-  const pagesPerBucket = Math.max(1, Number(options.pagesPerBucket ?? SEARCH_PAGES_PER_BUCKET));
-  const maxResults = Math.min(100, Math.max(10, Number(options.maxResults || 50)));
-  const sortOrder = options.sortOrder || "recency";
-
-  async function runSearchPass(currentWindowMin) {
-    const endTime = new Date(now - 30 * 1000);
-    const startTime = new Date(now - currentWindowMin * 60 * 1000);
-    const allPosts = [];
-    const usersById = {};
-    const queryStats = [];
-
-    for (const query of queries) {
-      let nextToken = null;
-      let pagesFetched = 0;
-      while (pagesFetched < pagesPerBucket) {
-        try {
-          const userFields =
-            options.userFields === false ? undefined : options.userFields || AFFILIATE_RECRUIT_USER_FIELDS;
-          const res = await searchPostsRecent(query, {
-            maxResults,
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString(),
-            sortOrder,
-            nextToken,
-            ...(userFields ? { userFields } : {})
-          });
-          const pageData = Array.isArray(res?.data) ? res.data : [];
-          allPosts.push(...pageData);
-          for (const u of (res?.includes?.users || [])) {
-            if (u?.id) usersById[u.id] = u;
-          }
-          pagesFetched += 1;
-          nextToken = res?.meta?.next_token || null;
-          if (!nextToken) break;
-        } catch (e) {
-          const msg = String(e?.message || "");
-          if (msg.includes("402")) {
-            console.warn("[affiliateRecruitSearch] search/recent 402 (Payment Required)", { slotLang });
-            return { fatal402: true, data: [], usersById: {}, queryStats };
-          }
-          console.warn("[affiliateRecruitSearch] search/recent error", { slotLang, message: msg.slice(0, 200) });
-          break;
-        }
-      }
-      queryStats.push({ query: query.slice(0, 80), pagesFetched });
-    }
-
-    const dedupMap = new Map();
-    for (const post of allPosts) {
-      if (post?.id && !dedupMap.has(post.id)) dedupMap.set(post.id, post);
-    }
-    return { fatal402: false, data: Array.from(dedupMap.values()), usersById, queryStats };
-  }
-
-  const slotLangKey = String(slotLang || "").toLowerCase();
-  const allowLowVolumeBackfill = options.enableLowVolumeBackfill !== false;
-  let windowsToTry = [windowMin];
-  const langOverrideWindow = LANGUAGE_WINDOW_OVERRIDE_MINUTES[slotLangKey];
-  if (allowLowVolumeBackfill && (langOverrideWindow || (LOW_VOLUME_LANGS.has(slotLangKey) && LOW_VOLUME_WINDOW_MINUTES > windowMin))) {
-    const firstWindow = langOverrideWindow > 0 ? langOverrideWindow : LOW_VOLUME_WINDOW_MINUTES;
-    if (firstWindow > windowMin) windowsToTry = [firstWindow, windowMin];
-  }
-
-  let passResult = null;
-  let usedWindowMinutes = windowMin;
-  for (const win of windowsToTry) {
-    usedWindowMinutes = win;
-    passResult = await runSearchPass(win);
-    if (passResult?.fatal402) {
-      return { data: [], includes: {}, queries, slotLang, fatal402: true, windowMinutesUsed: win };
-    }
-    if ((passResult?.data || []).length > 0) break;
-  }
-
-  const data = passResult?.data || [];
-  const usersById = passResult?.usersById || {};
-  return {
-    data,
-    includes: { users: Object.values(usersById) },
-    queries,
-    slotLang,
-    windowMinutesUsed: usedWindowMinutes,
-    lowVolumeBackfillUsed: windowsToTry.length > 1 && usedWindowMinutes !== windowsToTry[0]
-  };
-}
-
 module.exports = {
-  fetchCandidatesFromSearch,
   fetchOneSearchPage,
   buildSearchQueries,
   SEARCH_KEYWORDS_BY_LANG

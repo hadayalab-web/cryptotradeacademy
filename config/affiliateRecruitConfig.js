@@ -63,35 +63,19 @@ function getFirstPromoterProfileUrl() {
   return `${base}${sep}utm_source=x_profile`;
 }
 
-/** 日次 DM 送信上限。0 または未設定 = 制限なし。正の数でキャップをかける（過去の 15 は廃止） */
-const AFFILIATE_DM_DAILY_CAP = Number(process.env.AFFILIATE_DM_DAILY_CAP || 0);
-const EN_RECRUIT_HOURS = [0, 4, 8, 12, 16, 20]; // 4時間ごと（UTC）
+// EN 実行時刻（UTC）。運用指示で固定。4時間ごとで窓240分と組み合わせて6回で24hを隙間なくカバー。変更時は AFFILIATE_RECRUIT_SEARCH_WINDOW_BY_SCHEDULE および Cron と整合させること。
+const EN_RECRUIT_HOURS = [0, 4, 8, 12, 16, 20];
+/** EN: 4時間ごと実行 → 窓4時間で1日を隙間なくカバー。docs/AFFILIATE_RECRUIT_SEARCH_WINDOW_BY_SCHEDULE.md */
+const EN_SEARCH_WINDOW_MINUTES = Number(process.env.EN_SEARCH_WINDOW_MIN || 240);
+/** 他地域: 1日1回実行 → EN同様「1回の窓で1日分をカバー」に揃え、24時間。 */
+const REGION_SEARCH_WINDOW_MINUTES = Number(process.env.REGION_SEARCH_WINDOW_MIN || 1440);
 /** 全言語共通: スロットあたりの送信成功目標。403 は次候補へ進み、この数だけ成功するまで試行（Read 1・多ページで候補確保） */
+/** 1 ランあたり送信成功 10 件をマストで達成するための目標値。#4 で根拠明記。 */
 const RECRUIT_BATCH_SIZE_DEFAULT = 10;
 /** EN スロット用 */
 const EN_RECRUIT_BATCH_SIZE = Number(process.env.EN_RECRUIT_BATCH_SIZE || RECRUIT_BATCH_SIZE_DEFAULT);
 
-const DAILY_CAP_BY_LANG_60 = {
-  en: 19,
-  ja: 19,
-  es: 10,
-  pt: 5,
-  ar: 4,
-  ko: 3
-};
-
-const AFFILIATE_DM_MIN_INTERVAL_MS = Number(process.env.AFFILIATE_DM_MIN_INTERVAL_MS || 5 * 60 * 1000);
-
-/** regions スロット: 各言語とも成功 10 まで試行。JA/KO・ES/PT は時間ずらして 15/15min に収める */
-const SLOT_BLOCK_HOURS = [12, 13, 17, 21, 22];
-const SLOT_BLOCKS = {
-  12: [{ lang: "ja", count: RECRUIT_BATCH_SIZE_DEFAULT }],
-  13: [{ lang: "ko", count: RECRUIT_BATCH_SIZE_DEFAULT }],
-  17: [{ lang: "ar", count: RECRUIT_BATCH_SIZE_DEFAULT }],
-  21: [{ lang: "es", count: RECRUIT_BATCH_SIZE_DEFAULT }],
-  22: [{ lang: "pt", count: RECRUIT_BATCH_SIZE_DEFAULT }]
-};
-
+/** 各 UTC 時刻に対応する言語（vercel.json の affiliate-recruit-regions の cron と対応）。スロット数は運用指示。送信成功目標10以外はどうでもよい。 */
 const SLOTS_BY_UTC_HOUR = {
   12: Array(10).fill("ja"),
   13: Array(10).fill("ko"),
@@ -106,45 +90,17 @@ function getNextRecruitLangForUtcHour(utcHour, indexInHour) {
   return slots[indexInHour];
 }
 
-const WHOP_MENTION_PATTERNS = [
-  "whop.com",
-  "whop.com/",
-  " whop ",
-  "whop affiliate",
-  "whopアフィリエイト"
-];
-
-function scoreWhopImmune(description = "", tweetTexts = []) {
-  const combined = [description, ...(Array.isArray(tweetTexts) ? tweetTexts : [])].join(" ").toLowerCase();
-  let count = 0;
-  for (const p of WHOP_MENTION_PATTERNS) {
-    const needle = p.toLowerCase();
-    let idx = combined.indexOf(needle);
-    while (idx !== -1) {
-      count += 1;
-      idx = combined.indexOf(needle, idx + 1);
-    }
-  }
-  const score = count === 0 ? 1 : Math.max(0, 1 - count * 0.3);
-  return { count, score };
-}
-
 module.exports = {
   AFFILIATE_RECRUIT_LANGS,
   AFFILIATE_LANG_NAMES,
   getFirstPromoterInviteUrl,
   getFirstPromoterProfileUrl,
   getWhopAffiliateProgramUrl,
-  AFFILIATE_DM_DAILY_CAP,
   EN_RECRUIT_HOURS,
+  EN_SEARCH_WINDOW_MINUTES,
+  REGION_SEARCH_WINDOW_MINUTES,
   EN_RECRUIT_BATCH_SIZE,
   RECRUIT_BATCH_SIZE_DEFAULT,
-  SLOT_BLOCK_HOURS,
-  SLOT_BLOCKS,
-  DAILY_CAP_BY_LANG_60,
-  AFFILIATE_DM_MIN_INTERVAL_MS,
   SLOTS_BY_UTC_HOUR,
-  getNextRecruitLangForUtcHour,
-  WHOP_MENTION_PATTERNS,
-  scoreWhopImmune
+  getNextRecruitLangForUtcHour
 };

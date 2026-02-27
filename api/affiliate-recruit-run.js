@@ -1,32 +1,25 @@
 /**
  * アフィリエイトリクルート 1 本送信（Cron または手動 POST）
- * フォーカス: (1) すでにアフィリエイター (2) ノイズ徹底排除 (3) 403は追いかけない（DM_NG 90日）。DM募集中条件は廃止。
+ * フォーカス: (1) すでにアフィリエイター (2) ノイズ徹底排除 (3) 同一ユーザー／403 ユーザーへは一切再送しない。DM募集中条件は廃止。
  * 言語別スロットで候補検索 → FirstPromoter 招待 URL 入り DM を 1 通。認証: CRON_SECRET / ?dryRun=1 で送信スキップ。
  */
 require("../utils/suppressKnownWarnings");
 const { kv } = require("../utils/kv");
-const { fetchOneSearchPage, fetchCandidatesFromSearch } = require("../services/td/affiliateRecruitSearch");
+const { fetchOneSearchPage } = require("../services/td/affiliateRecruitSearch");
 const { sendRecruitDm } = require("../services/x/dmClient");
 const { fillRecruitDmTemplate } = require("../config/affiliateRecruitDmTemplates");
 const {
   getFirstPromoterInviteUrl,
   getWhopAffiliateProgramUrl,
-  AFFILIATE_DM_DAILY_CAP,
   EN_RECRUIT_HOURS,
+  EN_SEARCH_WINDOW_MINUTES,
+  REGION_SEARCH_WINDOW_MINUTES,
   EN_RECRUIT_BATCH_SIZE,
   RECRUIT_BATCH_SIZE_DEFAULT,
-  SLOT_BLOCK_HOURS,
-  SLOT_BLOCKS,
   SLOTS_BY_UTC_HOUR,
   getNextRecruitLangForUtcHour
 } = require("../config/affiliateRecruitConfig");
-const {
-  computeCandidateScore,
-  getRegionCoefficientByLang,
-  getRiskFactor,
-  PRIORITY_MIN_SEND
-} = require("../services/td/affiliateRecruitScoring");
-const { getCrConfig } = require("../services/td/affiliateRecruitCrConfig");
+const { computeCandidateScore } = require("../services/td/affiliateRecruitScoring");
 
 const KV_KEY_DAILY_COUNT = (dateStr) => `affiliate_recruit:daily_count:${dateStr}`;
 const KV_KEY_SENT_HANDLE = (handle) => `affiliate_recruit:sent:${handle.toLowerCase()}`;
@@ -35,9 +28,8 @@ const KV_KEY_DM_NG = (userId) => `affiliate_recruit:dm_ng:${userId}`;
 const KV_KEY_REF_SENT = (authorId) => `affiliate_recruit:ref_sent:${authorId}`;
 const KV_KEY_STATS_LANG = (lang) => `affiliate_recruit:stats:lang:${lang}`;
 const KV_KEY_STATS_LANG_BAND = (lang, band) => `affiliate_recruit:stats:lang:${lang}:band:${band}`;
-const SENT_TTL = 86400 * 90; // 90日（同一 handle に再送しない期間）
-const DM_NG_TTL = 86400 * 90; // 90日（403 だったユーザーに再送しない期間）
-const REF_SENT_TTL = 86400 * 90; // 90日（DM→登録紐づけ用）
+// DM→登録紐づけ用 KV の有効期限。90 日は送信から登録までの想定期間をカバーしつつストレージを抑える目安。運用指示で固定。短縮したい場合はコードまたは env で変更可。
+const REF_SENT_TTL = 86400 * 90;
 
 const RECRUIT_STATS_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
 const SCORE_BANDS = ["0-49", "50-64", "65-79", "80-100"];
@@ -50,8 +42,8 @@ function getScoreBand(score) {
   return "80-100";
 }
 
-/** 検索結果＋ユーザーから送信候補を構築。EN/regions 共通で同じ条件にする */
-function buildEligibleCandidates(allPosts, usersById, lang, crConfig) {
+/** 検索結果＋ユーザーから送信候補を構築。EN/regions 共通。並び順は recency のみ（スコア・係数は使わない）。 */
+function buildEligibleCandidates(allPosts, usersById, lang) {
   const tweetsByAuthor = {};
   for (const p of allPosts) {
     const uid = p?.author_id;
@@ -65,12 +57,9 @@ function buildEligibleCandidates(allPosts, usersById, lang, crConfig) {
     if (!u?.username) continue;
     const tweets = tweetsByAuthor[uid] || [];
     const { score, excluded, reason, breakdown } = computeCandidateScore(u, tweets);
-    const C = crConfig.C?.[lang] ?? getRegionCoefficientByLang(lang);
-    const B = crConfig.B?.[getScoreBand(score)] ?? 1.0;
-    const priority =
-      !excluded && score != null
-        ? (score / 100) * C * getRiskFactor(u, tweets, lang) * B
-        : 0;
+    const mostRecentTime = tweets.length
+      ? Math.max(...tweets.map((t) => new Date(t?.created_at || 0).getTime()))
+      : 0;
     candidates.push({
       author_id: uid,
       username: u.username,
@@ -80,12 +69,13 @@ function buildEligibleCandidates(allPosts, usersById, lang, crConfig) {
       excluded,
       reason,
       breakdown,
-      priority
+      priority: score != null ? score / 100 : 0,
+      mostRecentTime
     });
   }
   return candidates
-    .filter((c) => !c.excluded && (c.priority ?? 0) >= PRIORITY_MIN_SEND)
-    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+    .filter((c) => !c.excluded)
+    .sort((a, b) => (b.mostRecentTime ?? 0) - (a.mostRecentTime ?? 0));
 }
 
 /** 送信数集計（言語×スコア帯）。観測ダッシュボード用。失敗しても送信処理は続行 */
@@ -140,7 +130,7 @@ async function markSent(handle, payload = {}) {
           author_id: payload.author_id ?? null
         })
       : String(ts);
-  await kv.set(KV_KEY_SENT_HANDLE(handle), value, { ex: SENT_TTL });
+  await kv.set(KV_KEY_SENT_HANDLE(handle), value); // 同一ユーザーへは一切再送しない（有効期限なし）
 }
 
 /** ref 紐づけ用: 送信時に author_id をキーに lang/score を保存。FirstPromoter 登録時の ref と突き合わせ可能にする */
@@ -180,7 +170,7 @@ async function markDmNg(userId, data = {}) {
     ts: Date.now(),
     reason: "403",
   };
-  await kv.set(KV_KEY_DM_NG(String(userId)), JSON.stringify(payload), { ex: DM_NG_TTL });
+  await kv.set(KV_KEY_DM_NG(String(userId)), JSON.stringify(payload)); // 403 ユーザーへは一切再送しない（有効期限なし）
 }
 
 async function getHourSentCount(dateStr, hour) {
@@ -251,122 +241,11 @@ module.exports = async function handler(req, res) {
   const utcHour = now.getUTCHours();
   const utcMinute = now.getUTCMinutes();
 
-  const dailyCap = AFFILIATE_DM_DAILY_CAP > 0 ? AFFILIATE_DM_DAILY_CAP : Infinity;
   const sentToday = await getTodaySentCount();
-  if (sentToday >= dailyCap) {
-    return res.status(200).json({
-      ok: false,
-      reason: "daily_cap_reached",
-      sentToday,
-      dailyCap
-    });
-  }
 
   const forceMode = req.query?.mode || req.body?.mode;
-  const isSlotBlockRun = forceMode === "slot" && SLOT_BLOCK_HOURS.includes(utcHour);
-  if (forceMode === "slot" && !SLOT_BLOCK_HOURS.includes(utcHour)) {
-    return res.status(200).json({
-      ok: false,
-      reason: "no_slot_this_hour",
-      utcHour,
-      slotBlockHours: SLOT_BLOCK_HOURS,
-      sentToday,
-      dailyCap
-    });
-  }
-
-  if (isSlotBlockRun) {
-    const crConfig = await getCrConfig();
-    const maxReadPages = Math.max(1, Number(process.env.AFFILIATE_RECRUIT_MAX_READ_PAGES || 5));
-    const block = SLOT_BLOCKS[utcHour] || [];
-    const blockSummary = block.map((p) => `${p.lang}=${p.count}`).join(", ");
-    console.log("[affiliate-recruit-run] slot block utcHour=" + utcHour + " parts=[" + blockSummary + "] maxReadPages=" + maxReadPages);
-    let totalSent = 0;
-    const sentHandles = [];
-    for (const part of block) {
-      if (sentToday + totalSent >= dailyCap) break;
-      const { lang, count } = part;
-      console.log("[affiliate-recruit-run] slot part lang=" + lang + " count=" + count);
-      const whopUrl = getWhopAffiliateProgramUrl(lang);
-      let allPosts = [];
-      let usersById = {};
-      let nextToken = null;
-      let pagesFetched = 0;
-      let sentForPart = 0;
-      while (pagesFetched < maxReadPages) {
-        let pageResult;
-        try {
-          pageResult = await fetchOneSearchPage(lang, {
-            nextToken: nextToken || undefined,
-            maxResults: 30
-          });
-        } catch (e) {
-          console.error("[affiliate-recruit-run] slot fetchOneSearchPage error:", lang, e?.message);
-          break;
-        }
-        if (pageResult?.fatal402) {
-          console.warn("[affiliate-recruit-run] search 402, stopping");
-          break;
-        }
-        const pageData = pageResult?.data || [];
-        const pageUsers = pageResult?.includes?.users || [];
-        allPosts = allPosts.concat(pageData);
-        for (const u of pageUsers) {
-          if (u?.id) usersById[u.id] = u;
-        }
-        nextToken = pageResult?.nextToken || null;
-        pagesFetched += 1;
-        console.log("[affiliate-recruit-run] Read page", pagesFetched, "posts:", pageData.length, "nextToken:", !!nextToken);
-        const eligible = buildEligibleCandidates(allPosts, usersById, lang, crConfig);
-        for (const c of eligible) {
-          if (sentForPart >= count || sentToday + totalSent >= dailyCap) break;
-          if (await isAlreadySent(c.username)) continue;
-          if (await isDmNg(c.author_id)) continue;
-          const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
-          const { text } = fillRecruitDmTemplate(lang, { inviteUrl, whopAffiliateUrl: whopUrl, handle: c.username });
-          const sendResult = await sendRecruitDm(c.username, text, { participantId: c.author_id });
-          if (sendResult?.error) {
-            const is403 = String(sendResult.error).includes("403") || String(sendResult.error).toLowerCase().includes("permission to dm");
-            if (is403) {
-              await markDmNg(c.author_id, { username: c.username, score: c.score, lang, breakdown: c.breakdown });
-              continue;
-            }
-            break;
-          }
-          await markSent(c.username, {
-            lang,
-            score: c.score,
-            priority: c.priority,
-            author_id: c.author_id
-          });
-          await saveRefSent(c.author_id, { handle: c.username, lang, score: c.score, priority: c.priority });
-          await incrementSentStats(lang, c.score);
-          await incrementTodaySentCount();
-          sentForPart++;
-          totalSent++;
-          sentHandles.push(c.username);
-        }
-        if (sentForPart >= count) break;
-        if (!nextToken) break;
-      }
-    }
-    return res.status(200).json({
-      ok: true,
-      slotBlock: true,
-      utcHour,
-      sent: totalSent,
-      handles: sentHandles,
-      sentToday: sentToday + totalSent,
-      dailyCap
-    });
-  }
-
   const isEnBatchRun =
-    forceMode === "en"
-      ? true
-      : forceMode === "slot"
-        ? false
-        : EN_RECRUIT_HOURS.includes(utcHour) && utcMinute === 0;
+    forceMode === "en" ? true : forceMode === "slot" ? false : EN_RECRUIT_HOURS.includes(utcHour) && utcMinute === 0;
   const hourSent = await getHourSentCount(dateStr, utcHour);
   const slotsThisHour = SLOTS_BY_UTC_HOUR[utcHour];
   const lang = isEnBatchRun
@@ -381,27 +260,14 @@ module.exports = async function handler(req, res) {
       reason: "no_slot_this_hour",
       utcHour,
       utcMinute,
-      sentToday,
-      dailyCap
+      sentToday
     });
   }
 
-  const batchSize = isEnBatchRun
-    ? Math.min(EN_RECRUIT_BATCH_SIZE, Math.max(0, dailyCap - sentToday))
-    : RECRUIT_BATCH_SIZE_DEFAULT;
-  const maxReadPages = Math.max(1, Number(process.env.AFFILIATE_RECRUIT_MAX_READ_PAGES || 5));
-  console.log("[affiliate-recruit-run] mode:", forceMode || (isEnBatchRun ? "en" : "slot"), "utcHour:", utcHour, "lang:", lang, "batchSize:", batchSize, "maxReadPages:", maxReadPages);
-  if (isEnBatchRun && batchSize <= 0) {
-    return res.status(200).json({
-      ok: false,
-      reason: "daily_cap_reached",
-      sentToday,
-      dailyCap,
-      enBatch: true
-    });
-  }
+  const batchSize = isEnBatchRun ? EN_RECRUIT_BATCH_SIZE : RECRUIT_BATCH_SIZE_DEFAULT;
+  const maxReadPages = Math.max(1, Number(process.env.AFFILIATE_RECRUIT_MAX_READ_PAGES || 3));
+  console.log("[affiliate-recruit-run] mode:", forceMode || (isEnBatchRun ? "en" : "region"), "utcHour:", utcHour, "lang:", lang, "batchSize:", batchSize, "maxReadPages:", maxReadPages);
 
-  const crConfig = await getCrConfig();
   const whopUrl = getWhopAffiliateProgramUrl(lang);
 
   let allPosts = [];
@@ -412,11 +278,13 @@ module.exports = async function handler(req, res) {
   let sentCount = 0;
   const sentHandles = [];
 
+  const windowMinutes = isEnBatchRun ? EN_SEARCH_WINDOW_MINUTES : REGION_SEARCH_WINDOW_MINUTES;
   while (pagesFetched < maxReadPages) {
     try {
       const pageResult = await fetchOneSearchPage(lang, {
         nextToken: nextToken || undefined,
-        maxResults: 30
+        maxResults: 100,
+        windowMinutes
       });
       if (pageResult?.fatal402) {
         console.warn("[affiliate-recruit-run] search 402, stopping");
@@ -436,7 +304,7 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ ok: false, reason: "search_failed", error: e?.message });
     }
 
-    const eligible = buildEligibleCandidates(allPosts, usersById, lang, crConfig);
+    const eligible = buildEligibleCandidates(allPosts, usersById, lang);
 
     if (!willSend) {
       const wouldSendList = [];
@@ -455,7 +323,6 @@ module.exports = async function handler(req, res) {
           totalCandidates: eligible.length,
           eligibleCount: eligible.length,
           sentToday,
-          dailyCap,
           enBatch: isEnBatchRun,
           readPages: pagesFetched
         });
@@ -482,7 +349,6 @@ module.exports = async function handler(req, res) {
         wouldSendCount: wouldSendList.length,
         enBatch: isEnBatchRun,
         sentToday,
-        dailyCap,
         readPages: pagesFetched,
         note: !auth ? "Set CRON_SECRET or ?secret= for actual send" : "dryRun"
       });
@@ -522,7 +388,6 @@ module.exports = async function handler(req, res) {
           handle: c.username,
           error: sendResult.error,
           sentToday: sentToday + sentCount,
-          dailyCap,
           enBatch: isEnBatchRun,
           sentInThisRun: sentCount,
           readPages: pagesFetched
@@ -555,7 +420,6 @@ module.exports = async function handler(req, res) {
       lang,
       ...(isEnBatchRun ? { enBatch: true, handles: sentHandles } : {}),
       sentToday: sentToday + sentCount,
-      dailyCap,
       tried403Count: tried403.length,
       readPages: pagesFetched
     });
@@ -567,7 +431,6 @@ module.exports = async function handler(req, res) {
     ...(isEnBatchRun ? { enBatch: true } : {}),
     tried403,
     sentToday,
-    dailyCap,
     readPages: pagesFetched
   });
 };
