@@ -288,6 +288,53 @@ function parseQueueValue(rawValue) {
   return [];
 }
 
+/**
+ * 新規候補を先頭に、既存キューを後ろへ結合しつつ重複を排除
+ * - 同一 author_id または同一 username(小文字化) を重複扱い
+ * - username が空の要素は無効として破棄
+ */
+function mergeRecruitQueueEntries(freshItems, existingItems) {
+  const queue = [];
+  const seenAuthorIds = new Set();
+  const seenUsernames = new Set();
+  let addedFromFresh = 0;
+  let retainedFromExisting = 0;
+  let droppedDuplicateCount = 0;
+  let droppedInvalidCount = 0;
+
+  const tryPush = (item, source) => {
+    const username = String(item?.username || "").trim().toLowerCase();
+    const authorId = String(item?.author_id || "").trim();
+    if (!username) {
+      droppedInvalidCount += 1;
+      return;
+    }
+    if ((authorId && seenAuthorIds.has(authorId)) || seenUsernames.has(username)) {
+      droppedDuplicateCount += 1;
+      return;
+    }
+    if (authorId) seenAuthorIds.add(authorId);
+    seenUsernames.add(username);
+    queue.push(item);
+    if (source === "fresh") {
+      addedFromFresh += 1;
+    } else {
+      retainedFromExisting += 1;
+    }
+  };
+
+  for (const item of Array.isArray(freshItems) ? freshItems : []) tryPush(item, "fresh");
+  for (const item of Array.isArray(existingItems) ? existingItems : []) tryPush(item, "existing");
+
+  return {
+    queue,
+    addedFromFresh,
+    retainedFromExisting,
+    droppedDuplicateCount,
+    droppedInvalidCount
+  };
+}
+
 function createSendStatsByLang(langs) {
   const stats = {};
   for (const lang of langs) {
@@ -438,9 +485,10 @@ module.exports = async function handler(req, res) {
           angle: pickRecruitAngleByKey(c.author_id || c.username)
         });
       }
-      // 6h ごとにそのブロック用でキューを上書き（リスト鮮度・キュー肥大化防止）
-      const queue = toEnqueue;
-      const prevQueueLength = parseQueueValue(await kv.get(KV_KEY_QUEUE_EN)).length;
+      const prevQueue = parseQueueValue(await kv.get(KV_KEY_QUEUE_EN));
+      const prevQueueLength = prevQueue.length;
+      const mergeResult = mergeRecruitQueueEntries(toEnqueue, prevQueue);
+      const queue = mergeResult.queue;
       await kv.set(KV_KEY_QUEUE_EN, JSON.stringify(queue), { ex: 86400 * 2 });
       const listSummary = {
         mode: "en-queue-list",
@@ -455,18 +503,26 @@ module.exports = async function handler(req, res) {
         skippedAlreadySent,
         skippedDmNg,
         enqueued: toEnqueue.length,
+        addedFromFresh: mergeResult.addedFromFresh,
+        retainedFromPrev: mergeResult.retainedFromExisting,
+        droppedDuplicates: mergeResult.droppedDuplicateCount,
+        droppedInvalid: mergeResult.droppedInvalidCount,
         prevQueueLength,
         nextQueueLength: queue.length,
         sampleHandles: toEnqueue.slice(0, 3).map((x) => x.username)
       };
       console.log("[affiliate-recruit-run] list summary:", listSummary);
       console.log(
-        `[affiliate-recruit-en-list] utcHour=${utcHour} pages=${pagesFetched}/${listPages} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
+        `[affiliate-recruit-en-list] utcHour=${utcHour} pages=${pagesFetched}/${listPages} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} addedFresh=${mergeResult.addedFromFresh} retainedPrev=${mergeResult.retainedFromExisting} droppedDup=${mergeResult.droppedDuplicateCount} droppedInvalid=${mergeResult.droppedInvalidCount} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
       );
       return res.status(200).json({
         ok: true,
         enQueueList: true,
-        added: toEnqueue.length,
+        added: mergeResult.addedFromFresh,
+        enqueuedFresh: toEnqueue.length,
+        retainedFromPrev: mergeResult.retainedFromExisting,
+        droppedDuplicates: mergeResult.droppedDuplicateCount,
+        droppedInvalid: mergeResult.droppedInvalidCount,
         queueLength: queue.length,
         readPage: pagesFetched,
         configuredPages: listPages,
@@ -483,7 +539,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ----- 他地域キューライン: リスト取得（1日複数ページ/言語・言語ごとの時間帯で取得 → キュー上書き。1日かけて枯渇まで送信） -----
+  // ----- 他地域キューライン: リスト取得（1日複数ページ/言語・言語ごとの時間帯で取得 → キューマージ＋重複排除。1日かけて枯渇まで送信） -----
   if (forceMode === "regions-queue-list") {
     const now = new Date();
     const utcHour = now.getUTCHours();
@@ -552,8 +608,11 @@ module.exports = async function handler(req, res) {
           angle: pickRecruitAngleByKey(c.author_id || c.username)
         });
       }
-      const prevQueueLength = parseQueueValue(await kv.get(KV_KEY_QUEUE_REGION(lang))).length;
-      await kv.set(KV_KEY_QUEUE_REGION(lang), JSON.stringify(toEnqueue), { ex: 86400 * 2 });
+      const prevQueue = parseQueueValue(await kv.get(KV_KEY_QUEUE_REGION(lang)));
+      const prevQueueLength = prevQueue.length;
+      const mergeResult = mergeRecruitQueueEntries(toEnqueue, prevQueue);
+      const queue = mergeResult.queue;
+      await kv.set(KV_KEY_QUEUE_REGION(lang), JSON.stringify(queue), { ex: 86400 * 2 });
       const listSummary = {
         mode: "regions-queue-list",
         lang,
@@ -567,21 +626,29 @@ module.exports = async function handler(req, res) {
         skippedAlreadySent,
         skippedDmNg,
         enqueued: toEnqueue.length,
+        addedFromFresh: mergeResult.addedFromFresh,
+        retainedFromPrev: mergeResult.retainedFromExisting,
+        droppedDuplicates: mergeResult.droppedDuplicateCount,
+        droppedInvalid: mergeResult.droppedInvalidCount,
         prevQueueLength,
-        nextQueueLength: toEnqueue.length,
+        nextQueueLength: queue.length,
         sampleHandles: toEnqueue.slice(0, 3).map((x) => x.username)
       };
       console.log("[affiliate-recruit-run] list summary:", listSummary);
       console.log(
-        `[affiliate-recruit-regions-list] lang=${lang} utcHour=${utcHour} pages=${pagesFetched}/${listPages} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} prevQueue=${prevQueueLength} nextQueue=${toEnqueue.length}`
+        `[affiliate-recruit-regions-list] lang=${lang} utcHour=${utcHour} pages=${pagesFetched}/${listPages} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} addedFresh=${mergeResult.addedFromFresh} retainedPrev=${mergeResult.retainedFromExisting} droppedDup=${mergeResult.droppedDuplicateCount} droppedInvalid=${mergeResult.droppedInvalidCount} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
       );
       return res.status(200).json({
         ok: true,
         regionsQueueList: true,
         lang,
         utcHour,
-        added: toEnqueue.length,
-        queueLength: toEnqueue.length,
+        added: mergeResult.addedFromFresh,
+        enqueuedFresh: toEnqueue.length,
+        retainedFromPrev: mergeResult.retainedFromExisting,
+        droppedDuplicates: mergeResult.droppedDuplicateCount,
+        droppedInvalid: mergeResult.droppedInvalidCount,
+        queueLength: queue.length,
         readPage: pagesFetched,
         configuredPages: listPages,
         skippedAlreadySent,
