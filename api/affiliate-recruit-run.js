@@ -37,6 +37,7 @@ const KV_KEY_QUEUE_EN = "affiliate_recruit:queue:en";
 const KV_KEY_QUEUE_REGION = (lang) => `affiliate_recruit:queue:${lang}`;
 const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${dateStr}:${slot15}`;
 const KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS = "affiliate_recruit:cooldown:op_not_permitted:until_ms";
+const KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL = "affiliate_recruit:cooldown:op_not_permitted:backoff_level";
 /** 地域キュー対応言語（EN は別キュー）。送信順。 */
 const REGION_QUEUE_LANGS = ["ar", "es", "pt", "ja", "ko"];
 /** 他地域リスト取得: 言語ごとに 6h 間隔（1日4回）で補充。 */
@@ -77,6 +78,18 @@ const DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER = Math.max(
 const DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS = Math.max(
   0,
   Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_COOLDOWN_SEC || 600)
+);
+const DM_OPERATION_NOT_PERMITTED_COOLDOWN_MAX_SECONDS = Math.max(
+  DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS,
+  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_COOLDOWN_MAX_SEC || 3600)
+);
+const DM_OPERATION_NOT_PERMITTED_BACKOFF_TTL_SECONDS = Math.max(
+  900,
+  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_BACKOFF_TTL_SEC || 21600)
+);
+const DM_OPERATION_NOT_PERMITTED_BACKOFF_STEP_ZERO_SENT = Math.max(
+  1,
+  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_BACKOFF_STEP_ZERO_SENT || 2)
 );
 const EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER = Math.max(
   0,
@@ -286,6 +299,14 @@ function parseQueueValue(rawValue) {
     }
   }
   return [];
+}
+
+function computeOpNotPermittedCooldownSeconds(baseSeconds, backoffLevel) {
+  const base = Math.max(0, Number(baseSeconds) || 0);
+  if (base <= 0) return 0;
+  const level = Math.max(0, Number(backoffLevel) || 0);
+  const scaled = Math.round(base * Math.pow(2, level));
+  return Math.max(base, Math.min(DM_OPERATION_NOT_PERMITTED_COOLDOWN_MAX_SECONDS, scaled));
 }
 
 /**
@@ -687,6 +708,10 @@ module.exports = async function handler(req, res) {
         cap: EN_QUEUE_DAILY_CAP
       });
     }
+    let opNotPermittedBackoffLevel = Math.max(
+      0,
+      parseInt(await kv.get(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL), 10) || 0
+    );
     const cooldownUntilMsCurrent = Math.max(
       0,
       parseInt(await kv.get(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS), 10) || 0
@@ -700,14 +725,16 @@ module.exports = async function handler(req, res) {
       console.log("[affiliate-recruit-run] en-queue-send skip (op_not_permitted cooldown):", {
         slot15,
         cooldownRemainingSec,
-        cooldownUntil: cooldownUntilIso
+        cooldownUntil: cooldownUntilIso,
+        backoffLevel: opNotPermittedBackoffLevel
       });
       return res.status(200).json({
         ok: true,
         reason: "operation_not_permitted_cooldown",
         slot15,
         cooldownRemainingSec,
-        cooldownUntil: cooldownUntilIso
+        cooldownUntil: cooldownUntilIso,
+        opNotPermittedBackoffLevel
       });
     }
     let count403 = parseInt(await kv.get(key403), 10) || 0;
@@ -747,6 +774,7 @@ module.exports = async function handler(req, res) {
       slot15,
       sentToday,
       count403,
+      opNotPermittedBackoffLevel,
       queueLengthsStart,
     });
     const lang = "en";
@@ -1026,20 +1054,51 @@ module.exports = async function handler(req, res) {
     }
     let cooldownApplied = false;
     let cooldownUntil = null;
-    if (
-      DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS > 0 &&
-      (stopReason === "operation_not_permitted_streak" || stopReason === "operation_not_permitted_window")
-    ) {
-      const cooldownUntilMs = Date.now() + DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS * 1000;
-      cooldownUntil = new Date(cooldownUntilMs).toISOString();
-      cooldownApplied = true;
-      await kv.set(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS, String(cooldownUntilMs), {
-        ex: DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS + 300
+    let cooldownSecondsApplied = 0;
+    const opNotPermittedBackoffLevelBefore = opNotPermittedBackoffLevel;
+    let opNotPermittedBackoffLevelAfter = opNotPermittedBackoffLevel;
+    const stoppedByOpNotPermitted =
+      stopReason === "operation_not_permitted_streak" || stopReason === "operation_not_permitted_window";
+    if (stoppedByOpNotPermitted) {
+      const backoffStep = sentThisWindow === 0 ? DM_OPERATION_NOT_PERMITTED_BACKOFF_STEP_ZERO_SENT : 1;
+      opNotPermittedBackoffLevelAfter = Math.min(12, opNotPermittedBackoffLevel + backoffStep);
+      opNotPermittedBackoffLevel = opNotPermittedBackoffLevelAfter;
+      await kv.set(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL, String(opNotPermittedBackoffLevelAfter), {
+        ex: DM_OPERATION_NOT_PERMITTED_BACKOFF_TTL_SECONDS
       });
+      cooldownSecondsApplied = computeOpNotPermittedCooldownSeconds(
+        DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS,
+        opNotPermittedBackoffLevelAfter
+      );
+      if (cooldownSecondsApplied > 0) {
+        const cooldownUntilMs = Date.now() + cooldownSecondsApplied * 1000;
+        cooldownUntil = new Date(cooldownUntilMs).toISOString();
+        cooldownApplied = true;
+        await kv.set(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS, String(cooldownUntilMs), {
+          ex: cooldownSecondsApplied + 300
+        });
+      }
       console.warn("[affiliate-recruit-run] en-queue-send cooldown set:", {
         stopReason,
-        cooldownSeconds: DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS,
-        cooldownUntil
+        cooldownSeconds: cooldownSecondsApplied,
+        cooldownUntil,
+        backoffLevelBefore: opNotPermittedBackoffLevelBefore,
+        backoffLevelAfter: opNotPermittedBackoffLevelAfter
+      });
+    } else if (opNotPermittedBackoffLevel > 0 && opNotPermittedCountInWindow === 0 && sentThisWindow > 0) {
+      opNotPermittedBackoffLevelAfter = Math.max(0, opNotPermittedBackoffLevel - 1);
+      opNotPermittedBackoffLevel = opNotPermittedBackoffLevelAfter;
+      if (opNotPermittedBackoffLevelAfter > 0) {
+        await kv.set(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL, String(opNotPermittedBackoffLevelAfter), {
+          ex: DM_OPERATION_NOT_PERMITTED_BACKOFF_TTL_SECONDS
+        });
+      } else {
+        await kv.del(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL);
+      }
+      console.log("[affiliate-recruit-run] en-queue-send op_not_permitted backoff decay:", {
+        backoffLevelBefore: opNotPermittedBackoffLevelBefore,
+        backoffLevelAfter: opNotPermittedBackoffLevelAfter,
+        sentThisWindow
       });
     }
 
@@ -1063,12 +1122,15 @@ module.exports = async function handler(req, res) {
       enFailoverTriggered,
       enRecipient403StreakMax,
       enRecipient403FailoverBreaker: EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
+      opNotPermittedCountInWindow,
+      opNotPermittedBackoffLevelBefore,
+      opNotPermittedBackoffLevelAfter,
       regionFailoverTriggeredLangs,
       regionRecipient403StreakMaxByLang,
       regionRecipient403FailoverBreaker: REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
       ...(cooldownApplied ? {
         cooldownApplied,
-        cooldownSeconds: DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS,
+        cooldownSeconds: cooldownSecondsApplied,
         cooldownUntil
       } : {})
     };
@@ -1088,12 +1150,15 @@ module.exports = async function handler(req, res) {
       enFailoverTriggered,
       enRecipient403StreakMax,
       enRecipient403FailoverBreaker: EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
+      opNotPermittedCountInWindow,
+      opNotPermittedBackoffLevelBefore,
+      opNotPermittedBackoffLevelAfter,
       regionFailoverTriggeredLangs,
       regionRecipient403StreakMaxByLang,
       regionRecipient403FailoverBreaker: REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
       ...(cooldownApplied ? {
         cooldownApplied,
-        cooldownSeconds: DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS,
+        cooldownSeconds: cooldownSecondsApplied,
         cooldownUntil
       } : {}),
       ...(stopReason ? { stopReason } : {})
