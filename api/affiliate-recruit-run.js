@@ -38,8 +38,30 @@ const KV_KEY_QUEUE_REGION = (lang) => `affiliate_recruit:queue:${lang}`;
 const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${dateStr}:${slot15}`;
 /** 地域キュー対応言語（EN は別キュー）。送信順。 */
 const REGION_QUEUE_LANGS = ["ja", "ko", "ar", "es", "pt"];
-/** 他地域リスト取得: 言語ごとの取得時刻（UTC）。1日1ページずつ、時間帯を地域に合わせる。 */
-const REGION_LIST_HOUR_BY_LANG = { ja: 12, ko: 13, ar: 17, es: 21, pt: 22 };
+/** 他地域リスト取得: 言語ごとに 6h 間隔（1日4回）で補充。 */
+const REGION_LIST_LANG_BY_HOUR_UTC = {
+  0: "ja",
+  1: "ko",
+  2: "ar",
+  3: "es",
+  4: "pt",
+  6: "ja",
+  7: "ko",
+  8: "ar",
+  9: "es",
+  10: "pt",
+  12: "ja",
+  13: "ko",
+  14: "ar",
+  15: "es",
+  16: "pt",
+  18: "ja",
+  19: "ko",
+  20: "ar",
+  21: "es",
+  22: "pt"
+};
+const REGION_LIST_SCHEDULE_TEXT = "0,6,12,18(ja),1,7,13,19(ko),2,8,14,20(ar),3,9,15,21(es),4,10,16,22(pt)";
 // DM→登録紐づけ用 KV の有効期限。90 日は送信から登録までの想定期間をカバーしつつストレージを抑える目安。運用指示で固定。短縮したい場合はコードまたは env で変更可。
 const REF_SENT_TTL = 86400 * 90;
 // 403 detail が "This operation is not permitted." の連続時に早期停止する閾値（送信側制限の可能性を想定）
@@ -425,16 +447,16 @@ module.exports = async function handler(req, res) {
   if (forceMode === "regions-queue-list") {
     const now = new Date();
     const utcHour = now.getUTCHours();
-    const lang = Object.keys(REGION_LIST_HOUR_BY_LANG).find((l) => REGION_LIST_HOUR_BY_LANG[l] === utcHour);
+    const lang = REGION_LIST_LANG_BY_HOUR_UTC[utcHour] || null;
     if (!lang) {
       console.log(
-        `[affiliate-recruit-regions-list] skip utcHour=${utcHour} expected=12(ja),13(ko),17(ar),21(es),22(pt)`
+        `[affiliate-recruit-regions-list] skip utcHour=${utcHour} expected=${REGION_LIST_SCHEDULE_TEXT}`
       );
       return res.status(200).json({
         ok: true,
         reason: "regions_queue_list_skip_hour",
         utcHour,
-        message: "Run at 12(ja), 13(ko), 17(ar), 21(es), 22(pt) UTC"
+        message: `Run at ${REGION_LIST_SCHEDULE_TEXT} UTC`
       });
     }
     try {
