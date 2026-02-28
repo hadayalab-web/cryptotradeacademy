@@ -46,6 +46,47 @@ const SEARCH_KEYWORDS_BY_LANG = {
   ]
 };
 
+// 高意図2軸（必須）:
+// - group1: すでに提携文脈にいる人
+// - group2: 報酬/案件条件を探している人
+// 1言語1クエリ時は group1 AND group2 を満たす投稿に寄せる。
+const SEARCH_REQUIRED_GROUPS_BY_LANG = {
+  en: [
+    ["affiliate program", "partner program", "referral program", "affiliate network"],
+    ["revshare", "revenue share", "recurring commission", "lifetime commission", "cpa offer", "cpl offer", "cps offer", "high payout affiliate", "high ticket affiliate", "whop affiliate"]
+  ],
+  ja: [
+    ["アフィリエイト案件", "アフィリエイト募集", "提携プログラム", "パートナープログラム"],
+    ["成果報酬", "リカーリング報酬", "継続報酬", "高単価アフィリエイト", "CPA案件", "CPL案件", "CPS案件", "Whopアフィリエイト"]
+  ],
+  ko: [
+    ["제휴 프로그램", "파트너 프로그램", "추천 프로그램"],
+    ["레브쉐어", "수익 쉐어", "리카링 수수료", "반복 수수료", "고수익 제휴", "고단가 제휴", "CPA 오퍼", "CPL 오퍼", "CPS 오퍼", "Whop 제휴"]
+  ],
+  es: [
+    ["programa de afiliados", "programa de socios", "programa de referidos", "network de afiliados"],
+    ["revshare", "revenue share", "comision recurrente", "comision de por vida", "oferta cpa", "oferta cpl", "oferta cps", "afiliado alto payout", "whop afiliados"]
+  ],
+  pt: [
+    ["programa de afiliados", "programa de parceiros", "programa de indicacao", "rede de afiliados"],
+    ["revshare", "revenue share", "comissao recorrente", "comissao vitalicia", "oferta cpa", "oferta cpl", "oferta cps", "afiliado alto payout", "whop afiliado"]
+  ],
+  ar: [
+    ["برنامج افلييت", "برنامج شراكة", "برنامج احالة", "شريك احالة"],
+    ["عمولة متكررة", "عمولة شهرية", "عمولة مدى الحياة", "ربح متكرر", "عرض cpa", "عرض cpl", "عرض cps", "whop affiliate"]
+  ]
+};
+
+// ノイズ寄りの文脈を軽減（単語のみ。空白を含む語は避ける）
+const SEARCH_NEGATIVE_TERMS_BY_LANG = {
+  en: ["giveaway", "airdrop", "signals", "signal", "casino"],
+  ja: ["プレゼント", "エアドロップ", "シグナル", "無料"],
+  ko: ["에어드랍", "시그널", "무료", "증정"],
+  es: ["sorteo", "airdrop", "senales", "señales", "gratis"],
+  pt: ["sorteio", "airdrop", "sinais", "gratis"],
+  ar: ["ايردروب", "اشارات", "مجاني"]
+};
+
 /** アフィリエイトリクルート用: user.fields 拡張（スコアリングに必要。url＝リンクなしボーナス用） */
 const AFFILIATE_RECRUIT_USER_FIELDS =
   "id,name,username,public_metrics,description,created_at,url";
@@ -67,27 +108,92 @@ function chunkArray(items, size) {
   return chunks;
 }
 
+function uniqueList(items) {
+  const normalized = (items || [])
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
+  return Array.from(new Set(normalized));
+}
+
+function getSearchSuffixParts(lang) {
+  const negatives = SEARCH_NEGATIVE_TERMS_BY_LANG[lang] || SEARCH_NEGATIVE_TERMS_BY_LANG.en || [];
+  return [
+    `lang:${lang}`,
+    "-is:retweet",
+    "-is:reply",
+    ...uniqueList(negatives).map((term) => `-${term}`)
+  ];
+}
+
 /**
  * 1 言語 1 クエリを組み立て（Read 最小化）。全キーワードを 1 つの OR にまとめ、文字数制限まで。
  * 引用符は使わず部分一致で拾い、候補を増やす。ノイズはスコアリングで落とす。
  */
 function buildSearchQueriesSingle(lang) {
-  const kw = SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en;
-  const suffix = [`lang:${lang}`, "-is:retweet", "-is:reply"].join(" ");
-  let terms = kw.map((k) => k);
-  while (terms.length > 0) {
-    const query = `(${terms.join(" OR ")}) ${suffix}`.trim();
-    if (query.length <= SEARCH_QUERY_MAX_CHARS) return [query];
-    terms.pop();
+  const requiredGroupsRaw =
+    SEARCH_REQUIRED_GROUPS_BY_LANG[lang] || SEARCH_REQUIRED_GROUPS_BY_LANG.en || [];
+  let requiredGroups = requiredGroupsRaw.map((group) => uniqueList(group));
+  if (requiredGroups.length < 2) {
+    const kw = uniqueList(SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en);
+    const mid = Math.max(1, Math.floor(kw.length / 2));
+    requiredGroups = [kw.slice(0, mid), kw.slice(mid)];
   }
-  const fallbackTerm = kw[0] || "affiliate program";
-  return [`${fallbackTerm} ${suffix}`.trim()];
+
+  const kw = uniqueList(SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en);
+  const requiredSet = new Set(requiredGroups.flat().map((v) => String(v).toLowerCase()));
+  let optionalTerms = kw.filter((term) => !requiredSet.has(String(term).toLowerCase()));
+  let suffixParts = getSearchSuffixParts(lang);
+
+  const renderQuery = () => {
+    const requiredExpr = requiredGroups
+      .map((group) => `(${group.join(" OR ")})`)
+      .join(" ");
+    const optionalExpr = optionalTerms.length > 0 ? `(${optionalTerms.join(" OR ")})` : "";
+    return [requiredExpr, optionalExpr, suffixParts.join(" ")].filter(Boolean).join(" ").trim();
+  };
+
+  let query = renderQuery();
+  while (query.length > SEARCH_QUERY_MAX_CHARS) {
+    if (optionalTerms.length > 0) {
+      optionalTerms.pop();
+      query = renderQuery();
+      continue;
+    }
+
+    let groupShrunk = false;
+    for (let i = requiredGroups.length - 1; i >= 0; i -= 1) {
+      if (requiredGroups[i].length > 1) {
+        requiredGroups[i].pop();
+        groupShrunk = true;
+        break;
+      }
+    }
+    if (groupShrunk) {
+      query = renderQuery();
+      continue;
+    }
+
+    // 最後に negative を削って長さを収める（必須2軸は維持）
+    if (suffixParts.length > 3) {
+      suffixParts.pop();
+      query = renderQuery();
+      continue;
+    }
+    break;
+  }
+
+  if (query.length <= SEARCH_QUERY_MAX_CHARS) return [query];
+
+  const fallbackIntent = requiredGroups[0]?.[0] || "affiliate program";
+  const fallbackOffer = requiredGroups[1]?.[0] || "commission";
+  const fallbackSuffix = [`lang:${lang}`, "-is:retweet", "-is:reply"].join(" ");
+  return [`(${fallbackIntent}) (${fallbackOffer}) ${fallbackSuffix}`.trim()];
 }
 
 /** 従来: バケット分割で複数クエリ（Read 多め） */
 function buildSearchQueriesBucketed(lang) {
   const kw = SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en;
-  const suffix = [`lang:${lang}`, "-is:retweet", "-is:reply"].join(" ");
+  const suffix = getSearchSuffixParts(lang).join(" ");
   const buckets = chunkArray(kw, SEARCH_QUERY_BUCKET_SIZE);
   const queries = [];
 
