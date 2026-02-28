@@ -290,7 +290,10 @@ const handler = async function (req, res) {
 };
 
 handler.getSentStats = getSentStats;
+handler.getSignupsStats = getSignupsStats;
 handler.getSignupsAttributed = getSignupsAttributed;
+handler.getClicksAttributed = getClicksAttributed;
+handler.getRecentClickEvents = getRecentClickEvents;
 handler.RECRUIT_STATS_LANGS = RECRUIT_STATS_LANGS;
 handler.SCORE_BANDS = SCORE_BANDS;
 module.exports = handler;
