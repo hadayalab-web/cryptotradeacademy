@@ -808,131 +808,154 @@ module.exports = async function handler(req, res) {
     await kv.set(KV_KEY_QUEUE_EN, JSON.stringify(queue), { ex: 86400 * 2 });
 
     // 同一 15/15min・20 ブレーカーで地域キューも消化（EN の残り枠で）
-    for (const regionLang of REGION_QUEUE_LANGS) {
-      if (stopAllSends) break;
-      if (sentThisWindow >= MAX_SUCCESS_PER_15MIN || count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) break;
-      if (dailyCapActive && sentToday >= EN_QUEUE_DAILY_CAP) break;
-      let rQueue = regionQueues[regionLang] || [];
-      let regionRecipient403Streak = 0;
-      let regionRecipient403StreakMax = 0;
-      while (
-        (!dailyCapActive || sentToday < EN_QUEUE_DAILY_CAP) &&
-        sentThisWindow < MAX_SUCCESS_PER_15MIN &&
-        count403 < EN_QUEUE_403_BREAKER_PER_15MIN &&
-        rQueue.length > 0
-      ) {
-        const item = rQueue.shift();
-        if (!item?.username) continue;
-        sendStatsByLang[regionLang].attempted += 1;
-        const angle = pickRecruitAngleFromItem(item);
-        const inviteUrl = getFirstPromoterInviteUrl(regionLang, { ref: item.author_id });
-        const whopUrlR = getWhopAffiliateProgramUrl(regionLang);
-        const { text } = fillRecruitDmTemplate(regionLang, {
-          inviteUrl,
-          whopAffiliateUrl: whopUrlR,
-          handle: item.username,
-          angle
-        });
-        const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
-        if (sendResult?.error) {
-          const classified = classifyDmSendError(sendResult.error);
-          if (classified.is403) {
-            if (classified.type === "recipient_not_open") {
-              sendStatsByLang[regionLang].recipient403 += 1;
-              await markDmNg(item.author_id, { username: item.username, score: item.score, lang: regionLang, breakdown: item.breakdown });
-              opNotPermittedStreak = 0;
-              regionRecipient403Streak += 1;
-              regionRecipient403StreakMax = Math.max(regionRecipient403StreakMax, regionRecipient403Streak);
-            } else if (classified.type === "operation_not_permitted") {
-              sendStatsByLang[regionLang].operationNotPermitted403 += 1;
-              // 送信側一時制限は候補要因ではないため、次枠再試行できるようキュー末尾へ戻す
-              rQueue.push(item);
-              opNotPermittedStreak += 1;
-              opNotPermittedCountInWindow += 1;
-              regionRecipient403Streak = 0;
-              console.warn(
-                "[affiliate-recruit-run] DM 403 operation_not_permitted streak:",
-                opNotPermittedStreak,
-                "windowCount:",
-                opNotPermittedCountInWindow,
-                "handle:",
-                item.username,
-                "requeued:",
-                true
-              );
-            } else {
-              sendStatsByLang[regionLang].other403 += 1;
-              opNotPermittedStreak = 0;
-              regionRecipient403Streak = 0;
-            }
-            count403 += 1;
-            await kv.set(key403, String(count403), { ex: 1200 });
-            if (opNotPermittedStreak >= DM_OPERATION_NOT_PERMITTED_STREAK_BREAKER) {
-              stopReason = "operation_not_permitted_streak";
-              stopAllSends = true;
-              break;
-            }
-            if (opNotPermittedCountInWindow >= DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER) {
-              stopReason = "operation_not_permitted_window";
-              stopAllSends = true;
-              break;
-            }
-            if (
-              REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER > 0 &&
-              regionRecipient403Streak >= REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER
-            ) {
-              if (!regionFailoverTriggeredLangs.includes(regionLang)) {
-                regionFailoverTriggeredLangs.push(regionLang);
-              }
-              console.warn("[affiliate-recruit-run] region recipient403 failover to next language:", {
-                regionLang,
-                streak: regionRecipient403Streak,
-                breaker: REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
-                count403,
-                sentThisWindow
-              });
-              break;
-            }
-            if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) {
-              stopReason = "en_queue_send_breaker";
-              stopAllSends = true;
-              break;
-            }
-            continue;
-          }
-          sendStatsByLang[regionLang].non403Errors += 1;
-          rQueue.unshift(item);
-          stopReason = "dm_send_failed";
-          stopAllSends = true;
-          break;
+    // 1周で終わらせず、枠/ブレーカーに達するまで言語キューをラウンドロビンで再周回する
+    let hasRegionQueueRemaining = REGION_QUEUE_LANGS.some((regionLang) => (regionQueues[regionLang] || []).length > 0);
+    while (
+      !stopAllSends &&
+      hasRegionQueueRemaining &&
+      (!dailyCapActive || sentToday < EN_QUEUE_DAILY_CAP) &&
+      sentThisWindow < MAX_SUCCESS_PER_15MIN &&
+      count403 < EN_QUEUE_403_BREAKER_PER_15MIN
+    ) {
+      hasRegionQueueRemaining = false;
+      for (const regionLang of REGION_QUEUE_LANGS) {
+        if (stopAllSends) break;
+        if (sentThisWindow >= MAX_SUCCESS_PER_15MIN || count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) break;
+        if (dailyCapActive && sentToday >= EN_QUEUE_DAILY_CAP) break;
+        let rQueue = regionQueues[regionLang] || [];
+        if (rQueue.length > 0) {
+          hasRegionQueueRemaining = true;
+        } else {
+          regionRecipient403StreakMaxByLang[regionLang] = regionRecipient403StreakMaxByLang[regionLang] || 0;
+          continue;
         }
-        await markSent(item.username, {
-          lang: regionLang,
-          score: item.score,
-          priority: item.score != null ? item.score / 100 : 0,
-          author_id: item.author_id,
-          angle
-        });
-        await saveRefSent(item.author_id, {
-          handle: item.username,
-          lang: regionLang,
-          score: item.score,
-          priority: item.score != null ? item.score / 100 : 0,
-          angle
-        });
-        await incrementSentStats(regionLang, item.score);
-        await incrementTodaySentCount();
-        opNotPermittedStreak = 0;
-        regionRecipient403Streak = 0;
-        sentThisWindow += 1;
-        sendStatsByLang[regionLang].sent += 1;
-        sentToday += 1;
-        sentHandles.push(`${item.username}(${regionLang})`);
+        let regionRecipient403Streak = 0;
+        let regionRecipient403StreakMax = regionRecipient403StreakMaxByLang[regionLang] || 0;
+        while (
+          (!dailyCapActive || sentToday < EN_QUEUE_DAILY_CAP) &&
+          sentThisWindow < MAX_SUCCESS_PER_15MIN &&
+          count403 < EN_QUEUE_403_BREAKER_PER_15MIN &&
+          rQueue.length > 0
+        ) {
+          const item = rQueue.shift();
+          if (!item?.username) continue;
+          sendStatsByLang[regionLang].attempted += 1;
+          const angle = pickRecruitAngleFromItem(item);
+          const inviteUrl = getFirstPromoterInviteUrl(regionLang, { ref: item.author_id });
+          const whopUrlR = getWhopAffiliateProgramUrl(regionLang);
+          const { text } = fillRecruitDmTemplate(regionLang, {
+            inviteUrl,
+            whopAffiliateUrl: whopUrlR,
+            handle: item.username,
+            angle
+          });
+          const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
+          if (sendResult?.error) {
+            const classified = classifyDmSendError(sendResult.error);
+            if (classified.is403) {
+              if (classified.type === "recipient_not_open") {
+                sendStatsByLang[regionLang].recipient403 += 1;
+                await markDmNg(item.author_id, { username: item.username, score: item.score, lang: regionLang, breakdown: item.breakdown });
+                opNotPermittedStreak = 0;
+                regionRecipient403Streak += 1;
+                regionRecipient403StreakMax = Math.max(regionRecipient403StreakMax, regionRecipient403Streak);
+              } else if (classified.type === "operation_not_permitted") {
+                sendStatsByLang[regionLang].operationNotPermitted403 += 1;
+                // 送信側一時制限は候補要因ではないため、次枠再試行できるようキュー末尾へ戻す
+                rQueue.push(item);
+                opNotPermittedStreak += 1;
+                opNotPermittedCountInWindow += 1;
+                regionRecipient403Streak = 0;
+                console.warn(
+                  "[affiliate-recruit-run] DM 403 operation_not_permitted streak:",
+                  opNotPermittedStreak,
+                  "windowCount:",
+                  opNotPermittedCountInWindow,
+                  "handle:",
+                  item.username,
+                  "requeued:",
+                  true
+                );
+              } else {
+                sendStatsByLang[regionLang].other403 += 1;
+                opNotPermittedStreak = 0;
+                regionRecipient403Streak = 0;
+              }
+              count403 += 1;
+              await kv.set(key403, String(count403), { ex: 1200 });
+              if (opNotPermittedStreak >= DM_OPERATION_NOT_PERMITTED_STREAK_BREAKER) {
+                stopReason = "operation_not_permitted_streak";
+                stopAllSends = true;
+                break;
+              }
+              if (opNotPermittedCountInWindow >= DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER) {
+                stopReason = "operation_not_permitted_window";
+                stopAllSends = true;
+                break;
+              }
+              if (
+                REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER > 0 &&
+                regionRecipient403Streak >= REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER
+              ) {
+                if (!regionFailoverTriggeredLangs.includes(regionLang)) {
+                  regionFailoverTriggeredLangs.push(regionLang);
+                }
+                console.warn("[affiliate-recruit-run] region recipient403 failover to next language:", {
+                  regionLang,
+                  streak: regionRecipient403Streak,
+                  breaker: REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
+                  count403,
+                  sentThisWindow
+                });
+                break;
+              }
+              if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) {
+                stopReason = "en_queue_send_breaker";
+                stopAllSends = true;
+                break;
+              }
+              continue;
+            }
+            sendStatsByLang[regionLang].non403Errors += 1;
+            rQueue.unshift(item);
+            stopReason = "dm_send_failed";
+            stopAllSends = true;
+            break;
+          }
+          await markSent(item.username, {
+            lang: regionLang,
+            score: item.score,
+            priority: item.score != null ? item.score / 100 : 0,
+            author_id: item.author_id,
+            angle
+          });
+          await saveRefSent(item.author_id, {
+            handle: item.username,
+            lang: regionLang,
+            score: item.score,
+            priority: item.score != null ? item.score / 100 : 0,
+            angle
+          });
+          await incrementSentStats(regionLang, item.score);
+          await incrementTodaySentCount();
+          opNotPermittedStreak = 0;
+          regionRecipient403Streak = 0;
+          sentThisWindow += 1;
+          sendStatsByLang[regionLang].sent += 1;
+          sentToday += 1;
+          sentHandles.push(`${item.username}(${regionLang})`);
+        }
+        regionRecipient403StreakMaxByLang[regionLang] = Math.max(
+          regionRecipient403StreakMaxByLang[regionLang] || 0,
+          regionRecipient403StreakMax
+        );
+        regionQueues[regionLang] = rQueue;
+        await kv.set(KV_KEY_QUEUE_REGION(regionLang), JSON.stringify(rQueue), { ex: 86400 * 2 });
+        if (rQueue.length > 0) {
+          hasRegionQueueRemaining = true;
+        }
+        if (stopAllSends) break;
       }
-      regionRecipient403StreakMaxByLang[regionLang] = regionRecipient403StreakMax;
-      regionQueues[regionLang] = rQueue;
-      await kv.set(KV_KEY_QUEUE_REGION(regionLang), JSON.stringify(rQueue), { ex: 86400 * 2 });
-      if (stopAllSends) break;
     }
     let cooldownApplied = false;
     let cooldownUntil = null;
