@@ -5,34 +5,44 @@
 const { searchPostsRecent } = require("../x/client");
 
 // 検索: すでにアフィリエイターとして活動中。DM募集中は条件から外す。
-// 並び: アフィリ・P2E・稼ぐ系を前、crypto を後（480字超過で末尾から削られるため）。
+// 並び: 案件探索の高意図語を先頭（480字超過時は末尾から削られるため）。
 const SEARCH_KEYWORDS_BY_LANG = {
   en: [
-    "affiliate", "referral", "link in bio", "my link", "referral link", "whop affiliate",
-    "play to earn", "scholarship", "airdrop", "bounty hunter", "passive income", "side hustle",
-    "bitcoin", "btc", "crypto", "etf", "halving"
+    "affiliate program", "partner program", "referral program", "revshare", "revenue share",
+    "recurring commission", "lifetime commission", "high payout affiliate", "high ticket affiliate",
+    "saas affiliate", "ai saas affiliate", "ai tool affiliate", "whop affiliate",
+    "cpa offer", "cpl offer", "cps offer", "affiliate network", "influencer affiliate"
   ],
   ja: [
-    "アフィリエイト", "紹介", "プロフィールにリンク", "紹介リンク", "whop", "副業",
-    "ビットコイン", "BTC", "仮想通貨", "ETF", "半減期"
+    "アフィリエイト案件", "アフィリエイト募集", "提携プログラム", "パートナープログラム", "紹介プログラム",
+    "成果報酬", "リカーリング報酬", "継続報酬", "高単価アフィリエイト",
+    "SaaSアフィリエイト", "AI SaaSアフィリエイト", "AIツールアフィリエイト", "Whopアフィリエイト",
+    "CPA案件", "CPL案件", "CPS案件", "インフルエンサー案件", "紹介リンク"
   ],
   ko: [
-    "제휴", "리퍼럴", "프로필 링크", "제휴 링크", "whop", "부업",
-    "비트코인", "BTC", "암호화폐", "ETF", "반감기"
+    "제휴 프로그램", "파트너 프로그램", "추천 프로그램", "레브쉐어", "수익 쉐어",
+    "리카링 수수료", "반복 수수료", "고수익 제휴", "고단가 제휴",
+    "SaaS 제휴", "AI SaaS 제휴", "AI 툴 제휴", "Whop 제휴",
+    "CPA 오퍼", "CPL 오퍼", "CPS 오퍼", "인플루언서 제휴", "제휴 링크"
   ],
   es: [
-    "afiliado", "referido", "link en bio", "mi link", "link de referido", "whop",
-    "ganar dinero", "ingresos pasivos", "marketing de afiliados", "libertad financiera", "ingresos extra",
-    "bitcoin", "btc", "crypto", "etf", "halving"
+    "programa de afiliados", "oferta de afiliados", "programa de socios", "programa de referidos",
+    "revshare", "revenue share", "comision recurrente", "comision de por vida",
+    "afiliado alto payout", "afiliado saas", "afiliado ai saas", "afiliado herramientas ai",
+    "whop afiliados", "oferta cpa", "oferta cpl", "oferta cps", "network de afiliados", "link de referido"
   ],
   pt: [
-    "afiliado", "indicado", "link na bio", "meu link", "link de indicação", "whop",
-    "ganhar dinheiro", "renda passiva", "marketing de afiliados", "renda extra",
-    "bitcoin", "btc", "crypto", "etf", "halving"
+    "programa de afiliados", "oferta de afiliado", "programa de parceiros", "programa de indicacao",
+    "revshare", "revenue share", "comissao recorrente", "comissao vitalicia",
+    "afiliado alto payout", "afiliado saas", "afiliado ai saas", "afiliado ferramenta ai",
+    "whop afiliado", "oferta cpa", "oferta cpl", "oferta cps", "rede de afiliados", "link de indicacao"
   ],
   ar: [
-    "شراكة", "إحالة", "الرابط في البايو", "رابط الإحالة", "whop", "دخل إضافي",
-    "بيتكوين", "كريبتو", "etf", "تنصيف"
+    "برنامج افلييت", "برنامج شراكة", "برنامج احالة", "عرض افلييت", "عمولة متكررة",
+    "عمولة شهرية", "عمولة مدى الحياة", "ربح متكرر",
+    "saas affiliate", "ai saas affiliate", "whop affiliate",
+    "عرض cpa", "عرض cpl", "عرض cps", "network affiliate",
+    "لينك احالة", "مسوق بالعمولة", "شريك احالة"
   ]
 };
 
@@ -70,7 +80,8 @@ function buildSearchQueriesSingle(lang) {
     if (query.length <= SEARCH_QUERY_MAX_CHARS) return [query];
     terms.pop();
   }
-  return [`bitcoin ${suffix}`.trim()];
+  const fallbackTerm = kw[0] || "affiliate program";
+  return [`${fallbackTerm} ${suffix}`.trim()];
 }
 
 /** 従来: バケット分割で複数クエリ（Read 多め） */
@@ -103,7 +114,10 @@ function buildSearchQueriesBucketed(lang) {
     }
   }
 
-  if (!queries.length) queries.push(`bitcoin ${suffix}`.trim());
+  if (!queries.length) {
+    const fallbackTerm = kw[0] || "affiliate program";
+    queries.push(`${fallbackTerm} ${suffix}`.trim());
+  }
   return Array.from(new Set(queries));
 }
 
