@@ -45,11 +45,11 @@ const REF_SENT_TTL = 86400 * 90;
 // 403 detail が "This operation is not permitted." の連続時に早期停止する閾値（送信側制限の可能性を想定）
 const DM_OPERATION_NOT_PERMITTED_STREAK_BREAKER = Math.max(
   1,
-  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_BREAKER || 5)
+  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_BREAKER || 3)
 );
 const DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER = Math.max(
   1,
-  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_WINDOW_BREAKER || 5)
+  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_WINDOW_BREAKER || 3)
 );
 
 const RECRUIT_STATS_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
@@ -624,6 +624,8 @@ module.exports = async function handler(req, res) {
             opNotPermittedStreak = 0;
           } else if (classified.type === "operation_not_permitted") {
             sendStatsByLang.en.operationNotPermitted403 += 1;
+            // 送信側一時制限は候補要因ではないため、次枠再試行できるようキュー末尾へ戻す
+            queue.push(item);
             opNotPermittedStreak += 1;
             opNotPermittedCountInWindow += 1;
             console.warn(
@@ -632,7 +634,9 @@ module.exports = async function handler(req, res) {
               "windowCount:",
               opNotPermittedCountInWindow,
               "handle:",
-              item.username
+              item.username,
+              "requeued:",
+              true
             );
           } else {
             sendStatsByLang.en.other403 += 1;
@@ -703,6 +707,8 @@ module.exports = async function handler(req, res) {
               opNotPermittedStreak = 0;
             } else if (classified.type === "operation_not_permitted") {
               sendStatsByLang[regionLang].operationNotPermitted403 += 1;
+              // 送信側一時制限は候補要因ではないため、次枠再試行できるようキュー末尾へ戻す
+              rQueue.push(item);
               opNotPermittedStreak += 1;
               opNotPermittedCountInWindow += 1;
               console.warn(
@@ -711,7 +717,9 @@ module.exports = async function handler(req, res) {
                 "windowCount:",
                 opNotPermittedCountInWindow,
                 "handle:",
-                item.username
+                item.username,
+                "requeued:",
+                true
               );
             } else {
               sendStatsByLang[regionLang].other403 += 1;
