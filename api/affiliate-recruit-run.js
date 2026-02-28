@@ -36,6 +36,7 @@ const KV_KEY_STATS_LANG_BAND = (lang, band) => `affiliate_recruit:stats:lang:${l
 const KV_KEY_QUEUE_EN = "affiliate_recruit:queue:en";
 const KV_KEY_QUEUE_REGION = (lang) => `affiliate_recruit:queue:${lang}`;
 const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${dateStr}:${slot15}`;
+const KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS = "affiliate_recruit:cooldown:op_not_permitted:until_ms";
 /** 地域キュー対応言語（EN は別キュー）。送信順。 */
 const REGION_QUEUE_LANGS = ["ja", "ko", "ar", "es", "pt"];
 /** 他地域リスト取得: 言語ごとに 6h 間隔（1日4回）で補充。 */
@@ -67,11 +68,15 @@ const REF_SENT_TTL = 86400 * 90;
 // 403 detail が "This operation is not permitted." の連続時に早期停止する閾値（送信側制限の可能性を想定）
 const DM_OPERATION_NOT_PERMITTED_STREAK_BREAKER = Math.max(
   1,
-  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_BREAKER || 3)
+  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_BREAKER || 2)
 );
 const DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER = Math.max(
   1,
-  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_WINDOW_BREAKER || 3)
+  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_WINDOW_BREAKER || 2)
+);
+const DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS = Math.max(
+  0,
+  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_COOLDOWN_SEC || 2700)
 );
 
 const RECRUIT_STATS_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
@@ -559,6 +564,7 @@ module.exports = async function handler(req, res) {
   // ----- EN ＋ 地域 キュー送信: 15 分ごと（EN 優先で枯渇まで。15 成功/窓・403 ブレーカー 20 はアカウント共通） -----
   if (forceMode === "en-queue-send") {
     const now = new Date();
+    const nowMs = now.getTime();
     const dateStr = now.toISOString().split("T")[0];
     const utcMinute = now.getUTCMinutes();
     const slot15 = [0, 15, 30, 45].find((m) => utcMinute >= m && utcMinute < m + 15) ?? 0;
@@ -576,6 +582,29 @@ module.exports = async function handler(req, res) {
         reason: "en_queue_send_cap",
         sentToday,
         cap: EN_QUEUE_DAILY_CAP
+      });
+    }
+    const cooldownUntilMsCurrent = Math.max(
+      0,
+      parseInt(await kv.get(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS), 10) || 0
+    );
+    if (
+      DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS > 0 &&
+      cooldownUntilMsCurrent > nowMs
+    ) {
+      const cooldownRemainingSec = Math.ceil((cooldownUntilMsCurrent - nowMs) / 1000);
+      const cooldownUntilIso = new Date(cooldownUntilMsCurrent).toISOString();
+      console.log("[affiliate-recruit-run] en-queue-send skip (op_not_permitted cooldown):", {
+        slot15,
+        cooldownRemainingSec,
+        cooldownUntil: cooldownUntilIso
+      });
+      return res.status(200).json({
+        ok: true,
+        reason: "operation_not_permitted_cooldown",
+        slot15,
+        cooldownRemainingSec,
+        cooldownUntil: cooldownUntilIso
       });
     }
     let count403 = parseInt(await kv.get(key403), 10) || 0;
@@ -786,6 +815,24 @@ module.exports = async function handler(req, res) {
       await kv.set(KV_KEY_QUEUE_REGION(regionLang), JSON.stringify(rQueue), { ex: 86400 * 2 });
       if (stopAllSends) break;
     }
+    let cooldownApplied = false;
+    let cooldownUntil = null;
+    if (
+      DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS > 0 &&
+      (stopReason === "operation_not_permitted_streak" || stopReason === "operation_not_permitted_window")
+    ) {
+      const cooldownUntilMs = Date.now() + DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS * 1000;
+      cooldownUntil = new Date(cooldownUntilMs).toISOString();
+      cooldownApplied = true;
+      await kv.set(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS, String(cooldownUntilMs), {
+        ex: DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS + 300
+      });
+      console.warn("[affiliate-recruit-run] en-queue-send cooldown set:", {
+        stopReason,
+        cooldownSeconds: DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS,
+        cooldownUntil
+      });
+    }
 
     const queueLengthsEnd = {
       en: queue.length,
@@ -804,6 +851,11 @@ module.exports = async function handler(req, res) {
       queueLengthsStart,
       queueLengthsEnd,
       sendStatsByLang,
+      ...(cooldownApplied ? {
+        cooldownApplied,
+        cooldownSeconds: DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS,
+        cooldownUntil
+      } : {})
     };
     console.log("[affiliate-recruit-run] en-queue-send summary:", sendSummary);
 
@@ -818,6 +870,11 @@ module.exports = async function handler(req, res) {
       queueLengthsStart,
       queueLengthsEnd,
       sendStatsByLang,
+      ...(cooldownApplied ? {
+        cooldownApplied,
+        cooldownSeconds: DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS,
+        cooldownUntil
+      } : {}),
       ...(stopReason ? { stopReason } : {})
     });
   }
