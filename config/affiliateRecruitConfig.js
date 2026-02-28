@@ -63,18 +63,18 @@ function getFirstPromoterProfileUrl() {
   return `${base}${sep}utm_source=x_profile`;
 }
 
-// EN 実行時刻（UTC）。運用指示で固定。4時間ごとで窓240分と組み合わせて6回で24hを隙間なくカバー。変更時は AFFILIATE_RECRUIT_SEARCH_WINDOW_BY_SCHEDULE および Cron と整合させること。
+// EN 実行時刻（UTC）。従来モード用（mode 指定なし /api/affiliate-recruit-run 互換）。
 const EN_RECRUIT_HOURS = [0, 4, 8, 12, 16, 20];
 
-/** EN キューライン（確定仕様）: 6h ごとリスト取得・15 分ごと送信。docs/AFFILIATE_RECRUIT_EN_LINE_SPEC.md */
-const EN_QUEUE_LIST_HOURS_UTC = [0, 6, 12, 18];
-/** EN リスト取得ページ数（1実行あたり）。候補不足対策でデフォルト2、envで調整可。 */
-const EN_QUEUE_LIST_PAGES = Math.max(1, Number(process.env.EN_RECRUIT_LIST_PAGES || 2));
+/** EN キューライン: 1h ごとリスト取得・15 分ごと送信。docs/AFFILIATE_RECRUIT_EN_LINE_SPEC.md */
+const EN_QUEUE_LIST_HOURS_UTC = Array.from({ length: 24 }, (_, hour) => hour);
+/** EN リスト取得ページ数（1実行あたり）。1h 補充の既定は 1 ページ、env で調整可。 */
+const EN_QUEUE_LIST_PAGES = Math.max(1, Number(process.env.EN_RECRUIT_LIST_PAGES || 1));
 /** 0 = キャップなし（枯渇まで送信）。正の値で日次成功数上限。 */
 const EN_QUEUE_DAILY_CAP = Number(process.env.EN_RECRUIT_DAILY_CAP || 0);
 const EN_QUEUE_403_BREAKER_PER_15MIN = Number(process.env.EN_RECRUIT_403_BREAKER || 20);
-/** EN: 6時間ごとリスト取得に合わせ窓6時間。直近6hの投稿を取得。 */
-const EN_SEARCH_WINDOW_MINUTES = Number(process.env.EN_SEARCH_WINDOW_MIN || 360);
+/** EN: 1時間補充向けに窓90分（重複を抑えつつ供給を確保）。 */
+const EN_SEARCH_WINDOW_MINUTES = Number(process.env.EN_SEARCH_WINDOW_MIN || 90);
 /** 他地域: 1日1回実行 → EN同様「1回の窓で1日分をカバー」に揃え、24時間。 */
 const REGION_SEARCH_WINDOW_MINUTES = Number(process.env.REGION_SEARCH_WINDOW_MIN || 1440);
 /** 他地域リスト取得ページ数（1実行あたり）。候補不足対策でデフォルト2、envで調整可。 */

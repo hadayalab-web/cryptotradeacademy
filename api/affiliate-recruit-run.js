@@ -310,19 +310,19 @@ module.exports = async function handler(req, res) {
 
   const forceMode = req.query?.mode || req.body?.mode;
 
-  // ----- EN キューライン: 6h ごとリスト取得（複数ページ → キュー投入） -----
+  // ----- EN キューライン: 1h ごとリスト取得（既定 1 ページ、env で可変） -----
   if (forceMode === "en-queue-list") {
     const now = new Date();
     const utcHour = now.getUTCHours();
     if (!EN_QUEUE_LIST_HOURS_UTC.includes(utcHour)) {
       console.log(
-        `[affiliate-recruit-en-list] skip utcHour=${utcHour} expected=0,6,12,18`
+        `[affiliate-recruit-en-list] skip utcHour=${utcHour} expected=0-23`
       );
       return res.status(200).json({
         ok: true,
         reason: "en_queue_list_skip_hour",
         utcHour,
-        message: "Run only at 0,6,12,18 UTC"
+        message: "Run hourly at UTC minute 2"
       });
     }
     try {
