@@ -38,7 +38,7 @@ const KV_KEY_QUEUE_REGION = (lang) => `affiliate_recruit:queue:${lang}`;
 const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${dateStr}:${slot15}`;
 const KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS = "affiliate_recruit:cooldown:op_not_permitted:until_ms";
 /** 地域キュー対応言語（EN は別キュー）。送信順。 */
-const REGION_QUEUE_LANGS = ["es", "pt", "ar", "ja", "ko"];
+const REGION_QUEUE_LANGS = ["ar", "es", "pt", "ja", "ko"];
 /** 他地域リスト取得: 言語ごとに 6h 間隔（1日4回）で補充。 */
 const REGION_LIST_LANG_BY_HOUR_UTC = {
   0: "ja",

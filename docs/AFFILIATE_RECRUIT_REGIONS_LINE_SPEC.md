@@ -33,7 +33,7 @@ EN ライン（`AFFILIATE_RECRUIT_EN_LINE_SPEC.md`）と同じ要領で、**リ�
 ## フロー
 
 1. **リスト取得**: 言語ごとの時間帯で **regions-queue-list** 実行（0,6,12,18→ja / 1,7,13,19→ko / 2,8,14,20→ar / 3,9,15,21→es / 4,10,16,22→pt UTC）。各時刻でその言語を取得 → `affiliate_recruit:queue:{lang}` を上書き。
-2. **送信**: **affiliate-recruit-en-send**（15 分ごと）で EN キューを先に消化し、残り枠で **es → pt → ar → ja → ko** の順にキューから送信。各言語内で `recipient403` が連続した場合は次言語へフェイルオーバー。**枯渇 or 15 成功/窓 or 既定22回 403/窓** で終了。
+2. **送信**: **affiliate-recruit-en-send**（15 分ごと）で EN キューを先に消化し、残り枠で **ar → es → pt → ja → ko** の順にキューから送信。各言語内で `recipient403` が連続した場合は次言語へフェイルオーバー。**枯渇 or 15 成功/窓 or 既定22回 403/窓** で終了。
 
 ---
 
