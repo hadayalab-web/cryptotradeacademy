@@ -1,6 +1,6 @@
 // api/minimal-tg-delivery.js
 // 無料版（Minimal Version）TG配信専用。Regular と同時刻にしないため、別 Cron で別時刻に実行する。
-// cron が書き出す btc:snapshot:early / btc:snapshot を読んで 6 言語配信する。minimal:btc:latest は移行期フォールバック。
+// cron が書き出す btc:snapshot / btc:snapshot:early を読んで 6 言語配信する。minimal:btc:latest は移行期フォールバック。
 
 require("../utils/suppressKnownWarnings");
 const { getKV } = require("../utils/kv");
@@ -120,15 +120,15 @@ module.exports = async function handler(req, res) {
     return res.status(503).json({ error: "KV not available" });
   }
 
-  // btc:snapshot:early → btc:snapshot を優先。minimal:btc:latest は移行期フォールバック
-  let payload = await kv.get("btc:snapshot:early")
-    || await kv.get("btc:snapshot");
+  // full snapshot を優先（Regular と同一データ源で整合）。無ければ early にフォールバック。
+  let payload = await kv.get("btc:snapshot")
+    || await kv.get("btc:snapshot:early");
   if (!payload) {
     payload = await kv.get("minimal:btc:latest");
   }
   if (!payload) {
     return res.status(503).json({
-      error: "No snapshot in KV (btc:snapshot:early, btc:snapshot, or minimal:btc:latest fallback). Run /api/cron first."
+      error: "No snapshot in KV (btc:snapshot, btc:snapshot:early, or minimal:btc:latest fallback). Run /api/cron first."
     });
   }
 

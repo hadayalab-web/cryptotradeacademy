@@ -17,12 +17,23 @@ const BTC_SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24h for BWE freshness
 function buildEarlySnapshot(raw, market_score, trap = null) {
   const snapshot_id = `snapshot_${Date.now()}`;
   const as_of_utc = new Date().toISOString();
+  let earlyTrapScore = null;
+  if (trap && typeof trap === "object") {
+    if (typeof trap.trapScore === "number" && Number.isFinite(trap.trapScore)) {
+      earlyTrapScore = trap.trapScore;
+    } else if (trap.isTrap) {
+      earlyTrapScore = trap.confidence === "HIGH" ? 80 : trap.confidence === "MEDIUM" ? 50 : 30;
+    } else {
+      // isTrap=false なのに 30 を入れる誤差を防ぐ
+      earlyTrapScore = 0;
+    }
+  }
   return {
     snapshot_id,
     as_of_utc,
     raw: raw || {},
     market_score: market_score ?? 0,
-    trapDetection: trap ? { trapScore: trap.confidence === "HIGH" ? 80 : trap.confidence === "MEDIUM" ? 50 : 30, isTrap: trap.isTrap } : null
+    trapDetection: trap ? { trapScore: earlyTrapScore, isTrap: Boolean(trap.isTrap) } : null
   };
 }
 

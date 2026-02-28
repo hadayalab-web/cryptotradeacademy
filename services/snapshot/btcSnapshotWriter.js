@@ -6,7 +6,7 @@
 const { BTC_SNAPSHOT_KV_KEY, BTC_SNAPSHOT_EARLY_KV_KEY, buildEarlySnapshot, snapshotToDbRow } = require("./btcSnapshotSchema");
 const { insertBtcSnapshot } = require("../../utils/supabase");
 
-// TTL: cron は約15分周期。minimal-tg-delivery は early → full の fallback あり（btc:snapshot:early 無ければ btc:snapshot を読む）
+// TTL: cron は約15分周期。minimal-tg-delivery は full → early の fallback あり（btc:snapshot 無ければ btc:snapshot:early を読む）
 const KV_EARLY_TTL = 1200; // 20分（cron 15分 < 20分で余裕あり）
 const KV_FULL_TTL = 1200;
 
