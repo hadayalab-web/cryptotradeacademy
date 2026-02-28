@@ -78,6 +78,10 @@ const DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS = Math.max(
   0,
   Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_COOLDOWN_SEC || 2700)
 );
+const EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER = Math.max(
+  0,
+  Number(process.env.EN_RECRUIT_RECIPIENT_403_FAILOVER_BREAKER || 6)
+);
 
 const RECRUIT_STATS_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
 const SCORE_BANDS = ["0-49", "50-64", "65-79", "80-100"];
@@ -652,6 +656,9 @@ module.exports = async function handler(req, res) {
     const sentHandles = [];
     let opNotPermittedStreak = 0;
     let opNotPermittedCountInWindow = 0;
+    let enRecipient403Streak = 0;
+    let enRecipient403StreakMax = 0;
+    let enFailoverTriggered = false;
     let stopReason = null;
     let stopAllSends = false;
     while (
@@ -673,12 +680,15 @@ module.exports = async function handler(req, res) {
             sendStatsByLang.en.recipient403 += 1;
             await markDmNg(item.author_id, { username: item.username, score: item.score, lang, breakdown: item.breakdown });
             opNotPermittedStreak = 0;
+            enRecipient403Streak += 1;
+            enRecipient403StreakMax = Math.max(enRecipient403StreakMax, enRecipient403Streak);
           } else if (classified.type === "operation_not_permitted") {
             sendStatsByLang.en.operationNotPermitted403 += 1;
             // 送信側一時制限は候補要因ではないため、次枠再試行できるようキュー末尾へ戻す
             queue.push(item);
             opNotPermittedStreak += 1;
             opNotPermittedCountInWindow += 1;
+            enRecipient403Streak = 0;
             console.warn(
               "[affiliate-recruit-run] DM 403 operation_not_permitted streak:",
               opNotPermittedStreak,
@@ -692,6 +702,7 @@ module.exports = async function handler(req, res) {
           } else {
             sendStatsByLang.en.other403 += 1;
             opNotPermittedStreak = 0;
+            enRecipient403Streak = 0;
           }
           count403 += 1;
           await kv.set(key403, String(count403), { ex: 1200 });
@@ -703,6 +714,19 @@ module.exports = async function handler(req, res) {
           if (opNotPermittedCountInWindow >= DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER) {
             stopReason = "operation_not_permitted_window";
             stopAllSends = true;
+            break;
+          }
+          if (
+            EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER > 0 &&
+            enRecipient403Streak >= EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER
+          ) {
+            enFailoverTriggered = true;
+            console.warn("[affiliate-recruit-run] EN recipient403 failover to regions:", {
+              streak: enRecipient403Streak,
+              breaker: EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
+              count403,
+              sentThisWindow
+            });
             break;
           }
           if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) {
@@ -723,6 +747,7 @@ module.exports = async function handler(req, res) {
       await incrementSentStats(lang, item.score);
       await incrementTodaySentCount();
       opNotPermittedStreak = 0;
+      enRecipient403Streak = 0;
       sentThisWindow += 1;
       sendStatsByLang.en.sent += 1;
       sentToday += 1;
@@ -851,6 +876,9 @@ module.exports = async function handler(req, res) {
       queueLengthsStart,
       queueLengthsEnd,
       sendStatsByLang,
+      enFailoverTriggered,
+      enRecipient403StreakMax,
+      enRecipient403FailoverBreaker: EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
       ...(cooldownApplied ? {
         cooldownApplied,
         cooldownSeconds: DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS,
@@ -870,6 +898,9 @@ module.exports = async function handler(req, res) {
       queueLengthsStart,
       queueLengthsEnd,
       sendStatsByLang,
+      enFailoverTriggered,
+      enRecipient403StreakMax,
+      enRecipient403FailoverBreaker: EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
       ...(cooldownApplied ? {
         cooldownApplied,
         cooldownSeconds: DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS,
