@@ -14,6 +14,8 @@ const {
   EN_RECRUIT_HOURS,
   EN_SEARCH_WINDOW_MINUTES,
   REGION_SEARCH_WINDOW_MINUTES,
+  EN_QUEUE_LIST_PAGES,
+  REGION_QUEUE_LIST_PAGES,
   EN_RECRUIT_BATCH_SIZE,
   RECRUIT_BATCH_SIZE_DEFAULT,
   EN_QUEUE_LIST_HOURS_UTC,
@@ -214,6 +216,35 @@ function classifyDmSendError(errorMessage) {
   return { is403: true, type: "other_403" };
 }
 
+function parseQueueValue(rawValue) {
+  if (Array.isArray(rawValue)) return rawValue;
+  if (typeof rawValue === "string") {
+    try {
+      const parsed = JSON.parse(rawValue);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  }
+  return [];
+}
+
+function createSendStatsByLang(langs) {
+  const stats = {};
+  for (const lang of langs) {
+    stats[lang] = {
+      queueStart: 0,
+      attempted: 0,
+      sent: 0,
+      recipient403: 0,
+      operationNotPermitted403: 0,
+      other403: 0,
+      non403Errors: 0
+    };
+  }
+  return stats;
+}
+
 async function getHourSentCount(dateStr, hour) {
   if (!kv) return 0;
   const v = await kv.get(KV_KEY_HOUR_SENT(dateStr, hour));
@@ -279,11 +310,14 @@ module.exports = async function handler(req, res) {
 
   const forceMode = req.query?.mode || req.body?.mode;
 
-  // ----- EN キューライン: 6h ごとリスト取得（1 ページ → キュー投入） -----
+  // ----- EN キューライン: 6h ごとリスト取得（複数ページ → キュー投入） -----
   if (forceMode === "en-queue-list") {
     const now = new Date();
     const utcHour = now.getUTCHours();
     if (!EN_QUEUE_LIST_HOURS_UTC.includes(utcHour)) {
+      console.log(
+        `[affiliate-recruit-en-list] skip utcHour=${utcHour} expected=0,6,12,18`
+      );
       return res.status(200).json({
         ok: true,
         reason: "en_queue_list_skip_hour",
@@ -293,21 +327,48 @@ module.exports = async function handler(req, res) {
     }
     try {
       const windowMinutes = EN_SEARCH_WINDOW_MINUTES;
-      const pageResult = await fetchOneSearchPage("en", { maxResults: 100, windowMinutes });
-      if (pageResult?.fatal402) {
-        return res.status(200).json({ ok: false, reason: "search_402", enQueueList: true });
-      }
-      const pageData = pageResult?.data || [];
-      const pageUsers = pageResult?.includes?.users || [];
+      const listPages = EN_QUEUE_LIST_PAGES;
+      let pagesFetched = 0;
+      let nextToken = null;
+      let allPosts = [];
       const usersById = {};
-      for (const u of pageUsers) {
-        if (u?.id) usersById[u.id] = u;
+      while (pagesFetched < listPages) {
+        const pageResult = await fetchOneSearchPage("en", {
+          maxResults: 100,
+          windowMinutes,
+          nextToken: nextToken || undefined
+        });
+        if (pageResult?.fatal402) {
+          return res.status(200).json({
+            ok: false,
+            reason: "search_402",
+            enQueueList: true,
+            pagesFetched
+          });
+        }
+        const pageData = pageResult?.data || [];
+        const pageUsers = pageResult?.includes?.users || [];
+        allPosts = allPosts.concat(pageData);
+        for (const u of pageUsers) {
+          if (u?.id) usersById[u.id] = u;
+        }
+        pagesFetched += 1;
+        nextToken = pageResult?.nextToken || null;
+        if (!nextToken) break;
       }
-      const eligible = buildEligibleCandidates(pageData, usersById, "en");
+      const eligible = buildEligibleCandidates(allPosts, usersById, "en");
       const toEnqueue = [];
+      let skippedAlreadySent = 0;
+      let skippedDmNg = 0;
       for (const c of eligible) {
-        if (await isAlreadySent(c.username)) continue;
-        if (await isDmNg(c.author_id)) continue;
+        if (await isAlreadySent(c.username)) {
+          skippedAlreadySent += 1;
+          continue;
+        }
+        if (await isDmNg(c.author_id)) {
+          skippedDmNg += 1;
+          continue;
+        }
         toEnqueue.push({
           author_id: c.author_id,
           username: c.username,
@@ -317,13 +378,42 @@ module.exports = async function handler(req, res) {
       }
       // 6h ごとにそのブロック用でキューを上書き（リスト鮮度・キュー肥大化防止）
       const queue = toEnqueue;
+      const prevQueueLength = parseQueueValue(await kv.get(KV_KEY_QUEUE_EN)).length;
       await kv.set(KV_KEY_QUEUE_EN, JSON.stringify(queue), { ex: 86400 * 2 });
+      const listSummary = {
+        mode: "en-queue-list",
+        lang: "en",
+        utcHour,
+        runAt: now.toISOString(),
+        pagesFetched,
+        configuredPages: listPages,
+        fetchedPosts: allPosts.length,
+        fetchedUsers: Object.keys(usersById).length,
+        eligibleCandidates: eligible.length,
+        skippedAlreadySent,
+        skippedDmNg,
+        enqueued: toEnqueue.length,
+        prevQueueLength,
+        nextQueueLength: queue.length,
+        sampleHandles: toEnqueue.slice(0, 3).map((x) => x.username)
+      };
+      console.log("[affiliate-recruit-run] list summary:", listSummary);
+      console.log(
+        `[affiliate-recruit-en-list] utcHour=${utcHour} pages=${pagesFetched}/${listPages} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
+      );
       return res.status(200).json({
         ok: true,
         enQueueList: true,
         added: toEnqueue.length,
         queueLength: queue.length,
-        readPage: 1
+        readPage: pagesFetched,
+        configuredPages: listPages,
+        skippedAlreadySent,
+        skippedDmNg,
+        eligibleCandidates: eligible.length,
+        fetchedPosts: allPosts.length,
+        prevQueueLength,
+        sampleHandles: listSummary.sampleHandles
       });
     } catch (e) {
       console.error("[affiliate-recruit-run] en-queue-list error:", e?.message);
@@ -331,12 +421,15 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ----- 他地域キューライン: リスト取得（1日1ページ/言語・言語ごとの時間帯で取得 → キュー上書き。1日かけて枯渇まで送信） -----
+  // ----- 他地域キューライン: リスト取得（1日複数ページ/言語・言語ごとの時間帯で取得 → キュー上書き。1日かけて枯渇まで送信） -----
   if (forceMode === "regions-queue-list") {
     const now = new Date();
     const utcHour = now.getUTCHours();
     const lang = Object.keys(REGION_LIST_HOUR_BY_LANG).find((l) => REGION_LIST_HOUR_BY_LANG[l] === utcHour);
     if (!lang) {
+      console.log(
+        `[affiliate-recruit-regions-list] skip utcHour=${utcHour} expected=12(ja),13(ko),17(ar),21(es),22(pt)`
+      );
       return res.status(200).json({
         ok: true,
         reason: "regions_queue_list_skip_hour",
@@ -346,21 +439,49 @@ module.exports = async function handler(req, res) {
     }
     try {
       const windowMinutes = REGION_SEARCH_WINDOW_MINUTES;
-      const pageResult = await fetchOneSearchPage(lang, { maxResults: 100, windowMinutes });
-      if (pageResult?.fatal402) {
-        return res.status(200).json({ ok: false, reason: "search_402", regionsQueueList: true, lang });
-      }
-      const pageData = pageResult?.data || [];
-      const pageUsers = pageResult?.includes?.users || [];
+      const listPages = REGION_QUEUE_LIST_PAGES;
+      let pagesFetched = 0;
+      let nextToken = null;
+      let allPosts = [];
       const usersById = {};
-      for (const u of pageUsers) {
-        if (u?.id) usersById[u.id] = u;
+      while (pagesFetched < listPages) {
+        const pageResult = await fetchOneSearchPage(lang, {
+          maxResults: 100,
+          windowMinutes,
+          nextToken: nextToken || undefined
+        });
+        if (pageResult?.fatal402) {
+          return res.status(200).json({
+            ok: false,
+            reason: "search_402",
+            regionsQueueList: true,
+            lang,
+            pagesFetched
+          });
+        }
+        const pageData = pageResult?.data || [];
+        const pageUsers = pageResult?.includes?.users || [];
+        allPosts = allPosts.concat(pageData);
+        for (const u of pageUsers) {
+          if (u?.id) usersById[u.id] = u;
+        }
+        pagesFetched += 1;
+        nextToken = pageResult?.nextToken || null;
+        if (!nextToken) break;
       }
-      const eligible = buildEligibleCandidates(pageData, usersById, lang);
+      const eligible = buildEligibleCandidates(allPosts, usersById, lang);
       const toEnqueue = [];
+      let skippedAlreadySent = 0;
+      let skippedDmNg = 0;
       for (const c of eligible) {
-        if (await isAlreadySent(c.username)) continue;
-        if (await isDmNg(c.author_id)) continue;
+        if (await isAlreadySent(c.username)) {
+          skippedAlreadySent += 1;
+          continue;
+        }
+        if (await isDmNg(c.author_id)) {
+          skippedDmNg += 1;
+          continue;
+        }
         toEnqueue.push({
           author_id: c.author_id,
           username: c.username,
@@ -368,7 +489,29 @@ module.exports = async function handler(req, res) {
           breakdown: c.breakdown
         });
       }
+      const prevQueueLength = parseQueueValue(await kv.get(KV_KEY_QUEUE_REGION(lang))).length;
       await kv.set(KV_KEY_QUEUE_REGION(lang), JSON.stringify(toEnqueue), { ex: 86400 * 2 });
+      const listSummary = {
+        mode: "regions-queue-list",
+        lang,
+        utcHour,
+        runAt: now.toISOString(),
+        pagesFetched,
+        configuredPages: listPages,
+        fetchedPosts: allPosts.length,
+        fetchedUsers: Object.keys(usersById).length,
+        eligibleCandidates: eligible.length,
+        skippedAlreadySent,
+        skippedDmNg,
+        enqueued: toEnqueue.length,
+        prevQueueLength,
+        nextQueueLength: toEnqueue.length,
+        sampleHandles: toEnqueue.slice(0, 3).map((x) => x.username)
+      };
+      console.log("[affiliate-recruit-run] list summary:", listSummary);
+      console.log(
+        `[affiliate-recruit-regions-list] lang=${lang} utcHour=${utcHour} pages=${pagesFetched}/${listPages} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} prevQueue=${prevQueueLength} nextQueue=${toEnqueue.length}`
+      );
       return res.status(200).json({
         ok: true,
         regionsQueueList: true,
@@ -376,7 +519,14 @@ module.exports = async function handler(req, res) {
         utcHour,
         added: toEnqueue.length,
         queueLength: toEnqueue.length,
-        readPage: 1
+        readPage: pagesFetched,
+        configuredPages: listPages,
+        skippedAlreadySent,
+        skippedDmNg,
+        eligibleCandidates: eligible.length,
+        fetchedPosts: allPosts.length,
+        prevQueueLength,
+        sampleHandles: listSummary.sampleHandles
       });
     } catch (e) {
       console.error("[affiliate-recruit-run] regions-queue-list error:", e?.message);
@@ -395,6 +545,10 @@ module.exports = async function handler(req, res) {
     let sentToday = await getTodaySentCount();
     const dailyCapActive = EN_QUEUE_DAILY_CAP > 0;
     if (dailyCapActive && sentToday >= EN_QUEUE_DAILY_CAP) {
+      console.log("[affiliate-recruit-run] en-queue-send skip (daily cap):", {
+        sentToday,
+        cap: EN_QUEUE_DAILY_CAP
+      });
       return res.status(200).json({
         ok: true,
         reason: "en_queue_send_cap",
@@ -404,6 +558,11 @@ module.exports = async function handler(req, res) {
     }
     let count403 = parseInt(await kv.get(key403), 10) || 0;
     if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) {
+      console.log("[affiliate-recruit-run] en-queue-send skip (403 breaker):", {
+        count403,
+        breaker: EN_QUEUE_403_BREAKER_PER_15MIN,
+        slot15
+      });
       return res.status(200).json({
         ok: true,
         reason: "en_queue_send_breaker",
@@ -412,7 +571,30 @@ module.exports = async function handler(req, res) {
       });
     }
     const raw = await kv.get(KV_KEY_QUEUE_EN);
-    let queue = Array.isArray(raw) ? raw : (typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch (_) { return []; } })() : []);
+    let queue = parseQueueValue(raw);
+    const regionQueues = {};
+    for (const regionLang of REGION_QUEUE_LANGS) {
+      const rawRegion = await kv.get(KV_KEY_QUEUE_REGION(regionLang));
+      regionQueues[regionLang] = parseQueueValue(rawRegion);
+    }
+    const queueLengthsStart = {
+      en: queue.length,
+      ja: regionQueues.ja?.length || 0,
+      ko: regionQueues.ko?.length || 0,
+      ar: regionQueues.ar?.length || 0,
+      es: regionQueues.es?.length || 0,
+      pt: regionQueues.pt?.length || 0
+    };
+    const sendStatsByLang = createSendStatsByLang(["en", ...REGION_QUEUE_LANGS]);
+    for (const statLang of Object.keys(queueLengthsStart)) {
+      sendStatsByLang[statLang].queueStart = queueLengthsStart[statLang];
+    }
+    console.log("[affiliate-recruit-run] en-queue-send preflight:", {
+      slot15,
+      sentToday,
+      count403,
+      queueLengthsStart,
+    });
     const lang = "en";
     const whopUrl = getWhopAffiliateProgramUrl(lang);
     let sentThisWindow = 0;
@@ -429,6 +611,7 @@ module.exports = async function handler(req, res) {
     ) {
       const item = queue.shift();
       if (!item?.username) continue;
+      sendStatsByLang.en.attempted += 1;
       const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: item.author_id });
       const { text } = fillRecruitDmTemplate(lang, { inviteUrl, whopAffiliateUrl: whopUrl, handle: item.username });
       const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
@@ -436,9 +619,11 @@ module.exports = async function handler(req, res) {
         const classified = classifyDmSendError(sendResult.error);
         if (classified.is403) {
           if (classified.type === "recipient_not_open") {
+            sendStatsByLang.en.recipient403 += 1;
             await markDmNg(item.author_id, { username: item.username, score: item.score, lang, breakdown: item.breakdown });
             opNotPermittedStreak = 0;
           } else if (classified.type === "operation_not_permitted") {
+            sendStatsByLang.en.operationNotPermitted403 += 1;
             opNotPermittedStreak += 1;
             opNotPermittedCountInWindow += 1;
             console.warn(
@@ -450,6 +635,7 @@ module.exports = async function handler(req, res) {
               item.username
             );
           } else {
+            sendStatsByLang.en.other403 += 1;
             opNotPermittedStreak = 0;
           }
           count403 += 1;
@@ -471,6 +657,7 @@ module.exports = async function handler(req, res) {
           }
           continue;
         }
+        sendStatsByLang.en.non403Errors += 1;
         queue.unshift(item);
         stopReason = "dm_send_failed";
         stopAllSends = true;
@@ -482,6 +669,7 @@ module.exports = async function handler(req, res) {
       await incrementTodaySentCount();
       opNotPermittedStreak = 0;
       sentThisWindow += 1;
+      sendStatsByLang.en.sent += 1;
       sentToday += 1;
       sentHandles.push(item.username);
     }
@@ -492,8 +680,7 @@ module.exports = async function handler(req, res) {
       if (stopAllSends) break;
       if (sentThisWindow >= MAX_SUCCESS_PER_15MIN || count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) break;
       if (dailyCapActive && sentToday >= EN_QUEUE_DAILY_CAP) break;
-      const rawR = await kv.get(KV_KEY_QUEUE_REGION(regionLang));
-      let rQueue = Array.isArray(rawR) ? rawR : (typeof rawR === "string" ? (() => { try { return JSON.parse(rawR); } catch (_) { return []; } })() : []);
+      let rQueue = regionQueues[regionLang] || [];
       while (
         (!dailyCapActive || sentToday < EN_QUEUE_DAILY_CAP) &&
         sentThisWindow < MAX_SUCCESS_PER_15MIN &&
@@ -502,6 +689,7 @@ module.exports = async function handler(req, res) {
       ) {
         const item = rQueue.shift();
         if (!item?.username) continue;
+        sendStatsByLang[regionLang].attempted += 1;
         const inviteUrl = getFirstPromoterInviteUrl(regionLang, { ref: item.author_id });
         const whopUrlR = getWhopAffiliateProgramUrl(regionLang);
         const { text } = fillRecruitDmTemplate(regionLang, { inviteUrl, whopAffiliateUrl: whopUrlR, handle: item.username });
@@ -510,9 +698,11 @@ module.exports = async function handler(req, res) {
           const classified = classifyDmSendError(sendResult.error);
           if (classified.is403) {
             if (classified.type === "recipient_not_open") {
+              sendStatsByLang[regionLang].recipient403 += 1;
               await markDmNg(item.author_id, { username: item.username, score: item.score, lang: regionLang, breakdown: item.breakdown });
               opNotPermittedStreak = 0;
             } else if (classified.type === "operation_not_permitted") {
+              sendStatsByLang[regionLang].operationNotPermitted403 += 1;
               opNotPermittedStreak += 1;
               opNotPermittedCountInWindow += 1;
               console.warn(
@@ -524,6 +714,7 @@ module.exports = async function handler(req, res) {
                 item.username
               );
             } else {
+              sendStatsByLang[regionLang].other403 += 1;
               opNotPermittedStreak = 0;
             }
             count403 += 1;
@@ -545,6 +736,7 @@ module.exports = async function handler(req, res) {
             }
             continue;
           }
+          sendStatsByLang[regionLang].non403Errors += 1;
           rQueue.unshift(item);
           stopReason = "dm_send_failed";
           stopAllSends = true;
@@ -556,12 +748,34 @@ module.exports = async function handler(req, res) {
         await incrementTodaySentCount();
         opNotPermittedStreak = 0;
         sentThisWindow += 1;
+        sendStatsByLang[regionLang].sent += 1;
         sentToday += 1;
         sentHandles.push(`${item.username}(${regionLang})`);
       }
+      regionQueues[regionLang] = rQueue;
       await kv.set(KV_KEY_QUEUE_REGION(regionLang), JSON.stringify(rQueue), { ex: 86400 * 2 });
       if (stopAllSends) break;
     }
+
+    const queueLengthsEnd = {
+      en: queue.length,
+      ja: regionQueues.ja?.length || 0,
+      ko: regionQueues.ko?.length || 0,
+      ar: regionQueues.ar?.length || 0,
+      es: regionQueues.es?.length || 0,
+      pt: regionQueues.pt?.length || 0
+    };
+    const sendSummary = {
+      slot15,
+      sentThisWindow,
+      count403ThisWindow: count403,
+      sentToday,
+      stopReason: stopReason || null,
+      queueLengthsStart,
+      queueLengthsEnd,
+      sendStatsByLang,
+    };
+    console.log("[affiliate-recruit-run] en-queue-send summary:", sendSummary);
 
     return res.status(200).json({
       ok: true,
@@ -571,6 +785,9 @@ module.exports = async function handler(req, res) {
       sentToday,
       queueLength: queue.length,
       count403ThisWindow: count403,
+      queueLengthsStart,
+      queueLengthsEnd,
+      sendStatsByLang,
       ...(stopReason ? { stopReason } : {})
     });
   }

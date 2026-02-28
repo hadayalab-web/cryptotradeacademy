@@ -68,6 +68,8 @@ const EN_RECRUIT_HOURS = [0, 4, 8, 12, 16, 20];
 
 /** EN キューライン（確定仕様）: 6h ごとリスト取得・15 分ごと送信。docs/AFFILIATE_RECRUIT_EN_LINE_SPEC.md */
 const EN_QUEUE_LIST_HOURS_UTC = [0, 6, 12, 18];
+/** EN リスト取得ページ数（1実行あたり）。候補不足対策でデフォルト2、envで調整可。 */
+const EN_QUEUE_LIST_PAGES = Math.max(1, Number(process.env.EN_RECRUIT_LIST_PAGES || 2));
 /** 0 = キャップなし（枯渇まで送信）。正の値で日次成功数上限。 */
 const EN_QUEUE_DAILY_CAP = Number(process.env.EN_RECRUIT_DAILY_CAP || 0);
 const EN_QUEUE_403_BREAKER_PER_15MIN = Number(process.env.EN_RECRUIT_403_BREAKER || 20);
@@ -75,6 +77,8 @@ const EN_QUEUE_403_BREAKER_PER_15MIN = Number(process.env.EN_RECRUIT_403_BREAKER
 const EN_SEARCH_WINDOW_MINUTES = Number(process.env.EN_SEARCH_WINDOW_MIN || 360);
 /** 他地域: 1日1回実行 → EN同様「1回の窓で1日分をカバー」に揃え、24時間。 */
 const REGION_SEARCH_WINDOW_MINUTES = Number(process.env.REGION_SEARCH_WINDOW_MIN || 1440);
+/** 他地域リスト取得ページ数（1実行あたり）。候補不足対策でデフォルト2、envで調整可。 */
+const REGION_QUEUE_LIST_PAGES = Math.max(1, Number(process.env.REGION_RECRUIT_LIST_PAGES || 2));
 /** 全言語共通: スロットあたりの送信成功目標。403 は次候補へ進み、この数だけ成功するまで試行（Read 1・多ページで候補確保） */
 /** 1 ランあたり送信成功 10 件をマストで達成するための目標値。#4 で根拠明記。 */
 const RECRUIT_BATCH_SIZE_DEFAULT = 10;
@@ -105,6 +109,8 @@ module.exports = {
   EN_RECRUIT_HOURS,
   EN_SEARCH_WINDOW_MINUTES,
   REGION_SEARCH_WINDOW_MINUTES,
+  EN_QUEUE_LIST_PAGES,
+  REGION_QUEUE_LIST_PAGES,
   EN_RECRUIT_BATCH_SIZE,
   RECRUIT_BATCH_SIZE_DEFAULT,
   EN_QUEUE_LIST_HOURS_UTC,
