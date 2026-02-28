@@ -126,8 +126,9 @@ function getSearchSuffixParts(lang) {
 }
 
 /**
- * 1 言語 1 クエリを組み立て（Read 最小化）。全キーワードを 1 つの OR にまとめ、文字数制限まで。
- * 引用符は使わず部分一致で拾い、候補を増やす。ノイズはスコアリングで落とす。
+ * 1 言語 1 クエリを組み立て（Read 最小化）。
+ * - 第1クエリ: 高意図2軸（group1 AND group2）を必須化
+ * - 第2クエリ: 0件時のみ使う緩和フォールバック（OR広め）
  */
 function buildSearchQueriesSingle(lang) {
   const requiredGroupsRaw =
@@ -141,25 +142,18 @@ function buildSearchQueriesSingle(lang) {
 
   const kw = uniqueList(SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en);
   const requiredSet = new Set(requiredGroups.flat().map((v) => String(v).toLowerCase()));
-  let optionalTerms = kw.filter((term) => !requiredSet.has(String(term).toLowerCase()));
+  const optionalTerms = kw.filter((term) => !requiredSet.has(String(term).toLowerCase()));
   let suffixParts = getSearchSuffixParts(lang);
 
-  const renderQuery = () => {
+  const renderStrictQuery = () => {
     const requiredExpr = requiredGroups
       .map((group) => `(${group.join(" OR ")})`)
       .join(" ");
-    const optionalExpr = optionalTerms.length > 0 ? `(${optionalTerms.join(" OR ")})` : "";
-    return [requiredExpr, optionalExpr, suffixParts.join(" ")].filter(Boolean).join(" ").trim();
+    return [requiredExpr, suffixParts.join(" ")].filter(Boolean).join(" ").trim();
   };
 
-  let query = renderQuery();
-  while (query.length > SEARCH_QUERY_MAX_CHARS) {
-    if (optionalTerms.length > 0) {
-      optionalTerms.pop();
-      query = renderQuery();
-      continue;
-    }
-
+  let strictQuery = renderStrictQuery();
+  while (strictQuery.length > SEARCH_QUERY_MAX_CHARS) {
     let groupShrunk = false;
     for (let i = requiredGroups.length - 1; i >= 0; i -= 1) {
       if (requiredGroups[i].length > 1) {
@@ -169,25 +163,39 @@ function buildSearchQueriesSingle(lang) {
       }
     }
     if (groupShrunk) {
-      query = renderQuery();
+      strictQuery = renderStrictQuery();
       continue;
     }
 
     // 最後に negative を削って長さを収める（必須2軸は維持）
     if (suffixParts.length > 3) {
       suffixParts.pop();
-      query = renderQuery();
+      strictQuery = renderStrictQuery();
       continue;
     }
     break;
   }
 
-  if (query.length <= SEARCH_QUERY_MAX_CHARS) return [query];
+  if (strictQuery.length > SEARCH_QUERY_MAX_CHARS) {
+    const fallbackIntent = requiredGroups[0]?.[0] || "affiliate program";
+    const fallbackOffer = requiredGroups[1]?.[0] || "commission";
+    const fallbackSuffix = [`lang:${lang}`, "-is:retweet", "-is:reply"].join(" ");
+    strictQuery = `(${fallbackIntent}) (${fallbackOffer}) ${fallbackSuffix}`.trim();
+  }
 
-  const fallbackIntent = requiredGroups[0]?.[0] || "affiliate program";
-  const fallbackOffer = requiredGroups[1]?.[0] || "commission";
-  const fallbackSuffix = [`lang:${lang}`, "-is:retweet", "-is:reply"].join(" ");
-  return [`(${fallbackIntent}) (${fallbackOffer}) ${fallbackSuffix}`.trim()];
+  // 緩和フォールバック（初回0件時のみ使用）: OR広め・negative無し
+  const fallbackTerms = uniqueList([...requiredGroups.flat(), ...optionalTerms]);
+  const fallbackSuffixParts = [`lang:${lang}`, "-is:retweet", "-is:reply"];
+  while (fallbackTerms.length > 0) {
+    const fallbackQuery = `(${fallbackTerms.join(" OR ")}) ${fallbackSuffixParts.join(" ")}`.trim();
+    if (fallbackQuery.length <= SEARCH_QUERY_MAX_CHARS) {
+      if (fallbackQuery !== strictQuery) return [strictQuery, fallbackQuery];
+      return [strictQuery];
+    }
+    fallbackTerms.pop();
+  }
+
+  return [strictQuery];
 }
 
 /** 従来: バケット分割で複数クエリ（Read 多め） */
@@ -250,22 +258,46 @@ async function fetchOneSearchPage(slotLang, options = {}) {
   const maxResults = Math.min(100, Math.max(10, Number(options.maxResults || 30)));
 
   try {
-    const res = await searchPostsRecent(query, {
-      maxResults,
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      sortOrder: options.sortOrder || "recency",
-      nextToken: options.nextToken || undefined,
-      userFields: options.userFields === false ? undefined : options.userFields || AFFILIATE_RECRUIT_USER_FIELDS
-    });
-    const pageData = Array.isArray(res?.data) ? res.data : [];
-    const users = res?.includes?.users || [];
-    const nextToken = res?.meta?.next_token || null;
-    return {
-      data: pageData,
-      includes: { users },
-      ...(nextToken ? { nextToken } : {})
+    const executeQuery = async (queryString, nextTokenValue) => {
+      const res = await searchPostsRecent(queryString, {
+        maxResults,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        sortOrder: options.sortOrder || "recency",
+        nextToken: nextTokenValue || undefined,
+        userFields: options.userFields === false ? undefined : options.userFields || AFFILIATE_RECRUIT_USER_FIELDS
+      });
+      const pageData = Array.isArray(res?.data) ? res.data : [];
+      const users = res?.includes?.users || [];
+      const nextToken = res?.meta?.next_token || null;
+      return {
+        data: pageData,
+        includes: { users },
+        ...(nextToken ? { nextToken } : {})
+      };
     };
+
+    const primaryResult = await executeQuery(query, options.nextToken);
+
+    // page1 が 0 件のときだけ、緩和クエリを 1 回だけ試す（Read 追加を最小化）
+    if (
+      !options.nextToken &&
+      (!primaryResult?.data || primaryResult.data.length === 0) &&
+      !primaryResult?.nextToken &&
+      Array.isArray(queries) &&
+      queries.length > 1 &&
+      queries[1]
+    ) {
+      const fallbackResult = await executeQuery(queries[1], null);
+      if ((fallbackResult?.data && fallbackResult.data.length > 0) || fallbackResult?.nextToken) {
+        return {
+          ...fallbackResult,
+          fallbackQueryUsed: true
+        };
+      }
+    }
+
+    return primaryResult;
   } catch (e) {
     const msg = String(e?.message || "");
     if (msg.includes("402")) {
