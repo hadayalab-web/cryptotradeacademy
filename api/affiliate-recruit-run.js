@@ -38,6 +38,7 @@ const KV_KEY_QUEUE_REGION = (lang) => `affiliate_recruit:queue:${lang}`;
 const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${dateStr}:${slot15}`;
 const KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS = "affiliate_recruit:cooldown:op_not_permitted:until_ms";
 const KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL = "affiliate_recruit:cooldown:op_not_permitted:backoff_level";
+const AFFILIATE_RECRUIT_CLICK_TRACK_PATH = "/api/affiliate-recruit-click";
 /** 地域キュー対応言語（EN は別キュー）。送信順。 */
 const REGION_QUEUE_LANGS = ["ar", "es", "pt", "ja", "ko"];
 /** 他地域リスト取得: 言語ごとに 6h 間隔（1日4回）で補充。 */
@@ -103,6 +104,53 @@ const RECRUIT_DM_ANGLES = ["saas", "ai_saas", "crypto"];
 
 const RECRUIT_STATS_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
 const SCORE_BANDS = ["0-49", "50-64", "65-79", "80-100"];
+
+function resolveRequestOrigin(req) {
+  const explicit =
+    process.env.AFFILIATE_RECRUIT_CLICK_BASE_URL ||
+    process.env.BASE_URL ||
+    process.env.APP_BASE_URL;
+  if (explicit) return String(explicit).trim().replace(/\/+$/, "");
+
+  const forwardedHostRaw = req?.headers?.["x-forwarded-host"];
+  const hostRaw = Array.isArray(forwardedHostRaw)
+    ? forwardedHostRaw[0]
+    : forwardedHostRaw || req?.headers?.host;
+  const host = String(hostRaw || "").split(",")[0].trim();
+  if (host) {
+    const forwardedProtoRaw = req?.headers?.["x-forwarded-proto"];
+    const proto = String(
+      Array.isArray(forwardedProtoRaw) ? forwardedProtoRaw[0] : forwardedProtoRaw || "https"
+    )
+      .split(",")[0]
+      .trim();
+    return `${proto}://${host}`;
+  }
+
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "";
+}
+
+function buildTrackedInviteUrl(req, inviteUrl, metadata = {}) {
+  const destination = String(inviteUrl || "").trim();
+  if (!destination) return destination;
+  const origin = resolveRequestOrigin(req);
+  if (!origin) return destination;
+
+  try {
+    const tracked = new URL(`${origin}${AFFILIATE_RECRUIT_CLICK_TRACK_PATH}`);
+    tracked.searchParams.set("to", destination);
+    if (metadata.ref) tracked.searchParams.set("ref", String(metadata.ref));
+    if (metadata.authorId) tracked.searchParams.set("author_id", String(metadata.authorId));
+    if (metadata.lang) tracked.searchParams.set("lang", String(metadata.lang));
+    if (metadata.angle) tracked.searchParams.set("angle", String(metadata.angle));
+    if (metadata.handle) tracked.searchParams.set("handle", String(metadata.handle).replace(/^@/, ""));
+    if (metadata.source) tracked.searchParams.set("source", String(metadata.source));
+    return tracked.toString();
+  } catch (_) {
+    return destination;
+  }
+}
 
 function getScoreBand(score) {
   if (score == null || typeof score !== "number") return "0-49";
@@ -402,7 +450,13 @@ module.exports = async function handler(req, res) {
   if (targetHandle && auth) {
     const lang = req.query?.lang || req.body?.lang || "ja";
     const angle = normalizeRecruitAngle(req.query?.angle || req.body?.angle) || pickRecruitAngleByKey(targetHandle);
-    const inviteUrl = getFirstPromoterInviteUrl(lang);
+    const inviteUrlRaw = getFirstPromoterInviteUrl(lang);
+    const inviteUrl = buildTrackedInviteUrl(req, inviteUrlRaw, {
+      lang,
+      angle,
+      handle: targetHandle,
+      source: "target_handle"
+    });
     const whopUrl = getWhopAffiliateProgramUrl(lang);
     const { text } = fillRecruitDmTemplate(lang, {
       inviteUrl,
@@ -800,7 +854,15 @@ module.exports = async function handler(req, res) {
       if (!item?.username) continue;
       sendStatsByLang.en.attempted += 1;
       const angle = pickRecruitAngleFromItem(item);
-      const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: item.author_id });
+      const inviteUrlRaw = getFirstPromoterInviteUrl(lang, { ref: item.author_id });
+      const inviteUrl = buildTrackedInviteUrl(req, inviteUrlRaw, {
+        ref: item.author_id,
+        authorId: item.author_id,
+        lang,
+        angle,
+        handle: item.username,
+        source: "en_queue_send"
+      });
       const { text } = fillRecruitDmTemplate(lang, {
         inviteUrl,
         whopAffiliateUrl: whopUrl,
@@ -936,7 +998,15 @@ module.exports = async function handler(req, res) {
           if (!item?.username) continue;
           sendStatsByLang[regionLang].attempted += 1;
           const angle = pickRecruitAngleFromItem(item);
-          const inviteUrl = getFirstPromoterInviteUrl(regionLang, { ref: item.author_id });
+          const inviteUrlRaw = getFirstPromoterInviteUrl(regionLang, { ref: item.author_id });
+          const inviteUrl = buildTrackedInviteUrl(req, inviteUrlRaw, {
+            ref: item.author_id,
+            authorId: item.author_id,
+            lang: regionLang,
+            angle,
+            handle: item.username,
+            source: "region_queue_send"
+          });
           const whopUrlR = getWhopAffiliateProgramUrl(regionLang);
           const { text } = fillRecruitDmTemplate(regionLang, {
             inviteUrl,
@@ -1255,8 +1325,16 @@ module.exports = async function handler(req, res) {
           readPages: pagesFetched
         });
       }
-      const inviteUrlDryRun = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
       const angle = pickRecruitAngleByKey(c.author_id || c.username);
+      const inviteUrlDryRunRaw = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
+      const inviteUrlDryRun = buildTrackedInviteUrl(req, inviteUrlDryRunRaw, {
+        ref: c.author_id,
+        authorId: c.author_id,
+        lang,
+        angle,
+        handle: c.username,
+        source: "dry_run"
+      });
       const { text, variant, variantName } = fillRecruitDmTemplate(lang, {
         inviteUrl: inviteUrlDryRun,
         whopAffiliateUrl: whopUrl,
@@ -1291,7 +1369,15 @@ module.exports = async function handler(req, res) {
       if (await isDmNg(c.author_id)) continue;
 
       const angle = pickRecruitAngleByKey(c.author_id || c.username);
-      const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
+      const inviteUrlRaw = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
+      const inviteUrl = buildTrackedInviteUrl(req, inviteUrlRaw, {
+        ref: c.author_id,
+        authorId: c.author_id,
+        lang,
+        angle,
+        handle: c.username,
+        source: isEnBatchRun ? "en_batch_send" : "legacy_send"
+      });
       const { text, variant, variantName } = fillRecruitDmTemplate(lang, {
         inviteUrl,
         whopAffiliateUrl: whopUrl,
