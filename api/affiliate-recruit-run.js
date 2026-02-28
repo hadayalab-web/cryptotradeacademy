@@ -76,12 +76,13 @@ const DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER = Math.max(
 );
 const DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS = Math.max(
   0,
-  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_COOLDOWN_SEC || 2700)
+  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_COOLDOWN_SEC || 1800)
 );
 const EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER = Math.max(
   0,
-  Number(process.env.EN_RECRUIT_RECIPIENT_403_FAILOVER_BREAKER || 6)
+  Number(process.env.EN_RECRUIT_RECIPIENT_403_FAILOVER_BREAKER || 4)
 );
+const RECRUIT_DM_ANGLES = ["saas", "ai_saas", "crypto"];
 
 const RECRUIT_STATS_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
 const SCORE_BANDS = ["0-49", "50-64", "65-79", "80-100"];
@@ -164,9 +165,9 @@ async function isAlreadySent(handle) {
 }
 
 /**
- * 送信済みマーク。payload を渡すと送信ログとして lang/score/priority/author_id を保存（返信率・登録率の国×言語×スコア帯観測用）
+ * 送信済みマーク。payload を渡すと送信ログとして lang/score/priority/author_id/angle を保存（返信率・登録率の国×言語×訴求軸観測用）
  * @param {string} handle - 送信先 @username
- * @param {{ lang?: string; score?: number; priority?: number; author_id?: string }} [payload] - 検索時の言語・スコア・優先度・author_id
+ * @param {{ lang?: string; score?: number; priority?: number; author_id?: string; angle?: string }} [payload] - 検索時の言語・スコア・優先度・author_id・訴求軸
  */
 async function markSent(handle, payload = {}) {
   if (!kv) return;
@@ -179,7 +180,8 @@ async function markSent(handle, payload = {}) {
           lang: payload.lang ?? null,
           score: payload.score ?? null,
           priority: payload.priority ?? null,
-          author_id: payload.author_id ?? null
+          author_id: payload.author_id ?? null,
+          angle: payload.angle ?? null
         })
       : String(ts);
   await kv.set(KV_KEY_SENT_HANDLE(handle), value); // 同一ユーザーへは一切再送しない（有効期限なし）
@@ -196,6 +198,7 @@ async function saveRefSent(authorId, data) {
         lang: data.lang ?? null,
         score: data.score ?? null,
         priority: data.priority ?? null,
+        angle: data.angle ?? null,
         ts: Date.now()
       }),
       { ex: REF_SENT_TTL }
@@ -245,6 +248,27 @@ function classifyDmSendError(errorMessage) {
     return { is403: true, type: "operation_not_permitted" };
   }
   return { is403: true, type: "other_403" };
+}
+
+function normalizeRecruitAngle(angle) {
+  const normalized = String(angle || "").toLowerCase();
+  return RECRUIT_DM_ANGLES.includes(normalized) ? normalized : null;
+}
+
+function pickRecruitAngleByKey(key) {
+  const raw = String(key || "");
+  if (!raw) return "crypto";
+  let hash = 0;
+  for (let i = 0; i < raw.length; i += 1) {
+    hash = ((hash << 5) - hash + raw.charCodeAt(i)) >>> 0;
+  }
+  return RECRUIT_DM_ANGLES[hash % RECRUIT_DM_ANGLES.length];
+}
+
+function pickRecruitAngleFromItem(item) {
+  const fromItem = normalizeRecruitAngle(item?.angle);
+  if (fromItem) return fromItem;
+  return pickRecruitAngleByKey(item?.author_id || item?.username);
 }
 
 function parseQueueValue(rawValue) {
@@ -305,12 +329,14 @@ module.exports = async function handler(req, res) {
   const targetHandle = (req.query?.targetHandle || req.body?.targetHandle || "").trim().replace(/^@/, "");
   if (targetHandle && auth) {
     const lang = req.query?.lang || req.body?.lang || "ja";
+    const angle = normalizeRecruitAngle(req.query?.angle || req.body?.angle) || pickRecruitAngleByKey(targetHandle);
     const inviteUrl = getFirstPromoterInviteUrl(lang);
     const whopUrl = getWhopAffiliateProgramUrl(lang);
     const { text } = fillRecruitDmTemplate(lang, {
       inviteUrl,
       whopAffiliateUrl: whopUrl,
-      handle: targetHandle
+      handle: targetHandle,
+      angle
     });
     if (dryRun) {
       return res.status(200).json({
@@ -404,7 +430,8 @@ module.exports = async function handler(req, res) {
           author_id: c.author_id,
           username: c.username,
           score: c.score,
-          breakdown: c.breakdown
+          breakdown: c.breakdown,
+          angle: pickRecruitAngleByKey(c.author_id || c.username)
         });
       }
       // 6h ごとにそのブロック用でキューを上書き（リスト鮮度・キュー肥大化防止）
@@ -517,7 +544,8 @@ module.exports = async function handler(req, res) {
           author_id: c.author_id,
           username: c.username,
           score: c.score,
-          breakdown: c.breakdown
+          breakdown: c.breakdown,
+          angle: pickRecruitAngleByKey(c.author_id || c.username)
         });
       }
       const prevQueueLength = parseQueueValue(await kv.get(KV_KEY_QUEUE_REGION(lang))).length;
@@ -670,8 +698,14 @@ module.exports = async function handler(req, res) {
       const item = queue.shift();
       if (!item?.username) continue;
       sendStatsByLang.en.attempted += 1;
+      const angle = pickRecruitAngleFromItem(item);
       const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: item.author_id });
-      const { text } = fillRecruitDmTemplate(lang, { inviteUrl, whopAffiliateUrl: whopUrl, handle: item.username });
+      const { text } = fillRecruitDmTemplate(lang, {
+        inviteUrl,
+        whopAffiliateUrl: whopUrl,
+        handle: item.username,
+        angle
+      });
       const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
       if (sendResult?.error) {
         const classified = classifyDmSendError(sendResult.error);
@@ -742,8 +776,20 @@ module.exports = async function handler(req, res) {
         stopAllSends = true;
         break;
       }
-      await markSent(item.username, { lang, score: item.score, priority: item.score != null ? item.score / 100 : 0, author_id: item.author_id });
-      await saveRefSent(item.author_id, { handle: item.username, lang, score: item.score, priority: item.score != null ? item.score / 100 : 0 });
+      await markSent(item.username, {
+        lang,
+        score: item.score,
+        priority: item.score != null ? item.score / 100 : 0,
+        author_id: item.author_id,
+        angle
+      });
+      await saveRefSent(item.author_id, {
+        handle: item.username,
+        lang,
+        score: item.score,
+        priority: item.score != null ? item.score / 100 : 0,
+        angle
+      });
       await incrementSentStats(lang, item.score);
       await incrementTodaySentCount();
       opNotPermittedStreak = 0;
@@ -770,9 +816,15 @@ module.exports = async function handler(req, res) {
         const item = rQueue.shift();
         if (!item?.username) continue;
         sendStatsByLang[regionLang].attempted += 1;
+        const angle = pickRecruitAngleFromItem(item);
         const inviteUrl = getFirstPromoterInviteUrl(regionLang, { ref: item.author_id });
         const whopUrlR = getWhopAffiliateProgramUrl(regionLang);
-        const { text } = fillRecruitDmTemplate(regionLang, { inviteUrl, whopAffiliateUrl: whopUrlR, handle: item.username });
+        const { text } = fillRecruitDmTemplate(regionLang, {
+          inviteUrl,
+          whopAffiliateUrl: whopUrlR,
+          handle: item.username,
+          angle
+        });
         const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
         if (sendResult?.error) {
           const classified = classifyDmSendError(sendResult.error);
@@ -826,8 +878,20 @@ module.exports = async function handler(req, res) {
           stopAllSends = true;
           break;
         }
-        await markSent(item.username, { lang: regionLang, score: item.score, priority: item.score != null ? item.score / 100 : 0, author_id: item.author_id });
-        await saveRefSent(item.author_id, { handle: item.username, lang: regionLang, score: item.score, priority: item.score != null ? item.score / 100 : 0 });
+        await markSent(item.username, {
+          lang: regionLang,
+          score: item.score,
+          priority: item.score != null ? item.score / 100 : 0,
+          author_id: item.author_id,
+          angle
+        });
+        await saveRefSent(item.author_id, {
+          handle: item.username,
+          lang: regionLang,
+          score: item.score,
+          priority: item.score != null ? item.score / 100 : 0,
+          angle
+        });
         await incrementSentStats(regionLang, item.score);
         await incrementTodaySentCount();
         opNotPermittedStreak = 0;
@@ -1001,10 +1065,12 @@ module.exports = async function handler(req, res) {
         });
       }
       const inviteUrlDryRun = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
+      const angle = pickRecruitAngleByKey(c.author_id || c.username);
       const { text, variant, variantName } = fillRecruitDmTemplate(lang, {
         inviteUrl: inviteUrlDryRun,
         whopAffiliateUrl: whopUrl,
-        handle: c.username
+        handle: c.username,
+        angle
       });
       return res.status(200).json({
         ok: true,
@@ -1016,6 +1082,7 @@ module.exports = async function handler(req, res) {
           score: c.score,
           priority: c.priority,
           breakdown: c.breakdown,
+          dmAngle: angle,
           dmVariant: variant,
           dmVariantName: variantName
         },
@@ -1032,11 +1099,13 @@ module.exports = async function handler(req, res) {
       if (await isAlreadySent(c.username)) continue;
       if (await isDmNg(c.author_id)) continue;
 
+      const angle = pickRecruitAngleByKey(c.author_id || c.username);
       const inviteUrl = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
       const { text, variant, variantName } = fillRecruitDmTemplate(lang, {
         inviteUrl,
         whopAffiliateUrl: whopUrl,
-        handle: c.username
+        handle: c.username,
+        angle
       });
       const sendResult = await sendRecruitDm(c.username, text, { participantId: c.author_id });
 
@@ -1077,9 +1146,10 @@ module.exports = async function handler(req, res) {
         lang,
         score: c.score,
         priority: c.priority,
-        author_id: c.author_id
+        author_id: c.author_id,
+        angle
       });
-      await saveRefSent(c.author_id, { handle: c.username, lang, score: c.score, priority: c.priority });
+      await saveRefSent(c.author_id, { handle: c.username, lang, score: c.score, priority: c.priority, angle });
       await incrementSentStats(lang, c.score);
       await incrementTodaySentCount();
       if (!isEnBatchRun) await incrementHourSent(dateStr, utcHour);
