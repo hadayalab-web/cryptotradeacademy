@@ -40,6 +40,15 @@ const REGION_QUEUE_LANGS = ["ja", "ko", "ar", "es", "pt"];
 const REGION_LIST_HOUR_BY_LANG = { ja: 12, ko: 13, ar: 17, es: 21, pt: 22 };
 // DM→登録紐づけ用 KV の有効期限。90 日は送信から登録までの想定期間をカバーしつつストレージを抑える目安。運用指示で固定。短縮したい場合はコードまたは env で変更可。
 const REF_SENT_TTL = 86400 * 90;
+// 403 detail が "This operation is not permitted." の連続時に早期停止する閾値（送信側制限の可能性を想定）
+const DM_OPERATION_NOT_PERMITTED_STREAK_BREAKER = Math.max(
+  1,
+  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_BREAKER || 5)
+);
+const DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER = Math.max(
+  1,
+  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_WINDOW_BREAKER || 5)
+);
 
 const RECRUIT_STATS_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
 const SCORE_BANDS = ["0-49", "50-64", "65-79", "80-100"];
@@ -181,6 +190,28 @@ async function markDmNg(userId, data = {}) {
     reason: "403",
   };
   await kv.set(KV_KEY_DM_NG(String(userId)), JSON.stringify(payload)); // 403 ユーザーへは一切再送しない（有効期限なし）
+}
+
+/**
+ * DM送信エラーを分類する
+ * - recipient_not_open: 受信者がDM未開放（dm_ng登録対象）
+ * - operation_not_permitted: 送信側の一時制限/ポリシー要因が疑われる（dm_ng登録しない）
+ * - other_403: 403だが詳細不明（dm_ng登録しない）
+ */
+function classifyDmSendError(errorMessage) {
+  const msg = String(errorMessage || "").toLowerCase();
+  const is403 = msg.includes("403");
+  if (!is403) return { is403: false, type: "non_403" };
+  if (
+    msg.includes("you do not have permission to dm one or more participants") ||
+    msg.includes("permission to dm")
+  ) {
+    return { is403: true, type: "recipient_not_open" };
+  }
+  if (msg.includes("this operation is not permitted")) {
+    return { is403: true, type: "operation_not_permitted" };
+  }
+  return { is403: true, type: "other_403" };
 }
 
 async function getHourSentCount(dateStr, hour) {
@@ -386,6 +417,10 @@ module.exports = async function handler(req, res) {
     const whopUrl = getWhopAffiliateProgramUrl(lang);
     let sentThisWindow = 0;
     const sentHandles = [];
+    let opNotPermittedStreak = 0;
+    let opNotPermittedCountInWindow = 0;
+    let stopReason = null;
+    let stopAllSends = false;
     while (
       (!dailyCapActive || sentToday < EN_QUEUE_DAILY_CAP) &&
       sentThisWindow < MAX_SUCCESS_PER_15MIN &&
@@ -398,23 +433,54 @@ module.exports = async function handler(req, res) {
       const { text } = fillRecruitDmTemplate(lang, { inviteUrl, whopAffiliateUrl: whopUrl, handle: item.username });
       const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
       if (sendResult?.error) {
-        const is403 =
-          String(sendResult.error).includes("403") ||
-          String(sendResult.error).toLowerCase().includes("permission to dm");
-        if (is403) {
-          await markDmNg(item.author_id, { username: item.username, score: item.score, lang, breakdown: item.breakdown });
+        const classified = classifyDmSendError(sendResult.error);
+        if (classified.is403) {
+          if (classified.type === "recipient_not_open") {
+            await markDmNg(item.author_id, { username: item.username, score: item.score, lang, breakdown: item.breakdown });
+            opNotPermittedStreak = 0;
+          } else if (classified.type === "operation_not_permitted") {
+            opNotPermittedStreak += 1;
+            opNotPermittedCountInWindow += 1;
+            console.warn(
+              "[affiliate-recruit-run] DM 403 operation_not_permitted streak:",
+              opNotPermittedStreak,
+              "windowCount:",
+              opNotPermittedCountInWindow,
+              "handle:",
+              item.username
+            );
+          } else {
+            opNotPermittedStreak = 0;
+          }
           count403 += 1;
           await kv.set(key403, String(count403), { ex: 1200 });
-          if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) break;
+          if (opNotPermittedStreak >= DM_OPERATION_NOT_PERMITTED_STREAK_BREAKER) {
+            stopReason = "operation_not_permitted_streak";
+            stopAllSends = true;
+            break;
+          }
+          if (opNotPermittedCountInWindow >= DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER) {
+            stopReason = "operation_not_permitted_window";
+            stopAllSends = true;
+            break;
+          }
+          if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) {
+            stopReason = "en_queue_send_breaker";
+            stopAllSends = true;
+            break;
+          }
           continue;
         }
         queue.unshift(item);
+        stopReason = "dm_send_failed";
+        stopAllSends = true;
         break;
       }
       await markSent(item.username, { lang, score: item.score, priority: item.score != null ? item.score / 100 : 0, author_id: item.author_id });
       await saveRefSent(item.author_id, { handle: item.username, lang, score: item.score, priority: item.score != null ? item.score / 100 : 0 });
       await incrementSentStats(lang, item.score);
       await incrementTodaySentCount();
+      opNotPermittedStreak = 0;
       sentThisWindow += 1;
       sentToday += 1;
       sentHandles.push(item.username);
@@ -423,6 +489,7 @@ module.exports = async function handler(req, res) {
 
     // 同一 15/15min・20 ブレーカーで地域キューも消化（EN の残り枠で）
     for (const regionLang of REGION_QUEUE_LANGS) {
+      if (stopAllSends) break;
       if (sentThisWindow >= MAX_SUCCESS_PER_15MIN || count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) break;
       if (dailyCapActive && sentToday >= EN_QUEUE_DAILY_CAP) break;
       const rawR = await kv.get(KV_KEY_QUEUE_REGION(regionLang));
@@ -440,28 +507,60 @@ module.exports = async function handler(req, res) {
         const { text } = fillRecruitDmTemplate(regionLang, { inviteUrl, whopAffiliateUrl: whopUrlR, handle: item.username });
         const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
         if (sendResult?.error) {
-          const is403 =
-            String(sendResult.error).includes("403") ||
-            String(sendResult.error).toLowerCase().includes("permission to dm");
-          if (is403) {
-            await markDmNg(item.author_id, { username: item.username, score: item.score, lang: regionLang, breakdown: item.breakdown });
+          const classified = classifyDmSendError(sendResult.error);
+          if (classified.is403) {
+            if (classified.type === "recipient_not_open") {
+              await markDmNg(item.author_id, { username: item.username, score: item.score, lang: regionLang, breakdown: item.breakdown });
+              opNotPermittedStreak = 0;
+            } else if (classified.type === "operation_not_permitted") {
+              opNotPermittedStreak += 1;
+              opNotPermittedCountInWindow += 1;
+              console.warn(
+                "[affiliate-recruit-run] DM 403 operation_not_permitted streak:",
+                opNotPermittedStreak,
+                "windowCount:",
+                opNotPermittedCountInWindow,
+                "handle:",
+                item.username
+              );
+            } else {
+              opNotPermittedStreak = 0;
+            }
             count403 += 1;
             await kv.set(key403, String(count403), { ex: 1200 });
-            if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) break;
+            if (opNotPermittedStreak >= DM_OPERATION_NOT_PERMITTED_STREAK_BREAKER) {
+              stopReason = "operation_not_permitted_streak";
+              stopAllSends = true;
+              break;
+            }
+            if (opNotPermittedCountInWindow >= DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER) {
+              stopReason = "operation_not_permitted_window";
+              stopAllSends = true;
+              break;
+            }
+            if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) {
+              stopReason = "en_queue_send_breaker";
+              stopAllSends = true;
+              break;
+            }
             continue;
           }
           rQueue.unshift(item);
+          stopReason = "dm_send_failed";
+          stopAllSends = true;
           break;
         }
         await markSent(item.username, { lang: regionLang, score: item.score, priority: item.score != null ? item.score / 100 : 0, author_id: item.author_id });
         await saveRefSent(item.author_id, { handle: item.username, lang: regionLang, score: item.score, priority: item.score != null ? item.score / 100 : 0 });
         await incrementSentStats(regionLang, item.score);
         await incrementTodaySentCount();
+        opNotPermittedStreak = 0;
         sentThisWindow += 1;
         sentToday += 1;
         sentHandles.push(`${item.username}(${regionLang})`);
       }
       await kv.set(KV_KEY_QUEUE_REGION(regionLang), JSON.stringify(rQueue), { ex: 86400 * 2 });
+      if (stopAllSends) break;
     }
 
     return res.status(200).json({
@@ -471,7 +570,8 @@ module.exports = async function handler(req, res) {
       handles: sentHandles,
       sentToday,
       queueLength: queue.length,
-      count403ThisWindow: count403
+      count403ThisWindow: count403,
+      ...(stopReason ? { stopReason } : {})
     });
   }
 
@@ -606,18 +706,24 @@ module.exports = async function handler(req, res) {
       const sendResult = await sendRecruitDm(c.username, text, { participantId: c.author_id });
 
       if (sendResult?.error) {
-        const is403 =
-          String(sendResult.error).includes("403") ||
-          String(sendResult.error).toLowerCase().includes("permission to dm");
-        if (is403) {
-          await markDmNg(c.author_id, {
-            username: c.username,
-            score: c.score,
-            lang,
-            breakdown: c.breakdown,
-          });
+        const classified = classifyDmSendError(sendResult.error);
+        if (classified.is403) {
+          if (classified.type === "recipient_not_open") {
+            await markDmNg(c.author_id, {
+              username: c.username,
+              score: c.score,
+              lang,
+              breakdown: c.breakdown,
+            });
+          }
           tried403.push(c.username);
-          console.warn("[affiliate-recruit-run] DM 403, next candidate:", c.username, c.author_id);
+          console.warn(
+            "[affiliate-recruit-run] DM 403, next candidate:",
+            c.username,
+            c.author_id,
+            "type:",
+            classified.type
+          );
           continue;
         }
         return res.status(200).json({
