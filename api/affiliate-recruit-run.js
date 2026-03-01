@@ -435,6 +435,14 @@ function pickRecruitAngleFromItem(item) {
   return pickRecruitAngleDecisionFromItem(item).angle;
 }
 
+function getQueueItemKey(item) {
+  if (!item || typeof item !== "object") return "";
+  const authorId = String(item.author_id || "").trim();
+  if (authorId) return `aid:${authorId}`;
+  const username = String(item.username || "").trim().toLowerCase();
+  return username ? `un:${username}` : "";
+}
+
 function parseQueueValue(rawValue) {
   if (Array.isArray(rawValue)) return rawValue;
   if (typeof rawValue === "string") {
@@ -953,6 +961,12 @@ module.exports = async function handler(req, res) {
     const whopUrl = getWhopAffiliateProgramUrl(lang);
     let sentThisWindow = 0;
     const sentHandles = [];
+    const opNotPermittedBlockedKeys = new Set();
+    const deferredOpNotPermittedEn = [];
+    const deferredOpNotPermittedByLang = REGION_QUEUE_LANGS.reduce((acc, regionLang) => {
+      acc[regionLang] = [];
+      return acc;
+    }, {});
     let opNotPermittedStreak = 0;
     let opNotPermittedCountInWindow = 0;
     let enRecipient403Streak = 0;
@@ -970,6 +984,11 @@ module.exports = async function handler(req, res) {
     ) {
       const item = queue.shift();
       if (!item?.username) continue;
+      const itemKey = getQueueItemKey(item);
+      if (itemKey && opNotPermittedBlockedKeys.has(itemKey)) {
+        deferredOpNotPermittedEn.push(item);
+        continue;
+      }
       sendStatsByLang.en.attempted += 1;
       const angleDecision = pickRecruitAngleDecisionFromItem(item);
       const angle = angleDecision.angle;
@@ -1002,8 +1021,9 @@ module.exports = async function handler(req, res) {
             enRecipient403StreakMax = Math.max(enRecipient403StreakMax, enRecipient403Streak);
           } else if (classified.type === "operation_not_permitted") {
             sendStatsByLang.en.operationNotPermitted403 += 1;
-            // 送信側一時制限は候補要因ではないため、次枠再試行できるようキュー末尾へ戻す
-            queue.push(item);
+            // 同一15分枠での再試行は避け、次枠へ繰り越す
+            if (itemKey) opNotPermittedBlockedKeys.add(itemKey);
+            deferredOpNotPermittedEn.push(item);
             opNotPermittedStreak += 1;
             opNotPermittedCountInWindow += 1;
             enRecipient403Streak = 0;
@@ -1014,7 +1034,7 @@ module.exports = async function handler(req, res) {
               opNotPermittedCountInWindow,
               "handle:",
               item.username,
-              "requeued:",
+              "deferredUntilNextWindow:",
               true
             );
           } else {
@@ -1097,6 +1117,9 @@ module.exports = async function handler(req, res) {
       sentToday += 1;
       sentHandles.push(item.username);
     }
+    if (deferredOpNotPermittedEn.length > 0) {
+      queue = queue.concat(deferredOpNotPermittedEn);
+    }
     await kv.set(KV_KEY_QUEUE_EN, JSON.stringify(queue), { ex: 86400 * 2 });
 
     // 同一 15/15min・20 ブレーカーで地域キューも消化（EN の残り枠で）
@@ -1131,6 +1154,11 @@ module.exports = async function handler(req, res) {
         ) {
           const item = rQueue.shift();
           if (!item?.username) continue;
+          const itemKey = getQueueItemKey(item);
+          if (itemKey && opNotPermittedBlockedKeys.has(itemKey)) {
+            deferredOpNotPermittedByLang[regionLang].push(item);
+            continue;
+          }
           sendStatsByLang[regionLang].attempted += 1;
           const angleDecision = pickRecruitAngleDecisionFromItem(item);
           const angle = angleDecision.angle;
@@ -1164,8 +1192,9 @@ module.exports = async function handler(req, res) {
                 regionRecipient403StreakMax = Math.max(regionRecipient403StreakMax, regionRecipient403Streak);
               } else if (classified.type === "operation_not_permitted") {
                 sendStatsByLang[regionLang].operationNotPermitted403 += 1;
-                // 送信側一時制限は候補要因ではないため、次枠再試行できるようキュー末尾へ戻す
-                rQueue.push(item);
+                // 同一15分枠での再試行は避け、次枠へ繰り越す
+                if (itemKey) opNotPermittedBlockedKeys.add(itemKey);
+                deferredOpNotPermittedByLang[regionLang].push(item);
                 opNotPermittedStreak += 1;
                 opNotPermittedCountInWindow += 1;
                 regionRecipient403Streak = 0;
@@ -1176,7 +1205,7 @@ module.exports = async function handler(req, res) {
                   opNotPermittedCountInWindow,
                   "handle:",
                   item.username,
-                  "requeued:",
+                  "deferredUntilNextWindow:",
                   true
                 );
               } else {
@@ -1274,6 +1303,24 @@ module.exports = async function handler(req, res) {
         if (stopAllSends) break;
       }
     }
+
+    // operation_not_permitted が出た候補は次枠に繰り越し（同一15分枠の再試行を防止）
+    for (const regionLang of REGION_QUEUE_LANGS) {
+      const deferredItems = deferredOpNotPermittedByLang[regionLang] || [];
+      if (!deferredItems.length) continue;
+      const mergedQueue = (regionQueues[regionLang] || []).concat(deferredItems);
+      regionQueues[regionLang] = mergedQueue;
+      await kv.set(KV_KEY_QUEUE_REGION(regionLang), JSON.stringify(mergedQueue), { ex: 86400 * 2 });
+    }
+
+    const opNotPermittedDeferredByLang = {
+      en: deferredOpNotPermittedEn.length
+    };
+    for (const regionLang of REGION_QUEUE_LANGS) {
+      opNotPermittedDeferredByLang[regionLang] = (deferredOpNotPermittedByLang[regionLang] || [])
+        .length;
+    }
+
     let cooldownApplied = false;
     let cooldownUntil = null;
     let cooldownSecondsApplied = 0;
@@ -1347,6 +1394,7 @@ module.exports = async function handler(req, res) {
       opNotPermittedCountInWindow,
       opNotPermittedBackoffLevelBefore,
       opNotPermittedBackoffLevelAfter,
+      opNotPermittedDeferredByLang,
       regionFailoverTriggeredLangs,
       regionRecipient403StreakMaxByLang,
       regionRecipient403FailoverBreaker: REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
@@ -1375,6 +1423,7 @@ module.exports = async function handler(req, res) {
       opNotPermittedCountInWindow,
       opNotPermittedBackoffLevelBefore,
       opNotPermittedBackoffLevelAfter,
+      opNotPermittedDeferredByLang,
       regionFailoverTriggeredLangs,
       regionRecipient403StreakMaxByLang,
       regionRecipient403FailoverBreaker: REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
