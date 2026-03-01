@@ -37,7 +37,6 @@ const KV_KEY_QUEUE_EN = "affiliate_recruit:queue:en";
 const KV_KEY_QUEUE_REGION = (lang) => `affiliate_recruit:queue:${lang}`;
 const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${dateStr}:${slot15}`;
 const KV_KEY_ATTEMPT_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:attempts:en:${dateStr}:${slot15}`;
-const KV_KEY_SEND_TURN = "affiliate_recruit:send:turn";
 const KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS = "affiliate_recruit:cooldown:op_not_permitted:until_ms";
 const KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL = "affiliate_recruit:cooldown:op_not_permitted:backoff_level";
 const AFFILIATE_RECRUIT_CLICK_TRACK_PATH = "/api/affiliate-recruit-click";
@@ -65,14 +64,6 @@ const DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS = Math.max(
 const DM_OPERATION_NOT_PERMITTED_COOLDOWN_MAX_SECONDS = Math.max(
   0,
   Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_COOLDOWN_MAX_SEC || 1800)
-);
-const EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER = Math.max(
-  0,
-  Number(process.env.EN_RECRUIT_RECIPIENT_403_FAILOVER_BREAKER || 2)
-);
-const REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER = Math.max(
-  0,
-  Number(process.env.REGION_RECRUIT_RECIPIENT_403_FAILOVER_BREAKER || 3)
 );
 // 送信バースト防止: 15分窓の試行数 cap（成功/失敗を問わない）
 const EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN = Math.max(
@@ -530,6 +521,64 @@ function createSendStatsByLang(langs) {
   return stats;
 }
 
+function computeQueueLengthsByLang(queuesByLang, langs) {
+  const lengths = {};
+  for (const lang of langs) {
+    const queue = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
+    lengths[lang] = queue.length;
+  }
+  return lengths;
+}
+
+function getQueueItemPriorityValue(item) {
+  const scoreRaw = Number(item?.score);
+  if (Number.isFinite(scoreRaw)) return scoreRaw;
+  const priorityRaw = Number(item?.priority);
+  if (Number.isFinite(priorityRaw)) return priorityRaw * 100;
+  return 0;
+}
+
+/**
+ * 6言語グロス優先順:
+ * - 各言語キューを横断して「最高priority(score)」の1件を取り出す
+ * - op_not_permitted で同一枠ブロック済みの候補は選択対象から除外
+ */
+function popNextGrossPriorityCandidate(queuesByLang, langs, blockedKeys) {
+  let selectedLang = null;
+  let selectedIndex = -1;
+  let selectedScore = Number.NEGATIVE_INFINITY;
+
+  for (const lang of langs) {
+    const queue = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
+    for (let idx = 0; idx < queue.length; idx += 1) {
+      const item = queue[idx];
+      if (!item?.username) {
+        queue.splice(idx, 1);
+        idx -= 1;
+        continue;
+      }
+      const itemKey = getQueueItemKey(item);
+      if (itemKey && blockedKeys.has(itemKey)) continue;
+      const score = getQueueItemPriorityValue(item);
+      if (score > selectedScore) {
+        selectedLang = lang;
+        selectedIndex = idx;
+        selectedScore = score;
+      }
+    }
+  }
+
+  if (selectedLang == null || selectedIndex < 0) return null;
+  const selectedQueue = queuesByLang[selectedLang] || [];
+  const selectedItem = selectedQueue.splice(selectedIndex, 1)[0];
+  if (!selectedItem?.username) return null;
+  return {
+    lang: selectedLang,
+    item: selectedItem,
+    itemKey: getQueueItemKey(selectedItem)
+  };
+}
+
 async function getHourSentCount(dateStr, hour) {
   if (!kv) return 0;
   const v = await kv.get(KV_KEY_HOUR_SENT(dateStr, hour));
@@ -957,21 +1006,16 @@ module.exports = async function handler(req, res) {
       const rawRegion = await kv.get(KV_KEY_QUEUE_REGION(regionLang));
       regionQueues[regionLang] = parseQueueValue(rawRegion);
     }
-    const sendTurnRaw = String((await kv.get(KV_KEY_SEND_TURN)) || "en").toLowerCase();
-    const queueLengthsStart = {
-      en: queue.length,
-      ja: regionQueues.ja?.length || 0,
-      ko: regionQueues.ko?.length || 0,
-      ar: regionQueues.ar?.length || 0,
-      es: regionQueues.es?.length || 0,
-      pt: regionQueues.pt?.length || 0
+    const sendTurnRaw = "global_priority";
+    const sendQueueLangs = ["en", ...REGION_QUEUE_LANGS];
+    const queuesByLang = {
+      en: queue,
+      ...regionQueues
     };
-    const hasRegionQueueAtStart = REGION_QUEUE_LANGS.some((regionLang) => (regionQueues[regionLang] || []).length > 0);
-    const preferRegionsFirst = sendTurnRaw === "regions";
-    const shouldRunEnFirst = !preferRegionsFirst || !hasRegionQueueAtStart || queue.length === 0;
-    const sendStatsByLang = createSendStatsByLang(["en", ...REGION_QUEUE_LANGS]);
-    for (const statLang of Object.keys(queueLengthsStart)) {
-      sendStatsByLang[statLang].queueStart = queueLengthsStart[statLang];
+    const queueLengthsStart = computeQueueLengthsByLang(queuesByLang, sendQueueLangs);
+    const sendStatsByLang = createSendStatsByLang(sendQueueLangs);
+    for (const statLang of sendQueueLangs) {
+      sendStatsByLang[statLang].queueStart = queueLengthsStart[statLang] || 0;
     }
     console.log("[affiliate-recruit-run] en-queue-send preflight:", {
       slot15,
@@ -982,13 +1026,10 @@ module.exports = async function handler(req, res) {
       maxAttemptsPerRun: EN_QUEUE_MAX_ATTEMPTS_PER_RUN,
       sendDelayMs: EN_RECRUIT_SEND_DELAY_MS,
       sendRunHardStopMs: EN_RECRUIT_SEND_RUN_HARD_STOP_MS,
-      sendTurn: sendTurnRaw,
-      preferRegionsFirst,
+      selectionMode: "6lang_gross_priority",
       opNotPermittedBackoffLevel,
       queueLengthsStart,
     });
-    const lang = "en";
-    const whopUrl = getWhopAffiliateProgramUrl(lang);
     let sentThisWindow = 0;
     let attemptsThisRun = 0;
     let sendDelayWaitedMsThisRun = 0;
@@ -996,23 +1037,28 @@ module.exports = async function handler(req, res) {
     let lastAttemptStartedAtMs = 0;
     const sentHandles = [];
     const opNotPermittedBlockedKeys = new Set();
-    const deferredOpNotPermittedEn = [];
-    const deferredOpNotPermittedByLang = REGION_QUEUE_LANGS.reduce((acc, regionLang) => {
-      acc[regionLang] = [];
+    const opNotPermittedDeferredByLang = sendQueueLangs.reduce((acc, candidateLang) => {
+      acc[candidateLang] = 0;
+      return acc;
+    }, {});
+    const recipient403StreakByLang = sendQueueLangs.reduce((acc, candidateLang) => {
+      acc[candidateLang] = 0;
       return acc;
     }, {});
     let opNotPermittedCountInWindow = 0;
-    let enRecipient403Streak = 0;
     let enRecipient403StreakMax = 0;
-    let enFailoverTriggered = false;
+    const enFailoverTriggered = false;
     const regionFailoverTriggeredLangs = [];
-    const regionRecipient403StreakMaxByLang = {};
+    const regionRecipient403StreakMaxByLang = REGION_QUEUE_LANGS.reduce((acc, candidateLang) => {
+      acc[candidateLang] = 0;
+      return acc;
+    }, {});
     let stopReason = null;
     let stopAllSends = false;
     const canContinueRun = () => Date.now() - runStartedAtMs < EN_RECRUIT_SEND_RUN_HARD_STOP_MS;
-    const registerAttempt = async (source) => {
+    const registerAttempt = async (sourceLang) => {
       if (!canContinueRun()) return false;
-      if (!firstAttemptSource && source) firstAttemptSource = source;
+      if (!firstAttemptSource && sourceLang) firstAttemptSource = sourceLang;
       attemptsThisRun += 1;
       attemptsThisWindow += 1;
       await kv.set(keyAttempt, String(attemptsThisWindow), {
@@ -1030,23 +1076,27 @@ module.exports = async function handler(req, res) {
       }
     };
     while (
-      shouldRunEnFirst &&
+      !stopAllSends &&
       (!dailyCapActive || sentToday < EN_QUEUE_DAILY_CAP) &&
       sentThisWindow < MAX_SUCCESS_PER_15MIN &&
       count403 < EN_QUEUE_403_BREAKER_PER_15MIN &&
       attemptsThisRun < EN_QUEUE_MAX_ATTEMPTS_PER_RUN &&
       attemptsThisWindow < EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN &&
-      canContinueRun() &&
-      queue.length > 0
+      canContinueRun()
     ) {
-      const item = queue.shift();
-      if (!item?.username) continue;
-      const itemKey = getQueueItemKey(item);
-      if (itemKey && opNotPermittedBlockedKeys.has(itemKey)) {
-        deferredOpNotPermittedEn.push(item);
-        continue;
+      const picked = popNextGrossPriorityCandidate(
+        queuesByLang,
+        sendQueueLangs,
+        opNotPermittedBlockedKeys
+      );
+      if (!picked) {
+        stopReason = "queue_exhausted";
+        break;
       }
-      sendStatsByLang.en.attempted += 1;
+
+      const { lang, item, itemKey } = picked;
+      sendStatsByLang[lang].attempted += 1;
+
       const angleDecision = pickRecruitAngleDecisionFromItem(item);
       const angle = angleDecision.angle;
       const inviteUrlRaw = getFirstPromoterInviteUrl(lang, { ref: item.author_id });
@@ -1056,8 +1106,9 @@ module.exports = async function handler(req, res) {
         lang,
         angle,
         handle: item.username,
-        source: "en_queue_send"
+        source: lang === "en" ? "en_queue_send" : "region_queue_send"
       });
+      const whopUrl = getWhopAffiliateProgramUrl(lang);
       const { text, dmVariant } = fillRecruitDmTemplate(lang, {
         inviteUrl,
         whopAffiliateUrl: whopUrl,
@@ -1066,31 +1117,47 @@ module.exports = async function handler(req, res) {
         variant: req.query?.variant || req.body?.variant || item.dm_variant,
         recipientKey: item.author_id || item.username
       });
+
       await waitBeforeNextAttempt();
-      const attempted = await registerAttempt("en");
+      const attempted = await registerAttempt(lang);
       if (!attempted) {
-        queue.unshift(item);
+        queuesByLang[lang] = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
+        queuesByLang[lang].unshift(item);
         stopReason = "run_time_limit";
         stopAllSends = true;
         break;
       }
+
       lastAttemptStartedAtMs = Date.now();
       const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
       if (sendResult?.error) {
         const classified = classifyDmSendError(sendResult.error);
         if (classified.is403) {
           if (classified.type === "recipient_not_open") {
-            sendStatsByLang.en.recipient403 += 1;
-            await markDmNg(item.author_id, { username: item.username, score: item.score, lang, breakdown: item.breakdown });
-            enRecipient403Streak += 1;
-            enRecipient403StreakMax = Math.max(enRecipient403StreakMax, enRecipient403Streak);
+            sendStatsByLang[lang].recipient403 += 1;
+            await markDmNg(item.author_id, {
+              username: item.username,
+              score: item.score,
+              lang,
+              breakdown: item.breakdown
+            });
+            recipient403StreakByLang[lang] = (recipient403StreakByLang[lang] || 0) + 1;
+            if (lang === "en") {
+              enRecipient403StreakMax = Math.max(enRecipient403StreakMax, recipient403StreakByLang[lang]);
+            } else {
+              regionRecipient403StreakMaxByLang[lang] = Math.max(
+                regionRecipient403StreakMaxByLang[lang] || 0,
+                recipient403StreakByLang[lang]
+              );
+            }
           } else if (classified.type === "operation_not_permitted") {
-            sendStatsByLang.en.operationNotPermitted403 += 1;
-            // 同一15分枠での再試行は避け、次枠へ繰り越す
+            sendStatsByLang[lang].operationNotPermitted403 += 1;
             if (itemKey) opNotPermittedBlockedKeys.add(itemKey);
-            deferredOpNotPermittedEn.push(item);
+            queuesByLang[lang] = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
+            queuesByLang[lang].push(item);
+            opNotPermittedDeferredByLang[lang] = (opNotPermittedDeferredByLang[lang] || 0) + 1;
             opNotPermittedCountInWindow += 1;
-            enRecipient403Streak = 0;
+            recipient403StreakByLang[lang] = 0;
             console.warn(
               "[affiliate-recruit-run] DM 403 operation_not_permitted windowCount:",
               opNotPermittedCountInWindow,
@@ -1098,31 +1165,20 @@ module.exports = async function handler(req, res) {
               DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER,
               "handle:",
               item.username,
+              "lang:",
+              lang,
               "deferredUntilNextWindow:",
               true
             );
           } else {
-            sendStatsByLang.en.other403 += 1;
-            enRecipient403Streak = 0;
+            sendStatsByLang[lang].other403 += 1;
+            recipient403StreakByLang[lang] = 0;
           }
           count403 += 1;
           await kv.set(key403, String(count403), { ex: 1200 });
           if (opNotPermittedCountInWindow >= DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER) {
             stopReason = "operation_not_permitted_window";
             stopAllSends = true;
-            break;
-          }
-          if (
-            EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER > 0 &&
-            enRecipient403Streak >= EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER
-          ) {
-            enFailoverTriggered = true;
-            console.warn("[affiliate-recruit-run] EN recipient403 failover to regions:", {
-              streak: enRecipient403Streak,
-              breaker: EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
-              count403,
-              sentThisWindow
-            });
             break;
           }
           if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) {
@@ -1132,12 +1188,14 @@ module.exports = async function handler(req, res) {
           }
           continue;
         }
-        sendStatsByLang.en.non403Errors += 1;
-        queue.unshift(item);
+        sendStatsByLang[lang].non403Errors += 1;
+        queuesByLang[lang] = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
+        queuesByLang[lang].unshift(item);
         stopReason = "dm_send_failed";
         stopAllSends = true;
         break;
       }
+
       await markSent(item.username, {
         lang,
         score: item.score,
@@ -1168,230 +1226,20 @@ module.exports = async function handler(req, res) {
       });
       await incrementSentStats(lang, item.score);
       await incrementTodaySentCount();
-      enRecipient403Streak = 0;
+      recipient403StreakByLang[lang] = 0;
       sentThisWindow += 1;
-      sendStatsByLang.en.sent += 1;
+      sendStatsByLang[lang].sent += 1;
       sentToday += 1;
-      sentHandles.push(item.username);
+      sentHandles.push(lang === "en" ? item.username : `${item.username}(${lang})`);
     }
-    if (deferredOpNotPermittedEn.length > 0) {
-      queue = queue.concat(deferredOpNotPermittedEn);
-    }
+
+    queue = queuesByLang.en || [];
     await kv.set(KV_KEY_QUEUE_EN, JSON.stringify(queue), { ex: 86400 * 2 });
-
-    // 同一 15/15min・20 ブレーカーで地域キューも消化（EN の残り枠で）
-    // 1周で終わらせず、枠/ブレーカーに達するまで言語キューをラウンドロビンで再周回する
-    let hasRegionQueueRemaining = REGION_QUEUE_LANGS.some((regionLang) => (regionQueues[regionLang] || []).length > 0);
-    while (
-      !stopAllSends &&
-      hasRegionQueueRemaining &&
-      (!dailyCapActive || sentToday < EN_QUEUE_DAILY_CAP) &&
-      sentThisWindow < MAX_SUCCESS_PER_15MIN &&
-      count403 < EN_QUEUE_403_BREAKER_PER_15MIN &&
-      attemptsThisRun < EN_QUEUE_MAX_ATTEMPTS_PER_RUN &&
-      attemptsThisWindow < EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN
-      && canContinueRun()
-    ) {
-      hasRegionQueueRemaining = false;
-      for (const regionLang of REGION_QUEUE_LANGS) {
-        if (stopAllSends) break;
-        if (
-          sentThisWindow >= MAX_SUCCESS_PER_15MIN ||
-          count403 >= EN_QUEUE_403_BREAKER_PER_15MIN ||
-          attemptsThisRun >= EN_QUEUE_MAX_ATTEMPTS_PER_RUN ||
-          attemptsThisWindow >= EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN ||
-          !canContinueRun()
-        ) {
-          break;
-        }
-        if (dailyCapActive && sentToday >= EN_QUEUE_DAILY_CAP) break;
-        let rQueue = regionQueues[regionLang] || [];
-        if (rQueue.length > 0) {
-          hasRegionQueueRemaining = true;
-        } else {
-          regionRecipient403StreakMaxByLang[regionLang] = regionRecipient403StreakMaxByLang[regionLang] || 0;
-          continue;
-        }
-        let regionRecipient403Streak = 0;
-        let regionRecipient403StreakMax = regionRecipient403StreakMaxByLang[regionLang] || 0;
-        while (
-          (!dailyCapActive || sentToday < EN_QUEUE_DAILY_CAP) &&
-          sentThisWindow < MAX_SUCCESS_PER_15MIN &&
-          count403 < EN_QUEUE_403_BREAKER_PER_15MIN &&
-          attemptsThisRun < EN_QUEUE_MAX_ATTEMPTS_PER_RUN &&
-          attemptsThisWindow < EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN &&
-          canContinueRun() &&
-          rQueue.length > 0
-        ) {
-          const item = rQueue.shift();
-          if (!item?.username) continue;
-          const itemKey = getQueueItemKey(item);
-          if (itemKey && opNotPermittedBlockedKeys.has(itemKey)) {
-            deferredOpNotPermittedByLang[regionLang].push(item);
-            continue;
-          }
-          sendStatsByLang[regionLang].attempted += 1;
-          const angleDecision = pickRecruitAngleDecisionFromItem(item);
-          const angle = angleDecision.angle;
-          const inviteUrlRaw = getFirstPromoterInviteUrl(regionLang, { ref: item.author_id });
-          const inviteUrl = buildTrackedInviteUrl(req, inviteUrlRaw, {
-            ref: item.author_id,
-            authorId: item.author_id,
-            lang: regionLang,
-            angle,
-            handle: item.username,
-            source: "region_queue_send"
-          });
-          const whopUrlR = getWhopAffiliateProgramUrl(regionLang);
-          const { text, dmVariant } = fillRecruitDmTemplate(regionLang, {
-            inviteUrl,
-            whopAffiliateUrl: whopUrlR,
-            handle: item.username,
-            angle,
-            variant: req.query?.variant || req.body?.variant || item.dm_variant,
-            recipientKey: item.author_id || item.username
-          });
-          await waitBeforeNextAttempt();
-          const attempted = await registerAttempt("regions");
-          if (!attempted) {
-            rQueue.unshift(item);
-            stopReason = "run_time_limit";
-            stopAllSends = true;
-            break;
-          }
-          lastAttemptStartedAtMs = Date.now();
-          const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
-          if (sendResult?.error) {
-            const classified = classifyDmSendError(sendResult.error);
-            if (classified.is403) {
-              if (classified.type === "recipient_not_open") {
-                sendStatsByLang[regionLang].recipient403 += 1;
-                await markDmNg(item.author_id, { username: item.username, score: item.score, lang: regionLang, breakdown: item.breakdown });
-                regionRecipient403Streak += 1;
-                regionRecipient403StreakMax = Math.max(regionRecipient403StreakMax, regionRecipient403Streak);
-              } else if (classified.type === "operation_not_permitted") {
-                sendStatsByLang[regionLang].operationNotPermitted403 += 1;
-                // 同一15分枠での再試行は避け、次枠へ繰り越す
-                if (itemKey) opNotPermittedBlockedKeys.add(itemKey);
-                deferredOpNotPermittedByLang[regionLang].push(item);
-                opNotPermittedCountInWindow += 1;
-                regionRecipient403Streak = 0;
-                console.warn(
-                  "[affiliate-recruit-run] DM 403 operation_not_permitted windowCount:",
-                  opNotPermittedCountInWindow,
-                  "breaker:",
-                  DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER,
-                  "handle:",
-                  item.username,
-                  "deferredUntilNextWindow:",
-                  true
-                );
-              } else {
-                sendStatsByLang[regionLang].other403 += 1;
-                regionRecipient403Streak = 0;
-              }
-              count403 += 1;
-              await kv.set(key403, String(count403), { ex: 1200 });
-              if (opNotPermittedCountInWindow >= DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER) {
-                stopReason = "operation_not_permitted_window";
-                stopAllSends = true;
-                break;
-              }
-              if (
-                REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER > 0 &&
-                regionRecipient403Streak >= REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER
-              ) {
-                if (!regionFailoverTriggeredLangs.includes(regionLang)) {
-                  regionFailoverTriggeredLangs.push(regionLang);
-                }
-                console.warn("[affiliate-recruit-run] region recipient403 failover to next language:", {
-                  regionLang,
-                  streak: regionRecipient403Streak,
-                  breaker: REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
-                  count403,
-                  sentThisWindow
-                });
-                break;
-              }
-              if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) {
-                stopReason = "en_queue_send_breaker";
-                stopAllSends = true;
-                break;
-              }
-              continue;
-            }
-            sendStatsByLang[regionLang].non403Errors += 1;
-            rQueue.unshift(item);
-            stopReason = "dm_send_failed";
-            stopAllSends = true;
-            break;
-          }
-          await markSent(item.username, {
-            lang: regionLang,
-            score: item.score,
-            priority: item.score != null ? item.score / 100 : 0,
-            author_id: item.author_id,
-            angle,
-            recommended_angle: angleDecision.recommendedAngle,
-            angle_mode: angleDecision.angleMode,
-            angle_confidence: item.angle_confidence ?? null,
-            is_high_intent: item.is_high_intent ?? null,
-            intent_segment: item.intent_segment ?? null,
-            dm_variant: dmVariant,
-            detected_via: item.detected_via || "default"
-          });
-          await saveRefSent(item.author_id, {
-            handle: item.username,
-            lang: regionLang,
-            score: item.score,
-            priority: item.score != null ? item.score / 100 : 0,
-            angle,
-            recommended_angle: angleDecision.recommendedAngle,
-            angle_mode: angleDecision.angleMode,
-            angle_confidence: item.angle_confidence ?? null,
-            is_high_intent: item.is_high_intent ?? null,
-            intent_segment: item.intent_segment ?? null,
-            dm_variant: dmVariant,
-            detected_via: item.detected_via || "default"
-          });
-          await incrementSentStats(regionLang, item.score);
-          await incrementTodaySentCount();
-          regionRecipient403Streak = 0;
-          sentThisWindow += 1;
-          sendStatsByLang[regionLang].sent += 1;
-          sentToday += 1;
-          sentHandles.push(`${item.username}(${regionLang})`);
-        }
-        regionRecipient403StreakMaxByLang[regionLang] = Math.max(
-          regionRecipient403StreakMaxByLang[regionLang] || 0,
-          regionRecipient403StreakMax
-        );
-        regionQueues[regionLang] = rQueue;
-        await kv.set(KV_KEY_QUEUE_REGION(regionLang), JSON.stringify(rQueue), { ex: 86400 * 2 });
-        if (rQueue.length > 0) {
-          hasRegionQueueRemaining = true;
-        }
-        if (stopAllSends) break;
-      }
-    }
-
-    // operation_not_permitted が出た候補は次枠に繰り越し（同一15分枠の再試行を防止）
     for (const regionLang of REGION_QUEUE_LANGS) {
-      const deferredItems = deferredOpNotPermittedByLang[regionLang] || [];
-      if (!deferredItems.length) continue;
-      const mergedQueue = (regionQueues[regionLang] || []).concat(deferredItems);
-      regionQueues[regionLang] = mergedQueue;
-      await kv.set(KV_KEY_QUEUE_REGION(regionLang), JSON.stringify(mergedQueue), { ex: 86400 * 2 });
-    }
-
-    if (
-      attemptsThisRun > 0 &&
-      queueLengthsStart.en > 0 &&
-      hasRegionQueueAtStart &&
-      firstAttemptSource
-    ) {
-      const nextTurn = firstAttemptSource === "en" ? "regions" : "en";
-      await kv.set(KV_KEY_SEND_TURN, nextTurn, { ex: 86400 * 2 });
+      regionQueues[regionLang] = queuesByLang[regionLang] || [];
+      await kv.set(KV_KEY_QUEUE_REGION(regionLang), JSON.stringify(regionQueues[regionLang]), {
+        ex: 86400 * 2
+      });
     }
 
     if (!stopReason) {
@@ -1402,14 +1250,6 @@ module.exports = async function handler(req, res) {
       } else if (!canContinueRun()) {
         stopReason = "run_time_limit";
       }
-    }
-
-    const opNotPermittedDeferredByLang = {
-      en: deferredOpNotPermittedEn.length
-    };
-    for (const regionLang of REGION_QUEUE_LANGS) {
-      opNotPermittedDeferredByLang[regionLang] = (deferredOpNotPermittedByLang[regionLang] || [])
-        .length;
     }
 
     let cooldownApplied = false;
@@ -1462,6 +1302,7 @@ module.exports = async function handler(req, res) {
       attemptBreakerPer15min: EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN,
       sendDelayMs: EN_RECRUIT_SEND_DELAY_MS,
       sendDelayWaitedMsThisRun,
+      selectionMode: "6lang_gross_priority",
       sendTurn: sendTurnRaw,
       firstAttemptSource,
       count403ThisWindow: count403,
@@ -1472,14 +1313,14 @@ module.exports = async function handler(req, res) {
       sendStatsByLang,
       enFailoverTriggered,
       enRecipient403StreakMax,
-      enRecipient403FailoverBreaker: EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
+      enRecipient403FailoverBreaker: 0,
       opNotPermittedCountInWindow,
       opNotPermittedBackoffLevelBefore,
       opNotPermittedBackoffLevelAfter,
       opNotPermittedDeferredByLang,
       regionFailoverTriggeredLangs,
       regionRecipient403StreakMaxByLang,
-      regionRecipient403FailoverBreaker: REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
+      regionRecipient403FailoverBreaker: 0,
       ...(cooldownApplied ? {
         cooldownApplied,
         cooldownSeconds: cooldownSecondsApplied,
@@ -1501,6 +1342,7 @@ module.exports = async function handler(req, res) {
       attemptBreakerPer15min: EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN,
       sendDelayMs: EN_RECRUIT_SEND_DELAY_MS,
       sendDelayWaitedMsThisRun,
+      selectionMode: "6lang_gross_priority",
       sendTurn: sendTurnRaw,
       firstAttemptSource,
       queueLength: queue.length,
@@ -1510,14 +1352,14 @@ module.exports = async function handler(req, res) {
       sendStatsByLang,
       enFailoverTriggered,
       enRecipient403StreakMax,
-      enRecipient403FailoverBreaker: EN_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
+      enRecipient403FailoverBreaker: 0,
       opNotPermittedCountInWindow,
       opNotPermittedBackoffLevelBefore,
       opNotPermittedBackoffLevelAfter,
       opNotPermittedDeferredByLang,
       regionFailoverTriggeredLangs,
       regionRecipient403StreakMaxByLang,
-      regionRecipient403FailoverBreaker: REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER,
+      regionRecipient403FailoverBreaker: 0,
       ...(cooldownApplied ? {
         cooldownApplied,
         cooldownSeconds: cooldownSecondsApplied,
