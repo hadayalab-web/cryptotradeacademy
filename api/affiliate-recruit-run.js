@@ -706,6 +706,57 @@ function toPercent(value, total) {
 }
 
 /**
+ * アフィリエイター候補のみを通す（厳格版）。
+ * - 既存アフィ活動シグナル（activeAffiliate）
+ * - 競合/他ASP利用シグナル（competitor）
+ * ※ 「open to collab」等の探索者のみは通さない
+ */
+function isAffiliateIntentCandidate(candidate) {
+  if (!candidate || typeof candidate !== "object") return false;
+  const intentSegment = String(candidate.intentSegment || candidate.intent_segment || "")
+    .trim()
+    .toLowerCase();
+  if (intentSegment === "competitor_users") return true;
+  const breakdown = candidate.breakdown && typeof candidate.breakdown === "object"
+    ? candidate.breakdown
+    : {};
+  const bonusActiveAffiliate = Number(breakdown.bonusActiveAffiliate) || 0;
+  const bonusCompetitor = Number(breakdown.bonusCompetitor) || 0;
+  const matched = breakdown.matched && typeof breakdown.matched === "object"
+    ? breakdown.matched
+    : {};
+  const hasMatchedActiveAffiliate = Array.isArray(matched.activeAffiliate) && matched.activeAffiliate.length > 0;
+  const hasMatchedCompetitor = Array.isArray(matched.competitor) && matched.competitor.length > 0;
+  return (
+    bonusActiveAffiliate > 0 ||
+    bonusCompetitor > 0 ||
+    hasMatchedActiveAffiliate ||
+    hasMatchedCompetitor
+  );
+}
+
+function filterQueueToAffiliateOnly(queueItems) {
+  const source = Array.isArray(queueItems) ? queueItems : [];
+  const filteredQueue = [];
+  let droppedNonAffiliate = 0;
+  for (const item of source) {
+    if (!item?.username) {
+      droppedNonAffiliate += 1;
+      continue;
+    }
+    if (!isAffiliateIntentCandidate(item)) {
+      droppedNonAffiliate += 1;
+      continue;
+    }
+    filteredQueue.push(item);
+  }
+  return {
+    filteredQueue,
+    droppedNonAffiliate
+  };
+}
+
+/**
  * 新規候補を先頭に、既存キューを後ろへ結合しつつ重複を排除
  * - 同一 author_id または同一 username(小文字化) を重複扱い
  * - username が空の要素は無効として破棄
@@ -817,6 +868,11 @@ function popNextGrossPriorityCandidate(
         idx -= 1;
         continue;
       }
+      if (!isAffiliateIntentCandidate(item)) {
+        queue.splice(idx, 1);
+        idx -= 1;
+        continue;
+      }
       const itemKey = getQueueItemKey(item);
       if (itemKey && blockedKeys.has(itemKey)) continue;
       const score = getQueueItemCompositePriority(item, lang, deliveryAggregate);
@@ -873,10 +929,13 @@ function aggregateGrossListSummary(perLang) {
     pagesFetchedTotal: sumBy("pagesFetched"),
     fetchedPostsTotal: sumBy("fetchedPosts"),
     eligibleCandidatesTotal: sumBy("eligibleCandidates"),
+    affiliateCandidatesTotal: sumBy("affiliateCandidates"),
     enqueuedTotal: sumBy("enqueued"),
     addedFromFreshTotal: sumBy("addedFromFresh"),
     droppedDuplicatesTotal: sumBy("droppedDuplicates"),
     skippedAlreadySentTotal: sumBy("skippedAlreadySent"),
+    skippedNonAffiliateIntentTotal: sumBy("skippedNonAffiliateIntent"),
+    removedNonAffiliateFromPrevTotal: sumBy("removedNonAffiliateFromPrev"),
     skippedDmNgTotal: sumBy("skippedDmNg")
   };
 }
@@ -967,8 +1026,13 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
     const eligibleCandidates = buildEligibleCandidates(allPosts, usersById, cfg.lang);
     const freshQueue = [];
     const skippedAlreadySentCount = 0;
+    let skippedNonAffiliateIntentCount = 0;
     let skippedDmNgCount = 0;
     for (const c of eligibleCandidates) {
+      if (!isAffiliateIntentCandidate(c)) {
+        skippedNonAffiliateIntentCount += 1;
+        continue;
+      }
       if (await isDmNgCached(c.author_id)) {
         skippedDmNgCount += 1;
         continue;
@@ -998,8 +1062,10 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
     });
     return {
       eligibleCandidates,
+      affiliateCandidatesCount: Math.max(0, eligibleCandidates.length - skippedNonAffiliateIntentCount),
       freshQueue,
       skippedAlreadySentCount,
+      skippedNonAffiliateIntentCount,
       skippedDmNgCount
     };
   };
@@ -1033,12 +1099,17 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
   }
 
   const eligible = candidateSnapshot.eligibleCandidates;
+  const affiliateCandidates = candidateSnapshot.affiliateCandidatesCount;
   const toEnqueue = candidateSnapshot.freshQueue;
   const skippedAlreadySent = candidateSnapshot.skippedAlreadySentCount;
+  const skippedNonAffiliateIntent = candidateSnapshot.skippedNonAffiliateIntentCount;
   const skippedDmNg = candidateSnapshot.skippedDmNgCount;
 
-  const prevQueue = parseQueueValue(await kv.get(cfg.queueKey));
-  const prevQueueLength = prevQueue.length;
+  const prevQueueRaw = parseQueueValue(await kv.get(cfg.queueKey));
+  const prevQueueLength = prevQueueRaw.length;
+  const prevQueueFilter = filterQueueToAffiliateOnly(prevQueueRaw);
+  const prevQueue = prevQueueFilter.filteredQueue;
+  const removedNonAffiliateFromPrev = prevQueueFilter.droppedNonAffiliate;
   const mergeResult = mergeRecruitQueueEntries(toEnqueue, prevQueue);
   const queue = mergeResult.queue;
   await kv.set(cfg.queueKey, JSON.stringify(queue), { ex: 86400 * 2 });
@@ -1060,8 +1131,11 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
     fetchedPosts: allPosts.length,
     fetchedUsers: Object.keys(usersById).length,
     eligibleCandidates: eligible.length,
+    affiliateCandidates,
     skippedAlreadySent,
+    skippedNonAffiliateIntent,
     skippedDmNg,
+    removedNonAffiliateFromPrev,
     minFreshTarget: cfg.isEn ? null : REGION_QUEUE_MIN_FRESH_ENQUEUE,
     enqueued: toEnqueue.length,
     addedFromFresh: mergeResult.addedFromFresh,
@@ -1075,7 +1149,7 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
   console.log("[affiliate-recruit-run] list summary:", listSummary);
   const linePrefix = cfg.isEn ? "affiliate-recruit-en-list" : "affiliate-recruit-regions-list";
   console.log(
-    `[${linePrefix}] lang=${cfg.lang} utcHour=${listSummary.utcHour} pages=${pagesFetched}/${cfg.listPages} fallbackPages=${fallbackPagesUsed} expansionPasses=${fallbackExpansionPasses} expandedWindows=${expandedWindowMinutesTried.join("|") || "-"} primaryHits=${primaryHitsTotal} fallbackHits=${fallbackHitsTotal} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} addedFresh=${mergeResult.addedFromFresh} retainedPrev=${mergeResult.retainedFromExisting} droppedDup=${mergeResult.droppedDuplicateCount} droppedInvalid=${mergeResult.droppedInvalidCount} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
+    `[${linePrefix}] lang=${cfg.lang} utcHour=${listSummary.utcHour} pages=${pagesFetched}/${cfg.listPages} fallbackPages=${fallbackPagesUsed} expansionPasses=${fallbackExpansionPasses} expandedWindows=${expandedWindowMinutesTried.join("|") || "-"} primaryHits=${primaryHitsTotal} fallbackHits=${fallbackHitsTotal} fetchedPosts=${allPosts.length} eligible=${eligible.length} affiliateEligible=${affiliateCandidates} skippedSent=${skippedAlreadySent} skippedNonAffiliate=${skippedNonAffiliateIntent} skippedDmNg=${skippedDmNg} removedNonAffiliatePrev=${removedNonAffiliateFromPrev} enqueued=${toEnqueue.length} addedFresh=${mergeResult.addedFromFresh} retainedPrev=${mergeResult.retainedFromExisting} droppedDup=${mergeResult.droppedDuplicateCount} droppedInvalid=${mergeResult.droppedInvalidCount} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
   );
 
   return {
@@ -1211,8 +1285,11 @@ module.exports = async function handler(req, res) {
         primaryHitsTotal: result.primaryHitsTotal,
         fallbackHitsTotal: result.fallbackHitsTotal,
         skippedAlreadySent: result.skippedAlreadySent,
+        skippedNonAffiliateIntent: result.skippedNonAffiliateIntent,
         skippedDmNg: result.skippedDmNg,
+        removedNonAffiliateFromPrev: result.removedNonAffiliateFromPrev,
         eligibleCandidates: result.eligibleCandidates,
+        affiliateCandidates: result.affiliateCandidates,
         fetchedPosts: result.fetchedPosts,
         prevQueueLength: result.prevQueueLength,
         sampleHandles: result.sampleHandles
@@ -1379,6 +1456,15 @@ module.exports = async function handler(req, res) {
       const rawRegion = await kv.get(KV_KEY_QUEUE_REGION(regionLang));
       regionQueues[regionLang] = parseQueueValue(rawRegion);
     }
+    const droppedNonAffiliateFromQueueByLang = {};
+    const enQueueFilter = filterQueueToAffiliateOnly(queue);
+    queue = enQueueFilter.filteredQueue;
+    droppedNonAffiliateFromQueueByLang.en = enQueueFilter.droppedNonAffiliate;
+    for (const regionLang of REGION_QUEUE_LANGS) {
+      const regionQueueFilter = filterQueueToAffiliateOnly(regionQueues[regionLang]);
+      regionQueues[regionLang] = regionQueueFilter.filteredQueue;
+      droppedNonAffiliateFromQueueByLang[regionLang] = regionQueueFilter.droppedNonAffiliate;
+    }
     const sendTurnRaw = "global_priority";
     const sendQueueLangs = ["en", ...REGION_QUEUE_LANGS];
     const queuesByLang = {
@@ -1409,6 +1495,7 @@ module.exports = async function handler(req, res) {
       slotKey,
       invocationId,
       queueLengthsStart,
+      droppedNonAffiliateFromQueueByLang,
     });
     let sentThisWindow = 0;
     let attemptsThisRun = 0;
@@ -1717,6 +1804,7 @@ module.exports = async function handler(req, res) {
       stopReason: stopReason || null,
       queueLengthsStart,
       queueLengthsEnd,
+      droppedNonAffiliateFromQueueByLang,
       sendStatsByLang,
       enFailoverTriggered,
       enRecipient403StreakMax,
@@ -1754,6 +1842,7 @@ module.exports = async function handler(req, res) {
       count403ThisWindow: count403,
       queueLengthsStart,
       queueLengthsEnd,
+      droppedNonAffiliateFromQueueByLang,
       sendStatsByLang,
       enFailoverTriggered,
       enRecipient403StreakMax,
@@ -1836,10 +1925,11 @@ module.exports = async function handler(req, res) {
     }
 
     const eligible = buildEligibleCandidates(allPosts, usersById, lang);
+    const affiliateEligible = eligible.filter((c) => isAffiliateIntentCandidate(c));
 
     if (!willSend) {
       const wouldSendList = [];
-      for (const c of eligible) {
+      for (const c of affiliateEligible) {
         if (wouldSendList.length >= batchSize) break;
         const isNg = await isDmNg(c.author_id);
         if (!isNg) wouldSendList.push(c);
@@ -1898,6 +1988,8 @@ module.exports = async function handler(req, res) {
           detectedVia: c.detectedVia || "default"
         },
         wouldSendCount: wouldSendList.length,
+        eligibleCount: eligible.length,
+        affiliateEligibleCount: affiliateEligible.length,
         enBatch: isEnBatchRun,
         sentToday,
         readPages: pagesFetched,
@@ -1905,7 +1997,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    for (const c of eligible) {
+    for (const c of affiliateEligible) {
       if (sentCount >= batchSize) break;
       if (await isDmNg(c.author_id)) continue;
 
