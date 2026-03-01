@@ -10,6 +10,11 @@ const { kv } = require('../utils/kv');
 const WHOP_WEBHOOK_SECRET = process.env.WHOP_WEBHOOK_SECRET;
 // Whop ダッシュボードの「Test webhook」は署名を送らないため、テスト時に1を設定してスキップ可能
 const WHOP_SKIP_SIGNATURE_FOR_TEST = process.env.WHOP_SKIP_SIGNATURE_FOR_TEST === '1';
+const AFFILIATE_CONVERSION_COUNT_KEY = (type, dateStr) =>
+  `affiliate_recruit:conversion:affiliate:${type}:${dateStr}:count`;
+const AFFILIATE_CONVERSION_EVENTS_KEY = (dateStr) =>
+  `affiliate_recruit:conversion:affiliate:${dateStr}:events`;
+const AFFILIATE_CONVERSION_TTL_SECONDS = 86400 * 30;
 
 /**
  * WHOP_WEBHOOK_SECRET から HMAC 用キーの候補を返す
@@ -133,6 +138,54 @@ function extractXPostInfoFromUtm(utmContent) {
   return null;
 }
 
+function resolveConversionType(planId, amount) {
+  const normalizedPlanId = String(planId || '').toLowerCase();
+  const amountNum = Number(amount);
+  const isMinimal =
+    normalizedPlanId.includes('minimal') ||
+    normalizedPlanId.includes('free') ||
+    amountNum === 0;
+  return isMinimal ? 'minimal' : 'regular';
+}
+
+async function recordAffiliateAttributedConversion({
+  dateString,
+  conversionType,
+  eventId,
+  amount,
+  currency,
+  userEmail,
+  refId,
+  promoCode,
+  planId,
+  eventType
+}) {
+  if (!kv || !dateString || !eventId) return;
+
+  const safeType = conversionType === 'minimal' ? 'minimal' : 'regular';
+  const countKey = AFFILIATE_CONVERSION_COUNT_KEY(safeType, dateString);
+  await kv.incr(countKey, 1);
+  await kv.expire(countKey, AFFILIATE_CONVERSION_TTL_SECONDS);
+
+  const eventsKey = AFFILIATE_CONVERSION_EVENTS_KEY(dateString);
+  const events = (await kv.get(eventsKey)) || [];
+  const list = Array.isArray(events) ? events : [];
+  list.push({
+    ts: new Date().toISOString(),
+    eventId: String(eventId),
+    conversionType: safeType,
+    amount: Number.isFinite(Number(amount)) ? Number(amount) : amount,
+    currency: currency || 'USD',
+    userEmail: userEmail || null,
+    refId: refId || null,
+    promoCode: promoCode || null,
+    planId: planId || null,
+    eventType: eventType || null
+  });
+  if (list.length > 1000) list.splice(0, list.length - 500);
+  await kv.set(eventsKey, list, { ex: AFFILIATE_CONVERSION_TTL_SECONDS });
+}
+
 /**
  * 購入イベントを処理（X投稿との紐付け）
  * @param {Object} event - Whop Webhookイベントデータ
@@ -221,16 +274,13 @@ async function handlePurchaseEvent(event) {
       utmContent: conversionData.utmContent,
       xPostInfo: conversionData.xPostInfo,
     });
+
+    const dateString = new Date().toISOString().split('T')[0];
+    const conversionType = resolveConversionType(conversionData.planId, conversionData.amount);
     
     // KPI追跡: コンバージョンを記録
     try {
       const { recordConversion } = require('./analytics-dashboard');
-      const dateString = new Date().toISOString().split('T')[0];
-      
-      // プランIDから無料版/有料版を判定
-      const planId = conversionData.planId || '';
-      const isMinimal = planId.includes('minimal') || planId.includes('free') || conversionData.amount === 0;
-      const conversionType = isMinimal ? 'minimal' : 'regular';
       
       await recordConversion(conversionType, dateString, {
         source: utmSource || 'unknown',
@@ -280,6 +330,27 @@ async function handlePurchaseEvent(event) {
           });
           if (fpResult.ok) {
             console.log('[Whop Webhook] ✅ FirstPromoter track/sale sent:', fpResult.status, eventId);
+            if (fpResult.status === 200) {
+              await recordAffiliateAttributedConversion({
+                dateString,
+                conversionType,
+                eventId,
+                amount: amountNum,
+                currency,
+                userEmail: conversionData.userEmail,
+                refId,
+                promoCode,
+                planId: conversionData.planId,
+                eventType: type
+              });
+              console.log('[Whop Webhook] ✅ Affiliate-attributed conversion recorded:', {
+                conversionType,
+                dateString,
+                eventId
+              });
+            } else if (fpResult.status === 204) {
+              console.log('[Whop Webhook] ℹ️ FirstPromoter track/sale returned 204 (non-attributed sale):', eventId);
+            }
             if (kv && fpDedupKeys.length > 0) {
               await Promise.all(fpDedupKeys.map((k) => kv.set(k, '1', { ex: 86400 * 7 }))).catch((e) => console.warn('[Whop Webhook] fp dedup kv set:', e?.message));
             }

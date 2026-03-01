@@ -4,9 +4,17 @@
  * 参照: docs/INTEGRATION_WHOP_X_FIRSTPROMOTER.md §3, §5
  */
 const { kv } = require("../utils/kv");
+const {
+  normalizeFirstPromoterEventType,
+  isPromoterAcceptedEvent
+} = require("../services/firstpromoter/events");
 
 const WEBHOOK_SECRET = process.env.FIRSTPROMOTER_WEBHOOK_SECRET;
 const KV_PREFIX = "firstpromoter:";
+const KV_KEY_EVENTS_LIST = `${KV_PREFIX}events:list`;
+const KV_KEY_PROMOTER_ACCEPTED_LIST = `${KV_PREFIX}promoter_accepted:list`;
+const KV_KEY_SIGNUP_REFS_LIST = `${KV_PREFIX}signup_refs:list`;
+const KV_KEY_SIGNUP_REF = (ref) => `${KV_PREFIX}signup:ref:${String(ref)}`;
 
 function getPayload(req) {
   if (typeof req.body === "object" && req.body !== null) return req.body;
@@ -39,6 +47,8 @@ module.exports = async function handler(req, res) {
   }
 
   const eventType = payload.type || payload.event_type || payload.event;
+  const normalizedEventType = normalizeFirstPromoterEventType(eventType);
+  const promoterAccepted = isPromoterAcceptedEvent(eventType);
   const promoterId = payload.promoter_id ?? payload.promoter?.id;
   const email = payload.email ?? payload.promoter?.email;
   const acceptedAt = payload.created_at ?? payload.accepted_at ?? new Date().toISOString();
@@ -57,32 +67,63 @@ module.exports = async function handler(req, res) {
         const key = `${KV_PREFIX}promoter:${promoterId || email}`;
         await kv.set(key, {
           eventType,
+          normalizedEventType,
+          promoterAccepted,
           promoterId,
           email: email || null,
           acceptedAt,
           rawType: eventType,
           ref: ref ?? null
         }, { ex: 86400 * 365 });
-        const listKey = `${KV_PREFIX}events:list`;
-        const list = (await kv.get(listKey)) || [];
-        list.push({ eventType, promoterId, email, acceptedAt: acceptedAt.slice(0, 19), ref: ref ?? null });
+        const list = (await kv.get(KV_KEY_EVENTS_LIST)) || [];
+        list.push({
+          eventType,
+          normalizedEventType,
+          promoterAccepted,
+          promoterId,
+          email,
+          acceptedAt: acceptedAt.slice(0, 19),
+          ref: ref ?? null
+        });
         if (list.length > 1000) list.splice(0, list.length - 500);
-        await kv.set(listKey, list, { ex: 86400 * 30 });
+        await kv.set(KV_KEY_EVENTS_LIST, list, { ex: 86400 * 30 });
 
-        // ref ありなら DM 送信ログと突き合わせ可能に（affiliate-recruit-funnel 用）
-        if (ref) {
-          const refKey = `${KV_PREFIX}signup:ref:${String(ref)}`;
+        // 「登録」は Promoter Accepted のみを別キーで保存（集計定義を固定）
+        if (promoterAccepted) {
+          const acceptedList = (await kv.get(KV_KEY_PROMOTER_ACCEPTED_LIST)) || [];
+          acceptedList.push({
+            eventType,
+            normalizedEventType,
+            promoterId,
+            email,
+            acceptedAt: acceptedAt.slice(0, 19),
+            ref: ref ?? null
+          });
+          if (acceptedList.length > 1000) acceptedList.splice(0, acceptedList.length - 500);
+          await kv.set(KV_KEY_PROMOTER_ACCEPTED_LIST, acceptedList, { ex: 86400 * 30 });
+        }
+
+        // ref 紐づけ登録も Promoter Accepted のみを対象にする
+        if (promoterAccepted && ref) {
+          const refKey = KV_KEY_SIGNUP_REF(ref);
           await kv.set(
             refKey,
-            { ref: String(ref), promoterId, email: email || null, acceptedAt, eventType },
+            {
+              ref: String(ref),
+              promoterId,
+              email: email || null,
+              acceptedAt,
+              eventType,
+              normalizedEventType,
+              promoterAccepted: true
+            },
             { ex: 86400 * 365 }
           );
-          const refsListKey = `${KV_PREFIX}signup_refs:list`;
-          const refsList = (await kv.get(refsListKey)) || [];
+          const refsList = (await kv.get(KV_KEY_SIGNUP_REFS_LIST)) || [];
           if (!refsList.includes(String(ref))) {
             refsList.push(String(ref));
             if (refsList.length > 500) refsList.splice(0, refsList.length - 400);
-            await kv.set(refsListKey, refsList, { ex: 86400 * 365 });
+            await kv.set(KV_KEY_SIGNUP_REFS_LIST, refsList, { ex: 86400 * 365 });
           }
         }
       } catch (e) {

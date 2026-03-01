@@ -14,6 +14,8 @@ const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${da
 const KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS = "affiliate_recruit:cooldown:op_not_permitted:until_ms";
 const KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL = "affiliate_recruit:cooldown:op_not_permitted:backoff_level";
 const CONVERSION_COUNT_KEY = (type, dateStr) => `conversion:${type}:${dateStr}:count`;
+const AFFILIATE_CONVERSION_COUNT_KEY = (type, dateStr) =>
+  `affiliate_recruit:conversion:affiliate:${type}:${dateStr}:count`;
 
 const KV_KEY_KPI_LATEST = "affiliate_recruit:kpi:latest";
 const KV_KEY_KPI_HISTORY = "affiliate_recruit:kpi:history";
@@ -131,13 +133,25 @@ async function getQueueRuntimeState(now) {
 
 async function getSalesToday(now) {
   const dateStr = now.toISOString().split("T")[0];
-  const [minimalRaw, regularRaw] = await Promise.all([
+  const [affiliateMinimalRaw, affiliateRegularRaw, rawMinimalRaw, rawRegularRaw] = await Promise.all([
+    kv.get(AFFILIATE_CONVERSION_COUNT_KEY("minimal", dateStr)),
+    kv.get(AFFILIATE_CONVERSION_COUNT_KEY("regular", dateStr)),
     kv.get(CONVERSION_COUNT_KEY("minimal", dateStr)),
     kv.get(CONVERSION_COUNT_KEY("regular", dateStr))
   ]);
-  const minimal = parseCount(minimalRaw);
-  const regular = parseCount(regularRaw);
-  return { date: dateStr, minimal, regular, total: minimal + regular };
+  const minimal = parseCount(affiliateMinimalRaw);
+  const regular = parseCount(affiliateRegularRaw);
+  const rawMinimal = parseCount(rawMinimalRaw);
+  const rawRegular = parseCount(rawRegularRaw);
+  return {
+    date: dateStr,
+    minimal,
+    regular,
+    total: minimal + regular,
+    rawMinimal,
+    rawRegular,
+    rawTotal: rawMinimal + rawRegular
+  };
 }
 
 module.exports = async function handler(req, res) {
@@ -182,9 +196,11 @@ module.exports = async function handler(req, res) {
     sentTotal: sent.total,
     clicksUniqueTotal: clicks.totalUnique,
     clicksTotal: clicks.totalClicks,
+    promoterAcceptedTotal: signups.total,
     signupsRawTotal: signups.total,
     signupsAttributedTotal: signupsAttributed.total,
     salesTodayTotal: salesToday.total,
+    salesTodayRawWhopTotal: salesToday.rawTotal,
     clickRateTotal: roundPercent(clicks.totalUnique, sent.total),
     signupPerClickTotal: roundPercent(signupsAttributed.total, clicks.totalUnique),
     signupRateTotal: roundPercent(signupsAttributed.total, sent.total)
@@ -226,6 +242,10 @@ module.exports = async function handler(req, res) {
       previousSnapshot?.summary?.signupsAttributedTotal
     ),
     salesTodayTotal: pickDelta(summary.salesTodayTotal, previousSnapshot?.summary?.salesTodayTotal),
+    salesTodayRawWhopTotal: pickDelta(
+      summary.salesTodayRawWhopTotal,
+      previousSnapshot?.summary?.salesTodayRawWhopTotal
+    ),
     sentToday: pickDelta(runtime.sentToday, previousSnapshot?.runtime?.sentToday)
   };
 

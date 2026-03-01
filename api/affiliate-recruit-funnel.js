@@ -4,6 +4,7 @@
  * 設計: docs/AFFILIATE_RECRUIT_FULL_BLOODFLOW_DASHBOARD_DESIGN.md
  */
 const { kv } = require("../utils/kv");
+const { isPromoterAcceptedEvent } = require("../services/firstpromoter/events");
 
 const RECRUIT_STATS_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
 const SCORE_BANDS = ["0-49", "50-64", "65-79", "80-100"];
@@ -12,11 +13,14 @@ const KV_KEY_STATS_LANG_BAND = (lang, band) => `affiliate_recruit:stats:lang:${l
 const KV_KEY_REF_SENT = (ref) => `affiliate_recruit:ref_sent:${ref}`;
 const KV_KEY_CLICK_REF = (ref) => `affiliate_recruit:click:ref:${ref}`;
 const FIRSTPROMOTER_EVENTS_LIST = "firstpromoter:events:list";
+const FIRSTPROMOTER_PROMOTER_ACCEPTED_LIST = "firstpromoter:promoter_accepted:list";
 const FIRSTPROMOTER_SIGNUP_REFS_LIST = "firstpromoter:signup_refs:list";
 const FIRSTPROMOTER_SIGNUP_REF = (ref) => `firstpromoter:signup:ref:${ref}`;
 const AFFILIATE_RECRUIT_CLICK_REFS_LIST = "affiliate_recruit:click_refs:list";
 const AFFILIATE_RECRUIT_CLICK_EVENTS_LIST = "affiliate_recruit:click_events:list";
 const CONVERSION_COUNT_KEY = (type, dateStr) => `conversion:${type}:${dateStr}:count`;
+const AFFILIATE_CONVERSION_COUNT_KEY = (type, dateStr) =>
+  `affiliate_recruit:conversion:affiliate:${type}:${dateStr}:count`;
 const SALES_DAYS = 30;
 
 function parseCount(v) {
@@ -33,6 +37,11 @@ function parseObject(value) {
   } catch (_) {
     return null;
   }
+}
+
+function resolveEventType(row) {
+  if (!row || typeof row !== "object") return "";
+  return row.eventType || row.event_type || row.type || row.rawType || row.event || "";
 }
 
 function getScoreBand(score) {
@@ -87,8 +96,17 @@ async function getSentStats() {
 }
 
 async function getSignupsStats() {
+  const acceptedList = await kv.get(FIRSTPROMOTER_PROMOTER_ACCEPTED_LIST);
+  if (Array.isArray(acceptedList)) {
+    return {
+      total: acceptedList.length,
+      recentEvents: acceptedList.slice(-20).reverse()
+    };
+  }
+
+  // 後方互換: 旧データしかない場合は events:list から Promoter Accepted を抽出
   const list = await kv.get(FIRSTPROMOTER_EVENTS_LIST);
-  const arr = Array.isArray(list) ? list : [];
+  const arr = Array.isArray(list) ? list.filter((row) => isPromoterAcceptedEvent(resolveEventType(row))) : [];
   return {
     total: arr.length,
     recentEvents: arr.slice(-20).reverse()
@@ -102,8 +120,15 @@ async function getSignupsAttributed() {
   const byLangScore = createByLangScoreZero();
   let total = 0;
   for (const ref of refsList) {
-    const sentRow = await kv.get(KV_KEY_REF_SENT(ref));
-    if (!sentRow) continue;
+    const [sentRow, signupRow] = await Promise.all([
+      kv.get(KV_KEY_REF_SENT(ref)),
+      kv.get(FIRSTPROMOTER_SIGNUP_REF(ref))
+    ]);
+    if (!sentRow || !signupRow) continue;
+
+    const signup = parseObject(signupRow);
+    if (!signup || !isPromoterAcceptedEvent(resolveEventType(signup))) continue;
+
     let parsed;
     try {
       parsed = typeof sentRow === "string" ? JSON.parse(sentRow) : sentRow;
@@ -190,23 +215,46 @@ async function getRecentClickEvents() {
 async function getSalesStats() {
   let totalMinimal = 0;
   let totalRegular = 0;
+  let rawTotalMinimal = 0;
+  let rawTotalRegular = 0;
   const byDate = [];
 
   for (let i = 0; i < SALES_DAYS; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().split("T")[0];
-    const minimal = parseCount(await kv.get(CONVERSION_COUNT_KEY("minimal", dateStr)));
-    const regular = parseCount(await kv.get(CONVERSION_COUNT_KEY("regular", dateStr)));
+    const [minimalRaw, regularRaw, rawMinimalRaw, rawRegularRaw] = await Promise.all([
+      kv.get(AFFILIATE_CONVERSION_COUNT_KEY("minimal", dateStr)),
+      kv.get(AFFILIATE_CONVERSION_COUNT_KEY("regular", dateStr)),
+      kv.get(CONVERSION_COUNT_KEY("minimal", dateStr)),
+      kv.get(CONVERSION_COUNT_KEY("regular", dateStr))
+    ]);
+    const minimal = parseCount(minimalRaw);
+    const regular = parseCount(regularRaw);
+    const rawMinimal = parseCount(rawMinimalRaw);
+    const rawRegular = parseCount(rawRegularRaw);
     totalMinimal += minimal;
     totalRegular += regular;
-    byDate.push({ date: dateStr, minimal, regular });
+    rawTotalMinimal += rawMinimal;
+    rawTotalRegular += rawRegular;
+    byDate.push({
+      date: dateStr,
+      minimal,
+      regular,
+      total: minimal + regular,
+      rawMinimal,
+      rawRegular,
+      rawTotal: rawMinimal + rawRegular
+    });
   }
 
   return {
     total: totalMinimal + totalRegular,
     minimal: totalMinimal,
     regular: totalRegular,
+    rawTotal: rawTotalMinimal + rawTotalRegular,
+    rawMinimal: rawTotalMinimal,
+    rawRegular: rawTotalRegular,
     lastNDays: SALES_DAYS,
     byDate: byDate.reverse()
   };
@@ -236,7 +284,16 @@ const handler = async function (req, res) {
         recentClicks: [],
         recentEvents: []
       },
-      sales: { total: 0, minimal: 0, regular: 0, lastNDays: SALES_DAYS, byDate: [] }
+      sales: {
+        total: 0,
+        minimal: 0,
+        regular: 0,
+        rawTotal: 0,
+        rawMinimal: 0,
+        rawRegular: 0,
+        lastNDays: SALES_DAYS,
+        byDate: []
+      }
     });
   }
 
@@ -283,8 +340,9 @@ const handler = async function (req, res) {
     sales,
     meta: {
       description:
-        "Affiliate recruit funnel: sent DMs, ref-attributed clicks (DM→LP click), FirstPromoter signups, ref-attributed signups (DM→LP→Signup), Whop sales. Ref = author_id on invite URL.",
-      salesSource: "conversion:minimal|regular:YYYY-MM-DD:count (from Whop webhook)"
+        "Affiliate recruit funnel: sent DMs, ref-attributed clicks (DM→LP click), Promoter Accepted signups, ref-attributed signups (DM→LP→Signup), affiliate-attributed sales. Ref = author_id on invite URL.",
+      salesSource:
+        "affiliate_recruit:conversion:affiliate:minimal|regular:YYYY-MM-DD:count (track/sale=200). rawWhopSales also available from conversion:minimal|regular:YYYY-MM-DD:count."
     }
   });
 };
