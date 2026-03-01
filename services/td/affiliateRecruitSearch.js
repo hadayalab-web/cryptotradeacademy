@@ -46,33 +46,66 @@ const SEARCH_KEYWORDS_BY_LANG = {
   ]
 };
 
+// 能動的な「案件探索中」シグナル。高意図候補を先に拾う。
+const SEARCH_INTENT_ACTION_KEYWORDS_BY_LANG = {
+  en: [
+    "looking for affiliate",
+    "open to collab",
+    "dm open for collab",
+    "affiliate opportunities",
+    "best affiliate program"
+  ],
+  ja: ["アフィリエイト募集", "提携先 募集", "案件 募集", "コラボ募集", "案件探し"],
+  ko: ["제휴 모집", "파트너 모집", "콜라보 모집", "제휴 찾는 중"],
+  es: [
+    "busco programa de afiliados",
+    "buscando afiliados",
+    "colaboracion abierta",
+    "dm abierto para colaboracion"
+  ],
+  pt: [
+    "procuro programa de afiliados",
+    "buscando afiliados",
+    "parceria aberta",
+    "dm aberto para parceria"
+  ],
+  ar: ["ابحث عن برنامج افلييت", "ابحث عن شراكة", "مفتوح للتعاون", "الرسائل مفتوحة للتعاون"]
+};
+
 // 高意図2軸（必須）:
 // - group1: すでに提携文脈にいる人
 // - group2: 報酬/案件条件を探している人
 // 1言語1クエリ時は group1 AND group2 を満たす投稿に寄せる。
 const SEARCH_REQUIRED_GROUPS_BY_LANG = {
   en: [
-    ["affiliate program", "partner program", "referral program", "affiliate network"],
+    [
+      "looking for affiliate",
+      "open to collab",
+      "affiliate program",
+      "partner program",
+      "referral program",
+      "affiliate network"
+    ],
     ["revshare", "revenue share", "recurring commission", "lifetime commission", "cpa offer", "cpl offer", "cps offer", "high payout affiliate", "high ticket affiliate", "whop affiliate"]
   ],
   ja: [
-    ["アフィリエイト案件", "アフィリエイト募集", "提携プログラム", "パートナープログラム"],
+    ["アフィリエイト案件", "アフィリエイト募集", "提携先 募集", "提携プログラム", "パートナープログラム"],
     ["成果報酬", "リカーリング報酬", "継続報酬", "高単価アフィリエイト", "CPA案件", "CPL案件", "CPS案件", "Whopアフィリエイト"]
   ],
   ko: [
-    ["제휴 프로그램", "파트너 프로그램", "추천 프로그램"],
+    ["제휴 모집", "콜라보 모집", "제휴 프로그램", "파트너 프로그램", "추천 프로그램"],
     ["레브쉐어", "수익 쉐어", "리카링 수수료", "반복 수수료", "고수익 제휴", "고단가 제휴", "CPA 오퍼", "CPL 오퍼", "CPS 오퍼", "Whop 제휴"]
   ],
   es: [
-    ["programa de afiliados", "programa de socios", "programa de referidos", "network de afiliados"],
+    ["busco programa de afiliados", "colaboracion abierta", "programa de afiliados", "programa de socios", "programa de referidos", "network de afiliados"],
     ["revshare", "revenue share", "comision recurrente", "comision de por vida", "oferta cpa", "oferta cpl", "oferta cps", "afiliado alto payout", "whop afiliados"]
   ],
   pt: [
-    ["programa de afiliados", "programa de parceiros", "programa de indicacao", "rede de afiliados"],
+    ["procuro programa de afiliados", "parceria aberta", "programa de afiliados", "programa de parceiros", "programa de indicacao", "rede de afiliados"],
     ["revshare", "revenue share", "comissao recorrente", "comissao vitalicia", "oferta cpa", "oferta cpl", "oferta cps", "afiliado alto payout", "whop afiliado"]
   ],
   ar: [
-    ["برنامج افلييت", "برنامج شراكة", "برنامج احالة", "شريك احالة"],
+    ["ابحث عن برنامج افلييت", "مفتوح للتعاون", "برنامج افلييت", "برنامج شراكة", "برنامج احالة", "شريك احالة"],
     ["عمولة متكررة", "عمولة شهرية", "عمولة مدى الحياة", "ربح متكرر", "عرض cpa", "عرض cpl", "عرض cps", "whop affiliate"]
   ]
 };
@@ -117,6 +150,15 @@ function uniqueList(items) {
   return Array.from(new Set(normalized));
 }
 
+function getSearchKeywords(lang) {
+  const base = SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en;
+  const intent =
+    SEARCH_INTENT_ACTION_KEYWORDS_BY_LANG[lang] ||
+    SEARCH_INTENT_ACTION_KEYWORDS_BY_LANG.en ||
+    [];
+  return uniqueList([...intent, ...base]);
+}
+
 function getSearchSuffixParts(lang) {
   const negatives = SEARCH_NEGATIVE_TERMS_BY_LANG[lang] || SEARCH_NEGATIVE_TERMS_BY_LANG.en || [];
   const negativeTerms = uniqueList([...SEARCH_NEGATIVE_COMMON_TERMS, ...negatives]);
@@ -138,12 +180,12 @@ function buildSearchQueriesSingle(lang) {
     SEARCH_REQUIRED_GROUPS_BY_LANG[lang] || SEARCH_REQUIRED_GROUPS_BY_LANG.en || [];
   let requiredGroups = requiredGroupsRaw.map((group) => uniqueList(group));
   if (requiredGroups.length < 2) {
-    const kw = uniqueList(SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en);
+    const kw = getSearchKeywords(lang);
     const mid = Math.max(1, Math.floor(kw.length / 2));
     requiredGroups = [kw.slice(0, mid), kw.slice(mid)];
   }
 
-  const kw = uniqueList(SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en);
+  const kw = getSearchKeywords(lang);
   const requiredSet = new Set(requiredGroups.flat().map((v) => String(v).toLowerCase()));
   const optionalTerms = kw.filter((term) => !requiredSet.has(String(term).toLowerCase()));
   let suffixParts = getSearchSuffixParts(lang);
@@ -203,7 +245,7 @@ function buildSearchQueriesSingle(lang) {
 
 /** 従来: バケット分割で複数クエリ（Read 多め） */
 function buildSearchQueriesBucketed(lang) {
-  const kw = SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en;
+  const kw = getSearchKeywords(lang);
   const suffix = getSearchSuffixParts(lang).join(" ");
   const buckets = chunkArray(kw, SEARCH_QUERY_BUCKET_SIZE);
   const queries = [];

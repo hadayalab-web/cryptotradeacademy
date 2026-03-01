@@ -101,6 +101,11 @@ const REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER = Math.max(
   Number(process.env.REGION_RECRUIT_RECIPIENT_403_FAILOVER_BREAKER || 2)
 );
 const RECRUIT_DM_ANGLES = ["crypto", "ai_saas", "side_hustle"];
+// 推奨Angleを基準に 80:20（Exploit:Explore）で配信。0 で Explore 無効。
+const RECRUIT_EXPLORE_PERCENT = Math.max(
+  0,
+  Math.min(100, Number(process.env.RECRUIT_RECOMMEND_EXPLORE_PERCENT || 20))
+);
 
 const RECRUIT_STATS_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
 const SCORE_BANDS = ["0-49", "50-64", "65-79", "80-100"];
@@ -180,6 +185,11 @@ function buildEligibleCandidates(allPosts, usersById, lang) {
       reason,
       breakdown,
       angle,
+      recommendedAngle,
+      angleConfidence,
+      exploreEligible,
+      isHighIntent,
+      intentSegment,
       detectedVia
     } = computeCandidateScore(u, tweets, lang);
     const mostRecentTime = tweets.length
@@ -195,6 +205,11 @@ function buildEligibleCandidates(allPosts, usersById, lang) {
       reason,
       breakdown,
       angle: normalizeRecruitAngle(angle) || null,
+      recommendedAngle: normalizeRecruitAngle(recommendedAngle || angle) || null,
+      angleConfidence: Number.isFinite(Number(angleConfidence)) ? Number(angleConfidence) : 0,
+      exploreEligible: Boolean(exploreEligible),
+      isHighIntent: Boolean(isHighIntent),
+      intentSegment: intentSegment || null,
       detectedVia: detectedVia || null,
       priority: score != null ? score / 100 : 0,
       mostRecentTime
@@ -243,9 +258,11 @@ async function isAlreadySent(handle) {
 }
 
 /**
- * 送信済みマーク。payload を渡すと送信ログとして lang/score/priority/author_id/angle/dm_variant/detected_via を保存（返信率・登録率の国×言語×訴求軸観測用）
+ * 送信済みマーク。payload を渡すと送信ログとして
+ * lang/score/priority/author_id/angle/recommended_angle/angle_mode/dm_variant/detected_via
+ * を保存（返信率・登録率の国×言語×訴求軸観測用）
  * @param {string} handle - 送信先 @username
- * @param {{ lang?: string; score?: number; priority?: number; author_id?: string; angle?: string; dm_variant?: string; detected_via?: string }} [payload] - 検索時の言語・スコア・優先度・author_id・訴求軸・DMバリアント・角度検出経路
+ * @param {{ lang?: string; score?: number; priority?: number; author_id?: string; angle?: string; recommended_angle?: string; angle_mode?: string; angle_confidence?: number; is_high_intent?: boolean; intent_segment?: string; dm_variant?: string; detected_via?: string }} [payload] - 検索時の言語・スコア・優先度・author_id・訴求軸・推奨軸・送信モード・意図セグメント・DMバリアント・角度検出経路
  */
 async function markSent(handle, payload = {}) {
   if (!kv) return;
@@ -260,6 +277,11 @@ async function markSent(handle, payload = {}) {
           priority: payload.priority ?? null,
           author_id: payload.author_id ?? null,
           angle: payload.angle ?? null,
+          recommended_angle: payload.recommended_angle ?? null,
+          angle_mode: payload.angle_mode ?? null,
+          angle_confidence: payload.angle_confidence ?? null,
+          is_high_intent: payload.is_high_intent ?? null,
+          intent_segment: payload.intent_segment ?? null,
           dm_variant: payload.dm_variant ?? null,
           detected_via: payload.detected_via ?? null
         })
@@ -279,6 +301,11 @@ async function saveRefSent(authorId, data) {
         score: data.score ?? null,
         priority: data.priority ?? null,
         angle: data.angle ?? null,
+        recommended_angle: data.recommended_angle ?? null,
+        angle_mode: data.angle_mode ?? null,
+        angle_confidence: data.angle_confidence ?? null,
+        is_high_intent: data.is_high_intent ?? null,
+        intent_segment: data.intent_segment ?? null,
         dm_variant: data.dm_variant ?? null,
         detected_via: data.detected_via ?? null,
         ts: Date.now()
@@ -338,20 +365,74 @@ function normalizeRecruitAngle(angle) {
   return RECRUIT_DM_ANGLES.includes(normalized) ? normalized : null;
 }
 
+function hashStringToUint32(raw) {
+  const text = String(raw || "");
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) >>> 0;
+  }
+  return hash >>> 0;
+}
+
 function pickRecruitAngleByKey(key) {
   const raw = String(key || "");
   if (!raw) return "crypto";
-  let hash = 0;
-  for (let i = 0; i < raw.length; i += 1) {
-    hash = ((hash << 5) - hash + raw.charCodeAt(i)) >>> 0;
-  }
+  const hash = hashStringToUint32(raw);
   return RECRUIT_DM_ANGLES[hash % RECRUIT_DM_ANGLES.length];
 }
 
+function pickRecruitAngleDecisionFromItem(item) {
+  const key = String(item?.author_id || item?.username || "");
+  const recommended = normalizeRecruitAngle(
+    item?.recommended_angle || item?.recommendedAngle || item?.angle
+  );
+  const fallback = pickRecruitAngleByKey(key);
+  const baseAngle = recommended || fallback;
+  const confidenceRaw = Number(item?.angle_confidence ?? item?.angleConfidence);
+  const lowConfidence = Number.isFinite(confidenceRaw) ? confidenceRaw <= 1 : false;
+  const exploreEligible = Boolean(item?.explore_eligible ?? item?.exploreEligible) || lowConfidence;
+
+  if (!exploreEligible || RECRUIT_EXPLORE_PERCENT <= 0 || !key) {
+    return {
+      angle: baseAngle,
+      angleMode: "exploit",
+      recommendedAngle: baseAngle,
+      exploreEligible
+    };
+  }
+
+  const bucket = hashStringToUint32(`${key}:angle_mode`) % 100;
+  const shouldExplore = bucket < RECRUIT_EXPLORE_PERCENT;
+  if (!shouldExplore) {
+    return {
+      angle: baseAngle,
+      angleMode: "exploit",
+      recommendedAngle: baseAngle,
+      exploreEligible
+    };
+  }
+
+  const alternatives = RECRUIT_DM_ANGLES.filter((angle) => angle !== baseAngle);
+  if (!alternatives.length) {
+    return {
+      angle: baseAngle,
+      angleMode: "exploit",
+      recommendedAngle: baseAngle,
+      exploreEligible
+    };
+  }
+
+  const altIndex = hashStringToUint32(`${key}:angle_explore`) % alternatives.length;
+  return {
+    angle: alternatives[altIndex],
+    angleMode: "explore",
+    recommendedAngle: baseAngle,
+    exploreEligible
+  };
+}
+
 function pickRecruitAngleFromItem(item) {
-  const fromItem = normalizeRecruitAngle(item?.angle);
-  if (fromItem) return fromItem;
-  return pickRecruitAngleByKey(item?.author_id || item?.username);
+  return pickRecruitAngleDecisionFromItem(item).angle;
 }
 
 function parseQueueValue(rawValue) {
@@ -579,6 +660,13 @@ module.exports = async function handler(req, res) {
           score: c.score,
           breakdown: c.breakdown,
           angle: normalizeRecruitAngle(c.angle) || pickRecruitAngleByKey(c.author_id || c.username),
+          recommended_angle:
+            normalizeRecruitAngle(c.recommendedAngle || c.angle) ||
+            pickRecruitAngleByKey(c.author_id || c.username),
+          angle_confidence: c.angleConfidence ?? 0,
+          explore_eligible: Boolean(c.exploreEligible),
+          is_high_intent: Boolean(c.isHighIntent),
+          intent_segment: c.intentSegment || null,
           detected_via: c.detectedVia || "default"
         });
       }
@@ -703,6 +791,13 @@ module.exports = async function handler(req, res) {
           score: c.score,
           breakdown: c.breakdown,
           angle: normalizeRecruitAngle(c.angle) || pickRecruitAngleByKey(c.author_id || c.username),
+          recommended_angle:
+            normalizeRecruitAngle(c.recommendedAngle || c.angle) ||
+            pickRecruitAngleByKey(c.author_id || c.username),
+          angle_confidence: c.angleConfidence ?? 0,
+          explore_eligible: Boolean(c.exploreEligible),
+          is_high_intent: Boolean(c.isHighIntent),
+          intent_segment: c.intentSegment || null,
           detected_via: c.detectedVia || "default"
         });
       }
@@ -876,7 +971,8 @@ module.exports = async function handler(req, res) {
       const item = queue.shift();
       if (!item?.username) continue;
       sendStatsByLang.en.attempted += 1;
-      const angle = pickRecruitAngleFromItem(item);
+      const angleDecision = pickRecruitAngleDecisionFromItem(item);
+      const angle = angleDecision.angle;
       const inviteUrlRaw = getFirstPromoterInviteUrl(lang, { ref: item.author_id });
       const inviteUrl = buildTrackedInviteUrl(req, inviteUrlRaw, {
         ref: item.author_id,
@@ -970,6 +1066,11 @@ module.exports = async function handler(req, res) {
         priority: item.score != null ? item.score / 100 : 0,
         author_id: item.author_id,
         angle,
+        recommended_angle: angleDecision.recommendedAngle,
+        angle_mode: angleDecision.angleMode,
+        angle_confidence: item.angle_confidence ?? null,
+        is_high_intent: item.is_high_intent ?? null,
+        intent_segment: item.intent_segment ?? null,
         dm_variant: dmVariant,
         detected_via: item.detected_via || "default"
       });
@@ -979,6 +1080,11 @@ module.exports = async function handler(req, res) {
         score: item.score,
         priority: item.score != null ? item.score / 100 : 0,
         angle,
+        recommended_angle: angleDecision.recommendedAngle,
+        angle_mode: angleDecision.angleMode,
+        angle_confidence: item.angle_confidence ?? null,
+        is_high_intent: item.is_high_intent ?? null,
+        intent_segment: item.intent_segment ?? null,
         dm_variant: dmVariant,
         detected_via: item.detected_via || "default"
       });
@@ -1026,7 +1132,8 @@ module.exports = async function handler(req, res) {
           const item = rQueue.shift();
           if (!item?.username) continue;
           sendStatsByLang[regionLang].attempted += 1;
-          const angle = pickRecruitAngleFromItem(item);
+          const angleDecision = pickRecruitAngleDecisionFromItem(item);
+          const angle = angleDecision.angle;
           const inviteUrlRaw = getFirstPromoterInviteUrl(regionLang, { ref: item.author_id });
           const inviteUrl = buildTrackedInviteUrl(req, inviteUrlRaw, {
             ref: item.author_id,
@@ -1124,6 +1231,11 @@ module.exports = async function handler(req, res) {
             priority: item.score != null ? item.score / 100 : 0,
             author_id: item.author_id,
             angle,
+            recommended_angle: angleDecision.recommendedAngle,
+            angle_mode: angleDecision.angleMode,
+            angle_confidence: item.angle_confidence ?? null,
+            is_high_intent: item.is_high_intent ?? null,
+            intent_segment: item.intent_segment ?? null,
             dm_variant: dmVariant,
             detected_via: item.detected_via || "default"
           });
@@ -1133,6 +1245,11 @@ module.exports = async function handler(req, res) {
             score: item.score,
             priority: item.score != null ? item.score / 100 : 0,
             angle,
+            recommended_angle: angleDecision.recommendedAngle,
+            angle_mode: angleDecision.angleMode,
+            angle_confidence: item.angle_confidence ?? null,
+            is_high_intent: item.is_high_intent ?? null,
+            intent_segment: item.intent_segment ?? null,
             dm_variant: dmVariant,
             detected_via: item.detected_via || "default"
           });
@@ -1360,7 +1477,8 @@ module.exports = async function handler(req, res) {
           readPages: pagesFetched
         });
       }
-      const angle = pickRecruitAngleFromItem(c);
+      const angleDecision = pickRecruitAngleDecisionFromItem(c);
+      const angle = angleDecision.angle;
       const inviteUrlDryRunRaw = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
       const inviteUrlDryRun = buildTrackedInviteUrl(req, inviteUrlDryRunRaw, {
         ref: c.author_id,
@@ -1389,6 +1507,11 @@ module.exports = async function handler(req, res) {
           priority: c.priority,
           breakdown: c.breakdown,
           dmAngle: angle,
+          recommendedAngle: angleDecision.recommendedAngle,
+          angleMode: angleDecision.angleMode,
+          angleConfidence: c.angleConfidence ?? 0,
+          isHighIntent: Boolean(c.isHighIntent),
+          intentSegment: c.intentSegment || null,
           dmVariantIndex: variant,
           dmVariant: dmVariant,
           dmVariantName: variantName,
@@ -1407,7 +1530,8 @@ module.exports = async function handler(req, res) {
       if (await isAlreadySent(c.username)) continue;
       if (await isDmNg(c.author_id)) continue;
 
-      const angle = pickRecruitAngleFromItem(c);
+      const angleDecision = pickRecruitAngleDecisionFromItem(c);
+      const angle = angleDecision.angle;
       const inviteUrlRaw = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
       const inviteUrl = buildTrackedInviteUrl(req, inviteUrlRaw, {
         ref: c.author_id,
@@ -1466,6 +1590,11 @@ module.exports = async function handler(req, res) {
         priority: c.priority,
         author_id: c.author_id,
         angle,
+        recommended_angle: angleDecision.recommendedAngle,
+        angle_mode: angleDecision.angleMode,
+        angle_confidence: c.angleConfidence ?? null,
+        is_high_intent: c.isHighIntent ?? null,
+        intent_segment: c.intentSegment ?? null,
         dm_variant: dmVariant,
         detected_via: c.detectedVia || "default"
       });
@@ -1475,6 +1604,11 @@ module.exports = async function handler(req, res) {
         score: c.score,
         priority: c.priority,
         angle,
+        recommended_angle: angleDecision.recommendedAngle,
+        angle_mode: angleDecision.angleMode,
+        angle_confidence: c.angleConfidence ?? null,
+        is_high_intent: c.isHighIntent ?? null,
+        intent_segment: c.intentSegment ?? null,
         dm_variant: dmVariant,
         detected_via: c.detectedVia || "default"
       });
@@ -1482,7 +1616,22 @@ module.exports = async function handler(req, res) {
       await incrementTodaySentCount();
       if (!isEnBatchRun) await incrementHourSent(dateStr, utcHour);
       sentCount += 1;
-      console.log("[affiliate-recruit-run] sent:", c.username, "lang:", lang, "angle:", angle, "dmVariant:", dmVariant, "detectedVia:", c.detectedVia || "default");
+      console.log(
+        "[affiliate-recruit-run] sent:",
+        c.username,
+        "lang:",
+        lang,
+        "angle:",
+        angle,
+        "angleMode:",
+        angleDecision.angleMode,
+        "recommendedAngle:",
+        angleDecision.recommendedAngle,
+        "dmVariant:",
+        dmVariant,
+        "detectedVia:",
+        c.detectedVia || "default"
+      );
       sentHandles.push(c.username);
     }
 

@@ -111,6 +111,60 @@ const ACTIVE_AFFILIATE_KEYWORDS = [
   "رابط الإحالة"
 ];
 
+/** 「案件を探している」顕在需要シグナル。 */
+const SEEKING_INTENT_KEYWORDS = [
+  "looking for affiliate",
+  "looking for partners",
+  "open to collab",
+  "dm open for collab",
+  "seeking affiliates",
+  "affiliate opportunities",
+  "best affiliate program",
+  "high ticket affiliate",
+  "partner with",
+  "アフィリエイト募集",
+  "案件 募集",
+  "提携先 募集",
+  "提携募集",
+  "コラボ募集",
+  "제휴 모집",
+  "파트너 모집",
+  "콜라보 모집",
+  "제휴 찾는 중",
+  "busco programa de afiliados",
+  "buscando afiliados",
+  "colaboracion abierta",
+  "dm abierto para colaboracion",
+  "procuro programa de afiliados",
+  "buscando afiliados",
+  "parceria aberta",
+  "dm aberto para parceria",
+  "ابحث عن برنامج افلييت",
+  "ابحث عن شراكة",
+  "مفتوح للتعاون",
+  "الرسائل مفتوحة للتعاون"
+];
+
+/** 低意図寄り（メディア/インフルエンサー運用）判定補助。 */
+const INFLUENCER_PROFILE_KEYWORDS = [
+  "influencer",
+  "content creator",
+  "youtuber",
+  "streamer",
+  "podcaster",
+  "newsletter",
+  "kol",
+  "kols",
+  "インフルエンサー",
+  "クリエイター",
+  "유튜버",
+  "크리에이터",
+  "influenciador",
+  "creador de contenido",
+  "criador de conteúdo",
+  "صانع محتوى"
+];
+
 /** 競合・プラットフォーム: すでに販売/紹介を行っている強シグナル。 */
 const COMPETITOR_PLATFORM_KEYWORDS = [
   "gumroad",
@@ -256,6 +310,7 @@ const BR_HOTMART_KEYWORDS = [
 
 const BASE_SCORE = 50;
 const BONUS_COMPETITOR = 20;
+const BONUS_SEEKING_INTENT = 15;
 const BONUS_ACTIVE_AFFILIATE = 15;
 const BONUS_BIO_MATCH = 10;
 const BONUS_HUSTLE_ACTION = 5;
@@ -312,10 +367,14 @@ function pickBestAngle(angleScores, fallbackAngle = "crypto") {
   entries.sort((a, b) => b[1] - a[1]);
   const best = entries[0];
   const second = entries[1];
-  const tied = Boolean(second && second[1] === best[1] && best[1] > 0);
+  const bestScore = Number(best?.[1] || 0);
+  const secondScore = Number(second?.[1] || 0);
+  const tied = Boolean(second && secondScore === bestScore && bestScore > 0);
   return {
     angle: normalizeRecruitAngle(best[0] || fallbackAngle),
-    score: Number(best[1] || 0),
+    score: bestScore,
+    secondScore,
+    confidence: Math.max(0, bestScore - secondScore),
     tied
   };
 }
@@ -331,7 +390,10 @@ function detectRecruitAngle(user, userTweets = []) {
   if (bestQuery.score > 0 && !bestQuery.tied) {
     return {
       angle: bestQuery.angle,
+      recommendedAngle: bestQuery.angle,
       detectedVia: "query",
+      angleConfidence: bestQuery.confidence,
+      exploreEligible: bestQuery.confidence <= 1,
       angleScores: { query: queryScores, bio: null }
     };
   }
@@ -343,7 +405,10 @@ function detectRecruitAngle(user, userTweets = []) {
   if (bestBio.score > 0 && !bestBio.tied) {
     return {
       angle: bestBio.angle,
+      recommendedAngle: bestBio.angle,
       detectedVia: "bio",
+      angleConfidence: bestBio.confidence,
+      exploreEligible: bestBio.confidence <= 1,
       angleScores: { query: queryScores, bio: bioScores }
     };
   }
@@ -352,21 +417,30 @@ function detectRecruitAngle(user, userTweets = []) {
   if (bestQuery.score > 0) {
     return {
       angle: bestQuery.angle,
+      recommendedAngle: bestQuery.angle,
       detectedVia: "query",
+      angleConfidence: bestQuery.confidence,
+      exploreEligible: true,
       angleScores: { query: queryScores, bio: bioScores }
     };
   }
   if (bestBio.score > 0) {
     return {
       angle: bestBio.angle,
+      recommendedAngle: bestBio.angle,
       detectedVia: "bio",
+      angleConfidence: bestBio.confidence,
+      exploreEligible: true,
       angleScores: { query: queryScores, bio: bioScores }
     };
   }
 
   return {
     angle: "crypto",
+    recommendedAngle: "crypto",
     detectedVia: "default",
+    angleConfidence: 0,
+    exploreEligible: true,
     angleScores: { query: queryScores, bio: bioScores }
   };
 }
@@ -457,6 +531,21 @@ function scoreCompetitorPlatform(user) {
   return findMatchedKeywords(combined, COMPETITOR_PLATFORM_KEYWORDS, 1).length > 0 ? 1 : 0;
 }
 
+/** 「案件探索中」を示す顕在需要シグナル。 */
+function scoreSeekingIntent(user, userTweets = []) {
+  const text = collectText(user, userTweets);
+  const combined = `${text.descriptionLower} ${text.tweetTextsLower}`;
+  const matches = findMatchedKeywords(combined, SEEKING_INTENT_KEYWORDS, 10).length;
+  if (matches >= 2) return 1;
+  if (matches >= 1) return 0.7;
+  return 0;
+}
+
+/** メディア/インフルエンサー運用寄りの判定補助。 */
+function scoreInfluencerProfile(description) {
+  return findMatchedKeywords(description, INFLUENCER_PROFILE_KEYWORDS, 1).length > 0 ? 1 : 0;
+}
+
 /** リンクなし: プロフィールに URL がなければ 1（売るものがない＝動ける初心者ファイター強シグナル） */
 function scoreNoLink(user) {
   const url = user?.url;
@@ -490,13 +579,23 @@ function scoreHypePain(userTweets = []) {
 function computeCandidateScore(user, userTweets = [], lang = "en") {
   const angleDecision = detectRecruitAngle(user, userTweets);
   const exclusion = checkExclusions(user);
+  const recommendedAngle = angleDecision.recommendedAngle || angleDecision.angle;
+  const angleConfidence = Number.isFinite(Number(angleDecision.angleConfidence))
+    ? Number(angleDecision.angleConfidence)
+    : 0;
+  const exploreEligible = Boolean(angleDecision.exploreEligible);
   if (exclusion.excluded) {
     return {
       score: 0,
       excluded: true,
       reason: exclusion.reason,
       angle: angleDecision.angle,
+      recommendedAngle,
+      angleConfidence,
+      exploreEligible,
       detectedVia: angleDecision.detectedVia,
+      isHighIntent: false,
+      intentSegment: "excluded",
       breakdown: {
         angleScores: angleDecision.angleScores,
         exclusion
@@ -506,19 +605,39 @@ function computeCandidateScore(user, userTweets = [], lang = "en") {
 
   const text = collectText(user, userTweets);
   const competitorScore = scoreCompetitorPlatform(user);
+  const seekingIntentScore = scoreSeekingIntent(user, userTweets);
   const activeAffiliateScore = scoreActiveAffiliate(text.descriptionLower);
   const bioScore = scoreBio(text.descriptionLower);
+  const influencerProfileScore = scoreInfluencerProfile(text.descriptionLower);
   const hustleActionScore = Math.max(
     scoreHustleProfile(text.descriptionLower),
     scoreActionLog(userTweets)
   );
   const riskFactor = getRiskFactor(user, userTweets, lang);
+  const isHighIntent = competitorScore >= 1 || seekingIntentScore >= 0.7;
+  const intentSegment =
+    competitorScore >= 1
+      ? "competitor_users"
+      : seekingIntentScore >= 0.7
+        ? "active_seekers"
+        : hustleActionScore >= 1 || activeAffiliateScore >= 0.7
+          ? "hustlers"
+          : influencerProfileScore >= 1
+            ? "influencers"
+            : "beginners";
 
   const bonusCompetitor = competitorScore * BONUS_COMPETITOR;
+  const bonusSeekingIntent = seekingIntentScore * BONUS_SEEKING_INTENT;
   const bonusActiveAffiliate = activeAffiliateScore * BONUS_ACTIVE_AFFILIATE;
   const bonusBio = bioScore * BONUS_BIO_MATCH;
   const bonusHustleAction = hustleActionScore * BONUS_HUSTLE_ACTION;
-  const rawScore = BASE_SCORE + bonusCompetitor + bonusActiveAffiliate + bonusBio + bonusHustleAction;
+  const rawScore =
+    BASE_SCORE +
+    bonusCompetitor +
+    bonusSeekingIntent +
+    bonusActiveAffiliate +
+    bonusBio +
+    bonusHustleAction;
   const weightedScore = rawScore * riskFactor;
   const score = Math.max(0, Math.min(100, Math.round(weightedScore)));
 
@@ -528,15 +647,23 @@ function computeCandidateScore(user, userTweets = [], lang = "en") {
       excluded: true,
       reason: "score_zero",
       angle: angleDecision.angle,
+      recommendedAngle,
+      angleConfidence,
+      exploreEligible,
       detectedVia: angleDecision.detectedVia,
+      isHighIntent,
+      intentSegment,
       breakdown: {
         base: BASE_SCORE,
         bonusCompetitor,
+        bonusSeekingIntent,
         bonusActiveAffiliate,
         bonusBio,
         bonusHustleAction,
         riskFactor,
-        angleScores: angleDecision.angleScores
+        angleScores: angleDecision.angleScores,
+        isHighIntent,
+        intentSegment
       }
     };
   }
@@ -545,10 +672,16 @@ function computeCandidateScore(user, userTweets = [], lang = "en") {
     score,
     excluded: false,
     angle: angleDecision.angle,
+    recommendedAngle,
+    angleConfidence,
+    exploreEligible,
     detectedVia: angleDecision.detectedVia,
+    isHighIntent,
+    intentSegment,
     breakdown: {
       base: BASE_SCORE,
       bonusCompetitor,
+      bonusSeekingIntent,
       bonusActiveAffiliate,
       bonusBio,
       bonusHustleAction,
@@ -556,16 +689,24 @@ function computeCandidateScore(user, userTweets = [], lang = "en") {
       rawScore: Math.round(rawScore * 100) / 100,
       weightedScore: Math.round(weightedScore * 100) / 100,
       angleScores: angleDecision.angleScores,
+      isHighIntent,
+      intentSegment,
       matched: {
         competitor: findMatchedKeywords(
           `${text.descriptionLower} ${text.urlLower}`,
           COMPETITOR_PLATFORM_KEYWORDS,
           3
         ),
+        seekingIntent: findMatchedKeywords(
+          `${text.descriptionLower} ${text.tweetTextsLower}`,
+          SEEKING_INTENT_KEYWORDS,
+          5
+        ),
         activeAffiliate: findMatchedKeywords(text.descriptionLower, ACTIVE_AFFILIATE_KEYWORDS, 3),
         bio: findMatchedKeywords(text.descriptionLower, BIO_KEYWORDS, 5),
         hustleProfile: findMatchedKeywords(text.descriptionLower, PROFILE_HUSTLE_KEYWORDS, 3),
-        actionLog: findMatchedKeywords(text.tweetTextsLower, ACTION_LOG_KEYWORDS, 3)
+        actionLog: findMatchedKeywords(text.tweetTextsLower, ACTION_LOG_KEYWORDS, 3),
+        influencerProfile: findMatchedKeywords(text.descriptionLower, INFLUENCER_PROFILE_KEYWORDS, 3)
       }
     }
   };
@@ -584,6 +725,8 @@ module.exports = {
   scoreCompetitorPlatform,
   scoreNoLink,
   scoreActiveAffiliate,
+  scoreSeekingIntent,
+  scoreInfluencerProfile,
   scoreActionLog,
   COEFFICIENT_BY_LANG,
   HYPE_PAIN_KEYWORDS,
@@ -592,5 +735,7 @@ module.exports = {
   ACTION_LOG_KEYWORDS,
   PROFILE_HUSTLE_KEYWORDS,
   PROFILE_EXCLUDE_KEYWORDS,
-  COMPETITOR_PLATFORM_KEYWORDS
+  COMPETITOR_PLATFORM_KEYWORDS,
+  SEEKING_INTENT_KEYWORDS,
+  INFLUENCER_PROFILE_KEYWORDS
 };
