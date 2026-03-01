@@ -249,6 +249,20 @@ module.exports = async function handler(req, res) {
     sentToday: pickDelta(runtime.sentToday, previousSnapshot?.runtime?.sentToday)
   };
 
+  // KPIスナップショットの実数値をログに出し、KV set 成否だけでなく中身も追跡可能にする
+  console.log("[affiliate-recruit-kpi] snapshot:", {
+    slot: snapshot.slot,
+    capturedAt: snapshot.capturedAt,
+    summary,
+    runtime: snapshot.runtime,
+    byLang: {
+      sent: sent.byLang,
+      clicksUnique: clicks.byLang,
+      signupsAttributed: signupsAttributed.byLang
+    },
+    deltaSincePrevious: delta
+  });
+
   const response = {
     ok: true,
     collected: true,

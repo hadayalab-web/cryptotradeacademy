@@ -72,10 +72,11 @@ const SEARCH_INTENT_ACTION_KEYWORDS_BY_LANG = {
   ar: ["ابحث عن برنامج افلييت", "ابحث عن شراكة", "مفتوح للتعاون", "الرسائل مفتوحة للتعاون"]
 };
 
-// 高意図2軸（必須）:
+// 高意図2軸:
 // - group1: すでに提携文脈にいる人
 // - group2: 報酬/案件条件を探している人
-// 1言語1クエリ時は group1 AND group2 を満たす投稿に寄せる。
+// 1言語1クエリ時は REQUIRED_GROUP_OPERATOR（既定 OR）で結合し、
+// 「広く取得 → 送信時に絞る」運用を優先する。
 const SEARCH_REQUIRED_GROUPS_BY_LANG = {
   en: [
     [
@@ -134,6 +135,17 @@ const SEARCH_QUERY_BUCKET_SIZE = Math.max(1, Number(process.env.BUZZWEAVE_QUERY_
 const SEARCH_QUERY_MAX_CHARS = Math.max(128, Number(process.env.BUZZWEAVE_QUERY_MAX_CHARS || 480));
 /** true なら 1 言語 1 クエリ（Read 最小化）。false なら従来のバケット分割 */
 const SINGLE_QUERY_PER_LANG = process.env.AFFILIATE_RECRUIT_SINGLE_QUERY !== "0";
+/** strict クエリの必須グループ結合。既定は OR（広く取得して送信時に絞る方針）。 */
+const REQUIRED_GROUP_OPERATOR = String(
+  process.env.AFFILIATE_RECRUIT_REQUIRED_GROUP_OPERATOR || "OR"
+)
+  .toUpperCase()
+  .trim();
+/** 少数ヒット時にも緩和フォールバックを発火させる閾値（0で無効）。 */
+const LOW_HIT_FALLBACK_THRESHOLD = Math.max(
+  0,
+  Number(process.env.AFFILIATE_RECRUIT_LOW_HIT_FALLBACK_THRESHOLD || 2)
+);
 
 function chunkArray(items, size) {
   const chunks = [];
@@ -191,9 +203,10 @@ function buildSearchQueriesSingle(lang) {
   let suffixParts = getSearchSuffixParts(lang);
 
   const renderStrictQuery = () => {
+    const joinToken = REQUIRED_GROUP_OPERATOR === "AND" ? " " : " OR ";
     const requiredExpr = requiredGroups
       .map((group) => `(${group.join(" OR ")})`)
-      .join(" ");
+      .join(joinToken);
     return [requiredExpr, suffixParts.join(" ")].filter(Boolean).join(" ").trim();
   };
 
@@ -323,21 +336,46 @@ async function fetchOneSearchPage(slotLang, options = {}) {
     };
 
     const primaryResult = await executeQuery(query, options.nextToken);
+    const primaryHits = Array.isArray(primaryResult?.data) ? primaryResult.data.length : 0;
 
-    // page1 が 0 件のときだけ、緩和クエリを 1 回だけ試す（Read 追加を最小化）
+    // page1 が low-hit（既定 <=2件）以下のとき、緩和クエリを 1 回だけ試す（Read 追加は最小）
     if (
       !options.nextToken &&
-      (!primaryResult?.data || primaryResult.data.length === 0) &&
+      primaryHits <= LOW_HIT_FALLBACK_THRESHOLD &&
       !primaryResult?.nextToken &&
       Array.isArray(queries) &&
       queries.length > 1 &&
       queries[1]
     ) {
       const fallbackResult = await executeQuery(queries[1], null);
-      if ((fallbackResult?.data && fallbackResult.data.length > 0) || fallbackResult?.nextToken) {
+      const fallbackHits = Array.isArray(fallbackResult?.data) ? fallbackResult.data.length : 0;
+      if (fallbackHits > 0 || fallbackResult?.nextToken) {
+        const mergedById = new Map();
+        const mergedUsersById = new Map();
+        const primaryData = Array.isArray(primaryResult?.data) ? primaryResult.data : [];
+        const fallbackData = Array.isArray(fallbackResult?.data) ? fallbackResult.data : [];
+        for (const row of [...primaryData, ...fallbackData]) {
+          if (!row?.id) continue;
+          if (!mergedById.has(row.id)) mergedById.set(row.id, row);
+        }
+        const primaryUsers = Array.isArray(primaryResult?.includes?.users)
+          ? primaryResult.includes.users
+          : [];
+        const fallbackUsers = Array.isArray(fallbackResult?.includes?.users)
+          ? fallbackResult.includes.users
+          : [];
+        for (const user of [...primaryUsers, ...fallbackUsers]) {
+          if (!user?.id) continue;
+          if (!mergedUsersById.has(user.id)) mergedUsersById.set(user.id, user);
+        }
+        const mergedNextToken = fallbackResult?.nextToken || primaryResult?.nextToken || null;
         return {
-          ...fallbackResult,
-          fallbackQueryUsed: true
+          data: Array.from(mergedById.values()),
+          includes: { users: Array.from(mergedUsersById.values()) },
+          ...(mergedNextToken ? { nextToken: mergedNextToken } : {}),
+          fallbackQueryUsed: true,
+          primaryHits,
+          fallbackHits
         };
       }
     }

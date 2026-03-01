@@ -625,6 +625,9 @@ module.exports = async function handler(req, res) {
       let nextToken = null;
       let allPosts = [];
       const usersById = {};
+      let fallbackPagesUsed = 0;
+      let primaryHitsTotal = 0;
+      let fallbackHitsTotal = 0;
       while (pagesFetched < listPages) {
         const pageResult = await fetchOneSearchPage("en", {
           maxResults: 100,
@@ -641,6 +644,9 @@ module.exports = async function handler(req, res) {
         }
         const pageData = pageResult?.data || [];
         const pageUsers = pageResult?.includes?.users || [];
+        if (pageResult?.fallbackQueryUsed) fallbackPagesUsed += 1;
+        primaryHitsTotal += Number(pageResult?.primaryHits || 0);
+        fallbackHitsTotal += Number(pageResult?.fallbackHits || 0);
         allPosts = allPosts.concat(pageData);
         for (const u of pageUsers) {
           if (u?.id) usersById[u.id] = u;
@@ -690,6 +696,9 @@ module.exports = async function handler(req, res) {
         runAt: now.toISOString(),
         pagesFetched,
         configuredPages: listPages,
+        fallbackPagesUsed,
+        primaryHitsTotal,
+        fallbackHitsTotal,
         fetchedPosts: allPosts.length,
         fetchedUsers: Object.keys(usersById).length,
         eligibleCandidates: eligible.length,
@@ -706,7 +715,7 @@ module.exports = async function handler(req, res) {
       };
       console.log("[affiliate-recruit-run] list summary:", listSummary);
       console.log(
-        `[affiliate-recruit-en-list] utcHour=${utcHour} pages=${pagesFetched}/${listPages} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} addedFresh=${mergeResult.addedFromFresh} retainedPrev=${mergeResult.retainedFromExisting} droppedDup=${mergeResult.droppedDuplicateCount} droppedInvalid=${mergeResult.droppedInvalidCount} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
+        `[affiliate-recruit-en-list] utcHour=${utcHour} pages=${pagesFetched}/${listPages} fallbackPages=${fallbackPagesUsed} primaryHits=${primaryHitsTotal} fallbackHits=${fallbackHitsTotal} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} addedFresh=${mergeResult.addedFromFresh} retainedPrev=${mergeResult.retainedFromExisting} droppedDup=${mergeResult.droppedDuplicateCount} droppedInvalid=${mergeResult.droppedInvalidCount} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
       );
       return res.status(200).json({
         ok: true,
@@ -719,6 +728,9 @@ module.exports = async function handler(req, res) {
         queueLength: queue.length,
         readPage: pagesFetched,
         configuredPages: listPages,
+        fallbackPagesUsed,
+        primaryHitsTotal,
+        fallbackHitsTotal,
         skippedAlreadySent,
         skippedDmNg,
         eligibleCandidates: eligible.length,
@@ -755,6 +767,9 @@ module.exports = async function handler(req, res) {
       let nextToken = null;
       let allPosts = [];
       const usersById = {};
+      let fallbackPagesUsed = 0;
+      let primaryHitsTotal = 0;
+      let fallbackHitsTotal = 0;
       while (pagesFetched < listPages) {
         const pageResult = await fetchOneSearchPage(lang, {
           maxResults: 100,
@@ -772,6 +787,9 @@ module.exports = async function handler(req, res) {
         }
         const pageData = pageResult?.data || [];
         const pageUsers = pageResult?.includes?.users || [];
+        if (pageResult?.fallbackQueryUsed) fallbackPagesUsed += 1;
+        primaryHitsTotal += Number(pageResult?.primaryHits || 0);
+        fallbackHitsTotal += Number(pageResult?.fallbackHits || 0);
         allPosts = allPosts.concat(pageData);
         for (const u of pageUsers) {
           if (u?.id) usersById[u.id] = u;
@@ -821,6 +839,9 @@ module.exports = async function handler(req, res) {
         runAt: now.toISOString(),
         pagesFetched,
         configuredPages: listPages,
+        fallbackPagesUsed,
+        primaryHitsTotal,
+        fallbackHitsTotal,
         fetchedPosts: allPosts.length,
         fetchedUsers: Object.keys(usersById).length,
         eligibleCandidates: eligible.length,
@@ -837,7 +858,7 @@ module.exports = async function handler(req, res) {
       };
       console.log("[affiliate-recruit-run] list summary:", listSummary);
       console.log(
-        `[affiliate-recruit-regions-list] lang=${lang} utcHour=${utcHour} pages=${pagesFetched}/${listPages} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} addedFresh=${mergeResult.addedFromFresh} retainedPrev=${mergeResult.retainedFromExisting} droppedDup=${mergeResult.droppedDuplicateCount} droppedInvalid=${mergeResult.droppedInvalidCount} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
+        `[affiliate-recruit-regions-list] lang=${lang} utcHour=${utcHour} pages=${pagesFetched}/${listPages} fallbackPages=${fallbackPagesUsed} primaryHits=${primaryHitsTotal} fallbackHits=${fallbackHitsTotal} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} addedFresh=${mergeResult.addedFromFresh} retainedPrev=${mergeResult.retainedFromExisting} droppedDup=${mergeResult.droppedDuplicateCount} droppedInvalid=${mergeResult.droppedInvalidCount} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
       );
       return res.status(200).json({
         ok: true,
@@ -852,6 +873,9 @@ module.exports = async function handler(req, res) {
         queueLength: queue.length,
         readPage: pagesFetched,
         configuredPages: listPages,
+        fallbackPagesUsed,
+        primaryHitsTotal,
+        fallbackHitsTotal,
         skippedAlreadySent,
         skippedDmNg,
         eligibleCandidates: eligible.length,
