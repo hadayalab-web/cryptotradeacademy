@@ -48,24 +48,7 @@ const QUEUE_LANGS_ALL = ["en", ...REGION_QUEUE_LANGS];
 const REGION_LIST_SCHEDULE_TEXT = "hourly gross refresh: en+ar+es+pt+ja+ko";
 // DM→登録紐づけ用 KV の有効期限。90 日は送信から登録までの想定期間をカバーしつつストレージを抑える目安。運用指示で固定。短縮したい場合はコードまたは env で変更可。
 const REF_SENT_TTL = 86400 * 90;
-// operation_not_permitted ブレーキは「15分窓カウント + 固定 cooldown」に整理。
-// 旧 ENV EN_RECRUIT_OP_NOT_PERMITTED_BREAKER は後方互換として window breaker に読み替える。
-const DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER = Math.max(
-  1,
-  Number(
-    process.env.EN_RECRUIT_OP_NOT_PERMITTED_WINDOW_BREAKER ||
-    process.env.EN_RECRUIT_OP_NOT_PERMITTED_BREAKER ||
-    3
-  )
-);
-const DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS = Math.max(
-  0,
-  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_COOLDOWN_SEC || 600)
-);
-const DM_OPERATION_NOT_PERMITTED_COOLDOWN_MAX_SECONDS = Math.max(
-  0,
-  Number(process.env.EN_RECRUIT_OP_NOT_PERMITTED_COOLDOWN_MAX_SEC || 1800)
-);
+// operation_not_permitted の停止ブレーカーと cooldown は無効化（停止させない）
 // 送信バースト防止: 15分窓の試行数 cap（成功/失敗を問わない）
 const EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN = Math.max(
   1,
@@ -696,14 +679,6 @@ function parseQueueValue(rawValue) {
   return [];
 }
 
-function computeOpNotPermittedCooldownSeconds(baseSeconds) {
-  const base = Math.max(0, Number(baseSeconds) || 0);
-  if (base <= 0) return 0;
-  const max = Math.max(0, Number(DM_OPERATION_NOT_PERMITTED_COOLDOWN_MAX_SECONDS) || 0);
-  if (max <= 0) return base;
-  return Math.min(base, max);
-}
-
 function sleepMs(ms) {
   const waitMs = Math.max(0, Number(ms) || 0);
   if (waitMs <= 0) return Promise.resolve();
@@ -1261,44 +1236,9 @@ module.exports = async function handler(req, res) {
         cap: EN_QUEUE_DAILY_CAP
       });
     }
-    const opNotPermittedBackoffLevelStored = Math.max(
-      0,
-      parseInt(await kv.get(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL), 10) || 0
-    );
-    if (opNotPermittedBackoffLevelStored > 0) {
-      // 旧バックオフ値が残っていると不必要に停止が長引くため、固定 cooldown モードでクリアする
-      await kv.del(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL);
-      console.log("[affiliate-recruit-run] en-queue-send backoff reset (fixed cooldown mode):", {
-        from: opNotPermittedBackoffLevelStored,
-        to: 0
-      });
-    }
+    await kv.del(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL);
+    await kv.del(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS);
     const opNotPermittedBackoffLevel = 0;
-    const cooldownUntilMsCurrent = Math.max(
-      0,
-      parseInt(await kv.get(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS), 10) || 0
-    );
-    if (
-      DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS > 0 &&
-      cooldownUntilMsCurrent > nowMs
-    ) {
-      const cooldownRemainingSec = Math.ceil((cooldownUntilMsCurrent - nowMs) / 1000);
-      const cooldownUntilIso = new Date(cooldownUntilMsCurrent).toISOString();
-      console.log("[affiliate-recruit-run] en-queue-send skip (op_not_permitted cooldown):", {
-        slot15,
-        cooldownRemainingSec,
-        cooldownUntil: cooldownUntilIso,
-        backoffLevel: opNotPermittedBackoffLevel
-      });
-      return res.status(200).json({
-        ok: true,
-        reason: "operation_not_permitted_cooldown",
-        slot15,
-        cooldownRemainingSec,
-        cooldownUntil: cooldownUntilIso,
-        opNotPermittedBackoffLevel
-      });
-    }
     let attemptsThisWindow = parseInt(await kv.get(keyAttempt), 10) || 0;
     if (attemptsThisWindow >= EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN) {
       console.log("[affiliate-recruit-run] en-queue-send skip (attempt breaker):", {
@@ -1545,8 +1485,6 @@ module.exports = async function handler(req, res) {
             console.warn(
               "[affiliate-recruit-run] DM 403 operation_not_permitted windowCount:",
               opNotPermittedCountInWindow,
-              "breaker:",
-              DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER,
               "handle:",
               item.username,
               "lang:",
@@ -1561,11 +1499,6 @@ module.exports = async function handler(req, res) {
           }
           count403 += 1;
           await kv.set(key403, String(count403), { ex: 1200 });
-          if (opNotPermittedCountInWindow >= DM_OPERATION_NOT_PERMITTED_WINDOW_BREAKER) {
-            stopReason = "operation_not_permitted_window";
-            stopAllSends = true;
-            break;
-          }
           if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) {
             stopReason = "en_queue_send_breaker";
             stopAllSends = true;
@@ -1648,32 +1581,9 @@ module.exports = async function handler(req, res) {
     let cooldownSecondsApplied = 0;
     const opNotPermittedBackoffLevelBefore = 0;
     const opNotPermittedBackoffLevelAfter = 0;
-    const stoppedByOpNotPermitted = stopReason === "operation_not_permitted_window";
-    if (stoppedByOpNotPermitted) {
-      await kv.del(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL);
-      cooldownSecondsApplied = computeOpNotPermittedCooldownSeconds(
-        DM_OPERATION_NOT_PERMITTED_COOLDOWN_SECONDS
-      );
-      if (cooldownSecondsApplied > 0) {
-        const cooldownUntilMs = Date.now() + cooldownSecondsApplied * 1000;
-        cooldownUntil = new Date(cooldownUntilMs).toISOString();
-        cooldownApplied = true;
-        await kv.set(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS, String(cooldownUntilMs), {
-          ex: cooldownSecondsApplied + 300
-        });
-      }
-      console.warn("[affiliate-recruit-run] en-queue-send cooldown set:", {
-        stopReason,
-        cooldownSeconds: cooldownSecondsApplied,
-        cooldownUntil,
-        cooldownMode: "fixed",
-        backoffLevelBefore: opNotPermittedBackoffLevelBefore,
-        backoffLevelAfter: opNotPermittedBackoffLevelAfter
-      });
-    } else {
-      // 固定 cooldown モードでは backoff を使わないため、残存キーを削除して KPI を整合させる
-      await kv.del(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL);
-    }
+    // operation_not_permitted 停止ブレーカー廃止後も、旧キーは残さない
+    await kv.del(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL);
+    await kv.del(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS);
 
     const queueLengthsEnd = {
       en: queue.length,
