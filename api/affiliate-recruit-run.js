@@ -38,12 +38,15 @@ const KV_KEY_ATTEMPT_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:attempt
 const KV_KEY_EN_QUEUE_SEND_SLOT_LOCK = (dateStr, slot15) =>
   `affiliate_recruit:lock:en_queue_send:${dateStr}:${slot15}`;
 const KV_KEY_DELIVERY_OUTCOME_AGG = "affiliate_recruit:delivery:agg:v1";
+const KV_KEY_SEND_403_RATE_LATEST = "affiliate_recruit:send_403_rate:latest";
+const KV_KEY_SEND_403_RATE_SLOT = (dateStr, slot15) =>
+  `affiliate_recruit:send_403_rate:${dateStr}:${slot15}`;
 const AFFILIATE_RECRUIT_CLICK_TRACK_PATH = "/api/affiliate-recruit-click";
 /** 地域キュー対応言語（EN は別キュー）。送信順。 */
 const REGION_QUEUE_LANGS = ["ar", "es", "pt", "ja", "ko"];
 /** 全キュー対象言語（取得/送信のグロス対象） */
 const QUEUE_LANGS_ALL = ["en", ...REGION_QUEUE_LANGS];
-const REGION_LIST_SCHEDULE_TEXT = "hourly gross refresh: en+ar+es+pt+ja+ko";
+const REGION_LIST_SCHEDULE_TEXT = "every_4h gross refresh: en+ar+es+pt+ja+ko";
 // DM→登録紐づけ用 KV の有効期限。90 日は送信から登録までの想定期間をカバーしつつストレージを抑える目安。運用指示で固定。短縮したい場合はコードまたは env で変更可。
 const REF_SENT_TTL = 86400 * 90;
 // operation_not_permitted の停止ブレーカーと cooldown は無効化（停止させない）
@@ -464,13 +467,11 @@ function buildEligibleCandidates(allPosts, usersById, lang) {
       mostRecentTime
     });
   }
-  return candidates
-    .filter((c) => !c.excluded)
-    .sort((a, b) => {
-      const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
-      if (scoreDiff !== 0) return scoreDiff;
-      return (b.mostRecentTime ?? 0) - (a.mostRecentTime ?? 0);
-    });
+  return candidates.sort((a, b) => {
+    const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
+    if (scoreDiff !== 0) return scoreDiff;
+    return (b.mostRecentTime ?? 0) - (a.mostRecentTime ?? 0);
+  });
 }
 
 /** 送信数集計（言語×スコア帯）。観測ダッシュボード用。失敗しても送信処理は続行 */
@@ -498,12 +499,6 @@ async function incrementTodaySentCount() {
   const cur = await kv.get(key);
   const next = Math.max(0, parseInt(cur, 10) || 0) + 1;
   await kv.set(key, String(next), { ex: 86400 * 2 });
-}
-
-async function isAlreadySent(handle) {
-  if (!kv) return false;
-  const v = await kv.get(KV_KEY_SENT_HANDLE(handle));
-  return !!v;
 }
 
 /**
@@ -535,7 +530,7 @@ async function markSent(handle, payload = {}) {
           detected_via: payload.detected_via ?? null
         })
       : String(ts);
-  await kv.set(KV_KEY_SENT_HANDLE(handle), value); // 同一ユーザーへは一切再送しない（有効期限なし）
+  await kv.set(KV_KEY_SENT_HANDLE(handle), value); // 配信履歴の観測用（再送可）
 }
 
 /** ref 紐づけ用: 送信時に author_id をキーに lang/score を保存。FirstPromoter 登録時の ref と突き合わせ可能にする */
@@ -709,6 +704,13 @@ function sleepMs(ms) {
   const waitMs = Math.max(0, Number(ms) || 0);
   if (waitMs <= 0) return Promise.resolve();
   return new Promise((resolve) => setTimeout(resolve, waitMs));
+}
+
+function toPercent(value, total) {
+  const numerator = Math.max(0, Number(value) || 0);
+  const denominator = Math.max(0, Number(total) || 0);
+  if (denominator <= 0) return 0;
+  return Math.round((numerator / denominator) * 10000) / 100;
 }
 
 /**
@@ -993,16 +995,7 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
     };
   }
 
-  const alreadySentCache = new Map();
   const dmNgCache = new Map();
-  const isAlreadySentCached = async (username) => {
-    const key = String(username || "").trim().toLowerCase();
-    if (!key) return false;
-    if (alreadySentCache.has(key)) return alreadySentCache.get(key);
-    const value = await isAlreadySent(username);
-    alreadySentCache.set(key, value);
-    return value;
-  };
   const isDmNgCached = async (authorId) => {
     const key = String(authorId || "").trim();
     if (!key) return false;
@@ -1015,13 +1008,9 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
   const buildFreshQueueCandidates = async () => {
     const eligibleCandidates = buildEligibleCandidates(allPosts, usersById, cfg.lang);
     const freshQueue = [];
-    let skippedAlreadySentCount = 0;
+    const skippedAlreadySentCount = 0;
     let skippedDmNgCount = 0;
     for (const c of eligibleCandidates) {
-      if (await isAlreadySentCached(c.username)) {
-        skippedAlreadySentCount += 1;
-        continue;
-      }
       if (await isDmNgCached(c.author_id)) {
         skippedDmNgCount += 1;
         continue;
@@ -1223,13 +1212,13 @@ module.exports = async function handler(req, res) {
     const utcHour = now.getUTCHours();
     if (!EN_QUEUE_LIST_HOURS_UTC.includes(utcHour)) {
       console.log(
-        `[affiliate-recruit-en-list] skip utcHour=${utcHour} expected=0-23`
+        `[affiliate-recruit-en-list] skip utcHour=${utcHour} expected=${EN_QUEUE_LIST_HOURS_UTC.join(",")}`
       );
       return res.status(200).json({
         ok: true,
         reason: "en_queue_list_skip_hour",
         utcHour,
-        message: "Run hourly at UTC minute 2"
+        message: "Run every 4 hours at UTC minute 8"
       });
     }
     try {
@@ -1726,6 +1715,45 @@ module.exports = async function handler(req, res) {
     const deliveryOutcomeThisRun = normalizeDeliveryOutcomeCounter(
       deliveryOutcomeAccumulator?.totals
     );
+    const attemptedCount = Math.max(
+      0,
+      parseInt(deliveryOutcomeThisRun?.attempted, 10) || 0,
+      attemptsThisRun,
+      attemptsThisWindow
+    );
+    const sentCount = Math.max(0, parseInt(deliveryOutcomeThisRun?.sent, 10) || 0);
+    const recipient403Count = Math.max(0, parseInt(deliveryOutcomeThisRun?.recipient403, 10) || 0);
+    const opNotPermitted403Count = Math.max(
+      0,
+      parseInt(deliveryOutcomeThisRun?.operationNotPermitted403, 10) || 0
+    );
+    const other403Count = Math.max(0, parseInt(deliveryOutcomeThisRun?.other403, 10) || 0);
+    const total403Count = recipient403Count + opNotPermitted403Count + other403Count;
+    const send403RateSnapshot = {
+      capturedAt: new Date().toISOString(),
+      slotKey,
+      invocationId,
+      attempts: attemptedCount,
+      sent: sentCount,
+      total403: total403Count,
+      recipient403: recipient403Count,
+      operationNotPermitted403: opNotPermitted403Count,
+      other403: other403Count,
+      sendRate: toPercent(sentCount, attemptedCount),
+      send403Rate: toPercent(total403Count, attemptedCount),
+      recipient403Rate: toPercent(recipient403Count, attemptedCount),
+      operationNotPermitted403Rate: toPercent(opNotPermitted403Count, attemptedCount),
+      other403Rate: toPercent(other403Count, attemptedCount)
+    };
+    try {
+      await kv.set(KV_KEY_SEND_403_RATE_LATEST, send403RateSnapshot, { ex: 86400 * 90 });
+      await kv.set(KV_KEY_SEND_403_RATE_SLOT(dateStr, slot15), send403RateSnapshot, {
+        ex: 86400 * 90
+      });
+    } catch (e) {
+      console.warn("[affiliate-recruit-run] send 403-rate snapshot save failed:", e?.message);
+    }
+    console.log("[affiliate-recruit-run] en-queue-send 403-rate:", send403RateSnapshot);
 
     if (!stopReason) {
       if (attemptsThisRun >= EN_QUEUE_MAX_ATTEMPTS_PER_RUN) {
@@ -1778,6 +1806,7 @@ module.exports = async function handler(req, res) {
       regionFailoverTriggeredLangs,
       regionRecipient403StreakMaxByLang,
       deliveryOutcomeThisRun,
+      send403RateSnapshot,
       deliveryHistoryAttempts: deliveryAggregateMerged?.totals?.attempted || 0
     };
     console.log("[affiliate-recruit-run] en-queue-send summary:", sendSummary);
@@ -1818,6 +1847,7 @@ module.exports = async function handler(req, res) {
       regionFailoverTriggeredLangs,
       regionRecipient403StreakMaxByLang,
       deliveryOutcomeThisRun,
+      send403RateSnapshot,
       deliveryHistoryAttempts: deliveryAggregateMerged?.totals?.attempted || 0,
       ...(stopReason ? { stopReason } : {})
     });
@@ -1896,9 +1926,8 @@ module.exports = async function handler(req, res) {
       const wouldSendList = [];
       for (const c of eligible) {
         if (wouldSendList.length >= batchSize) break;
-        const already = await isAlreadySent(c.username);
         const isNg = await isDmNg(c.author_id);
-        if (!already && !isNg) wouldSendList.push(c);
+        if (!isNg) wouldSendList.push(c);
       }
       const c = wouldSendList[0];
       if (!c) {
@@ -1963,7 +1992,6 @@ module.exports = async function handler(req, res) {
 
     for (const c of eligible) {
       if (sentCount >= batchSize) break;
-      if (await isAlreadySent(c.username)) continue;
       if (await isDmNg(c.author_id)) continue;
 
       const angleDecision = pickRecruitAngleDecisionFromItem(c);

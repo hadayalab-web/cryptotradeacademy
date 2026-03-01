@@ -205,9 +205,9 @@ function getFirstPromoterProfileUrl() {
 // EN 実行時刻（UTC）。従来モード用（mode 指定なし /api/affiliate-recruit-run 互換）。
 const EN_RECRUIT_HOURS = [0, 4, 8, 12, 16, 20];
 
-/** EN キューライン: 1h ごとリスト取得・15 分ごと送信。docs/AFFILIATE_RECRUIT_EN_LINE_SPEC.md */
-const EN_QUEUE_LIST_HOURS_UTC = Array.from({ length: 24 }, (_, hour) => hour);
-/** EN リスト取得ページ数（1実行あたり）。1h 補充の既定は 1 ページ、env で調整可。 */
+/** EN キューライン: 4h ごとリスト取得・15 分ごと送信。docs/AFFILIATE_RECRUIT_EN_LINE_SPEC.md */
+const EN_QUEUE_LIST_HOURS_UTC = [0, 4, 8, 12, 16, 20];
+/** EN リスト取得ページ数（1実行あたり）。4h 補充の既定は 1 ページ、env で調整可。 */
 const EN_QUEUE_LIST_PAGES = Math.max(1, Number(process.env.EN_RECRUIT_LIST_PAGES || 1));
 /** EN: 1時間補充向けに窓90分（重複を抑えつつ供給を確保）。 */
 const EN_SEARCH_WINDOW_MINUTES = Number(process.env.EN_SEARCH_WINDOW_MIN || 90);
