@@ -19,8 +19,6 @@ const {
   EN_RECRUIT_BATCH_SIZE,
   RECRUIT_BATCH_SIZE_DEFAULT,
   EN_QUEUE_LIST_HOURS_UTC,
-  EN_QUEUE_DAILY_CAP,
-  EN_QUEUE_403_BREAKER_PER_15MIN,
   SLOTS_BY_UTC_HOUR,
   getNextRecruitLangForUtcHour
 } = require("../config/affiliateRecruitConfig");
@@ -37,8 +35,6 @@ const KV_KEY_QUEUE_EN = "affiliate_recruit:queue:en";
 const KV_KEY_QUEUE_REGION = (lang) => `affiliate_recruit:queue:${lang}`;
 const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${dateStr}:${slot15}`;
 const KV_KEY_ATTEMPT_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:attempts:en:${dateStr}:${slot15}`;
-const KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS = "affiliate_recruit:cooldown:op_not_permitted:until_ms";
-const KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL = "affiliate_recruit:cooldown:op_not_permitted:backoff_level";
 const KV_KEY_DELIVERY_OUTCOME_AGG = "affiliate_recruit:delivery:agg:v1";
 const AFFILIATE_RECRUIT_CLICK_TRACK_PATH = "/api/affiliate-recruit-click";
 /** 地域キュー対応言語（EN は別キュー）。送信順。 */
@@ -50,9 +46,13 @@ const REGION_LIST_SCHEDULE_TEXT = "hourly gross refresh: en+ar+es+pt+ja+ko";
 const REF_SENT_TTL = 86400 * 90;
 // operation_not_permitted の停止ブレーカーと cooldown は無効化（停止させない）
 // 送信バースト防止: 15分窓の試行数 cap（成功/失敗を問わない）
-const EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN = Math.max(
+const EN_QUEUE_ATTEMPT_CAP_PER_15MIN = Math.max(
   1,
-  Number(process.env.EN_RECRUIT_ATTEMPT_BREAKER_PER_15MIN || 15)
+  Number(
+    process.env.EN_RECRUIT_ATTEMPT_CAP_PER_15MIN ||
+    process.env.EN_RECRUIT_ATTEMPT_BREAKER_PER_15MIN ||
+    15
+  )
 );
 // 15分枠あたり送信試行上限（デフォルト 15）
 const EN_QUEUE_MAX_ATTEMPTS_PER_RUN = Math.max(
@@ -1211,7 +1211,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ----- EN ＋ 地域 キュー送信: 15 分ごと（EN 優先で枯渇まで。15 成功/窓・403 ブレーカー 20 はアカウント共通） -----
+  // ----- EN ＋ 地域 キュー送信: 15 分ごと（6言語グロス優先。15分15試行cap + 間隔送信） -----
   if (forceMode === "en-queue-send") {
     const now = new Date();
     const nowMs = now.getTime();
@@ -1221,53 +1221,23 @@ module.exports = async function handler(req, res) {
     const slot15 = [0, 15, 30, 45].find((m) => utcMinute >= m && utcMinute < m + 15) ?? 0;
     const key403 = KV_KEY_403_WINDOW_EN(dateStr, slot15);
     const keyAttempt = KV_KEY_ATTEMPT_WINDOW_EN(dateStr, slot15);
-    const MAX_SUCCESS_PER_15MIN = 15;
     let sentToday = await getTodaySentCount();
-    const dailyCapActive = EN_QUEUE_DAILY_CAP > 0;
-    if (dailyCapActive && sentToday >= EN_QUEUE_DAILY_CAP) {
-      console.log("[affiliate-recruit-run] en-queue-send skip (daily cap):", {
-        sentToday,
-        cap: EN_QUEUE_DAILY_CAP
-      });
-      return res.status(200).json({
-        ok: true,
-        reason: "en_queue_send_cap",
-        sentToday,
-        cap: EN_QUEUE_DAILY_CAP
-      });
-    }
-    await kv.del(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL);
-    await kv.del(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS);
-    const opNotPermittedBackoffLevel = 0;
     let attemptsThisWindow = parseInt(await kv.get(keyAttempt), 10) || 0;
-    if (attemptsThisWindow >= EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN) {
-      console.log("[affiliate-recruit-run] en-queue-send skip (attempt breaker):", {
+    if (attemptsThisWindow >= EN_QUEUE_ATTEMPT_CAP_PER_15MIN) {
+      console.log("[affiliate-recruit-run] en-queue-send skip (attempt cap):", {
         attemptsThisWindow,
-        breaker: EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN,
+        cap: EN_QUEUE_ATTEMPT_CAP_PER_15MIN,
         slot15
       });
       return res.status(200).json({
         ok: true,
-        reason: "en_queue_attempt_breaker",
+        reason: "en_queue_attempt_cap",
         attemptsThisWindow,
-        attemptBreaker: EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN,
+        attemptCap: EN_QUEUE_ATTEMPT_CAP_PER_15MIN,
         slot15
       });
     }
     let count403 = parseInt(await kv.get(key403), 10) || 0;
-    if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) {
-      console.log("[affiliate-recruit-run] en-queue-send skip (403 breaker):", {
-        count403,
-        breaker: EN_QUEUE_403_BREAKER_PER_15MIN,
-        slot15
-      });
-      return res.status(200).json({
-        ok: true,
-        reason: "en_queue_send_breaker",
-        count403,
-        breaker: EN_QUEUE_403_BREAKER_PER_15MIN
-      });
-    }
     const raw = await kv.get(KV_KEY_QUEUE_EN);
     let queue = parseQueueValue(raw);
     const regionQueues = {};
@@ -1294,7 +1264,7 @@ module.exports = async function handler(req, res) {
       sentToday,
       count403,
       attemptsThisWindow,
-      attemptBreakerPer15min: EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN,
+      attemptCapPer15min: EN_QUEUE_ATTEMPT_CAP_PER_15MIN,
       maxAttemptsPerRun: EN_QUEUE_MAX_ATTEMPTS_PER_RUN,
       sendDelayMs: EN_RECRUIT_SEND_DELAY_MS,
       sendRunHardStopMs: EN_RECRUIT_SEND_RUN_HARD_STOP_MS,
@@ -1304,7 +1274,6 @@ module.exports = async function handler(req, res) {
       recipient403SoftBlockStreak: EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK,
       recipient403SoftBlockAttempts: EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS,
       deliverabilityHistoryAttempts: deliveryAggregateSnapshot?.totals?.attempted || 0,
-      opNotPermittedBackoffLevel,
       queueLengthsStart,
     });
     let sentThisWindow = 0;
@@ -1363,11 +1332,8 @@ module.exports = async function handler(req, res) {
     };
     while (
       !stopAllSends &&
-      (!dailyCapActive || sentToday < EN_QUEUE_DAILY_CAP) &&
-      sentThisWindow < MAX_SUCCESS_PER_15MIN &&
-      count403 < EN_QUEUE_403_BREAKER_PER_15MIN &&
       attemptsThisRun < EN_QUEUE_MAX_ATTEMPTS_PER_RUN &&
-      attemptsThisWindow < EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN &&
+      attemptsThisWindow < EN_QUEUE_ATTEMPT_CAP_PER_15MIN &&
       canContinueRun()
     ) {
       const picked = popNextGrossPriorityCandidate(
@@ -1463,7 +1429,7 @@ module.exports = async function handler(req, res) {
               console.warn("[affiliate-recruit-run] recipient403 soft-block language:", {
                 lang,
                 streak: nextRecipientStreak,
-                streakBreaker: EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK,
+                streakThreshold: EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK,
                 softBlockAttempts: EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS,
                 attemptsThisRun,
                 softBlockUntilAttempt
@@ -1499,11 +1465,6 @@ module.exports = async function handler(req, res) {
           }
           count403 += 1;
           await kv.set(key403, String(count403), { ex: 1200 });
-          if (count403 >= EN_QUEUE_403_BREAKER_PER_15MIN) {
-            stopReason = "en_queue_send_breaker";
-            stopAllSends = true;
-            break;
-          }
           continue;
         }
         sendStatsByLang[lang].non403Errors += 1;
@@ -1569,21 +1530,12 @@ module.exports = async function handler(req, res) {
     if (!stopReason) {
       if (attemptsThisRun >= EN_QUEUE_MAX_ATTEMPTS_PER_RUN) {
         stopReason = "attempts_per_run_reached";
-      } else if (attemptsThisWindow >= EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN) {
+      } else if (attemptsThisWindow >= EN_QUEUE_ATTEMPT_CAP_PER_15MIN) {
         stopReason = "attempts_per_15min_reached";
       } else if (!canContinueRun()) {
         stopReason = "run_time_limit";
       }
     }
-
-    let cooldownApplied = false;
-    let cooldownUntil = null;
-    let cooldownSecondsApplied = 0;
-    const opNotPermittedBackoffLevelBefore = 0;
-    const opNotPermittedBackoffLevelAfter = 0;
-    // operation_not_permitted 停止ブレーカー廃止後も、旧キーは残さない
-    await kv.del(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL);
-    await kv.del(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS);
 
     const queueLengthsEnd = {
       en: queue.length,
@@ -1600,7 +1552,7 @@ module.exports = async function handler(req, res) {
       attemptsThisRun,
       attemptsThisWindow,
       maxAttemptsPerRun: EN_QUEUE_MAX_ATTEMPTS_PER_RUN,
-      attemptBreakerPer15min: EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN,
+      attemptCapPer15min: EN_QUEUE_ATTEMPT_CAP_PER_15MIN,
       sendDelayMs: EN_RECRUIT_SEND_DELAY_MS,
       sendDelayWaitedMsThisRun,
       selectionMode: "6lang_gross_priority",
@@ -1617,23 +1569,14 @@ module.exports = async function handler(req, res) {
       sendStatsByLang,
       enFailoverTriggered,
       enRecipient403StreakMax,
-      enRecipient403FailoverBreaker: 0,
       recipient403SoftBlockedByLang,
       softBlockedLangUntilAttempt,
       opNotPermittedCountInWindow,
-      opNotPermittedBackoffLevelBefore,
-      opNotPermittedBackoffLevelAfter,
       opNotPermittedDeferredByLang,
       regionFailoverTriggeredLangs,
       regionRecipient403StreakMaxByLang,
-      regionRecipient403FailoverBreaker: 0,
       deliveryOutcomeThisRun,
-      deliveryHistoryAttempts: deliveryAggregateMerged?.totals?.attempted || 0,
-      ...(cooldownApplied ? {
-        cooldownApplied,
-        cooldownSeconds: cooldownSecondsApplied,
-        cooldownUntil
-      } : {})
+      deliveryHistoryAttempts: deliveryAggregateMerged?.totals?.attempted || 0
     };
     console.log("[affiliate-recruit-run] en-queue-send summary:", sendSummary);
 
@@ -1647,7 +1590,7 @@ module.exports = async function handler(req, res) {
       attemptsThisWindow,
       runElapsedMs: Date.now() - runStartedAtMs,
       maxAttemptsPerRun: EN_QUEUE_MAX_ATTEMPTS_PER_RUN,
-      attemptBreakerPer15min: EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN,
+      attemptCapPer15min: EN_QUEUE_ATTEMPT_CAP_PER_15MIN,
       sendDelayMs: EN_RECRUIT_SEND_DELAY_MS,
       sendDelayWaitedMsThisRun,
       selectionMode: "6lang_gross_priority",
@@ -1663,23 +1606,14 @@ module.exports = async function handler(req, res) {
       sendStatsByLang,
       enFailoverTriggered,
       enRecipient403StreakMax,
-      enRecipient403FailoverBreaker: 0,
       recipient403SoftBlockedByLang,
       softBlockedLangUntilAttempt,
       opNotPermittedCountInWindow,
-      opNotPermittedBackoffLevelBefore,
-      opNotPermittedBackoffLevelAfter,
       opNotPermittedDeferredByLang,
       regionFailoverTriggeredLangs,
       regionRecipient403StreakMaxByLang,
-      regionRecipient403FailoverBreaker: 0,
       deliveryOutcomeThisRun,
       deliveryHistoryAttempts: deliveryAggregateMerged?.totals?.attempted || 0,
-      ...(cooldownApplied ? {
-        cooldownApplied,
-        cooldownSeconds: cooldownSecondsApplied,
-        cooldownUntil
-      } : {}),
       ...(stopReason ? { stopReason } : {})
     });
   }

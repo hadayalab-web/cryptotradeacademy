@@ -209,9 +209,6 @@ const EN_RECRUIT_HOURS = [0, 4, 8, 12, 16, 20];
 const EN_QUEUE_LIST_HOURS_UTC = Array.from({ length: 24 }, (_, hour) => hour);
 /** EN リスト取得ページ数（1実行あたり）。1h 補充の既定は 1 ページ、env で調整可。 */
 const EN_QUEUE_LIST_PAGES = Math.max(1, Number(process.env.EN_RECRUIT_LIST_PAGES || 1));
-/** 0 = キャップなし（枯渇まで送信）。正の値で日次成功数上限。 */
-const EN_QUEUE_DAILY_CAP = Number(process.env.EN_RECRUIT_DAILY_CAP || 0);
-const EN_QUEUE_403_BREAKER_PER_15MIN = Number(process.env.EN_RECRUIT_403_BREAKER || 22);
 /** EN: 1時間補充向けに窓90分（重複を抑えつつ供給を確保）。 */
 const EN_SEARCH_WINDOW_MINUTES = Number(process.env.EN_SEARCH_WINDOW_MIN || 90);
 /** 他地域: 1日1回実行 → EN同様「1回の窓で1日分をカバー」に揃え、24時間。 */
@@ -262,8 +259,6 @@ module.exports = {
   EN_RECRUIT_BATCH_SIZE,
   RECRUIT_BATCH_SIZE_DEFAULT,
   EN_QUEUE_LIST_HOURS_UTC,
-  EN_QUEUE_DAILY_CAP,
-  EN_QUEUE_403_BREAKER_PER_15MIN,
   SLOTS_BY_UTC_HOUR,
   getNextRecruitLangForUtcHour
 };

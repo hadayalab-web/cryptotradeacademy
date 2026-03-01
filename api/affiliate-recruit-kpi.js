@@ -1,6 +1,6 @@
 /**
  * Affiliate Recruit KPI 集約 API
- * - 送信/クリック/登録/成約 + キュー在庫 + 403/cooldown 状態を1本で返す
+ * - 送信/クリック/登録/成約 + キュー在庫 + 403 状態を1本で返す
  * - 取得時に KV へスナップショット保存（15分 cron で自動取得を想定）
  */
 const { kv } = require("../utils/kv");
@@ -12,8 +12,6 @@ const KV_KEY_QUEUE_REGION = (lang) => `affiliate_recruit:queue:${lang}`;
 const KV_KEY_DAILY_COUNT = (dateStr) => `affiliate_recruit:daily_count:${dateStr}`;
 const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${dateStr}:${slot15}`;
 const KV_KEY_ATTEMPT_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:attempts:en:${dateStr}:${slot15}`;
-const KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS = "affiliate_recruit:cooldown:op_not_permitted:until_ms";
-const KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL = "affiliate_recruit:cooldown:op_not_permitted:backoff_level";
 const KV_KEY_DELIVERY_OUTCOME_AGG = "affiliate_recruit:delivery:agg:v1";
 const CONVERSION_COUNT_KEY = (type, dateStr) => `conversion:${type}:${dateStr}:count`;
 const AFFILIATE_CONVERSION_COUNT_KEY = (type, dateStr) =>
@@ -31,9 +29,13 @@ const KPI_HISTORY_MAX = Math.max(
   96,
   Number(process.env.AFFILIATE_RECRUIT_KPI_HISTORY_MAX || 1000)
 );
-const EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN = Math.max(
+const EN_QUEUE_ATTEMPT_CAP_PER_15MIN = Math.max(
   1,
-  Number(process.env.EN_RECRUIT_ATTEMPT_BREAKER_PER_15MIN || 15)
+  Number(
+    process.env.EN_RECRUIT_ATTEMPT_CAP_PER_15MIN ||
+    process.env.EN_RECRUIT_ATTEMPT_BREAKER_PER_15MIN ||
+    15
+  )
 );
 const DELIVERY_TREND_MIN_ATTEMPTS = Math.max(
   1,
@@ -263,16 +265,12 @@ async function getQueueRuntimeState(now) {
     queueKoRaw,
     sentTodayRaw,
     count403Raw,
-    attemptsRaw,
-    cooldownUntilRaw,
-    backoffLevelRaw
+    attemptsRaw
   ] = await Promise.all([
     ...queueReads,
     kv.get(KV_KEY_DAILY_COUNT(dateStr)),
     kv.get(KV_KEY_403_WINDOW_EN(dateStr, slot15)),
-    kv.get(KV_KEY_ATTEMPT_WINDOW_EN(dateStr, slot15)),
-    kv.get(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS),
-    kv.get(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL)
+    kv.get(KV_KEY_ATTEMPT_WINDOW_EN(dateStr, slot15))
   ]);
 
   const queueLengths = {
@@ -285,9 +283,6 @@ async function getQueueRuntimeState(now) {
   };
   queueLengths.total = Object.values(queueLengths).reduce((acc, n) => acc + n, 0);
 
-  const cooldownUntilMs = parseNumber(cooldownUntilRaw, 0);
-  const nowMs = now.getTime();
-
   return {
     dateStr,
     slot15,
@@ -295,11 +290,7 @@ async function getQueueRuntimeState(now) {
     sentToday: parseCount(sentTodayRaw),
     count403CurrentSlot: parseCount(count403Raw),
     attemptsCurrentSlot: parseCount(attemptsRaw),
-    attemptBreakerPer15min: EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN,
-    opNotPermittedBackoffLevel: parseCount(backoffLevelRaw),
-    opNotPermittedCooldownUntilMs: cooldownUntilMs || null,
-    opNotPermittedCooldownUntil: cooldownUntilMs > 0 ? new Date(cooldownUntilMs).toISOString() : null,
-    opNotPermittedCooldownActive: cooldownUntilMs > nowMs
+    attemptCapPer15min: EN_QUEUE_ATTEMPT_CAP_PER_15MIN
   };
 }
 
@@ -388,11 +379,8 @@ module.exports = async function handler(req, res) {
       sentToday: runtime.sentToday,
       count403CurrentSlot: runtime.count403CurrentSlot,
       attemptsCurrentSlot: runtime.attemptsCurrentSlot,
-      attemptBreakerPer15min: runtime.attemptBreakerPer15min,
-      queueLengths: runtime.queueLengths,
-      opNotPermittedBackoffLevel: runtime.opNotPermittedBackoffLevel,
-      opNotPermittedCooldownActive: runtime.opNotPermittedCooldownActive,
-      opNotPermittedCooldownUntil: runtime.opNotPermittedCooldownUntil
+      attemptCapPer15min: runtime.attemptCapPer15min,
+      queueLengths: runtime.queueLengths
     },
     delivery
   };
