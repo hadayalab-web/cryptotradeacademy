@@ -35,6 +35,8 @@ const KV_KEY_QUEUE_EN = "affiliate_recruit:queue:en";
 const KV_KEY_QUEUE_REGION = (lang) => `affiliate_recruit:queue:${lang}`;
 const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${dateStr}:${slot15}`;
 const KV_KEY_ATTEMPT_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:attempts:en:${dateStr}:${slot15}`;
+const KV_KEY_EN_QUEUE_SEND_SLOT_LOCK = (dateStr, slot15) =>
+  `affiliate_recruit:lock:en_queue_send:${dateStr}:${slot15}`;
 const KV_KEY_DELIVERY_OUTCOME_AGG = "affiliate_recruit:delivery:agg:v1";
 const AFFILIATE_RECRUIT_CLICK_TRACK_PATH = "/api/affiliate-recruit-click";
 /** 地域キュー対応言語（EN は別キュー）。送信順。 */
@@ -63,9 +65,33 @@ const EN_QUEUE_ATTEMPT_WINDOW_TTL_SECONDS = Math.max(
   900,
   Number(process.env.EN_RECRUIT_ATTEMPT_WINDOW_TTL_SEC || 1200)
 );
+// 非ENの補充が弱いときは、検索窓とページ数を段階拡張して弾を確保する
+const REGION_QUEUE_MIN_FRESH_ENQUEUE = Math.max(
+  0,
+  Number(process.env.EN_RECRUIT_REGION_MIN_FRESH_ENQUEUE || 12)
+);
+const REGION_QUEUE_WIDE_WINDOW_MINUTES = Math.max(
+  REGION_SEARCH_WINDOW_MINUTES,
+  Number(process.env.EN_RECRUIT_REGION_WIDE_WINDOW_MIN || 4320)
+);
+const REGION_QUEUE_MAX_WINDOW_MINUTES = Math.max(
+  REGION_QUEUE_WIDE_WINDOW_MINUTES,
+  Number(process.env.EN_RECRUIT_REGION_MAX_WINDOW_MIN || 10080)
+);
+const REGION_QUEUE_EXTRA_PAGES_PER_PASS = Math.max(
+  REGION_QUEUE_LIST_PAGES,
+  Number(process.env.EN_RECRUIT_REGION_EXTRA_PAGES || 3)
+);
 const EN_RECRUIT_SEND_RUN_HARD_STOP_MS = Math.max(
   60000,
   Number(process.env.EN_RECRUIT_SEND_RUN_HARD_STOP_MS || 285000)
+);
+const EN_RECRUIT_SLOT_LOCK_TTL_SECONDS = Math.max(
+  120,
+  Number(
+    process.env.EN_RECRUIT_SLOT_LOCK_TTL_SEC ||
+    Math.ceil((EN_RECRUIT_SEND_RUN_HARD_STOP_MS + 60000) / 1000)
+  )
 );
 // 同一実行で複数試行する場合の送信間隔（ms）。デフォルト 15 秒。
 const EN_RECRUIT_SEND_DELAY_MS = Math.max(
@@ -918,78 +944,151 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
   }
 
   let pagesFetched = 0;
-  let nextToken = null;
   let allPosts = [];
   const usersById = {};
   let fallbackPagesUsed = 0;
   let primaryHitsTotal = 0;
   let fallbackHitsTotal = 0;
-  while (pagesFetched < cfg.listPages) {
-    const pageResult = await fetchOneSearchPage(cfg.lang, {
-      maxResults: 100,
-      windowMinutes: cfg.windowMinutes,
-      nextToken: nextToken || undefined
-    });
-    if (pageResult?.fatal402) {
-      return {
-        ok: false,
-        reason: "search_402",
-        mode: modeLabel,
-        lang: cfg.lang,
-        pagesFetched
-      };
+  const deliveryAggregate = options.deliveryAggregate || null;
+  let fallbackExpansionPasses = 0;
+  const expandedWindowMinutesTried = [];
+
+  const fetchSearchPages = async (windowMinutes, maxPages) => {
+    let nextToken = null;
+    let pagesFetchedThisPass = 0;
+    while (pagesFetchedThisPass < maxPages) {
+      const pageResult = await fetchOneSearchPage(cfg.lang, {
+        maxResults: 100,
+        windowMinutes,
+        nextToken: nextToken || undefined
+      });
+      if (pageResult?.fatal402) {
+        return { fatal402: true };
+      }
+      const pageData = pageResult?.data || [];
+      const pageUsers = pageResult?.includes?.users || [];
+      if (pageResult?.fallbackQueryUsed) fallbackPagesUsed += 1;
+      primaryHitsTotal += Number(pageResult?.primaryHits || 0);
+      fallbackHitsTotal += Number(pageResult?.fallbackHits || 0);
+      allPosts = allPosts.concat(pageData);
+      for (const u of pageUsers) {
+        if (u?.id) usersById[u.id] = u;
+      }
+      pagesFetched += 1;
+      pagesFetchedThisPass += 1;
+      nextToken = pageResult?.nextToken || null;
+      if (!nextToken) break;
     }
-    const pageData = pageResult?.data || [];
-    const pageUsers = pageResult?.includes?.users || [];
-    if (pageResult?.fallbackQueryUsed) fallbackPagesUsed += 1;
-    primaryHitsTotal += Number(pageResult?.primaryHits || 0);
-    fallbackHitsTotal += Number(pageResult?.fallbackHits || 0);
-    allPosts = allPosts.concat(pageData);
-    for (const u of pageUsers) {
-      if (u?.id) usersById[u.id] = u;
-    }
-    pagesFetched += 1;
-    nextToken = pageResult?.nextToken || null;
-    if (!nextToken) break;
+    return { fatal402: false };
+  };
+
+  const baseFetch = await fetchSearchPages(cfg.windowMinutes, cfg.listPages);
+  if (baseFetch.fatal402) {
+    return {
+      ok: false,
+      reason: "search_402",
+      mode: modeLabel,
+      lang: cfg.lang,
+      pagesFetched
+    };
   }
 
-  const deliveryAggregate = options.deliveryAggregate || null;
-  const eligible = buildEligibleCandidates(allPosts, usersById, cfg.lang);
-  const toEnqueue = [];
-  let skippedAlreadySent = 0;
-  let skippedDmNg = 0;
-  for (const c of eligible) {
-    if (await isAlreadySent(c.username)) {
-      skippedAlreadySent += 1;
-      continue;
+  const alreadySentCache = new Map();
+  const dmNgCache = new Map();
+  const isAlreadySentCached = async (username) => {
+    const key = String(username || "").trim().toLowerCase();
+    if (!key) return false;
+    if (alreadySentCache.has(key)) return alreadySentCache.get(key);
+    const value = await isAlreadySent(username);
+    alreadySentCache.set(key, value);
+    return value;
+  };
+  const isDmNgCached = async (authorId) => {
+    const key = String(authorId || "").trim();
+    if (!key) return false;
+    if (dmNgCache.has(key)) return dmNgCache.get(key);
+    const value = await isDmNg(authorId);
+    dmNgCache.set(key, value);
+    return value;
+  };
+
+  const buildFreshQueueCandidates = async () => {
+    const eligibleCandidates = buildEligibleCandidates(allPosts, usersById, cfg.lang);
+    const freshQueue = [];
+    let skippedAlreadySentCount = 0;
+    let skippedDmNgCount = 0;
+    for (const c of eligibleCandidates) {
+      if (await isAlreadySentCached(c.username)) {
+        skippedAlreadySentCount += 1;
+        continue;
+      }
+      if (await isDmNgCached(c.author_id)) {
+        skippedDmNgCount += 1;
+        continue;
+      }
+      freshQueue.push({
+        author_id: c.author_id,
+        username: c.username,
+        score: c.score,
+        breakdown: c.breakdown,
+        angle: normalizeRecruitAngle(c.angle) || pickRecruitAngleByKey(c.author_id || c.username),
+        recommended_angle:
+          normalizeRecruitAngle(c.recommendedAngle || c.angle) ||
+          pickRecruitAngleByKey(c.author_id || c.username),
+        angle_confidence: c.angleConfidence ?? 0,
+        explore_eligible: Boolean(c.exploreEligible),
+        is_high_intent: Boolean(c.isHighIntent),
+        intent_segment: c.intentSegment || null,
+        detected_via: c.detectedVia || "default"
+      });
     }
-    if (await isDmNg(c.author_id)) {
-      skippedDmNg += 1;
-      continue;
-    }
-    toEnqueue.push({
-      author_id: c.author_id,
-      username: c.username,
-      score: c.score,
-      breakdown: c.breakdown,
-      angle: normalizeRecruitAngle(c.angle) || pickRecruitAngleByKey(c.author_id || c.username),
-      recommended_angle:
-        normalizeRecruitAngle(c.recommendedAngle || c.angle) ||
-        pickRecruitAngleByKey(c.author_id || c.username),
-      angle_confidence: c.angleConfidence ?? 0,
-      explore_eligible: Boolean(c.exploreEligible),
-      is_high_intent: Boolean(c.isHighIntent),
-      intent_segment: c.intentSegment || null,
-      detected_via: c.detectedVia || "default"
+    freshQueue.sort((a, b) => {
+      const priorityDiff =
+        getQueueItemCompositePriority(b, cfg.lang, deliveryAggregate) -
+        getQueueItemCompositePriority(a, cfg.lang, deliveryAggregate);
+      if (priorityDiff !== 0) return priorityDiff;
+      return String(a.username || "").localeCompare(String(b.username || ""));
     });
+    return {
+      eligibleCandidates,
+      freshQueue,
+      skippedAlreadySentCount,
+      skippedDmNgCount
+    };
+  };
+
+  let candidateSnapshot = await buildFreshQueueCandidates();
+
+  if (!cfg.isEn && candidateSnapshot.freshQueue.length < REGION_QUEUE_MIN_FRESH_ENQUEUE) {
+    const expandedWindows = [];
+    if (REGION_QUEUE_WIDE_WINDOW_MINUTES > cfg.windowMinutes) {
+      expandedWindows.push(REGION_QUEUE_WIDE_WINDOW_MINUTES);
+    }
+    if (REGION_QUEUE_MAX_WINDOW_MINUTES > REGION_QUEUE_WIDE_WINDOW_MINUTES) {
+      expandedWindows.push(REGION_QUEUE_MAX_WINDOW_MINUTES);
+    }
+    for (const windowMinutes of expandedWindows) {
+      const expandedFetch = await fetchSearchPages(windowMinutes, REGION_QUEUE_EXTRA_PAGES_PER_PASS);
+      if (expandedFetch.fatal402) {
+        return {
+          ok: false,
+          reason: "search_402",
+          mode: modeLabel,
+          lang: cfg.lang,
+          pagesFetched
+        };
+      }
+      fallbackExpansionPasses += 1;
+      expandedWindowMinutesTried.push(windowMinutes);
+      candidateSnapshot = await buildFreshQueueCandidates();
+      if (candidateSnapshot.freshQueue.length >= REGION_QUEUE_MIN_FRESH_ENQUEUE) break;
+    }
   }
-  toEnqueue.sort((a, b) => {
-    const priorityDiff =
-      getQueueItemCompositePriority(b, cfg.lang, deliveryAggregate) -
-      getQueueItemCompositePriority(a, cfg.lang, deliveryAggregate);
-    if (priorityDiff !== 0) return priorityDiff;
-    return String(a.username || "").localeCompare(String(b.username || ""));
-  });
+
+  const eligible = candidateSnapshot.eligibleCandidates;
+  const toEnqueue = candidateSnapshot.freshQueue;
+  const skippedAlreadySent = candidateSnapshot.skippedAlreadySentCount;
+  const skippedDmNg = candidateSnapshot.skippedDmNgCount;
 
   const prevQueue = parseQueueValue(await kv.get(cfg.queueKey));
   const prevQueueLength = prevQueue.length;
@@ -1007,6 +1106,8 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
     pagesFetched,
     configuredPages: cfg.listPages,
     fallbackPagesUsed,
+    fallbackExpansionPasses,
+    expandedWindowMinutesTried,
     primaryHitsTotal,
     fallbackHitsTotal,
     fetchedPosts: allPosts.length,
@@ -1014,6 +1115,7 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
     eligibleCandidates: eligible.length,
     skippedAlreadySent,
     skippedDmNg,
+    minFreshTarget: cfg.isEn ? null : REGION_QUEUE_MIN_FRESH_ENQUEUE,
     enqueued: toEnqueue.length,
     addedFromFresh: mergeResult.addedFromFresh,
     retainedFromPrev: mergeResult.retainedFromExisting,
@@ -1026,7 +1128,7 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
   console.log("[affiliate-recruit-run] list summary:", listSummary);
   const linePrefix = cfg.isEn ? "affiliate-recruit-en-list" : "affiliate-recruit-regions-list";
   console.log(
-    `[${linePrefix}] lang=${cfg.lang} utcHour=${listSummary.utcHour} pages=${pagesFetched}/${cfg.listPages} fallbackPages=${fallbackPagesUsed} primaryHits=${primaryHitsTotal} fallbackHits=${fallbackHitsTotal} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} addedFresh=${mergeResult.addedFromFresh} retainedPrev=${mergeResult.retainedFromExisting} droppedDup=${mergeResult.droppedDuplicateCount} droppedInvalid=${mergeResult.droppedInvalidCount} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
+    `[${linePrefix}] lang=${cfg.lang} utcHour=${listSummary.utcHour} pages=${pagesFetched}/${cfg.listPages} fallbackPages=${fallbackPagesUsed} expansionPasses=${fallbackExpansionPasses} expandedWindows=${expandedWindowMinutesTried.join("|") || "-"} primaryHits=${primaryHitsTotal} fallbackHits=${fallbackHitsTotal} fetchedPosts=${allPosts.length} eligible=${eligible.length} skippedSent=${skippedAlreadySent} skippedDmNg=${skippedDmNg} enqueued=${toEnqueue.length} addedFresh=${mergeResult.addedFromFresh} retainedPrev=${mergeResult.retainedFromExisting} droppedDup=${mergeResult.droppedDuplicateCount} droppedInvalid=${mergeResult.droppedInvalidCount} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
   );
 
   return {
@@ -1096,6 +1198,24 @@ module.exports = async function handler(req, res) {
   }
 
   const forceMode = req.query?.mode || req.body?.mode;
+  const requestPath = String(req.url || "").split("?")[0];
+  const queueModePaths = {
+    "en-queue-send": "/api/affiliate-recruit-en-send",
+    "en-queue-list": "/api/affiliate-recruit-en-list",
+    "regions-queue-list": "/api/affiliate-recruit-regions-list"
+  };
+  if (
+    forceMode &&
+    queueModePaths[forceMode] &&
+    requestPath === "/api/affiliate-recruit-run"
+  ) {
+    return res.status(410).json({
+      ok: false,
+      reason: "legacy_run_mode_removed",
+      mode: forceMode,
+      usePath: queueModePaths[forceMode]
+    });
+  }
 
   // ----- EN キューライン: リスト取得（高品質順でキュー更新） -----
   if (forceMode === "en-queue-list") {
@@ -1219,6 +1339,72 @@ module.exports = async function handler(req, res) {
     const dateStr = now.toISOString().split("T")[0];
     const utcMinute = now.getUTCMinutes();
     const slot15 = [0, 15, 30, 45].find((m) => utcMinute >= m && utcMinute < m + 15) ?? 0;
+    const slotKey = `${dateStr}:${slot15}`;
+    const invocationId = `${slotKey}:${nowMs}:${Math.random().toString(36).slice(2, 8)}`;
+    const slotLockKey = KV_KEY_EN_QUEUE_SEND_SLOT_LOCK(dateStr, slot15);
+    const slotLockValue = JSON.stringify({
+      invocationId,
+      acquiredAt: now.toISOString(),
+      slotKey
+    });
+    const rawKv = kv.getInstance?.();
+    const slotLockSupported = Boolean(rawKv && typeof rawKv.set === "function");
+    let slotLockAcquired = false;
+    if (slotLockSupported) {
+      try {
+        const lockResult = await rawKv.set(slotLockKey, slotLockValue, {
+          nx: true,
+          ex: EN_RECRUIT_SLOT_LOCK_TTL_SECONDS
+        });
+        slotLockAcquired = lockResult === "OK" || lockResult === true;
+      } catch (e) {
+        console.error("[affiliate-recruit-run] en-queue-send slot lock error:", e?.message);
+      }
+    } else {
+      console.warn("[affiliate-recruit-run] en-queue-send slot lock not supported, running without lock");
+    }
+    if (slotLockSupported && !slotLockAcquired) {
+      const existingLockRaw = await kv.get(slotLockKey);
+      const existingLock =
+        existingLockRaw && typeof existingLockRaw === "object"
+          ? existingLockRaw
+          : typeof existingLockRaw === "string"
+            ? (() => {
+                try {
+                  return JSON.parse(existingLockRaw);
+                } catch (_) {
+                  return { raw: existingLockRaw };
+                }
+              })()
+            : null;
+      console.warn("[affiliate-recruit-run] en-queue-send skip (slot locked):", {
+        slotKey,
+        invocationId,
+        lockKey: slotLockKey,
+        existingLock
+      });
+      return res.status(200).json({
+        ok: true,
+        reason: "en_queue_send_slot_locked",
+        slotKey,
+        invocationId,
+        lockKey: slotLockKey,
+        existingLock
+      });
+    }
+    const releaseSlotLock = async () => {
+      if (!slotLockAcquired) return;
+      try {
+        const currentLockRaw = await kv.get(slotLockKey);
+        const currentLockString =
+          typeof currentLockRaw === "string" ? currentLockRaw : JSON.stringify(currentLockRaw);
+        if (!currentLockRaw || currentLockString === slotLockValue) {
+          await kv.del(slotLockKey);
+        }
+      } catch (e) {
+        console.warn("[affiliate-recruit-run] en-queue-send slot lock release failed:", e?.message);
+      }
+    };
     const key403 = KV_KEY_403_WINDOW_EN(dateStr, slot15);
     const keyAttempt = KV_KEY_ATTEMPT_WINDOW_EN(dateStr, slot15);
     let sentToday = await getTodaySentCount();
@@ -1229,6 +1415,7 @@ module.exports = async function handler(req, res) {
         cap: EN_QUEUE_ATTEMPT_CAP_PER_15MIN,
         slot15
       });
+      await releaseSlotLock();
       return res.status(200).json({
         ok: true,
         reason: "en_queue_attempt_cap",
@@ -1274,6 +1461,8 @@ module.exports = async function handler(req, res) {
       recipient403SoftBlockStreak: EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK,
       recipient403SoftBlockAttempts: EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS,
       deliverabilityHistoryAttempts: deliveryAggregateSnapshot?.totals?.attempted || 0,
+      slotKey,
+      invocationId,
       queueLengthsStart,
     });
     let sentThisWindow = 0;
@@ -1314,11 +1503,20 @@ module.exports = async function handler(req, res) {
     const registerAttempt = async (sourceLang) => {
       if (!canContinueRun()) return false;
       if (!firstAttemptSource && sourceLang) firstAttemptSource = sourceLang;
+      const nextAttemptRaw = await kv.incr(keyAttempt, 1);
+      if (nextAttemptRaw != null) {
+        attemptsThisWindow = Math.max(0, parseInt(nextAttemptRaw, 10) || 0);
+        await kv.expire(keyAttempt, EN_QUEUE_ATTEMPT_WINDOW_TTL_SECONDS);
+      } else {
+        attemptsThisWindow += 1;
+        await kv.set(keyAttempt, String(attemptsThisWindow), {
+          ex: EN_QUEUE_ATTEMPT_WINDOW_TTL_SECONDS
+        });
+      }
+      if (attemptsThisWindow > EN_QUEUE_ATTEMPT_CAP_PER_15MIN) {
+        return false;
+      }
       attemptsThisRun += 1;
-      attemptsThisWindow += 1;
-      await kv.set(keyAttempt, String(attemptsThisWindow), {
-        ex: EN_QUEUE_ATTEMPT_WINDOW_TTL_SECONDS
-      });
       return true;
     };
     const waitBeforeNextAttempt = async () => {
@@ -1385,7 +1583,9 @@ module.exports = async function handler(req, res) {
       if (!attempted) {
         queuesByLang[lang] = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
         queuesByLang[lang].unshift(item);
-        stopReason = "run_time_limit";
+        stopReason = attemptsThisWindow >= EN_QUEUE_ATTEMPT_CAP_PER_15MIN
+          ? "attempts_per_15min_reached"
+          : "run_time_limit";
         stopAllSends = true;
         break;
       }
@@ -1547,6 +1747,8 @@ module.exports = async function handler(req, res) {
     };
     const sendSummary = {
       slot15,
+      slotKey,
+      invocationId,
       sentThisWindow,
       runElapsedMs: Date.now() - runStartedAtMs,
       attemptsThisRun,
@@ -1580,9 +1782,12 @@ module.exports = async function handler(req, res) {
     };
     console.log("[affiliate-recruit-run] en-queue-send summary:", sendSummary);
 
+    await releaseSlotLock();
     return res.status(200).json({
       ok: true,
       enQueueSend: true,
+      slotKey,
+      invocationId,
       sent: sentHandles.length,
       handles: sentHandles,
       sentToday,
