@@ -39,12 +39,13 @@ const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${da
 const KV_KEY_ATTEMPT_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:attempts:en:${dateStr}:${slot15}`;
 const KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS = "affiliate_recruit:cooldown:op_not_permitted:until_ms";
 const KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL = "affiliate_recruit:cooldown:op_not_permitted:backoff_level";
+const KV_KEY_DELIVERY_OUTCOME_AGG = "affiliate_recruit:delivery:agg:v1";
 const AFFILIATE_RECRUIT_CLICK_TRACK_PATH = "/api/affiliate-recruit-click";
 /** 地域キュー対応言語（EN は別キュー）。送信順。 */
 const REGION_QUEUE_LANGS = ["ar", "es", "pt", "ja", "ko"];
-/** リスト取得ローテ（毎時）: EN/AR → ES/PT → JA/KO */
-const REGION_LIST_PAIR_ROTATION = [["ar"], ["es", "pt"], ["ja", "ko"]];
-const REGION_LIST_SCHEDULE_TEXT = "hourly rotation: EN/AR -> ES/PT -> JA/KO";
+/** 全キュー対象言語（取得/送信のグロス対象） */
+const QUEUE_LANGS_ALL = ["en", ...REGION_QUEUE_LANGS];
+const REGION_LIST_SCHEDULE_TEXT = "hourly gross refresh: en+ar+es+pt+ja+ko";
 // DM→登録紐づけ用 KV の有効期限。90 日は送信から登録までの想定期間をカバーしつつストレージを抑える目安。運用指示で固定。短縮したい場合はコードまたは env で変更可。
 const REF_SENT_TTL = 86400 * 90;
 // operation_not_permitted ブレーキは「15分窓カウント + 固定 cooldown」に整理。
@@ -97,6 +98,34 @@ const RECRUIT_EXPLORE_PERCENT = Math.max(
 
 const RECRUIT_STATS_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
 const SCORE_BANDS = ["0-49", "50-64", "65-79", "80-100"];
+const DELIVERY_OUTCOME_KEYS = [
+  "attempted",
+  "sent",
+  "recipient403",
+  "operationNotPermitted403",
+  "other403",
+  "non403Errors"
+];
+const DELIVERY_OUTCOME_AGG_TTL_SECONDS = Math.max(
+  86400 * 30,
+  Number(process.env.EN_RECRUIT_DELIVERY_OUTCOME_TTL_SEC || 86400 * 120)
+);
+const EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT = Math.max(
+  0,
+  Number(process.env.EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT || 24)
+);
+const EN_RECRUIT_DELIVERABILITY_MIN_ATTEMPTS = Math.max(
+  1,
+  Number(process.env.EN_RECRUIT_DELIVERABILITY_MIN_ATTEMPTS || 5)
+);
+const EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK = Math.max(
+  0,
+  Number(process.env.EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK || 3)
+);
+const EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS = Math.max(
+  1,
+  Number(process.env.EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS || 4)
+);
 
 function resolveRequestOrigin(req) {
   const explicit =
@@ -151,6 +180,229 @@ function getScoreBand(score) {
   if (score < 65) return "50-64";
   if (score < 80) return "65-79";
   return "80-100";
+}
+
+function normalizeBucketKey(value, fallback = "unknown") {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  return normalized || fallback;
+}
+
+function createDeliveryOutcomeCounter() {
+  return {
+    attempted: 0,
+    sent: 0,
+    recipient403: 0,
+    operationNotPermitted403: 0,
+    other403: 0,
+    non403Errors: 0
+  };
+}
+
+function normalizeDeliveryOutcomeCounter(raw) {
+  const normalized = createDeliveryOutcomeCounter();
+  if (!raw || typeof raw !== "object") return normalized;
+  for (const key of DELIVERY_OUTCOME_KEYS) {
+    normalized[key] = Math.max(0, parseInt(raw[key], 10) || 0);
+  }
+  return normalized;
+}
+
+function createDeliveryOutcomeAggregate() {
+  return {
+    totals: createDeliveryOutcomeCounter(),
+    byLang: {},
+    byScoreBand: {},
+    byHighIntent: {},
+    byIntentSegment: {},
+    byAngle: {},
+    byDetectedVia: {},
+    updatedAt: null
+  };
+}
+
+function normalizeDeliveryOutcomeMap(rawMap) {
+  if (!rawMap || typeof rawMap !== "object" || Array.isArray(rawMap)) return {};
+  const normalized = {};
+  for (const [bucket, value] of Object.entries(rawMap)) {
+    normalized[String(bucket)] = normalizeDeliveryOutcomeCounter(value);
+  }
+  return normalized;
+}
+
+function normalizeDeliveryOutcomeAggregate(rawValue) {
+  let raw = rawValue;
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw);
+    } catch (_) {
+      raw = null;
+    }
+  }
+  const base = createDeliveryOutcomeAggregate();
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return base;
+  base.totals = normalizeDeliveryOutcomeCounter(raw.totals);
+  base.byLang = normalizeDeliveryOutcomeMap(raw.byLang);
+  base.byScoreBand = normalizeDeliveryOutcomeMap(raw.byScoreBand);
+  base.byHighIntent = normalizeDeliveryOutcomeMap(raw.byHighIntent);
+  base.byIntentSegment = normalizeDeliveryOutcomeMap(raw.byIntentSegment);
+  base.byAngle = normalizeDeliveryOutcomeMap(raw.byAngle);
+  base.byDetectedVia = normalizeDeliveryOutcomeMap(raw.byDetectedVia);
+  base.updatedAt = raw.updatedAt || null;
+  return base;
+}
+
+function mergeDeliveryOutcomeCounter(baseCounter, deltaCounter) {
+  const merged = createDeliveryOutcomeCounter();
+  const base = normalizeDeliveryOutcomeCounter(baseCounter);
+  const delta = normalizeDeliveryOutcomeCounter(deltaCounter);
+  for (const key of DELIVERY_OUTCOME_KEYS) {
+    merged[key] = Math.max(0, base[key] + delta[key]);
+  }
+  return merged;
+}
+
+function mergeDeliveryOutcomeMap(baseMap, deltaMap) {
+  const merged = {};
+  const keys = new Set([
+    ...Object.keys(baseMap || {}),
+    ...Object.keys(deltaMap || {})
+  ]);
+  for (const bucket of keys) {
+    merged[bucket] = mergeDeliveryOutcomeCounter(baseMap?.[bucket], deltaMap?.[bucket]);
+  }
+  return merged;
+}
+
+function mergeDeliveryOutcomeAggregate(baseAggregate, deltaAggregate) {
+  const base = normalizeDeliveryOutcomeAggregate(baseAggregate);
+  const delta = normalizeDeliveryOutcomeAggregate(deltaAggregate);
+  return {
+    totals: mergeDeliveryOutcomeCounter(base.totals, delta.totals),
+    byLang: mergeDeliveryOutcomeMap(base.byLang, delta.byLang),
+    byScoreBand: mergeDeliveryOutcomeMap(base.byScoreBand, delta.byScoreBand),
+    byHighIntent: mergeDeliveryOutcomeMap(base.byHighIntent, delta.byHighIntent),
+    byIntentSegment: mergeDeliveryOutcomeMap(base.byIntentSegment, delta.byIntentSegment),
+    byAngle: mergeDeliveryOutcomeMap(base.byAngle, delta.byAngle),
+    byDetectedVia: mergeDeliveryOutcomeMap(base.byDetectedVia, delta.byDetectedVia),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function createDeliveryOutcomeAccumulator() {
+  return createDeliveryOutcomeAggregate();
+}
+
+function buildDeliveryFeatureMeta(item, lang, angleForSend) {
+  const scoreRaw = Number(item?.score);
+  const score = Number.isFinite(scoreRaw) ? scoreRaw : null;
+  const scoreBand = score != null ? getScoreBand(score) : "0-49";
+  const highIntent = item?.is_high_intent === true ? "1" : "0";
+  const intentSegment = normalizeBucketKey(item?.intent_segment, "unknown");
+  const detectedVia = normalizeBucketKey(item?.detected_via || item?.detectedVia, "default");
+  const angle = normalizeRecruitAngle(
+    angleForSend || item?.recommended_angle || item?.recommendedAngle || item?.angle
+  );
+  return {
+    lang: normalizeBucketKey(lang, "unknown"),
+    scoreBand,
+    highIntent,
+    intentSegment,
+    detectedVia,
+    angle: angle || "unknown"
+  };
+}
+
+function getOrCreateDeliveryBucketCounter(map, bucketKey) {
+  const key = String(bucketKey || "unknown");
+  if (!map[key]) {
+    map[key] = createDeliveryOutcomeCounter();
+  }
+  return map[key];
+}
+
+function incrementDeliveryOutcomeCounter(counter, outcomeKey) {
+  const target = counter || createDeliveryOutcomeCounter();
+  target.attempted += 1;
+  if (outcomeKey && DELIVERY_OUTCOME_KEYS.includes(outcomeKey) && outcomeKey !== "attempted") {
+    target[outcomeKey] += 1;
+  }
+  return target;
+}
+
+function recordDeliveryOutcome(accumulator, featureMeta, outcomeKey) {
+  if (!accumulator || !featureMeta) return;
+  incrementDeliveryOutcomeCounter(accumulator.totals, outcomeKey);
+
+  const langCounter = getOrCreateDeliveryBucketCounter(accumulator.byLang, featureMeta.lang);
+  const scoreBandCounter = getOrCreateDeliveryBucketCounter(accumulator.byScoreBand, featureMeta.scoreBand);
+  const highIntentCounter = getOrCreateDeliveryBucketCounter(accumulator.byHighIntent, featureMeta.highIntent);
+  const intentSegmentCounter = getOrCreateDeliveryBucketCounter(
+    accumulator.byIntentSegment,
+    featureMeta.intentSegment
+  );
+  const angleCounter = getOrCreateDeliveryBucketCounter(accumulator.byAngle, featureMeta.angle);
+  const detectedViaCounter = getOrCreateDeliveryBucketCounter(
+    accumulator.byDetectedVia,
+    featureMeta.detectedVia
+  );
+
+  incrementDeliveryOutcomeCounter(langCounter, outcomeKey);
+  incrementDeliveryOutcomeCounter(scoreBandCounter, outcomeKey);
+  incrementDeliveryOutcomeCounter(highIntentCounter, outcomeKey);
+  incrementDeliveryOutcomeCounter(intentSegmentCounter, outcomeKey);
+  incrementDeliveryOutcomeCounter(angleCounter, outcomeKey);
+  incrementDeliveryOutcomeCounter(detectedViaCounter, outcomeKey);
+}
+
+function getDeliverabilitySentRate(counter) {
+  const normalized = normalizeDeliveryOutcomeCounter(counter);
+  const attempted = Math.max(0, normalized.attempted);
+  return (normalized.sent + 1) / (attempted + 2);
+}
+
+function estimateDeliverabilityProbability(featureMeta, aggregate) {
+  const normalized =
+    aggregate && typeof aggregate === "object" && aggregate.totals
+      ? aggregate
+      : normalizeDeliveryOutcomeAggregate(aggregate);
+  const globalRate = getDeliverabilitySentRate(normalized.totals);
+  const sources = [
+    normalized.byLang[featureMeta.lang],
+    normalized.byScoreBand[featureMeta.scoreBand],
+    normalized.byHighIntent[featureMeta.highIntent],
+    normalized.byIntentSegment[featureMeta.intentSegment],
+    normalized.byAngle[featureMeta.angle],
+    normalized.byDetectedVia[featureMeta.detectedVia]
+  ];
+  let weighted = globalRate;
+  let totalWeight = 1;
+  for (const source of sources) {
+    const attempted = Math.max(0, parseInt(source?.attempted, 10) || 0);
+    if (attempted < EN_RECRUIT_DELIVERABILITY_MIN_ATTEMPTS) continue;
+    const weight = Math.min(4, Math.log2(attempted + 1));
+    weighted += getDeliverabilitySentRate(source) * weight;
+    totalWeight += weight;
+  }
+  const probability = weighted / totalWeight;
+  return Math.max(0.05, Math.min(0.95, probability));
+}
+
+async function flushDeliveryOutcomeAccumulator(accumulator) {
+  const attempted = parseInt(accumulator?.totals?.attempted, 10) || 0;
+  if (!kv || attempted <= 0) return null;
+  try {
+    const current = normalizeDeliveryOutcomeAggregate(await kv.get(KV_KEY_DELIVERY_OUTCOME_AGG));
+    const merged = mergeDeliveryOutcomeAggregate(current, accumulator);
+    await kv.set(KV_KEY_DELIVERY_OUTCOME_AGG, merged, {
+      ex: DELIVERY_OUTCOME_AGG_TTL_SECONDS
+    });
+    return merged;
+  } catch (e) {
+    console.warn("[affiliate-recruit-run] flushDeliveryOutcomeAccumulator failed:", e?.message);
+    return null;
+  }
 }
 
 /** 検索結果＋ユーザーから送信候補を構築。EN/regions 共通。スコア優先→同点時は recency。 */
@@ -538,42 +790,88 @@ function getQueueItemPriorityValue(item) {
   return 0;
 }
 
+function getQueueItemCompositePriority(item, lang, deliveryAggregate) {
+  const basePriority = getQueueItemPriorityValue(item);
+  if (EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT <= 0) return basePriority;
+  const featureMeta = buildDeliveryFeatureMeta(item, lang);
+  const deliverabilityProbability = estimateDeliverabilityProbability(featureMeta, deliveryAggregate);
+  const adjustment = (deliverabilityProbability - 0.5) * EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT;
+  return basePriority + adjustment;
+}
+
+function isLangTemporarilySoftBlocked(lang, attemptsThisRun, softBlockedLangUntilAttempt) {
+  const untilAttempt = parseInt(softBlockedLangUntilAttempt?.[lang], 10) || 0;
+  return untilAttempt > 0 && attemptsThisRun < untilAttempt;
+}
+
+function hasAlternativeQueueItems(queuesByLang, langs, excludedLang) {
+  for (const lang of langs) {
+    if (lang === excludedLang) continue;
+    const queue = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
+    if (queue.length > 0) return true;
+  }
+  return false;
+}
+
 /**
  * 6言語グロス優先順:
  * - 各言語キューを横断して「最高priority(score)」の1件を取り出す
  * - op_not_permitted で同一枠ブロック済みの候補は選択対象から除外
  */
-function popNextGrossPriorityCandidate(queuesByLang, langs, blockedKeys) {
-  let selectedLang = null;
-  let selectedIndex = -1;
-  let selectedScore = Number.NEGATIVE_INFINITY;
+function popNextGrossPriorityCandidate(
+  queuesByLang,
+  langs,
+  blockedKeys,
+  deliveryAggregate,
+  options = {}
+) {
+  const attemptsThisRun = Math.max(0, parseInt(options.attemptsThisRun, 10) || 0);
+  const softBlockedLangUntilAttempt = options.softBlockedLangUntilAttempt || {};
 
-  for (const lang of langs) {
-    const queue = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
-    for (let idx = 0; idx < queue.length; idx += 1) {
-      const item = queue[idx];
-      if (!item?.username) {
-        queue.splice(idx, 1);
-        idx -= 1;
+  const pickCandidate = (ignoreLangSoftBlock) => {
+    let selectedLang = null;
+    let selectedIndex = -1;
+    let selectedScore = Number.NEGATIVE_INFINITY;
+    for (const lang of langs) {
+      if (
+        !ignoreLangSoftBlock &&
+        isLangTemporarilySoftBlocked(lang, attemptsThisRun, softBlockedLangUntilAttempt)
+      ) {
         continue;
       }
-      const itemKey = getQueueItemKey(item);
-      if (itemKey && blockedKeys.has(itemKey)) continue;
-      const score = getQueueItemPriorityValue(item);
-      if (score > selectedScore) {
-        selectedLang = lang;
-        selectedIndex = idx;
-        selectedScore = score;
+      const queue = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
+      for (let idx = 0; idx < queue.length; idx += 1) {
+        const item = queue[idx];
+        if (!item?.username) {
+          queue.splice(idx, 1);
+          idx -= 1;
+          continue;
+        }
+        const itemKey = getQueueItemKey(item);
+        if (itemKey && blockedKeys.has(itemKey)) continue;
+        const score = getQueueItemCompositePriority(item, lang, deliveryAggregate);
+        if (score > selectedScore) {
+          selectedLang = lang;
+          selectedIndex = idx;
+          selectedScore = score;
+        }
       }
     }
-  }
+    if (selectedLang == null || selectedIndex < 0) return null;
+    return { selectedLang, selectedIndex };
+  };
 
-  if (selectedLang == null || selectedIndex < 0) return null;
-  const selectedQueue = queuesByLang[selectedLang] || [];
-  const selectedItem = selectedQueue.splice(selectedIndex, 1)[0];
+  let selected = pickCandidate(false);
+  if (!selected) {
+    // すべての言語が一時ブロック中の場合は、ブロックを無視して候補を選ぶ
+    selected = pickCandidate(true);
+  }
+  if (!selected) return null;
+  const selectedQueue = queuesByLang[selected.selectedLang] || [];
+  const selectedItem = selectedQueue.splice(selected.selectedIndex, 1)[0];
   if (!selectedItem?.username) return null;
   return {
-    lang: selectedLang,
+    lang: selected.selectedLang,
     item: selectedItem,
     itemKey: getQueueItemKey(selectedItem)
   };
@@ -593,11 +891,33 @@ async function incrementHourSent(dateStr, hour) {
   await kv.set(key, String(next), { ex: 86400 * 2 });
 }
 
-function getRegionListRotationLangs(utcHour) {
-  const rotationLength = REGION_LIST_PAIR_ROTATION.length;
-  if (!rotationLength) return [];
-  const hour = ((Number(utcHour) || 0) % rotationLength + rotationLength) % rotationLength;
-  return REGION_LIST_PAIR_ROTATION[hour] || [];
+function getGrossListTargetLangs(forcedLangRaw) {
+  const forcedLang = String(forcedLangRaw || "")
+    .trim()
+    .toLowerCase();
+  if (forcedLang) {
+    if (forcedLang === "en" || REGION_QUEUE_LANGS.includes(forcedLang)) {
+      return [forcedLang];
+    }
+    return [];
+  }
+  return [...QUEUE_LANGS_ALL];
+}
+
+function aggregateGrossListSummary(perLang) {
+  const rows = Array.isArray(perLang) ? perLang : [];
+  const sumBy = (key) => rows.reduce((acc, row) => acc + (parseInt(row?.[key], 10) || 0), 0);
+  return {
+    targets: rows.map((row) => row?.lang).filter(Boolean),
+    pagesFetchedTotal: sumBy("pagesFetched"),
+    fetchedPostsTotal: sumBy("fetchedPosts"),
+    eligibleCandidatesTotal: sumBy("eligibleCandidates"),
+    enqueuedTotal: sumBy("enqueued"),
+    addedFromFreshTotal: sumBy("addedFromFresh"),
+    droppedDuplicatesTotal: sumBy("droppedDuplicates"),
+    skippedAlreadySentTotal: sumBy("skippedAlreadySent"),
+    skippedDmNgTotal: sumBy("skippedDmNg")
+  };
 }
 
 function resolveQueueListConfig(lang) {
@@ -612,7 +932,7 @@ function resolveQueueListConfig(lang) {
   };
 }
 
-async function refreshQueueForLang(lang, now, modeLabel) {
+async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
   const cfg = resolveQueueListConfig(lang);
   if (!cfg.lang || (!cfg.isEn && !REGION_QUEUE_LANGS.includes(cfg.lang))) {
     return {
@@ -658,6 +978,7 @@ async function refreshQueueForLang(lang, now, modeLabel) {
     if (!nextToken) break;
   }
 
+  const deliveryAggregate = options.deliveryAggregate || null;
   const eligible = buildEligibleCandidates(allPosts, usersById, cfg.lang);
   const toEnqueue = [];
   let skippedAlreadySent = 0;
@@ -687,6 +1008,13 @@ async function refreshQueueForLang(lang, now, modeLabel) {
       detected_via: c.detectedVia || "default"
     });
   }
+  toEnqueue.sort((a, b) => {
+    const priorityDiff =
+      getQueueItemCompositePriority(b, cfg.lang, deliveryAggregate) -
+      getQueueItemCompositePriority(a, cfg.lang, deliveryAggregate);
+    if (priorityDiff !== 0) return priorityDiff;
+    return String(a.username || "").localeCompare(String(b.username || ""));
+  });
 
   const prevQueue = parseQueueValue(await kv.get(cfg.queueKey));
   const prevQueueLength = prevQueue.length;
@@ -697,6 +1025,8 @@ async function refreshQueueForLang(lang, now, modeLabel) {
   const listSummary = {
     mode: modeLabel,
     lang: cfg.lang,
+    listSelectionMode: "gross_quality_composite",
+    deliverabilityWeight: EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT,
     utcHour: now.getUTCHours(),
     runAt: now.toISOString(),
     pagesFetched,
@@ -792,7 +1122,7 @@ module.exports = async function handler(req, res) {
 
   const forceMode = req.query?.mode || req.body?.mode;
 
-  // ----- EN キューライン: 1h ごとリスト取得（既定 1 ページ、env で可変） -----
+  // ----- EN キューライン: リスト取得（高品質順でキュー更新） -----
   if (forceMode === "en-queue-list") {
     const now = new Date();
     const utcHour = now.getUTCHours();
@@ -808,7 +1138,12 @@ module.exports = async function handler(req, res) {
       });
     }
     try {
-      const result = await refreshQueueForLang("en", now, "en-queue-list");
+      const deliveryAggregate = normalizeDeliveryOutcomeAggregate(
+        await kv.get(KV_KEY_DELIVERY_OUTCOME_AGG)
+      );
+      const result = await refreshQueueForLang("en", now, "en-queue-list", {
+        deliveryAggregate
+      });
       if (!result.ok) {
         return res.status(200).json({
           ok: false,
@@ -820,6 +1155,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         enQueueList: true,
+        listSelectionMode: "gross_quality_composite",
         lang: "en",
         added: result.addedFromFresh,
         enqueuedFresh: result.enqueued,
@@ -845,43 +1181,33 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ----- 他地域キューライン: リスト取得（1日複数ページ/言語・言語ごとの時間帯で取得 → キューマージ＋重複排除。1日かけて枯渇まで送信） -----
+  // ----- 他地域キューライン: 全言語グロス取得（高品質順でキュー更新） -----
   if (forceMode === "regions-queue-list") {
     const now = new Date();
     const utcHour = now.getUTCHours();
-    const forcedLang = String(req.query?.lang || req.body?.lang || "")
-      .trim()
-      .toLowerCase();
-    const pairLangs = forcedLang
-      ? [forcedLang]
-      : getRegionListRotationLangs(utcHour);
-    if (!pairLangs.length) {
-      console.log(
-        `[affiliate-recruit-regions-list] skip utcHour=${utcHour} expected=${REGION_LIST_SCHEDULE_TEXT}`
-      );
-      return res.status(200).json({
-        ok: true,
-        reason: "regions_queue_list_skip_hour",
-        utcHour,
-        message: `Run at ${REGION_LIST_SCHEDULE_TEXT} UTC`
-      });
-    }
+    const forcedLang = req.query?.lang || req.body?.lang;
+    const targets = getGrossListTargetLangs(forcedLang);
     try {
-      const targets = pairLangs.filter((lang) => lang === "en" || REGION_QUEUE_LANGS.includes(lang));
       if (!targets.length) {
         return res.status(200).json({
           ok: false,
-          reason: "regions_queue_list_no_valid_lang",
+          reason: "regions_queue_list_invalid_target_lang",
           utcHour,
-          pairLangs
+          forcedLang: String(forcedLang || "")
         });
       }
 
+      const deliveryAggregate = normalizeDeliveryOutcomeAggregate(
+        await kv.get(KV_KEY_DELIVERY_OUTCOME_AGG)
+      );
       const perLang = [];
       for (const lang of targets) {
-        const result = await refreshQueueForLang(lang, now, "regions-queue-list");
+        const result = await refreshQueueForLang(lang, now, "regions-queue-list", {
+          deliveryAggregate
+        });
         perLang.push(result);
       }
+      const grossSummary = aggregateGrossListSummary(perLang);
 
       const firstError = perLang.find((row) => !row.ok);
       if (firstError) {
@@ -889,7 +1215,7 @@ module.exports = async function handler(req, res) {
           ok: false,
           reason: firstError.reason || "regions_queue_list_failed",
           utcHour,
-          pairLangs: targets,
+          targets,
           perLang
         });
       }
@@ -897,9 +1223,12 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         regionsQueueList: true,
+        listSelectionMode: "gross_quality_composite",
+        scheduleMode: REGION_LIST_SCHEDULE_TEXT,
         utcHour,
-        pairLangs: targets,
-        perLang
+        targets,
+        perLang,
+        grossSummary
       });
     } catch (e) {
       console.error("[affiliate-recruit-run] regions-queue-list error:", e?.message);
@@ -1012,6 +1341,9 @@ module.exports = async function handler(req, res) {
       en: queue,
       ...regionQueues
     };
+    const deliveryAggregateSnapshot = normalizeDeliveryOutcomeAggregate(
+      await kv.get(KV_KEY_DELIVERY_OUTCOME_AGG)
+    );
     const queueLengthsStart = computeQueueLengthsByLang(queuesByLang, sendQueueLangs);
     const sendStatsByLang = createSendStatsByLang(sendQueueLangs);
     for (const statLang of sendQueueLangs) {
@@ -1027,6 +1359,11 @@ module.exports = async function handler(req, res) {
       sendDelayMs: EN_RECRUIT_SEND_DELAY_MS,
       sendRunHardStopMs: EN_RECRUIT_SEND_RUN_HARD_STOP_MS,
       selectionMode: "6lang_gross_priority",
+      deliverabilityWeight: EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT,
+      deliverabilityMinAttempts: EN_RECRUIT_DELIVERABILITY_MIN_ATTEMPTS,
+      recipient403SoftBlockStreak: EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK,
+      recipient403SoftBlockAttempts: EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS,
+      deliverabilityHistoryAttempts: deliveryAggregateSnapshot?.totals?.attempted || 0,
       opNotPermittedBackoffLevel,
       queueLengthsStart,
     });
@@ -1036,12 +1373,21 @@ module.exports = async function handler(req, res) {
     let firstAttemptSource = null;
     let lastAttemptStartedAtMs = 0;
     const sentHandles = [];
+    const deliveryOutcomeAccumulator = createDeliveryOutcomeAccumulator();
     const opNotPermittedBlockedKeys = new Set();
     const opNotPermittedDeferredByLang = sendQueueLangs.reduce((acc, candidateLang) => {
       acc[candidateLang] = 0;
       return acc;
     }, {});
     const recipient403StreakByLang = sendQueueLangs.reduce((acc, candidateLang) => {
+      acc[candidateLang] = 0;
+      return acc;
+    }, {});
+    const softBlockedLangUntilAttempt = sendQueueLangs.reduce((acc, candidateLang) => {
+      acc[candidateLang] = 0;
+      return acc;
+    }, {});
+    const recipient403SoftBlockedByLang = sendQueueLangs.reduce((acc, candidateLang) => {
       acc[candidateLang] = 0;
       return acc;
     }, {});
@@ -1087,7 +1433,12 @@ module.exports = async function handler(req, res) {
       const picked = popNextGrossPriorityCandidate(
         queuesByLang,
         sendQueueLangs,
-        opNotPermittedBlockedKeys
+        opNotPermittedBlockedKeys,
+        deliveryAggregateSnapshot,
+        {
+          attemptsThisRun,
+          softBlockedLangUntilAttempt
+        }
       );
       if (!picked) {
         stopReason = "queue_exhausted";
@@ -1099,6 +1450,11 @@ module.exports = async function handler(req, res) {
 
       const angleDecision = pickRecruitAngleDecisionFromItem(item);
       const angle = angleDecision.angle;
+      const deliveryFeatureMeta = buildDeliveryFeatureMeta(
+        item,
+        lang,
+        angleDecision.recommendedAngle || angle
+      );
       const inviteUrlRaw = getFirstPromoterInviteUrl(lang, { ref: item.author_id });
       const inviteUrl = buildTrackedInviteUrl(req, inviteUrlRaw, {
         ref: item.author_id,
@@ -1135,23 +1491,51 @@ module.exports = async function handler(req, res) {
         if (classified.is403) {
           if (classified.type === "recipient_not_open") {
             sendStatsByLang[lang].recipient403 += 1;
+            recordDeliveryOutcome(deliveryOutcomeAccumulator, deliveryFeatureMeta, "recipient403");
             await markDmNg(item.author_id, {
               username: item.username,
               score: item.score,
               lang,
               breakdown: item.breakdown
             });
-            recipient403StreakByLang[lang] = (recipient403StreakByLang[lang] || 0) + 1;
+            const nextRecipientStreak = (recipient403StreakByLang[lang] || 0) + 1;
+            recipient403StreakByLang[lang] = nextRecipientStreak;
             if (lang === "en") {
-              enRecipient403StreakMax = Math.max(enRecipient403StreakMax, recipient403StreakByLang[lang]);
+              enRecipient403StreakMax = Math.max(enRecipient403StreakMax, nextRecipientStreak);
             } else {
               regionRecipient403StreakMaxByLang[lang] = Math.max(
                 regionRecipient403StreakMaxByLang[lang] || 0,
-                recipient403StreakByLang[lang]
+                nextRecipientStreak
               );
+            }
+            if (
+              EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK > 0 &&
+              nextRecipientStreak >= EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK &&
+              hasAlternativeQueueItems(queuesByLang, sendQueueLangs, lang)
+            ) {
+              const softBlockUntilAttempt = attemptsThisRun + EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS;
+              softBlockedLangUntilAttempt[lang] = Math.max(
+                softBlockedLangUntilAttempt[lang] || 0,
+                softBlockUntilAttempt
+              );
+              recipient403SoftBlockedByLang[lang] = (recipient403SoftBlockedByLang[lang] || 0) + 1;
+              recipient403StreakByLang[lang] = 0;
+              console.warn("[affiliate-recruit-run] recipient403 soft-block language:", {
+                lang,
+                streak: nextRecipientStreak,
+                streakBreaker: EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK,
+                softBlockAttempts: EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS,
+                attemptsThisRun,
+                softBlockUntilAttempt
+              });
             }
           } else if (classified.type === "operation_not_permitted") {
             sendStatsByLang[lang].operationNotPermitted403 += 1;
+            recordDeliveryOutcome(
+              deliveryOutcomeAccumulator,
+              deliveryFeatureMeta,
+              "operationNotPermitted403"
+            );
             if (itemKey) opNotPermittedBlockedKeys.add(itemKey);
             queuesByLang[lang] = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
             queuesByLang[lang].push(item);
@@ -1172,6 +1556,7 @@ module.exports = async function handler(req, res) {
             );
           } else {
             sendStatsByLang[lang].other403 += 1;
+            recordDeliveryOutcome(deliveryOutcomeAccumulator, deliveryFeatureMeta, "other403");
             recipient403StreakByLang[lang] = 0;
           }
           count403 += 1;
@@ -1189,6 +1574,7 @@ module.exports = async function handler(req, res) {
           continue;
         }
         sendStatsByLang[lang].non403Errors += 1;
+        recordDeliveryOutcome(deliveryOutcomeAccumulator, deliveryFeatureMeta, "non403Errors");
         queuesByLang[lang] = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
         queuesByLang[lang].unshift(item);
         stopReason = "dm_send_failed";
@@ -1226,6 +1612,7 @@ module.exports = async function handler(req, res) {
       });
       await incrementSentStats(lang, item.score);
       await incrementTodaySentCount();
+      recordDeliveryOutcome(deliveryOutcomeAccumulator, deliveryFeatureMeta, "sent");
       recipient403StreakByLang[lang] = 0;
       sentThisWindow += 1;
       sendStatsByLang[lang].sent += 1;
@@ -1241,6 +1628,10 @@ module.exports = async function handler(req, res) {
         ex: 86400 * 2
       });
     }
+    const deliveryAggregateMerged = await flushDeliveryOutcomeAccumulator(deliveryOutcomeAccumulator);
+    const deliveryOutcomeThisRun = normalizeDeliveryOutcomeCounter(
+      deliveryOutcomeAccumulator?.totals
+    );
 
     if (!stopReason) {
       if (attemptsThisRun >= EN_QUEUE_MAX_ATTEMPTS_PER_RUN) {
@@ -1303,6 +1694,9 @@ module.exports = async function handler(req, res) {
       sendDelayMs: EN_RECRUIT_SEND_DELAY_MS,
       sendDelayWaitedMsThisRun,
       selectionMode: "6lang_gross_priority",
+      deliverabilityWeight: EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT,
+      recipient403SoftBlockStreak: EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK,
+      recipient403SoftBlockAttempts: EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS,
       sendTurn: sendTurnRaw,
       firstAttemptSource,
       count403ThisWindow: count403,
@@ -1314,6 +1708,8 @@ module.exports = async function handler(req, res) {
       enFailoverTriggered,
       enRecipient403StreakMax,
       enRecipient403FailoverBreaker: 0,
+      recipient403SoftBlockedByLang,
+      softBlockedLangUntilAttempt,
       opNotPermittedCountInWindow,
       opNotPermittedBackoffLevelBefore,
       opNotPermittedBackoffLevelAfter,
@@ -1321,6 +1717,8 @@ module.exports = async function handler(req, res) {
       regionFailoverTriggeredLangs,
       regionRecipient403StreakMaxByLang,
       regionRecipient403FailoverBreaker: 0,
+      deliveryOutcomeThisRun,
+      deliveryHistoryAttempts: deliveryAggregateMerged?.totals?.attempted || 0,
       ...(cooldownApplied ? {
         cooldownApplied,
         cooldownSeconds: cooldownSecondsApplied,
@@ -1343,6 +1741,9 @@ module.exports = async function handler(req, res) {
       sendDelayMs: EN_RECRUIT_SEND_DELAY_MS,
       sendDelayWaitedMsThisRun,
       selectionMode: "6lang_gross_priority",
+      deliverabilityWeight: EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT,
+      recipient403SoftBlockStreak: EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK,
+      recipient403SoftBlockAttempts: EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS,
       sendTurn: sendTurnRaw,
       firstAttemptSource,
       queueLength: queue.length,
@@ -1353,6 +1754,8 @@ module.exports = async function handler(req, res) {
       enFailoverTriggered,
       enRecipient403StreakMax,
       enRecipient403FailoverBreaker: 0,
+      recipient403SoftBlockedByLang,
+      softBlockedLangUntilAttempt,
       opNotPermittedCountInWindow,
       opNotPermittedBackoffLevelBefore,
       opNotPermittedBackoffLevelAfter,
@@ -1360,6 +1763,8 @@ module.exports = async function handler(req, res) {
       regionFailoverTriggeredLangs,
       regionRecipient403StreakMaxByLang,
       regionRecipient403FailoverBreaker: 0,
+      deliveryOutcomeThisRun,
+      deliveryHistoryAttempts: deliveryAggregateMerged?.totals?.attempted || 0,
       ...(cooldownApplied ? {
         cooldownApplied,
         cooldownSeconds: cooldownSecondsApplied,

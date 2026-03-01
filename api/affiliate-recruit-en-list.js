@@ -1,6 +1,6 @@
 /**
- * EN キューライン: リスト取得（3時間ごと・既定 1 ページ → キュー投入）
- * Cron: UTC minute 2, every 3 hours
+ * EN キューライン: リスト取得（3時間ごと・高品質順でキュー更新）
+ * Cron: UTC minute 8, every 3 hours
  * 仕様: docs/AFFILIATE_RECRUIT_EN_LINE_SPEC.md
  */
 const mainHandler = require("./affiliate-recruit-run");

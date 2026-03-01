@@ -14,6 +14,7 @@ const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${da
 const KV_KEY_ATTEMPT_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:attempts:en:${dateStr}:${slot15}`;
 const KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS = "affiliate_recruit:cooldown:op_not_permitted:until_ms";
 const KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL = "affiliate_recruit:cooldown:op_not_permitted:backoff_level";
+const KV_KEY_DELIVERY_OUTCOME_AGG = "affiliate_recruit:delivery:agg:v1";
 const CONVERSION_COUNT_KEY = (type, dateStr) => `conversion:${type}:${dateStr}:count`;
 const AFFILIATE_CONVERSION_COUNT_KEY = (type, dateStr) =>
   `affiliate_recruit:conversion:affiliate:${type}:${dateStr}:count`;
@@ -34,6 +35,23 @@ const EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN = Math.max(
   1,
   Number(process.env.EN_RECRUIT_ATTEMPT_BREAKER_PER_15MIN || 15)
 );
+const DELIVERY_TREND_MIN_ATTEMPTS = Math.max(
+  1,
+  Number(process.env.AFFILIATE_RECRUIT_DELIVERY_TREND_MIN_ATTEMPTS || 10)
+);
+const DELIVERY_TREND_TOP_LIMIT = Math.max(
+  1,
+  Number(process.env.AFFILIATE_RECRUIT_DELIVERY_TREND_TOP_LIMIT || 5)
+);
+const DELIVERY_OUTCOME_KEYS = [
+  "attempted",
+  "sent",
+  "recipient403",
+  "operationNotPermitted403",
+  "other403",
+  "non403Errors"
+];
+const SCORE_BANDS = ["0-49", "50-64", "65-79", "80-100"];
 
 function parseCount(v) {
   const n = parseInt(v, 10);
@@ -79,6 +97,151 @@ function nowUtcMeta(now = new Date()) {
 function roundPercent(numerator, denominator) {
   if (!denominator || denominator <= 0) return 0;
   return Math.round((numerator / denominator) * 10000) / 100;
+}
+
+function createDeliveryOutcomeCounter() {
+  return {
+    attempted: 0,
+    sent: 0,
+    recipient403: 0,
+    operationNotPermitted403: 0,
+    other403: 0,
+    non403Errors: 0
+  };
+}
+
+function normalizeDeliveryOutcomeCounter(raw) {
+  const normalized = createDeliveryOutcomeCounter();
+  if (!raw || typeof raw !== "object") return normalized;
+  for (const key of DELIVERY_OUTCOME_KEYS) {
+    normalized[key] = Math.max(0, parseInt(raw[key], 10) || 0);
+  }
+  return normalized;
+}
+
+function normalizeDeliveryOutcomeMap(rawMap) {
+  if (!rawMap || typeof rawMap !== "object" || Array.isArray(rawMap)) return {};
+  const normalized = {};
+  for (const [bucket, counter] of Object.entries(rawMap)) {
+    normalized[String(bucket)] = normalizeDeliveryOutcomeCounter(counter);
+  }
+  return normalized;
+}
+
+function normalizeDeliveryOutcomeAggregate(rawValue) {
+  let raw = rawValue;
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw);
+    } catch (_) {
+      raw = null;
+    }
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {
+      totals: createDeliveryOutcomeCounter(),
+      byLang: {},
+      byScoreBand: {},
+      byHighIntent: {},
+      byIntentSegment: {},
+      byAngle: {},
+      byDetectedVia: {},
+      updatedAt: null
+    };
+  }
+  return {
+    totals: normalizeDeliveryOutcomeCounter(raw.totals),
+    byLang: normalizeDeliveryOutcomeMap(raw.byLang),
+    byScoreBand: normalizeDeliveryOutcomeMap(raw.byScoreBand),
+    byHighIntent: normalizeDeliveryOutcomeMap(raw.byHighIntent),
+    byIntentSegment: normalizeDeliveryOutcomeMap(raw.byIntentSegment),
+    byAngle: normalizeDeliveryOutcomeMap(raw.byAngle),
+    byDetectedVia: normalizeDeliveryOutcomeMap(raw.byDetectedVia),
+    updatedAt: raw.updatedAt || null
+  };
+}
+
+function toDeliveryRateRow(counter) {
+  const normalized = normalizeDeliveryOutcomeCounter(counter);
+  return {
+    attempted: normalized.attempted,
+    sent: normalized.sent,
+    recipient403: normalized.recipient403,
+    operationNotPermitted403: normalized.operationNotPermitted403,
+    other403: normalized.other403,
+    non403Errors: normalized.non403Errors,
+    sentRate: roundPercent(normalized.sent, normalized.attempted),
+    recipient403Rate: roundPercent(normalized.recipient403, normalized.attempted),
+    opNotPermittedRate: roundPercent(normalized.operationNotPermitted403, normalized.attempted)
+  };
+}
+
+function summarizeDeliveryTrendDimension(rawMap, options = {}) {
+  const minAttempts = Math.max(1, Number(options.minAttempts || DELIVERY_TREND_MIN_ATTEMPTS));
+  const topLimit = Math.max(1, Number(options.limit || DELIVERY_TREND_TOP_LIMIT));
+  const rows = Object.entries(normalizeDeliveryOutcomeMap(rawMap))
+    .map(([bucket, counter]) => {
+      const row = toDeliveryRateRow(counter);
+      return {
+        bucket,
+        ...row
+      };
+    })
+    .filter((row) => row.attempted >= minAttempts);
+
+  const bySentRate = [...rows].sort((a, b) => {
+    const rateDiff = b.sentRate - a.sentRate;
+    if (rateDiff !== 0) return rateDiff;
+    return b.attempted - a.attempted;
+  });
+  const byRecipient403Rate = [...rows].sort((a, b) => {
+    const rateDiff = b.recipient403Rate - a.recipient403Rate;
+    if (rateDiff !== 0) return rateDiff;
+    return b.attempted - a.attempted;
+  });
+  const byOpNotPermittedRate = [...rows].sort((a, b) => {
+    const rateDiff = b.opNotPermittedRate - a.opNotPermittedRate;
+    if (rateDiff !== 0) return rateDiff;
+    return b.attempted - a.attempted;
+  });
+
+  return {
+    minAttempts,
+    topSuccess: bySentRate.slice(0, topLimit),
+    topRecipient403Risk: byRecipient403Rate.slice(0, topLimit),
+    topOpNotPermittedRisk: byOpNotPermittedRate.slice(0, topLimit)
+  };
+}
+
+function buildDeliveryTrend(rawAggregate) {
+  const aggregate = normalizeDeliveryOutcomeAggregate(rawAggregate);
+  const byLang = {
+    en: toDeliveryRateRow(aggregate.byLang.en),
+    ar: toDeliveryRateRow(aggregate.byLang.ar),
+    es: toDeliveryRateRow(aggregate.byLang.es),
+    pt: toDeliveryRateRow(aggregate.byLang.pt),
+    ja: toDeliveryRateRow(aggregate.byLang.ja),
+    ko: toDeliveryRateRow(aggregate.byLang.ko)
+  };
+  const byScoreBand = {};
+  for (const band of SCORE_BANDS) {
+    byScoreBand[band] = toDeliveryRateRow(aggregate.byScoreBand[band]);
+  }
+  return {
+    updatedAt: aggregate.updatedAt,
+    totals: toDeliveryRateRow(aggregate.totals),
+    byLang,
+    byScoreBand,
+    byHighIntent: {
+      "0": toDeliveryRateRow(aggregate.byHighIntent["0"]),
+      "1": toDeliveryRateRow(aggregate.byHighIntent["1"])
+    },
+    trends: {
+      intentSegment: summarizeDeliveryTrendDimension(aggregate.byIntentSegment),
+      angle: summarizeDeliveryTrendDimension(aggregate.byAngle),
+      detectedVia: summarizeDeliveryTrendDimension(aggregate.byDetectedVia)
+    }
+  };
 }
 
 function pickDelta(current, previous) {
@@ -191,15 +354,17 @@ module.exports = async function handler(req, res) {
   const { dateStr, slot15, slotKey } = nowUtcMeta(now);
   const previousSnapshot = parseObject(await kv.get(KV_KEY_KPI_LATEST));
 
-  const [runtime, sent, signups, signupsAttributed, clicks, salesToday, historyRaw] = await Promise.all([
+  const [runtime, sent, signups, signupsAttributed, clicks, salesToday, historyRaw, deliveryAggRaw] = await Promise.all([
     getQueueRuntimeState(now),
     funnel.getSentStats(),
     funnel.getSignupsStats(),
     funnel.getSignupsAttributed(),
     funnel.getClicksAttributed(),
     getSalesToday(now),
-    kv.get(KV_KEY_KPI_HISTORY)
+    kv.get(KV_KEY_KPI_HISTORY),
+    kv.get(KV_KEY_DELIVERY_OUTCOME_AGG)
   ]);
+  const delivery = buildDeliveryTrend(deliveryAggRaw);
 
   const summary = {
     sentTotal: sent.total,
@@ -228,7 +393,8 @@ module.exports = async function handler(req, res) {
       opNotPermittedBackoffLevel: runtime.opNotPermittedBackoffLevel,
       opNotPermittedCooldownActive: runtime.opNotPermittedCooldownActive,
       opNotPermittedCooldownUntil: runtime.opNotPermittedCooldownUntil
-    }
+    },
+    delivery
   };
 
   const history = Array.isArray(historyRaw) ? historyRaw : [];
@@ -271,6 +437,7 @@ module.exports = async function handler(req, res) {
       clicksUnique: clicks.byLang,
       signupsAttributed: signupsAttributed.byLang
     },
+    delivery: snapshot.delivery,
     deltaSincePrevious: delta
   });
 
@@ -286,6 +453,7 @@ module.exports = async function handler(req, res) {
       clicksUnique: clicks.byLang,
       signupsAttributed: signupsAttributed.byLang
     },
+    delivery: snapshot.delivery,
     deltaSincePrevious: delta,
     historyMeta: {
       storedSnapshots: nextHistory.length,
