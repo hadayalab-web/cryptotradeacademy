@@ -175,7 +175,7 @@ async function analyzePsychologyWithGemini() {
   try {
     console.log('🔄 Geminiで心理解析を実行中...');
     
-    const model = geminiClient.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+    const model = geminiClient.getGenerativeModel({ model: 'gemini-3.1-pro-preview' });
     
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -186,7 +186,7 @@ async function analyzePsychologyWithGemini() {
     return {
       success: true,
       analysis,
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
     };
   } catch (error) {
     console.error('❌ Gemini分析エラー:', error.message);
@@ -238,7 +238,7 @@ ${geminiAnalysis}
   try {
     console.log('🔄 統合戦略を生成中...');
     
-    const model = geminiClient.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+    const model = geminiClient.getGenerativeModel({ model: 'gemini-3.1-pro-preview' });
     
     const result = await model.generateContent(prompt);
     const response = await result.response;

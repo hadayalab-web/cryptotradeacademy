@@ -326,7 +326,7 @@ async function askGemini(client, systemPrompt, userPrompt) {
   try {
     console.log('🔄 Geminiに質問を送信中...\n');
     const model = client.getGenerativeModel({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 12000,

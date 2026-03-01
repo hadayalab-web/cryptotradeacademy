@@ -32,7 +32,7 @@ const grokClient = new OpenAI({
 });
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const geminiModel = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+const geminiModel = genAI.getGenerativeModel({ model: 'gemini-3.1-pro-preview' });
 
 // サンプルメッセージ（ユーザー提供のサンプル）
 const MINIMAL_VERSION_SAMPLE = `🌤️ Trap Defence BTC - Free Report

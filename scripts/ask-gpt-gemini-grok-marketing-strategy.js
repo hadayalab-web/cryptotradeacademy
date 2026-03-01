@@ -7,7 +7,7 @@
  *
  * 使用モデル:
  *   - gpt-5.2-2025-12-11
- *   - gemini-3-pro-preview（戦略テキスト用。画像案は gemini-3-pro-image-preview で別途可）
+ *   - gemini-3.1-pro-preview（戦略テキスト用。画像案は gemini-3-pro-image-preview で別途可）
  *   - grok-4-1-fast-reasoning
  *
  * 出力: docs/ai-analysis-results/MARKETING_STRATEGY_3AI_YYYY-MM-DDTHH-mm-ss.md
@@ -25,7 +25,7 @@ const XAI_API_KEY = process.env.XAI_API_KEY;
 const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
 
 const GPT_MODEL = "gpt-5.2-2025-12-11";
-const GEMINI_MODEL = "gemini-3-pro-preview";
+const GEMINI_MODEL = "gemini-3.1-pro-preview";
 const GROK_MODEL = "grok-4-1-fast-reasoning";
 
 if (!OPENAI_API_KEY || !GEMINI_API_KEY || !XAI_API_KEY) {

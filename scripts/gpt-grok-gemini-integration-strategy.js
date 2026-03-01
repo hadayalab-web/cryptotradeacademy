@@ -245,7 +245,7 @@ GPTの統合戦略を踏まえ、**深層心理学の観点から**以下の点�
   console.log('\n🤖 Geminiに深層心理解析を依頼中...\n');
 
   try {
-    const model = geminiClient.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+    const model = geminiClient.getGenerativeModel({ model: 'gemini-3.1-pro-preview' });
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {

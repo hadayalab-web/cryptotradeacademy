@@ -49,7 +49,7 @@ async function reviewImplementation() {
 
 ## 実装の目的
 - Grok（grok-4-1-fast-reasoning）でXアルゴリズム分析を実行
-- Gemini（gemini-3-pro-preview）で心理分析を実行
+- Gemini（gemini-3.1-pro-preview）で心理分析を実行
 - 両者の分析結果を統合して最適化戦略を生成
 - 生成された最適化戦略を投稿生成プロンプトに反映
 

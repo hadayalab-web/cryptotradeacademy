@@ -5,7 +5,7 @@
  * 実行: node scripts/ask-gpt-gemini-grok-traffic-acquisition.js
  * 環境変数: OPENAI_API_KEY, GEMINI_API_KEY, XAI_API_KEY（.env 推奨）
  *
- * 使用モデル: gpt-5.2-2025-12-11, gemini-3-pro-preview, grok-4-1-fast-reasoning
+ * 使用モデル: gpt-5.2-2025-12-11, gemini-3.1-pro-preview, grok-4-1-fast-reasoning
  * 出力: docs/ai-analysis-results/TRAFFIC_ACQUISITION_3AI_YYYY-MM-DDTHH-mm-ss.md
  *
  * 注: X引用リポスト作戦は Copilot が発見。再現性・即効性でソートして実験していく前提。
@@ -23,7 +23,7 @@ const XAI_API_KEY = process.env.XAI_API_KEY;
 const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
 
 const GPT_MODEL = "gpt-5.2-2025-12-11";
-const GEMINI_MODEL = "gemini-3-pro-preview";
+const GEMINI_MODEL = "gemini-3.1-pro-preview";
 const GROK_MODEL = "grok-4-1-fast-reasoning";
 
 if (!OPENAI_API_KEY || !GEMINI_API_KEY || !XAI_API_KEY) {

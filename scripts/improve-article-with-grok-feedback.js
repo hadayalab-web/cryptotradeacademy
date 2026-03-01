@@ -86,7 +86,7 @@ Grokの改善提案に基づいて、以下の点を改善してください：
     console.log('🤖 GeminiにGrokの改善提案を渡して記事をブラッシュアップ中...');
     
     // REST APIを直接呼び出し
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent?key=${GEMINI_API_KEY}`;
     
     const requestBody = {
       contents: [{

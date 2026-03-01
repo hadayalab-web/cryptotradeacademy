@@ -214,12 +214,12 @@ ${JSON.stringify(formattedData.historical, null, 2)}
 
   try {
     console.log('🤖 Gemini APIにリクエストを送信中...');
-    console.log(`📡 API URL: https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent`);
+    console.log(`📡 API URL: https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent`);
     console.log(`🔑 API Key: ${GEMINI_API_KEY.substring(0, 20)}...${GEMINI_API_KEY.substring(GEMINI_API_KEY.length - 10)}`);
     console.log(`📝 プロンプト長: ${prompt.length}文字`);
     
     // REST APIを直接呼び出し
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent?key=${GEMINI_API_KEY}`;
     
     const requestBody = {
       contents: [{

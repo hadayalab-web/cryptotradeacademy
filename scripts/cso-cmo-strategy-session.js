@@ -16,7 +16,7 @@ const path = require("path");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3-pro-preview";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.1-pro-preview";
 
 if (!GEMINI_API_KEY) {
   console.error("❌ GEMINI_API_KEY が設定されていません");

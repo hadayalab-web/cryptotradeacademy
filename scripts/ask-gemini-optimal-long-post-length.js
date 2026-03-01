@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * X 長文ポスト（最大25,000文字）の最適文字数を Gemini（gemini-3-pro-preview）に聞く。
+ * X 長文ポスト（最大25,000文字）の最適文字数を Gemini（gemini-3.1-pro-preview）に聞く。
  * 深層心理の観点で引用リポスト／長文ポスト用テンプレの文字数設計の参考用。
  *
  * 実行: node scripts/ask-gemini-optimal-long-post-length.js
@@ -13,7 +13,7 @@ const path = require("path");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = "gemini-3-pro-preview";
+const GEMINI_MODEL = "gemini-3.1-pro-preview";
 
 const GEMINI_PROMPT = `あなたは深層心理とマーケティングの専門家です。Xプレミアムの長文ポスト（最大25,000文字）について、**深層心理の観点**で最適な文字数を教えてください。
 
@@ -53,11 +53,11 @@ function ensureDir(dir) {
 }
 
 async function main() {
-  console.log("🔄 長文ポスト最適文字数を Gemini（gemini-3-pro-preview）に質問します...\n");
+  console.log("🔄 長文ポスト最適文字数を Gemini（gemini-3.1-pro-preview）に質問します...\n");
 
   const result = await askGemini();
 
-  console.log("---\n## Gemini（gemini-3-pro-preview）\n");
+  console.log("---\n## Gemini（gemini-3.1-pro-preview）\n");
   if (result.success) console.log(result.analysis);
   else console.log("❌", result.error);
 

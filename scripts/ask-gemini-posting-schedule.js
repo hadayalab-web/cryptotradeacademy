@@ -200,7 +200,7 @@ ${grokAnalysis}
     console.log('🔄 Gemini-3-pro-previewに質問を送信中...\n');
 
     const model = geminiClient.getGenerativeModel({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
       generationConfig: {
         temperature: 0.3,
         maxOutputTokens: 8000,

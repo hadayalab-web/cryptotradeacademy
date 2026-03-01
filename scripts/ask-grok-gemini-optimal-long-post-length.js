@@ -18,7 +18,7 @@ const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const GROK_MODEL = "grok-4-1-fast-reasoning";
-const GEMINI_MODEL = "gemini-3-pro-preview";
+const GEMINI_MODEL = "gemini-3.1-pro-preview";
 
 const GROK_PROMPT = `あなたはX（Twitter）アルゴリズム解析の専門家です。Xプレミアムの長文ポスト（最大25,000文字）について、**アルゴリズムの観点**で最適な文字数を教えてください。
 
@@ -127,7 +127,7 @@ async function main() {
     "",
     "---",
     "",
-    "## Gemini（gemini-3-pro-preview）",
+    "## Gemini（gemini-3.1-pro-preview）",
     "",
     geminiResult.success ? geminiResult.analysis : `エラー: ${geminiResult.error}`,
     ""

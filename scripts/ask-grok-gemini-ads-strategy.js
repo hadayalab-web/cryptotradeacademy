@@ -19,7 +19,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
 
 const GROK_MODEL = "grok-4-1-fast-reasoning";
-const GEMINI_MODEL = "gemini-3-pro-preview";
+const GEMINI_MODEL = "gemini-3.1-pro-preview";
 
 if (!XAI_API_KEY || !GEMINI_API_KEY) {
   console.error("❌ 必要なAPIキーが設定されていません");

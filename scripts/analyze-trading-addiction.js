@@ -14,7 +14,7 @@ if (!GEMINI_API_KEY) {
 console.log('[Trading Addiction Analysis] Using GEMINI_API_KEY:', GEMINI_API_KEY.substring(0, 10) + '...');
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const GEMINI_MODEL = 'gemini-3-pro-preview';
+const GEMINI_MODEL = 'gemini-3.1-pro-preview';
 
 /**
  * トレード依存症の深層分析を実行

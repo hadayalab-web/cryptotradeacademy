@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * VSL タイトル案を Grok (grok-4-1-fast-reasoning) と Gemini (gemini-3-pro-preview) に依頼する。
+ * VSL タイトル案を Grok (grok-4-1-fast-reasoning) と Gemini (gemini-3.1-pro-preview) に依頼する。
  * - VSL1: 無料版オプトイン用 (Minimal Opt-in)
  * - VSL2: クーポンで有料版アップセル用 (Minimal Coupon → Regular)
  *
@@ -26,7 +26,7 @@ const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const GROK_MODEL = "grok-4-1-fast-reasoning";
-const GEMINI_MODEL = "gemini-3-pro-preview";
+const GEMINI_MODEL = "gemini-3.1-pro-preview";
 
 // VSL1: Minimal Opt-in（無料版オプトイン）スクリプト本文（SRTから抜粋）
 const VSL1_SCRIPT = `

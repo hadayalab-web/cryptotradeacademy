@@ -276,7 +276,7 @@ ${dataSummary}
     console.log('🤖 Geminiに24時間市況予測とSoSoValue風ニュース記事生成を依頼中...');
     
     // REST APIを直接呼び出し
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent?key=${GEMINI_API_KEY}`;
     
     const requestBody = {
       contents: [{

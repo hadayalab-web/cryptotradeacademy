@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Grok（grok-4-1-fast-reasoning）と Gemini（gemini-3-pro-preview）に
+ * Grok（grok-4-1-fast-reasoning）と Gemini（gemini-3.1-pro-preview）に
  * 「いつ・誰に・Minimal と Regular のどちらを出すか」のルールを聞く。
  * 300インフルエンサー × 2種類のX投稿パターンをぐるぐる回す戦略の確立用。
  *
@@ -19,7 +19,7 @@ const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const GROK_MODEL = "grok-4-1-fast-reasoning";
-const GEMINI_MODEL = "gemini-3-pro-preview";
+const GEMINI_MODEL = "gemini-3.1-pro-preview";
 
 const SHARED_PROMPT = `あなたはTrap Defence BTCのマーケティング戦略担当です。X（Twitter）での引用リポスト戦略について、**実装可能な1本のルール**を提案してください。
 

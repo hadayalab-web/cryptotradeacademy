@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Grokの縮小案を完全却下した上で、gemini-3-pro-preview にレビュー依頼
+ * Grokの縮小案を完全却下した上で、gemini-3.1-pro-preview にレビュー依頼
  * 深層心理・CVR/LTV・変換率の観点から参考になる示唆を得る
  *
  * 実行: node scripts/ask-gemini-review-grok-proposal.js
@@ -12,7 +12,7 @@ const path = require("path");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = "gemini-3-pro-preview";
+const GEMINI_MODEL = "gemini-3.1-pro-preview";
 
 if (!GEMINI_API_KEY) {
   console.error("❌ GEMINI_API_KEY is not set");

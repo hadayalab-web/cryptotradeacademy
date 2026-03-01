@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = 'gemini-3-pro-preview';
+const MODEL = 'gemini-3.1-pro-preview';
 
 /**
  * Gemini APIを呼び出してテキスト生成

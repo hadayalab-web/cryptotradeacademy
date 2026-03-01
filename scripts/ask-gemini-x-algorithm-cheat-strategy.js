@@ -173,7 +173,7 @@ async function askGeminiXAlgorithmCheatStrategy() {
     console.log('🔄 Sending cheat-grade prompt to Gemini...\n');
 
     const model = geminiClient.getGenerativeModel({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
       generationConfig: {
         temperature: 0.7, // Higher temperature for more creative/aggressive responses
         maxOutputTokens: 12000, // Longer responses for detailed analysis
