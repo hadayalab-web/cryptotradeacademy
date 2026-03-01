@@ -13,6 +13,7 @@ const KV_KEY_DAILY_COUNT = (dateStr) => `affiliate_recruit:daily_count:${dateStr
 const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${dateStr}:${slot15}`;
 const KV_KEY_ATTEMPT_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:attempts:en:${dateStr}:${slot15}`;
 const KV_KEY_DELIVERY_OUTCOME_AGG = "affiliate_recruit:delivery:agg:v1";
+const KV_KEY_SEND_403_RATE_LATEST = "affiliate_recruit:send_403_rate:latest";
 const CONVERSION_COUNT_KEY = (type, dateStr) => `conversion:${type}:${dateStr}:count`;
 const AFFILIATE_CONVERSION_COUNT_KEY = (type, dateStr) =>
   `affiliate_recruit:conversion:affiliate:${type}:${dateStr}:count`;
@@ -345,7 +346,17 @@ module.exports = async function handler(req, res) {
   const { dateStr, slot15, slotKey } = nowUtcMeta(now);
   const previousSnapshot = parseObject(await kv.get(KV_KEY_KPI_LATEST));
 
-  const [runtime, sent, signups, signupsAttributed, clicks, salesToday, historyRaw, deliveryAggRaw] = await Promise.all([
+  const [
+    runtime,
+    sent,
+    signups,
+    signupsAttributed,
+    clicks,
+    salesToday,
+    historyRaw,
+    deliveryAggRaw,
+    send403RateLatestRaw
+  ] = await Promise.all([
     getQueueRuntimeState(now),
     funnel.getSentStats(),
     funnel.getSignupsStats(),
@@ -353,9 +364,11 @@ module.exports = async function handler(req, res) {
     funnel.getClicksAttributed(),
     getSalesToday(now),
     kv.get(KV_KEY_KPI_HISTORY),
-    kv.get(KV_KEY_DELIVERY_OUTCOME_AGG)
+    kv.get(KV_KEY_DELIVERY_OUTCOME_AGG),
+    kv.get(KV_KEY_SEND_403_RATE_LATEST)
   ]);
   const delivery = buildDeliveryTrend(deliveryAggRaw);
+  const send403RateLatest = parseObject(send403RateLatestRaw);
 
   const summary = {
     sentTotal: sent.total,
@@ -379,8 +392,10 @@ module.exports = async function handler(req, res) {
       sentToday: runtime.sentToday,
       count403CurrentSlot: runtime.count403CurrentSlot,
       attemptsCurrentSlot: runtime.attemptsCurrentSlot,
+      count403RateCurrentSlot: roundPercent(runtime.count403CurrentSlot, runtime.attemptsCurrentSlot),
       attemptCapPer15min: runtime.attemptCapPer15min,
-      queueLengths: runtime.queueLengths
+      queueLengths: runtime.queueLengths,
+      send403RateLatest: send403RateLatest || null
     },
     delivery
   };
