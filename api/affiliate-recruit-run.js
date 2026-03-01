@@ -68,11 +68,8 @@ const EN_QUEUE_ATTEMPT_WINDOW_TTL_SECONDS = Math.max(
   900,
   Number(process.env.EN_RECRUIT_ATTEMPT_WINDOW_TTL_SEC || 1200)
 );
-// 非ENの補充が弱いときは、検索窓とページ数を段階拡張して弾を確保する
-const REGION_QUEUE_MIN_FRESH_ENQUEUE = Math.max(
-  0,
-  Number(process.env.EN_RECRUIT_REGION_MIN_FRESH_ENQUEUE || 12)
-);
+// 6言語×4時間ごと×1ページ固定運用のため、拡張取得は無効化
+const REGION_QUEUE_MIN_FRESH_ENQUEUE = 0;
 const REGION_QUEUE_WIDE_WINDOW_MINUTES = Math.max(
   REGION_SEARCH_WINDOW_MINUTES,
   Number(process.env.EN_RECRUIT_REGION_WIDE_WINDOW_MIN || 4320)
@@ -83,7 +80,7 @@ const REGION_QUEUE_MAX_WINDOW_MINUTES = Math.max(
 );
 const REGION_QUEUE_EXTRA_PAGES_PER_PASS = Math.max(
   REGION_QUEUE_LIST_PAGES,
-  Number(process.env.EN_RECRUIT_REGION_EXTRA_PAGES || 3)
+  Number(process.env.EN_RECRUIT_REGION_EXTRA_PAGES || 1)
 );
 const EN_RECRUIT_SEND_RUN_HARD_STOP_MS = Math.max(
   60000,

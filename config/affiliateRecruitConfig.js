@@ -213,8 +213,8 @@ const EN_QUEUE_LIST_PAGES = Math.max(1, Number(process.env.EN_RECRUIT_LIST_PAGES
 const EN_SEARCH_WINDOW_MINUTES = Number(process.env.EN_SEARCH_WINDOW_MIN || 90);
 /** 他地域: 1日1回実行 → EN同様「1回の窓で1日分をカバー」に揃え、24時間。 */
 const REGION_SEARCH_WINDOW_MINUTES = Number(process.env.REGION_SEARCH_WINDOW_MIN || 1440);
-/** 他地域リスト取得ページ数（1実行あたり）。候補不足対策でデフォルト2、envで調整可。 */
-const REGION_QUEUE_LIST_PAGES = Math.max(1, Number(process.env.REGION_RECRUIT_LIST_PAGES || 2));
+/** 他地域リスト取得ページ数（1実行あたり）。デフォルト 1、env で調整可。 */
+const REGION_QUEUE_LIST_PAGES = Math.max(1, Number(process.env.REGION_RECRUIT_LIST_PAGES || 1));
 /** 全言語共通: スロットあたりの送信成功目標。403 は次候補へ進み、この数だけ成功するまで試行（Read 1・多ページで候補確保） */
 /** 1 ランあたり送信成功 10 件をマストで達成するための目標値。#4 で根拠明記。 */
 const RECRUIT_BATCH_SIZE_DEFAULT = 10;

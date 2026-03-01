@@ -4,123 +4,186 @@
  */
 const { searchPostsRecent } = require("../x/client");
 
-// 検索: すでにアフィリエイターとして活動中。DM募集中は条件から外す。
-// 並び: 案件探索の高意図語を先頭（480字超過時は末尾から削られるため）。
-const SEARCH_KEYWORDS_BY_LANG = {
-  en: [
-    "affiliate program", "partner program", "referral program", "revshare", "revenue share",
-    "recurring commission", "lifetime commission", "high payout affiliate", "high ticket affiliate",
-    "saas affiliate", "ai saas affiliate", "ai tool affiliate", "whop affiliate",
-    "cpa offer", "cpl offer", "cps offer", "affiliate network", "influencer affiliate"
-  ],
-  ja: [
-    "アフィリエイト案件", "アフィリエイト募集", "提携プログラム", "パートナープログラム", "紹介プログラム",
-    "成果報酬", "リカーリング報酬", "継続報酬", "高単価アフィリエイト",
-    "SaaSアフィリエイト", "AI SaaSアフィリエイト", "AIツールアフィリエイト", "Whopアフィリエイト",
-    "CPA案件", "CPL案件", "CPS案件", "インフルエンサー案件", "紹介リンク"
-  ],
-  ko: [
-    "제휴 프로그램", "파트너 프로그램", "추천 프로그램", "레브쉐어", "수익 쉐어",
-    "리카링 수수료", "반복 수수료", "고수익 제휴", "고단가 제휴",
-    "SaaS 제휴", "AI SaaS 제휴", "AI 툴 제휴", "Whop 제휴",
-    "CPA 오퍼", "CPL 오퍼", "CPS 오퍼", "인플루언서 제휴", "제휴 링크"
-  ],
-  es: [
-    "programa de afiliados", "oferta de afiliados", "programa de socios", "programa de referidos",
-    "revshare", "revenue share", "comision recurrente", "comision de por vida",
-    "afiliado alto payout", "afiliado saas", "afiliado ai saas", "afiliado herramientas ai",
-    "whop afiliados", "oferta cpa", "oferta cpl", "oferta cps", "network de afiliados", "link de referido"
-  ],
-  pt: [
-    "programa de afiliados", "oferta de afiliado", "programa de parceiros", "programa de indicacao",
-    "revshare", "revenue share", "comissao recorrente", "comissao vitalicia",
-    "afiliado alto payout", "afiliado saas", "afiliado ai saas", "afiliado ferramenta ai",
-    "whop afiliado", "oferta cpa", "oferta cpl", "oferta cps", "rede de afiliados", "link de indicacao"
-  ],
-  ar: [
-    "برنامج افلييت", "برنامج شراكة", "برنامج احالة", "عرض افلييت", "عمولة متكررة",
-    "عمولة شهرية", "عمولة مدى الحياة", "ربح متكرر",
-    "saas affiliate", "ai saas affiliate", "whop affiliate",
-    "عرض cpa", "عرض cpl", "عرض cps", "network affiliate",
-    "لينك احالة", "مسوق بالعمولة", "شريك احالة"
-  ]
-};
-
-// 能動的な「案件探索中」シグナル。高意図候補を先に拾う。
-const SEARCH_INTENT_ACTION_KEYWORDS_BY_LANG = {
-  en: [
-    "looking for affiliate",
-    "open to collab",
-    "dm open for collab",
-    "affiliate opportunities",
-    "best affiliate program"
-  ],
-  ja: ["アフィリエイト募集", "提携先 募集", "案件 募集", "コラボ募集", "案件探し"],
-  ko: ["제휴 모집", "파트너 모집", "콜라보 모집", "제휴 찾는 중"],
-  es: [
-    "busco programa de afiliados",
-    "buscando afiliados",
-    "colaboracion abierta",
-    "dm abierto para colaboracion"
-  ],
-  pt: [
-    "procuro programa de afiliados",
-    "buscando afiliados",
-    "parceria aberta",
-    "dm aberto para parceria"
-  ],
-  ar: ["ابحث عن برنامج افلييت", "ابحث عن شراكة", "مفتوح للتعاون", "الرسائل مفتوحة للتعاون"]
-};
-
-// 高意図2軸:
-// - group1: すでに提携文脈にいる人
-// - group2: 報酬/案件条件を探している人
-// 1言語1クエリ時は REQUIRED_GROUP_OPERATOR（既定 OR）で結合し、
-// 「広く取得 → 送信時に絞る」運用を優先する。
+// 検索: 「実際に紹介活動している」候補を優先。案件募集・コラボ待ち文脈は除外。
+// strict は 証拠語（group1）AND プラットフォーム語（group2）で構成する。
 const SEARCH_REQUIRED_GROUPS_BY_LANG = {
   en: [
     [
-      "looking for affiliate",
-      "open to collab",
-      "affiliate program",
-      "partner program",
-      "referral program",
-      "affiliate network"
+      "referral link",
+      "affiliate link",
+      "promo code",
+      "discount code",
+      "use my code",
+      "link in bio",
+      "sign up using",
+      "my referral"
     ],
-    ["revshare", "revenue share", "recurring commission", "lifetime commission", "cpa offer", "cpl offer", "cps offer", "high payout affiliate", "high ticket affiliate", "whop affiliate"]
+    [
+      "clickbank",
+      "shareasale",
+      "awin",
+      "rakuten advertising",
+      "cj affiliate",
+      "impact radius",
+      "amazon associates"
+    ]
   ],
   ja: [
-    ["アフィリエイト案件", "アフィリエイト募集", "提携先 募集", "提携プログラム", "パートナープログラム"],
-    ["成果報酬", "リカーリング報酬", "継続報酬", "高単価アフィリエイト", "CPA案件", "CPL案件", "CPS案件", "Whopアフィリエイト"]
+    [
+      "招待コード",
+      "紹介コード",
+      "プロモコード",
+      "紹介リンク",
+      "アフィリエイト",
+      "プロフリンク",
+      "プロフィールのリンク",
+      "クーポンコード",
+      "登録はこちら"
+    ],
+    [
+      "a8.net",
+      "afb",
+      "バリューコマース",
+      "アクセストレード",
+      "楽天アフィリエイト",
+      "amazonアソシエイト",
+      "インフォトップ",
+      "infotop",
+      "tips",
+      "brain"
+    ]
   ],
   ko: [
-    ["제휴 모집", "콜라보 모집", "제휴 프로그램", "파트너 프로그램", "추천 프로그램"],
-    ["레브쉐어", "수익 쉐어", "리카링 수수료", "반복 수수료", "고수익 제휴", "고단가 제휴", "CPA 오퍼", "CPL 오퍼", "CPS 오퍼", "Whop 제휴"]
+    [
+      "추천인 코드",
+      "초대 코드",
+      "가입 링크",
+      "할인 코드",
+      "프로모션 코드",
+      "프로필 링크",
+      "가입시",
+      "제휴 링크"
+    ],
+    ["쿠팡 파트너스", "텐핑", "애드픽", "링크프라이스", "아마존 어소시에이트"]
   ],
   es: [
-    ["busco programa de afiliados", "colaboracion abierta", "programa de afiliados", "programa de socios", "programa de referidos", "network de afiliados"],
-    ["revshare", "revenue share", "comision recurrente", "comision de por vida", "oferta cpa", "oferta cpl", "oferta cps", "afiliado alto payout", "whop afiliados"]
+    [
+      "código de referido",
+      "mi código",
+      "código de descuento",
+      "enlace en mi bio",
+      "link en bio",
+      "enlace de afiliado",
+      "regístrate con",
+      "código promocional"
+    ],
+    ["hotmart", "clickbank", "awin", "amazon afiliados", "tradetracker", "admitad"]
   ],
   pt: [
-    ["procuro programa de afiliados", "parceria aberta", "programa de afiliados", "programa de parceiros", "programa de indicacao", "rede de afiliados"],
-    ["revshare", "revenue share", "comissao recorrente", "comissao vitalicia", "oferta cpa", "oferta cpl", "oferta cps", "afiliado alto payout", "whop afiliado"]
+    [
+      "código de indicação",
+      "use meu código",
+      "cupom de desconto",
+      "link na bio",
+      "link de afiliado",
+      "cadastre-se com",
+      "código promocional",
+      "meu cupom"
+    ],
+    ["hotmart", "monetizze", "eduzz", "braip", "amazon associados", "awin"]
   ],
   ar: [
-    ["ابحث عن برنامج افلييت", "مفتوح للتعاون", "برنامج افلييت", "برنامج شراكة", "برنامج احالة", "شريك احالة"],
-    ["عمولة متكررة", "عمولة شهرية", "عمولة مدى الحياة", "ربح متكرر", "عرض cpa", "عرض cpl", "عرض cps", "whop affiliate"]
+    [
+      "كود خصم",
+      "رمز ترويجي",
+      "رابط الإحالة",
+      "استخدم كودي",
+      "الرابط في البايو",
+      "سجل من خلال",
+      "كود الدعوة"
+    ],
+    ["عرب كليكس", "arabclicks", "أمازون أفلييت", "كليك بانك", "clickbank", "admitad"]
   ]
 };
 
-// ノイズ寄りの文脈を軽減（単語のみ。空白を含む語は避ける）
-const SEARCH_NEGATIVE_COMMON_TERMS = ["bot", "official", "news", "support", "alert"];
+const SEARCH_KEYWORDS_BY_LANG = Object.fromEntries(
+  Object.entries(SEARCH_REQUIRED_GROUPS_BY_LANG).map(([lang, groups]) => [lang, groups.flat()])
+);
+
+const SEARCH_NEGATIVE_COMMON_TERMS = [];
 
 const SEARCH_NEGATIVE_TERMS_BY_LANG = {
-  en: ["giveaway", "airdrop", "casino"],
-  ja: ["公式", "速報", "広報", "プレゼント", "ニュース", "無料"],
-  ko: ["공식", "뉴스", "봇", "에어드랍", "무료", "증정"],
-  es: ["oficial", "noticias", "bot", "sorteo", "airdrop", "gratis"],
-  pt: ["oficial", "noticias", "notícias", "bot", "sorteio", "airdrop", "gratis"],
-  ar: ["رسمي", "أخبار", "بوت", "ايردروب", "مجاني"]
+  en: [
+    "colab",
+    "collab",
+    "hiring",
+    "job",
+    "agency",
+    "giveaway",
+    "airdrop",
+    "official",
+    "news",
+    "support",
+    "looking for",
+    "open to",
+    "sponsor"
+  ],
+  ja: [
+    "案件募集",
+    "お仕事募集",
+    "プレゼント企画",
+    "プレゼント",
+    "ギブアウェイ",
+    "エアドロップ",
+    "公式",
+    "ニュース",
+    "サポート",
+    "コラボ",
+    "PR依頼"
+  ],
+  ko: [
+    "협찬 문의",
+    "구인",
+    "채용",
+    "공식",
+    "뉴스",
+    "이벤트",
+    "에어드랍",
+    "리트윗",
+    "팔로우",
+    "콜라보",
+    "협찬"
+  ],
+  es: [
+    "colab",
+    "busco trabajo",
+    "agencia",
+    "sorteio",
+    "giveaway",
+    "airdrop",
+    "oficial",
+    "noticias",
+    "soporte",
+    "patrocinador",
+    "trabajo"
+  ],
+  pt: [
+    "colab",
+    "vaga",
+    "emprego",
+    "agência",
+    "agencia",
+    "sorteio",
+    "giveaway",
+    "airdrop",
+    "oficial",
+    "notícias",
+    "noticias",
+    "suporte",
+    "patrocínio",
+    "patrocinio"
+  ],
+  ar: ["توظيف", "وظيفة", "وكالة", "سحب", "giveaway", "airdrop", "رسمي", "أخبار", "دعم", "تعاون", "رعاية"]
 };
 
 /** アフィリエイトリクルート用: user.fields 拡張（スコアリングに必要。url＝リンクなしボーナス用） */
@@ -162,13 +225,20 @@ function uniqueList(items) {
   return Array.from(new Set(normalized));
 }
 
+function renderQueryTerm(term) {
+  const t = String(term || "").trim();
+  if (!t) return "";
+  return /\s/.test(t) ? `"${t}"` : t;
+}
+
+function renderNegativeQueryTerm(term) {
+  const rendered = renderQueryTerm(term);
+  return rendered ? `-${rendered}` : "";
+}
+
 function getSearchKeywords(lang) {
   const base = SEARCH_KEYWORDS_BY_LANG[lang] || SEARCH_KEYWORDS_BY_LANG.en;
-  const intent =
-    SEARCH_INTENT_ACTION_KEYWORDS_BY_LANG[lang] ||
-    SEARCH_INTENT_ACTION_KEYWORDS_BY_LANG.en ||
-    [];
-  return uniqueList([...intent, ...base]);
+  return uniqueList(base);
 }
 
 function getSearchSuffixParts(lang) {
@@ -178,7 +248,7 @@ function getSearchSuffixParts(lang) {
     `lang:${lang}`,
     "-is:retweet",
     "-is:reply",
-    ...negativeTerms.map((term) => `-${term}`)
+    ...negativeTerms.map((term) => renderNegativeQueryTerm(term)).filter(Boolean)
   ];
 }
 
@@ -205,7 +275,7 @@ function buildSearchQueriesSingle(lang) {
   const renderStrictQuery = () => {
     const joinToken = REQUIRED_GROUP_OPERATOR === "AND" ? " " : " OR ";
     const requiredExpr = requiredGroups
-      .map((group) => `(${group.join(" OR ")})`)
+      .map((group) => `(${group.map((term) => renderQueryTerm(term)).filter(Boolean).join(" OR ")})`)
       .join(joinToken);
     return [requiredExpr, suffixParts.join(" ")].filter(Boolean).join(" ").trim();
   };
@@ -245,7 +315,10 @@ function buildSearchQueriesSingle(lang) {
   const fallbackTerms = uniqueList([...requiredGroups.flat(), ...optionalTerms]);
   const fallbackSuffixParts = [`lang:${lang}`, "-is:retweet", "-is:reply"];
   while (fallbackTerms.length > 0) {
-    const fallbackQuery = `(${fallbackTerms.join(" OR ")}) ${fallbackSuffixParts.join(" ")}`.trim();
+    const fallbackQuery = `(${fallbackTerms
+      .map((term) => renderQueryTerm(term))
+      .filter(Boolean)
+      .join(" OR ")}) ${fallbackSuffixParts.join(" ")}`.trim();
     if (fallbackQuery.length <= SEARCH_QUERY_MAX_CHARS) {
       if (fallbackQuery !== strictQuery) return [strictQuery, fallbackQuery];
       return [strictQuery];
