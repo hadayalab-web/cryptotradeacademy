@@ -11,6 +11,7 @@ const KV_KEY_QUEUE_EN = "affiliate_recruit:queue:en";
 const KV_KEY_QUEUE_REGION = (lang) => `affiliate_recruit:queue:${lang}`;
 const KV_KEY_DAILY_COUNT = (dateStr) => `affiliate_recruit:daily_count:${dateStr}`;
 const KV_KEY_403_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:403:en:${dateStr}:${slot15}`;
+const KV_KEY_ATTEMPT_WINDOW_EN = (dateStr, slot15) => `affiliate_recruit:attempts:en:${dateStr}:${slot15}`;
 const KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS = "affiliate_recruit:cooldown:op_not_permitted:until_ms";
 const KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL = "affiliate_recruit:cooldown:op_not_permitted:backoff_level";
 const CONVERSION_COUNT_KEY = (type, dateStr) => `conversion:${type}:${dateStr}:count`;
@@ -28,6 +29,10 @@ const KPI_SNAPSHOT_TTL_SECONDS = Math.max(
 const KPI_HISTORY_MAX = Math.max(
   96,
   Number(process.env.AFFILIATE_RECRUIT_KPI_HISTORY_MAX || 1000)
+);
+const EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN = Math.max(
+  1,
+  Number(process.env.EN_RECRUIT_ATTEMPT_BREAKER_PER_15MIN || 15)
 );
 
 function parseCount(v) {
@@ -95,12 +100,14 @@ async function getQueueRuntimeState(now) {
     queueKoRaw,
     sentTodayRaw,
     count403Raw,
+    attemptsRaw,
     cooldownUntilRaw,
     backoffLevelRaw
   ] = await Promise.all([
     ...queueReads,
     kv.get(KV_KEY_DAILY_COUNT(dateStr)),
     kv.get(KV_KEY_403_WINDOW_EN(dateStr, slot15)),
+    kv.get(KV_KEY_ATTEMPT_WINDOW_EN(dateStr, slot15)),
     kv.get(KV_KEY_OP_NOT_PERMITTED_COOLDOWN_UNTIL_MS),
     kv.get(KV_KEY_OP_NOT_PERMITTED_BACKOFF_LEVEL)
   ]);
@@ -124,6 +131,8 @@ async function getQueueRuntimeState(now) {
     queueLengths,
     sentToday: parseCount(sentTodayRaw),
     count403CurrentSlot: parseCount(count403Raw),
+    attemptsCurrentSlot: parseCount(attemptsRaw),
+    attemptBreakerPer15min: EN_QUEUE_ATTEMPT_BREAKER_PER_15MIN,
     opNotPermittedBackoffLevel: parseCount(backoffLevelRaw),
     opNotPermittedCooldownUntilMs: cooldownUntilMs || null,
     opNotPermittedCooldownUntil: cooldownUntilMs > 0 ? new Date(cooldownUntilMs).toISOString() : null,
@@ -213,6 +222,8 @@ module.exports = async function handler(req, res) {
     runtime: {
       sentToday: runtime.sentToday,
       count403CurrentSlot: runtime.count403CurrentSlot,
+      attemptsCurrentSlot: runtime.attemptsCurrentSlot,
+      attemptBreakerPer15min: runtime.attemptBreakerPer15min,
       queueLengths: runtime.queueLengths,
       opNotPermittedBackoffLevel: runtime.opNotPermittedBackoffLevel,
       opNotPermittedCooldownActive: runtime.opNotPermittedCooldownActive,
