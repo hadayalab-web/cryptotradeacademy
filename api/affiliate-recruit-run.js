@@ -130,14 +130,6 @@ const EN_RECRUIT_DELIVERABILITY_MIN_ATTEMPTS = Math.max(
   1,
   Number(process.env.EN_RECRUIT_DELIVERABILITY_MIN_ATTEMPTS || 5)
 );
-const EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK = Math.max(
-  0,
-  Number(process.env.EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK || 3)
-);
-const EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS = Math.max(
-  1,
-  Number(process.env.EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS || 4)
-);
 
 function resolveRequestOrigin(req) {
   const explicit =
@@ -802,20 +794,6 @@ function getQueueItemCompositePriority(item, lang, deliveryAggregate) {
   return basePriority + adjustment;
 }
 
-function isLangTemporarilySoftBlocked(lang, attemptsThisRun, softBlockedLangUntilAttempt) {
-  const untilAttempt = parseInt(softBlockedLangUntilAttempt?.[lang], 10) || 0;
-  return untilAttempt > 0 && attemptsThisRun < untilAttempt;
-}
-
-function hasAlternativeQueueItems(queuesByLang, langs, excludedLang) {
-  for (const lang of langs) {
-    if (lang === excludedLang) continue;
-    const queue = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
-    if (queue.length > 0) return true;
-  }
-  return false;
-}
-
 /**
  * 6言語グロス優先順:
  * - 各言語キューを横断して「最高priority(score)」の1件を取り出す
@@ -825,56 +803,36 @@ function popNextGrossPriorityCandidate(
   queuesByLang,
   langs,
   blockedKeys,
-  deliveryAggregate,
-  options = {}
+  deliveryAggregate
 ) {
-  const attemptsThisRun = Math.max(0, parseInt(options.attemptsThisRun, 10) || 0);
-  const softBlockedLangUntilAttempt = options.softBlockedLangUntilAttempt || {};
-
-  const pickCandidate = (ignoreLangSoftBlock) => {
-    let selectedLang = null;
-    let selectedIndex = -1;
-    let selectedScore = Number.NEGATIVE_INFINITY;
-    for (const lang of langs) {
-      if (
-        !ignoreLangSoftBlock &&
-        isLangTemporarilySoftBlocked(lang, attemptsThisRun, softBlockedLangUntilAttempt)
-      ) {
+  let selectedLang = null;
+  let selectedIndex = -1;
+  let selectedScore = Number.NEGATIVE_INFINITY;
+  for (const lang of langs) {
+    const queue = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
+    for (let idx = 0; idx < queue.length; idx += 1) {
+      const item = queue[idx];
+      if (!item?.username) {
+        queue.splice(idx, 1);
+        idx -= 1;
         continue;
       }
-      const queue = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
-      for (let idx = 0; idx < queue.length; idx += 1) {
-        const item = queue[idx];
-        if (!item?.username) {
-          queue.splice(idx, 1);
-          idx -= 1;
-          continue;
-        }
-        const itemKey = getQueueItemKey(item);
-        if (itemKey && blockedKeys.has(itemKey)) continue;
-        const score = getQueueItemCompositePriority(item, lang, deliveryAggregate);
-        if (score > selectedScore) {
-          selectedLang = lang;
-          selectedIndex = idx;
-          selectedScore = score;
-        }
+      const itemKey = getQueueItemKey(item);
+      if (itemKey && blockedKeys.has(itemKey)) continue;
+      const score = getQueueItemCompositePriority(item, lang, deliveryAggregate);
+      if (score > selectedScore) {
+        selectedLang = lang;
+        selectedIndex = idx;
+        selectedScore = score;
       }
     }
-    if (selectedLang == null || selectedIndex < 0) return null;
-    return { selectedLang, selectedIndex };
-  };
-
-  let selected = pickCandidate(false);
-  if (!selected) {
-    // すべての言語が一時ブロック中の場合は、ブロックを無視して候補を選ぶ
-    selected = pickCandidate(true);
   }
-  if (!selected) return null;
-  const selectedQueue = queuesByLang[selected.selectedLang] || [];
-  const selectedItem = selectedQueue.splice(selected.selectedIndex, 1)[0];
+  if (selectedLang == null || selectedIndex < 0) return null;
+  const selectedQueue = queuesByLang[selectedLang] || [];
+  const selectedItem = selectedQueue.splice(selectedIndex, 1)[0];
   if (!selectedItem?.username) return null;
   return {
-    lang: selected.selectedLang,
+    lang: selectedLang,
     item: selectedItem,
     itemKey: getQueueItemKey(selectedItem)
   };
@@ -1447,8 +1405,6 @@ module.exports = async function handler(req, res) {
       selectionMode: "6lang_gross_priority",
       deliverabilityWeight: EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT,
       deliverabilityMinAttempts: EN_RECRUIT_DELIVERABILITY_MIN_ATTEMPTS,
-      recipient403SoftBlockStreak: EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK,
-      recipient403SoftBlockAttempts: EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS,
       deliverabilityHistoryAttempts: deliveryAggregateSnapshot?.totals?.attempted || 0,
       slotKey,
       invocationId,
@@ -1467,14 +1423,6 @@ module.exports = async function handler(req, res) {
       return acc;
     }, {});
     const recipient403StreakByLang = sendQueueLangs.reduce((acc, candidateLang) => {
-      acc[candidateLang] = 0;
-      return acc;
-    }, {});
-    const softBlockedLangUntilAttempt = sendQueueLangs.reduce((acc, candidateLang) => {
-      acc[candidateLang] = 0;
-      return acc;
-    }, {});
-    const recipient403SoftBlockedByLang = sendQueueLangs.reduce((acc, candidateLang) => {
       acc[candidateLang] = 0;
       return acc;
     }, {});
@@ -1527,11 +1475,7 @@ module.exports = async function handler(req, res) {
         queuesByLang,
         sendQueueLangs,
         opNotPermittedBlockedKeys,
-        deliveryAggregateSnapshot,
-        {
-          attemptsThisRun,
-          softBlockedLangUntilAttempt
-        }
+        deliveryAggregateSnapshot
       );
       if (!picked) {
         stopReason = "queue_exhausted";
@@ -1602,27 +1546,6 @@ module.exports = async function handler(req, res) {
                 regionRecipient403StreakMaxByLang[lang] || 0,
                 nextRecipientStreak
               );
-            }
-            if (
-              EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK > 0 &&
-              nextRecipientStreak >= EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK &&
-              hasAlternativeQueueItems(queuesByLang, sendQueueLangs, lang)
-            ) {
-              const softBlockUntilAttempt = attemptsThisRun + EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS;
-              softBlockedLangUntilAttempt[lang] = Math.max(
-                softBlockedLangUntilAttempt[lang] || 0,
-                softBlockUntilAttempt
-              );
-              recipient403SoftBlockedByLang[lang] = (recipient403SoftBlockedByLang[lang] || 0) + 1;
-              recipient403StreakByLang[lang] = 0;
-              console.warn("[affiliate-recruit-run] recipient403 soft-block language:", {
-                lang,
-                streak: nextRecipientStreak,
-                streakThreshold: EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK,
-                softBlockAttempts: EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS,
-                attemptsThisRun,
-                softBlockUntilAttempt
-              });
             }
           } else if (classified.type === "operation_not_permitted") {
             sendStatsByLang[lang].operationNotPermitted403 += 1;
@@ -1787,8 +1710,6 @@ module.exports = async function handler(req, res) {
       sendDelayWaitedMsThisRun,
       selectionMode: "6lang_gross_priority",
       deliverabilityWeight: EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT,
-      recipient403SoftBlockStreak: EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK,
-      recipient403SoftBlockAttempts: EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS,
       sendTurn: sendTurnRaw,
       firstAttemptSource,
       count403ThisWindow: count403,
@@ -1799,8 +1720,6 @@ module.exports = async function handler(req, res) {
       sendStatsByLang,
       enFailoverTriggered,
       enRecipient403StreakMax,
-      recipient403SoftBlockedByLang,
-      softBlockedLangUntilAttempt,
       opNotPermittedCountInWindow,
       opNotPermittedDeferredByLang,
       regionFailoverTriggeredLangs,
@@ -1829,8 +1748,6 @@ module.exports = async function handler(req, res) {
       sendDelayWaitedMsThisRun,
       selectionMode: "6lang_gross_priority",
       deliverabilityWeight: EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT,
-      recipient403SoftBlockStreak: EN_RECRUIT_LANG_RECIPIENT_403_SOFT_BLOCK_STREAK,
-      recipient403SoftBlockAttempts: EN_RECRUIT_LANG_SOFT_BLOCK_ATTEMPTS,
       sendTurn: sendTurnRaw,
       firstAttemptSource,
       queueLength: queue.length,
@@ -1840,8 +1757,6 @@ module.exports = async function handler(req, res) {
       sendStatsByLang,
       enFailoverTriggered,
       enRecipient403StreakMax,
-      recipient403SoftBlockedByLang,
-      softBlockedLangUntilAttempt,
       opNotPermittedCountInWindow,
       opNotPermittedDeferredByLang,
       regionFailoverTriggeredLangs,
