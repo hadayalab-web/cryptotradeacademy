@@ -119,15 +119,6 @@ const DELIVERY_OUTCOME_AGG_TTL_SECONDS = Math.max(
   86400 * 30,
   Number(process.env.EN_RECRUIT_DELIVERY_OUTCOME_TTL_SEC || 86400 * 120)
 );
-const EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT = Math.max(
-  0,
-  Number(process.env.EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT || 24)
-);
-const EN_RECRUIT_DELIVERABILITY_MIN_ATTEMPTS = Math.max(
-  1,
-  Number(process.env.EN_RECRUIT_DELIVERABILITY_MIN_ATTEMPTS || 5)
-);
-
 function resolveRequestOrigin(req) {
   const explicit =
     process.env.AFFILIATE_RECRUIT_CLICK_BASE_URL ||
@@ -357,39 +348,6 @@ function recordDeliveryOutcome(accumulator, featureMeta, outcomeKey) {
   incrementDeliveryOutcomeCounter(detectedViaCounter, outcomeKey);
 }
 
-function getDeliverabilitySentRate(counter) {
-  const normalized = normalizeDeliveryOutcomeCounter(counter);
-  const attempted = Math.max(0, normalized.attempted);
-  return (normalized.sent + 1) / (attempted + 2);
-}
-
-function estimateDeliverabilityProbability(featureMeta, aggregate) {
-  const normalized =
-    aggregate && typeof aggregate === "object" && aggregate.totals
-      ? aggregate
-      : normalizeDeliveryOutcomeAggregate(aggregate);
-  const globalRate = getDeliverabilitySentRate(normalized.totals);
-  const sources = [
-    normalized.byLang[featureMeta.lang],
-    normalized.byScoreBand[featureMeta.scoreBand],
-    normalized.byHighIntent[featureMeta.highIntent],
-    normalized.byIntentSegment[featureMeta.intentSegment],
-    normalized.byAngle[featureMeta.angle],
-    normalized.byDetectedVia[featureMeta.detectedVia]
-  ];
-  let weighted = globalRate;
-  let totalWeight = 1;
-  for (const source of sources) {
-    const attempted = Math.max(0, parseInt(source?.attempted, 10) || 0);
-    if (attempted < EN_RECRUIT_DELIVERABILITY_MIN_ATTEMPTS) continue;
-    const weight = Math.min(4, Math.log2(attempted + 1));
-    weighted += getDeliverabilitySentRate(source) * weight;
-    totalWeight += weight;
-  }
-  const probability = weighted / totalWeight;
-  return Math.max(0.05, Math.min(0.95, probability));
-}
-
 async function flushDeliveryOutcomeAccumulator(accumulator) {
   const attempted = parseInt(accumulator?.totals?.attempted, 10) || 0;
   if (!kv || attempted <= 0) return null;
@@ -406,7 +364,7 @@ async function flushDeliveryOutcomeAccumulator(accumulator) {
   }
 }
 
-/** 検索結果＋ユーザーから送信候補を構築。EN/regions 共通。スコア優先→同点時は recency。 */
+/** 検索結果＋ユーザーから送信候補を構築。EN/regions 共通。キュー投入順はスコアで並べ替えない。 */
 function buildEligibleCandidates(allPosts, usersById, lang) {
   const tweetsByAuthor = {};
   for (const p of allPosts) {
@@ -456,11 +414,7 @@ function buildEligibleCandidates(allPosts, usersById, lang) {
       mostRecentTime
     });
   }
-  return candidates.sort((a, b) => {
-    const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
-    if (scoreDiff !== 0) return scoreDiff;
-    return (b.mostRecentTime ?? 0) - (a.mostRecentTime ?? 0);
-  });
+  return candidates;
 }
 
 /** 送信数集計（言語×スコア帯）。観測ダッシュボード用。失敗しても送信処理は続行 */
@@ -825,70 +779,44 @@ function computeQueueLengthsByLang(queuesByLang, langs) {
   return lengths;
 }
 
-function getQueueItemPriorityValue(item) {
-  const scoreRaw = Number(item?.score);
-  if (Number.isFinite(scoreRaw)) return scoreRaw;
-  const priorityRaw = Number(item?.priority);
-  if (Number.isFinite(priorityRaw)) return priorityRaw * 100;
-  return 0;
-}
-
-function getQueueItemCompositePriority(item, lang, deliveryAggregate) {
-  const basePriority = getQueueItemPriorityValue(item);
-  if (EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT <= 0) return basePriority;
-  const featureMeta = buildDeliveryFeatureMeta(item, lang);
-  const deliverabilityProbability = estimateDeliverabilityProbability(featureMeta, deliveryAggregate);
-  const adjustment = (deliverabilityProbability - 0.5) * EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT;
-  return basePriority + adjustment;
-}
-
 /**
- * 6言語グロス優先順:
- * - 各言語キューを横断して「最高priority(score)」の1件を取り出す
- * - op_not_permitted で同一枠ブロック済みの候補は選択対象から除外
+ * 6言語グロスFIFO:
+ * - 言語間はラウンドロビンで順番に消化
+ * - 各言語キューは先頭から取り出し（FIFO）
+ * - op_not_permitted で同一枠ブロック済み候補は末尾へ回して次候補へ
  */
-function popNextGrossPriorityCandidate(
-  queuesByLang,
-  langs,
-  blockedKeys,
-  deliveryAggregate
-) {
-  let selectedLang = null;
-  let selectedIndex = -1;
-  let selectedScore = Number.NEGATIVE_INFINITY;
-  for (const lang of langs) {
+function popNextGrossFifoCandidate(queuesByLang, langs, blockedKeys, startCursor = 0) {
+  const orderedLangs = Array.isArray(langs) ? langs.filter(Boolean) : [];
+  if (!orderedLangs.length) return null;
+
+  for (let offset = 0; offset < orderedLangs.length; offset += 1) {
+    const langIndex = (startCursor + offset) % orderedLangs.length;
+    const lang = orderedLangs[langIndex];
     const queue = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang] : [];
-    for (let idx = 0; idx < queue.length; idx += 1) {
-      const item = queue[idx];
-      if (!item?.username) {
-        queue.splice(idx, 1);
-        idx -= 1;
-        continue;
-      }
-      if (!isAffiliateIntentCandidate(item)) {
-        queue.splice(idx, 1);
-        idx -= 1;
-        continue;
-      }
+    if (!queue.length) continue;
+
+    const initialLength = queue.length;
+    for (let scanned = 0; scanned < initialLength; scanned += 1) {
+      const item = queue.shift();
+      if (!item?.username) continue;
+      if (!isAffiliateIntentCandidate(item)) continue;
+
       const itemKey = getQueueItemKey(item);
-      if (itemKey && blockedKeys.has(itemKey)) continue;
-      const score = getQueueItemCompositePriority(item, lang, deliveryAggregate);
-      if (score > selectedScore) {
-        selectedLang = lang;
-        selectedIndex = idx;
-        selectedScore = score;
+      if (itemKey && blockedKeys.has(itemKey)) {
+        queue.push(item);
+        continue;
       }
+
+      return {
+        lang,
+        item,
+        itemKey,
+        nextCursor: (langIndex + 1) % orderedLangs.length
+      };
     }
   }
-  if (selectedLang == null || selectedIndex < 0) return null;
-  const selectedQueue = queuesByLang[selectedLang] || [];
-  const selectedItem = selectedQueue.splice(selectedIndex, 1)[0];
-  if (!selectedItem?.username) return null;
-  return {
-    lang: selectedLang,
-    item: selectedItem,
-    itemKey: getQueueItemKey(selectedItem)
-  };
+
+  return null;
 }
 
 async function getHourSentCount(dateStr, hour) {
@@ -949,7 +877,7 @@ function resolveQueueListConfig(lang) {
   };
 }
 
-async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
+async function refreshQueueForLang(lang, now, modeLabel) {
   const cfg = resolveQueueListConfig(lang);
   if (!cfg.lang || (!cfg.isEn && !REGION_QUEUE_LANGS.includes(cfg.lang))) {
     return {
@@ -965,7 +893,6 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
   let fallbackPagesUsed = 0;
   let primaryHitsTotal = 0;
   let fallbackHitsTotal = 0;
-  const deliveryAggregate = options.deliveryAggregate || null;
   let fallbackExpansionPasses = 0;
   const expandedWindowMinutesTried = [];
 
@@ -1050,13 +977,6 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
         detected_via: c.detectedVia || "default"
       });
     }
-    freshQueue.sort((a, b) => {
-      const priorityDiff =
-        getQueueItemCompositePriority(b, cfg.lang, deliveryAggregate) -
-        getQueueItemCompositePriority(a, cfg.lang, deliveryAggregate);
-      if (priorityDiff !== 0) return priorityDiff;
-      return String(a.username || "").localeCompare(String(b.username || ""));
-    });
     return {
       eligibleCandidates,
       affiliateCandidatesCount: Math.max(0, eligibleCandidates.length - skippedNonAffiliateIntentCount),
@@ -1114,8 +1034,7 @@ async function refreshQueueForLang(lang, now, modeLabel, options = {}) {
   const listSummary = {
     mode: modeLabel,
     lang: cfg.lang,
-    listSelectionMode: "gross_quality_composite",
-    deliverabilityWeight: EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT,
+    listSelectionMode: "gross_fifo_no_scoring",
     utcHour: now.getUTCHours(),
     runAt: now.toISOString(),
     pagesFetched,
@@ -1235,7 +1154,7 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  // ----- EN キューライン: リスト取得（高品質順でキュー更新） -----
+  // ----- EN キューライン: リスト取得（FIFO運用向けにキュー更新） -----
   if (forceMode === "en-queue-list") {
     const now = new Date();
     const utcHour = now.getUTCHours();
@@ -1251,12 +1170,7 @@ module.exports = async function handler(req, res) {
       });
     }
     try {
-      const deliveryAggregate = normalizeDeliveryOutcomeAggregate(
-        await kv.get(KV_KEY_DELIVERY_OUTCOME_AGG)
-      );
-      const result = await refreshQueueForLang("en", now, "en-queue-list", {
-        deliveryAggregate
-      });
+      const result = await refreshQueueForLang("en", now, "en-queue-list");
       if (!result.ok) {
         return res.status(200).json({
           ok: false,
@@ -1268,7 +1182,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         enQueueList: true,
-        listSelectionMode: "gross_quality_composite",
+        listSelectionMode: "gross_fifo_no_scoring",
         lang: "en",
         added: result.addedFromFresh,
         enqueuedFresh: result.enqueued,
@@ -1297,7 +1211,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ----- 他地域キューライン: 全言語グロス取得（高品質順でキュー更新） -----
+  // ----- 他地域キューライン: 全言語グロス取得（FIFO運用向けにキュー更新） -----
   if (forceMode === "regions-queue-list") {
     const now = new Date();
     const utcHour = now.getUTCHours();
@@ -1313,14 +1227,9 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      const deliveryAggregate = normalizeDeliveryOutcomeAggregate(
-        await kv.get(KV_KEY_DELIVERY_OUTCOME_AGG)
-      );
       const perLang = [];
       for (const lang of targets) {
-        const result = await refreshQueueForLang(lang, now, "regions-queue-list", {
-          deliveryAggregate
-        });
+        const result = await refreshQueueForLang(lang, now, "regions-queue-list");
         perLang.push(result);
       }
       const grossSummary = aggregateGrossListSummary(perLang);
@@ -1339,7 +1248,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         regionsQueueList: true,
-        listSelectionMode: "gross_quality_composite",
+        listSelectionMode: "gross_fifo_no_scoring",
         scheduleMode: REGION_LIST_SCHEDULE_TEXT,
         utcHour,
         targets,
@@ -1352,7 +1261,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ----- EN ＋ 地域 キュー送信: 15 分ごと（6言語グロス優先。15分15試行cap + 間隔送信） -----
+  // ----- EN ＋ 地域 キュー送信: 15 分ごと（6言語グロスFIFO。15分15試行cap + 間隔送信） -----
   if (forceMode === "en-queue-send") {
     const now = new Date();
     const nowMs = now.getTime();
@@ -1462,15 +1371,12 @@ module.exports = async function handler(req, res) {
       regionQueues[regionLang] = regionQueueFilter.filteredQueue;
       droppedNonAffiliateFromQueueByLang[regionLang] = regionQueueFilter.droppedNonAffiliate;
     }
-    const sendTurnRaw = "global_priority";
+    const sendTurnRaw = "global_fifo";
     const sendQueueLangs = ["en", ...REGION_QUEUE_LANGS];
     const queuesByLang = {
       en: queue,
       ...regionQueues
     };
-    const deliveryAggregateSnapshot = normalizeDeliveryOutcomeAggregate(
-      await kv.get(KV_KEY_DELIVERY_OUTCOME_AGG)
-    );
     const queueLengthsStart = computeQueueLengthsByLang(queuesByLang, sendQueueLangs);
     const sendStatsByLang = createSendStatsByLang(sendQueueLangs);
     for (const statLang of sendQueueLangs) {
@@ -1485,10 +1391,7 @@ module.exports = async function handler(req, res) {
       maxAttemptsPerRun: EN_QUEUE_MAX_ATTEMPTS_PER_RUN,
       sendDelayMs: EN_RECRUIT_SEND_DELAY_MS,
       sendRunHardStopMs: EN_RECRUIT_SEND_RUN_HARD_STOP_MS,
-      selectionMode: "6lang_gross_priority",
-      deliverabilityWeight: EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT,
-      deliverabilityMinAttempts: EN_RECRUIT_DELIVERABILITY_MIN_ATTEMPTS,
-      deliverabilityHistoryAttempts: deliveryAggregateSnapshot?.totals?.attempted || 0,
+      selectionMode: "6lang_gross_fifo",
       slotKey,
       invocationId,
       queueLengthsStart,
@@ -1520,6 +1423,7 @@ module.exports = async function handler(req, res) {
     }, {});
     let stopReason = null;
     let stopAllSends = false;
+    let sendCursor = 0;
     const canContinueRun = () => Date.now() - runStartedAtMs < EN_RECRUIT_SEND_RUN_HARD_STOP_MS;
     const registerAttempt = async (sourceLang) => {
       if (!canContinueRun()) return false;
@@ -1555,11 +1459,11 @@ module.exports = async function handler(req, res) {
       attemptsThisWindow < EN_QUEUE_ATTEMPT_CAP_PER_15MIN &&
       canContinueRun()
     ) {
-      const picked = popNextGrossPriorityCandidate(
+      const picked = popNextGrossFifoCandidate(
         queuesByLang,
         sendQueueLangs,
         opNotPermittedBlockedKeys,
-        deliveryAggregateSnapshot
+        sendCursor
       );
       if (!picked) {
         stopReason = "queue_exhausted";
@@ -1567,6 +1471,7 @@ module.exports = async function handler(req, res) {
       }
 
       const { lang, item, itemKey } = picked;
+      sendCursor = Number.isFinite(picked.nextCursor) ? picked.nextCursor : sendCursor;
       sendStatsByLang[lang].attempted += 1;
 
       const angleDecision = pickRecruitAngleDecisionFromItem(item);
@@ -1792,8 +1697,7 @@ module.exports = async function handler(req, res) {
       attemptCapPer15min: EN_QUEUE_ATTEMPT_CAP_PER_15MIN,
       sendDelayMs: EN_RECRUIT_SEND_DELAY_MS,
       sendDelayWaitedMsThisRun,
-      selectionMode: "6lang_gross_priority",
-      deliverabilityWeight: EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT,
+      selectionMode: "6lang_gross_fifo",
       sendTurn: sendTurnRaw,
       firstAttemptSource,
       count403ThisWindow: count403,
@@ -1831,8 +1735,7 @@ module.exports = async function handler(req, res) {
       attemptCapPer15min: EN_QUEUE_ATTEMPT_CAP_PER_15MIN,
       sendDelayMs: EN_RECRUIT_SEND_DELAY_MS,
       sendDelayWaitedMsThisRun,
-      selectionMode: "6lang_gross_priority",
-      deliverabilityWeight: EN_RECRUIT_DELIVERABILITY_PRIORITY_WEIGHT,
+      selectionMode: "6lang_gross_fifo",
       sendTurn: sendTurnRaw,
       firstAttemptSource,
       queueLength: queue.length,
