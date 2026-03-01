@@ -100,7 +100,7 @@ const REGION_RECIPIENT_403_STREAK_FAILOVER_BREAKER = Math.max(
   0,
   Number(process.env.REGION_RECRUIT_RECIPIENT_403_FAILOVER_BREAKER || 2)
 );
-const RECRUIT_DM_ANGLES = ["saas", "ai_saas", "crypto"];
+const RECRUIT_DM_ANGLES = ["crypto", "ai_saas", "side_hustle"];
 
 const RECRUIT_STATS_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
 const SCORE_BANDS = ["0-49", "50-64", "65-79", "80-100"];
@@ -160,7 +160,7 @@ function getScoreBand(score) {
   return "80-100";
 }
 
-/** 検索結果＋ユーザーから送信候補を構築。EN/regions 共通。並び順は recency のみ（スコア・係数は使わない）。 */
+/** 検索結果＋ユーザーから送信候補を構築。EN/regions 共通。スコア優先→同点時は recency。 */
 function buildEligibleCandidates(allPosts, usersById, lang) {
   const tweetsByAuthor = {};
   for (const p of allPosts) {
@@ -174,7 +174,14 @@ function buildEligibleCandidates(allPosts, usersById, lang) {
     const u = usersById[uid];
     if (!u?.username) continue;
     const tweets = tweetsByAuthor[uid] || [];
-    const { score, excluded, reason, breakdown } = computeCandidateScore(u, tweets);
+    const {
+      score,
+      excluded,
+      reason,
+      breakdown,
+      angle,
+      detectedVia
+    } = computeCandidateScore(u, tweets, lang);
     const mostRecentTime = tweets.length
       ? Math.max(...tweets.map((t) => new Date(t?.created_at || 0).getTime()))
       : 0;
@@ -187,13 +194,19 @@ function buildEligibleCandidates(allPosts, usersById, lang) {
       excluded,
       reason,
       breakdown,
+      angle: normalizeRecruitAngle(angle) || null,
+      detectedVia: detectedVia || null,
       priority: score != null ? score / 100 : 0,
       mostRecentTime
     });
   }
   return candidates
     .filter((c) => !c.excluded)
-    .sort((a, b) => (b.mostRecentTime ?? 0) - (a.mostRecentTime ?? 0));
+    .sort((a, b) => {
+      const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      return (b.mostRecentTime ?? 0) - (a.mostRecentTime ?? 0);
+    });
 }
 
 /** 送信数集計（言語×スコア帯）。観測ダッシュボード用。失敗しても送信処理は続行 */
@@ -230,9 +243,9 @@ async function isAlreadySent(handle) {
 }
 
 /**
- * 送信済みマーク。payload を渡すと送信ログとして lang/score/priority/author_id/angle を保存（返信率・登録率の国×言語×訴求軸観測用）
+ * 送信済みマーク。payload を渡すと送信ログとして lang/score/priority/author_id/angle/dm_variant/detected_via を保存（返信率・登録率の国×言語×訴求軸観測用）
  * @param {string} handle - 送信先 @username
- * @param {{ lang?: string; score?: number; priority?: number; author_id?: string; angle?: string }} [payload] - 検索時の言語・スコア・優先度・author_id・訴求軸
+ * @param {{ lang?: string; score?: number; priority?: number; author_id?: string; angle?: string; dm_variant?: string; detected_via?: string }} [payload] - 検索時の言語・スコア・優先度・author_id・訴求軸・DMバリアント・角度検出経路
  */
 async function markSent(handle, payload = {}) {
   if (!kv) return;
@@ -246,7 +259,9 @@ async function markSent(handle, payload = {}) {
           score: payload.score ?? null,
           priority: payload.priority ?? null,
           author_id: payload.author_id ?? null,
-          angle: payload.angle ?? null
+          angle: payload.angle ?? null,
+          dm_variant: payload.dm_variant ?? null,
+          detected_via: payload.detected_via ?? null
         })
       : String(ts);
   await kv.set(KV_KEY_SENT_HANDLE(handle), value); // 同一ユーザーへは一切再送しない（有効期限なし）
@@ -264,6 +279,8 @@ async function saveRefSent(authorId, data) {
         score: data.score ?? null,
         priority: data.priority ?? null,
         angle: data.angle ?? null,
+        dm_variant: data.dm_variant ?? null,
+        detected_via: data.detected_via ?? null,
         ts: Date.now()
       }),
       { ex: REF_SENT_TTL }
@@ -317,6 +334,7 @@ function classifyDmSendError(errorMessage) {
 
 function normalizeRecruitAngle(angle) {
   const normalized = String(angle || "").toLowerCase();
+  if (normalized === "saas") return "side_hustle";
   return RECRUIT_DM_ANGLES.includes(normalized) ? normalized : null;
 }
 
@@ -458,11 +476,13 @@ module.exports = async function handler(req, res) {
       source: "target_handle"
     });
     const whopUrl = getWhopAffiliateProgramUrl(lang);
-    const { text } = fillRecruitDmTemplate(lang, {
+    const { text, dmVariant } = fillRecruitDmTemplate(lang, {
       inviteUrl,
       whopAffiliateUrl: whopUrl,
       handle: targetHandle,
-      angle
+      angle,
+      variant: req.query?.variant || req.body?.variant,
+      recipientKey: targetHandle
     });
     if (dryRun) {
       return res.status(200).json({
@@ -487,7 +507,8 @@ module.exports = async function handler(req, res) {
       handle: targetHandle,
       lang,
       targetHandle: true,
-      dmEventId: sendResult.dmEventId
+      dmEventId: sendResult.dmEventId,
+      dmVariant
     });
   }
 
@@ -557,7 +578,8 @@ module.exports = async function handler(req, res) {
           username: c.username,
           score: c.score,
           breakdown: c.breakdown,
-          angle: pickRecruitAngleByKey(c.author_id || c.username)
+          angle: normalizeRecruitAngle(c.angle) || pickRecruitAngleByKey(c.author_id || c.username),
+          detected_via: c.detectedVia || "default"
         });
       }
       const prevQueue = parseQueueValue(await kv.get(KV_KEY_QUEUE_EN));
@@ -680,7 +702,8 @@ module.exports = async function handler(req, res) {
           username: c.username,
           score: c.score,
           breakdown: c.breakdown,
-          angle: pickRecruitAngleByKey(c.author_id || c.username)
+          angle: normalizeRecruitAngle(c.angle) || pickRecruitAngleByKey(c.author_id || c.username),
+          detected_via: c.detectedVia || "default"
         });
       }
       const prevQueue = parseQueueValue(await kv.get(KV_KEY_QUEUE_REGION(lang)));
@@ -863,11 +886,13 @@ module.exports = async function handler(req, res) {
         handle: item.username,
         source: "en_queue_send"
       });
-      const { text } = fillRecruitDmTemplate(lang, {
+      const { text, dmVariant } = fillRecruitDmTemplate(lang, {
         inviteUrl,
         whopAffiliateUrl: whopUrl,
         handle: item.username,
-        angle
+        angle,
+        variant: req.query?.variant || req.body?.variant || item.dm_variant,
+        recipientKey: item.author_id || item.username
       });
       const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
       if (sendResult?.error) {
@@ -944,14 +969,18 @@ module.exports = async function handler(req, res) {
         score: item.score,
         priority: item.score != null ? item.score / 100 : 0,
         author_id: item.author_id,
-        angle
+        angle,
+        dm_variant: dmVariant,
+        detected_via: item.detected_via || "default"
       });
       await saveRefSent(item.author_id, {
         handle: item.username,
         lang,
         score: item.score,
         priority: item.score != null ? item.score / 100 : 0,
-        angle
+        angle,
+        dm_variant: dmVariant,
+        detected_via: item.detected_via || "default"
       });
       await incrementSentStats(lang, item.score);
       await incrementTodaySentCount();
@@ -1008,11 +1037,13 @@ module.exports = async function handler(req, res) {
             source: "region_queue_send"
           });
           const whopUrlR = getWhopAffiliateProgramUrl(regionLang);
-          const { text } = fillRecruitDmTemplate(regionLang, {
+          const { text, dmVariant } = fillRecruitDmTemplate(regionLang, {
             inviteUrl,
             whopAffiliateUrl: whopUrlR,
             handle: item.username,
-            angle
+            angle,
+            variant: req.query?.variant || req.body?.variant || item.dm_variant,
+            recipientKey: item.author_id || item.username
           });
           const sendResult = await sendRecruitDm(item.username, text, { participantId: item.author_id });
           if (sendResult?.error) {
@@ -1092,14 +1123,18 @@ module.exports = async function handler(req, res) {
             score: item.score,
             priority: item.score != null ? item.score / 100 : 0,
             author_id: item.author_id,
-            angle
+            angle,
+            dm_variant: dmVariant,
+            detected_via: item.detected_via || "default"
           });
           await saveRefSent(item.author_id, {
             handle: item.username,
             lang: regionLang,
             score: item.score,
             priority: item.score != null ? item.score / 100 : 0,
-            angle
+            angle,
+            dm_variant: dmVariant,
+            detected_via: item.detected_via || "default"
           });
           await incrementSentStats(regionLang, item.score);
           await incrementTodaySentCount();
@@ -1325,7 +1360,7 @@ module.exports = async function handler(req, res) {
           readPages: pagesFetched
         });
       }
-      const angle = pickRecruitAngleByKey(c.author_id || c.username);
+      const angle = pickRecruitAngleFromItem(c);
       const inviteUrlDryRunRaw = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
       const inviteUrlDryRun = buildTrackedInviteUrl(req, inviteUrlDryRunRaw, {
         ref: c.author_id,
@@ -1335,11 +1370,13 @@ module.exports = async function handler(req, res) {
         handle: c.username,
         source: "dry_run"
       });
-      const { text, variant, variantName } = fillRecruitDmTemplate(lang, {
+      const { text, variant, dmVariant, variantName } = fillRecruitDmTemplate(lang, {
         inviteUrl: inviteUrlDryRun,
         whopAffiliateUrl: whopUrl,
         handle: c.username,
-        angle
+        angle,
+        variant: req.query?.variant || req.body?.variant,
+        recipientKey: c.author_id || c.username
       });
       return res.status(200).json({
         ok: true,
@@ -1352,8 +1389,10 @@ module.exports = async function handler(req, res) {
           priority: c.priority,
           breakdown: c.breakdown,
           dmAngle: angle,
-          dmVariant: variant,
-          dmVariantName: variantName
+          dmVariantIndex: variant,
+          dmVariant: dmVariant,
+          dmVariantName: variantName,
+          detectedVia: c.detectedVia || "default"
         },
         wouldSendCount: wouldSendList.length,
         enBatch: isEnBatchRun,
@@ -1368,7 +1407,7 @@ module.exports = async function handler(req, res) {
       if (await isAlreadySent(c.username)) continue;
       if (await isDmNg(c.author_id)) continue;
 
-      const angle = pickRecruitAngleByKey(c.author_id || c.username);
+      const angle = pickRecruitAngleFromItem(c);
       const inviteUrlRaw = getFirstPromoterInviteUrl(lang, { ref: c.author_id });
       const inviteUrl = buildTrackedInviteUrl(req, inviteUrlRaw, {
         ref: c.author_id,
@@ -1378,11 +1417,13 @@ module.exports = async function handler(req, res) {
         handle: c.username,
         source: isEnBatchRun ? "en_batch_send" : "legacy_send"
       });
-      const { text, variant, variantName } = fillRecruitDmTemplate(lang, {
+      const { text, variant, dmVariant, variantName } = fillRecruitDmTemplate(lang, {
         inviteUrl,
         whopAffiliateUrl: whopUrl,
         handle: c.username,
-        angle
+        angle,
+        variant: req.query?.variant || req.body?.variant,
+        recipientKey: c.author_id || c.username
       });
       const sendResult = await sendRecruitDm(c.username, text, { participantId: c.author_id });
 
@@ -1424,14 +1465,24 @@ module.exports = async function handler(req, res) {
         score: c.score,
         priority: c.priority,
         author_id: c.author_id,
-        angle
+        angle,
+        dm_variant: dmVariant,
+        detected_via: c.detectedVia || "default"
       });
-      await saveRefSent(c.author_id, { handle: c.username, lang, score: c.score, priority: c.priority, angle });
+      await saveRefSent(c.author_id, {
+        handle: c.username,
+        lang,
+        score: c.score,
+        priority: c.priority,
+        angle,
+        dm_variant: dmVariant,
+        detected_via: c.detectedVia || "default"
+      });
       await incrementSentStats(lang, c.score);
       await incrementTodaySentCount();
       if (!isEnBatchRun) await incrementHourSent(dateStr, utcHour);
       sentCount += 1;
-      console.log("[affiliate-recruit-run] sent:", c.username, "lang:", lang);
+      console.log("[affiliate-recruit-run] sent:", c.username, "lang:", lang, "angle:", angle, "dmVariant:", dmVariant, "detectedVia:", c.detectedVia || "default");
       sentHandles.push(c.username);
     }
 

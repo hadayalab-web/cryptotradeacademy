@@ -16,6 +16,145 @@ const AFFILIATE_LANG_NAMES = {
   ja: "Japanese"
 };
 
+/** DM 訴求軸（Who/What マッチング用）。saas は side_hustle へ正規化する。 */
+const RECRUIT_PRIMARY_ANGLES = ["crypto", "ai_saas", "side_hustle"];
+const RECRUIT_ANGLE_ALIASES = {
+  crypto: "crypto",
+  ai_saas: "ai_saas",
+  side_hustle: "side_hustle",
+  saas: "side_hustle"
+};
+
+/** Angle 判定キーワード（検索意図/プロフィール補正で使用） */
+const RECRUIT_ANGLE_KEYWORDS = {
+  crypto: [
+    "bitcoin", "btc", "crypto", "trading", "signals", "signal", "gem", "altcoin",
+    "マーケット", "仮想通貨", "ビットコイン", "트레이딩", "코인",
+    "cripto", "trader", "mercado", "mercado btc",
+    "mercado crypto", "سوق", "بيتكوين", "كريبتو"
+  ],
+  ai_saas: [
+    "ai", "gpt", "llm", "saas", "tool", "automation", "agent", "workflow",
+    "ai saas", "ai tool", "sistema", "automacao", "自動化", "生成ai", "aiツール",
+    "자동화", "ai 도구", "ذكاء اصطناعي", "اداة"
+  ],
+  side_hustle: [
+    "affiliate", "referral", "side hustle", "income", "earn", "commission", "partner",
+    "make money", "online income", "extra income", "monetize", "monetise",
+    "副業", "収益化", "成果報酬", "紹介", "제휴", "부업", "수익화",
+    "afiliado", "afiliados", "ingresos", "renda", "dinheiro",
+    "عمولة", "إحالة", "دخل إضافي"
+  ]
+};
+
+const RECRUIT_ANGLE_LABELS = {
+  en: {
+    crypto: "crypto trading",
+    ai_saas: "AI SaaS",
+    side_hustle: "affiliate side-hustle"
+  },
+  es: {
+    crypto: "crypto trading",
+    ai_saas: "AI SaaS",
+    side_hustle: "afiliados/side hustle"
+  },
+  pt: {
+    crypto: "trading crypto",
+    ai_saas: "AI SaaS",
+    side_hustle: "afiliados/side hustle"
+  },
+  ar: {
+    crypto: "تداول الكريبتو",
+    ai_saas: "AI SaaS",
+    side_hustle: "الأفلييت / دخل جانبي"
+  },
+  ko: {
+    crypto: "크립토 트레이딩",
+    ai_saas: "AI SaaS",
+    side_hustle: "제휴/부업"
+  },
+  ja: {
+    crypto: "Crypto",
+    ai_saas: "AI SaaS",
+    side_hustle: "副業アフィリエイト"
+  }
+};
+
+const RECRUIT_PRODUCT_NAME_BY_ANGLE = {
+  crypto: {
+    en: "BTC market briefing via Telegram",
+    es: "briefing de mercado BTC por Telegram",
+    pt: "briefing de mercado BTC via Telegram",
+    ar: "موجز سوق BTC عبر تيليغرام",
+    ko: "BTC 마켓 브리핑 텔레그램 서비스",
+    ja: "BTCマーケットTGブリーフィング"
+  },
+  ai_saas: {
+    en: "AI-assisted BTC market intelligence via Telegram",
+    es: "inteligencia de mercado BTC asistida por IA vía Telegram",
+    pt: "inteligência de mercado BTC com IA via Telegram",
+    ar: "ذكاء سوق BTC مدعوم بالذكاء الاصطناعي عبر تيليغرام",
+    ko: "AI 보조 BTC 마켓 인텔리전스 텔레그램 브리핑",
+    ja: "AI支援型BTCマーケットTGブリーフィング"
+  },
+  side_hustle: {
+    en: "Beginner-friendly recurring affiliate package (Whop + Telegram assets)",
+    es: "paquete de afiliación recurrente para principiantes (Whop + activos Telegram)",
+    pt: "pacote de afiliado recorrente para iniciantes (Whop + ativos Telegram)",
+    ar: "حزمة أفلييت متكررة مناسبة للمبتدئين (Whop + مواد تيليغرام)",
+    ko: "초보자용 리커링 제휴 패키지 (Whop + 텔레그램 소재)",
+    ja: "初心者向けリカーリング・アフィリエイトパッケージ（Whop＋TG素材）"
+  }
+};
+
+const RECRUIT_DM_VARIANTS = ["v1_requirements", "v2_partnership"];
+const RECRUIT_DM_AB_TEST_ENABLED = process.env.RECRUIT_DM_AB_TEST_ENABLED !== "0";
+const RECRUIT_DM_AB_SPLIT_PERCENT = Math.max(
+  0,
+  Math.min(100, Number(process.env.RECRUIT_DM_AB_SPLIT_PERCENT || 50))
+);
+
+function normalizeRecruitAngle(angle) {
+  const normalized = String(angle || "").toLowerCase().trim();
+  return RECRUIT_ANGLE_ALIASES[normalized] || "crypto";
+}
+
+function hashStringToUint32(raw) {
+  const text = String(raw || "");
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+function pickRecruitDmVariantByKey(key) {
+  if (!RECRUIT_DM_AB_TEST_ENABLED) return "v1_requirements";
+  const normalizedKey = String(key || "").trim();
+  if (!normalizedKey) return "v1_requirements";
+  const bucket = hashStringToUint32(normalizedKey) % 100;
+  return bucket < RECRUIT_DM_AB_SPLIT_PERCENT ? "v1_requirements" : "v2_partnership";
+}
+
+function normalizeRecruitLang(lang) {
+  const normalized = String(lang || "").toLowerCase().trim();
+  return AFFILIATE_RECRUIT_LANGS.includes(normalized) ? normalized : "en";
+}
+
+function getRecruitProductName(angle, lang) {
+  const resolvedAngle = normalizeRecruitAngle(angle);
+  const resolvedLang = normalizeRecruitLang(lang);
+  const byLang = RECRUIT_PRODUCT_NAME_BY_ANGLE[resolvedAngle] || RECRUIT_PRODUCT_NAME_BY_ANGLE.crypto;
+  return byLang[resolvedLang] || byLang.en;
+}
+
+function getRecruitAngleLabel(angle, lang) {
+  const resolvedAngle = normalizeRecruitAngle(angle);
+  const resolvedLang = normalizeRecruitLang(lang);
+  const labels = RECRUIT_ANGLE_LABELS[resolvedLang] || RECRUIT_ANGLE_LABELS.en;
+  return labels[resolvedAngle] || labels.crypto;
+}
+
 /**
  * 言語別 FirstPromoter 招待 URL の env キー（Vercel で FIRSTPROMOTER_INVITE_URL_EN 等を設定している場合に使用）
  */
@@ -103,6 +242,15 @@ function getNextRecruitLangForUtcHour(utcHour, indexInHour) {
 module.exports = {
   AFFILIATE_RECRUIT_LANGS,
   AFFILIATE_LANG_NAMES,
+  RECRUIT_PRIMARY_ANGLES,
+  RECRUIT_ANGLE_KEYWORDS,
+  RECRUIT_DM_VARIANTS,
+  RECRUIT_DM_AB_TEST_ENABLED,
+  RECRUIT_DM_AB_SPLIT_PERCENT,
+  normalizeRecruitAngle,
+  pickRecruitDmVariantByKey,
+  getRecruitProductName,
+  getRecruitAngleLabel,
   getFirstPromoterInviteUrl,
   getFirstPromoterProfileUrl,
   getWhopAffiliateProgramUrl,

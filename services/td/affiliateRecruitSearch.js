@@ -78,13 +78,15 @@ const SEARCH_REQUIRED_GROUPS_BY_LANG = {
 };
 
 // ノイズ寄りの文脈を軽減（単語のみ。空白を含む語は避ける）
+const SEARCH_NEGATIVE_COMMON_TERMS = ["bot", "official", "news", "support", "alert"];
+
 const SEARCH_NEGATIVE_TERMS_BY_LANG = {
-  en: ["giveaway", "airdrop", "signals", "signal", "casino"],
-  ja: ["プレゼント", "エアドロップ", "シグナル", "無料"],
-  ko: ["에어드랍", "시그널", "무료", "증정"],
-  es: ["sorteo", "airdrop", "senales", "señales", "gratis"],
-  pt: ["sorteio", "airdrop", "sinais", "gratis"],
-  ar: ["ايردروب", "اشارات", "مجاني"]
+  en: ["giveaway", "airdrop", "casino"],
+  ja: ["公式", "速報", "広報", "プレゼント", "ニュース", "無料"],
+  ko: ["공식", "뉴스", "봇", "에어드랍", "무료", "증정"],
+  es: ["oficial", "noticias", "bot", "sorteo", "airdrop", "gratis"],
+  pt: ["oficial", "noticias", "notícias", "bot", "sorteio", "airdrop", "gratis"],
+  ar: ["رسمي", "أخبار", "بوت", "ايردروب", "مجاني"]
 };
 
 /** アフィリエイトリクルート用: user.fields 拡張（スコアリングに必要。url＝リンクなしボーナス用） */
@@ -117,11 +119,12 @@ function uniqueList(items) {
 
 function getSearchSuffixParts(lang) {
   const negatives = SEARCH_NEGATIVE_TERMS_BY_LANG[lang] || SEARCH_NEGATIVE_TERMS_BY_LANG.en || [];
+  const negativeTerms = uniqueList([...SEARCH_NEGATIVE_COMMON_TERMS, ...negatives]);
   return [
     `lang:${lang}`,
     "-is:retweet",
     "-is:reply",
-    ...uniqueList(negatives).map((term) => `-${term}`)
+    ...negativeTerms.map((term) => `-${term}`)
   ];
 }
 
