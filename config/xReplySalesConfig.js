@@ -84,8 +84,8 @@ const X_REPLY_FOLLOW_CAP_PER_DAY = Math.max(
 );
 const X_REPLY_FOLLOW_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_FOLLOW_DELAY_MS || 1500));
 
-// フォロー解除: フォローから何日後に解除するか。0=解除しない。解除は送信ラン開始時に「N日前のリスト」を一括処理（429で止まった分は次回に繰越）
-const X_REPLY_UNFOLLOW_DAYS = Math.max(0, Math.min(30, Number(process.env.X_REPLY_UNFOLLOW_DAYS || 7)));
+// フォロー解除: フォローから何日後に解除するか。0=解除しない。72時間≈3日で解除しないとフォロー数が膨らむためデフォルト3日
+const X_REPLY_UNFOLLOW_DAYS = Math.max(0, Math.min(30, Number(process.env.X_REPLY_UNFOLLOW_DAYS || 3)));
 
 module.exports = {
   X_REPLY_SALES_LANGS,

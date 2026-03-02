@@ -1,5 +1,5 @@
 /**
- * Xリプライ直販: 48hフォローアップDM ＋ 7日後フォロー解除
+ * Xリプライ直販: 48hフォローアップDM ＋ 3日後フォロー解除（デフォルト72時間で解除してフォロー数膨張を防ぐ）
  * Cron: :10, :25, :40, :55 で実行（:00 リスト・:05 送信のあとで詰まらないように）
  */
 const { kv } = require("../utils/kv");
@@ -42,7 +42,7 @@ module.exports = async function handler(req, res) {
   const now = new Date();
   const results = { unfollow: { done: 0, errors: 0 }, followup: { sent: 0, skipped: 0, errors: 0 } };
 
-  // 1) 7日前にフォローしたユーザーを解除（X API 50/15min 順守）
+  // 1) N日前（デフォルト3日）にフォローしたユーザーを解除（X API 50/15min 順守）
   if (X_REPLY_UNFOLLOW_DAYS > 0) {
     const dPast = new Date(now);
     dPast.setUTCDate(dPast.getUTCDate() - X_REPLY_UNFOLLOW_DAYS);
