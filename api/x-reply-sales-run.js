@@ -8,6 +8,7 @@ require("../utils/suppressKnownWarnings");
 const { kv } = require("../utils/kv");
 const { fetchOneReplySearchPage } = require("../services/td/xReplySalesSearch");
 const { sendSalesReply } = require("../services/x/replySalesClient");
+const { sendRecruitDm } = require("../services/x/dmClient");
 const {
   buildReplyMessage,
   detectReplyPostType,
@@ -335,13 +336,16 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
   const candidates = [];
   let skippedReplyRestricted = 0;
   const sourceRows = Array.isArray(rows) ? rows : [];
+  const replySettingsCounts = {};
   for (const row of sourceRows) {
+    const raw = String(row?.reply_settings ?? "").trim() || "(empty)";
+    replySettingsCounts[raw] = (replySettingsCounts[raw] || 0) + 1;
     const tweetId = String(row?.id || "").trim();
     const authorId = String(row?.author_id || "").trim();
     const text = String(row?.text || "").trim();
     if (!tweetId || !authorId || !text) continue;
     const replySettings = String(row?.reply_settings || "").trim().toLowerCase();
-    if (replySettings && replySettings !== "everyone") {
+    if (replySettings !== "everyone") {
       skippedReplyRestricted += 1;
       continue;
     }
@@ -372,7 +376,41 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
   });
   return {
     candidates,
-    skippedReplyRestricted
+    skippedReplyRestricted,
+    replySettingsCounts
+  };
+}
+
+/** 取得候補リストの「ホット度」を集計（post_type・新しさ）。リスト品質の分析用 */
+function buildHotListAnalysis(candidates) {
+  const list = Array.isArray(candidates) ? candidates : [];
+  const postTypeCounts = {};
+  let highPriorityCount = 0;
+  const priorityHotThreshold = 3;
+  let newestCreatedAt = null;
+  let oldestCreatedAt = null;
+  for (const c of list) {
+    const pt = String(c?.post_type || "").trim() || "unknown";
+    postTypeCounts[pt] = (postTypeCounts[pt] || 0) + 1;
+    const p = Number(c?.priority);
+    if (Number.isFinite(p) && p >= priorityHotThreshold) highPriorityCount += 1;
+    const at = c?.created_at ? new Date(c.created_at).getTime() : null;
+    if (at) {
+      if (newestCreatedAt == null || at > newestCreatedAt) newestCreatedAt = at;
+      if (oldestCreatedAt == null || at < oldestCreatedAt) oldestCreatedAt = at;
+    }
+  }
+  const total = list.length;
+  const hotList =
+    total > 0 &&
+    (highPriorityCount >= Math.ceil(total * 0.5) || highPriorityCount === total);
+  return {
+    postTypeCounts,
+    highPriorityCount,
+    totalItems: total,
+    newestCreatedAt: newestCreatedAt != null ? new Date(newestCreatedAt).toISOString() : null,
+    oldestCreatedAt: oldestCreatedAt != null ? new Date(oldestCreatedAt).toISOString() : null,
+    hotList
   };
 }
 
@@ -419,6 +457,14 @@ async function refreshQueueForLang(lang, now) {
   });
   const built = builtResult.candidates || [];
   const skippedReplyRestricted = Number(builtResult.skippedReplyRestricted || 0);
+  if (Object.keys(builtResult.replySettingsCounts || {}).length > 0) {
+    console.log("[X Reply Sales][list][reply_settings]", {
+      lang: normalizedLang,
+      replySettingsCounts: builtResult.replySettingsCounts,
+      skippedReplyRestricted,
+      enqueued: built.length
+    });
+  }
   const handledChecks = await Promise.all(
     built.map((candidate) => isTweetHandled(candidate.tweet_id))
   );
@@ -497,9 +543,11 @@ async function refreshQueueForLang(lang, now) {
       tweetId: x.tweet_id,
       handle: x.username,
       postType: x.post_type
-    }))
+    })),
+    hotAnalysis: buildHotListAnalysis(built)
   };
 
+  const hot = summary.hotAnalysis || {};
   console.log("[X Reply Sales][list][lang]", {
     lang: normalizedLang,
     freshDiscovered: summary.freshDiscovered,
@@ -507,7 +555,10 @@ async function refreshQueueForLang(lang, now) {
     skippedReplyRestricted: summary.skippedReplyRestricted,
     retainedFromPrev: summary.retainedFromPrev,
     droppedFromPrevByPolicy: summary.droppedFromPrevByPolicy,
-    nextQueueLength: summary.nextQueueLength
+    nextQueueLength: summary.nextQueueLength,
+    hotList: hot.hotList,
+    postTypeCounts: hot.postTypeCounts,
+    highPriorityCount: hot.highPriorityCount
   });
 
   return summary;
@@ -900,6 +951,12 @@ module.exports = async function handler(req, res) {
       }
 
       lastAttemptStartedAtMs = Date.now();
+      console.log("[X Reply Sales][send] attempting reply", {
+        attempt: attemptsThisRun,
+        tweetId: item.tweet_id,
+        lang,
+        handle: item.username
+      });
       const sendResult = await sendSalesReply({
         tweetId: item.tweet_id,
         text: textWithCoupon
@@ -930,30 +987,81 @@ module.exports = async function handler(req, res) {
         }
         const immediateNg = shouldMarkImmediateNg(classified);
         if (immediateNg) {
-          await markTweetNg(item.tweet_id, {
-            status: "ng",
-            reason: classified.type || "error",
-            lang,
-            handle: item.username
-          });
-        }
-        await markTweetHandled(
-          item.tweet_id,
-          {
-            status: immediateNg ? "ng" : "failed",
-            reason: classified.type || "error",
-            lang,
-            handle: item.username,
-            immediateNg
-          },
-          false
-        );
-        if (immediateNg) {
-          console.warn("[X Reply Sales][send] marked tweet as NG", {
-            lang,
-            tweetId: item.tweet_id,
-            reason: classified.type
-          });
+          let dmResult;
+          try {
+            dmResult = await sendRecruitDm(item.username, textWithCoupon, {
+              participantId: item.author_id
+            });
+          } catch (dmErr) {
+            dmResult = { error: dmErr?.message || "DM send threw" };
+          }
+          const dmFailed = !dmResult || dmResult.error;
+          if (dmFailed) {
+            await markTweetNg(item.tweet_id, {
+              status: "ng",
+              reason: "reply_rejected_then_dm_failed",
+              lang,
+              handle: item.username,
+              replyError: classified.type,
+              dmError: dmResult?.error || "unknown"
+            });
+            await markTweetHandled(
+              item.tweet_id,
+              {
+                status: "ng",
+                reason: "reply_rejected_then_dm_failed",
+                lang,
+                handle: item.username,
+                immediateNg: true
+              },
+              false
+            );
+            console.warn("[X Reply Sales][send] reply rejected, DM failed → NG", {
+              lang,
+              tweetId: item.tweet_id,
+              handle: item.username,
+              dmError: dmResult?.error || "unknown"
+            });
+          } else {
+            await markTweetHandled(
+              item.tweet_id,
+              {
+                status: "dm_sent",
+                reason: "reply_rejected_dm_sent",
+                lang,
+                handle: item.username,
+                dmEventId: dmResult.dmEventId || null
+              },
+              false
+            );
+            await appendEvent(KV_KEY_SEND_EVENTS, {
+              ts: new Date().toISOString(),
+              slotKey,
+              invocationId,
+              status: "dm_sent",
+              lang,
+              tweetId: item.tweet_id,
+              handle: item.username,
+              dmEventId: dmResult.dmEventId || null
+            });
+            console.log("[X Reply Sales][send] reply rejected → DM sent", {
+              lang,
+              tweetId: item.tweet_id,
+              handle: item.username
+            });
+          }
+        } else {
+          await markTweetHandled(
+            item.tweet_id,
+            {
+              status: "failed",
+              reason: classified.type || "error",
+              lang,
+              handle: item.username,
+              immediateNg: false
+            },
+            false
+          );
         }
         continue;
       }
