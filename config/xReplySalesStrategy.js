@@ -1,6 +1,9 @@
 /**
  * Xリプライ直販戦略（Gemini戦略統合版）
  * 出典: x_sales_strategy.md
+ *
+ * リプライ廃止に伴い、REPLY_* テンプレ（パターン・フック等）はすべて DM 専用。
+ * buildReplyMessage は DM 本文を組み立てる（@メンションは含めない）。
  */
 
 const SUPPORTED_REPLY_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
@@ -118,263 +121,266 @@ const REPLY_QUERY_HOOK_WITH_KEYWORD_BY_LANG = {
   ar: "الكلمة اللي طلعت («{keyword}») — جد؟"
 };
 
+/** DM用：冒頭の一言（クエリフックの直後）。会話調・1:1向け */
 const REPLY_ONE_WORD_HOOK_BY_LANG = {
   en: {
-    loss_report: "Ouch.",
-    fomo_mental: "Breathe.",
-    prediction_confusion: "Structure.",
-    beginner_learning: "Defense."
+    loss_report: "Ouch — been there.",
+    fomo_mental: "Breathe first.",
+    prediction_confusion: "Structure helps.",
+    beginner_learning: "Defense first."
   },
   ja: {
-    loss_report: "痛い。",
-    fomo_mental: "深呼吸。",
-    prediction_confusion: "構造。",
-    beginner_learning: "防御。"
+    loss_report: "痛いですよね。",
+    fomo_mental: "ひと呼吸おきましょう。",
+    prediction_confusion: "構造、大事です。",
+    beginner_learning: "防御から。"
   },
   ko: {
-    loss_report: "아픔.",
-    fomo_mental: "호흡.",
-    prediction_confusion: "구조.",
-    beginner_learning: "방어."
+    loss_report: "아프시죠. 저도 겪어봤어요.",
+    fomo_mental: "먼저 숨 고르세요.",
+    prediction_confusion: "구조가 답이에요.",
+    beginner_learning: "방어가 먼저예요."
   },
   es: {
-    loss_report: "Ojo.",
-    fomo_mental: "Respira.",
-    prediction_confusion: "Estructura.",
-    beginner_learning: "Defensa."
+    loss_report: "Duele — ya me ha pasado.",
+    fomo_mental: "Respira un momento.",
+    prediction_confusion: "La estructura ayuda.",
+    beginner_learning: "Primero la defensa."
   },
   pt: {
-    loss_report: "Atenção.",
-    fomo_mental: "Respira.",
-    prediction_confusion: "Estrutura.",
-    beginner_learning: "Defesa."
+    loss_report: "Dói — já passei por isso.",
+    fomo_mental: "Respira um pouco.",
+    prediction_confusion: "Estrutura ajuda.",
+    beginner_learning: "Defesa primeiro."
   },
   ar: {
-    loss_report: "انتبه.",
-    fomo_mental: "تنفس.",
-    prediction_confusion: "هيكل.",
-    beginner_learning: "دفاع."
+    loss_report: "موجع — مرّ معي.",
+    fomo_mental: "تنفّس شوي.",
+    prediction_confusion: "الهيكل يساعد.",
+    beginner_learning: "الدفاع أولاً."
   }
 };
 
+/** DM用：本文前の短い共感・洞察（1:1向け・やや長め可） */
 const REPLY_HOOKS_BY_LANG_AND_TYPE = {
   en: {
     loss_report: [
-      "Ouch, looks like a classic algo liquidity hunt.",
-      "Stop losses getting hunted is exactly how whales accumulate.",
-      "That dump wasn't random, it was a structural trap."
+      "When your stop gets hunted it's usually not bad luck — it's liquidity being taken where the book showed it.",
+      "That dump you got caught in? Often the structure was visible before the move. Worth learning to read it.",
+      "Stop hunts suck. The good news: you can learn where they're likely to happen before they trigger."
     ],
     fomo_mental: [
-      "FOMO is just a chemical reaction. Don't let it trigger a trap.",
-      "When everyone is fearful, algos are hunting.",
-      "Take 3 breaths. The urge to chase is exactly what they want."
+      "FOMO is just chemistry. When you feel the urge to chase, that's exactly when algos are set up to take liquidity.",
+      "If you're losing sleep over the chart, take 3 breaths. The urge to jump in is what they're built to exploit.",
+      "When everyone's panicking, that's when the real traps get set. Pausing helps more than reacting."
     ],
     prediction_confusion: [
-      "Charts alone won't show you whale intent.",
-      "You're trying to predict surface noise. Look at the hidden liquidity.",
-      "Stop guessing the next candle and start reading the structure."
+      "Charts alone won't tell you where whales are aiming. Hidden liquidity does — and it's learnable.",
+      "Guessing the next candle is exhausting. Reading structure (where stops sit, where liquidity pools) is the shift.",
+      "You're not bad at this — you're just looking at the wrong layer. Structure first, then price."
     ],
     beginner_learning: [
-      "The most powerful skill is doing nothing 70% of the time.",
-      "Trading isn't about constant buying. It's about defense.",
-      "Start by learning how institutions hunt retail."
+      "The edge isn't trading more — it's doing nothing most of the time and acting only when structure lines up.",
+      "Trading isn't about catching every move. It's about not being the liquidity that gets hunted.",
+      "Best first step: learn how institutions hunt retail. Then you stop being the target."
     ]
   },
   ja: {
     loss_report: [
-      "典型的なアルゴの流動性刈りですね…",
-      "ストップ狩りはクジラの集める手口です。",
-      "その急落、実は事前に構造的な罠が見えていました。"
+      "ストップが刈られたとき、運じゃなくて「流動性がここにある」とブックに出ていたことが多いです。",
+      "あの急落、実は動く前に構造で読めたことが多い。読めるようになるとだいぶ楽になります。",
+      "ストップ狩りはきついですよね。どこで起こりやすいか、発動前に読む方法はあります。"
     ],
     fomo_mental: [
-      "FOMOは脳の化学反応です。罠に飛び込まないで。",
-      "大衆がパニックの時こそ、アルゴは動きます。",
-      "深呼吸を3回。飛び乗りたくなる感情こそが彼らの狙いです。"
+      "FOMOは脳の化学反応です。飛び乗りたくなった瞬間こそ、アルゴが流動性を取る仕掛けができていることが多い。",
+      "チャートで眠れなくなったら、深呼吸3回。飛び乗りたい衝動は、彼らが一番利用する感情です。",
+      "みんながパニックのときこそ罠が仕掛けられる。反応するより一呼吸おく方が助かります。"
     ],
     prediction_confusion: [
-      "チャートだけではクジラの意図は読めません。",
-      "表面のノイズを予想するより、隠れた流動性を見るべきです。",
-      "次のロウソクを当てるのではなく、相場の構造を読み解きましょう。"
+      "チャートだけではクジラの狙いは読めません。隠れた流動性を読むと見えてきます。それも学べます。",
+      "次の足を当てるのは疲れます。構造（ストップがどこにたまっているか、流動性のプール）を読むのが転換点です。",
+      "センスがないのではなく、見るレイヤーが違うだけ。まず構造、その次に価格です。"
     ],
     beginner_learning: [
-      "トレードで最強のスキルは70%は何もしないことです。",
-      "常に買うことがトレードではありません。防御こそが要です。",
-      "まずは機関投資家がいかに個人を狩るかを学ぶべきです。"
+      "優位性はたくさんトレードすることじゃなく、大半は何もしないで構造が揃ったときだけ動くこと。",
+      "トレードは全部の動きを取ることじゃない。狩られる流動性にならないことです。",
+      "最初の一歩は、機関がどう個人を狩るかを知ること。そうするとターゲット側から外れます。"
     ]
   },
   ko: {
     loss_report: [
-      "전형적인 알고리즘의 유동성 사냥이네요...",
-      "스탑 헌팅은 고래가 매집하는 방식입니다.",
-      "그 하락은 우연이 아니라 구조적인 덫이었습니다."
+      "스탑이 헌팅당했을 땐 운이 아니라, 오더북에 유동성이 여기 있다고 보였던 경우가 많아요.",
+      "그 급락, 움직이기 전에 구조로 읽을 수 있는 경우가 많습니다. 읽는 법을 배우면 훨씬 수월해져요.",
+      "스탑 헌팅 당하면 정말 힘들죠. 어디서 자주 터지는지, 터지기 전에 읽는 방법이 있어요."
     ],
     fomo_mental: [
-      "FOMO는 화학 반응일 뿐입니다. 덫에 걸리지 마세요.",
-      "모두가 두려워할 때 알고리즘은 사냥을 시작합니다.",
-      "심호흡을 3번 하세요. 추격 매수 충동이 바로 그들이 원하는 것입니다."
+      "FOMO는 화학 반응이에요. 추격 매수하고 싶을 때가 바로 알고가 유동성 빼가는 덫을 놓을 때예요.",
+      "차트 때문에 잠 못 이루면 심호흡 3번. 추격하고 싶은 충동이 그들이 가장 이용하는 감정이에요.",
+      "다들 패닉일 때가 진짜 덫이 설치될 때예요. 반응하기보다 한 번 숨 고르는 게 도움이 됩니다."
     ],
     prediction_confusion: [
-      "차트만으로는 고래의 의도를 알 수 없습니다.",
-      "표면 노이즈를 예측하지 말고 숨겨진 유동성을 보세요.",
-      "다음 캔들을 추측하지 말고 구조를 읽기 시작하세요."
+      "차트만으로는 고래의 의도를 못 읽어요. 숨겨진 유동성을 읽으면 보여요. 그건 배울 수 있어요.",
+      "다음 캔들 맞추기는 지쳐요. 구조(스탑이 어디 쌓였는지, 유동성 풀)를 읽는 게 전환점이에요.",
+      "실력이 없는 게 아니라 보는 레이어가 다른 거예요. 먼저 구조, 그다음 가격이에요."
     ],
     beginner_learning: [
-      "가장 강력한 기술은 70%의 시간 동안 아무것도 하지 않는 것입니다.",
-      "트레이딩은 끊임없이 사는 것이 아니라 방어하는 것입니다.",
-      "기관이 어떻게 개인을 사냥하는지 배우는 것으로 시작하세요."
+      "엣지는 많이 매매하는 게 아니라, 대부분은 가만히 있다가 구조가 맞을 때만 움직이는 거예요.",
+      "트레이딩은 모든 움직임을 잡는 게 아니라, 헌팅당하는 유동성이 되지 않는 거예요.",
+      "첫 단계는 기관이 개인을 어떻게 사냥하는지 아는 거예요. 그러면 타깃에서 빠져나올 수 있어요."
     ]
   },
   es: {
     loss_report: [
-      "Ouch, parece una clásica caza de liquidez de algoritmos.",
-      "La caza de stop losses es exactamente como acumulan las ballenas.",
-      "Esa caída no fue al azar, fue una trampa estructural."
+      "Cuando te cazan el stop suele ser liquidez que estaba marcada en el libro, no mala suerte.",
+      "Esa caída en la que te pillaron a menudo se podía leer en la estructura antes. Aprender a leerla ayuda.",
+      "Que te cacen el stop duele. La buena noticia: se puede aprender dónde es más probable que pase antes de que pase."
     ],
     fomo_mental: [
-      "El FOMO es solo una reacción química. No caigas en la trampa.",
-      "Cuando todos tienen miedo, los algoritmos están cazando.",
-      "Respira 3 veces. El impulso de perseguir es exactamente lo que quieren."
+      "El FOMO es química. Cuando te entran ganas de perseguir precio, es cuando los algos suelen estar preparados para tomar liquidez.",
+      "Si no duermes por el gráfico, respira 3 veces. Las ganas de entrar son lo que más explotan.",
+      "Cuando todos están en pánico es cuando montan las trampas. Pausar ayuda más que reaccionar."
     ],
     prediction_confusion: [
-      "Los gráficos por sí solos no te mostrarán la intención de las ballenas.",
-      "Estás intentando predecir ruido superficial. Mira la liquidez oculta.",
-      "Deja de adivinar la próxima vela y empieza a leer la estructura."
+      "Solo con gráficos no ves a dónde apuntan las ballenas. La liquidez oculta sí — y se puede aprender.",
+      "Adivinar la siguiente vela cansa. Leer la estructura (dónde están los stops, dónde la liquidez) es el cambio.",
+      "No es que se te dé mal — es que miras la capa equivocada. Primero estructura, luego precio."
     ],
     beginner_learning: [
-      "La habilidad más poderosa es no hacer nada el 70% del tiempo.",
-      "El trading no es comprar constantemente. Se trata de defensa.",
-      "Comienza aprendiendo cómo las instituciones cazan a los minoristas."
+      "La ventaja no es operar más, sino no hacer nada la mayoría del tiempo y actuar solo cuando la estructura cuadra.",
+      "Operar no es capturar cada movimiento. Es no ser la liquidez que cazan.",
+      "El mejor primer paso: aprender cómo las instituciones cazan al retail. Así dejas de ser el blanco."
     ]
   },
   pt: {
     loss_report: [
-      "Ouch, parece uma clássica caça à liquidez de algoritmos.",
-      "Caçar stop losses é exatamente como as baleias acumulam.",
-      "Essa queda não foi aleatória, foi uma armadilha estrutural."
+      "Quando seu stop é caçado, muitas vezes não é azar — é liquidez que estava no livro. Vale aprender a ler.",
+      "Aquela queda em que você foi pego? Muitas vezes dava para ler na estrutura antes. Aprender a ler ajuda.",
+      "Stop caçado dói. A boa notícia: dá para aprender onde é mais provável acontecer antes de disparar."
     ],
     fomo_mental: [
-      "FOMO é apenas uma reação química. Não caia na armadilha.",
-      "Quando todos têm medo, os algoritmos estão caçando.",
-      "Respire 3 vezes. A vontade de perseguir o preço é exatamente o que eles querem."
+      "FOMO é química. Quando der vontade de perseguir preço, é quando os algos costumam estar armando para tomar liquidez.",
+      "Se não dormir por causa do gráfico, respire 3 vezes. A vontade de entrar é o que mais exploram.",
+      "Quando todo mundo está em pânico é quando armam as armadilhas. Pausar ajuda mais que reagir."
     ],
     prediction_confusion: [
-      "Gráficos sozinhos não mostram a intenção das baleias.",
-      "Você está prevendo ruído superficial. Olhe para a liquidez oculta.",
-      "Pare de adivinhar a próxima vela e comece a ler a estrutura."
+      "Só gráfico não mostra para onde as baleias estão mirando. Liquidez oculta mostra — e dá para aprender.",
+      "Adivinhar o próximo candle cansa. Ler a estrutura (onde estão os stops, onde está a liquidez) é a virada.",
+      "Não é que você seja ruim — é que está olhando a camada errada. Primeiro estrutura, depois preço."
     ],
     beginner_learning: [
-      "A habilidade mais poderosa é não fazer nada 70% do tempo.",
-      "Trading não é comprar constantemente. É sobre defesa.",
-      "Comece aprendendo como as instituições caçam os varejistas."
+      "A vantagem não é operar mais — é não fazer nada na maior parte do tempo e agir só quando a estrutura fecha.",
+      "Trading não é pegar cada movimento. É não ser a liquidez que eles caçam.",
+      "Melhor primeiro passo: aprender como as instituições caçam o varejo. Aí você deixa de ser o alvo."
     ]
   },
   ar: {
     loss_report: [
-      "يبدو أنه صيد سيولة تقليدي من الخوارزميات.",
-      "صيد وقف الخسارة هو بالضبط كيف تجمع الحيتان.",
-      "هذا الهبوط لم يكن عشوائياً، كان فخاً هيكلياً."
+      "لما يصيدوا الستوب غالباً مو حظ — سيولة كانت واضحة في الكتاب. يستاهل تتعلم تقراه.",
+      "الهبوط اللي انمسكت فيه؟ كثير كان يُقرى من الهيكل قبل ما يصير. تعلّم القراءة يساعد.",
+      "صيد الستوب يؤلم. الخبر الحلو: تقدر تتعلم وين غالباً يصير قبل ما يتحرك."
     ],
     fomo_mental: [
-      "الفومو مجرد تفاعل كيميائي. لا تقع في الفخ.",
-      "عندما يكون الجميع خائفين، الخوارزميات تصطاد.",
-      "خذ 3 أنفاس. الرغبة في الملاحقة هي بالضبط ما يريدونه."
+      "الفومو كيمياء. لما تحس تبي تلحق السعر، غالباً الخوارزميات جاهزة تاخذ سيولة.",
+      "إذا ما تنام من الشارت، تنفّس 3 مرات. الرغبة تدخل هي اللي يستغلونها.",
+      "لما الكل يبان عليه رعب، وقتها يجهّزون الفخاخ. التوقف يفيد أكثر من الرد."
     ],
     prediction_confusion: [
-      "الرسوم البيانية وحدها لن تظهر نية الحيتان.",
-      "أنت تحاول التنبؤ بالضوضاء السطحية. انظر إلى السيولة المخفية.",
-      "توقف عن تخمين الشمعة التالية وابدأ في قراءة الهيكل."
+      "الرسوم وحدها ما توصل نية الحيتان. السيولة المخفية توصل — وتقدر تتعلمها.",
+      "تخمين الشمعة الجاية ينهك. قراءة الهيكل (وين الوقفات، وين السيولة) هي الانعطافة.",
+      "مو إنك ضعيف — إنك تشوف الطبقة الغلط. أولاً الهيكل، بعدين السعر."
     ],
     beginner_learning: [
-      "أقوى مهارة هي عدم فعل أي شيء 70% من الوقت.",
-      "التداول ليس شراءً مستمراً. إنه دفاع.",
-      "ابدأ بتعلم كيف تصطاد المؤسسات المتداولين الأفراد."
+      "الميزة مو تكثر التداول — إنك ما تسوي شيء أغلب الوقت وتتحرك فقط لما الهيكل يطابق.",
+      "التداول مو التقاط كل حركة. إنك ما تكون السيولة اللي يصيدونها.",
+      "أفضل خطوة: تتعلم كيف المؤسسات تصطاد التجزئة. بعدين تطلع من الهدف."
     ]
   }
 };
 
+/** DM用：本文＋CTA。1:1向け・少し長めの文で誘導してからリンク */
 const REPLY_PATTERNS_BY_LANG = {
   en: {
     A: [
-      "Stop chasing green candles. See whale traps before they trigger. 50% OFF coupon + 1-day trial for Trap Defence BTC: [LINK]",
-      "Tired of being liquidity for institutions? Read structure before reaction. 50% OFF + 1-day trial: [LINK]"
+      "If you want to see where traps tend to form before they hit, we built Trap Defence BTC for that — hidden liquidity and algo behavior in one place. 50% OFF + 1-day trial: [LINK]",
+      "Tired of being the liquidity institutions hunt? You can learn to read structure first and react less. 50% OFF + 1-day trial: [LINK]"
     ],
     B: [
-      "Charts are surface-level. We visualize hidden liquidity and algo behavior. Trap Defence BTC with 50% OFF coupon + 1-day trial: [LINK]",
-      "Trading is often doing nothing 70% of the time. Learn structural reads with 50% OFF + 1-day trial: [LINK]"
+      "Charts only show the surface. We focus on hidden liquidity and where algos are likely to step in — that's what Trap Defence BTC is for. 50% OFF + 1-day trial: [LINK]",
+      "A lot of trading edge is just not doing anything most of the time. When you do act, structure helps. 50% OFF + 1-day trial to try it: [LINK]"
     ],
     C: [
-      "It hurts when whales hunt your stops. Trade from clarity, not emotion. 50% OFF coupon + 1-day trial: [LINK]",
-      "I've been there, watching charts for hours and still getting rekt. 50% OFF + 1-day trial starts here: [LINK]"
+      "When your stop gets hunted it really stings. Shifting to clarity instead of emotion is doable — we built the tool for that. 50% OFF + 1-day trial: [LINK]",
+      "I've been there: hours on the chart and still getting rekt. Defending better starts with reading where the traps are. 50% OFF + 1-day trial: [LINK]"
     ]
   },
   ja: {
     A: [
-      "もう緑のロウソクを追うのはやめましょう。クジラの罠を先に見る。Trap Defence BTC 50%OFFクーポン + 1日トライアル: [LINK]",
-      "機関の養分になる流れを止めましょう。防御プロトコルを起動。50%OFF + 1日トライアル: [LINK]"
+      "罠がどこで仕掛けられやすいか、発動前に見たいなら Trap Defence BTC を用意してあります。隠れた流動性とアルゴの動きをひとまとめに。50%OFF + 1日トライアル: [LINK]",
+      "機関の養分になるの、もうやめたいなら、構造を先に読んでから動く練習ができます。50%OFF + 1日トライアル: [LINK]"
     ],
     B: [
-      "チャートは表面です。隠れた流動性とアルゴ行動を可視化します。Trap Defence BTC 50%OFFクーポン + 1日トライアル: [LINK]",
-      "トレードは70%何もしない規律が鍵。構造を読む訓練を50%OFF + 1日トライアルで: [LINK]"
+      "チャートは表面だけ。隠れた流動性とアルゴが入りやすいポイントにフォーカスしたのが Trap Defence BTC です。50%OFF + 1日トライアル: [LINK]",
+      "トレードの優位性の多くは「大半は何もしない」こと。動くときは構造が助けになります。50%OFF + 1日トライアルで試せます: [LINK]"
     ],
     C: [
-      "ストップ狩り、きついですよね。感情ではなく根拠で守る。50%OFFクーポン + 1日トライアル: [LINK]",
-      "チャート監視で消耗する感覚、わかります。防御型で再構築。50%OFF + 1日トライアル: [LINK]"
+      "ストップ狩り、きついですよね。感情より根拠で守るほうに切り替えるのは可能で、そのためのツールを作りました。50%OFF + 1日トライアル: [LINK]",
+      "チャートで何時間も消耗してまだやられる感覚、わかります。罠がどこにあるか読むことから防御を始められます。50%OFF + 1日トライアル: [LINK]"
     ]
   },
   ko: {
     A: [
-      "더 이상 녹색 캔들을 쫓지 마세요. 고래의 덫을 먼저 보세요. Trap Defence BTC 50% 할인 쿠폰 + 1일 트라이얼: [LINK]",
-      "기관의 유동성 먹잇감이 되는 흐름을 끊으세요. 50% 할인 + 1일 트라이얼: [LINK]"
+      "덫이 어디서 자주 설치되는지, 터지기 전에 보고 싶다면 Trap Defence BTC 만들어 뒀어요. 숨겨진 유동성과 알고 움직임을 한곳에. 50% 할인 + 1일 트라이얼: [LINK]",
+      "기관한테 유동성 먹잇감 되기 싫으면, 구조 먼저 읽고 반응 줄이는 연습 할 수 있어요. 50% 할인 + 1일 트라이얼: [LINK]"
     ],
     B: [
-      "차트는 표면일 뿐입니다. 숨겨진 유동성과 알고리즘 움직임을 시각화합니다. 50% 할인 쿠폰 + 1일 트라이얼: [LINK]",
-      "트레이딩의 70%는 기다림입니다. 구조 읽기를 50% 할인 + 1일 트라이얼로 시작하세요: [LINK]"
+      "차트는 표면만 보여요. 숨겨진 유동성이랑 알고가 개입하기 쉬운 지점에 초점 맞춘 게 Trap Defence BTC예요. 50% 할인 + 1일 트라이얼: [LINK]",
+      "트레이딩 엣지의 상당 부분은 대부분 가만히 있는 거예요. 움직일 땐 구조가 도움이 됩니다. 50% 할인 + 1일 트라이얼로 써보세요: [LINK]"
     ],
     C: [
-      "스탑 헌팅 당하면 정말 아프죠. 감정보다 근거로 방어하세요. 50% 할인 쿠폰 + 1일 트라이얼: [LINK]",
-      "차트를 오래 봐도 청산당하던 시기, 저도 겪었습니다. 50% 할인 + 1일 트라이얼: [LINK]"
+      "스탑 헌팅당하면 정말 아프죠. 감정 대신 근거로 방어하는 쪽으로 바꾸는 건 가능해요. 그걸 위한 도구 만들어 뒀어요. 50% 할인 + 1일 트라이얼: [LINK]",
+      "차트 오래 보다가 여전히 당하는 느낌, 저도 겪었어요. 덫이 어디 있는지 읽는 것부터 방어 시작할 수 있어요. 50% 할인 + 1일 트라이얼: [LINK]"
     ]
   },
   es: {
     A: [
-      "Deja de perseguir velas verdes. Detecta las trampas antes de que se activen. 50% OFF + prueba de 1 día en Trap Defence BTC: [LINK]",
-      "¿Cansado de ser liquidez para instituciones? Activa defensa estructural. 50% OFF + prueba de 1 día: [LINK]"
+      "Si quieres ver dónde suelen montarse las trampas antes de que disparen, Trap Defence BTC es para eso: liquidez oculta y comportamiento de algos en un solo sitio. 50% OFF + prueba 1 día: [LINK]",
+      "¿Cansado de ser la liquidez que cazan las instituciones? Puedes aprender a leer estructura primero y reaccionar menos. 50% OFF + prueba 1 día: [LINK]"
     ],
     B: [
-      "Los gráficos son la superficie. Visualizamos liquidez oculta y comportamiento algorítmico. 50% OFF + prueba de 1 día: [LINK]",
-      "El trading también es no hacer nada el 70% del tiempo. Aprende estructura con 50% OFF + prueba de 1 día: [LINK]"
+      "Los gráficos solo muestran la superficie. Nosotros nos centramos en liquidez oculta y dónde es más probable que entren los algos — Trap Defence BTC es para eso. 50% OFF + prueba 1 día: [LINK]",
+      "Buena parte de la ventaja en trading es no hacer nada la mayor parte del tiempo. Cuando actúas, la estructura ayuda. 50% OFF + prueba 1 día: [LINK]"
     ],
     C: [
-      "Duele cuando cazan tu stop loss. Opera con claridad, no con emoción. 50% OFF + prueba de 1 día: [LINK]",
-      "Mirar gráficos horas y perder igual es agotador. Reinicia con defensa estructural: 50% OFF + prueba de 1 día: [LINK]"
+      "Cuando te cazan el stop duele. Pasar a claridad en vez de emoción es posible — tenemos la herramienta para eso. 50% OFF + prueba 1 día: [LINK]",
+      "Lo he vivido: horas en el gráfico y sigues perdiendo. Defender mejor empieza por leer dónde están las trampas. 50% OFF + prueba 1 día: [LINK]"
     ]
   },
   pt: {
     A: [
-      "Pare de perseguir velas verdes. Veja as armadilhas antes do gatilho. 50% OFF + 1 dia de teste no Trap Defence BTC: [LINK]",
-      "Cansado de ser liquidez para instituições? Ative defesa estrutural. 50% OFF + 1 dia de teste: [LINK]"
+      "Se quiser ver onde as armadilhas costumam aparecer antes de disparar, fizemos o Trap Defence BTC pra isso — liquidez oculta e comportamento de algos num lugar. 50% OFF + 1 dia de teste: [LINK]",
+      "Cansado de ser a liquidez que as instituições caçam? Dá pra aprender a ler estrutura primeiro e reagir menos. 50% OFF + 1 dia de teste: [LINK]"
     ],
     B: [
-      "Gráficos são só superfície. Visualizamos liquidez oculta e comportamento de algoritmos. 50% OFF + 1 dia de teste: [LINK]",
-      "Trading também é não fazer nada 70% do tempo. Leia estrutura com 50% OFF + 1 dia de teste: [LINK]"
+      "Gráficos mostram só a superfície. Nosso foco é liquidez oculta e onde os algos tendem a entrar — Trap Defence BTC é pra isso. 50% OFF + 1 dia de teste: [LINK]",
+      "Muita da vantagem em trading é não fazer nada na maior parte do tempo. Quando você age, estrutura ajuda. 50% OFF + 1 dia de teste: [LINK]"
     ],
     C: [
-      "Dói quando caçam seu stop. Opere com clareza, não emoção. 50% OFF + 1 dia de teste: [LINK]",
-      "Ficar horas no gráfico e perder igual é desgastante. Reinicie com defesa: 50% OFF + 1 dia de teste: [LINK]"
+      "Quando caçam seu stop dói. Mudar pra clareza em vez de emoção é possível — fizemos a ferramenta pra isso. 50% OFF + 1 dia de teste: [LINK]",
+      "Já passei por isso: horas no gráfico e ainda levando rekt. Defender melhor começa lendo onde estão as armadilhas. 50% OFF + 1 dia de teste: [LINK]"
     ]
   },
   ar: {
     A: [
-      "توقف عن ملاحقة الشموع الخضراء. اكتشف الفخاخ قبل أن تعمل. خصم 50% + تجربة يوم واحد في Trap Defence BTC: [LINK]",
-      "هل تعبت من كونك سيولة للمؤسسات؟ فعّل الدفاع الهيكلي. خصم 50% + تجربة يوم واحد: [LINK]"
+      "إذا تبي تشوف وين غالباً تنصب الفخاخ قبل ما تتحرك، سوينا Trap Defence BTC لهذا — سيولة مخفية وسلوك الخوارزميات في مكان واحد. خصم 50% + تجربة يوم: [LINK]",
+      "تعبت من كونك السيولة اللي المؤسسات تصطادها؟ تقدر تتعلم تقرأ الهيكل أولاً وتقلّل ردة فعلك. خصم 50% + تجربة يوم: [LINK]"
     ],
     B: [
-      "الرسوم البيانية مجرد سطح. نحن نوضح السيولة المخفية وسلوك الخوارزميات. خصم 50% + تجربة يوم واحد: [LINK]",
-      "التداول ليس حركة مستمرة. 70% منه انضباط وانتظار. ابدأ بخصم 50% + تجربة يوم واحد: [LINK]"
+      "الرسوم توضح السطح فقط. نحن نركّز على السيولة المخفية وين الخوارزميات غالباً تدخل — Trap Defence BTC لهذا. خصم 50% + تجربة يوم: [LINK]",
+      "كثير من الميزة في التداول إنك ما تسوي شيء أغلب الوقت. لما تتحرك، الهيكل يساعد. خصم 50% + تجربة يوم: [LINK]"
     ],
     C: [
-      "مؤلم حين يتم صيد وقف الخسارة الخاص بك. تداول بوضوح لا بعاطفة. خصم 50% + تجربة يوم واحد: [LINK]",
-      "أعرف تعب مراقبة الشارت لساعات ثم الخسارة. ابدأ من جديد بالدفاع: خصم 50% + تجربة يوم واحد: [LINK]"
+      "لما يصيدون ستوبك يؤلم. الانتقال لوضوح بدل عاطفة ممكن — عندنا الأداة لهذا. خصم 50% + تجربة يوم: [LINK]",
+      "مرّ معي: ساعات على الشارت ولسا تخسر. الدفاع الأحسن يبدأ بقراءة وين الفخاخ. خصم 50% + تجربة يوم: [LINK]"
     ]
   }
 };
@@ -464,8 +470,8 @@ function buildReplyMessage({
   const patternLine = pickBySeed(patternCandidates, `${seedBase}:line`, patternCandidates[0] || "");
   const body = String(patternLine || "").replace(/\[LINK\]/g, String(offerUrl || "").trim());
 
-  const mention = username ? `@${String(username).replace(/^@/, "")}` : "";
-  const composed = [mention, oneWordHook, hook, body].filter(Boolean).join(" ").trim();
+  // DM専用のため @メンションは含めない（oneWordHook + hook + body のみ）
+  const composed = [oneWordHook, hook, body].filter(Boolean).join(" ").trim();
 
   return {
     text: composed,
@@ -500,15 +506,32 @@ function getDmQueryHook(lang, postType) {
   return template || "";
 }
 
+/** DM文末用：「その秘密に気づいた人はもう使ってるよ、あなたも試してみて」の多言語版 */
+const DM_CLOSING_BY_LANG = {
+  en: "People who got that secret are already using it — give it a try yourself.",
+  ja: "その秘密に気づいた人はもう使ってるよ、あなたも試してみて。",
+  ko: "그 비밀을 안 사람들은 이미 쓰고 있어요. 당신도 한번 써보세요.",
+  es: "Quien se dio cuenta de ese secreto ya lo usa — pruébalo tú también.",
+  pt: "Quem percebeu esse segredo já está usando — experimenta você também.",
+  ar: "اللي اكتشفوا السر ده من زمان يستخدمونه — جربه أنت كمان."
+};
+
+function getDmClosing(lang) {
+  const normalized = normalizeReplyLang(lang);
+  return DM_CLOSING_BY_LANG[normalized] || DM_CLOSING_BY_LANG.en;
+}
+
 module.exports = {
   SUPPORTED_REPLY_LANGS,
   REPLY_SEARCH_QUERIES_BY_LANG,
   REPLY_POST_TYPE_PRIORITY,
   REPLY_QUERY_HOOK_TEMPLATE_BY_LANG,
   REPLY_QUERY_HOOK_WITH_KEYWORD_BY_LANG,
+  DM_CLOSING_BY_LANG,
   normalizeReplyLang,
   detectReplyPostType,
   getReplySearchQuery,
   buildReplyMessage,
-  getDmQueryHook
+  getDmQueryHook,
+  getDmClosing
 };

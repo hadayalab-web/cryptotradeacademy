@@ -13,6 +13,7 @@ const { followUser } = require("../services/x/client");
 const {
   buildReplyMessage,
   detectReplyPostType,
+  getDmClosing,
   getDmQueryHook,
   normalizeReplyLang,
   REPLY_POST_TYPE_PRIORITY
@@ -1164,13 +1165,18 @@ module.exports = async function handler(req, res) {
             pattern: selectedMessage.pattern
           }, "dm");
           const textForDm = textWithCoupon.replace(selectedOfferUrl, offerUrlForDm);
-          // XのアクセスパッケージではDM本文に@メンション不可。リプライ文から@を除去してDM送信
+          // テンプレはDM専用のため@は含まないが、念のため@除去と空白正規化
           const dmBody = textForDm
             .replace(/\s*@\w+\s*/g, " ")
             .replace(/\s{2,}/g, " ")
             .trim();
+          const tweetQuote = (item.text && String(item.text).trim())
+            ? `「${String(item.text).replace(/\n/g, " ").trim().slice(0, 250)}${String(item.text).length > 250 ? "…" : ""}」`
+            : "";
           const queryHook = getDmQueryHook(lang, item.post_type);
-          const dmText = queryHook ? `${queryHook}\n\n${dmBody}` : dmBody;
+          const closingLine = getDmClosing(lang);
+          const parts = [tweetQuote, queryHook, dmBody].filter(Boolean);
+          const dmText = parts.join("\n\n") + (closingLine ? "\n\n" + closingLine : "");
           let dmResult;
           try {
             dmResult = await sendRecruitDm(item.username, dmText || textWithCoupon, {
