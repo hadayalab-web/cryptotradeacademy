@@ -8,7 +8,7 @@ const { getMinimalTelegramInviteLink } = require("../config/minimalTelegramInvit
 
 const SUPPORTED_LANGS = ["en", "es", "pt-br", "ar", "ja", "ko"];
 const KV_KEY_POSTED_AT = "x_post_minimal:last_date";
-const DELAY_BETWEEN_TWEETS_MS = 2 * 60 * 1000; // 2分（レート制限対策）
+const DELAY_BETWEEN_TWEETS_MS = 1 * 60 * 1000; // 1分（600s タイムアウト内に6本完了させるため）
 const X_LONG_POST_MAX = 25000; // X API 上限
 
 function loadMinimalFormatter(lang) {
