@@ -111,6 +111,8 @@ function sleepMs(ms) {
 }
 
 function pickOfferBaseUrl(lang, tweetId) {
+  const regular = getWhopProductUrl(lang);
+  if (regular) return regular;
   const checkout = getMinimalVersionCheckoutUrl(lang, {
     source: "x_reply_sales",
     medium: "reply",
@@ -118,7 +120,7 @@ function pickOfferBaseUrl(lang, tweetId) {
     content: `tweet_${tweetId || "unknown"}`
   });
   if (checkout) return checkout;
-  return getWhopProductUrl(lang);
+  return regular || "https://whop.com/trapdefence/btc-en/";
 }
 
 function appendUrlParams(urlString, paramsObject) {

@@ -57,7 +57,7 @@ const X_REPLY_EVENT_TTL_SECONDS = Math.max(
 const X_REPLY_EVENT_LIST_MAX = Math.max(50, Number(process.env.X_REPLY_EVENT_LIST_MAX || 1000));
 
 // クーポン表示（文面差し込み）
-const X_REPLY_PROMO_CODE = String(process.env.WHOP_PROMO_CODE || "DEFEND50").trim() || "DEFEND50";
+const X_REPLY_PROMO_CODE = String(process.env.WHOP_PROMO_CODE || "defend50").trim() || "defend50";
 
 module.exports = {
   X_REPLY_SALES_LANGS,

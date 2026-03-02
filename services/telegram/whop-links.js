@@ -33,14 +33,14 @@ function normalizeLang(rawLang) {
   return SUPPORTED_LANGS.includes(baseLang) ? baseLang : "en";
 }
 
-/** 有料版（Regular Briefing）デフォルトURL - trapdefence ストア */
+/** 有料版（Regular Briefing）デフォルトURL - trapdefence 直リンク */
 const DEFAULT_WHOP_URLS = {
-  en: "https://whop.com/trapdefence/btc-regular-en/",
-  es: "https://whop.com/trapdefence/btc-regular-es/",
-  "pt-br": "https://whop.com/trapdefence/btc-regular-pt/",
-  ar: "https://whop.com/trapdefence/btc-regular-ar/",
-  ko: "https://whop.com/trapdefence/btc-regular-ko/",
-  ja: "https://whop.com/trapdefence/btc-regular-ja/"
+  en: "https://whop.com/trapdefence/btc-en/",
+  es: "https://whop.com/trapdefence/btc-es/",
+  "pt-br": "https://whop.com/trapdefence/btc-pt/",
+  ar: "https://whop.com/trapdefence/btc-ar/",
+  ko: "https://whop.com/trapdefence/btc-ko/",
+  ja: "https://whop.com/trapdefence/btc-ja/"
 };
 
 function getWhopProductUrl(lang = null) {
