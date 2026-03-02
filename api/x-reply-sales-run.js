@@ -20,6 +20,8 @@ const {
   X_REPLY_SALES_REGION_LANGS,
   X_REPLY_LIST_PAGES,
   X_REPLY_QUEUE_CAP_PER_LANG,
+  X_REPLY_SEARCH_WINDOW_MINUTES,
+  X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES,
   X_REPLY_RETAIN_PREVIOUS_QUEUE,
   X_REPLY_QUEUE_VERSION,
   X_REPLY_ATTEMPT_CAP_PER_15MIN,
@@ -421,9 +423,13 @@ async function refreshQueueForLang(lang, now) {
   let balancedHitsTotal = 0;
   let balancedPageCount = 0;
 
+  const windowMinutes = X_REPLY_SALES_REGION_LANGS.includes(normalizedLang)
+    ? X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES
+    : X_REPLY_SEARCH_WINDOW_MINUTES;
   while (pagesFetched < X_REPLY_LIST_PAGES) {
     const page = await fetchOneReplySearchPage(normalizedLang, {
-      nextToken: nextToken || undefined
+      nextToken: nextToken || undefined,
+      windowMinutes
     });
     if (page?.fatal402) {
       return {

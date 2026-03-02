@@ -5,15 +5,20 @@
 const X_REPLY_SALES_LANGS = ["en", "ar", "es", "pt", "ja", "ko"];
 const X_REPLY_SALES_REGION_LANGS = ["ar", "es", "pt", "ja", "ko"];
 
-// リスト取得: 1言語1回あたりのページ数（15ページ）
-const X_REPLY_LIST_PAGES = Math.max(1, Math.min(15, Number(process.env.X_REPLY_LIST_PAGES || 15)));
+// リスト取得: 1言語1回あたりのページ数（50ページ、上限50）
+const X_REPLY_LIST_PAGES = Math.max(1, Math.min(50, Number(process.env.X_REPLY_LIST_PAGES || 50)));
 const X_REPLY_MAX_RESULTS_PER_PAGE = Math.min(
   100,
   Math.max(10, Number(process.env.X_REPLY_MAX_RESULTS_PER_PAGE || 100))
 );
+// 検索の時間窓（分）。ENは毎時なので1時間、他言語はローテ間隔に合わせて長め
 const X_REPLY_SEARCH_WINDOW_MINUTES = Math.max(
   15,
   Number(process.env.X_REPLY_SEARCH_WINDOW_MINUTES || 60)
+);
+const X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES = Math.max(
+  60,
+  Number(process.env.X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES || 300)
 );
 
 // strict優先、低ヒット時のみbalancedへ
@@ -76,6 +81,7 @@ module.exports = {
   X_REPLY_LIST_PAGES,
   X_REPLY_MAX_RESULTS_PER_PAGE,
   X_REPLY_SEARCH_WINDOW_MINUTES,
+  X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES,
   X_REPLY_LOW_HIT_BALANCED_THRESHOLD,
   X_REPLY_BALANCED_FALLBACK_ENABLED,
   X_REPLY_QUEUE_CAP_PER_LANG,
