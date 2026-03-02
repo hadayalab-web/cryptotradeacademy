@@ -1005,9 +1005,14 @@ module.exports = async function handler(req, res) {
         }
         const immediateNg = shouldMarkImmediateNg(classified);
         if (immediateNg) {
+          // XのアクセスパッケージではDM本文に@メンション不可。リプライ文から@を除去してDM送信
+          const dmText = textWithCoupon
+            .replace(/\s*@\w+\s*/g, " ")
+            .replace(/\s{2,}/g, " ")
+            .trim();
           let dmResult;
           try {
-            dmResult = await sendRecruitDm(item.username, textWithCoupon, {
+            dmResult = await sendRecruitDm(item.username, dmText || textWithCoupon, {
               participantId: item.author_id
             });
           } catch (dmErr) {
