@@ -156,13 +156,29 @@ module.exports = async function handler(req, res) {
   const includeLast7 = req.query?.last7 === "1";
 
   const snapshot = await getDailySnapshot(date);
+  const { totals, queueLengths, kpi } = snapshot;
+  console.log("[x-reply-sales-kpi]", {
+    date,
+    discovered: totals.discovered,
+    sent: totals.replied,
+    clicks: totals.linkClicks,
+    trialStarts: totals.trialStarts,
+    errors: totals.errors,
+    queueTotal: queueLengths.total,
+    reply_rate: kpi.reply_rate,
+    link_click_rate: kpi.link_click_rate
+  });
+
   const response = {
     ok: true,
     capturedAt: new Date().toISOString(),
     ...snapshot,
     notes: {
       profile_click_rate:
-        "X API単体ではプロフィール遷移数を安定取得できないためnull。Xネイティブ分析との突合が必要。"
+        "X API単体ではプロフィール遷移数を安定取得できないためnull。Xネイティブ分析との突合が必要。",
+      ...(totals.discovered === 0 && totals.replied === 0
+        ? { empty: "本日のdiscovered/sentがまだ0です。リスト・送信ランが動くとKVにカウントが入ります。" }
+        : {})
     }
   };
 
