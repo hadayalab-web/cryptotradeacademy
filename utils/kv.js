@@ -51,21 +51,22 @@ function initKV() {
 
     console.log("[KV] ✅ KVインスタンス初期化成功（@vercel/kv）");
 
-    // 接続テスト（初期化時に実行）
+    // 接続テスト（初期化時に実行）。Upstash は eventual consistency のため set 直後に get すると読めないことがある
     (async () => {
       try {
         const testKey = `__kv_init_test__${Date.now()}`;
-        await kvInstance.set(testKey, { test: true }, { ex: 1 });
-        const testValue = await kvInstance.get(testKey);
-        if (testValue && testValue.test === true) {
-          await kvInstance.del(testKey);
+        const testVal = "ok";
+        await kvInstance.set(testKey, testVal, { ex: 5 });
+        await new Promise((r) => setTimeout(r, 150));
+        const got = await kvInstance.get(testKey);
+        await kvInstance.del(testKey);
+        if (got === testVal) {
           console.log("[KV] ✅ KV接続テスト成功（初期化時）");
         } else {
-          console.error("[KV] ⚠️ KV接続テスト警告: 保存した値が取得できません");
+          console.warn("[KV] ⚠️ KV接続テスト: 取得値が一致しません（eventual consistency の可能性。運用は継続）");
         }
       } catch (testError) {
-        console.error("[KV] ⚠️ KV接続テスト警告（初期化時）:", testError.message);
-        // 接続テスト失敗でも続行（環境変数が後で設定される可能性がある）
+        console.warn("[KV] ⚠️ KV接続テスト警告（初期化時）:", testError.message);
       }
     })();
   } catch (error) {

@@ -5,8 +5,8 @@
 const X_REPLY_SALES_LANGS = ["en", "ar", "es", "pt", "ja", "ko"];
 const X_REPLY_SALES_REGION_LANGS = ["ar", "es", "pt", "ja", "ko"];
 
-// リスト取得: 1言語1回あたりのページ数（50ページ、上限50）
-const X_REPLY_LIST_PAGES = Math.max(1, Math.min(50, Number(process.env.X_REPLY_LIST_PAGES || 50)));
+// リスト取得: 1言語1回あたりのページ数。X API 15分300リクエストいっぱい使うなら300
+const X_REPLY_LIST_PAGES = Math.max(1, Math.min(300, Number(process.env.X_REPLY_LIST_PAGES || 300)));
 const X_REPLY_MAX_RESULTS_PER_PAGE = Math.min(
   100,
   Math.max(10, Number(process.env.X_REPLY_MAX_RESULTS_PER_PAGE || 100))
@@ -28,10 +28,10 @@ const X_REPLY_LOW_HIT_BALANCED_THRESHOLD = Math.max(
 );
 const X_REPLY_BALANCED_FALLBACK_ENABLED = process.env.X_REPLY_BALANCED_FALLBACK_ENABLED === "1";
 
-// 1言語あたりのキュー保存上限（20件）。ページは15取るがKVに保存する件数はここでキャップ
+// 1言語あたりのキュー保存上限（10件）。15分ローテ×300ページ運用用
 const X_REPLY_QUEUE_CAP_PER_LANG = Math.max(
   1,
-  Number(process.env.X_REPLY_QUEUE_CAP_PER_LANG || 20)
+  Number(process.env.X_REPLY_QUEUE_CAP_PER_LANG || 10)
 );
 // リプライ直販の在庫は積み増し。既存キューを残し、新規取得分をマージする。
 // （削除対象はアフィリエイター在庫のみ。本キューは引き継ぐ）

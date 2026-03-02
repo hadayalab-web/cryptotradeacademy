@@ -347,11 +347,7 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
     const authorId = String(row?.author_id || "").trim();
     const text = String(row?.text || "").trim();
     if (!tweetId || !authorId || !text) continue;
-    const replySettings = String(row?.reply_settings || "").trim().toLowerCase();
-    if (replySettings !== "everyone") {
-      skippedReplyRestricted += 1;
-      continue;
-    }
+    // リプライNG（everyone 以外）でもキューに入れる。送信時にリプライ→403ならDMに回す。
     const user = usersById?.[authorId];
     if (!user?.username) continue;
     const postType = detectReplyPostType(normalizedLang, text);
@@ -464,14 +460,9 @@ async function refreshQueueForLang(lang, now) {
   });
   const built = builtResult.candidates || [];
   const skippedReplyRestricted = Number(builtResult.skippedReplyRestricted || 0);
-  if (Object.keys(builtResult.replySettingsCounts || {}).length > 0) {
-    console.log("[X Reply Sales][list][reply_settings]", {
-      lang: normalizedLang,
-      replySettingsCounts: builtResult.replySettingsCounts,
-      skippedReplyRestricted,
-      enqueued: built.length
-    });
-  }
+  // リスト何件取れたかだけ出す（reply_settings 内訳は必要ならここで出せる）
+  const listCount = built.length;
+  console.log(`[X Reply Sales][list] ${normalizedLang} リスト ${listCount} 件`);
   const handledChecks = await Promise.all(
     built.map((candidate) => isTweetHandled(candidate.tweet_id))
   );
@@ -680,6 +671,11 @@ module.exports = async function handler(req, res) {
           langs: forcedLangsRaw
         });
       }
+    } else if (scope === "rotate") {
+      // 15分スロットで6言語ローテ（90分で全言語1周）。X API 300req/15min を1言語300ページで使い切る
+      const slot15 = Math.floor(now.getUTCMinutes() / 15) + now.getUTCHours() * 4;
+      const langIndex = slot15 % X_REPLY_SALES_LANGS.length;
+      targets = [X_REPLY_SALES_LANGS[langIndex]];
     } else if (scope === "en") {
       targets = ["en"];
     } else if (scope === "regions") {

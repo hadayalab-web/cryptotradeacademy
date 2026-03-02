@@ -33,10 +33,7 @@
     "api/x-reply-sales-list.js": {
       "maxDuration": 300
     },
-    "api/x-reply-sales-en-list.js": {
-      "maxDuration": 300
-    },
-    "api/x-reply-sales-regions-list.js": {
+    "api/x-reply-sales-list-rotate.js": {
       "maxDuration": 300
     },
     "api/x-reply-sales-send.js": {
@@ -76,12 +73,8 @@
       "schedule": "0 20 * * *"
     },
     {
-      "path": "/api/x-reply-sales-en-list",
-      "schedule": "8 * * * *"
-    },
-    {
-      "path": "/api/x-reply-sales-regions-list",
-      "schedule": "10 * * * *"
+      "path": "/api/x-reply-sales-list-rotate",
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/x-reply-sales-send",

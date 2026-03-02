@@ -38,7 +38,8 @@ function toRunSummary(snapshot) {
     skippedReplyRestricted: row?.skippedReplyRestricted,
     skippedHandled: row?.skippedHandled,
     nextQueueLength: row?.nextQueueLength,
-    prevQueueLength: row?.prevQueueLength
+    prevQueueLength: row?.prevQueueLength,
+    hotAnalysis: row?.hotAnalysis || null
   }));
   return {
     runAt: snapshot.runAt,
