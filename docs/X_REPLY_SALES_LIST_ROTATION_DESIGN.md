@@ -36,7 +36,7 @@
 
 | 項目 | 値 | 説明 |
 |------|-----|------|
-| `X_REPLY_LIST_PAGES` | 300 | 1 Run あたり最大ページ数（API 制限いっぱい） |
+| `X_REPLY_LIST_PAGES` | 450 | 1 Run あたり最大ページ数（API 制限いっぱい） |
 | `X_REPLY_QUEUE_CAP_PER_LANG` | 10 | 1 言語あたりキュー保存上限 |
 
 ### エンドポイント

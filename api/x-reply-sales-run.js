@@ -9,7 +9,7 @@ const { kv } = require("../utils/kv");
 const { fetchOnePageByMode } = require("../services/td/xReplySalesSearch");
 const { sendSalesReply } = require("../services/x/replySalesClient");
 const { sendRecruitDm } = require("../services/x/dmClient");
-const { followUser } = require("../services/x/client");
+const { followUser, likeTweet } = require("../services/x/client");
 const {
   buildReplyMessage,
   detectReplyPostType,
@@ -40,7 +40,8 @@ const {
   X_REPLY_FOLLOW_BEFORE_SEND,
   X_REPLY_FOLLOW_CAP_PER_DAY,
   X_REPLY_FOLLOW_DELAY_MS,
-  X_REPLY_SKIP_REPLY_ATTEMPT
+  X_REPLY_SKIP_REPLY_ATTEMPT,
+  X_REPLY_LIKE_BEFORE_DM
 } = require("../config/xReplySalesConfig");
 const { getMinimalVersionCheckoutUrl, getWhopProductUrl } = require("../services/telegram/whop-links");
 
@@ -516,7 +517,6 @@ async function refreshQueueForLang(lang, now) {
   const usersById = {};
   const modes = ["strict", "balanced", "broad"];
   const nextTokens = { strict: null, balanced: null, broad: null };
-  const exhausted = { strict: false, balanced: false, broad: false };
   const hitsByMode = { strict: 0, balanced: 0, broad: 0 };
   const searchRequestCap = X_REPLY_SEARCH_REQUESTS_PER_RUN;
   const maxRounds = Math.min(X_REPLY_LIST_PAGES, searchRequestCap);
@@ -527,15 +527,7 @@ async function refreshQueueForLang(lang, now) {
     : X_REPLY_SEARCH_WINDOW_MINUTES;
 
   for (let round = 0; round < maxRounds; round += 1) {
-    let mode = null;
-    for (let k = 0; k < modes.length; k += 1) {
-      const m = modes[(round + k) % modes.length];
-      if (!exhausted[m]) {
-        mode = m;
-        break;
-      }
-    }
-    if (mode === null) break;
+    const mode = modes[round % modes.length];
 
     try {
       const page = await fetchOnePageByMode(normalizedLang, mode, {
@@ -557,8 +549,8 @@ async function refreshQueueForLang(lang, now) {
       }
       hitsByMode[mode] += rows.length;
       nextTokens[mode] = page?.nextToken || null;
-      if (rows.length === 0 && !page?.nextToken) exhausted[mode] = true;
       pagesFetched += 1;
+      if (allRows.length >= X_REPLY_QUEUE_CAP_PER_LANG) break;
     } catch (err) {
       if (String(err?.message || "").includes("402")) {
         return { ok: false, lang: normalizedLang, reason: "search_402", pagesFetched };
@@ -569,9 +561,16 @@ async function refreshQueueForLang(lang, now) {
         round,
         error: err?.message
       });
-      exhausted[mode] = true;
     }
   }
+  console.log("[X Reply Sales][list] round-robin done", {
+    lang: normalizedLang,
+    rounds: pagesFetched,
+    maxRounds,
+    strict: hitsByMode.strict,
+    balanced: hitsByMode.balanced,
+    broad: hitsByMode.broad
+  });
   const strictHitsTotal = hitsByMode.strict;
   const balancedHitsTotal = hitsByMode.balanced;
   const balancedPageCount = 0;
@@ -800,7 +799,7 @@ module.exports = async function handler(req, res) {
         });
       }
     } else if (scope === "rotate") {
-      // 15分スロットで6言語ローテ（90分で全言語1周）。X API 300req/15min を1言語300ページで使い切る
+      // 15分スロットで6言語ローテ（90分で全言語1周）。X API 450req/15min を1言語450ページで使い切る
       const slot15 = Math.floor(now.getUTCMinutes() / 15) + now.getUTCHours() * 4;
       const langIndex = slot15 % X_REPLY_SALES_LANGS.length;
       targets = [X_REPLY_SALES_LANGS[langIndex]];
@@ -1212,6 +1211,20 @@ module.exports = async function handler(req, res) {
         }
         const immediateNg = shouldMarkImmediateNg(classified);
         if (immediateNg) {
+          // DM着地前に対象ツイートをいいね（通知で気づいてもらう）。失敗してもDMは送る
+          if (X_REPLY_LIKE_BEFORE_DM && item.tweet_id) {
+            try {
+              const likeResult = await likeTweet(item.tweet_id);
+              if (!likeResult.ok) {
+                console.warn("[X Reply Sales][send] like before DM failed (non-fatal):", {
+                  tweetId: item.tweet_id,
+                  error: likeResult.error
+                });
+              }
+            } catch (likeErr) {
+              console.warn("[X Reply Sales][send] like before DM threw (non-fatal):", likeErr?.message);
+            }
+          }
           // DM用トラッキングURL（channel=dm）に差し替え、クリックをリプライと別集計
           const offerUrlForDm = buildTrackedOfferUrl(req, item, {
             postType: selectedMessage.postType,
