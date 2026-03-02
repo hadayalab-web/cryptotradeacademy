@@ -5,8 +5,8 @@
 const X_REPLY_SALES_LANGS = ["en", "ar", "es", "pt", "ja", "ko"];
 const X_REPLY_SALES_REGION_LANGS = ["ar", "es", "pt", "ja", "ko"];
 
-// リスト取得: 1言語1回あたりのページ数（まず5ページ。環境変数で増やせる）
-const X_REPLY_LIST_PAGES = Math.max(1, Math.min(15, Number(process.env.X_REPLY_LIST_PAGES || 5)));
+// リスト取得: 1言語1回あたりのページ数（15ページ）
+const X_REPLY_LIST_PAGES = Math.max(1, Math.min(15, Number(process.env.X_REPLY_LIST_PAGES || 15)));
 const X_REPLY_MAX_RESULTS_PER_PAGE = Math.min(
   100,
   Math.max(10, Number(process.env.X_REPLY_MAX_RESULTS_PER_PAGE || 100))
@@ -23,6 +23,11 @@ const X_REPLY_LOW_HIT_BALANCED_THRESHOLD = Math.max(
 );
 const X_REPLY_BALANCED_FALLBACK_ENABLED = process.env.X_REPLY_BALANCED_FALLBACK_ENABLED === "1";
 
+// 1言語あたりのキュー保存上限（20件）。ページは15取るがKVに保存する件数はここでキャップ
+const X_REPLY_QUEUE_CAP_PER_LANG = Math.max(
+  1,
+  Number(process.env.X_REPLY_QUEUE_CAP_PER_LANG || 20)
+);
 // リプライ直販の在庫は積み増し。既存キューを残し、新規取得分をマージする。
 // （削除対象はアフィリエイター在庫のみ。本キューは引き継ぐ）
 const X_REPLY_RETAIN_PREVIOUS_QUEUE = process.env.X_REPLY_RETAIN_PREVIOUS_QUEUE !== "0";
@@ -73,6 +78,7 @@ module.exports = {
   X_REPLY_SEARCH_WINDOW_MINUTES,
   X_REPLY_LOW_HIT_BALANCED_THRESHOLD,
   X_REPLY_BALANCED_FALLBACK_ENABLED,
+  X_REPLY_QUEUE_CAP_PER_LANG,
   X_REPLY_RETAIN_PREVIOUS_QUEUE,
   X_REPLY_QUEUE_VERSION,
   X_REPLY_ATTEMPT_CAP_PER_15MIN,

@@ -81,7 +81,7 @@
     },
     {
       "path": "/api/x-reply-sales-regions-list",
-      "schedule": "10 */6 * * *"
+      "schedule": "10 * * * *"
     },
     {
       "path": "/api/x-reply-sales-send",

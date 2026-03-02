@@ -19,6 +19,7 @@ const {
   X_REPLY_SALES_LANGS,
   X_REPLY_SALES_REGION_LANGS,
   X_REPLY_LIST_PAGES,
+  X_REPLY_QUEUE_CAP_PER_LANG,
   X_REPLY_RETAIN_PREVIOUS_QUEUE,
   X_REPLY_QUEUE_VERSION,
   X_REPLY_ATTEMPT_CAP_PER_15MIN,
@@ -498,6 +499,12 @@ async function refreshQueueForLang(lang, now) {
   }
 
   const merged = mergeQueueEntries(freshQueue, X_REPLY_RETAIN_PREVIOUS_QUEUE ? prevFiltered : []);
+  const cap = Math.max(1, Number(X_REPLY_QUEUE_CAP_PER_LANG || 20));
+  let droppedByCap = 0;
+  if (merged.queue.length > cap) {
+    droppedByCap = merged.queue.length - cap;
+    merged.queue = merged.queue.slice(0, cap);
+  }
   await kv.set(queueKey, JSON.stringify(merged.queue), { ex: X_REPLY_EVENT_TTL_SECONDS });
 
   const dateStr = toDateString(now);
@@ -534,6 +541,8 @@ async function refreshQueueForLang(lang, now) {
     droppedInvalid: merged.droppedInvalid,
     prevQueueLength: prevQueueRaw.length,
     nextQueueLength: merged.queue.length,
+    droppedByCap,
+    queueCapPerLang: cap,
     sample: freshQueue.slice(0, 3).map((x) => ({
       tweetId: x.tweet_id,
       handle: x.username,
@@ -542,6 +551,14 @@ async function refreshQueueForLang(lang, now) {
     hotAnalysis: buildHotListAnalysis(built)
   };
 
+  if (droppedByCap > 0) {
+    console.log("[X Reply Sales][list][lang] queue cap applied", {
+      lang: normalizedLang,
+      droppedByCap,
+      queueCapPerLang: cap,
+      nextQueueLength: merged.queue.length
+    });
+  }
   const hot = summary.hotAnalysis || {};
   console.log("[X Reply Sales][list][lang]", {
     lang: normalizedLang,
@@ -684,6 +701,7 @@ module.exports = async function handler(req, res) {
         (acc, row) => acc + (Number(row?.droppedFromPrevByPolicy) || 0),
         0
       ),
+      droppedByCapTotal: perLang.reduce((acc, row) => acc + (Number(row?.droppedByCap) || 0), 0),
       nextQueueTotal: perLang.reduce((acc, row) => acc + (Number(row?.nextQueueLength) || 0), 0)
     };
     const snapshot = {
@@ -702,8 +720,13 @@ module.exports = async function handler(req, res) {
       freshEnqueuedTotal: gross.freshEnqueuedTotal,
       skippedReplyRestrictedTotal: gross.skippedReplyRestrictedTotal,
       droppedFromPrevByPolicyTotal: gross.droppedFromPrevByPolicyTotal,
+      droppedByCapTotal: gross.droppedByCapTotal,
       nextQueueTotal: gross.nextQueueTotal
     });
+    const nextTotal = Number(gross.nextQueueTotal ?? 0);
+    if (nextTotal < 80 && X_REPLY_LIST_PAGES < 15) {
+      console.warn("[X Reply Sales][list] キュー少なめ (nextQueueTotal=" + nextTotal + ") → ページ増強の候補: X_REPLY_LIST_PAGES=8 または 10（現在 " + X_REPLY_LIST_PAGES + "）");
+    }
     await kv.set(KV_KEY_LIST_SUMMARY_LATEST, snapshot, { ex: X_REPLY_EVENT_TTL_SECONDS });
     await appendEvent(KV_KEY_LIST_EVENTS, snapshot);
 
