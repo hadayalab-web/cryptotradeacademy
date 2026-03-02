@@ -437,12 +437,16 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
     const authorId = String(row?.author_id || "").trim();
     const text = String(row?.text || "").trim();
     if (!tweetId || !authorId || !text) continue;
-    // リプライNG（everyone 以外）でもキューに入れる。送信時にリプライ→403ならDMに回す。
+    const replySettings = String(row?.reply_settings ?? "").trim().toLowerCase();
+    // リプライ可（everyone）のツイートだけキューに入れる。following/mentionedUsers は送信時も403になるため除外。
+    if (replySettings !== "everyone") {
+      skippedReplyRestricted += 1;
+      continue;
+    }
     const user = usersById?.[authorId];
     if (!user?.username) continue;
     const postType = detectReplyPostType(normalizedLang, text);
     const priority = REPLY_POST_TYPE_PRIORITY[postType] || 1;
-    const replySettings = String(row?.reply_settings ?? "").trim().toLowerCase();
     candidates.push({
       lang: normalizedLang,
       tweet_id: tweetId,
@@ -552,9 +556,9 @@ async function refreshQueueForLang(lang, now) {
   });
   const built = builtResult.candidates || [];
   const skippedReplyRestricted = Number(builtResult.skippedReplyRestricted || 0);
-  // リスト何件取れたかだけ出す（reply_settings 内訳は必要ならここで出せる）
+  const replySettingsCounts = builtResult.replySettingsCounts || {};
   const listCount = built.length;
-  console.log(`[X Reply Sales][list] ${normalizedLang} リスト ${listCount} 件`);
+  console.log(`[X Reply Sales][list] ${normalizedLang} リスト ${listCount} 件 (reply_settings 除外: ${skippedReplyRestricted}, 内訳: ${JSON.stringify(replySettingsCounts)})`);
   const handledChecks = await Promise.all(
     built.map((candidate) => isTweetHandled(candidate.tweet_id))
   );
@@ -637,6 +641,7 @@ async function refreshQueueForLang(lang, now) {
     nextQueueLength: merged.queue.length,
     droppedByCap,
     queueCapPerLang: cap,
+    replySettingsCounts,
     sample: freshQueue.slice(0, 3).map((x) => ({
       tweetId: x.tweet_id,
       handle: x.username,
@@ -659,6 +664,7 @@ async function refreshQueueForLang(lang, now) {
     freshDiscovered: summary.freshDiscovered,
     freshEnqueued: summary.freshEnqueued,
     skippedReplyRestricted: summary.skippedReplyRestricted,
+    replySettingsCounts: summary.replySettingsCounts,
     retainedFromPrev: summary.retainedFromPrev,
     droppedFromPrevByPolicy: summary.droppedFromPrevByPolicy,
     nextQueueLength: summary.nextQueueLength,
