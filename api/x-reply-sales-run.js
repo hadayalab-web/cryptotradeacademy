@@ -9,7 +9,7 @@ const { kv } = require("../utils/kv");
 const { fetchOneReplySearchPage } = require("../services/td/xReplySalesSearch");
 const { sendSalesReply } = require("../services/x/replySalesClient");
 const { sendRecruitDm } = require("../services/x/dmClient");
-const { followUser, unfollowUser } = require("../services/x/client");
+const { followUser } = require("../services/x/client");
 const {
   buildReplyMessage,
   detectReplyPostType,
@@ -36,8 +36,7 @@ const {
   X_REPLY_PROMO_CODE,
   X_REPLY_FOLLOW_BEFORE_SEND,
   X_REPLY_FOLLOW_CAP_PER_DAY,
-  X_REPLY_FOLLOW_DELAY_MS,
-  X_REPLY_UNFOLLOW_DAYS
+  X_REPLY_FOLLOW_DELAY_MS
 } = require("../config/xReplySalesConfig");
 const { getMinimalVersionCheckoutUrl, getWhopProductUrl } = require("../services/telegram/whop-links");
 
@@ -50,8 +49,10 @@ const KV_KEY_SLOT_LOCK = (dateStr, slot15) => `x_reply_sales:lock:send:${dateStr
 const KV_KEY_FOLLOW_COUNT_DAILY = (dateStr) => `x_reply_sales:follow_count:${dateStr}`;
 const KV_KEY_FOLLOWED_DAILY = (dateStr, authorId) => `x_reply_sales:followed:${dateStr}:${authorId}`;
 const KV_KEY_FOLLOWED_USERS_DAILY = (dateStr) => `x_reply_sales:followed_users:${dateStr}`;
-/** X API unfollow: 50/15min/user のため1ランあたり最大50件 */
-const UNFOLLOW_MAX_PER_RUN = 50;
+const KV_KEY_FOLLOWUP_PENDING = "x_reply_sales:followup_pending";
+const KV_KEY_FOLLOWUP_SENT = (authorId, tweetId) => `x_reply_sales:followup_sent:${authorId}:${tweetId}`;
+const FOLLOWUP_PENDING_MAX = 2000;
+const FOLLOWUP_PENDING_TTL_SECONDS = 86400 * 10;
 const KV_KEY_LIST_SUMMARY_LATEST = "x_reply_sales:list_summary:latest";
 const KV_KEY_SEND_SUMMARY_LATEST = "x_reply_sales:send_summary:latest";
 const KV_KEY_LIST_EVENTS = "x_reply_sales:list_events";
@@ -334,6 +335,27 @@ async function appendEvent(listKey, row) {
     arr.splice(0, arr.length - X_REPLY_EVENT_LIST_MAX);
   }
   await kv.set(listKey, arr, { ex: X_REPLY_EVENT_TTL_SECONDS });
+}
+
+/** リプライ or DM 到達したユーザーを48h後フォロー用キューに追加 */
+async function enqueueFollowupPending(item, channel) {
+  if (!kv || !item?.author_id || !item?.tweet_id || !item?.username) return;
+  try {
+    const raw = await kv.get(KV_KEY_FOLLOWUP_PENDING);
+    const list = Array.isArray(raw) ? raw : (typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch (_) { return []; } })() : []);
+    list.push({
+      authorId: String(item.author_id),
+      tweetId: String(item.tweet_id),
+      lang: normalizeReplyLang(item.lang),
+      channel,
+      deliveredAt: new Date().toISOString(),
+      handle: String(item.username).replace(/^@/, "")
+    });
+    if (list.length > FOLLOWUP_PENDING_MAX) list.splice(0, list.length - FOLLOWUP_PENDING_MAX);
+    await kv.set(KV_KEY_FOLLOWUP_PENDING, list, { ex: FOLLOWUP_PENDING_TTL_SECONDS });
+  } catch (e) {
+    console.warn("[X Reply Sales] enqueueFollowupPending failed:", e?.message);
+  }
 }
 
 function toPercent(numerator, denominator) {
@@ -814,53 +836,9 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  // send mode
+  // send mode（unfollow・48hフォローアップは :10 の x-reply-sales-followup で実行）
   const now = new Date();
   const dateStr = toDateString(now);
-
-  if (kv && X_REPLY_UNFOLLOW_DAYS > 0) {
-    const dPast = new Date(now);
-    dPast.setUTCDate(dPast.getUTCDate() - X_REPLY_UNFOLLOW_DAYS);
-    const dateStrPast = toDateString(dPast);
-    const keyPast = KV_KEY_FOLLOWED_USERS_DAILY(dateStrPast);
-    const rawPast = await kv.get(keyPast);
-    const listPast = Array.isArray(rawPast)
-      ? rawPast
-      : typeof rawPast === "string"
-        ? (() => {
-            try {
-              return JSON.parse(rawPast);
-            } catch (_) {
-              return [];
-            }
-          })()
-        : [];
-    const toUnfollow = listPast.slice(0, UNFOLLOW_MAX_PER_RUN);
-    const tail = listPast.slice(UNFOLLOW_MAX_PER_RUN);
-    let stoppedAt = toUnfollow.length;
-    for (let i = 0; i < toUnfollow.length; i += 1) {
-      const authorId = toUnfollow[i];
-      try {
-        const res = await unfollowUser(String(authorId).trim());
-        if (res.ok) {
-          console.log("[X Reply Sales][unfollow]", { authorId, followedOn: dateStrPast });
-        }
-      } catch (err) {
-        if (err?.message?.includes("429") || err?.message?.includes("rate limit")) {
-          console.warn("[X Reply Sales][unfollow] rate limit (X API 50/15min), leaving rest for next run");
-          stoppedAt = i;
-          break;
-        }
-        console.warn("[X Reply Sales][unfollow] failed:", authorId, err?.message);
-      }
-    }
-    const remaining = toUnfollow.slice(stoppedAt).concat(tail);
-    if (remaining.length > 0) {
-      await kv.set(keyPast, remaining, { ex: 86400 * 2 });
-    } else {
-      await kv.del(keyPast);
-    }
-  }
 
   const hourUtc = now.getUTCHours();
   const slot15 = toSlot15(now);
@@ -1243,6 +1221,7 @@ module.exports = async function handler(req, res) {
               tweetId: item.tweet_id,
               handle: item.username
             });
+            await enqueueFollowupPending(item, "dm");
           }
         } else {
           errorsThisRun += 1;
@@ -1277,6 +1256,8 @@ module.exports = async function handler(req, res) {
         },
         true
       );
+
+      await enqueueFollowupPending(item, "reply");
 
       lastSentReplyText = textWithCoupon;
 

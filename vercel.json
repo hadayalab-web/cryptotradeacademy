@@ -47,6 +47,9 @@
     },
     "api/x-reply-sales-list-history.js": {
       "maxDuration": 30
+    },
+    "api/x-reply-sales-followup.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
@@ -83,6 +86,10 @@
     {
       "path": "/api/x-reply-sales-kpi",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/x-reply-sales-followup",
+      "schedule": "10,25,40,55 * * * *"
     },
     {
       "path": "/api/kiba-5min",
