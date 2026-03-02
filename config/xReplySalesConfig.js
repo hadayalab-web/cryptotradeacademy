@@ -92,7 +92,7 @@ const X_REPLY_FOLLOW_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_FOLLOW_DE
 // フォロー解除: フォローから何日後に解除するか。0=解除しない。72時間≈3日で解除しないとフォロー数が膨らむためデフォルト3日
 const X_REPLY_UNFOLLOW_DAYS = Math.max(0, Math.min(30, Number(process.env.X_REPLY_UNFOLLOW_DAYS || 3)));
 
-// リプライ試行をスキップし、フォロー→DMのみにする。リプライが通った実績がないためデフォルト true。0 でリプライ試行あり
+// リプライ試行をスキップし、フォロー→DMのみにする。デフォルト true。0 にするとリプライを試行し、403等なら従来どおりDMにフォールバック（現行のDM仕様は変更なし）
 const X_REPLY_SKIP_REPLY_ATTEMPT = process.env.X_REPLY_SKIP_REPLY_ATTEMPT !== "0";
 
 module.exports = {

@@ -1120,7 +1120,10 @@ module.exports = async function handler(req, res) {
       lastAttemptStartedAtMs = Date.now();
       await incrementDailyCounter(dateStr, lang, "attempts", 1);
       await incrementHourlyCounter(dateStr, hourUtc, "attempts", 1, lang);
-      console.log("[X Reply Sales][send] " + (X_REPLY_SKIP_REPLY_ATTEMPT ? "skip reply → DM" : "attempting reply"), {
+      const replySettings = String(item.reply_settings ?? "").trim().toLowerCase();
+      const canAttemptReply =
+        !X_REPLY_SKIP_REPLY_ATTEMPT && replySettings === "everyone";
+      console.log("[X Reply Sales][send] " + (canAttemptReply ? "attempting reply" : "skip reply → DM"), {
         attempt: attemptsThisRun,
         tweetId: item.tweet_id,
         lang,
@@ -1164,17 +1167,24 @@ module.exports = async function handler(req, res) {
         }
       }
       let sendResult;
-      if (X_REPLY_SKIP_REPLY_ATTEMPT) {
-        // リプライ試行せずフォロー→DMのみ（リプライは通った実績なしのため）
-        sendResult = {
-          ok: false,
-          classified: { retryable: false, type: "reply_not_allowed_by_conversation" }
-        };
-      } else {
+      // reply_settings が 'everyone' のときだけリプライを試行（それ以外は X API が 403 を返すため試行しない）
+      if (canAttemptReply) {
+        const replyText = item.username
+          ? `@${String(item.username).replace(/^@/, "")} ${textWithCoupon}`.trim()
+          : textWithCoupon;
         sendResult = await sendSalesReply({
           tweetId: item.tweet_id,
-          text: textWithCoupon
+          text: replyText
         });
+      } else {
+        sendResult = {
+          ok: false,
+          classified: {
+            retryable: false,
+            type: "reply_not_allowed_by_conversation",
+            reply_settings: replySettings || "(unknown)"
+          }
+        };
       }
 
       if (!sendResult.ok) {
