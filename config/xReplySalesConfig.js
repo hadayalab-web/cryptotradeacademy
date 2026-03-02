@@ -11,14 +11,15 @@ const X_REPLY_MAX_RESULTS_PER_PAGE = Math.min(
   100,
   Math.max(10, Number(process.env.X_REPLY_MAX_RESULTS_PER_PAGE || 100))
 );
-// 検索の時間窓（分）。ENは毎時なので1時間、他言語はローテ間隔に合わせて長め
+// 検索の時間窓（分）。15分ローテで各言語は90分ごとにリスト取得するため、窓は90分に統一
+// ボリューム不足なら X_REPLY_SEARCH_WINDOW_MINUTES / X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES で延長可
 const X_REPLY_SEARCH_WINDOW_MINUTES = Math.max(
   15,
-  Number(process.env.X_REPLY_SEARCH_WINDOW_MINUTES || 60)
+  Number(process.env.X_REPLY_SEARCH_WINDOW_MINUTES || 90)
 );
 const X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES = Math.max(
   60,
-  Number(process.env.X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES || 300)
+  Number(process.env.X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES || 90)
 );
 
 // strict優先、低ヒット時のみbalancedへ

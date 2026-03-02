@@ -97,7 +97,8 @@ function normalizeCandidate(candidate, lang) {
     priority:
       Number.isFinite(Number(candidate?.priority)) && Number(candidate.priority) > 0
         ? Number(candidate.priority)
-        : 1
+        : 1,
+    reply_settings: String(candidate?.reply_settings ?? "").trim().toLowerCase() || null
   };
 }
 
@@ -352,6 +353,7 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
     if (!user?.username) continue;
     const postType = detectReplyPostType(normalizedLang, text);
     const priority = REPLY_POST_TYPE_PRIORITY[postType] || 1;
+    const replySettings = String(row?.reply_settings ?? "").trim().toLowerCase();
     candidates.push({
       lang: normalizedLang,
       tweet_id: tweetId,
@@ -362,7 +364,8 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
       discovered_at: discoveredAt,
       queue_version: queueVersion,
       post_type: postType,
-      priority
+      priority,
+      reply_settings: replySettings || null
     });
   }
 
@@ -980,7 +983,8 @@ module.exports = async function handler(req, res) {
         attempt: attemptsThisRun,
         tweetId: item.tweet_id,
         lang,
-        handle: item.username
+        handle: item.username,
+        reply_settings_at_list: item.reply_settings ?? "(unknown)"
       });
       const sendResult = await sendSalesReply({
         tweetId: item.tweet_id,
