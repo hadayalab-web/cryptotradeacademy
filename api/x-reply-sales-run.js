@@ -52,6 +52,21 @@ const KV_KEY_SENT_DAILY = (dateStr) => `x_reply_sales:sent:${dateStr}`;
 const KV_KEY_SENT_DAILY_LANG = (dateStr, lang) => `x_reply_sales:sent:${dateStr}:${lang}`;
 const KV_KEY_ERROR_DAILY = (dateStr) => `x_reply_sales:error:${dateStr}`;
 const KV_KEY_ERROR_DAILY_LANG = (dateStr, lang) => `x_reply_sales:error:${dateStr}:${lang}`;
+const KV_KEY_ATTEMPTS_DAILY = (dateStr) => `x_reply_sales:attempts_daily:${dateStr}`;
+const KV_KEY_ATTEMPTS_DAILY_LANG = (dateStr, lang) => `x_reply_sales:attempts_daily:${dateStr}:${lang}`;
+const KV_KEY_DM_SENT_DAILY = (dateStr) => `x_reply_sales:dm_sent:${dateStr}`;
+const KV_KEY_DM_SENT_DAILY_LANG = (dateStr, lang) => `x_reply_sales:dm_sent:${dateStr}:${lang}`;
+const KV_KEY_DM_NG_DAILY = (dateStr) => `x_reply_sales:dm_ng:${dateStr}`;
+const KV_KEY_DM_NG_DAILY_LANG = (dateStr, lang) => `x_reply_sales:dm_ng:${dateStr}:${lang}`;
+const KV_KEY_ATTEMPTS_HOURLY = (dateStr, hour) => `x_reply_sales:attempts_h:${dateStr}:${hour}`;
+const KV_KEY_SENT_HOURLY = (dateStr, hour) => `x_reply_sales:sent_h:${dateStr}:${hour}`;
+const KV_KEY_DM_SENT_HOURLY = (dateStr, hour) => `x_reply_sales:dm_sent_h:${dateStr}:${hour}`;
+const KV_KEY_DM_NG_HOURLY = (dateStr, hour) => `x_reply_sales:dm_ng_h:${dateStr}:${hour}`;
+const KV_KEY_ATTEMPTS_HOURLY_LANG = (dateStr, hour, lang) => `x_reply_sales:attempts_h:${dateStr}:${hour}:${lang}`;
+const KV_KEY_SENT_HOURLY_LANG = (dateStr, hour, lang) => `x_reply_sales:sent_h:${dateStr}:${hour}:${lang}`;
+const KV_KEY_DM_SENT_HOURLY_LANG = (dateStr, hour, lang) => `x_reply_sales:dm_sent_h:${dateStr}:${hour}:${lang}`;
+const KV_KEY_DM_NG_HOURLY_LANG = (dateStr, hour, lang) => `x_reply_sales:dm_ng_h:${dateStr}:${hour}:${lang}`;
+const X_REPLY_HOURLY_TTL_SECONDS = 86400 * 2;
 
 const X_REPLY_SALES_CLICK_TRACK_PATH = "/api/x-reply-sales-click";
 const REPLIED_TWEET_TTL_SECONDS = Math.max(
@@ -323,6 +338,15 @@ async function incrementDailyCounter(dateStr, lang, type, amount = 1) {
   } else if (type === "sent") {
     totalKey = KV_KEY_SENT_DAILY(dateStr);
     langKey = KV_KEY_SENT_DAILY_LANG(dateStr, lang);
+  } else if (type === "attempts") {
+    totalKey = KV_KEY_ATTEMPTS_DAILY(dateStr);
+    langKey = KV_KEY_ATTEMPTS_DAILY_LANG(dateStr, lang);
+  } else if (type === "dm_sent") {
+    totalKey = KV_KEY_DM_SENT_DAILY(dateStr);
+    langKey = KV_KEY_DM_SENT_DAILY_LANG(dateStr, lang);
+  } else if (type === "dm_ng") {
+    totalKey = KV_KEY_DM_NG_DAILY(dateStr);
+    langKey = KV_KEY_DM_NG_DAILY_LANG(dateStr, lang);
   } else {
     totalKey = KV_KEY_ERROR_DAILY(dateStr);
     langKey = KV_KEY_ERROR_DAILY_LANG(dateStr, lang);
@@ -331,6 +355,32 @@ async function incrementDailyCounter(dateStr, lang, type, amount = 1) {
   const [v1, v2] = await Promise.all([kv.incr(totalKey, safeAmount), kv.incr(langKey, safeAmount)]);
   if (v1 != null) await kv.expire(totalKey, X_REPLY_EVENT_TTL_SECONDS);
   if (v2 != null) await kv.expire(langKey, X_REPLY_EVENT_TTL_SECONDS);
+}
+
+async function incrementHourlyCounter(dateStr, hour, type, amount = 1, lang = null) {
+  if (!kv || !dateStr || type == null) return;
+  const safeAmount = Math.max(1, Number(amount) || 1);
+  let key;
+  let keyLang = null;
+  if (type === "attempts") {
+    key = KV_KEY_ATTEMPTS_HOURLY(dateStr, hour);
+    if (lang) keyLang = KV_KEY_ATTEMPTS_HOURLY_LANG(dateStr, hour, lang);
+  } else if (type === "sent") {
+    key = KV_KEY_SENT_HOURLY(dateStr, hour);
+    if (lang) keyLang = KV_KEY_SENT_HOURLY_LANG(dateStr, hour, lang);
+  } else if (type === "dm_sent") {
+    key = KV_KEY_DM_SENT_HOURLY(dateStr, hour);
+    if (lang) keyLang = KV_KEY_DM_SENT_HOURLY_LANG(dateStr, hour, lang);
+  } else if (type === "dm_ng") {
+    key = KV_KEY_DM_NG_HOURLY(dateStr, hour);
+    if (lang) keyLang = KV_KEY_DM_NG_HOURLY_LANG(dateStr, hour, lang);
+  } else return;
+  const [v, vLang] = await Promise.all([
+    kv.incr(key, safeAmount),
+    keyLang ? kv.incr(keyLang, safeAmount) : Promise.resolve(null)
+  ]);
+  if (v != null) await kv.expire(key, X_REPLY_HOURLY_TTL_SECONDS);
+  if (vLang != null && keyLang) await kv.expire(keyLang, X_REPLY_HOURLY_TTL_SECONDS);
 }
 
 function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
@@ -750,6 +800,7 @@ module.exports = async function handler(req, res) {
   // send mode
   const now = new Date();
   const dateStr = toDateString(now);
+  const hourUtc = now.getUTCHours();
   const slot15 = toSlot15(now);
   const slotKey = `${dateStr}:${slot15}`;
   const invocationId = `${slotKey}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
@@ -979,6 +1030,8 @@ module.exports = async function handler(req, res) {
       }
 
       lastAttemptStartedAtMs = Date.now();
+      await incrementDailyCounter(dateStr, lang, "attempts", 1);
+      await incrementHourlyCounter(dateStr, hourUtc, "attempts", 1, lang);
       console.log("[X Reply Sales][send] attempting reply", {
         attempt: attemptsThisRun,
         tweetId: item.tweet_id,
@@ -992,8 +1045,6 @@ module.exports = async function handler(req, res) {
       });
 
       if (!sendResult.ok) {
-        errorsThisRun += 1;
-        await incrementDailyCounter(dateStr, lang, "error", 1);
         await appendEvent(KV_KEY_SEND_EVENTS, {
           ts: new Date().toISOString(),
           slotKey,
@@ -1031,6 +1082,9 @@ module.exports = async function handler(req, res) {
           }
           const dmFailed = !dmResult || dmResult.error;
           if (dmFailed) {
+            errorsThisRun += 1;
+            await incrementDailyCounter(dateStr, lang, "dm_ng", 1);
+            await incrementHourlyCounter(dateStr, hourUtc, "dm_ng", 1, lang);
             await markTweetNg(item.tweet_id, {
               status: "ng",
               reason: "reply_rejected_then_dm_failed",
@@ -1057,6 +1111,8 @@ module.exports = async function handler(req, res) {
               dmError: dmResult?.error || "unknown"
             });
           } else {
+            await incrementDailyCounter(dateStr, lang, "dm_sent", 1);
+            await incrementHourlyCounter(dateStr, hourUtc, "dm_sent", 1, lang);
             await markTweetHandled(
               item.tweet_id,
               {
@@ -1085,6 +1141,8 @@ module.exports = async function handler(req, res) {
             });
           }
         } else {
+          errorsThisRun += 1;
+          await incrementDailyCounter(dateStr, lang, "error", 1);
           await markTweetHandled(
             item.tweet_id,
             {
@@ -1102,6 +1160,7 @@ module.exports = async function handler(req, res) {
 
       sentThisRun += 1;
       await incrementDailyCounter(dateStr, lang, "sent", 1);
+      await incrementHourlyCounter(dateStr, hourUtc, "sent", 1, lang);
       await markTweetHandled(
         item.tweet_id,
         {
