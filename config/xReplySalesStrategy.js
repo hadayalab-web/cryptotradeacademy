@@ -98,6 +98,26 @@ const REPLY_POST_TYPE_KEYWORDS_BY_LANG = {
   }
 };
 
+/** DM冒頭用：「クエリが拾ったワード」フック。{keyword} は該当 post_type の代表キーワードに置換（省略可） */
+const REPLY_QUERY_HOOK_TEMPLATE_BY_LANG = {
+  en: "That word we picked up — for real?",
+  ja: "クエリが拾ったワード、本当ですか？",
+  ko: "검색이 잡은 그 단어, 진짜예요?",
+  es: "Esa palabra que detectamos — ¿en serio?",
+  pt: "Aquela palavra que pegamos — sério?",
+  ar: "الكلمة اللي طلعت لنا — جد؟"
+};
+
+/** キーワードあり版（{keyword} を代表キーワードに置換）。キーワードがない場合は REPLY_QUERY_HOOK_TEMPLATE_BY_LANG をそのまま使用 */
+const REPLY_QUERY_HOOK_WITH_KEYWORD_BY_LANG = {
+  en: "That word we picked up («{keyword}») — for real?",
+  ja: "クエリが拾ったワード（{keyword}）、本当ですか？",
+  ko: "검색이 잡은 그 단어(«{keyword}»), 진짜예요?",
+  es: "Esa palabra que detectamos («{keyword}») — ¿en serio?",
+  pt: "Aquela palavra que pegamos («{keyword}») — sério?",
+  ar: "الكلمة اللي طلعت («{keyword}») — جد؟"
+};
+
 const REPLY_ONE_WORD_HOOK_BY_LANG = {
   en: {
     loss_report: "Ouch.",
@@ -457,12 +477,38 @@ function buildReplyMessage({
   };
 }
 
+/**
+ * DM冒頭に挿入する「クエリが拾ったワード」フック文を返す。
+ * @param {string} lang - 言語 (en, ja, ko, es, pt, ar)
+ * @param {string} [postType] - post_type (loss_report, fomo_mental 等)。指定時はそのタイプの代表キーワードを埋め込む
+ * @returns {string} フック文。未対応言語や空の場合は ""
+ */
+function getDmQueryHook(lang, postType) {
+  const normalizedLang = normalizeReplyLang(lang);
+  const template =
+    REPLY_QUERY_HOOK_TEMPLATE_BY_LANG[normalizedLang] ||
+    REPLY_QUERY_HOOK_TEMPLATE_BY_LANG.en;
+  const withKeywordTemplate =
+    REPLY_QUERY_HOOK_WITH_KEYWORD_BY_LANG[normalizedLang] ||
+    REPLY_QUERY_HOOK_WITH_KEYWORD_BY_LANG.en;
+  const catalog = REPLY_POST_TYPE_KEYWORDS_BY_LANG[normalizedLang] || REPLY_POST_TYPE_KEYWORDS_BY_LANG.en;
+  const keywords = postType && catalog[postType] ? catalog[postType] : [];
+  const keyword = Array.isArray(keywords) && keywords.length > 0 ? String(keywords[0]).trim() : "";
+  if (keyword) {
+    return String(withKeywordTemplate || template).replace(/\{keyword\}/g, keyword);
+  }
+  return template || "";
+}
+
 module.exports = {
   SUPPORTED_REPLY_LANGS,
   REPLY_SEARCH_QUERIES_BY_LANG,
   REPLY_POST_TYPE_PRIORITY,
+  REPLY_QUERY_HOOK_TEMPLATE_BY_LANG,
+  REPLY_QUERY_HOOK_WITH_KEYWORD_BY_LANG,
   normalizeReplyLang,
   detectReplyPostType,
   getReplySearchQuery,
-  buildReplyMessage
+  buildReplyMessage,
+  getDmQueryHook
 };

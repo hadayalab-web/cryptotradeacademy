@@ -13,6 +13,7 @@ const { followUser } = require("../services/x/client");
 const {
   buildReplyMessage,
   detectReplyPostType,
+  getDmQueryHook,
   normalizeReplyLang,
   REPLY_POST_TYPE_PRIORITY
 } = require("../config/xReplySalesStrategy");
@@ -36,7 +37,8 @@ const {
   X_REPLY_PROMO_CODE,
   X_REPLY_FOLLOW_BEFORE_SEND,
   X_REPLY_FOLLOW_CAP_PER_DAY,
-  X_REPLY_FOLLOW_DELAY_MS
+  X_REPLY_FOLLOW_DELAY_MS,
+  X_REPLY_SKIP_REPLY_ATTEMPT
 } = require("../config/xReplySalesConfig");
 const { getMinimalVersionCheckoutUrl, getWhopProductUrl } = require("../services/telegram/whop-links");
 
@@ -438,11 +440,7 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
     const text = String(row?.text || "").trim();
     if (!tweetId || !authorId || !text) continue;
     const replySettings = String(row?.reply_settings ?? "").trim().toLowerCase();
-    // リプライ可（everyone）のツイートだけキューに入れる。following/mentionedUsers は送信時も403になるため除外。
-    if (replySettings !== "everyone") {
-      skippedReplyRestricted += 1;
-      continue;
-    }
+    // reply_settings で除外しない（everyone 以外でも DM が通る候補があるため。リプライは送信側で試行しない運用）
     const user = usersById?.[authorId];
     if (!user?.username) continue;
     const postType = detectReplyPostType(normalizedLang, text);
@@ -1078,7 +1076,7 @@ module.exports = async function handler(req, res) {
       lastAttemptStartedAtMs = Date.now();
       await incrementDailyCounter(dateStr, lang, "attempts", 1);
       await incrementHourlyCounter(dateStr, hourUtc, "attempts", 1, lang);
-      console.log("[X Reply Sales][send] attempting reply", {
+      console.log("[X Reply Sales][send] " + (X_REPLY_SKIP_REPLY_ATTEMPT ? "skip reply → DM" : "attempting reply"), {
         attempt: attemptsThisRun,
         tweetId: item.tweet_id,
         lang,
@@ -1121,25 +1119,36 @@ module.exports = async function handler(req, res) {
           console.warn("[X Reply Sales][send] follow before send failed (non-fatal):", followErr?.message);
         }
       }
-      const sendResult = await sendSalesReply({
-        tweetId: item.tweet_id,
-        text: textWithCoupon
-      });
+      let sendResult;
+      if (X_REPLY_SKIP_REPLY_ATTEMPT) {
+        // リプライ試行せずフォロー→DMのみ（リプライは通った実績なしのため）
+        sendResult = {
+          ok: false,
+          classified: { retryable: false, type: "reply_not_allowed_by_conversation" }
+        };
+      } else {
+        sendResult = await sendSalesReply({
+          tweetId: item.tweet_id,
+          text: textWithCoupon
+        });
+      }
 
       if (!sendResult.ok) {
-        await appendEvent(KV_KEY_SEND_EVENTS, {
-          ts: new Date().toISOString(),
-          slotKey,
-          invocationId,
-          status: "error",
-          lang,
-          tweetId: item.tweet_id,
-          handle: item.username,
-          postType: selectedMessage.postType,
-          pattern: selectedMessage.pattern,
-          error: sendResult.error,
-          classified: sendResult.classified || null
-        });
+        if (!X_REPLY_SKIP_REPLY_ATTEMPT) {
+          await appendEvent(KV_KEY_SEND_EVENTS, {
+            ts: new Date().toISOString(),
+            slotKey,
+            invocationId,
+            status: "error",
+            lang,
+            tweetId: item.tweet_id,
+            handle: item.username,
+            postType: selectedMessage.postType,
+            pattern: selectedMessage.pattern,
+            error: sendResult.error,
+            classified: sendResult.classified || null
+          });
+        }
 
         const classified = sendResult.classified || { retryable: false, type: "unknown" };
         if (classified.retryable) {
@@ -1156,10 +1165,12 @@ module.exports = async function handler(req, res) {
           }, "dm");
           const textForDm = textWithCoupon.replace(selectedOfferUrl, offerUrlForDm);
           // XのアクセスパッケージではDM本文に@メンション不可。リプライ文から@を除去してDM送信
-          const dmText = textForDm
+          const dmBody = textForDm
             .replace(/\s*@\w+\s*/g, " ")
             .replace(/\s{2,}/g, " ")
             .trim();
+          const queryHook = getDmQueryHook(lang, item.post_type);
+          const dmText = queryHook ? `${queryHook}\n\n${dmBody}` : dmBody;
           let dmResult;
           try {
             dmResult = await sendRecruitDm(item.username, dmText || textWithCoupon, {
