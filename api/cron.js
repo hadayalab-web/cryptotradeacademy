@@ -457,12 +457,13 @@ module.exports = async function handler(req, res) {
     const GPT_THRESHOLD_MPI = Number(process.env.GPT_THRESHOLD_MPI || 1.5);
     const GPT_THRESHOLD_CHANGE24H = Number(process.env.GPT_THRESHOLD_CHANGE24H || 3.0);
 
+    // 配信スロット時のみGPT呼び出し（Grok/Geminiと同様にコスト節約）
     const shouldCallGPT =
-      !isRegularSlot &&
-      (Math.abs(inflow) > GPT_THRESHOLD_INFLOW || // Exchange Netflowが大きい
-        Math.abs(mpi) > GPT_THRESHOLD_MPI || // MPIが極端
-        Math.abs(change24h) > GPT_THRESHOLD_CHANGE24H || // 24h変動が大きい
-        force); // 強制実行
+      (isRegularSlot || force) &&
+      (Math.abs(inflow) > GPT_THRESHOLD_INFLOW ||
+        Math.abs(mpi) > GPT_THRESHOLD_MPI ||
+        Math.abs(change24h) > GPT_THRESHOLD_CHANGE24H ||
+        force);
 
     if (shouldCallGPT) {
       // 15分ごとの緊急配信用: GPTでCryptoQuantデータを解析
@@ -529,7 +530,7 @@ module.exports = async function handler(req, res) {
           });
         }
       }
-    } else if (!isRegularSlot) {
+    } else if (isRegularSlot || force) {
       logger.info("Skipping GPT call (thresholds not met)", {
         inflow,
         mpi,
@@ -619,8 +620,8 @@ module.exports = async function handler(req, res) {
     });
 
     // ---- Grok call gates (cost valve) --------------------------
-    // needsXIntel: X監視だけ（安い） = REGULAR / force / EMERGENCY / WATCH
-    const needsXIntel = isRegularSlot || force || needsEmergency || needsWatch;
+    // needsXIntel: 配信スロット時のみ（Grok/GPT/Gemini と揃えてコスト節約）
+    const needsXIntel = isRegularSlot || force;
 
     // needsLongReport: 長文生成（高い） = REGULAR / force / EMERGENCY のみ
     const needsLongReport = isRegularSlot || force || needsEmergency;
@@ -1256,21 +1257,23 @@ module.exports = async function handler(req, res) {
       trapType: null
     }) || null;
 
-    // Task 8/9: Stage 5 (Gemini) + Stage 6 (Dr.Grok base) — deliveryMode 非依存で常に実行
+    // Task 8/9: Stage 5 (Gemini) + Stage 6 (Dr.Grok base) — 配信スロット時のみ実行（Gemini/コスト節約）
     let stage56 = { sosovalueArticle: null, drGrok: null };
-    try {
-      const partial = {
-        raw,
-        cqDeep: cqDeep || { inflow, mpi },
-        xSentiment: xSentiment || { whaleBias: 0, retailFomo: 50 },
-        trapDetection: derivedTrapDetection,
-        trap: trap || {},
-        tradeSignal: tradeSignal || null,
-        market_score: snapshot?.market_score ?? coreDecision?.score ?? 0
-      };
-      stage56 = await runStages5And6(partial, getMarketCode);
-    } catch (e) {
-      console.warn("[snapshotBuilder] Stage 5/6 failed:", e?.message);
+    if (isRegularSlot || force) {
+      try {
+        const partial = {
+          raw,
+          cqDeep: cqDeep || { inflow, mpi },
+          xSentiment: xSentiment || { whaleBias: 0, retailFomo: 50 },
+          trapDetection: derivedTrapDetection,
+          trap: trap || {},
+          tradeSignal: tradeSignal || null,
+          market_score: snapshot?.market_score ?? coreDecision?.score ?? 0
+        };
+        stage56 = await runStages5And6(partial, getMarketCode);
+      } catch (e) {
+        console.warn("[snapshotBuilder] Stage 5/6 failed:", e?.message);
+      }
     }
 
     // Task 10: computeDivergenceSignal / computeMarketRegime（lastSnapshot を事前取得）
