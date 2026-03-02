@@ -1,1 +1,96 @@
-{"buildCommand":"npm run build","functions":{"api/cron.js":{"maxDuration":300,"includeFiles":"{api/services/**,config/**,services/telegram/messages/**}"},"api/kiba-5min.js":{"maxDuration":300},"api/x-engagement-metrics.js":{"maxDuration":60,"includeFiles":"{config/**,services/x/**}"},"api/x-webhook.js":{"maxDuration":30},"api/whop-webhook.js":{"maxDuration":30},"api/affiliate-recruit-en-send.js":{"maxDuration":300},"api/affiliate-recruit-en-list.js":{"maxDuration":300},"api/affiliate-recruit-regions-list.js":{"maxDuration":300}},"rewrites":[{"source":"/api/x-webhook","destination":"/api/x-webhook"}],"crons":[{"path":"/api/cron","schedule":"*/15 * * * *"},{"path":"/api/minimal-tg-delivery","schedule":"8 0,6,12,18 * * *"},{"path":"/api/minimal-upsell-promo","schedule":"0 8 * * *"},{"path":"/api/minimal-upsell-promo","schedule":"0 20 * * *"},{"path":"/api/affiliate-recruit-en-list","schedule":"8 */4 * * *"},{"path":"/api/affiliate-recruit-en-send","schedule":"*/15 * * * *"},{"path":"/api/affiliate-recruit-kpi","schedule":"1,16,31,46 * * * *"},{"path":"/api/affiliate-recruit-regions-list","schedule":"10 */4 * * *"},{"path":"/api/kiba-5min","schedule":"*/5 * * * *"}]}
+{
+  "buildCommand": "npm run build",
+  "functions": {
+    "api/cron.js": {
+      "maxDuration": 300,
+      "includeFiles": "{api/services/**,config/**,services/telegram/messages/**}"
+    },
+    "api/kiba-5min.js": {
+      "maxDuration": 300
+    },
+    "api/x-engagement-metrics.js": {
+      "maxDuration": 60,
+      "includeFiles": "{config/**,services/x/**}"
+    },
+    "api/x-webhook.js": {
+      "maxDuration": 30
+    },
+    "api/whop-webhook.js": {
+      "maxDuration": 30
+    },
+    "api/affiliate-recruit-en-send.js": {
+      "maxDuration": 300
+    },
+    "api/affiliate-recruit-en-list.js": {
+      "maxDuration": 300
+    },
+    "api/affiliate-recruit-regions-list.js": {
+      "maxDuration": 300
+    },
+    "api/x-reply-sales-run.js": {
+      "maxDuration": 300
+    },
+    "api/x-reply-sales-list.js": {
+      "maxDuration": 300
+    },
+    "api/x-reply-sales-en-list.js": {
+      "maxDuration": 300
+    },
+    "api/x-reply-sales-regions-list.js": {
+      "maxDuration": 300
+    },
+    "api/x-reply-sales-send.js": {
+      "maxDuration": 300
+    },
+    "api/x-reply-sales-click.js": {
+      "maxDuration": 30
+    },
+    "api/x-reply-sales-kpi.js": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/x-webhook",
+      "destination": "/api/x-webhook"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/minimal-tg-delivery",
+      "schedule": "8 0,6,12,18 * * *"
+    },
+    {
+      "path": "/api/minimal-upsell-promo",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/minimal-upsell-promo",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/x-reply-sales-en-list",
+      "schedule": "8 * * * *"
+    },
+    {
+      "path": "/api/x-reply-sales-regions-list",
+      "schedule": "10 */6 * * *"
+    },
+    {
+      "path": "/api/x-reply-sales-send",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/x-reply-sales-kpi",
+      "schedule": "2,17,32,47 * * * *"
+    },
+    {
+      "path": "/api/kiba-5min",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 // services/x/client.js
 // X (Twitter) API v2 クライアント - OAuth 1.0a User Context認証
 //
-// 【OS 原則】X への write は postTweet（スタンドアロン投稿）のみ。引用リポスト・リプライは廃止。DM はアフィリスカウト用に別実装。
-// 他の呼び出し元を追加しないこと。
+// 【OS 原則】X への write は postTweet（スタンドアロン投稿）を基本とする。
+// 例外として、直販リプライ運用に必要な replyToTweet のみ許可する。DM はアフィリスカウト用に別実装。
 
 const OAuth = require("oauth-1.0a");
 const crypto = require("crypto");
@@ -584,6 +584,62 @@ async function postTweet(text, mediaIds = [], pollOptions = null, maxRetries = 3
 }
 
 /**
+ * 指定ツイートにリプライを投稿
+ * @param {string} text - リプライ本文
+ * @param {string} inReplyToTweetId - 返信先ツイートID
+ * @param {{ mediaIds?: string[] }} [options] - 追加オプション
+ * @param {number} maxRetries - 最大リトライ回数（デフォルト: 3）
+ * @returns {Promise<{id?: string, text?: string}>}
+ */
+async function replyToTweet(text, inReplyToTweetId, options = {}, maxRetries = 3) {
+  if (!text || text.trim().length === 0) {
+    throw new Error("Reply text is required");
+  }
+  const targetTweetId = String(inReplyToTweetId || "").trim();
+  if (!targetTweetId) {
+    throw new Error("inReplyToTweetId is required");
+  }
+
+  assertWithinLongPostLimit(text, "Reply text");
+
+  const body = {
+    text: text.trim(),
+    reply: {
+      in_reply_to_tweet_id: targetTweetId
+    }
+  };
+
+  const mediaIds = Array.isArray(options?.mediaIds) ? options.mediaIds.filter(Boolean) : [];
+  if (mediaIds.length > 0) {
+    body.media = {
+      media_ids: mediaIds
+    };
+  }
+
+  try {
+    const response = await xApiRequest(
+      "/tweets",
+      {
+        method: "POST",
+        body
+      },
+      maxRetries
+    );
+
+    return {
+      id: response?.data?.id,
+      text: response?.data?.text
+    };
+  } catch (error) {
+    console.error("[X API] Failed to post reply:", {
+      targetTweetId,
+      message: error?.message || "unknown"
+    });
+    throw error;
+  }
+}
+
+/**
  * ユーザー情報を取得
  * @param {string} username - Xのユーザー名（@なし）
  * @returns {Promise<Object>} ユーザー情報
@@ -877,6 +933,7 @@ async function checkXApiCredits() {
 module.exports = {
   xApiRequest,
   postTweet,
+  replyToTweet,
   uploadMedia,
   uploadVideo,
   getUserByUsername,

@@ -15,6 +15,14 @@ const AFFILIATE_CONVERSION_COUNT_KEY = (type, dateStr) =>
 const AFFILIATE_CONVERSION_EVENTS_KEY = (dateStr) =>
   `affiliate_recruit:conversion:affiliate:${dateStr}:events`;
 const AFFILIATE_CONVERSION_TTL_SECONDS = 86400 * 30;
+const X_REPLY_SALES_TRIAL_START_KEY = (dateStr) => `x_reply_sales:trial_start:${dateStr}`;
+const X_REPLY_SALES_TRIAL_START_LANG_KEY = (dateStr, lang) =>
+  `x_reply_sales:trial_start:${dateStr}:${lang}`;
+const X_REPLY_SALES_TRIAL_EVENT_DEDUP_KEY = (eventId) =>
+  `x_reply_sales:trial_start:event:${eventId}`;
+const X_REPLY_SALES_TRIAL_EVENTS_KEY = (dateStr) => `x_reply_sales:trial_start_events:${dateStr}`;
+const X_REPLY_SALES_TTL_SECONDS = 86400 * 90;
+const X_REPLY_SALES_SUPPORTED_LANGS = new Set(['en', 'ja', 'ko', 'es', 'pt', 'ar']);
 
 /**
  * WHOP_WEBHOOK_SECRET から HMAC 用キーの候補を返す
@@ -80,10 +88,12 @@ function verifyWhopWebhookSignature(signatureHeader, body, timestamp, webhookId)
 
       for (const key of keyVariants) {
         for (const { signed } of payloads) {
-          const hmac = crypto.createHmac('sha256', key);
-          hmac.update(signed);
-          const expectedHex = hmac.digest('hex');
-          const expectedBase64 = hmac.digest('base64');
+          const hmacHex = crypto.createHmac('sha256', key);
+          hmacHex.update(signed);
+          const expectedHex = hmacHex.digest('hex');
+          const hmacBase64 = crypto.createHmac('sha256', key);
+          hmacBase64.update(signed);
+          const expectedBase64 = hmacBase64.digest('base64');
           if (rawSig.length === 64 && /^[a-fA-F0-9]+$/.test(rawSig) && rawSig === expectedHex) return true;
           try {
             const sigBuf = Buffer.from(rawSig, 'base64');
@@ -146,6 +156,62 @@ function resolveConversionType(planId, amount) {
     normalizedPlanId.includes('free') ||
     amountNum === 0;
   return isMinimal ? 'minimal' : 'regular';
+}
+
+function normalizeReplySalesLang(rawLang) {
+  const normalized = String(rawLang || '').toLowerCase().trim();
+  if (!normalized) return 'en';
+  if (normalized === 'pt-br') return 'pt';
+  return X_REPLY_SALES_SUPPORTED_LANGS.has(normalized) ? normalized : 'en';
+}
+
+async function recordXReplySalesTrialStart({
+  dateString,
+  eventId,
+  lang,
+  tweetId,
+  postType,
+  pattern,
+  amount,
+  currency,
+  eventType,
+  checkoutId,
+  membershipId,
+  userEmail
+}) {
+  if (!kv || !dateString || !eventId) return;
+
+  const dedupKey = X_REPLY_SALES_TRIAL_EVENT_DEDUP_KEY(String(eventId));
+  const already = await kv.get(dedupKey);
+  if (already) return;
+
+  await kv.set(dedupKey, '1', { ex: 86400 * 7 });
+  const safeLang = normalizeReplySalesLang(lang);
+  const totalKey = X_REPLY_SALES_TRIAL_START_KEY(dateString);
+  const langKey = X_REPLY_SALES_TRIAL_START_LANG_KEY(dateString, safeLang);
+  const [v1, v2] = await Promise.all([kv.incr(totalKey, 1), kv.incr(langKey, 1)]);
+  if (v1 != null) await kv.expire(totalKey, X_REPLY_SALES_TTL_SECONDS);
+  if (v2 != null) await kv.expire(langKey, X_REPLY_SALES_TTL_SECONDS);
+
+  const eventsKey = X_REPLY_SALES_TRIAL_EVENTS_KEY(dateString);
+  const eventsRaw = await kv.get(eventsKey);
+  const events = Array.isArray(eventsRaw) ? eventsRaw : [];
+  events.push({
+    ts: new Date().toISOString(),
+    eventId: String(eventId),
+    lang: safeLang,
+    tweetId: tweetId || null,
+    postType: postType || null,
+    pattern: pattern || null,
+    amount: Number.isFinite(Number(amount)) ? Number(amount) : amount,
+    currency: currency || 'USD',
+    eventType: eventType || null,
+    checkoutId: checkoutId || null,
+    membershipId: membershipId || null,
+    userEmail: userEmail || null
+  });
+  if (events.length > 1000) events.splice(0, events.length - 500);
+  await kv.set(eventsKey, events, { ex: X_REPLY_SALES_TTL_SECONDS });
 }
 
 async function recordAffiliateAttributedConversion({
@@ -221,6 +287,7 @@ async function handlePurchaseEvent(event) {
     let utmContent = null;
     
     let refIdFromReferrer = null;
+    let xReplySalesMeta = null;
     if (referrerUrl) {
       try {
         const url = new URL(referrerUrl);
@@ -229,6 +296,14 @@ async function handlePurchaseEvent(event) {
         utmCampaign = url.searchParams.get('utm_campaign');
         utmContent = url.searchParams.get('utm_content');
         refIdFromReferrer = url.searchParams.get('ref') || url.searchParams.get('ref_id');
+        if (String(utmSource || '').toLowerCase() === 'x_reply_sales') {
+          xReplySalesMeta = {
+            lang: normalizeReplySalesLang(url.searchParams.get('xrs_lang') || metadata.xrs_lang),
+            tweetId: url.searchParams.get('xrs_tweet_id') || metadata.xrs_tweet_id || null,
+            postType: url.searchParams.get('xrs_post_type') || metadata.xrs_post_type || null,
+            pattern: url.searchParams.get('xrs_pattern') || metadata.xrs_pattern || null
+          };
+        }
       } catch (urlError) {
         console.warn('[Whop Webhook] ⚠️ Failed to parse referrer URL:', urlError.message);
       }
@@ -243,6 +318,14 @@ async function handlePurchaseEvent(event) {
     if (!utmMedium && metadata.utm_medium) utmMedium = metadata.utm_medium;
     if (!utmCampaign && metadata.utm_campaign) utmCampaign = metadata.utm_campaign;
     if (!utmContent && metadata.utm_content) utmContent = metadata.utm_content;
+    if (!xReplySalesMeta && String(utmSource || '').toLowerCase() === 'x_reply_sales') {
+      xReplySalesMeta = {
+        lang: normalizeReplySalesLang(metadata.xrs_lang || metadata.lang),
+        tweetId: metadata.xrs_tweet_id || null,
+        postType: metadata.xrs_post_type || null,
+        pattern: metadata.xrs_pattern || null
+      };
+    }
     
     // X投稿情報を抽出
     const xPostInfo = extractXPostInfoFromUtm(utmContent);
@@ -264,6 +347,7 @@ async function handlePurchaseEvent(event) {
       utmCampaign,
       utmContent,
       xPostInfo,
+      xReplySalesMeta,
       timestamp: new Date().toISOString(),
     };
     
@@ -292,6 +376,36 @@ async function handlePurchaseEvent(event) {
       console.log(`[Whop Webhook] ✅ KPI conversion recorded: ${conversionType} on ${dateString}`);
     } catch (kpiError) {
       console.warn(`[Whop Webhook] ⚠️ Failed to record KPI conversion:`, kpiError.message);
+    }
+
+    if (String(utmSource || '').toLowerCase() === 'x_reply_sales' && conversionType === 'minimal') {
+      try {
+        const trialEventId =
+          conversionData.checkoutId ||
+          conversionData.membershipId ||
+          `xrs_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        await recordXReplySalesTrialStart({
+          dateString,
+          eventId: trialEventId,
+          lang: xReplySalesMeta?.lang || 'en',
+          tweetId: xReplySalesMeta?.tweetId || null,
+          postType: xReplySalesMeta?.postType || null,
+          pattern: xReplySalesMeta?.pattern || null,
+          amount: conversionData.amount,
+          currency: conversionData.currency,
+          eventType: type,
+          checkoutId: conversionData.checkoutId,
+          membershipId: conversionData.membershipId,
+          userEmail: conversionData.userEmail
+        });
+        console.log('[Whop Webhook] ✅ x_reply_sales trial start recorded:', {
+          dateString,
+          lang: xReplySalesMeta?.lang || 'en',
+          trialEventId
+        });
+      } catch (xrsError) {
+        console.warn('[Whop Webhook] x_reply_sales trial start record failed:', xrsError?.message);
+      }
     }
     
     // FirstPromoter: 紹介売上がある場合のみ track/sale（ref_id または promo_code が取れたとき）
