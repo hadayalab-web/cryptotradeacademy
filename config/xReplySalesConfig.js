@@ -40,7 +40,7 @@ const X_REPLY_RETAIN_PREVIOUS_QUEUE = process.env.X_REPLY_RETAIN_PREVIOUS_QUEUE 
 // 旧フォーマット在庫を安全に捨てるためのバージョン
 const X_REPLY_QUEUE_VERSION = Math.max(1, Number(process.env.X_REPLY_QUEUE_VERSION || 2));
 
-// 送信ペーシング（15秒間隔 + 15試行/15分）
+// 送信ペーシング（10秒間隔 + 15試行/15分。300秒枠でunfollow＋送信に収める）
 const X_REPLY_ATTEMPT_CAP_PER_15MIN = Math.max(
   1,
   Number(process.env.X_REPLY_ATTEMPT_CAP_PER_15MIN || 15)
@@ -49,7 +49,7 @@ const X_REPLY_MAX_ATTEMPTS_PER_RUN = Math.max(
   1,
   Number(process.env.X_REPLY_MAX_ATTEMPTS_PER_RUN || 15)
 );
-const X_REPLY_SEND_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_SEND_DELAY_MS || 15000));
+const X_REPLY_SEND_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_SEND_DELAY_MS || 10000));
 const X_REPLY_SEND_RUN_HARD_STOP_MS = Math.max(
   60000,
   Number(process.env.X_REPLY_SEND_RUN_HARD_STOP_MS || 285000)
@@ -76,6 +76,17 @@ const X_REPLY_EVENT_LIST_MAX = Math.max(50, Number(process.env.X_REPLY_EVENT_LIS
 // クーポン表示（文面差し込み）
 const X_REPLY_PROMO_CODE = String(process.env.WHOP_PROMO_CODE || "defend50").trim() || "defend50";
 
+// 送信前にフォロー（リプライ/DM 403 突破のため）。デフォルトオン。0=オフにする場合のみ指定
+const X_REPLY_FOLLOW_BEFORE_SEND = process.env.X_REPLY_FOLLOW_BEFORE_SEND !== "0";
+const X_REPLY_FOLLOW_CAP_PER_DAY = Math.max(
+  0,
+  Math.min(400, Number(process.env.X_REPLY_FOLLOW_CAP_PER_DAY || 100))
+);
+const X_REPLY_FOLLOW_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_FOLLOW_DELAY_MS || 1500));
+
+// フォロー解除: フォローから何日後に解除するか。0=解除しない。解除は送信ラン開始時に「N日前のリスト」を一括処理（429で止まった分は次回に繰越）
+const X_REPLY_UNFOLLOW_DAYS = Math.max(0, Math.min(30, Number(process.env.X_REPLY_UNFOLLOW_DAYS || 7)));
+
 module.exports = {
   X_REPLY_SALES_LANGS,
   X_REPLY_SALES_REGION_LANGS,
@@ -96,5 +107,9 @@ module.exports = {
   X_REPLY_SLOT_LOCK_TTL_SECONDS,
   X_REPLY_EVENT_TTL_SECONDS,
   X_REPLY_EVENT_LIST_MAX,
-  X_REPLY_PROMO_CODE
+  X_REPLY_PROMO_CODE,
+  X_REPLY_FOLLOW_BEFORE_SEND,
+  X_REPLY_FOLLOW_CAP_PER_DAY,
+  X_REPLY_FOLLOW_DELAY_MS,
+  X_REPLY_UNFOLLOW_DAYS
 };

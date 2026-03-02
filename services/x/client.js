@@ -940,10 +940,72 @@ async function checkXApiCredits() {
   };
 }
 
+/**
+ * 指定ユーザーをフォロー（OAuth User Context）
+ * 制限: 400/ユーザー/日・1000/アプリ/日
+ * @param {string} targetUserId - フォローするユーザーのID
+ * @returns {Promise<{ok: boolean, following?: boolean, pending_follow?: boolean, error?: string}>}
+ */
+async function followUser(targetUserId) {
+  const tid = String(targetUserId || "").trim();
+  if (!tid) return { ok: false, error: "target_user_id is required" };
+  try {
+    const me = await getMe();
+    const sourceId = me?.id;
+    if (!sourceId) return { ok: false, error: "Could not get authenticated user id" };
+    const response = await xApiRequest(`/users/${sourceId}/following`, {
+      method: "POST",
+      body: { target_user_id: tid }
+    });
+    return {
+      ok: true,
+      following: response?.data?.following === true,
+      pending_follow: response?.data?.pending_follow === true
+    };
+  } catch (error) {
+    const msg = error?.message || "";
+    if (msg.includes("403") || msg.includes("Forbidden")) {
+      return { ok: false, error: msg };
+    }
+    throw error;
+  }
+}
+
+/**
+ * 指定ユーザーのフォローを解除
+ * 制限: 50/15分/ユーザー・500/アプリ/日
+ * @param {string} targetUserId - フォロー解除するユーザーのID
+ * @returns {Promise<{ok: boolean, following?: boolean, error?: string}>}
+ */
+async function unfollowUser(targetUserId) {
+  const tid = String(targetUserId || "").trim();
+  if (!tid) return { ok: false, error: "target_user_id is required" };
+  try {
+    const me = await getMe();
+    const sourceId = me?.id;
+    if (!sourceId) return { ok: false, error: "Could not get authenticated user id" };
+    const response = await xApiRequest(`/users/${sourceId}/following/${tid}`, {
+      method: "DELETE"
+    });
+    return {
+      ok: true,
+      following: response?.data?.following === false
+    };
+  } catch (error) {
+    const msg = error?.message || "";
+    if (msg.includes("403") || msg.includes("Forbidden")) {
+      return { ok: false, error: msg };
+    }
+    throw error;
+  }
+}
+
 module.exports = {
   xApiRequest,
   postTweet,
   replyToTweet,
+  followUser,
+  unfollowUser,
   uploadMedia,
   uploadVideo,
   getUserByUsername,
