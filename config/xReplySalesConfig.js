@@ -5,8 +5,8 @@
 const X_REPLY_SALES_LANGS = ["en", "ar", "es", "pt", "ja", "ko"];
 const X_REPLY_SALES_REGION_LANGS = ["ar", "es", "pt", "ja", "ko"];
 
-// リスト取得: 1言語1回あたりのページ数（各言語5ページ）
-const X_REPLY_LIST_PAGES = Math.max(1, Math.min(10, Number(process.env.X_REPLY_LIST_PAGES || 5)));
+// リスト取得: 1言語1回あたりのページ数（まず5ページ。環境変数で増やせる）
+const X_REPLY_LIST_PAGES = Math.max(1, Math.min(15, Number(process.env.X_REPLY_LIST_PAGES || 5)));
 const X_REPLY_MAX_RESULTS_PER_PAGE = Math.min(
   100,
   Math.max(10, Number(process.env.X_REPLY_MAX_RESULTS_PER_PAGE || 100))

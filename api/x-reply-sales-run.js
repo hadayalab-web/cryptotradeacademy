@@ -334,7 +334,6 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
   const discoveredAt = String(options.discoveredAt || new Date().toISOString());
   const queueVersion = Math.max(1, Number(options.queueVersion || X_REPLY_QUEUE_VERSION || 1));
   const candidates = [];
-  let skippedReplyRestricted = 0;
   const sourceRows = Array.isArray(rows) ? rows : [];
   const replySettingsCounts = {};
   for (const row of sourceRows) {
@@ -344,11 +343,7 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
     const authorId = String(row?.author_id || "").trim();
     const text = String(row?.text || "").trim();
     if (!tweetId || !authorId || !text) continue;
-    const replySettings = String(row?.reply_settings || "").trim().toLowerCase();
-    if (replySettings !== "everyone") {
-      skippedReplyRestricted += 1;
-      continue;
-    }
+    // 感度の高いリストは取りこぼしを減らすため reply_settings で弾かない。リプライ403→DM→NG で届ける。
     const user = usersById?.[authorId];
     if (!user?.username) continue;
     const postType = detectReplyPostType(normalizedLang, text);
@@ -376,7 +371,7 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
   });
   return {
     candidates,
-    skippedReplyRestricted,
+    skippedReplyRestricted: 0,
     replySettingsCounts
   };
 }
