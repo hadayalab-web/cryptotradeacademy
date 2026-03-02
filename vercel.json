@@ -74,11 +74,11 @@
     },
     {
       "path": "/api/x-reply-sales-list-rotate",
-      "schedule": "*/15 * * * *"
+      "schedule": "0,15,30,45 * * * *"
     },
     {
       "path": "/api/x-reply-sales-send",
-      "schedule": "*/15 * * * *"
+      "schedule": "5,20,35,50 * * * *"
     },
     {
       "path": "/api/x-reply-sales-kpi",
