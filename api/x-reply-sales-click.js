@@ -10,6 +10,10 @@ const { normalizeReplyLang } = require("../config/xReplySalesStrategy");
 const KV_KEY_CLICK_TOTAL = "x_reply_sales:click:total";
 const KV_KEY_CLICK_DAILY = (dateStr) => `x_reply_sales:click:${dateStr}`;
 const KV_KEY_CLICK_DAILY_LANG = (dateStr, lang) => `x_reply_sales:click:${dateStr}:${lang}`;
+const KV_KEY_CLICK_DAILY_REPLY = (dateStr) => `x_reply_sales:click_reply:${dateStr}`;
+const KV_KEY_CLICK_DAILY_REPLY_LANG = (dateStr, lang) => `x_reply_sales:click_reply:${dateStr}:${lang}`;
+const KV_KEY_CLICK_DAILY_DM = (dateStr) => `x_reply_sales:click_dm:${dateStr}`;
+const KV_KEY_CLICK_DAILY_DM_LANG = (dateStr, lang) => `x_reply_sales:click_dm:${dateStr}:${lang}`;
 const KV_KEY_CLICK_TWEET = (tweetId) => `x_reply_sales:click:tweet:${tweetId}`;
 const KV_KEY_CLICK_EVENTS = "x_reply_sales:click_events";
 
@@ -113,6 +117,14 @@ module.exports = async function handler(req, res) {
   const shouldSkipLogging = req.method === "HEAD" || isLikelyBotUserAgent(userAgent);
 
   const lang = normalizeReplyLang(req.query?.lang);
+  let channelRaw = String(req.query?.channel || "").trim().toLowerCase();
+  if (!channelRaw && destination) {
+    try {
+      const toUrl = new URL(destination);
+      channelRaw = String(toUrl.searchParams.get("utm_medium") || "").trim().toLowerCase();
+    } catch (_) { /* ignore */ }
+  }
+  const channel = channelRaw === "dm" ? "dm" : "reply";
   const tweetId = String(req.query?.tweet_id || "").trim().slice(0, 30);
   const postType = sanitizeSlug(req.query?.post_type);
   const pattern = sanitizeSlug(req.query?.pattern);
@@ -121,14 +133,32 @@ module.exports = async function handler(req, res) {
 
   if (!shouldSkipLogging && kv) {
     try {
-      const [v1, v2, v3] = await Promise.all([
+      const incrKeys = [
         kv.incr(KV_KEY_CLICK_TOTAL, 1),
         kv.incr(KV_KEY_CLICK_DAILY(dateStr), 1),
-        kv.incr(KV_KEY_CLICK_DAILY_LANG(dateStr, lang), 1)
-      ]);
-      if (v1 != null) await kv.expire(KV_KEY_CLICK_TOTAL, X_REPLY_EVENT_TTL_SECONDS);
-      if (v2 != null) await kv.expire(KV_KEY_CLICK_DAILY(dateStr), X_REPLY_EVENT_TTL_SECONDS);
-      if (v3 != null) await kv.expire(KV_KEY_CLICK_DAILY_LANG(dateStr, lang), X_REPLY_EVENT_TTL_SECONDS);
+        kv.incr(KV_KEY_CLICK_DAILY_LANG(dateStr, lang), 1),
+        channel === "dm"
+          ? Promise.all([
+              kv.incr(KV_KEY_CLICK_DAILY_DM(dateStr), 1),
+              kv.incr(KV_KEY_CLICK_DAILY_DM_LANG(dateStr, lang), 1)
+            ])
+          : Promise.all([
+              kv.incr(KV_KEY_CLICK_DAILY_REPLY(dateStr), 1),
+              kv.incr(KV_KEY_CLICK_DAILY_REPLY_LANG(dateStr, lang), 1)
+            ])
+      ];
+      const results = await Promise.all(incrKeys);
+      if (results[0] != null) await kv.expire(KV_KEY_CLICK_TOTAL, X_REPLY_EVENT_TTL_SECONDS);
+      if (results[1] != null) await kv.expire(KV_KEY_CLICK_DAILY(dateStr), X_REPLY_EVENT_TTL_SECONDS);
+      if (results[2] != null) await kv.expire(KV_KEY_CLICK_DAILY_LANG(dateStr, lang), X_REPLY_EVENT_TTL_SECONDS);
+      const channelResults = results[3];
+      if (channel === "dm") {
+        if (channelResults?.[0] != null) await kv.expire(KV_KEY_CLICK_DAILY_DM(dateStr), X_REPLY_EVENT_TTL_SECONDS);
+        if (channelResults?.[1] != null) await kv.expire(KV_KEY_CLICK_DAILY_DM_LANG(dateStr, lang), X_REPLY_EVENT_TTL_SECONDS);
+      } else {
+        if (channelResults?.[0] != null) await kv.expire(KV_KEY_CLICK_DAILY_REPLY(dateStr), X_REPLY_EVENT_TTL_SECONDS);
+        if (channelResults?.[1] != null) await kv.expire(KV_KEY_CLICK_DAILY_REPLY_LANG(dateStr, lang), X_REPLY_EVENT_TTL_SECONDS);
+      }
 
       if (tweetId) {
         const tweetKey = KV_KEY_CLICK_TWEET(tweetId);
@@ -154,6 +184,7 @@ module.exports = async function handler(req, res) {
         ts: now.toISOString(),
         date: dateStr,
         lang,
+        channel,
         tweetId: tweetId || null,
         postType: postType || null,
         pattern: pattern || null,

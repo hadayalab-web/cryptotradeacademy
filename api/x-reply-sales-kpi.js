@@ -1,10 +1,13 @@
 /**
- * Xリプライ直販 KPI API
- * KPI:
- * - reply_rate = リプライ実行数 / ターゲット発見数
- * - profile_click_rate = 取得不可（Xネイティブ分析が必要）
- * - link_click_rate = リンククリック数 / リプライ数
- * - trial_start_rate = 1日トライアル開始数 / リンククリック数
+ * Xリプライ直販 KPI API（GET /api/x-reply-sales-kpi）
+ *
+ * このAPIを見れば以下がすべて分かる（日次・last24h・last7Days、合計および6言語別）:
+ * - リプライリンククリック数・率（replyLinkClicks, replyLinkClickRate = クリック/リプライ成功数）
+ * - DMリンククリック数・率（dmLinkClicks, dmLinkClickRate = クリック/DM送信数）
+ * - リンククリック合計・率（linkClicks, linkClickRate）
+ * - トライアル開始数・率（trialStarts, trialStartRate）
+ * - Whop成約数・成約率（conversions, conversionRate = 成約/クリック、有料コンバージョンのみ）
+ * - 送信試行・リプライ成功・DM送信・エラー等
  */
 const { kv } = require("../utils/kv");
 const { X_REPLY_SALES_LANGS } = require("../config/xReplySalesConfig");
@@ -19,8 +22,14 @@ const KV_KEY_SENT_DAILY = (dateStr) => `x_reply_sales:sent:${dateStr}`;
 const KV_KEY_SENT_DAILY_LANG = (dateStr, lang) => `x_reply_sales:sent:${dateStr}:${lang}`;
 const KV_KEY_CLICK_DAILY = (dateStr) => `x_reply_sales:click:${dateStr}`;
 const KV_KEY_CLICK_DAILY_LANG = (dateStr, lang) => `x_reply_sales:click:${dateStr}:${lang}`;
+const KV_KEY_CLICK_REPLY_DAILY = (dateStr) => `x_reply_sales:click_reply:${dateStr}`;
+const KV_KEY_CLICK_REPLY_DAILY_LANG = (dateStr, lang) => `x_reply_sales:click_reply:${dateStr}:${lang}`;
+const KV_KEY_CLICK_DM_DAILY = (dateStr) => `x_reply_sales:click_dm:${dateStr}`;
+const KV_KEY_CLICK_DM_DAILY_LANG = (dateStr, lang) => `x_reply_sales:click_dm:${dateStr}:${lang}`;
 const KV_KEY_TRIAL_START_DAILY = (dateStr) => `x_reply_sales:trial_start:${dateStr}`;
 const KV_KEY_TRIAL_START_DAILY_LANG = (dateStr, lang) => `x_reply_sales:trial_start:${dateStr}:${lang}`;
+const KV_KEY_CONVERSION_DAILY = (dateStr) => `x_reply_sales:conversion:${dateStr}`;
+const KV_KEY_CONVERSION_DAILY_LANG = (dateStr, lang) => `x_reply_sales:conversion:${dateStr}:${lang}`;
 const KV_KEY_ERROR_DAILY = (dateStr) => `x_reply_sales:error:${dateStr}`;
 const KV_KEY_ERROR_DAILY_LANG = (dateStr, lang) => `x_reply_sales:error:${dateStr}:${lang}`;
 const KV_KEY_ATTEMPTS_DAILY = (dateStr) => `x_reply_sales:attempts_daily:${dateStr}`;
@@ -75,7 +84,10 @@ async function getDailySnapshot(dateStr) {
     discoveredRaw,
     sentRaw,
     clickRaw,
+    clickReplyRaw,
+    clickDmRaw,
     trialRaw,
+    conversionRaw,
     errorRaw,
     attemptsRaw,
     dmSentRaw,
@@ -87,7 +99,10 @@ async function getDailySnapshot(dateStr) {
     kv.get(KV_KEY_DISCOVERED_DAILY(dateStr)),
     kv.get(KV_KEY_SENT_DAILY(dateStr)),
     kv.get(KV_KEY_CLICK_DAILY(dateStr)),
+    kv.get(KV_KEY_CLICK_REPLY_DAILY(dateStr)),
+    kv.get(KV_KEY_CLICK_DM_DAILY(dateStr)),
     kv.get(KV_KEY_TRIAL_START_DAILY(dateStr)),
+    kv.get(KV_KEY_CONVERSION_DAILY(dateStr)),
     kv.get(KV_KEY_ERROR_DAILY(dateStr)),
     kv.get(KV_KEY_ATTEMPTS_DAILY(dateStr)),
     kv.get(KV_KEY_DM_SENT_DAILY(dateStr)),
@@ -98,7 +113,10 @@ async function getDailySnapshot(dateStr) {
       kv.get(KV_KEY_DISCOVERED_DAILY_LANG(dateStr, lang)),
       kv.get(KV_KEY_SENT_DAILY_LANG(dateStr, lang)),
       kv.get(KV_KEY_CLICK_DAILY_LANG(dateStr, lang)),
+      kv.get(KV_KEY_CLICK_REPLY_DAILY_LANG(dateStr, lang)),
+      kv.get(KV_KEY_CLICK_DM_DAILY_LANG(dateStr, lang)),
       kv.get(KV_KEY_TRIAL_START_DAILY_LANG(dateStr, lang)),
+      kv.get(KV_KEY_CONVERSION_DAILY_LANG(dateStr, lang)),
       kv.get(KV_KEY_ERROR_DAILY_LANG(dateStr, lang)),
       kv.get(KV_KEY_ATTEMPTS_DAILY_LANG(dateStr, lang)),
       kv.get(KV_KEY_DM_SENT_DAILY_LANG(dateStr, lang)),
@@ -113,7 +131,10 @@ async function getDailySnapshot(dateStr) {
     const discovered = parseCount(rest[idx++]);
     const replyOk = parseCount(rest[idx++]);
     const linkClicks = parseCount(rest[idx++]);
+    const replyLinkClicks = parseCount(rest[idx++]);
+    const dmLinkClicks = parseCount(rest[idx++]);
     const trialStarts = parseCount(rest[idx++]);
+    const conversions = parseCount(rest[idx++]);
     const errors = parseCount(rest[idx++]);
     const attempts = parseCount(rest[idx++]);
     const dmSent = parseCount(rest[idx++]);
@@ -129,7 +150,13 @@ async function getDailySnapshot(dateStr) {
       errors,
       delivered,
       linkClicks,
+      replyLinkClicks,
+      dmLinkClicks,
+      replyLinkClickRate: toPercent(replyLinkClicks, replyOk),
+      dmLinkClickRate: toPercent(dmLinkClicks, dmSent),
       trialStarts,
+      conversions,
+      conversionRate: toPercent(conversions, linkClicks),
       queueLength,
       success_rate: toPercent(delivered, attempts),
       replyRate: toPercent(replyOk, discovered),
@@ -143,6 +170,9 @@ async function getDailySnapshot(dateStr) {
   const totalsDmSent = parseCount(dmSentRaw);
   const totalsDmNg = parseCount(dmNgRaw);
   const totalsDelivered = totalsReplyOk + totalsDmSent;
+  const totalsReplyClicks = parseCount(clickReplyRaw);
+  const totalsDmClicks = parseCount(clickDmRaw);
+  const totalsConversions = parseCount(conversionRaw);
   const totals = {
     discovered: parseCount(discoveredRaw),
     attempts: totalsAttempts,
@@ -152,7 +182,13 @@ async function getDailySnapshot(dateStr) {
     delivered: totalsDelivered,
     replied: totalsReplyOk,
     linkClicks: parseCount(clickRaw),
+    replyLinkClicks: totalsReplyClicks,
+    dmLinkClicks: totalsDmClicks,
+    replyLinkClickRate: toPercent(totalsReplyClicks, totalsReplyOk),
+    dmLinkClickRate: toPercent(totalsDmClicks, totalsDmSent),
     trialStarts: parseCount(trialRaw),
+    conversions: totalsConversions,
+    conversionRate: toPercent(totalsConversions, parseCount(clickRaw)),
     errors: parseCount(errorRaw)
   };
   const queueLengths = {};
@@ -175,7 +211,10 @@ async function getDailySnapshot(dateStr) {
       reply_rate: toPercent(totalsReplyOk, totals.discovered),
       profile_click_rate: null,
       link_click_rate: toPercent(totals.linkClicks, totalsDelivered),
-      trial_start_rate: toPercent(totals.trialStarts, totals.linkClicks)
+      reply_link_click_rate: totals.replyLinkClickRate,
+      dm_link_click_rate: totals.dmLinkClickRate,
+      trial_start_rate: toPercent(totals.trialStarts, totals.linkClicks),
+      conversion_rate: totals.conversionRate
     }
   };
 }
@@ -276,6 +315,8 @@ module.exports = async function handler(req, res) {
       queueLengths: snapshot.queueLengths
     },
     notes: {
+      summary:
+        "totals / byLang にリプライ・DM別クリック数・率、Whop成約数・率を含む。last24h=当日スナップ、last7Days は ?last7=1 で取得。",
       profile_click_rate:
         "X API単体ではプロフィール遷移数を安定取得できないためnull。Xネイティブ分析との突合が必要。",
       ...(totals.attempts === 0 && totals.delivered === 0
@@ -294,6 +335,7 @@ module.exports = async function handler(req, res) {
       series.push({
         date: ds,
         totals: {
+          ...day.totals,
           attempts: day.totals.attempts,
           delivered: day.totals.delivered,
           reply_ok: day.totals.reply_ok,
@@ -301,12 +343,18 @@ module.exports = async function handler(req, res) {
           dm_ng: day.totals.dm_ng,
           discovered: day.totals.discovered,
           linkClicks: day.totals.linkClicks,
-          trialStarts: day.totals.trialStarts
+          replyLinkClicks: day.totals.replyLinkClicks,
+          dmLinkClicks: day.totals.dmLinkClicks,
+          trialStarts: day.totals.trialStarts,
+          conversions: day.totals.conversions
         },
         byLang: day.byLang,
         successRate: day.kpi.send_success_rate,
         linkClickRate: day.kpi.link_click_rate,
-        trialStartRate: day.kpi.trial_start_rate
+        replyLinkClickRate: day.kpi.reply_link_click_rate,
+        dmLinkClickRate: day.kpi.dm_link_click_rate,
+        trialStartRate: day.kpi.trial_start_rate,
+        conversionRate: day.kpi.conversion_rate
       });
     }
     response.last7Days = series.reverse();

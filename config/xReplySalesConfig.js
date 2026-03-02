@@ -29,10 +29,10 @@ const X_REPLY_LOW_HIT_BALANCED_THRESHOLD = Math.max(
 );
 const X_REPLY_BALANCED_FALLBACK_ENABLED = process.env.X_REPLY_BALANCED_FALLBACK_ENABLED === "1";
 
-// 1言語あたりのキュー保存上限（10件）。15分ローテ×300ページ運用用
+// 1言語あたりのキュー保存上限（15件）。15分ローテ×300ページ運用用
 const X_REPLY_QUEUE_CAP_PER_LANG = Math.max(
   1,
-  Number(process.env.X_REPLY_QUEUE_CAP_PER_LANG || 10)
+  Number(process.env.X_REPLY_QUEUE_CAP_PER_LANG || 15)
 );
 // リプライ直販の在庫は積み増し。既存キューを残し、新規取得分をマージする。
 // （削除対象はアフィリエイター在庫のみ。本キューは引き継ぐ）

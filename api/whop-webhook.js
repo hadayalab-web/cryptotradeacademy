@@ -21,6 +21,11 @@ const X_REPLY_SALES_TRIAL_START_LANG_KEY = (dateStr, lang) =>
 const X_REPLY_SALES_TRIAL_EVENT_DEDUP_KEY = (eventId) =>
   `x_reply_sales:trial_start:event:${eventId}`;
 const X_REPLY_SALES_TRIAL_EVENTS_KEY = (dateStr) => `x_reply_sales:trial_start_events:${dateStr}`;
+const X_REPLY_SALES_CONVERSION_KEY = (dateStr) => `x_reply_sales:conversion:${dateStr}`;
+const X_REPLY_SALES_CONVERSION_LANG_KEY = (dateStr, lang) =>
+  `x_reply_sales:conversion:${dateStr}:${lang}`;
+const X_REPLY_SALES_CONVERSION_EVENT_DEDUP_KEY = (eventId) =>
+  `x_reply_sales:conversion:event:${eventId}`;
 const X_REPLY_SALES_TTL_SECONDS = 86400 * 90;
 const X_REPLY_SALES_SUPPORTED_LANGS = new Set(['en', 'ja', 'ko', 'es', 'pt', 'ar']);
 
@@ -212,6 +217,34 @@ async function recordXReplySalesTrialStart({
   });
   if (events.length > 1000) events.splice(0, events.length - 500);
   await kv.set(eventsKey, events, { ex: X_REPLY_SALES_TTL_SECONDS });
+}
+
+/**
+ * Xリプライ直販の有料成約（Whop成約）を日次・言語別に記録（KPI用）
+ */
+async function recordXReplySalesConversion({
+  dateString,
+  eventId,
+  lang,
+  amount,
+  currency,
+  checkoutId,
+  membershipId,
+  userEmail
+}) {
+  if (!kv || !dateString || !eventId) return;
+
+  const dedupKey = X_REPLY_SALES_CONVERSION_EVENT_DEDUP_KEY(String(eventId));
+  const already = await kv.get(dedupKey);
+  if (already) return;
+
+  await kv.set(dedupKey, '1', { ex: 86400 * 7 });
+  const safeLang = normalizeReplySalesLang(lang);
+  const totalKey = X_REPLY_SALES_CONVERSION_KEY(dateString);
+  const langKey = X_REPLY_SALES_CONVERSION_LANG_KEY(dateString, safeLang);
+  const [v1, v2] = await Promise.all([kv.incr(totalKey, 1), kv.incr(langKey, 1)]);
+  if (v1 != null) await kv.expire(totalKey, X_REPLY_SALES_TTL_SECONDS);
+  if (v2 != null) await kv.expire(langKey, X_REPLY_SALES_TTL_SECONDS);
 }
 
 async function recordAffiliateAttributedConversion({
@@ -407,7 +440,31 @@ async function handlePurchaseEvent(event) {
         console.warn('[Whop Webhook] x_reply_sales trial start record failed:', xrsError?.message);
       }
     }
-    
+
+    // Xリプライ直販 KPI: 有料成約（amount > 0 または regular）を日次・言語別に記録
+    if (String(utmSource || '').toLowerCase() === 'x_reply_sales' && (Number(conversionData.amount || 0) > 0 || conversionType === 'regular')) {
+      try {
+        const convEventId = conversionData.checkoutId || conversionData.membershipId || `xrs_conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        await recordXReplySalesConversion({
+          dateString,
+          eventId: convEventId,
+          lang: xReplySalesMeta?.lang || 'en',
+          amount: conversionData.amount,
+          currency: conversionData.currency,
+          checkoutId: conversionData.checkoutId,
+          membershipId: conversionData.membershipId,
+          userEmail: conversionData.userEmail
+        });
+        console.log('[Whop Webhook] ✅ x_reply_sales conversion (paid) recorded:', {
+          dateString,
+          lang: xReplySalesMeta?.lang || 'en',
+          conversionType
+        });
+      } catch (xrsConvError) {
+        console.warn('[Whop Webhook] x_reply_sales conversion record failed:', xrsConvError?.message);
+      }
+    }
+
     // FirstPromoter: 紹介売上がある場合のみ track/sale（ref_id または promo_code が取れたとき）
     const amountNum = Number(conversionData.amount);
     if (amountNum > 0 && !refId && !promoCode) {

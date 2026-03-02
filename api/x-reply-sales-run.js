@@ -196,13 +196,19 @@ function resolveRequestOrigin(req) {
   return "";
 }
 
-function buildTrackedOfferUrl(req, candidate, messageMeta) {
+/**
+ * @param {object} req - request
+ * @param {object} candidate - queue item
+ * @param {object} messageMeta - postType, pattern
+ * @param {"reply"|"dm"} channel - "reply" = リプライ内リンク, "dm" = DM内リンク（クリック計測で別集計）
+ */
+function buildTrackedOfferUrl(req, candidate, messageMeta, channel = "reply") {
   const lang = normalizeReplyLang(candidate?.lang);
   const tweetId = String(candidate?.tweet_id || "").trim();
   const baseOffer = pickOfferBaseUrl(lang, tweetId);
   const enrichedOffer = appendUrlParams(baseOffer, {
     utm_source: "x_reply_sales",
-    utm_medium: "reply",
+    utm_medium: channel,
     utm_campaign: "trap_defence_reply",
     utm_content: `tweet_${tweetId || "unknown"}`,
     xrs_lang: lang,
@@ -219,6 +225,7 @@ function buildTrackedOfferUrl(req, candidate, messageMeta) {
     const tracked = new URL(`${origin}${X_REPLY_SALES_CLICK_TRACK_PATH}`);
     tracked.searchParams.set("to", enrichedOffer);
     tracked.searchParams.set("lang", lang);
+    tracked.searchParams.set("channel", channel);
     tracked.searchParams.set("tweet_id", tweetId);
     tracked.searchParams.set("post_type", messageMeta?.postType || "");
     tracked.searchParams.set("pattern", messageMeta?.pattern || "");
@@ -949,7 +956,7 @@ module.exports = async function handler(req, res) {
       const previewOfferUrl = buildTrackedOfferUrl(req, item, {
         postType: item.post_type || detectReplyPostType(lang, item.text),
         pattern: "A"
-      });
+      }, "reply");
       const previewMessage = buildReplyMessage({
         lang,
         username: item.username,
@@ -960,7 +967,7 @@ module.exports = async function handler(req, res) {
       const offerUrl = buildTrackedOfferUrl(req, item, {
         postType: previewMessage.postType,
         pattern: previewMessage.pattern
-      });
+      }, "reply");
       const finalMessage = buildReplyMessage({
         lang,
         username: item.username,
@@ -999,7 +1006,7 @@ module.exports = async function handler(req, res) {
         selectedOfferUrl = buildTrackedOfferUrl(req, item, {
           postType: selectedMessage.postType,
           pattern: selectedMessage.pattern
-        });
+        }, "reply");
         textWithCoupon = textWithCoupon.replace(offerUrl, selectedOfferUrl);
       }
 
@@ -1067,8 +1074,14 @@ module.exports = async function handler(req, res) {
         }
         const immediateNg = shouldMarkImmediateNg(classified);
         if (immediateNg) {
+          // DM用トラッキングURL（channel=dm）に差し替え、クリックをリプライと別集計
+          const offerUrlForDm = buildTrackedOfferUrl(req, item, {
+            postType: selectedMessage.postType,
+            pattern: selectedMessage.pattern
+          }, "dm");
+          const textForDm = textWithCoupon.replace(selectedOfferUrl, offerUrlForDm);
           // XのアクセスパッケージではDM本文に@メンション不可。リプライ文から@を除去してDM送信
-          const dmText = textWithCoupon
+          const dmText = textForDm
             .replace(/\s*@\w+\s*/g, " ")
             .replace(/\s{2,}/g, " ")
             .trim();
