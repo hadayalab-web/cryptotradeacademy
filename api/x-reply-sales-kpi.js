@@ -13,6 +13,7 @@ const { kv } = require("../utils/kv");
 const { X_REPLY_SALES_LANGS } = require("../config/xReplySalesConfig");
 
 const KV_KEY_QUEUE = (lang) => `x_reply_sales:queue:${lang}`;
+const KV_KEY_FOLLOWUP_PENDING = "x_reply_sales:followup_pending";
 const KV_KEY_LIST_SUMMARY_LATEST = "x_reply_sales:list_summary:latest";
 const KV_KEY_SEND_SUMMARY_LATEST = "x_reply_sales:send_summary:latest";
 
@@ -92,6 +93,7 @@ async function getDailySnapshot(dateStr) {
     attemptsRaw,
     dmSentRaw,
     dmNgRaw,
+    followupPendingRaw,
     listSummaryRaw,
     sendSummaryRaw,
     ...rest
@@ -107,6 +109,7 @@ async function getDailySnapshot(dateStr) {
     kv.get(KV_KEY_ATTEMPTS_DAILY(dateStr)),
     kv.get(KV_KEY_DM_SENT_DAILY(dateStr)),
     kv.get(KV_KEY_DM_NG_DAILY(dateStr)),
+    kv.get(KV_KEY_FOLLOWUP_PENDING),
     kv.get(KV_KEY_LIST_SUMMARY_LATEST),
     kv.get(KV_KEY_SEND_SUMMARY_LATEST),
     ...X_REPLY_SALES_LANGS.flatMap((lang) => [
@@ -197,11 +200,15 @@ async function getDailySnapshot(dateStr) {
   }
   queueLengths.total = Object.values(queueLengths).reduce((acc, n) => acc + n, 0);
 
+  const followupPendingList = parseQueueValue(followupPendingRaw);
+  const followupPendingCount = followupPendingList.length;
+
   return {
     date: dateStr,
     totals,
     byLang,
     queueLengths,
+    followupPendingCount,
     latest: {
       listSummary: parseObject(listSummaryRaw),
       sendSummary: parseObject(sendSummaryRaw)
@@ -298,7 +305,8 @@ module.exports = async function handler(req, res) {
     delivered: totals.delivered,
     success_rate: kpi.send_success_rate,
     discovered: totals.discovered,
-    queueTotal: queueLengths.total
+    queueTotal: queueLengths.total,
+    followupPendingCount: snapshot.followupPendingCount
   });
 
   const response = {
@@ -306,6 +314,7 @@ module.exports = async function handler(req, res) {
     capturedAt: now.toISOString(),
     ...snapshot,
     last1h,
+    followupPendingCount: snapshot.followupPendingCount,
     last24h: {
       period: "24h",
       dateStr: date,

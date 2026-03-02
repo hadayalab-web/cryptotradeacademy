@@ -1,15 +1,13 @@
 /**
  * Xリプライ直販用 検索サービス
- * strict優先、必要時のみbalancedを使用
+ * strict / balanced / broad は呼び出し側で「キャップ未達まで」ループし、指定モードで1ページずつ取得
  */
 
 const { searchPostsRecent } = require("../x/client");
-const { getReplySearchQuery, normalizeReplyLang } = require("../../config/xReplySalesStrategy");
+const { getReplySearchQuery, getReplySearchQueryBroad, normalizeReplyLang } = require("../../config/xReplySalesStrategy");
 const {
   X_REPLY_MAX_RESULTS_PER_PAGE,
-  X_REPLY_SEARCH_WINDOW_MINUTES,
-  X_REPLY_LOW_HIT_BALANCED_THRESHOLD,
-  X_REPLY_BALANCED_FALLBACK_ENABLED
+  X_REPLY_SEARCH_WINDOW_MINUTES
 } = require("../../config/xReplySalesConfig");
 
 const REPLY_SALES_USER_FIELDS = "id,name,username,public_metrics,description,created_at";
@@ -44,54 +42,53 @@ async function runSearchQuery(query, options = {}) {
 }
 
 /**
- * 1ページ取得（strict→必要時balancedフォールバック）
+ * 指定モードで1ページ取得。キャップ未達まで最大 X_REPLY_LIST_PAGES ページ取得するのは呼び出し側のループで実施
+ * @param {string} lang
+ * @param {"strict"|"balanced"|"broad"} mode
+ * @param {{ nextToken?: string, maxResults?: number, windowMinutes?: number }} [options]
+ * @returns {Promise<{data: object[], includes:{users:object[]}, nextToken?: string, queryMode: string}>}
+ */
+async function fetchOnePageByMode(lang, mode, options = {}) {
+  const normalizedLang = normalizeReplyLang(lang);
+  let query = null;
+  if (mode === "broad") {
+    query = getReplySearchQueryBroad(normalizedLang);
+  } else {
+    query = getReplySearchQuery(normalizedLang, mode === "balanced" ? "balanced" : "strict");
+  }
+  if (!query) {
+    return { data: [], includes: { users: [] }, queryMode: mode };
+  }
+  try {
+    const result = await runSearchQuery(query, options);
+    return {
+      data: result.data,
+      includes: result.includes,
+      ...(result.nextToken ? { nextToken: result.nextToken } : {}),
+      queryMode: mode
+    };
+  } catch (error) {
+    const message = String(error?.message || "");
+    if (message.includes("402")) {
+      return { data: [], includes: { users: [] }, queryMode: mode, fatal402: true };
+    }
+    throw error;
+  }
+}
+
+/**
+ * strict で1ページ取得。balanced/broad は呼び出し側でキャップ未達時に fetchOnePageByMode で取得
  * @param {string} lang
  * @param {{ nextToken?: string, maxResults?: number, windowMinutes?: number }} [options]
- * @returns {Promise<{data: object[], includes:{users:object[]}, nextToken?: string, queryMode: "strict"|"balanced", strictHits:number, balancedHits:number}>}
+ * @returns {Promise<{data: object[], includes:{users:object[]}, nextToken?: string, queryMode: "strict", strictHits:number, balancedHits:number}>}
  */
 async function fetchOneReplySearchPage(lang, options = {}) {
   const normalizedLang = normalizeReplyLang(lang);
   const strictQuery = getReplySearchQuery(normalizedLang, "strict");
-  const balancedQuery = getReplySearchQuery(normalizedLang, "balanced");
 
   try {
     const strict = await runSearchQuery(strictQuery, options);
     const strictHits = strict.data.length;
-
-    if (
-      X_REPLY_BALANCED_FALLBACK_ENABLED &&
-      !options.nextToken &&
-      strictHits <= X_REPLY_LOW_HIT_BALANCED_THRESHOLD &&
-      !strict.nextToken &&
-      balancedQuery &&
-      balancedQuery !== strictQuery
-    ) {
-      const balanced = await runSearchQuery(balancedQuery, {
-        ...options,
-        nextToken: undefined
-      });
-      const balancedHits = balanced.data.length;
-      if (balancedHits > 0 || balanced.nextToken) {
-        const mergedTweets = new Map();
-        const mergedUsers = new Map();
-        for (const row of [...strict.data, ...balanced.data]) {
-          if (row?.id && !mergedTweets.has(row.id)) mergedTweets.set(row.id, row);
-        }
-        for (const user of [...(strict.includes?.users || []), ...(balanced.includes?.users || [])]) {
-          if (user?.id && !mergedUsers.has(user.id)) mergedUsers.set(user.id, user);
-        }
-        const nextToken = balanced.nextToken || strict.nextToken || null;
-        return {
-          data: Array.from(mergedTweets.values()),
-          includes: { users: Array.from(mergedUsers.values()) },
-          ...(nextToken ? { nextToken } : {}),
-          queryMode: "balanced",
-          strictHits,
-          balancedHits
-        };
-      }
-    }
-
     return {
       data: strict.data,
       includes: strict.includes,
@@ -118,6 +115,7 @@ async function fetchOneReplySearchPage(lang, options = {}) {
 
 module.exports = {
   fetchOneReplySearchPage,
+  fetchOnePageByMode,
   runSearchQuery,
   REPLY_SALES_USER_FIELDS
 };

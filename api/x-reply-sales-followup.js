@@ -42,6 +42,8 @@ module.exports = async function handler(req, res) {
   const now = new Date();
   const results = { unfollow: { done: 0, errors: 0 }, followup: { sent: 0, skipped: 0, errors: 0 } };
 
+  console.log("[X Reply Sales][followup] run start", { runAt: now.toISOString() });
+
   // 1) N日前（デフォルト3日）にフォローしたユーザーを解除（X API 50/15min 順守）
   if (X_REPLY_UNFOLLOW_DAYS > 0) {
     const dPast = new Date(now);
@@ -84,6 +86,12 @@ module.exports = async function handler(req, res) {
     } else {
       await kv.del(keyPast);
     }
+    console.log("[X Reply Sales][followup] unfollow", {
+      dateStrPast: dateStrPast,
+      candidates: toUnfollow.length,
+      done: results.unfollow.done,
+      errors: results.unfollow.errors
+    });
   }
 
   // 2) 48h経過した配信先にフォローアップDM
@@ -92,6 +100,12 @@ module.exports = async function handler(req, res) {
   const cutoff = Date.now() - FOLLOWUP_AFTER_MS;
   const due = list.filter((x) => new Date(x.deliveredAt).getTime() < cutoff);
   const stillPending = list.filter((x) => new Date(x.deliveredAt).getTime() >= cutoff);
+
+  console.log("[X Reply Sales][followup] pending", {
+    total: list.length,
+    due: due.length,
+    stillPending: stillPending.length
+  });
   const dueToRetry = [];
   let sent = 0;
   let processed = 0;
@@ -122,6 +136,12 @@ module.exports = async function handler(req, res) {
   }
   const remainingDue = dueToRetry.concat(due.slice(processed));
   await kv.set(KV_KEY_FOLLOWUP_PENDING, stillPending.concat(remainingDue), { ex: FOLLOWUP_PENDING_TTL_SECONDS });
+
+  console.log("[X Reply Sales][followup] done", {
+    sent: results.followup.sent,
+    skipped: results.followup.skipped,
+    errors: results.followup.errors
+  });
 
   return res.status(200).json({
     ok: true,

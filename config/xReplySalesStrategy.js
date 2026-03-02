@@ -47,6 +47,16 @@ const REPLY_SEARCH_QUERIES_BY_LANG = {
   }
 };
 
+/** 全6言語: strict+balanced が 0 件のとき使う広めクエリ（broad） */
+const REPLY_SEARCH_QUERIES_BROAD_BY_LANG = {
+  en: '(lost OR loss OR liquidated OR rekt OR trading) (btc OR crypto OR bitcoin) -giveaway -airdrop lang:en -is:retweet -is:reply',
+  ja: '(損 OR ロス OR 焼けた OR トレード OR 仮想通貨) (BTC OR ビットコイン OR crypto) -プレゼント -エアドロ lang:ja -is:retweet -is:reply',
+  ko: '(손실 OR 청산 OR 물림 OR 트레이딩 OR 코인) (비트코인 OR BTC OR crypto) -에어드랍 -무료 lang:ko -is:retweet -is:reply',
+  es: '(perdí OR pérdida OR liquidado OR trading) (btc OR crypto OR bitcoin) -sorteo -airdrop lang:es -is:retweet -is:reply',
+  pt: '(perdi OR perda OR liquidado OR trading) (btc OR cripto OR bitcoin) -sorteio -airdrop lang:pt -is:retweet -is:reply',
+  ar: "(خسر OR خسارة OR تصفية OR تداول) (بتكوين OR كريبتو OR btc) -توزيع -مجانا lang:ar -is:retweet -is:reply"
+};
+
 const REPLY_POST_TYPE_PRIORITY = {
   loss_report: 4,
   fomo_mental: 3,
@@ -439,6 +449,12 @@ function getReplySearchQuery(lang, mode = "strict") {
   return row[modeKey] || row.strict;
 }
 
+/** 全言語共通。strict+balanced が 0 件のときの広めクエリ。未対応言語は en にフォールバック */
+function getReplySearchQueryBroad(lang) {
+  const normalized = normalizeReplyLang(lang);
+  return REPLY_SEARCH_QUERIES_BROAD_BY_LANG[normalized] || REPLY_SEARCH_QUERIES_BROAD_BY_LANG.en || null;
+}
+
 function buildReplyMessage({
   lang,
   username,
@@ -524,6 +540,7 @@ function getDmClosing(lang) {
 module.exports = {
   SUPPORTED_REPLY_LANGS,
   REPLY_SEARCH_QUERIES_BY_LANG,
+  REPLY_SEARCH_QUERIES_BROAD_BY_LANG,
   REPLY_POST_TYPE_PRIORITY,
   REPLY_QUERY_HOOK_TEMPLATE_BY_LANG,
   REPLY_QUERY_HOOK_WITH_KEYWORD_BY_LANG,
@@ -531,6 +548,7 @@ module.exports = {
   normalizeReplyLang,
   detectReplyPostType,
   getReplySearchQuery,
+  getReplySearchQueryBroad,
   buildReplyMessage,
   getDmQueryHook,
   getDmClosing

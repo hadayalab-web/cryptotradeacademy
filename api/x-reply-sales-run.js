@@ -6,7 +6,7 @@
 require("../utils/suppressKnownWarnings");
 
 const { kv } = require("../utils/kv");
-const { fetchOneReplySearchPage } = require("../services/td/xReplySalesSearch");
+const { fetchOnePageByMode } = require("../services/td/xReplySalesSearch");
 const { sendSalesReply } = require("../services/x/replySalesClient");
 const { sendRecruitDm } = require("../services/x/dmClient");
 const { followUser } = require("../services/x/client");
@@ -22,6 +22,7 @@ const {
   X_REPLY_SALES_LANGS,
   X_REPLY_SALES_REGION_LANGS,
   X_REPLY_LIST_PAGES,
+  X_REPLY_SEARCH_REQUESTS_PER_RUN,
   X_REPLY_QUEUE_CAP_PER_LANG,
   X_REPLY_SEARCH_WINDOW_MINUTES,
   X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES,
@@ -511,43 +512,69 @@ function buildHotListAnalysis(candidates) {
 async function refreshQueueForLang(lang, now) {
   const normalizedLang = normalizeReplyLang(lang);
   const queueKey = KV_KEY_QUEUE(normalizedLang);
-  let nextToken = null;
-  let pagesFetched = 0;
   const allRows = [];
   const usersById = {};
-  let strictHitsTotal = 0;
-  let balancedHitsTotal = 0;
-  let balancedPageCount = 0;
+  const modes = ["strict", "balanced", "broad"];
+  const nextTokens = { strict: null, balanced: null, broad: null };
+  const exhausted = { strict: false, balanced: false, broad: false };
+  const hitsByMode = { strict: 0, balanced: 0, broad: 0 };
+  const searchRequestCap = X_REPLY_SEARCH_REQUESTS_PER_RUN;
+  const maxRounds = Math.min(X_REPLY_LIST_PAGES, searchRequestCap);
+  let pagesFetched = 0;
 
   const windowMinutes = X_REPLY_SALES_REGION_LANGS.includes(normalizedLang)
     ? X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES
     : X_REPLY_SEARCH_WINDOW_MINUTES;
-  while (pagesFetched < X_REPLY_LIST_PAGES) {
-    const page = await fetchOneReplySearchPage(normalizedLang, {
-      nextToken: nextToken || undefined,
-      windowMinutes
-    });
-    if (page?.fatal402) {
-      return {
-        ok: false,
-        lang: normalizedLang,
-        reason: "search_402",
-        pagesFetched
-      };
-    }
 
-    const rows = Array.isArray(page?.data) ? page.data : [];
-    allRows.push(...rows);
-    for (const user of page?.includes?.users || []) {
-      if (user?.id) usersById[user.id] = user;
+  for (let round = 0; round < maxRounds; round += 1) {
+    let mode = null;
+    for (let k = 0; k < modes.length; k += 1) {
+      const m = modes[(round + k) % modes.length];
+      if (!exhausted[m]) {
+        mode = m;
+        break;
+      }
     }
-    strictHitsTotal += Number(page?.strictHits || 0);
-    balancedHitsTotal += Number(page?.balancedHits || 0);
-    if (page?.queryMode === "balanced") balancedPageCount += 1;
-    pagesFetched += 1;
-    nextToken = page?.nextToken || null;
-    if (!nextToken) break;
+    if (mode === null) break;
+
+    try {
+      const page = await fetchOnePageByMode(normalizedLang, mode, {
+        nextToken: nextTokens[mode] || undefined,
+        windowMinutes
+      });
+      if (page?.fatal402) {
+        return {
+          ok: false,
+          lang: normalizedLang,
+          reason: "search_402",
+          pagesFetched
+        };
+      }
+      const rows = Array.isArray(page?.data) ? page.data : [];
+      allRows.push(...rows);
+      for (const user of page?.includes?.users || []) {
+        if (user?.id) usersById[user.id] = user;
+      }
+      hitsByMode[mode] += rows.length;
+      nextTokens[mode] = page?.nextToken || null;
+      if (rows.length === 0 && !page?.nextToken) exhausted[mode] = true;
+      pagesFetched += 1;
+    } catch (err) {
+      if (String(err?.message || "").includes("402")) {
+        return { ok: false, lang: normalizedLang, reason: "search_402", pagesFetched };
+      }
+      console.warn("[X Reply Sales][list] round-robin fetch failed (non-fatal)", {
+        lang: normalizedLang,
+        mode,
+        round,
+        error: err?.message
+      });
+      exhausted[mode] = true;
+    }
   }
+  const strictHitsTotal = hitsByMode.strict;
+  const balancedHitsTotal = hitsByMode.balanced;
+  const balancedPageCount = 0;
 
   const builtResult = buildCandidatesFromSearchRows(normalizedLang, allRows, usersById, {
     discoveredAt: now.toISOString(),
@@ -602,6 +629,7 @@ async function refreshQueueForLang(lang, now) {
     droppedByCap = merged.queue.length - cap;
     merged.queue = merged.queue.slice(0, cap);
   }
+
   await kv.set(queueKey, JSON.stringify(merged.queue), { ex: X_REPLY_EVENT_TTL_SECONDS });
 
   const dateStr = toDateString(now);
@@ -612,7 +640,7 @@ async function refreshQueueForLang(lang, now) {
   const summary = {
     ok: true,
     lang: normalizedLang,
-    listMode: "strict_with_balanced_fallback",
+    listMode: "round_robin_strict_balanced_broad",
     runAt: now.toISOString(),
     queueVersion: X_REPLY_QUEUE_VERSION,
     retainPreviousQueue: X_REPLY_RETAIN_PREVIOUS_QUEUE,
@@ -620,6 +648,7 @@ async function refreshQueueForLang(lang, now) {
     configuredPages: X_REPLY_LIST_PAGES,
     strictHitsTotal,
     balancedHitsTotal,
+    broadHitsTotal: hitsByMode.broad,
     balancedPageCount,
     fetchedPosts: allRows.length,
     fetchedUsers: Object.keys(usersById).length,
@@ -725,6 +754,8 @@ module.exports = async function handler(req, res) {
       message: "CRON_SECRET is required"
     });
   }
+
+  console.log("[X Reply Sales][run] start", { mode: forceMode, dryRun: !!dryRun });
 
   if (forceMode === "list") {
     const now = new Date();
@@ -873,6 +904,7 @@ module.exports = async function handler(req, res) {
   }
   if (lockSupported && !lockAcquired) {
     const existing = await kv.get(slotLockKey);
+    console.log("[X Reply Sales][send] slot locked, skip", { slotKey });
     return res.status(200).json({
       ok: true,
       reason: "slot_locked",
@@ -899,6 +931,11 @@ module.exports = async function handler(req, res) {
     const attemptWindowKey = KV_KEY_ATTEMPTS_WINDOW(dateStr, slot15);
     let attemptsThisWindow = parseInt(await kv.get(attemptWindowKey), 10) || 0;
     if (attemptsThisWindow >= X_REPLY_ATTEMPT_CAP_PER_15MIN) {
+      console.log("[X Reply Sales][send] attempt cap, skip", {
+        slotKey,
+        attemptsThisWindow,
+        attemptCapPer15min: X_REPLY_ATTEMPT_CAP_PER_15MIN
+      });
       return res.status(200).json({
         ok: true,
         mode: "send",
@@ -937,6 +974,12 @@ module.exports = async function handler(req, res) {
       }
     }
     const queueLengthsStart = getQueueLengthsByLang(queuesByLang);
+    const queueTotalStart = Object.values(queueLengthsStart).reduce((a, n) => a + n, 0);
+    console.log("[X Reply Sales][send] queue loaded", {
+      slotKey,
+      queueLengthsStart,
+      queueTotalStart
+    });
 
     let attemptsThisRun = 0;
     let sentThisRun = 0;
@@ -1337,6 +1380,15 @@ module.exports = async function handler(req, res) {
       sentRows
     };
     await kv.set(KV_KEY_SEND_SUMMARY_LATEST, summary, { ex: X_REPLY_EVENT_TTL_SECONDS });
+
+    console.log("[X Reply Sales][send] done", {
+      slotKey,
+      attemptsThisRun,
+      sentThisRun,
+      errorsThisRun,
+      stopReason: summary.stopReason,
+      queueLengthsEnd: summary.queueLengthsEnd
+    });
 
     return res.status(200).json({
       ok: true,

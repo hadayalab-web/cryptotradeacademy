@@ -5,8 +5,13 @@
 const X_REPLY_SALES_LANGS = ["en", "ar", "es", "pt", "ja", "ko"];
 const X_REPLY_SALES_REGION_LANGS = ["ar", "es", "pt", "ja", "ko"];
 
-// リスト取得: 1言語1回あたりのページ数（1リクエスト=1ページ）。X API Per App 450/15min に合わせてデフォルト450
+// リスト取得: 1言語1回あたりのページ数（1リクエスト=1ページ）。X API は 15分あたり perUser 300 / perApp 450 のため、1ラン内の検索回数はこれ以下にすること
 const X_REPLY_LIST_PAGES = Math.max(1, Number(process.env.X_REPLY_LIST_PAGES || 450) || 450);
+// 1ラン（1言語1回のリスト取得）で使ってよい検索リクエスト数の上限。当プランは 450/15min のためデフォルト450
+const X_REPLY_SEARCH_REQUESTS_PER_RUN = Math.max(
+  1,
+  Math.min(450, Number(process.env.X_REPLY_SEARCH_REQUESTS_PER_RUN || 450))
+);
 const X_REPLY_MAX_RESULTS_PER_PAGE = Math.min(
   100,
   Math.max(10, Number(process.env.X_REPLY_MAX_RESULTS_PER_PAGE || 100))
@@ -22,12 +27,12 @@ const X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES = Math.max(
   Number(process.env.X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES || 90)
 );
 
-// strict優先、低ヒット時のみbalancedへ
+// strict優先、低ヒット時のみbalancedへ（AR/ES/PT で 0 件になりがちなためデフォルトオン）
 const X_REPLY_LOW_HIT_BALANCED_THRESHOLD = Math.max(
   0,
   Number(process.env.X_REPLY_LOW_HIT_BALANCED_THRESHOLD || 0)
 );
-const X_REPLY_BALANCED_FALLBACK_ENABLED = process.env.X_REPLY_BALANCED_FALLBACK_ENABLED === "1";
+const X_REPLY_BALANCED_FALLBACK_ENABLED = process.env.X_REPLY_BALANCED_FALLBACK_ENABLED !== "0";
 
 // 1言語あたりのキュー保存上限（15件）。15分ローテ×300ページ運用用
 const X_REPLY_QUEUE_CAP_PER_LANG = Math.max(
@@ -94,6 +99,7 @@ module.exports = {
   X_REPLY_SALES_LANGS,
   X_REPLY_SALES_REGION_LANGS,
   X_REPLY_LIST_PAGES,
+  X_REPLY_SEARCH_REQUESTS_PER_RUN,
   X_REPLY_MAX_RESULTS_PER_PAGE,
   X_REPLY_SEARCH_WINDOW_MINUTES,
   X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES,
