@@ -10,6 +10,12 @@ function classifyReplySendError(errorMessage) {
   const status = statusMatch ? Number(statusMatch[1]) : null;
 
   if (status === 403) {
+    if (
+      message.includes("reply to this conversation is not allowed") ||
+      message.includes("have not been mentioned or otherwise engaged")
+    ) {
+      return { status, type: "reply_not_allowed_by_conversation", retryable: false };
+    }
     if (message.includes("deleted or not visible")) {
       return { status, type: "target_not_visible", retryable: false };
     }

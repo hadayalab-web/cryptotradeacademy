@@ -18,6 +18,8 @@ const {
   X_REPLY_SALES_LANGS,
   X_REPLY_SALES_REGION_LANGS,
   X_REPLY_LIST_PAGES,
+  X_REPLY_RETAIN_PREVIOUS_QUEUE,
+  X_REPLY_QUEUE_VERSION,
   X_REPLY_ATTEMPT_CAP_PER_15MIN,
   X_REPLY_MAX_ATTEMPTS_PER_RUN,
   X_REPLY_SEND_DELAY_MS,
@@ -33,6 +35,7 @@ const { getMinimalVersionCheckoutUrl, getWhopProductUrl } = require("../services
 const KV_KEY_QUEUE = (lang) => `x_reply_sales:queue:${lang}`;
 const KV_KEY_REPLIED_TWEET = (tweetId) => `x_reply_sales:replied:tweet:${tweetId}`;
 const KV_KEY_HANDLED_TWEET = (tweetId) => `x_reply_sales:handled:tweet:${tweetId}`;
+const KV_KEY_NG_TWEET = (tweetId) => `x_reply_sales:ng:tweet:${tweetId}`;
 const KV_KEY_ATTEMPTS_WINDOW = (dateStr, slot15) => `x_reply_sales:attempts:${dateStr}:${slot15}`;
 const KV_KEY_SLOT_LOCK = (dateStr, slot15) => `x_reply_sales:lock:send:${dateStr}:${slot15}`;
 const KV_KEY_LIST_SUMMARY_LATEST = "x_reply_sales:list_summary:latest";
@@ -76,6 +79,7 @@ function toSlot15(now = new Date()) {
 
 function normalizeCandidate(candidate, lang) {
   const normalizedLang = normalizeReplyLang(lang || candidate?.lang);
+  const queueVersion = Number(candidate?.queue_version ?? candidate?.queueVersion);
   return {
     lang: normalizedLang,
     tweet_id: String(candidate?.tweet_id || candidate?.tweetId || "").trim(),
@@ -83,6 +87,8 @@ function normalizeCandidate(candidate, lang) {
     username: String(candidate?.username || "").trim().replace(/^@/, ""),
     text: String(candidate?.text || "").trim(),
     created_at: candidate?.created_at || candidate?.createdAt || null,
+    discovered_at: candidate?.discovered_at || candidate?.discoveredAt || null,
+    queue_version: Number.isFinite(queueVersion) && queueVersion > 0 ? queueVersion : 0,
     post_type: String(candidate?.post_type || candidate?.postType || "").trim() || null,
     priority:
       Number.isFinite(Number(candidate?.priority)) && Number(candidate.priority) > 0
@@ -102,6 +108,17 @@ function getQueueLengthsByLang(queuesByLang) {
     out[lang] = Array.isArray(queuesByLang[lang]) ? queuesByLang[lang].length : 0;
   }
   return out;
+}
+
+const IMMEDIATE_NG_ERROR_TYPES = new Set([
+  "reply_not_allowed_by_conversation",
+  "target_not_visible",
+  "target_not_found"
+]);
+
+function shouldMarkImmediateNg(classified) {
+  if (!classified || classified.retryable) return false;
+  return IMMEDIATE_NG_ERROR_TYPES.has(String(classified.type || ""));
 }
 
 function sleepMs(ms) {
@@ -195,11 +212,12 @@ function buildTrackedOfferUrl(req, candidate, messageMeta) {
 
 async function isTweetHandled(tweetId) {
   if (!kv || !tweetId) return false;
-  const [replied, handled] = await Promise.all([
+  const [replied, handled, ng] = await Promise.all([
     kv.get(KV_KEY_REPLIED_TWEET(tweetId)),
-    kv.get(KV_KEY_HANDLED_TWEET(tweetId))
+    kv.get(KV_KEY_HANDLED_TWEET(tweetId)),
+    kv.get(KV_KEY_NG_TWEET(tweetId))
   ]);
-  return Boolean(replied || handled);
+  return Boolean(replied || handled || ng);
 }
 
 async function markTweetHandled(tweetId, payload = {}, asReplied = false) {
@@ -207,6 +225,19 @@ async function markTweetHandled(tweetId, payload = {}, asReplied = false) {
   const key = asReplied ? KV_KEY_REPLIED_TWEET(tweetId) : KV_KEY_HANDLED_TWEET(tweetId);
   await kv.set(
     key,
+    {
+      ...payload,
+      tweetId: String(tweetId),
+      ts: new Date().toISOString()
+    },
+    { ex: REPLIED_TWEET_TTL_SECONDS }
+  );
+}
+
+async function markTweetNg(tweetId, payload = {}) {
+  if (!kv || !tweetId) return;
+  await kv.set(
+    KV_KEY_NG_TWEET(tweetId),
     {
       ...payload,
       tweetId: String(tweetId),
@@ -297,15 +328,23 @@ async function incrementDailyCounter(dateStr, lang, type, amount = 1) {
   if (v2 != null) await kv.expire(langKey, X_REPLY_EVENT_TTL_SECONDS);
 }
 
-function buildCandidatesFromSearchRows(lang, rows, usersById) {
+function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
   const normalizedLang = normalizeReplyLang(lang);
+  const discoveredAt = String(options.discoveredAt || new Date().toISOString());
+  const queueVersion = Math.max(1, Number(options.queueVersion || X_REPLY_QUEUE_VERSION || 1));
   const candidates = [];
+  let skippedReplyRestricted = 0;
   const sourceRows = Array.isArray(rows) ? rows : [];
   for (const row of sourceRows) {
     const tweetId = String(row?.id || "").trim();
     const authorId = String(row?.author_id || "").trim();
     const text = String(row?.text || "").trim();
     if (!tweetId || !authorId || !text) continue;
+    const replySettings = String(row?.reply_settings || "").trim().toLowerCase();
+    if (replySettings && replySettings !== "everyone") {
+      skippedReplyRestricted += 1;
+      continue;
+    }
     const user = usersById?.[authorId];
     if (!user?.username) continue;
     const postType = detectReplyPostType(normalizedLang, text);
@@ -317,6 +356,8 @@ function buildCandidatesFromSearchRows(lang, rows, usersById) {
       username: String(user.username).replace(/^@/, ""),
       text,
       created_at: row?.created_at || null,
+      discovered_at: discoveredAt,
+      queue_version: queueVersion,
       post_type: postType,
       priority
     });
@@ -329,7 +370,10 @@ function buildCandidatesFromSearchRows(lang, rows, usersById) {
     const bTs = new Date(b.created_at || 0).getTime();
     return bTs - aTs;
   });
-  return candidates;
+  return {
+    candidates,
+    skippedReplyRestricted
+  };
 }
 
 async function refreshQueueForLang(lang, now) {
@@ -369,7 +413,12 @@ async function refreshQueueForLang(lang, now) {
     if (!nextToken) break;
   }
 
-  const built = buildCandidatesFromSearchRows(normalizedLang, allRows, usersById);
+  const builtResult = buildCandidatesFromSearchRows(normalizedLang, allRows, usersById, {
+    discoveredAt: now.toISOString(),
+    queueVersion: X_REPLY_QUEUE_VERSION
+  });
+  const built = builtResult.candidates || [];
+  const skippedReplyRestricted = Number(builtResult.skippedReplyRestricted || 0);
   const handledChecks = await Promise.all(
     built.map((candidate) => isTweetHandled(candidate.tweet_id))
   );
@@ -386,17 +435,28 @@ async function refreshQueueForLang(lang, now) {
   const prevQueueRaw = parseQueueValue(await kv.get(queueKey));
   const prevFiltered = [];
   let removedHandledFromPrev = 0;
-  for (const item of prevQueueRaw) {
-    const normalized = normalizeCandidate(item, normalizedLang);
-    if (!normalized.tweet_id || !normalized.username || !normalized.author_id) continue;
-    if (await isTweetHandled(normalized.tweet_id)) {
-      removedHandledFromPrev += 1;
-      continue;
+  let removedLegacyVersionFromPrev = 0;
+  let droppedFromPrevByPolicy = 0;
+  if (X_REPLY_RETAIN_PREVIOUS_QUEUE) {
+    for (const item of prevQueueRaw) {
+      const normalized = normalizeCandidate(item, normalizedLang);
+      if (!normalized.tweet_id || !normalized.username || !normalized.author_id) continue;
+      const queueVersion = Number(normalized.queue_version || 0);
+      if (queueVersion < X_REPLY_QUEUE_VERSION) {
+        removedLegacyVersionFromPrev += 1;
+        continue;
+      }
+      if (await isTweetHandled(normalized.tweet_id)) {
+        removedHandledFromPrev += 1;
+        continue;
+      }
+      prevFiltered.push(normalized);
     }
-    prevFiltered.push(normalized);
+  } else {
+    droppedFromPrevByPolicy = prevQueueRaw.length;
   }
 
-  const merged = mergeQueueEntries(freshQueue, prevFiltered);
+  const merged = mergeQueueEntries(freshQueue, X_REPLY_RETAIN_PREVIOUS_QUEUE ? prevFiltered : []);
   await kv.set(queueKey, JSON.stringify(merged.queue), { ex: X_REPLY_EVENT_TTL_SECONDS });
 
   const dateStr = toDateString(now);
@@ -409,6 +469,8 @@ async function refreshQueueForLang(lang, now) {
     lang: normalizedLang,
     listMode: "strict_with_balanced_fallback",
     runAt: now.toISOString(),
+    queueVersion: X_REPLY_QUEUE_VERSION,
+    retainPreviousQueue: X_REPLY_RETAIN_PREVIOUS_QUEUE,
     pagesFetched,
     configuredPages: X_REPLY_LIST_PAGES,
     strictHitsTotal,
@@ -416,10 +478,15 @@ async function refreshQueueForLang(lang, now) {
     balancedPageCount,
     fetchedPosts: allRows.length,
     fetchedUsers: Object.keys(usersById).length,
+    skippedReplyRestricted,
     discoveredCandidates: built.length,
+    freshDiscovered: built.length,
     skippedHandled,
     enqueuedFresh: freshQueue.length,
+    freshEnqueued: freshQueue.length,
     removedHandledFromPrev,
+    removedLegacyVersionFromPrev,
+    droppedFromPrevByPolicy,
     addedFromFresh: merged.addedFromFresh,
     retainedFromPrev: merged.retainedFromExisting,
     droppedDuplicates: merged.droppedDuplicates,
@@ -432,6 +499,16 @@ async function refreshQueueForLang(lang, now) {
       postType: x.post_type
     }))
   };
+
+  console.log("[X Reply Sales][list][lang]", {
+    lang: normalizedLang,
+    freshDiscovered: summary.freshDiscovered,
+    freshEnqueued: summary.freshEnqueued,
+    skippedReplyRestricted: summary.skippedReplyRestricted,
+    retainedFromPrev: summary.retainedFromPrev,
+    droppedFromPrevByPolicy: summary.droppedFromPrevByPolicy,
+    nextQueueLength: summary.nextQueueLength
+  });
 
   return summary;
 }
@@ -549,7 +626,18 @@ module.exports = async function handler(req, res) {
         (acc, row) => acc + (Number(row?.discoveredCandidates) || 0),
         0
       ),
+      freshDiscoveredTotal: perLang.reduce((acc, row) => acc + (Number(row?.freshDiscovered) || 0), 0),
       enqueuedFreshTotal: perLang.reduce((acc, row) => acc + (Number(row?.enqueuedFresh) || 0), 0),
+      freshEnqueuedTotal: perLang.reduce((acc, row) => acc + (Number(row?.freshEnqueued) || 0), 0),
+      skippedReplyRestrictedTotal: perLang.reduce(
+        (acc, row) => acc + (Number(row?.skippedReplyRestricted) || 0),
+        0
+      ),
+      retainedFromPrevTotal: perLang.reduce((acc, row) => acc + (Number(row?.retainedFromPrev) || 0), 0),
+      droppedFromPrevByPolicyTotal: perLang.reduce(
+        (acc, row) => acc + (Number(row?.droppedFromPrevByPolicy) || 0),
+        0
+      ),
       nextQueueTotal: perLang.reduce((acc, row) => acc + (Number(row?.nextQueueLength) || 0), 0)
     };
     const snapshot = {
@@ -559,6 +647,17 @@ module.exports = async function handler(req, res) {
       perLang,
       gross
     };
+    const newCount = Number(gross.freshEnqueuedTotal ?? gross.freshDiscoveredTotal ?? 0);
+    console.log(`[X Reply Sales][list] 新規取得 ${newCount} 件 (enqueuedFresh=${gross.freshEnqueuedTotal}, nextQueueTotal=${gross.nextQueueTotal})`, {
+      runAt: snapshot.runAt,
+      scope: snapshot.scope,
+      targets: gross.targets,
+      freshDiscoveredTotal: gross.freshDiscoveredTotal,
+      freshEnqueuedTotal: gross.freshEnqueuedTotal,
+      skippedReplyRestrictedTotal: gross.skippedReplyRestrictedTotal,
+      droppedFromPrevByPolicyTotal: gross.droppedFromPrevByPolicyTotal,
+      nextQueueTotal: gross.nextQueueTotal
+    });
     await kv.set(KV_KEY_LIST_SUMMARY_LATEST, snapshot, { ex: X_REPLY_EVENT_TTL_SECONDS });
     await appendEvent(KV_KEY_LIST_EVENTS, snapshot);
 
@@ -636,9 +735,31 @@ module.exports = async function handler(req, res) {
     }
 
     const queuesByLang = {};
+    const droppedLegacyQueueByLang = {};
+    let droppedLegacyQueueTotal = 0;
     for (const lang of X_REPLY_SALES_LANGS) {
       const rawQueue = await kv.get(KV_KEY_QUEUE(lang));
-      queuesByLang[lang] = parseQueueValue(rawQueue).map((item) => normalizeCandidate(item, lang));
+      const normalizedQueue = parseQueueValue(rawQueue).map((item) => normalizeCandidate(item, lang));
+      let droppedLegacy = 0;
+      const filteredQueue = [];
+      for (const item of normalizedQueue) {
+        const queueVersion = Number(item?.queue_version || 0);
+        if (queueVersion < X_REPLY_QUEUE_VERSION) {
+          droppedLegacy += 1;
+          continue;
+        }
+        filteredQueue.push(item);
+      }
+      queuesByLang[lang] = filteredQueue;
+      droppedLegacyQueueByLang[lang] = droppedLegacy;
+      droppedLegacyQueueTotal += droppedLegacy;
+      if (droppedLegacy > 0) {
+        console.warn("[X Reply Sales][send] dropped legacy queue items", {
+          lang,
+          droppedLegacy,
+          requiredQueueVersion: X_REPLY_QUEUE_VERSION
+        });
+      }
     }
     const queueLengthsStart = getQueueLengthsByLang(queuesByLang);
 
@@ -807,16 +928,33 @@ module.exports = async function handler(req, res) {
           stopReason = `retryable_error:${classified.type}`;
           break;
         }
-        await markTweetHandled(
-          item.tweet_id,
-          {
-            status: "failed",
+        const immediateNg = shouldMarkImmediateNg(classified);
+        if (immediateNg) {
+          await markTweetNg(item.tweet_id, {
+            status: "ng",
             reason: classified.type || "error",
             lang,
             handle: item.username
+          });
+        }
+        await markTweetHandled(
+          item.tweet_id,
+          {
+            status: immediateNg ? "ng" : "failed",
+            reason: classified.type || "error",
+            lang,
+            handle: item.username,
+            immediateNg
           },
           false
         );
+        if (immediateNg) {
+          console.warn("[X Reply Sales][send] marked tweet as NG", {
+            lang,
+            tweetId: item.tweet_id,
+            reason: classified.type
+          });
+        }
         continue;
       }
 
@@ -881,6 +1019,9 @@ module.exports = async function handler(req, res) {
       waitedDelayMs,
       maxAttemptsPerRun: X_REPLY_MAX_ATTEMPTS_PER_RUN,
       attemptCapPer15min: X_REPLY_ATTEMPT_CAP_PER_15MIN,
+      queueVersion: X_REPLY_QUEUE_VERSION,
+      droppedLegacyQueueByLang,
+      droppedLegacyQueueTotal,
       queueLengthsStart,
       queueLengthsEnd,
       stopReason: stopReason || null,

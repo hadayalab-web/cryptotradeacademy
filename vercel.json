@@ -47,6 +47,9 @@
     },
     "api/x-reply-sales-kpi.js": {
       "maxDuration": 60
+    },
+    "api/x-reply-sales-list-history.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [

@@ -210,10 +210,20 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
         const isTargetUnavailable =
           response.status === 403 &&
           (detailStr.includes("deleted or not visible") || detailStr.includes("deleted") && detailStr.includes("not visible"));
+        const isReplyConversationNotAllowed =
+          response.status === 403 &&
+          (detailStr.includes("Reply to this conversation is not allowed") ||
+            detailStr.includes("have not been mentioned or otherwise engaged"));
         const isDmNotAllowed =
           response.status === 403 && detailStr.includes("permission to DM");
         if (isTargetUnavailable) {
           console.warn(`[X API] Reply skipped (403): target tweet deleted or not visible.`, {
+            endpoint,
+            method,
+            detail: errorData.detail
+          });
+        } else if (isReplyConversationNotAllowed) {
+          console.warn(`[X API] Reply blocked by conversation setting (403).`, {
             endpoint,
             method,
             detail: errorData.detail
@@ -710,7 +720,7 @@ async function searchPostsRecent(query, options = {}) {
   const params = new URLSearchParams({
     query: query.trim(),
     max_results: String(maxResults),
-    "tweet.fields": "id,text,author_id,created_at,public_metrics,lang",
+    "tweet.fields": "id,text,author_id,created_at,public_metrics,lang,reply_settings",
     expansions: "author_id",
     "user.fields": userFields,
     sort_order: options.sortOrder || "relevancy"
@@ -805,7 +815,7 @@ async function searchTweets(query, options = {}) {
   const params = new URLSearchParams({
     query: query.trim(),
     max_results: String(Math.min(Math.max(10, maxResults), 100)),
-    "tweet.fields": "id,text,author_id,created_at,public_metrics,lang",
+    "tweet.fields": "id,text,author_id,created_at,public_metrics,lang,reply_settings",
     "user.fields": "id,name,username,public_metrics",
     expansions: "author_id",
     sort_order: sortOrder
