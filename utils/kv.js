@@ -166,9 +166,14 @@ const kv = {
     try {
       // CRITICAL: @vercel/kvのsetメソッドはPromise<void>を返す
       await instance.set(key, value, options);
-      console.log(
-        `[KV] ✅ Successfully set '${key}' (value type: ${Array.isArray(value) ? `Array[${value.length}]` : typeof value})`
-      );
+      // 定常書き込みキーはログ省略（ノイズ削減）。失敗時は catch でログ
+      const quietKeyPattern =
+        /^x_reply_sales:(queue:|followup_pending|send_summary:latest|send_events|list_events|list_summary)/;
+      if (!quietKeyPattern.test(String(key))) {
+        console.log(
+          `[KV] ✅ Successfully set '${key}' (value type: ${Array.isArray(value) ? `Array[${value.length}]` : typeof value})`
+        );
+      }
       return true;
     } catch (error) {
       console.error(`[KV] ❌ Error setting '${key}':`, error.message);

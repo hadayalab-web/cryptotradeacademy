@@ -36,9 +36,6 @@
     "api/x-reply-sales-list-rotate.js": {
       "maxDuration": 300
     },
-    "api/x-reply-sales-send.js": {
-      "maxDuration": 300
-    },
     "api/x-reply-sales-click.js": {
       "maxDuration": 30
     },
@@ -84,7 +81,7 @@
       "schedule": "0,15,30,45 * * * *"
     },
     {
-      "path": "/api/x-reply-sales-send",
+      "path": "/api/x-reply-sales-run?mode=send",
       "schedule": "5,20,35,50 * * * *"
     },
     {
