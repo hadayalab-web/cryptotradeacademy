@@ -50,6 +50,10 @@
     },
     "api/x-reply-sales-followup.js": {
       "maxDuration": 60
+    },
+    "api/x-post-minimal.js": {
+      "maxDuration": 600,
+      "includeFiles": "{config/**,services/x/**,services/telegram/messages/**}"
     }
   },
   "rewrites": [
@@ -94,6 +98,10 @@
     {
       "path": "/api/kiba-5min",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/x-post-minimal",
+      "schedule": "0 13 * * *"
     }
   ]
 }
