@@ -4,9 +4,40 @@
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_SOSOVALUE_MODEL =
   process.env.GEMINI_SOSOVALUE_MODEL || process.env.GEMINI_MODEL || "gemini-3.1-pro-preview";
+const GEMINI_SOSOVALUE_FALLBACK_MODEL = "gemini-3-flash-preview";
+
+/**
+ * 指定モデルで1回だけ generateContent を叩く。503/429 で Error を投げる（フォールバック用）
+ * @param {string} model - モデル名
+ * @param {string} prompt - プロンプト
+ * @returns {Promise<string|null>}
+ */
+async function callGeminiGenerate(model, prompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.6, maxOutputTokens: 1200 }
+    })
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gemini API ${res.status}: ${err}`);
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+}
+
+function isRetryableStatus(e) {
+  const msg = e?.message || "";
+  return msg.includes("503") || msg.includes("429");
+}
 
 /**
  * 次のアクションを指示する記事を1本生成（Gemini役割: 記事で「何をすべきか」を明示）
+ * 503/429 時は gemini-3-flash-preview にフォールバック
  * @param {Object} options - { cqData, pastSummary?, lang? }
  * @returns {Promise<string|null>}
  */
@@ -57,29 +88,28 @@ Requirements:
 - Data-driven. No URL or hashtags. No trading advice—structural analysis only.
 ${langNote}`;
 
+  // 1) メインモデルで試行
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_SOSOVALUE_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.6,
-          maxOutputTokens: 1200
-        }
-      })
-    });
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Gemini API ${res.status}: ${err}`);
-    }
-    const data = await res.json();
-    const text =
-      data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+    const text = await callGeminiGenerate(GEMINI_SOSOVALUE_MODEL, prompt);
     return text;
   } catch (e) {
-    console.warn("[Gemini SoSoValue] generate failed:", e.message);
+    if (!isRetryableStatus(e)) {
+      console.warn("[Gemini SoSoValue] generate failed:", e.message?.slice(0, 120) || e.message);
+      return null;
+    }
+    console.warn("[Gemini SoSoValue] primary model unavailable, fallback to", GEMINI_SOSOVALUE_FALLBACK_MODEL);
+  }
+
+  // 2) 503/429 時のみ gemini-3-flash-preview でフォールバック
+  try {
+    const text = await callGeminiGenerate(GEMINI_SOSOVALUE_FALLBACK_MODEL, prompt);
+    return text;
+  } catch (e) {
+    if (isRetryableStatus(e)) {
+      console.warn("[Gemini SoSoValue] generate skipped: fallback also unavailable (high demand/rate limit)");
+    } else {
+      console.warn("[Gemini SoSoValue] generate failed:", e.message?.slice(0, 120) || e.message);
+    }
     return null;
   }
 }
