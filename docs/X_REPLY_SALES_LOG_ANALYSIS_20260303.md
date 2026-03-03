@@ -117,3 +117,58 @@ mentioned or otherwise engaged by the author of the post you are replying to.
 
 - **アウトプットフローは設計どおり動いており、en の 15 件はすべて 1 件ずつ処理され、1 件が DM 成功・14 件が NG として記録されている。**
 - **リプライが 0 なのは X の「mentioned or otherwise engaged」制限、DM が 1 件のみなのは相手の DM 受信設定が主因であり、コードの誤りではなくプラットフォーム・相手設定に起因する結果である。**
+
+---
+
+## 10. リスト取得ラン（list）ログ分析 — 2026-03-03 02:15 pt
+
+**このログの分析を忘れるな。**
+
+### 10.1 実行概要
+
+| 項目 | 値 |
+|------|-----|
+| 開始 | 2026-03-03 02:15:26.663 |
+| モード | **list** |
+| dryRun | false |
+| 対象言語 | **pt**（scope: rotate, targets: ['pt']） |
+| **windowMinutes** | **240** ← 当時はリージョン用窓（pt は REGION_LANGS）。**のちに全言語 360 分に統一済み。** |
+| maxRounds | 450 |
+
+### 10.2 round-robin 結果
+
+| 項目 | 値 |
+|------|-----|
+| rounds | 6 |
+| rawRows | **20**（strict: 0, balanced: 6, broad: 14） |
+| **author_id 重複排除** | **before: 20 → after: 9**（同一ユーザー 11 件を排除） |
+| reply_settings 除外 | 0（内訳: everyone: 9） |
+| freshDiscovered / freshEnqueued | 9 |
+| nextQueueLength | 9 |
+
+→ **raw 20 件のうち 11 件が同一 author の重複。author_id で 1 ユーザー 1 件にした結果 9 件になった。** 重複排除が正しく効いている。
+
+### 10.3 リスト内容
+
+- **postTypeCounts**: fomo_mental: 3, prediction_confusion: 6  
+- **highPriorityCount**: 3  
+- **hotList**: false  
+
+### 10.4 教訓・確認ポイント（忘れるな）
+
+1. **検索窓**  
+   - このログ時点では `windowMinutes: 240`（リージョン用）。  
+   - **現在は全言語で X_REPLY_SEARCH_WINDOW_MINUTES に統一（デフォルト 360 分）。** 今後は `windowMinutes: 360` になる。
+
+2. **重複排除**  
+   - `raw rows deduped by author_id (one per user)` で 20→9 になっている。  
+   - リスト取得〜キュー〜送信〜前回キュー復元の各所で author_id 重複排除が入っていることを忘れずに確認する。
+
+3. **round-robin**  
+   - pt のみ 6 ラウンドで strict 0 / balanced 6 / broad 14。  
+   - ヒットが少ない言語では balanced/broad に寄る。maxRounds 450 に対して 6 で打ち切られている（キャップや十分な候補で early exit）。
+
+4. **スコープ**  
+   - `scope: 'rotate'`, `targets: [ 'pt' ]` → このランは pt 1 言語だけリスト取得。他言語は別ランで取得。
+
+このリスト取得ログと送信ログ（セクション 1–9）を合わせて、**リスト→キュー→送信** の一連の流れを評価する。

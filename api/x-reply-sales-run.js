@@ -1363,6 +1363,7 @@ module.exports = async function handler(req, res) {
           const closingLine = getDmClosing(lang);
           const parts = [tweetQuote, queryHook, dmBody].filter(Boolean);
           const dmText = parts.join("\n\n") + (closingLine ? "\n\n" + closingLine : "");
+          // いいね・フォローはDM送信成功時のみ実行（送信前にフォローしない）
           let dmResult;
           try {
             dmResult = await sendRecruitDm(item.username, dmText || textWithCoupon, {
