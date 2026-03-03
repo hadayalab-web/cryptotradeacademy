@@ -65,6 +65,18 @@
       "destination": "/api/root"
     },
     {
+      "source": "/dashboard",
+      "destination": "/public/dashboard/index.html"
+    },
+    {
+      "source": "/dashboard/",
+      "destination": "/public/dashboard/index.html"
+    },
+    {
+      "source": "/dashboard/index.html",
+      "destination": "/public/dashboard/index.html"
+    },
+    {
       "source": "/api/x-webhook",
       "destination": "/api/x-webhook"
     }

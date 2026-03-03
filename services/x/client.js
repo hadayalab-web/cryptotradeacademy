@@ -249,9 +249,19 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
           });
         }
 
+        // 402 Payment Required = クレジット不足。リトライ禁止（浪費防止）
+        if (response.status === 402) {
+          console.error(`[X API] 402 Payment Required (insufficient credits). Do not retry.`, {
+            endpoint,
+            method,
+            errorData
+          });
+          throw new Error(`X API Error: 402 - ${JSON.stringify(errorData)}`);
+        }
+
         const error = new Error(`X API Error: ${response.status} - ${JSON.stringify(errorData)}`);
 
-        // P1 FIX: HTTPステータスベースでリトライ（429, 5xxをリトライ対象）
+        // P1 FIX: HTTPステータスベースでリトライ（429, 5xxのみ。403/401/402 はリトライしない＝クレジット浪費防止）
         const retryableStatuses = [429, 500, 502, 503, 504];
         if (retryableStatuses.includes(response.status) && attempt < maxRetries) {
           let delay;
@@ -1063,13 +1073,28 @@ async function xApiRequestOAuth2User(endpoint, options = {}) {
 }
 
 /**
+ * OAuth 2.0 認証ユーザーの user id を 1 回取得（ブックマーク複数件で /users/me を重複呼びしないため）
+ * @returns {Promise<string|null>} userId または null
+ */
+async function getOAuth2UserId() {
+  if (!X_API_OAUTH2_USER_ACCESS_TOKEN) return null;
+  try {
+    const me = await xApiRequestOAuth2User("/users/me");
+    return me?.data?.id || me?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 指定投稿をブックマークに追加（認証ユーザーのブックマーク一覧に入れる）
  * 制限: 50 リクエスト/15分/ユーザー（X API）。$0.005/リクエスト。
  * 認証: ブックマーク API は OAuth 2.0 User Context のみ対応。X_API_OAUTH2_USER_ACCESS_TOKEN を設定すること。
  * @param {string} tweetId - ブックマークする投稿のID
+ * @param {string} [cachedUserId] - 事前に getOAuth2UserId() で取得した id を渡すと /users/me を省略（クレジット節約）
  * @returns {Promise<{ok: boolean, bookmarked?: boolean, error?: string}>}
  */
-async function createBookmark(tweetId) {
+async function createBookmark(tweetId, cachedUserId) {
   const tid = String(tweetId || "").trim();
   if (!tid) return { ok: false, error: "tweet_id is required" };
   if (!X_API_OAUTH2_USER_ACCESS_TOKEN) {
@@ -1083,8 +1108,11 @@ async function createBookmark(tweetId) {
     };
   }
   try {
-    const me = await xApiRequestOAuth2User("/users/me");
-    const userId = me?.data?.id || me?.id;
+    let userId = cachedUserId;
+    if (!userId) {
+      const me = await xApiRequestOAuth2User("/users/me");
+      userId = me?.data?.id || me?.id;
+    }
     if (!userId) return { ok: false, error: "Could not get user id with OAuth 2.0" };
     const response = await xApiRequestOAuth2User(`/users/${userId}/bookmarks`, {
       method: "POST",
@@ -1111,6 +1139,7 @@ module.exports = {
   followUser,
   unfollowUser,
   createBookmark,
+  getOAuth2UserId,
   uploadMedia,
   uploadVideo,
   getUserByUsername,

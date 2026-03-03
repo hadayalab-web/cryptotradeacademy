@@ -16,7 +16,7 @@
  */
 require("../utils/suppressKnownWarnings");
 const { fetchOneSearchPage } = require("../services/td/affiliateRecruitSearch");
-const { createBookmark } = require("../services/x/client");
+const { createBookmark, getOAuth2UserId } = require("../services/x/client");
 const {
   EN_SEARCH_WINDOW_MINUTES,
   REGION_SEARCH_WINDOW_MINUTES,
@@ -115,10 +115,12 @@ module.exports = async function handler(req, res) {
       if (dryRun) continue;
       if (!hasOAuth2UserToken) continue;
 
+      let oauth2UserId = null;
       for (const tid of toAdd) {
         if (allResults.length >= BOOKMARK_CAP_PER_RUN) break;
         if (allResults.length > 0) await new Promise((r) => setTimeout(r, BOOKMARK_DELAY_MS));
-        const r = await createBookmark(tid);
+        if (!oauth2UserId) oauth2UserId = await getOAuth2UserId();
+        const r = await createBookmark(tid, oauth2UserId);
         allResults.push({ lang, tweet_id: tid, ok: r.ok, error: r.error || null });
         if (!r.ok && (r.error || "").includes("429")) {
           console.warn("[affiliate-recruit-bookmark] rate limit (429), stopping");

@@ -5,9 +5,9 @@
  *
  * 前提:
  * - .env に X_API_CLIENT_SECRET_ID（Client ID）と X_API_CLIENT_SECRET（Client Secret）があること
- * - X Developer Portal → アプリ → OAuth 2.0 設定 → Callback URL に http://127.0.0.1:3000/callback を追加
- *
  * 使い方: node scripts/x-oauth2-get-user-token.js
+ * ポート 3001〜3010 の空きを利用。X Developer Portal に以下をまとめて追加しておくこと:
+ *   http://127.0.0.1:3001/ 〜 http://127.0.0.1:3010/
  */
 const path = require("path");
 const crypto = require("crypto");
@@ -18,9 +18,8 @@ try {
 
 const CLIENT_ID = process.env.X_API_CLIENT_SECRET_ID || process.env.X_API_CLIENT_ID;
 const CLIENT_SECRET = process.env.X_API_CLIENT_SECRET;
-const REDIRECT_URI = "http://127.0.0.1:3000/callback";
-const PORT = 3000;
 const SCOPES = "tweet.read users.read bookmark.read bookmark.write offline.access";
+const PORTS = [3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010];
 
 function base64UrlEncode(buf) {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -41,18 +40,12 @@ function run() {
 
   const { codeVerifier, codeChallenge } = getPkce();
   const state = base64UrlEncode(crypto.randomBytes(16));
-  const authUrl = new URL("https://x.com/i/oauth2/authorize");
-  authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("client_id", CLIENT_ID);
-  authUrl.searchParams.set("redirect_uri", REDIRECT_URI);
-  authUrl.searchParams.set("scope", SCOPES);
-  authUrl.searchParams.set("state", state);
-  authUrl.searchParams.set("code_challenge", codeChallenge);
-  authUrl.searchParams.set("code_challenge_method", "S256");
+  let redirectUri;
 
   const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url || "", `http://127.0.0.1:${PORT}`);
-    if (url.pathname !== "/callback") {
+    const url = new URL(req.url || "/", "http://127.0.0.1/");
+    const isCallback = url.pathname === "/" || url.pathname === "/callback";
+    if (!isCallback) {
       res.writeHead(404);
       res.end("Not found");
       return;
@@ -86,7 +79,7 @@ function run() {
       code,
       grant_type: "authorization_code",
       code_verifier: codeVerifier,
-      redirect_uri: REDIRECT_URI
+      redirect_uri: redirectUri
     }).toString();
 
     try {
@@ -127,13 +120,47 @@ function run() {
     }
   });
 
-  server.listen(PORT, "127.0.0.1", () => {
-    console.log("ブラウザを開きます。X でログインして「許可」を押してください。");
-    console.log("Callback URL が未設定の場合は Developer Portal で http://127.0.0.1:3000/callback を追加してください。\n");
-    const { exec } = require("child_process");
-    const open = process.platform === "win32" ? "start" : process.platform === "darwin" ? "open" : "xdg-open";
-    exec(`${open} "${authUrl.toString()}"`);
+  let portIndex = 0;
+  function tryListen() {
+    if (portIndex >= PORTS.length) {
+      console.error("❌ ポート 3001〜3010 がすべて使用中です。他のアプリを終了してから再実行してください。");
+      process.exit(1);
+    }
+    const port = PORTS[portIndex];
+    server.listen(port, "127.0.0.1", () => {
+      redirectUri = `http://127.0.0.1:${port}/`;
+      const authUrl = new URL("https://x.com/i/oauth2/authorize");
+      authUrl.searchParams.set("response_type", "code");
+      authUrl.searchParams.set("client_id", CLIENT_ID);
+      authUrl.searchParams.set("redirect_uri", redirectUri);
+      authUrl.searchParams.set("scope", SCOPES);
+      authUrl.searchParams.set("state", state);
+      authUrl.searchParams.set("code_challenge", codeChallenge);
+      authUrl.searchParams.set("code_challenge_method", "S256");
+      const urlStr = authUrl.toString();
+      console.log("\n※ まだなら X Developer Portal のコールバックURI に http://127.0.0.1:3001/ 〜 3010/ を追加してください。");
+      console.log("※ このスクリプトは1回だけ実行し、下のURLで「許可」まで完了すること。途中で再実行すると state 不一致になる。\n");
+      console.log("========== このURLをブラウザで開いてください ==========");
+      console.log(urlStr);
+      console.log("========== 上をコピー → アドレスバーに貼り付け → Enter ==========\n");
+      const { exec } = require("child_process");
+      if (process.platform === "win32") {
+        exec(`cmd /c start "" "${urlStr.replace(/"/g, '""')}"`, () => {});
+      } else {
+        const open = process.platform === "darwin" ? "open" : "xdg-open";
+        exec(`${open} "${urlStr}"`, () => {});
+      }
+    });
+  }
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      portIndex++;
+      tryListen();
+    } else {
+      throw err;
+    }
   });
+  tryListen();
 }
 
 run();
