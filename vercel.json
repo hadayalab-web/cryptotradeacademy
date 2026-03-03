@@ -61,6 +61,10 @@
   },
   "rewrites": [
     {
+      "source": "/",
+      "destination": "/api/root"
+    },
+    {
       "source": "/api/x-webhook",
       "destination": "/api/x-webhook"
     }
