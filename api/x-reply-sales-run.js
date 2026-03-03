@@ -526,6 +526,11 @@ async function refreshQueueForLang(lang, now) {
     ? X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES
     : X_REPLY_SEARCH_WINDOW_MINUTES;
 
+  console.log("[X Reply Sales][list] round-robin start", {
+    lang: normalizedLang,
+    maxRounds,
+    windowMinutes
+  });
   for (let round = 0; round < maxRounds; round += 1) {
     const mode = modes[round % modes.length];
 
@@ -535,6 +540,11 @@ async function refreshQueueForLang(lang, now) {
         windowMinutes
       });
       if (page?.fatal402) {
+        console.log("[X Reply Sales][list] round-robin early exit", {
+          lang: normalizedLang,
+          reason: "search_402",
+          rounds: pagesFetched
+        });
         return {
           ok: false,
           lang: normalizedLang,
@@ -553,6 +563,11 @@ async function refreshQueueForLang(lang, now) {
       if (allRows.length >= X_REPLY_QUEUE_CAP_PER_LANG) break;
     } catch (err) {
       if (String(err?.message || "").includes("402")) {
+        console.log("[X Reply Sales][list] round-robin early exit", {
+          lang: normalizedLang,
+          reason: "search_402",
+          rounds: pagesFetched
+        });
         return { ok: false, lang: normalizedLang, reason: "search_402", pagesFetched };
       }
       console.warn("[X Reply Sales][list] round-robin fetch failed (non-fatal)", {
