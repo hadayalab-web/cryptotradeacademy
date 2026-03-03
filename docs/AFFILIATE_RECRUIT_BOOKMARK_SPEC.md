@@ -30,12 +30,13 @@
 ### 2.2 クエリ式（唯一の形）
 
 ```
-( group1_term1 OR group1_term2 OR ... ) AND ( group2_term1 OR group2_term2 OR ... ) lang:{lang} -is:retweet -is:reply -neg1 -neg2 ...
+( group1 OR ... ) AND ( group2 OR ... ) [AND ( group3 OR ... )] lang:{lang} -is:retweet -is:reply -neg1 -neg2 ...
 ```
 
-- **結合**: group1 と group2 は **AND のみ**。OR にするとノイズになるため禁止（env で OR にはしない）。
+- **結合**: group1 と group2 は **AND のみ**。group3（crypto/trading ニッチ）は有効時のみ追加し、同様に AND。
+- **group3**: CryptoTrade Academy に合うニッチ絞り。`AFFILIATE_RECRUIT_CRYPTO_NICHE=0` で無効（2軸のみ）。
 - **サフィックス**: `lang:{lang}` / `-is:retweet` / `-is:reply` / 全ネガティブ語（共通＋言語別）。
-- **文字数**: 1 クエリ ≦ 512 文字（X API 上限）。収まらない場合は group 末尾から語を削る（§2.3 の順で維持）。
+- **文字数**: 1 クエリ ≦ 512 文字（X API 上限）。収まらない場合は group 末尾から語を削る（group3 → group2 → group1 の順）。
 
 ### 2.3 証拠語（group1）・プラットフォーム語（group2）一覧
 
@@ -70,6 +71,19 @@
 | group1 | group2 |
 |--------|--------|
 | كود خصم, رمز ترويجي, رابط الإحالة, استخدم كودي, الرابط في البايو, سجل من خلال, كود الدعوة | عرب كليكس, arabclicks, أمازون أفلييت, كليك بانك, clickbank, admitad |
+
+#### 2.3.1 group3（crypto/trading ニッチ・任意）
+
+CryptoTrade Academy 案件に合うアフィに限定するとき用。コードの `CRYPTO_TRADING_TERMS_BY_LANG` と一致させる。`AFFILIATE_RECRUIT_CRYPTO_NICHE=0` で無効。
+
+| lang | group3 |
+|------|--------|
+| en | crypto, trading, bitcoin, btc, trader |
+| ja | 仮想通貨, ビットコイン, トレード, 暗号資産, マーケット |
+| ko | 암호화폐, 비트코인, 트레이딩, 코인, 거래 |
+| es | crypto, trading, bitcoin, cripto, trader |
+| pt | crypto, trading, bitcoin, cripto, trader |
+| ar | بيتكوين, كريبتو, تداول, عملات, سوق |
 
 ### 2.4 ネガティブ語（除外する語句）
 

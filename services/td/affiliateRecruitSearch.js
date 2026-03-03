@@ -218,6 +218,17 @@ const SEARCH_NEGATIVE_TERMS_BY_LANG = {
   ]
 };
 
+/** §2.3 ニッチ絞り: crypto/trading 関連語（group3）。CryptoTrade Academy 案件に合うアフィに限定。AFFILIATE_RECRUIT_CRYPTO_NICHE=0 で無効（2軸のみ）。 */
+const CRYPTO_NICHE_ENABLED = process.env.AFFILIATE_RECRUIT_CRYPTO_NICHE !== "0";
+const CRYPTO_TRADING_TERMS_BY_LANG = {
+  en: ["crypto", "trading", "bitcoin", "btc", "trader"],
+  ja: ["仮想通貨", "ビットコイン", "トレード", "暗号資産", "マーケット"],
+  ko: ["암호화폐", "비트코인", "트레이딩", "코인", "거래"],
+  es: ["crypto", "trading", "bitcoin", "cripto", "trader"],
+  pt: ["crypto", "trading", "bitcoin", "cripto", "trader"],
+  ar: ["بيتكوين", "كريبتو", "تداول", "عملات", "سوق"]
+};
+
 /** アフィリエイトリクルート用: user.fields 拡張（スコアリングに必要。url＝リンクなしボーナス用） */
 const AFFILIATE_RECRUIT_USER_FIELDS =
   "id,name,username,public_metrics,description,created_at,url";
@@ -281,8 +292,8 @@ function getSearchSuffixParts(lang) {
 }
 
 /**
- * §2.2 に従い 1 言語 1 本の strict クエリを組み立て。(group1 OR...) AND (group2 OR...) + サフィックス。
- * §2.5: ヒットが閾値以下なら 1 回だけ緩和フォールバック（OR 広め）を試す。
+ * §2.2 に従い 1 言語 1 本の strict クエリを組み立て。(group1) AND (group2) [AND (group3)] + サフィックス。
+ * group3 = crypto/trading ニッチ（有効時のみ）。§2.5: ヒットが閾値以下なら 1 回だけ緩和フォールバックを試す。
  */
 function buildSearchQueriesSingle(lang) {
   const requiredGroupsRaw =
@@ -292,6 +303,10 @@ function buildSearchQueriesSingle(lang) {
     const kw = getSearchKeywords(lang);
     const mid = Math.max(1, Math.floor(kw.length / 2));
     requiredGroups = [kw.slice(0, mid), kw.slice(mid)];
+  }
+  if (CRYPTO_NICHE_ENABLED) {
+    const cryptoTerms = uniqueList(CRYPTO_TRADING_TERMS_BY_LANG[lang] || CRYPTO_TRADING_TERMS_BY_LANG.en || []);
+    if (cryptoTerms.length > 0) requiredGroups.push(cryptoTerms);
   }
 
   const kw = getSearchKeywords(lang);
@@ -333,7 +348,8 @@ function buildSearchQueriesSingle(lang) {
   if (strictQuery.length > SEARCH_QUERY_MAX_CHARS) {
     const g1 = requiredGroups[0]?.[0] ? renderQueryTerm(requiredGroups[0][0]) : "affiliate";
     const g2 = requiredGroups[1]?.[0] ? renderQueryTerm(requiredGroups[1][0]) : "commission";
-    strictQuery = [g1, g2, suffixParts.join(" ")].filter(Boolean).join(" ").trim();
+    const g3 = requiredGroups[2]?.[0] ? renderQueryTerm(requiredGroups[2][0]) : null;
+    strictQuery = [g1, g2, g3, suffixParts.join(" ")].filter(Boolean).join(" ").trim();
   }
 
   // 緩和フォールバック（初回0件時のみ使用）: OR広め・negative無し
