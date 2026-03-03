@@ -721,7 +721,7 @@ async function searchPostsRecent(query, options = {}) {
   const params = new URLSearchParams({
     query: query.trim(),
     max_results: String(maxResults),
-    "tweet.fields": "id,text,author_id,created_at,public_metrics,lang,reply_settings",
+    "tweet.fields": "id,text,author_id,created_at,public_metrics,lang",
     expansions: "author_id",
     "user.fields": userFields,
     sort_order: options.sortOrder || "relevancy"
@@ -816,7 +816,7 @@ async function searchTweets(query, options = {}) {
   const params = new URLSearchParams({
     query: query.trim(),
     max_results: String(Math.min(Math.max(10, maxResults), 100)),
-    "tweet.fields": "id,text,author_id,created_at,public_metrics,lang,reply_settings",
+    "tweet.fields": "id,text,author_id,created_at,public_metrics,lang",
     "user.fields": "id,name,username,public_metrics",
     expansions: "author_id",
     sort_order: sortOrder

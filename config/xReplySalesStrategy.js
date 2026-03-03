@@ -507,11 +507,13 @@ function buildReplyMessage({
 
 /**
  * DM冒頭に挿入する「クエリが拾ったワード」フック文を返す。
+ * «keyword» は、ツイート本文にそのキーワードが含まれる場合のみ表示する（嘘の「拾った」を避ける）。
  * @param {string} lang - 言語 (en, ja, ko, es, pt, ar)
- * @param {string} [postType] - post_type (loss_report, fomo_mental 等)。指定時はそのタイプの代表キーワードを埋め込む
- * @returns {string} フック文。未対応言語や空の場合は ""
+ * @param {string} [postType] - post_type (loss_report, fomo_mental 等)
+ * @param {string} [tweetText] - ツイート本文。指定時は本文に含まれるキーワードだけ «keyword» で表示
+ * @returns {string} フック文
  */
-function getDmQueryHook(lang, postType) {
+function getDmQueryHook(lang, postType, tweetText) {
   const normalizedLang = normalizeReplyLang(lang);
   const template =
     REPLY_QUERY_HOOK_TEMPLATE_BY_LANG[normalizedLang] ||
@@ -521,9 +523,23 @@ function getDmQueryHook(lang, postType) {
     REPLY_QUERY_HOOK_WITH_KEYWORD_BY_LANG.en;
   const catalog = REPLY_POST_TYPE_KEYWORDS_BY_LANG[normalizedLang] || REPLY_POST_TYPE_KEYWORDS_BY_LANG.en;
   const keywords = postType && catalog[postType] ? catalog[postType] : [];
-  const keyword = Array.isArray(keywords) && keywords.length > 0 ? String(keywords[0]).trim() : "";
-  if (keyword) {
-    return String(withKeywordTemplate || template).replace(/\{keyword\}/g, keyword);
+  const text = String(tweetText || "").trim().toLowerCase();
+  // ツイートに実際に含まれるキーワードを優先（先にマッチしたものを使用）
+  let keyword = "";
+  if (Array.isArray(keywords) && keywords.length > 0 && text) {
+    const found = keywords.find((k) => {
+      const w = String(k || "").trim();
+      return w && text.includes(w.toLowerCase());
+    });
+    keyword = found ? String(found).trim() : "";
+  }
+  if (!keyword && Array.isArray(keywords) && keywords.length > 0) {
+    keyword = String(keywords[0]).trim();
+  }
+  // ツイート本文にキーワードが含まれていない場合は «keyword» を出さない（「拾った」を嘘にしない）
+  const useKeywordInTemplate = keyword && (!tweetText || text.includes(keyword.toLowerCase()));
+  if (useKeywordInTemplate && withKeywordTemplate) {
+    return String(withKeywordTemplate).replace(/\{keyword\}/g, keyword);
   }
   return template || "";
 }

@@ -232,6 +232,9 @@ function buildTrackedOfferUrl(req, candidate, messageMeta, channel = "reply") {
   const origin = resolveRequestOrigin(req);
   if (!origin) return enrichedOffer;
 
+  // DM では本文に Whop の直リンク（whop.com）を入れるため、リダイレクトURLを使わない
+  if (channel === "dm") return enrichedOffer;
+
   try {
     const tracked = new URL(`${origin}${X_REPLY_SALES_CLICK_TRACK_PATH}`);
     tracked.searchParams.set("to", enrichedOffer);
@@ -1274,7 +1277,7 @@ module.exports = async function handler(req, res) {
           const tweetQuote = (item.text && String(item.text).trim())
             ? `「${String(item.text).replace(/\n/g, " ").trim().slice(0, 250)}${String(item.text).length > 250 ? "…" : ""}」`
             : "";
-          const queryHook = getDmQueryHook(lang, item.post_type);
+          const queryHook = getDmQueryHook(lang, item.post_type, item.text);
           const closingLine = getDmClosing(lang);
           const parts = [tweetQuote, queryHook, dmBody].filter(Boolean);
           const dmText = parts.join("\n\n") + (closingLine ? "\n\n" + closingLine : "");

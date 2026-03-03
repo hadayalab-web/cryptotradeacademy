@@ -28,19 +28,14 @@ We send the same structure in 6 languages (en, ja, ko, es, pt, ar).
 
 **Constraints**
 - One short message per language. Fits in one DM (under ~280 chars per message is ideal).
-- Tone: friendly, low-pressure, "checking in" — like "How’s your consideration going?" / "ご検討いかがでしたか？"
-- Invite a reply (e.g. "if you have questions, reply here") but do not hard-sell or add links in this message.
+- Tone: friendly, low-pressure, "checking in".
+- Invite a reply but do not hard-sell or add links in this message.
 - Languages: en, ja, ko, es, pt, ar (Arabic). Use natural, colloquial phrasing for each.
 
-**Current draft (REJECTED — too corporate, nobody replies)**
-- ja: "ご検討いかがでしたか？Trap Defenceで気になる点があれば返信ください。"
-- en: "How's your consideration going? If you have any questions, just reply here."
-
-**What we need instead**
+**What we need**
 - Sound like a human checking in, not a bot. One short sentence.
 - Reference their situation (they got rekt / stressed / confused) so it feels relevant.
 - Leave a real hook: a question they can answer, or a tiny opinion that invites "yeah/no" — e.g. "あのあとまたポジション取った？" "Still staring at charts or taking a break?"
-- No "ご検討いかがでしたか" / "If you have any questions" — that kills replies.
 - Per language: natural, colloquial, under ~200 chars. 6 languages: en, ja, ko, es, pt, ar.
 
 **Task**
@@ -87,16 +82,8 @@ function main() {
       fs.writeFileSync(OUTPUT_FILE, JSON.stringify(obj, null, 2), "utf8");
       console.log("✅ Response saved to:", OUTPUT_FILE);
       console.log("");
-      console.log("JS object for api/x-reply-sales-followup.js FOLLOWUP_MESSAGE_BY_LANG:");
-      console.log("");
-      console.log(
-        "const FOLLOWUP_MESSAGE_BY_LANG = " +
-          JSON.stringify(obj, null, 2)
-            .split("\n")
-            .map((l, i) => (i === 0 ? l : "  " + l))
-            .join("\n") +
-          ";"
-      );
+      console.log("Follow-up message by lang (JSON):");
+      console.log(JSON.stringify(obj, null, 2));
     } catch (e) {
       console.error("Gemini error:", e.message);
       console.log("");
