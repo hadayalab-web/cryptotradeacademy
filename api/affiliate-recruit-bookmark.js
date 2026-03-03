@@ -20,10 +20,11 @@ const {
   AFFILIATE_RECRUIT_MIN_FOLLOWERS
 } = require("../config/affiliateRecruitConfig");
 
-const BOOKMARK_CAP_PER_RUN = Math.min(50, Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_CAP_PER_RUN || 50)));
+/** 1 run あたりのブックマーク上限（X API 50/15分の 1/10 で運用）。env で 1〜5 の範囲で上書き可。 */
+const BOOKMARK_CAP_PER_RUN = Math.min(5, Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_CAP_PER_RUN || 5)));
 const BOOKMARK_DELAY_MS = Math.max(500, Number(process.env.AFFILIATE_BOOKMARK_DELAY_MS || 2000));
-/** 1言語あたりの検索ページ数（直販の nextToken ループに倣う）。env で上書き可。 */
-const LIST_PAGES_PER_LANG = Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_LIST_PAGES || 3));
+/** 1言語あたりの検索ページ数。候補を多めに取り 1 run あたり 5 件をきっちり取り切るため既定 10。env で上書き可。 */
+const LIST_PAGES_PER_LANG = Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_LIST_PAGES || 10));
 /** 検索ページ間遅延（ms）。直販 X_REPLY_SEARCH_DELAY_MS に倣う。 */
 const SEARCH_DELAY_MS = Math.max(0, Number(process.env.AFFILIATE_BOOKMARK_SEARCH_DELAY_MS || 2000));
 const LANGS_6 = ["en", "es", "pt", "ar", "ja", "ko"];
@@ -134,7 +135,12 @@ module.exports = async function handler(req, res) {
             had402 = true;
             break;
           }
-          console.warn("[affiliate-recruit-bookmark][list] fetch failed (non-fatal)", { lang, round, error: err?.message });
+          console.warn("[affiliate-recruit-bookmark][list] fetch failed, stopping pages for this lang", {
+            lang,
+            round,
+            error: err?.message
+          });
+          break;
         }
       }
 
@@ -184,6 +190,10 @@ module.exports = async function handler(req, res) {
         if (allResults.length >= BOOKMARK_CAP_PER_RUN) break;
         if (allResults.length > 0) await new Promise((r) => setTimeout(r, BOOKMARK_DELAY_MS));
         if (!oauth2UserId) oauth2UserId = await getOAuth2UserId();
+        if (!oauth2UserId) {
+          console.warn("[affiliate-recruit-bookmark] getOAuth2UserId failed, skipping remaining bookmarks");
+          break;
+        }
         const r = await createBookmark(tid, oauth2UserId);
         allResults.push({ lang, tweet_id: tid, ok: r.ok, error: r.error || null });
         if (!r.ok && (r.error || "").includes("429")) {
