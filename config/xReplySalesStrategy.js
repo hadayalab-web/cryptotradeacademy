@@ -8,42 +8,43 @@
 
 const SUPPORTED_REPLY_LANGS = ["en", "ja", "ko", "es", "pt", "ar"];
 
+// 450ページ回して数件しか出ないのはクエリが狭い。strict/balanced は多めに OR で広げてヒット数を確保
 const REPLY_SEARCH_QUERIES_BY_LANG = {
   en: {
     strict:
-      '(liquidated OR rekt OR "stop hunted" OR "blown account") (btc OR crypto OR trading) -giveaway -airdrop -free lang:en -is:retweet -is:reply',
+      '(liquidated OR rekt OR "stop hunted" OR "blown account" OR "lost money" OR "stop loss" OR wiped OR "margin call") (btc OR crypto OR bitcoin OR trading) -giveaway -airdrop lang:en -is:retweet -is:reply',
     balanced:
-      '("lost money" OR fomo OR "staring at charts" OR overtrading) (btc OR crypto) -airdrop -giveaway lang:en -is:retweet -is:reply'
+      '(lost OR loss OR fomo OR "staring at charts" OR overtrading OR "cant sleep" OR chasing OR panic) (btc OR crypto OR bitcoin) -giveaway -airdrop lang:en -is:retweet -is:reply'
   },
   ja: {
     strict:
-      "(ロスカット OR 焼かれた OR 全損 OR 退場) (BTC OR 仮想通貨 OR ビットコイン) -プレゼント -エアドロ -無料 lang:ja -is:retweet -is:reply",
+      "(ロスカット OR 焼かれた OR 全損 OR 退場 OR 損切り OR 含み損 OR 負け) (BTC OR 仮想通貨 OR ビットコイン OR トレード) -プレゼント -エアドロ lang:ja -is:retweet -is:reply",
     balanced:
-      "(ポジポジ病 OR 飛び乗り OR 高値掴み OR チャート見すぎ) (BTC OR 仮想通貨) -プレゼント -エアドロ lang:ja -is:retweet -is:reply"
+      "(ポジポジ病 OR 飛び乗り OR 高値掴み OR チャート見すぎ OR 寝不足 OR 迷い OR FOMO) (BTC OR 仮想通貨 OR ビットコイン) -プレゼント -エアドロ lang:ja -is:retweet -is:reply"
   },
   ko: {
     strict:
-      "(청산 OR 뚝배기 OR 강제청산 OR 물렸다) (비트코인 OR 코인 OR BTC) -에어드랍 -무료 -증정금 lang:ko -is:retweet -is:reply",
+      "(청산 OR 뚝배기 OR 강제청산 OR 물렸다 OR 손절 OR 손실 OR 물림) (비트코인 OR 코인 OR BTC OR 트레이딩) -에어드랍 -증정금 lang:ko -is:retweet -is:reply",
     balanced:
-      "(뇌동매매 OR 추격매수 OR 포모 OR 밤샘) (비트코인 OR 코인) -에어드랍 -이벤트 lang:ko -is:retweet -is:reply"
+      "(뇌동매매 OR 추격매수 OR 포모 OR 밤샘 OR 패닉 OR 초조) (비트코인 OR 코인 OR BTC) -에어드랍 -이벤트 lang:ko -is:retweet -is:reply"
   },
   es: {
     strict:
-      '(liquidado OR "cuenta quemada" OR "stop loss") (btc OR crypto OR bitcoin) -sorteo -airdrop -gratis lang:es -is:retweet -is:reply',
+      '(liquidado OR "cuenta quemada" OR "stop loss" OR perdí OR rekt OR "me barrió") (btc OR crypto OR bitcoin OR trading) -sorteo -airdrop lang:es -is:retweet -is:reply',
     balanced:
-      '(fomo OR sobreoperando OR "mirando gráficos") (btc OR crypto) -sorteo -airdrop lang:es -is:retweet -is:reply'
+      '(fomo OR sobreoperando OR "mirando gráficos" OR perdida OR pánico OR persiguiendo) (btc OR crypto OR bitcoin) -sorteo -airdrop lang:es -is:retweet -is:reply'
   },
   pt: {
     strict:
-      '(liquidado OR "quebrei a banca" OR "stop caçado") (btc OR cripto OR bitcoin) -sorteio -airdrop -grátis lang:pt -is:retweet -is:reply',
+      '(liquidado OR "quebrei a banca" OR "stop caçado" OR perdi OR rekt OR "margin call") (btc OR cripto OR bitcoin OR trading) -sorteio -airdrop lang:pt -is:retweet -is:reply',
     balanced:
-      '(fomo OR overtrading OR "olhando gráficos") (btc OR cripto) -sorteio -airdrop lang:pt -is:retweet -is:reply'
+      '(fomo OR overtrading OR "olhando gráficos" OR perda OR pânico OR perseguindo) (btc OR cripto OR bitcoin) -sorteio -airdrop lang:pt -is:retweet -is:reply'
   },
   ar: {
     strict:
-      '(تصفية OR "ضرب الستوب" OR تمرجن OR "خسرت فلوسي") (بتكوين OR كريبتو OR btc) -توزيع -ايردروب -مجانا lang:ar -is:retweet -is:reply',
+      '(تصفية OR "ضرب الستوب" OR تمرجن OR "خسرت فلوسي" OR خسارة OR ضاع) (بتكوين OR كريبتو OR btc OR تداول) -توزيع -ايردروب lang:ar -is:retweet -is:reply',
     balanced:
-      '(فومو OR "تداول مفرط" OR "مراقبة الشارت") (بتكوين OR كريبتو) -توزيع -مجانا lang:ar -is:retweet -is:reply'
+      '(فومو OR "تداول مفرط" OR "مراقبة الشارت" OR خوف OR ذعر) (بتكوين OR كريبتو OR btc) -توزيع -مجانا lang:ar -is:retweet -is:reply'
   }
 };
 
@@ -98,7 +99,7 @@ const REPLY_POST_TYPE_KEYWORDS_BY_LANG = {
     beginner_learning: ["principiante", "aprendiendo", "nuevo", "cómo operar", "estudiando"]
   },
   pt: {
-    loss_report: ["liquidado", "stop caçado", "quebrei a banca", "perdi dinheiro", "fumo"],
+    loss_report: ["liquidado", "stop caçado", "quebrei a banca", "perdi dinheiro", "perdi tudo"],
     fomo_mental: ["fomo", "sem dormir", "overtrading", "pânico", "comprando topo"],
     prediction_confusion: ["confuso", "não sei", "pra onde", "previsão", "estrutura"],
     beginner_learning: ["iniciante", "aprendendo", "novo", "como operar", "estudando"]

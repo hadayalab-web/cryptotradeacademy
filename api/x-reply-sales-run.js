@@ -513,7 +513,7 @@ function buildHotListAnalysis(candidates) {
 async function refreshQueueForLang(lang, now) {
   const normalizedLang = normalizeReplyLang(lang);
   const queueKey = KV_KEY_QUEUE(normalizedLang);
-  const allRows = [];
+  let allRows = [];
   const usersById = {};
   const modes = ["strict", "balanced", "broad"];
   const nextTokens = { strict: null, balanced: null, broad: null };
