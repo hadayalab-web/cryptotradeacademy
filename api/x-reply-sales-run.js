@@ -532,8 +532,20 @@ async function refreshQueueForLang(lang, now) {
     windowMinutes
   });
   for (let round = 0; round < maxRounds; round += 1) {
-    const mode = modes[round % modes.length];
+    if (allRows.length >= X_REPLY_QUEUE_CAP_PER_LANG) {
+      const tempBuilt = buildCandidatesFromSearchRows(normalizedLang, allRows, usersById, {
+        discoveredAt: now.toISOString(),
+        queueVersion: X_REPLY_QUEUE_VERSION
+      });
+      const tempCandidates = tempBuilt.candidates || [];
+      const tempHandled = await Promise.all(
+        tempCandidates.map((c) => isTweetHandled(c.tweet_id))
+      );
+      const unhandledCount = tempHandled.filter((h) => !h).length;
+      if (unhandledCount >= X_REPLY_QUEUE_CAP_PER_LANG) break;
+    }
 
+    const mode = modes[round % modes.length];
     try {
       const page = await fetchOnePageByMode(normalizedLang, mode, {
         nextToken: nextTokens[mode] || undefined,
@@ -560,18 +572,6 @@ async function refreshQueueForLang(lang, now) {
       hitsByMode[mode] += rows.length;
       nextTokens[mode] = page?.nextToken || null;
       pagesFetched += 1;
-      if (allRows.length >= X_REPLY_QUEUE_CAP_PER_LANG) {
-        const tempBuilt = buildCandidatesFromSearchRows(normalizedLang, allRows, usersById, {
-          discoveredAt: now.toISOString(),
-          queueVersion: X_REPLY_QUEUE_VERSION
-        });
-        const tempCandidates = tempBuilt.candidates || [];
-        const tempHandled = await Promise.all(
-          tempCandidates.map((c) => isTweetHandled(c.tweet_id))
-        );
-        const unhandledCount = tempHandled.filter((h) => !h).length;
-        if (unhandledCount >= X_REPLY_QUEUE_CAP_PER_LANG) break;
-      }
     } catch (err) {
       if (String(err?.message || "").includes("402")) {
         console.log("[X Reply Sales][list] round-robin early exit", {
@@ -597,6 +597,9 @@ async function refreshQueueForLang(lang, now) {
     balanced: hitsByMode.balanced,
     broad: hitsByMode.broad
   });
+  if (allRows.length > X_REPLY_QUEUE_CAP_PER_LANG) {
+    allRows = allRows.slice(0, X_REPLY_QUEUE_CAP_PER_LANG);
+  }
   const strictHitsTotal = hitsByMode.strict;
   const balancedHitsTotal = hitsByMode.balanced;
   const balancedPageCount = 0;
