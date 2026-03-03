@@ -16,14 +16,14 @@ const X_REPLY_MAX_RESULTS_PER_PAGE = Math.min(
   100,
   Math.max(10, Number(process.env.X_REPLY_MAX_RESULTS_PER_PAGE || 100))
 );
-// 検索の時間窓（分）。窓を広げると1リクエストあたりのヒット数が増える（450ページ回して2件は窓・クエリが狭い）
+// 検索の時間窓（分）。窓を広げると1リクエストあたりのヒット数が増える。デフォルト 360/240 で拡充
 const X_REPLY_SEARCH_WINDOW_MINUTES = Math.max(
   15,
-  Number(process.env.X_REPLY_SEARCH_WINDOW_MINUTES || 180)
+  Number(process.env.X_REPLY_SEARCH_WINDOW_MINUTES || 360)
 );
 const X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES = Math.max(
   60,
-  Number(process.env.X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES || 180)
+  Number(process.env.X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES || 240)
 );
 // 検索リクエスト間の遅延（ms）。0で無効。レート制限で失敗が多いときは 1000〜2000 にすると成功回数が増える（450×2sはタイムアウトするので注意）
 const X_REPLY_SEARCH_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_SEARCH_DELAY_MS || 1000));
@@ -93,10 +93,10 @@ const X_REPLY_FOLLOW_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_FOLLOW_DE
 // フォロー解除: フォローから何日後に解除するか。0=解除しない。72時間≈3日で解除しないとフォロー数が膨らむためデフォルト3日
 const X_REPLY_UNFOLLOW_DAYS = Math.max(0, Math.min(30, Number(process.env.X_REPLY_UNFOLLOW_DAYS || 3)));
 
-// リプライ試行をスキップし、フォロー→DMのみにする。デフォルト true。0 にするとリプライを試行し、403等なら従来どおりDMにフォールバック（現行のDM仕様は変更なし）
+// リプライ戦略: デフォルト停止（フォロー→いいね→DM のみ）。0 または false のときだけリプライを試行し、403 なら DM にフォールバック
 const X_REPLY_SKIP_REPLY_ATTEMPT =
-  process.env.X_REPLY_SKIP_REPLY_ATTEMPT === "1" ||
-  String(process.env.X_REPLY_SKIP_REPLY_ATTEMPT || "").toLowerCase() === "true";
+  process.env.X_REPLY_SKIP_REPLY_ATTEMPT !== "0" &&
+  String(process.env.X_REPLY_SKIP_REPLY_ATTEMPT || "").toLowerCase() !== "false";
 
 // DM送信前に対象ツイートをいいね（通知で気づいてもらう）。デフォルトオン。0=オフ
 const X_REPLY_LIKE_BEFORE_DM = process.env.X_REPLY_LIKE_BEFORE_DM !== "0";

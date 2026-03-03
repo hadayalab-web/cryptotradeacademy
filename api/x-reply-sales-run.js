@@ -603,6 +603,23 @@ async function refreshQueueForLang(lang, now) {
     balanced: hitsByMode.balanced,
     broad: hitsByMode.broad
   });
+  // 重複取得の徹底排除: 同一 author_id は先頭1件のみ残してからキャップ適用
+  const seenAuthorIdsInRows = new Set();
+  const allRowsDeduped = [];
+  for (const row of allRows) {
+    const aid = String(row?.author_id || "").trim();
+    if (!aid || seenAuthorIdsInRows.has(aid)) continue;
+    seenAuthorIdsInRows.add(aid);
+    allRowsDeduped.push(row);
+  }
+  if (allRowsDeduped.length < allRows.length) {
+    console.log("[X Reply Sales][list] raw rows deduped by author_id (one per user)", {
+      lang: normalizedLang,
+      before: allRows.length,
+      after: allRowsDeduped.length
+    });
+  }
+  allRows = allRowsDeduped;
   if (allRows.length > X_REPLY_QUEUE_CAP_PER_LANG) {
     allRows = allRows.slice(0, X_REPLY_QUEUE_CAP_PER_LANG);
   }
@@ -653,13 +670,20 @@ async function refreshQueueForLang(lang, now) {
 
   const prevQueueRaw = parseQueueValue(await kv.get(queueKey));
   const prevFiltered = [];
+  const seenPrevAuthorIds = new Set();
   let removedHandledFromPrev = 0;
   let removedLegacyVersionFromPrev = 0;
+  let droppedDuplicateAuthorFromPrev = 0;
   let droppedFromPrevByPolicy = 0;
   if (X_REPLY_RETAIN_PREVIOUS_QUEUE) {
     for (const item of prevQueueRaw) {
       const normalized = normalizeCandidate(item, normalizedLang);
       if (!normalized.tweet_id || !normalized.username || !normalized.author_id) continue;
+      const aid = String(normalized.author_id).trim();
+      if (seenPrevAuthorIds.has(aid)) {
+        droppedDuplicateAuthorFromPrev += 1;
+        continue;
+      }
       const queueVersion = Number(normalized.queue_version || 0);
       if (queueVersion < X_REPLY_QUEUE_VERSION) {
         removedLegacyVersionFromPrev += 1;
@@ -669,7 +693,14 @@ async function refreshQueueForLang(lang, now) {
         removedHandledFromPrev += 1;
         continue;
       }
+      seenPrevAuthorIds.add(aid);
       prevFiltered.push(normalized);
+    }
+    if (droppedDuplicateAuthorFromPrev > 0) {
+      console.log("[X Reply Sales][list] prev queue deduped by author_id (one per user)", {
+        lang: normalizedLang,
+        droppedDuplicateAuthorFromPrev
+      });
     }
   } else {
     droppedFromPrevByPolicy = prevQueueRaw.length;
@@ -714,6 +745,7 @@ async function refreshQueueForLang(lang, now) {
     freshEnqueued: freshQueue.length,
     removedHandledFromPrev,
     removedLegacyVersionFromPrev,
+    droppedDuplicateAuthorFromPrev,
     droppedFromPrevByPolicy,
     addedFromFresh: merged.addedFromFresh,
     retainedFromPrev: merged.retainedFromExisting,
@@ -749,6 +781,7 @@ async function refreshQueueForLang(lang, now) {
     replySettingsCounts: summary.replySettingsCounts,
     retainedFromPrev: summary.retainedFromPrev,
     droppedFromPrevByPolicy: summary.droppedFromPrevByPolicy,
+    droppedDuplicateAuthorFromPrev: summary.droppedDuplicateAuthorFromPrev,
     nextQueueLength: summary.nextQueueLength,
     hotList: hot.hotList,
     postTypeCounts: hot.postTypeCounts,
@@ -890,6 +923,10 @@ module.exports = async function handler(req, res) {
         (acc, row) => acc + (Number(row?.droppedFromPrevByPolicy) || 0),
         0
       ),
+      droppedDuplicateAuthorFromPrevTotal: perLang.reduce(
+        (acc, row) => acc + (Number(row?.droppedDuplicateAuthorFromPrev) || 0),
+        0
+      ),
       droppedByCapTotal: perLang.reduce((acc, row) => acc + (Number(row?.droppedByCap) || 0), 0),
       nextQueueTotal: perLang.reduce((acc, row) => acc + (Number(row?.nextQueueLength) || 0), 0)
     };
@@ -909,6 +946,7 @@ module.exports = async function handler(req, res) {
       freshEnqueuedTotal: gross.freshEnqueuedTotal,
       skippedReplyRestrictedTotal: gross.skippedReplyRestrictedTotal,
       droppedFromPrevByPolicyTotal: gross.droppedFromPrevByPolicyTotal,
+      droppedDuplicateAuthorFromPrevTotal: gross.droppedDuplicateAuthorFromPrevTotal,
       droppedByCapTotal: gross.droppedByCapTotal,
       nextQueueTotal: gross.nextQueueTotal
     });
@@ -1007,6 +1045,8 @@ module.exports = async function handler(req, res) {
       const rawQueue = await kv.get(KV_KEY_QUEUE(lang));
       const normalizedQueue = parseQueueValue(rawQueue).map((item) => normalizeCandidate(item, lang));
       let droppedLegacy = 0;
+      let droppedDuplicateAuthor = 0;
+      const seenAuthorIdsInLang = new Set();
       const filteredQueue = [];
       for (const item of normalizedQueue) {
         const queueVersion = Number(item?.queue_version || 0);
@@ -1014,11 +1054,23 @@ module.exports = async function handler(req, res) {
           droppedLegacy += 1;
           continue;
         }
+        const aid = String(item?.author_id || "").trim();
+        if (aid && seenAuthorIdsInLang.has(aid)) {
+          droppedDuplicateAuthor += 1;
+          continue;
+        }
+        if (aid) seenAuthorIdsInLang.add(aid);
         filteredQueue.push(item);
       }
       queuesByLang[lang] = filteredQueue;
       droppedLegacyQueueByLang[lang] = droppedLegacy;
       droppedLegacyQueueTotal += droppedLegacy;
+      if (droppedDuplicateAuthor > 0) {
+        console.log("[X Reply Sales][send] queue deduped by author_id (one per user)", {
+          lang,
+          droppedDuplicateAuthor
+        });
+      }
       if (droppedLegacy > 0) {
         console.warn("[X Reply Sales][send] dropped legacy queue items", {
           lang,
