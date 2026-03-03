@@ -1,15 +1,12 @@
 /**
  * アフィリエイター発見 → 該当投稿をブックマークに追加
  *
- * リスト取得は直販（x-reply-sales-run mode=list）のノウハウに合わせる:
- * - nextToken で複数ページ取得（maxRounds まで）
- * - ページ間遅延で 402 抑制
- * - 同一 author_id は先頭1件のみ採用（重複排除）
- * - 402 でその言語は打ち切り
+ * 仕様（唯一の定義）: docs/AFFILIATE_RECRUIT_BOOKMARK_SPEC.md
+ * 対象3条件: (1) 現在活動中のアフィリエイト (2) 案件募集中は除外 (3) 100人以上フォロワー。それ以外は集めない。
  *
- * 候補条件: 検索クエリで発見 / フォロワー100人以上
+ * パイプライン: 検索 → author_id 重複排除 → リツイート除外 → minFollowers フィルタ → 先頭 cap 件をブックマーク。
+ * リスト取得は直販のノウハウに合わせる: nextToken ループ、ページ間遅延、402 で打ち切り。
  * 認証: CRON_SECRET または ?dryRun=1。ブックマークは X_API_OAUTH2_USER_ACCESS_TOKEN 必須。
- * 制限: X API ブックマーク 50/15分。
  */
 require("../utils/suppressKnownWarnings");
 const { fetchOneSearchPage } = require("../services/td/affiliateRecruitSearch");
@@ -20,8 +17,8 @@ const {
   AFFILIATE_RECRUIT_MIN_FOLLOWERS
 } = require("../config/affiliateRecruitConfig");
 
-/** 1 run あたりのブックマーク上限（X API 50/15分の 1/10 で運用）。env で 1〜5 の範囲で上書き可。 */
-const BOOKMARK_CAP_PER_RUN = Math.min(5, Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_CAP_PER_RUN || 5)));
+/** 1 run あたりのブックマーク上限。ブックマークは $0.005/件。コスト主因は検索の投稿/ユーザー読み取り。env で 1〜50 の範囲で上書き可。 */
+const BOOKMARK_CAP_PER_RUN = Math.min(50, Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_CAP_PER_RUN || 30)));
 const BOOKMARK_DELAY_MS = Math.max(500, Number(process.env.AFFILIATE_BOOKMARK_DELAY_MS || 2000));
 /** 1言語あたりの検索ページ数。API コスト抑制のため既定 2（2頁で十分候補が取れる）。env で上書き可。 */
 const LIST_PAGES_PER_LANG = Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_LIST_PAGES || 2));
@@ -91,6 +88,13 @@ module.exports = async function handler(req, res) {
   const perLang = [];
   /** 1 run で 1 回だけ取得（言語ループの外で保持し /users/me の重複呼び出しを防止） */
   let oauth2UserId = null;
+
+  console.log("[affiliate-recruit-bookmark] run (spec: AFFILIATE_RECRUIT_BOOKMARK_SPEC)", {
+    langs,
+    minFollowers,
+    capPerRun: BOOKMARK_CAP_PER_RUN,
+    dryRun: !!dryRun
+  });
 
   try {
     for (const lang of langs) {
@@ -189,6 +193,7 @@ module.exports = async function handler(req, res) {
       const credible = filterByMinFollowers(nonRetweets, usersById, minFollowers);
       const tweetIds = [...new Set(credible.map((p) => p?.id).filter(Boolean))];
       const toAdd = tweetIds.slice(0, Math.max(0, BOOKMARK_CAP_PER_RUN - allResults.length));
+      const textById = new Map(credible.map((p) => [p?.id, (p?.text || "").slice(0, 120)]));
       perLang.push({
         lang,
         pagesFetched,
@@ -210,6 +215,8 @@ module.exports = async function handler(req, res) {
           break;
         }
         const r = await createBookmark(tid, oauth2UserId);
+        const preview = textById.get(tid);
+        if (preview) console.log("[affiliate-recruit-bookmark] bookmark", { tweet_id: tid, textPreview: preview });
         allResults.push({ lang, tweet_id: tid, ok: r.ok, error: r.error || null });
         if (!r.ok && (r.error || "").includes("429")) {
           console.warn("[affiliate-recruit-bookmark] rate limit (429), stopping");
