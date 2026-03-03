@@ -531,14 +531,25 @@ async function refreshQueueForLang(lang, now) {
     windowMinutes
   });
   for (let round = 0; round < maxRounds; round += 1) {
+    if (round > 0 && X_REPLY_SEARCH_DELAY_MS > 0) {
+      await new Promise((r) => setTimeout(r, X_REPLY_SEARCH_DELAY_MS));
+    }
     if (allRows.length >= X_REPLY_QUEUE_CAP_PER_LANG) {
       const tempBuilt = buildCandidatesFromSearchRows(normalizedLang, allRows, usersById, {
         discoveredAt: now.toISOString(),
         queueVersion: X_REPLY_QUEUE_VERSION
       });
       const tempCandidates = tempBuilt.candidates || [];
+      const seenTempAuthors = new Set();
+      const tempByAuthor = [];
+      for (const c of tempCandidates) {
+        const aid = String(c?.author_id || "").trim();
+        if (!aid || seenTempAuthors.has(aid)) continue;
+        seenTempAuthors.add(aid);
+        tempByAuthor.push(c);
+      }
       const tempHandled = await Promise.all(
-        tempCandidates.map((c) => isTweetHandled(c.tweet_id))
+        tempByAuthor.map((c) => isTweetHandled(c.tweet_id))
       );
       const unhandledCount = tempHandled.filter((h) => !h).length;
       if (unhandledCount >= X_REPLY_QUEUE_CAP_PER_LANG) break;
@@ -572,9 +583,6 @@ async function refreshQueueForLang(lang, now) {
       hitsByMode[mode] += rows.length;
       nextTokens[mode] = page?.nextToken || null;
       pagesFetched += 1;
-      if (X_REPLY_SEARCH_DELAY_MS > 0 && round < maxRounds - 1) {
-        await new Promise((r) => setTimeout(r, X_REPLY_SEARCH_DELAY_MS));
-      }
     } catch (err) {
       if (String(err?.message || "").includes("402")) {
         console.log("[X Reply Sales][list] round-robin early exit (新規取得が少なくなる)", {
@@ -1086,7 +1094,25 @@ module.exports = async function handler(req, res) {
       queueTotalStart
     });
 
-    const me = await getMe();
+    let me;
+    try {
+      me = await getMe();
+    } catch (getMeErr) {
+      const msg = String(getMeErr?.message || "");
+      if (msg.includes("temporarily locked") || msg.includes("account is temporarily locked")) {
+        console.error("[X Reply Sales][send] X アカウントが一時ロックされています。https://twitter.com でログインして解除してください", {
+          error: msg
+        });
+        return res.status(200).json({
+          ok: false,
+          reason: "account_locked",
+          message: "X account temporarily locked. Log in at https://twitter.com to unlock.",
+          slotKey,
+          queueTotalStart
+        });
+      }
+      throw getMeErr;
+    }
     const cachedSourceId = me?.id || null;
     if (!cachedSourceId) {
       console.warn("[X Reply Sales][send] getMe failed, follow/like will call getMe per request");
@@ -1246,15 +1272,13 @@ module.exports = async function handler(req, res) {
       const replySettings = String(item.reply_settings ?? "").trim().toLowerCase();
       const canAttemptReply =
         !X_REPLY_SKIP_REPLY_ATTEMPT && replySettings === "everyone";
-      console.log("[X Reply Sales][send] " + (canAttemptReply ? "attempting reply" : "skip reply → DM"), {
+      console.log("[X Reply Sales][send] " + (canAttemptReply ? "attempting reply" : "DM"), {
         attempt: attemptsThisRun,
         tweetId: item.tweet_id,
         lang,
-        handle: item.username,
-        reply_settings_at_list: item.reply_settings ?? "(unknown)"
+        handle: item.username
       });
       let sendResult;
-      // reply_settings が 'everyone' のときだけリプライを試行（それ以外は X API が 403 を返すため試行しない）
       if (canAttemptReply) {
         const replyText = item.username
           ? `@${String(item.username).replace(/^@/, "")} ${textWithCoupon}`.trim()
@@ -1268,8 +1292,7 @@ module.exports = async function handler(req, res) {
           ok: false,
           classified: {
             retryable: false,
-            type: "reply_not_allowed_by_conversation",
-            reply_settings: replySettings || "(unknown)"
+            type: "reply_not_allowed_by_conversation"
           }
         };
       }

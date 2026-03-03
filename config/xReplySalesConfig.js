@@ -5,8 +5,8 @@
 const X_REPLY_SALES_LANGS = ["en", "ar", "es", "pt", "ja", "ko"];
 const X_REPLY_SALES_REGION_LANGS = ["ar", "es", "pt", "ja", "ko"];
 
-// リスト取得: 1言語1回あたりのページ数（1リクエスト=1ページ）。Vercel 300秒制限に合わせ 10秒×15回＝約170〜200秒で収める
-const X_REPLY_LIST_PAGES = Math.max(1, Number(process.env.X_REPLY_LIST_PAGES || 15) || 15);
+// リスト取得: 1言語1回あたりのページ数。2秒間隔で300秒枠いっぱい＝約75ラウンド（2＋74×4≈298秒）
+const X_REPLY_LIST_PAGES = Math.max(1, Number(process.env.X_REPLY_LIST_PAGES || 75) || 75);
 // 1ラン（1言語1回のリスト取得）で使ってよい検索リクエスト数の上限。当プランは 450/15min のためデフォルト450
 const X_REPLY_SEARCH_REQUESTS_PER_RUN = Math.max(
   1,
@@ -16,13 +16,13 @@ const X_REPLY_MAX_RESULTS_PER_PAGE = Math.min(
   100,
   Math.max(10, Number(process.env.X_REPLY_MAX_RESULTS_PER_PAGE || 100))
 );
-// 検索の時間窓（分）。全言語共通。窓を広げると1リクエストあたりのヒット数が増える。デフォルト 360 分
+// 検索の時間窓（分）。全言語共通。直近を優先するためデフォルト 180 分（3時間）。広げると古いツイートも混ざる
 const X_REPLY_SEARCH_WINDOW_MINUTES = Math.max(
   15,
-  Number(process.env.X_REPLY_SEARCH_WINDOW_MINUTES || 360)
+  Number(process.env.X_REPLY_SEARCH_WINDOW_MINUTES || 180)
 );
-// 検索リクエスト間の遅延（ms）。10秒×15回で約170〜200秒、Vercel 300秒以内。0は402の原因になる
-const X_REPLY_SEARCH_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_SEARCH_DELAY_MS || 10000));
+// 検索リクエスト間の遅延（ms）。ラウンド開始前に1回。2秒間隔で402を避けつつ300秒枠内で回す
+const X_REPLY_SEARCH_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_SEARCH_DELAY_MS || 2000));
 
 // strict優先、低ヒット時のみbalancedへ（AR/ES/PT で 0 件になりがちなためデフォルトオン）
 const X_REPLY_LOW_HIT_BALANCED_THRESHOLD = Math.max(
