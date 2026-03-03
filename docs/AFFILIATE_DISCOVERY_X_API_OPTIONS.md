@@ -124,6 +124,8 @@
 
 環境変数: `AFFILIATE_BOOKMARK_CAP_PER_RUN`（既定 50＝Xの15分あたり上限）、`AFFILIATE_BOOKMARK_DELAY_MS`（既定 2000）。ブックマーク作成は X API で $0.005/リクエスト。
 
+**ブックマーク API は OAuth 2.0 User Context のみ対応**（OAuth 1.0a では 403）。Vercel に `X_API_OAUTH2_USER_ACCESS_TOKEN` を設定すること。X Developer Portal で OAuth 2.0（PKCE）アプリを作成し、スコープ `bookmark.read`, `bookmark.write`, `users.read`, `tweet.read` で認証して取得したユーザーアクセストークンを入れる。
+
 ---
 
 ## 参照

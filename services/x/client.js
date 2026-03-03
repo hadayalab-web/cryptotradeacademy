@@ -15,6 +15,8 @@ const X_API_CONSUMER_KEY_SECRET = process.env.X_API_CONSUMER_KEY_SECRET;
 const X_API_ACCESS_TOKEN = process.env.X_API_ACCESS_TOKEN;
 const X_API_ACCESS_TOKEN_SECRET = process.env.X_API_ACCESS_TOKEN_SECRET;
 const X_API_BEARER_TOKEN = process.env.X_API_BEARER_TOKEN;
+/** OAuth 2.0 User Context アクセストークン（PKCE取得）。ブックマーク API は OAuth 2.0 必須のため、未設定だと 403。 */
+const X_API_OAUTH2_USER_ACCESS_TOKEN = process.env.X_API_OAUTH2_USER_ACCESS_TOKEN;
 // P1 FIX: X_API_BASE_URLのデフォルトをapi.twitter.comに変更（互換性向上）
 const X_API_BASE_URL = process.env.X_API_BASE_URL || "https://api.twitter.com/2";
 const X_UPLOAD_URL = "https://upload.x.com/1.1/media/upload.json";
@@ -1030,9 +1032,40 @@ async function unfollowUser(targetUserId) {
 }
 
 /**
+ * OAuth 2.0 User Context で X API を呼ぶ（ブックマーク等の OAuth 2.0 必須エンドポイント用）
+ * 要: X_API_OAUTH2_USER_ACCESS_TOKEN（PKCE で取得したユーザーアクセストークン）
+ */
+async function xApiRequestOAuth2User(endpoint, options = {}) {
+  if (!X_API_OAUTH2_USER_ACCESS_TOKEN) {
+    throw new Error(
+      "X_API_OAUTH2_USER_ACCESS_TOKEN is required for this endpoint (OAuth 2.0 User Context). Get it via OAuth 2.0 PKCE flow with scopes bookmark.read, bookmark.write, users.read, tweet.read."
+    );
+  }
+  const url = `${X_API_BASE_URL}${endpoint}`;
+  const method = options.method || "GET";
+  const headers = {
+    Authorization: `Bearer ${X_API_OAUTH2_USER_ACCESS_TOKEN}`,
+    "Content-Type": "application/json"
+  };
+  const fetchOptions = { method, headers };
+  if (method !== "GET" && options.body) {
+    fetchOptions.body = JSON.stringify(options.body);
+  }
+  const res = await fetch(url, fetchOptions);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data?.detail || data?.title || `X API Error: ${res.status}`);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+/**
  * 指定投稿をブックマークに追加（認証ユーザーのブックマーク一覧に入れる）
  * 制限: 50 リクエスト/15分/ユーザー（X API）。$0.005/リクエスト。
- * ※ OAuth 2.0 + bookmark.write が必要なプランでは 401 になる場合あり。
+ * 認証: ブックマーク API は OAuth 2.0 User Context のみ対応。X_API_OAUTH2_USER_ACCESS_TOKEN を設定すること。
  * @param {string} tweetId - ブックマークする投稿のID
  * @returns {Promise<{ok: boolean, bookmarked?: boolean, error?: string}>}
  */
@@ -1040,6 +1073,21 @@ async function createBookmark(tweetId) {
   const tid = String(tweetId || "").trim();
   if (!tid) return { ok: false, error: "tweet_id is required" };
   try {
+    // ブックマークは OAuth 2.0 必須。OAuth 2.0 トークンがあればそれで /users/me と POST bookmarks を呼ぶ
+    if (X_API_OAUTH2_USER_ACCESS_TOKEN) {
+      const me = await xApiRequestOAuth2User("/users/me");
+      const userId = me?.data?.id || me?.id;
+      if (!userId) return { ok: false, error: "Could not get user id with OAuth 2.0" };
+      const response = await xApiRequestOAuth2User(`/users/${userId}/bookmarks`, {
+        method: "POST",
+        body: { tweet_id: tid }
+      });
+      return {
+        ok: true,
+        bookmarked: response?.data?.bookmarked === true
+      };
+    }
+    // フォールバック: OAuth 1.0a で呼ぶ（ブックマークは 403 になるが、トークン未設定時のエラーは明示する）
     const me = await getMe();
     const userId = me?.id;
     if (!userId) return { ok: false, error: "Could not get authenticated user id" };

@@ -11,6 +11,7 @@
  * - ?lang=en | es | pt | ar | ja | ko … 指定言語のみ
  * - ?lang=all … 6言語を順に検索し、条件を満たす投稿をブックマーク（合計 cap まで）
  * 認証: CRON_SECRET または ?dryRun=1 でブックマークせず検索結果のみ返す。
+ * ブックマーク書き込み: X のブックマーク API は OAuth 2.0 User Context 必須。Vercel に X_API_OAUTH2_USER_ACCESS_TOKEN（PKCE で取得したユーザーアクセストークン、スコープ bookmark.read, bookmark.write, users.read, tweet.read）を設定すること。
  * 制限: X API ブックマーク 50/15分。
  */
 require("../utils/suppressKnownWarnings");
