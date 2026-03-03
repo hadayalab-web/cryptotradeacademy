@@ -22,7 +22,8 @@ const {
   AFFILIATE_RECRUIT_MIN_FOLLOWERS
 } = require("../config/affiliateRecruitConfig");
 
-const BOOKMARK_CAP_PER_RUN = Math.min(50, Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_CAP_PER_RUN || 10)));
+// 上限はXの制限（50/15分）のみ。環境変数で上書き可。
+const BOOKMARK_CAP_PER_RUN = Math.min(50, Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_CAP_PER_RUN || 50)));
 const BOOKMARK_DELAY_MS = Math.max(500, Number(process.env.AFFILIATE_BOOKMARK_DELAY_MS || 2000));
 const LANGS_6 = ["en", "es", "pt", "ar", "ja", "ko"];
 

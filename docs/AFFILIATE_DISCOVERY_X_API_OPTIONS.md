@@ -122,7 +122,7 @@
 - **流れ**: 指定言語でアフィリ検索 1 ページ → ヒットした投稿の tweet_id を認証ユーザーのブックマークに追加（1ランあたり最大 10 件・X 制限 50/15 分に合わせて調整可）
 - **あなた**: X のブックマークを開く → 各投稿から作者をフォロー・いいね・リプライ・DM
 
-環境変数: `AFFILIATE_BOOKMARK_CAP_PER_RUN`（既定 10）、`AFFILIATE_BOOKMARK_DELAY_MS`（既定 2000）。ブックマーク作成は X API で $0.005/リクエスト。
+環境変数: `AFFILIATE_BOOKMARK_CAP_PER_RUN`（既定 50＝Xの15分あたり上限）、`AFFILIATE_BOOKMARK_DELAY_MS`（既定 2000）。ブックマーク作成は X API で $0.005/リクエスト。
 
 ---
 
