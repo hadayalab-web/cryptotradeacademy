@@ -947,12 +947,11 @@ async function checkXApiCredits() {
  * @param {string} tweetId - いいねするツイートのID
  * @returns {Promise<{ok: boolean, liked?: boolean, error?: string}>}
  */
-async function likeTweet(tweetId) {
+async function likeTweet(tweetId, options = {}) {
   const tid = String(tweetId || "").trim();
   if (!tid) return { ok: false, error: "tweet_id is required" };
   try {
-    const me = await getMe();
-    const sourceId = me?.id;
+    const sourceId = options.sourceId || (await getMe())?.id;
     if (!sourceId) return { ok: false, error: "Could not get authenticated user id" };
     const response = await xApiRequest(`/users/${sourceId}/likes`, {
       method: "POST",
@@ -977,12 +976,11 @@ async function likeTweet(tweetId) {
  * @param {string} targetUserId - フォローするユーザーのID
  * @returns {Promise<{ok: boolean, following?: boolean, pending_follow?: boolean, error?: string}>}
  */
-async function followUser(targetUserId) {
+async function followUser(targetUserId, options = {}) {
   const tid = String(targetUserId || "").trim();
   if (!tid) return { ok: false, error: "target_user_id is required" };
   try {
-    const me = await getMe();
-    const sourceId = me?.id;
+    const sourceId = options.sourceId || (await getMe())?.id;
     if (!sourceId) return { ok: false, error: "Could not get authenticated user id" };
     const response = await xApiRequest(`/users/${sourceId}/following`, {
       method: "POST",

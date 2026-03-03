@@ -9,7 +9,7 @@ const { kv } = require("../utils/kv");
 const { fetchOnePageByMode } = require("../services/td/xReplySalesSearch");
 const { sendSalesReply } = require("../services/x/replySalesClient");
 const { sendRecruitDm } = require("../services/x/dmClient");
-const { followUser, likeTweet } = require("../services/x/client");
+const { followUser, likeTweet, getMe } = require("../services/x/client");
 const {
   buildReplyMessage,
   detectReplyPostType,
@@ -291,9 +291,10 @@ async function markTweetNg(tweetId, payload = {}) {
   );
 }
 
+/** 同一 author_id は1件のみキューに残す（複数ツイートで同一ユーザーが重複しないようにする） */
 function mergeQueueEntries(freshItems, existingItems) {
   const queue = [];
-  const seen = new Set();
+  const seenAuthorIds = new Set();
   let addedFromFresh = 0;
   let retainedFromExisting = 0;
   let droppedDuplicates = 0;
@@ -305,16 +306,16 @@ function mergeQueueEntries(freshItems, existingItems) {
       droppedInvalid += 1;
       return;
     }
-    const key = candidateKey(normalized);
-    if (!key) {
+    const authorId = String(normalized.author_id || "").trim();
+    if (!authorId) {
       droppedInvalid += 1;
       return;
     }
-    if (seen.has(key)) {
+    if (seenAuthorIds.has(authorId)) {
       droppedDuplicates += 1;
       return;
     }
-    seen.add(key);
+    seenAuthorIds.add(authorId);
     queue.push(normalized);
     if (source === "fresh") addedFromFresh += 1;
     else retainedFromExisting += 1;
@@ -618,17 +619,36 @@ async function refreshQueueForLang(lang, now) {
   const replySettingsCounts = builtResult.replySettingsCounts || {};
   const listCount = built.length;
   console.log(`[X Reply Sales][list] ${normalizedLang} リスト ${listCount} 件 (reply_settings 除外: ${skippedReplyRestricted}, 内訳: ${JSON.stringify(replySettingsCounts)})`);
+  // 同一 author_id は1件のみ採用（優先度順の先頭を残す）。二度と同一ユーザーに複数回試行しない
+  const seenAuthorIds = new Set();
+  const builtDeduped = [];
+  for (const c of built) {
+    const aid = String(c?.author_id || "").trim();
+    if (!aid) continue;
+    if (seenAuthorIds.has(aid)) continue;
+    seenAuthorIds.add(aid);
+    builtDeduped.push(c);
+  }
+  const droppedDuplicateAuthors = built.length - builtDeduped.length;
+  if (droppedDuplicateAuthors > 0) {
+    console.log("[X Reply Sales][list] duplicate authors dropped (one tweet per user)", {
+      lang: normalizedLang,
+      dropped: droppedDuplicateAuthors,
+      before: built.length,
+      after: builtDeduped.length
+    });
+  }
   const handledChecks = await Promise.all(
-    built.map((candidate) => isTweetHandled(candidate.tweet_id))
+    builtDeduped.map((candidate) => isTweetHandled(candidate.tweet_id))
   );
   const freshQueue = [];
   let skippedHandled = 0;
-  for (let i = 0; i < built.length; i += 1) {
+  for (let i = 0; i < builtDeduped.length; i += 1) {
     if (handledChecks[i]) {
       skippedHandled += 1;
       continue;
     }
-    freshQueue.push(built[i]);
+    freshQueue.push(builtDeduped[i]);
   }
 
   const prevQueueRaw = parseQueueValue(await kv.get(queueKey));
@@ -687,7 +707,8 @@ async function refreshQueueForLang(lang, now) {
     fetchedUsers: Object.keys(usersById).length,
     skippedReplyRestricted,
     discoveredCandidates: built.length,
-    freshDiscovered: built.length,
+    freshDiscovered: builtDeduped.length,
+    droppedDuplicateAuthors,
     skippedHandled,
     enqueuedFresh: freshQueue.length,
     freshEnqueued: freshQueue.length,
@@ -1014,6 +1035,14 @@ module.exports = async function handler(req, res) {
       queueTotalStart
     });
 
+    const me = await getMe();
+    const cachedSourceId = me?.id || null;
+    if (!cachedSourceId) {
+      console.warn("[X Reply Sales][send] getMe failed, follow/like will call getMe per request");
+    }
+
+    const processedAuthorIdsInRun = new Set();
+
     let attemptsThisRun = 0;
     let sentThisRun = 0;
     let errorsThisRun = 0;
@@ -1066,6 +1095,16 @@ module.exports = async function handler(req, res) {
       if (await isTweetHandled(item.tweet_id)) {
         continue;
       }
+      const authorId = String(item?.author_id || "").trim();
+      if (authorId && processedAuthorIdsInRun.has(authorId)) {
+        console.log("[X Reply Sales][send] skip duplicate author in same run", {
+          lang,
+          handle: item.username,
+          authorId
+        });
+        continue;
+      }
+      if (authorId) processedAuthorIdsInRun.add(authorId);
 
       const previewOfferUrl = buildTrackedOfferUrl(req, item, {
         postType: item.post_type || detectReplyPostType(lang, item.text),
@@ -1168,7 +1207,9 @@ module.exports = async function handler(req, res) {
           const currentCount = parseInt(await kv.get(KV_KEY_FOLLOW_COUNT_DAILY(dateStr)), 10) || 0;
           const alreadyFollowed = await kv.get(KV_KEY_FOLLOWED_DAILY(dateStr, item.author_id));
           if (currentCount < X_REPLY_FOLLOW_CAP_PER_DAY && !alreadyFollowed) {
-            const followResult = await followUser(item.author_id);
+            const followResult = await followUser(item.author_id, {
+              sourceId: cachedSourceId || undefined
+            });
             if (followResult.ok || followResult.error) {
               await kv.set(KV_KEY_FOLLOWED_DAILY(dateStr, item.author_id), "1", {
                 ex: 86400 * 2
@@ -1197,6 +1238,22 @@ module.exports = async function handler(req, res) {
           }
         } catch (followErr) {
           console.warn("[X Reply Sales][send] follow before send failed (non-fatal):", followErr?.message);
+        }
+      }
+      // フォロー → いいね → リプライ → DM の順。リプライ試行前に必ずいいね（通知で気づいてもらう）
+      if (X_REPLY_LIKE_BEFORE_DM && item.tweet_id) {
+        try {
+          const likeResult = await likeTweet(item.tweet_id, {
+            sourceId: cachedSourceId || undefined
+          });
+          if (!likeResult.ok) {
+            console.warn("[X Reply Sales][send] like before reply failed (non-fatal):", {
+              tweetId: item.tweet_id,
+              error: likeResult.error
+            });
+          }
+        } catch (likeErr) {
+          console.warn("[X Reply Sales][send] like before reply threw (non-fatal):", likeErr?.message);
         }
       }
       let sendResult;
@@ -1245,20 +1302,7 @@ module.exports = async function handler(req, res) {
         }
         const immediateNg = shouldMarkImmediateNg(classified);
         if (immediateNg) {
-          // DM着地前に対象ツイートをいいね（通知で気づいてもらう）。失敗してもDMは送る
-          if (X_REPLY_LIKE_BEFORE_DM && item.tweet_id) {
-            try {
-              const likeResult = await likeTweet(item.tweet_id);
-              if (!likeResult.ok) {
-                console.warn("[X Reply Sales][send] like before DM failed (non-fatal):", {
-                  tweetId: item.tweet_id,
-                  error: likeResult.error
-                });
-              }
-            } catch (likeErr) {
-              console.warn("[X Reply Sales][send] like before DM threw (non-fatal):", likeErr?.message);
-            }
-          }
+          // いいねはリプライ試行前に済ませているため、ここではDMのみ送る
           // DM用トラッキングURL（channel=dm）に差し替え、クリックをリプライと別集計
           const offerUrlForDm = buildTrackedOfferUrl(req, item, {
             postType: selectedMessage.postType,
