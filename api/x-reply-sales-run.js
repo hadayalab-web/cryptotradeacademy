@@ -9,7 +9,7 @@ const { kv } = require("../utils/kv");
 const { fetchOnePageByMode } = require("../services/td/xReplySalesSearch");
 const { sendSalesReply } = require("../services/x/replySalesClient");
 const { sendRecruitDm } = require("../services/x/dmClient");
-const { followUser, likeTweet, getMe } = require("../services/x/client");
+const { followUser, getMe } = require("../services/x/client");
 const {
   buildReplyMessage,
   detectReplyPostType,
@@ -40,8 +40,7 @@ const {
   X_REPLY_FOLLOW_BEFORE_SEND,
   X_REPLY_FOLLOW_CAP_PER_DAY,
   X_REPLY_FOLLOW_DELAY_MS,
-  X_REPLY_SKIP_REPLY_ATTEMPT,
-  X_REPLY_LIKE_BEFORE_DM
+  X_REPLY_SKIP_REPLY_ATTEMPT
 } = require("../config/xReplySalesConfig");
 const { getMinimalVersionCheckoutUrl, getWhopProductUrl } = require("../services/telegram/whop-links");
 
@@ -1363,7 +1362,40 @@ module.exports = async function handler(req, res) {
           const closingLine = getDmClosing(lang);
           const parts = [tweetQuote, queryHook, dmBody].filter(Boolean);
           const dmText = parts.join("\n\n") + (closingLine ? "\n\n" + closingLine : "");
-          // いいね・フォローはDM送信成功時のみ実行（送信前にフォローしない）
+          // フォローはDM前に1回のみ（同一ユーザーをフォロー・DMで1回ずつ使う）。いいねは行わない
+          if (X_REPLY_FOLLOW_BEFORE_SEND && kv && item.author_id && X_REPLY_FOLLOW_CAP_PER_DAY > 0) {
+            try {
+              const currentCount = parseInt(await kv.get(KV_KEY_FOLLOW_COUNT_DAILY(dateStr)), 10) || 0;
+              const alreadyFollowed = await kv.get(KV_KEY_FOLLOWED_DAILY(dateStr, item.author_id));
+              if (currentCount < X_REPLY_FOLLOW_CAP_PER_DAY && !alreadyFollowed) {
+                const followResult = await followUser(item.author_id, {
+                  sourceId: cachedSourceId || undefined
+                });
+                if (followResult.ok || followResult.error) {
+                  await kv.set(KV_KEY_FOLLOWED_DAILY(dateStr, item.author_id), "1", { ex: 86400 * 2 });
+                  const nextCount = currentCount + 1;
+                  await kv.set(KV_KEY_FOLLOW_COUNT_DAILY(dateStr), String(nextCount), { ex: 86400 * 2 });
+                  const usersKey = KV_KEY_FOLLOWED_USERS_DAILY(dateStr);
+                  const prevList = await kv.get(usersKey);
+                  const arr = Array.isArray(prevList) ? prevList : (typeof prevList === "string" ? (() => { try { return JSON.parse(prevList); } catch (_) { return []; } })() : []);
+                  if (!arr.includes(item.author_id)) arr.push(item.author_id);
+                  await kv.set(usersKey, arr, { ex: 86400 * 8 });
+                  if (X_REPLY_FOLLOW_DELAY_MS > 0) {
+                    await new Promise((r) => setTimeout(r, X_REPLY_FOLLOW_DELAY_MS));
+                  }
+                  console.log("[X Reply Sales][send] follow before DM", {
+                    authorId: item.author_id,
+                    handle: item.username,
+                    following: followResult.following,
+                    followCountToday: nextCount,
+                    cap: X_REPLY_FOLLOW_CAP_PER_DAY
+                  });
+                }
+              }
+            } catch (followErr) {
+              console.warn("[X Reply Sales][send] follow before DM failed (non-fatal):", followErr?.message);
+            }
+          }
           let dmResult;
           try {
             dmResult = await sendRecruitDm(item.username, dmText || textWithCoupon, {
@@ -1405,58 +1437,6 @@ module.exports = async function handler(req, res) {
           } else {
             await incrementDailyCounter(dateStr, lang, "dm_sent", 1);
             await incrementHourlyCounter(dateStr, hourUtc, "dm_sent", 1, lang);
-            if (X_REPLY_FOLLOW_BEFORE_SEND && kv && item.author_id && X_REPLY_FOLLOW_CAP_PER_DAY > 0) {
-              try {
-                const currentCount = parseInt(await kv.get(KV_KEY_FOLLOW_COUNT_DAILY(dateStr)), 10) || 0;
-                const alreadyFollowed = await kv.get(KV_KEY_FOLLOWED_DAILY(dateStr, item.author_id));
-                if (currentCount < X_REPLY_FOLLOW_CAP_PER_DAY && !alreadyFollowed) {
-                  const followResult = await followUser(item.author_id, {
-                    sourceId: cachedSourceId || undefined
-                  });
-                  if (followResult.ok || followResult.error) {
-                    await kv.set(KV_KEY_FOLLOWED_DAILY(dateStr, item.author_id), "1", {
-                      ex: 86400 * 2
-                    });
-                    const nextCount = currentCount + 1;
-                    await kv.set(KV_KEY_FOLLOW_COUNT_DAILY(dateStr), String(nextCount), {
-                      ex: 86400 * 2
-                    });
-                    const usersKey = KV_KEY_FOLLOWED_USERS_DAILY(dateStr);
-                    const prevList = await kv.get(usersKey);
-                    const arr = Array.isArray(prevList) ? prevList : (typeof prevList === "string" ? (() => { try { return JSON.parse(prevList); } catch (_) { return []; } })() : []);
-                    if (!arr.includes(item.author_id)) arr.push(item.author_id);
-                    await kv.set(usersKey, arr, { ex: 86400 * 8 });
-                    if (X_REPLY_FOLLOW_DELAY_MS > 0) {
-                      await new Promise((r) => setTimeout(r, X_REPLY_FOLLOW_DELAY_MS));
-                    }
-                    console.log("[X Reply Sales][send] follow after DM sent", {
-                      authorId: item.author_id,
-                      handle: item.username,
-                      following: followResult.following,
-                      followCountToday: nextCount,
-                      cap: X_REPLY_FOLLOW_CAP_PER_DAY
-                    });
-                  }
-                }
-              } catch (followErr) {
-                console.warn("[X Reply Sales][send] follow after DM sent failed (non-fatal):", followErr?.message);
-              }
-            }
-            if (X_REPLY_LIKE_BEFORE_DM && item.tweet_id) {
-              try {
-                const likeResult = await likeTweet(item.tweet_id, {
-                  sourceId: cachedSourceId || undefined
-                });
-                if (!likeResult.ok) {
-                  console.warn("[X Reply Sales][send] like after DM sent failed (non-fatal):", {
-                    tweetId: item.tweet_id,
-                    error: likeResult.error
-                  });
-                }
-              } catch (likeErr) {
-                console.warn("[X Reply Sales][send] like after DM sent threw (non-fatal):", likeErr?.message);
-              }
-            }
             await markTweetHandled(
               item.tweet_id,
               {
