@@ -78,6 +78,7 @@ module.exports = async function handler(req, res) {
   }
 
   const minFollowers = Math.max(0, Number(AFFILIATE_RECRUIT_MIN_FOLLOWERS ?? 100));
+  const hasOAuth2UserToken = !!process.env.X_API_OAUTH2_USER_ACCESS_TOKEN;
   const allResults = [];
   const perLang = [];
 
@@ -112,6 +113,7 @@ module.exports = async function handler(req, res) {
       });
 
       if (dryRun) continue;
+      if (!hasOAuth2UserToken) continue;
 
       for (const tid of toAdd) {
         if (allResults.length >= BOOKMARK_CAP_PER_RUN) break;
@@ -140,15 +142,22 @@ module.exports = async function handler(req, res) {
 
     const bookmarked = allResults.filter((r) => r.ok).length;
     const failed = allResults.filter((r) => !r.ok).length;
-    console.log("[affiliate-recruit-bookmark] done", {
-      langs: useAllLangs ? "all" : langs,
-      bookmarked,
-      failed,
-      total: allResults.length,
-      minFollowers: minFollowers || null
-    });
+    if (!hasOAuth2UserToken) {
+      console.log("[affiliate-recruit-bookmark] done (bookmark skipped: X_API_OAUTH2_USER_ACCESS_TOKEN not set)", {
+        langs: useAllLangs ? "all" : langs,
+        perLang
+      });
+    } else {
+      console.log("[affiliate-recruit-bookmark] done", {
+        langs: useAllLangs ? "all" : langs,
+        bookmarked,
+        failed,
+        total: allResults.length,
+        minFollowers: minFollowers || null
+      });
+    }
 
-    return res.status(200).json({
+    const payload = {
       ok: true,
       langs: useAllLangs ? LANGS_6 : langs,
       minFollowers: minFollowers || null,
@@ -157,7 +166,12 @@ module.exports = async function handler(req, res) {
       capPerRun: BOOKMARK_CAP_PER_RUN,
       perLang,
       results: allResults
-    });
+    };
+    if (!hasOAuth2UserToken) {
+      payload.skippedBookmarkReason =
+        "X_API_OAUTH2_USER_ACCESS_TOKEN not set. Run scripts/x-oauth2-get-user-token.js and add the token to Vercel.";
+    }
+    return res.status(200).json(payload);
   } catch (e) {
     console.error("[affiliate-recruit-bookmark] error:", e?.message);
     return res.status(500).json({
