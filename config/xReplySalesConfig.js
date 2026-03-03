@@ -5,8 +5,8 @@
 const X_REPLY_SALES_LANGS = ["en", "ar", "es", "pt", "ja", "ko"];
 const X_REPLY_SALES_REGION_LANGS = ["ar", "es", "pt", "ja", "ko"];
 
-// リスト取得: 1言語1回あたりのページ数（1リクエスト=1ページ）。X API は 15分あたり perUser 300 / perApp 450 のため、1ラン内の検索回数はこれ以下にすること
-const X_REPLY_LIST_PAGES = Math.max(1, Number(process.env.X_REPLY_LIST_PAGES || 450) || 450);
+// リスト取得: 1言語1回あたりのページ数（1リクエスト=1ページ）。Vercel 300秒制限に合わせ 10秒×15回＝約170〜200秒で収める
+const X_REPLY_LIST_PAGES = Math.max(1, Number(process.env.X_REPLY_LIST_PAGES || 15) || 15);
 // 1ラン（1言語1回のリスト取得）で使ってよい検索リクエスト数の上限。当プランは 450/15min のためデフォルト450
 const X_REPLY_SEARCH_REQUESTS_PER_RUN = Math.max(
   1,
@@ -16,17 +16,13 @@ const X_REPLY_MAX_RESULTS_PER_PAGE = Math.min(
   100,
   Math.max(10, Number(process.env.X_REPLY_MAX_RESULTS_PER_PAGE || 100))
 );
-// 検索の時間窓（分）。窓を広げると1リクエストあたりのヒット数が増える。デフォルト 360/240 で拡充
+// 検索の時間窓（分）。全言語共通。窓を広げると1リクエストあたりのヒット数が増える。デフォルト 360 分
 const X_REPLY_SEARCH_WINDOW_MINUTES = Math.max(
   15,
   Number(process.env.X_REPLY_SEARCH_WINDOW_MINUTES || 360)
 );
-const X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES = Math.max(
-  60,
-  Number(process.env.X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES || 240)
-);
-// 検索リクエスト間の遅延（ms）。0で無効。レート制限で失敗が多いときは 1000〜2000 にすると成功回数が増える（450×2sはタイムアウトするので注意）
-const X_REPLY_SEARCH_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_SEARCH_DELAY_MS || 1000));
+// 検索リクエスト間の遅延（ms）。10秒×15回で約170〜200秒、Vercel 300秒以内。0は402の原因になる
+const X_REPLY_SEARCH_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_SEARCH_DELAY_MS || 10000));
 
 // strict優先、低ヒット時のみbalancedへ（AR/ES/PT で 0 件になりがちなためデフォルトオン）
 const X_REPLY_LOW_HIT_BALANCED_THRESHOLD = Math.max(
@@ -108,7 +104,6 @@ module.exports = {
   X_REPLY_SEARCH_REQUESTS_PER_RUN,
   X_REPLY_MAX_RESULTS_PER_PAGE,
   X_REPLY_SEARCH_WINDOW_MINUTES,
-  X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES,
   X_REPLY_SEARCH_DELAY_MS,
   X_REPLY_LOW_HIT_BALANCED_THRESHOLD,
   X_REPLY_BALANCED_FALLBACK_ENABLED,

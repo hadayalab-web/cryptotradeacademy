@@ -25,7 +25,6 @@ const {
   X_REPLY_SEARCH_REQUESTS_PER_RUN,
   X_REPLY_QUEUE_CAP_PER_LANG,
   X_REPLY_SEARCH_WINDOW_MINUTES,
-  X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES,
   X_REPLY_SEARCH_DELAY_MS,
   X_REPLY_RETAIN_PREVIOUS_QUEUE,
   X_REPLY_QUEUE_VERSION,
@@ -524,9 +523,7 @@ async function refreshQueueForLang(lang, now) {
   const maxRounds = Math.min(X_REPLY_LIST_PAGES, searchRequestCap);
   let pagesFetched = 0;
 
-  const windowMinutes = X_REPLY_SALES_REGION_LANGS.includes(normalizedLang)
-    ? X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES
-    : X_REPLY_SEARCH_WINDOW_MINUTES;
+  const windowMinutes = X_REPLY_SEARCH_WINDOW_MINUTES;
 
   console.log("[X Reply Sales][list] round-robin start", {
     lang: normalizedLang,
@@ -554,10 +551,11 @@ async function refreshQueueForLang(lang, now) {
         windowMinutes
       });
       if (page?.fatal402) {
-        console.log("[X Reply Sales][list] round-robin early exit", {
+        console.log("[X Reply Sales][list] round-robin early exit (新規取得が少なくなる)", {
           lang: normalizedLang,
           reason: "search_402",
-          rounds: pagesFetched
+          rounds: pagesFetched,
+          hint: "X_REPLY_LIST_PAGES を下げる(例:80) or X_REPLY_SEARCH_DELAY_MS を増やすと 402 を避けやすい"
         });
         return {
           ok: false,
@@ -579,10 +577,11 @@ async function refreshQueueForLang(lang, now) {
       }
     } catch (err) {
       if (String(err?.message || "").includes("402")) {
-        console.log("[X Reply Sales][list] round-robin early exit", {
+        console.log("[X Reply Sales][list] round-robin early exit (新規取得が少なくなる)", {
           lang: normalizedLang,
           reason: "search_402",
-          rounds: pagesFetched
+          rounds: pagesFetched,
+          hint: "X_REPLY_LIST_PAGES を下げる(例:80) or X_REPLY_SEARCH_DELAY_MS を増やすと 402 を避けやすい"
         });
         return { ok: false, lang: normalizedLang, reason: "search_402", pagesFetched };
       }
@@ -1254,60 +1253,6 @@ module.exports = async function handler(req, res) {
         handle: item.username,
         reply_settings_at_list: item.reply_settings ?? "(unknown)"
       });
-      if (X_REPLY_FOLLOW_BEFORE_SEND && kv && item.author_id && X_REPLY_FOLLOW_CAP_PER_DAY > 0) {
-        try {
-          const currentCount = parseInt(await kv.get(KV_KEY_FOLLOW_COUNT_DAILY(dateStr)), 10) || 0;
-          const alreadyFollowed = await kv.get(KV_KEY_FOLLOWED_DAILY(dateStr, item.author_id));
-          if (currentCount < X_REPLY_FOLLOW_CAP_PER_DAY && !alreadyFollowed) {
-            const followResult = await followUser(item.author_id, {
-              sourceId: cachedSourceId || undefined
-            });
-            if (followResult.ok || followResult.error) {
-              await kv.set(KV_KEY_FOLLOWED_DAILY(dateStr, item.author_id), "1", {
-                ex: 86400 * 2
-              });
-              const nextCount = currentCount + 1;
-              await kv.set(KV_KEY_FOLLOW_COUNT_DAILY(dateStr), String(nextCount), {
-                ex: 86400 * 2
-              });
-              const usersKey = KV_KEY_FOLLOWED_USERS_DAILY(dateStr);
-              const prevList = await kv.get(usersKey);
-              const arr = Array.isArray(prevList) ? prevList : (typeof prevList === "string" ? (() => { try { return JSON.parse(prevList); } catch (_) { return []; } })() : []);
-              if (!arr.includes(item.author_id)) arr.push(item.author_id);
-              await kv.set(usersKey, arr, { ex: 86400 * 8 });
-              if (X_REPLY_FOLLOW_DELAY_MS > 0) {
-                await new Promise((r) => setTimeout(r, X_REPLY_FOLLOW_DELAY_MS));
-              }
-              console.log("[X Reply Sales][send] follow before send", {
-                authorId: item.author_id,
-                handle: item.username,
-                following: followResult.following,
-                pending_follow: followResult.pending_follow,
-                followCountToday: nextCount,
-                cap: X_REPLY_FOLLOW_CAP_PER_DAY
-              });
-            }
-          }
-        } catch (followErr) {
-          console.warn("[X Reply Sales][send] follow before send failed (non-fatal):", followErr?.message);
-        }
-      }
-      // フォロー → いいね → リプライ → DM の順。リプライ試行前に必ずいいね（通知で気づいてもらう）
-      if (X_REPLY_LIKE_BEFORE_DM && item.tweet_id) {
-        try {
-          const likeResult = await likeTweet(item.tweet_id, {
-            sourceId: cachedSourceId || undefined
-          });
-          if (!likeResult.ok) {
-            console.warn("[X Reply Sales][send] like before reply failed (non-fatal):", {
-              tweetId: item.tweet_id,
-              error: likeResult.error
-            });
-          }
-        } catch (likeErr) {
-          console.warn("[X Reply Sales][send] like before reply threw (non-fatal):", likeErr?.message);
-        }
-      }
       let sendResult;
       // reply_settings が 'everyone' のときだけリプライを試行（それ以外は X API が 403 を返すため試行しない）
       if (canAttemptReply) {
@@ -1414,6 +1359,58 @@ module.exports = async function handler(req, res) {
           } else {
             await incrementDailyCounter(dateStr, lang, "dm_sent", 1);
             await incrementHourlyCounter(dateStr, hourUtc, "dm_sent", 1, lang);
+            if (X_REPLY_FOLLOW_BEFORE_SEND && kv && item.author_id && X_REPLY_FOLLOW_CAP_PER_DAY > 0) {
+              try {
+                const currentCount = parseInt(await kv.get(KV_KEY_FOLLOW_COUNT_DAILY(dateStr)), 10) || 0;
+                const alreadyFollowed = await kv.get(KV_KEY_FOLLOWED_DAILY(dateStr, item.author_id));
+                if (currentCount < X_REPLY_FOLLOW_CAP_PER_DAY && !alreadyFollowed) {
+                  const followResult = await followUser(item.author_id, {
+                    sourceId: cachedSourceId || undefined
+                  });
+                  if (followResult.ok || followResult.error) {
+                    await kv.set(KV_KEY_FOLLOWED_DAILY(dateStr, item.author_id), "1", {
+                      ex: 86400 * 2
+                    });
+                    const nextCount = currentCount + 1;
+                    await kv.set(KV_KEY_FOLLOW_COUNT_DAILY(dateStr), String(nextCount), {
+                      ex: 86400 * 2
+                    });
+                    const usersKey = KV_KEY_FOLLOWED_USERS_DAILY(dateStr);
+                    const prevList = await kv.get(usersKey);
+                    const arr = Array.isArray(prevList) ? prevList : (typeof prevList === "string" ? (() => { try { return JSON.parse(prevList); } catch (_) { return []; } })() : []);
+                    if (!arr.includes(item.author_id)) arr.push(item.author_id);
+                    await kv.set(usersKey, arr, { ex: 86400 * 8 });
+                    if (X_REPLY_FOLLOW_DELAY_MS > 0) {
+                      await new Promise((r) => setTimeout(r, X_REPLY_FOLLOW_DELAY_MS));
+                    }
+                    console.log("[X Reply Sales][send] follow after DM sent", {
+                      authorId: item.author_id,
+                      handle: item.username,
+                      following: followResult.following,
+                      followCountToday: nextCount,
+                      cap: X_REPLY_FOLLOW_CAP_PER_DAY
+                    });
+                  }
+                }
+              } catch (followErr) {
+                console.warn("[X Reply Sales][send] follow after DM sent failed (non-fatal):", followErr?.message);
+              }
+            }
+            if (X_REPLY_LIKE_BEFORE_DM && item.tweet_id) {
+              try {
+                const likeResult = await likeTweet(item.tweet_id, {
+                  sourceId: cachedSourceId || undefined
+                });
+                if (!likeResult.ok) {
+                  console.warn("[X Reply Sales][send] like after DM sent failed (non-fatal):", {
+                    tweetId: item.tweet_id,
+                    error: likeResult.error
+                  });
+                }
+              } catch (likeErr) {
+                console.warn("[X Reply Sales][send] like after DM sent threw (non-fatal):", likeErr?.message);
+              }
+            }
             await markTweetHandled(
               item.tweet_id,
               {
