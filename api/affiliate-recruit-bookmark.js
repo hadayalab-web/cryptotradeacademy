@@ -41,6 +41,15 @@ function getWindowMinutes(lang) {
   return lang === "en" ? EN_SEARCH_WINDOW_MINUTES : REGION_SEARCH_WINDOW_MINUTES;
 }
 
+/** リツイートを除外（X API はリツイートをブックマーク不可のため） */
+function filterOutRetweets(posts) {
+  return posts.filter((p) => {
+    const refs = p?.referenced_tweets;
+    if (!Array.isArray(refs)) return true;
+    return !refs.some((r) => String(r?.type || "").toLowerCase() === "retweeted");
+  });
+}
+
 function filterByMinFollowers(posts, usersById, minFollowers) {
   if (!minFollowers || minFollowers <= 0) return posts;
   return posts.filter((p) => {
@@ -171,7 +180,15 @@ module.exports = async function handler(req, res) {
       }
       allRows = rowsDeduped;
 
-      const credible = filterByMinFollowers(allRows, usersById, minFollowers);
+      const nonRetweets = filterOutRetweets(allRows);
+      if (nonRetweets.length < allRows.length) {
+        console.log("[affiliate-recruit-bookmark][list] excluded retweets (not bookmarkable)", {
+          lang,
+          before: allRows.length,
+          after: nonRetweets.length
+        });
+      }
+      const credible = filterByMinFollowers(nonRetweets, usersById, minFollowers);
       const tweetIds = [...new Set(credible.map((p) => p?.id).filter(Boolean))];
       const toAdd = tweetIds.slice(0, Math.max(0, BOOKMARK_CAP_PER_RUN - allResults.length));
       perLang.push({

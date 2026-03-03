@@ -730,10 +730,13 @@ async function searchPostsRecent(query, options = {}) {
   }
   const maxResults = Math.min(Math.max(10, options.maxResults || 50), 100);
   const userFields = options.userFields || "id,name,username";
+  const tweetFields =
+    options.tweetFields ||
+    "id,text,author_id,created_at,public_metrics,lang,referenced_tweets";
   const params = new URLSearchParams({
     query: query.trim(),
     max_results: String(maxResults),
-    "tweet.fields": "id,text,author_id,created_at,public_metrics,lang",
+    "tweet.fields": tweetFields,
     expansions: "author_id",
     "user.fields": userFields,
     sort_order: options.sortOrder || "relevancy"
