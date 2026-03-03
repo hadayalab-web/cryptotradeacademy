@@ -124,8 +124,6 @@ const SEARCH_NEGATIVE_TERMS_BY_LANG = {
     "official",
     "news",
     "support",
-    "looking for",
-    "open to",
     "sponsor"
   ],
   ja: [

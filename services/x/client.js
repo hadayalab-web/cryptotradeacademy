@@ -1029,6 +1029,37 @@ async function unfollowUser(targetUserId) {
   }
 }
 
+/**
+ * 指定投稿をブックマークに追加（認証ユーザーのブックマーク一覧に入れる）
+ * 制限: 50 リクエスト/15分/ユーザー（X API）。$0.005/リクエスト。
+ * ※ OAuth 2.0 + bookmark.write が必要なプランでは 401 になる場合あり。
+ * @param {string} tweetId - ブックマークする投稿のID
+ * @returns {Promise<{ok: boolean, bookmarked?: boolean, error?: string}>}
+ */
+async function createBookmark(tweetId) {
+  const tid = String(tweetId || "").trim();
+  if (!tid) return { ok: false, error: "tweet_id is required" };
+  try {
+    const me = await getMe();
+    const userId = me?.id;
+    if (!userId) return { ok: false, error: "Could not get authenticated user id" };
+    const response = await xApiRequest(`/users/${userId}/bookmarks`, {
+      method: "POST",
+      body: { tweet_id: tid }
+    });
+    return {
+      ok: true,
+      bookmarked: response?.data?.bookmarked === true
+    };
+  } catch (error) {
+    const msg = error?.message || "";
+    if (msg.includes("403") || msg.includes("401") || msg.includes("Forbidden") || msg.includes("Unauthorized")) {
+      return { ok: false, error: msg };
+    }
+    throw error;
+  }
+}
+
 module.exports = {
   xApiRequest,
   postTweet,
@@ -1036,6 +1067,7 @@ module.exports = {
   likeTweet,
   followUser,
   unfollowUser,
+  createBookmark,
   uploadMedia,
   uploadVideo,
   getUserByUsername,

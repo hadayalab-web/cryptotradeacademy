@@ -27,6 +27,12 @@
     "api/affiliate-recruit-regions-list.js": {
       "maxDuration": 300
     },
+    "api/affiliate-recruit-queue.js": {
+      "maxDuration": 30
+    },
+    "api/affiliate-recruit-bookmark.js": {
+      "maxDuration": 300
+    },
     "api/x-reply-sales-run.js": {
       "maxDuration": 300
     },
@@ -77,20 +83,16 @@
       "schedule": "0 20 * * *"
     },
     {
-      "path": "/api/x-reply-sales-list-rotate",
-      "schedule": "0,15,30,45 * * * *"
+      "path": "/api/affiliate-recruit-en-list",
+      "schedule": "8 0,4,8,12,16,20 * * *"
     },
     {
-      "path": "/api/x-reply-sales-run?mode=send",
-      "schedule": "5,20,35,50 * * * *"
+      "path": "/api/affiliate-recruit-regions-list",
+      "schedule": "10 0,4,8,12,16,20 * * *"
     },
     {
-      "path": "/api/x-reply-sales-kpi",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/x-reply-sales-followup",
-      "schedule": "10,25,40,55 * * * *"
+      "path": "/api/affiliate-recruit-bookmark",
+      "schedule": "0,5,10,15,20,25,30,35,40,45,50,55 * * * *"
     },
     {
       "path": "/api/kiba-5min",

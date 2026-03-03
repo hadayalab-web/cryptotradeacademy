@@ -16,6 +16,8 @@ const {
   REGION_SEARCH_WINDOW_MINUTES,
   EN_QUEUE_LIST_PAGES,
   REGION_QUEUE_LIST_PAGES,
+  AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG,
+  AFFILIATE_RECRUIT_UNIFIED_ONLY,
   EN_RECRUIT_BATCH_SIZE,
   RECRUIT_BATCH_SIZE_DEFAULT,
   EN_QUEUE_LIST_HOURS_UTC,
@@ -896,46 +898,6 @@ async function refreshQueueForLang(lang, now, modeLabel) {
   let fallbackExpansionPasses = 0;
   const expandedWindowMinutesTried = [];
 
-  const fetchSearchPages = async (windowMinutes, maxPages) => {
-    let nextToken = null;
-    let pagesFetchedThisPass = 0;
-    while (pagesFetchedThisPass < maxPages) {
-      const pageResult = await fetchOneSearchPage(cfg.lang, {
-        maxResults: 100,
-        windowMinutes,
-        nextToken: nextToken || undefined
-      });
-      if (pageResult?.fatal402) {
-        return { fatal402: true };
-      }
-      const pageData = pageResult?.data || [];
-      const pageUsers = pageResult?.includes?.users || [];
-      if (pageResult?.fallbackQueryUsed) fallbackPagesUsed += 1;
-      primaryHitsTotal += Number(pageResult?.primaryHits || 0);
-      fallbackHitsTotal += Number(pageResult?.fallbackHits || 0);
-      allPosts = allPosts.concat(pageData);
-      for (const u of pageUsers) {
-        if (u?.id) usersById[u.id] = u;
-      }
-      pagesFetched += 1;
-      pagesFetchedThisPass += 1;
-      nextToken = pageResult?.nextToken || null;
-      if (!nextToken) break;
-    }
-    return { fatal402: false };
-  };
-
-  const baseFetch = await fetchSearchPages(cfg.windowMinutes, cfg.listPages);
-  if (baseFetch.fatal402) {
-    return {
-      ok: false,
-      reason: "search_402",
-      mode: modeLabel,
-      lang: cfg.lang,
-      pagesFetched
-    };
-  }
-
   const dmNgCache = new Map();
   const isDmNgCached = async (authorId) => {
     const key = String(authorId || "").trim();
@@ -987,9 +949,80 @@ async function refreshQueueForLang(lang, now, modeLabel) {
     };
   };
 
-  let candidateSnapshot = await buildFreshQueueCandidates();
+  // ユーザー直販DM戦略の応用: 先に前回キューを読んで早期終了判定に使う
+  const prevQueueRaw = parseQueueValue(await kv.get(cfg.queueKey));
+  const prevQueueLength = prevQueueRaw.length;
+  const prevQueueFilter = filterQueueToAffiliateOnly(prevQueueRaw);
+  const prevQueue = prevQueueFilter.filteredQueue;
+  const removedNonAffiliateFromPrev = prevQueueFilter.droppedNonAffiliate;
 
-  if (!cfg.isEn && candidateSnapshot.freshQueue.length < REGION_QUEUE_MIN_FRESH_ENQUEUE) {
+  // unified 1クエリ・ページ単位取得・キャップ達で早期終了
+  let candidateSnapshot = { freshQueue: [], eligibleCandidates: [], affiliateCandidatesCount: 0, skippedAlreadySentCount: 0, skippedNonAffiliateIntentCount: 0, skippedDmNgCount: 0 };
+  let nextToken = null;
+  const maxRounds = cfg.listPages;
+  console.log("[affiliate-recruit][list] search start (unified query only)", {
+    lang: cfg.lang,
+    maxRounds,
+    windowMinutes: cfg.windowMinutes,
+    queueCapPerLang: AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG || "none"
+  });
+  while (pagesFetched < maxRounds) {
+    const pageResult = await fetchOneSearchPage(cfg.lang, {
+      maxResults: 100,
+      windowMinutes: cfg.windowMinutes,
+      nextToken: nextToken || undefined
+    });
+    if (pageResult?.fatal402) {
+      return {
+        ok: false,
+        reason: "search_402",
+        mode: modeLabel,
+        lang: cfg.lang,
+        pagesFetched
+      };
+    }
+    const pageData = pageResult?.data || [];
+    const pageUsers = pageResult?.includes?.users || [];
+    if (pageResult?.fallbackQueryUsed) fallbackPagesUsed += 1;
+    primaryHitsTotal += Number(pageResult?.primaryHits || 0);
+    fallbackHitsTotal += Number(pageResult?.fallbackHits || 0);
+    allPosts = allPosts.concat(pageData);
+    for (const u of pageUsers) {
+      if (u?.id) usersById[u.id] = u;
+    }
+    pagesFetched += 1;
+    nextToken = pageResult?.nextToken || null;
+
+    candidateSnapshot = await buildFreshQueueCandidates();
+    const mergeCheck = mergeRecruitQueueEntries(candidateSnapshot.freshQueue, prevQueue);
+    if (
+      AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG > 0 &&
+      mergeCheck.queue.length >= AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG
+    ) {
+      console.log("[affiliate-recruit][list] early exit: enough for queue cap", {
+        lang: cfg.lang,
+        mergedLength: mergeCheck.queue.length,
+        queueCap: AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG,
+        roundsSoFar: pagesFetched,
+        rawRows: allPosts.length
+      });
+      break;
+    }
+    if (!nextToken) break;
+  }
+  console.log("[affiliate-recruit][list] search done", {
+    lang: cfg.lang,
+    rounds: pagesFetched,
+    maxRounds,
+    rawRows: allPosts.length
+  });
+
+  // 地域の窓拡張は unified 時はスキップ（Read 抑制）
+  if (
+    !AFFILIATE_RECRUIT_UNIFIED_ONLY &&
+    !cfg.isEn &&
+    candidateSnapshot.freshQueue.length < REGION_QUEUE_MIN_FRESH_ENQUEUE
+  ) {
     const expandedWindows = [];
     if (REGION_QUEUE_WIDE_WINDOW_MINUTES > cfg.windowMinutes) {
       expandedWindows.push(REGION_QUEUE_WIDE_WINDOW_MINUTES);
@@ -998,15 +1031,23 @@ async function refreshQueueForLang(lang, now, modeLabel) {
       expandedWindows.push(REGION_QUEUE_MAX_WINDOW_MINUTES);
     }
     for (const windowMinutes of expandedWindows) {
-      const expandedFetch = await fetchSearchPages(windowMinutes, REGION_QUEUE_EXTRA_PAGES_PER_PASS);
-      if (expandedFetch.fatal402) {
-        return {
-          ok: false,
-          reason: "search_402",
-          mode: modeLabel,
-          lang: cfg.lang,
-          pagesFetched
-        };
+      let expNextToken = null;
+      let expPages = 0;
+      while (expPages < REGION_QUEUE_EXTRA_PAGES_PER_PASS) {
+        const expResult = await fetchOneSearchPage(cfg.lang, {
+          maxResults: 100,
+          windowMinutes,
+          nextToken: expNextToken || undefined
+        });
+        if (expResult?.fatal402) break;
+        allPosts = allPosts.concat(expResult?.data || []);
+        for (const u of expResult?.includes?.users || []) {
+          if (u?.id) usersById[u.id] = u;
+        }
+        pagesFetched += 1;
+        expPages += 1;
+        expNextToken = expResult?.nextToken || null;
+        if (!expNextToken) break;
       }
       fallbackExpansionPasses += 1;
       expandedWindowMinutesTried.push(windowMinutes);
@@ -1022,13 +1063,13 @@ async function refreshQueueForLang(lang, now, modeLabel) {
   const skippedNonAffiliateIntent = candidateSnapshot.skippedNonAffiliateIntentCount;
   const skippedDmNg = candidateSnapshot.skippedDmNgCount;
 
-  const prevQueueRaw = parseQueueValue(await kv.get(cfg.queueKey));
-  const prevQueueLength = prevQueueRaw.length;
-  const prevQueueFilter = filterQueueToAffiliateOnly(prevQueueRaw);
-  const prevQueue = prevQueueFilter.filteredQueue;
-  const removedNonAffiliateFromPrev = prevQueueFilter.droppedNonAffiliate;
   const mergeResult = mergeRecruitQueueEntries(toEnqueue, prevQueue);
-  const queue = mergeResult.queue;
+  let queue = mergeResult.queue;
+  let droppedByCap = 0;
+  if (AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG > 0 && queue.length > AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG) {
+    droppedByCap = queue.length - AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG;
+    queue = queue.slice(0, AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG);
+  }
   await kv.set(cfg.queueKey, JSON.stringify(queue), { ex: 86400 * 2 });
 
   const listSummary = {
@@ -1060,12 +1101,23 @@ async function refreshQueueForLang(lang, now, modeLabel) {
     droppedInvalid: mergeResult.droppedInvalidCount,
     prevQueueLength,
     nextQueueLength: queue.length,
+    droppedByCap,
+    queueCapPerLang: AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG || null,
+    listMode: "unified_only",
     sampleHandles: toEnqueue.slice(0, 3).map((x) => x.username)
   };
+  if (droppedByCap > 0) {
+    console.log("[affiliate-recruit][list] queue cap applied", {
+      lang: cfg.lang,
+      droppedByCap,
+      queueCapPerLang: AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG,
+      nextQueueLength: queue.length
+    });
+  }
   console.log("[affiliate-recruit-run] list summary:", listSummary);
   const linePrefix = cfg.isEn ? "affiliate-recruit-en-list" : "affiliate-recruit-regions-list";
   console.log(
-    `[${linePrefix}] lang=${cfg.lang} utcHour=${listSummary.utcHour} pages=${pagesFetched}/${cfg.listPages} fallbackPages=${fallbackPagesUsed} expansionPasses=${fallbackExpansionPasses} expandedWindows=${expandedWindowMinutesTried.join("|") || "-"} primaryHits=${primaryHitsTotal} fallbackHits=${fallbackHitsTotal} fetchedPosts=${allPosts.length} eligible=${eligible.length} affiliateEligible=${affiliateCandidates} skippedSent=${skippedAlreadySent} skippedNonAffiliate=${skippedNonAffiliateIntent} skippedDmNg=${skippedDmNg} removedNonAffiliatePrev=${removedNonAffiliateFromPrev} enqueued=${toEnqueue.length} addedFresh=${mergeResult.addedFromFresh} retainedPrev=${mergeResult.retainedFromExisting} droppedDup=${mergeResult.droppedDuplicateCount} droppedInvalid=${mergeResult.droppedInvalidCount} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
+    `[${linePrefix}] lang=${cfg.lang} utcHour=${listSummary.utcHour} pages=${pagesFetched}/${cfg.listPages} fallbackPages=${fallbackPagesUsed} expansionPasses=${fallbackExpansionPasses} expandedWindows=${expandedWindowMinutesTried.join("|") || "-"} primaryHits=${primaryHitsTotal} fallbackHits=${fallbackHitsTotal} fetchedPosts=${allPosts.length} eligible=${eligible.length} affiliateEligible=${affiliateCandidates} skippedSent=${skippedAlreadySent} skippedNonAffiliate=${skippedNonAffiliateIntent} skippedDmNg=${skippedDmNg} removedNonAffiliatePrev=${removedNonAffiliateFromPrev} enqueued=${toEnqueue.length} addedFresh=${mergeResult.addedFromFresh} retainedPrev=${mergeResult.retainedFromExisting} droppedDup=${mergeResult.droppedDuplicateCount} droppedInvalid=${mergeResult.droppedInvalidCount} droppedByCap=${droppedByCap} prevQueue=${prevQueueLength} nextQueue=${queue.length}`
   );
 
   return {

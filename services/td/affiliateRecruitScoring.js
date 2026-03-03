@@ -475,6 +475,9 @@ function hasNigeriaKeyword(description) {
   return /nigeria|naija|lagos/i.test(description);
 }
 
+/** 候補条件: フォロワー100人以上（運用指示）。env AFFILIATE_RECRUIT_MIN_FOLLOWERS で上書き、0 で無効。 */
+const AFFILIATE_RECRUIT_MIN_FOLLOWERS = Math.max(0, Number(process.env.AFFILIATE_RECRUIT_MIN_FOLLOWERS ?? 100));
+
 function checkExclusions(user) {
   const metrics = user?.public_metrics || {};
   const followers = Number(metrics.followers_count) || 0;
@@ -484,6 +487,9 @@ function checkExclusions(user) {
 
   if (followers === 0 && following === 0) {
     return { excluded: true, reason: "no_metrics" };
+  }
+  if (AFFILIATE_RECRUIT_MIN_FOLLOWERS > 0 && followers < AFFILIATE_RECRUIT_MIN_FOLLOWERS) {
+    return { excluded: true, reason: "min_followers", followers, minRequired: AFFILIATE_RECRUIT_MIN_FOLLOWERS };
   }
 
   if (!description) {

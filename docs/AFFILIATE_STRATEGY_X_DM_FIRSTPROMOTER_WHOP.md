@@ -19,7 +19,7 @@
 
 | フェーズ | 内容 | 担当・ツール |
 |----------|------|----------------|
-| **1. 発掘** | X 上で 6 言語圏（EN/ES/PT/AR/KO/JA）の高品質アフィリエイター候補を検索・リスト化 | X Search API / 手動リスト / 外部 MCP |
+| **1. 発掘** | X 上で 6 言語圏（EN/ES/PT/AR/KO/JA）の高品質アフィリエイター候補を検索・リスト化 | X Search API / **フォロワー・リスト・コミュニティ等**（[発見オプション再考](./AFFILIATE_DISCOVERY_X_API_OPTIONS.md)） / 手動リスト / 外部 MCP |
 | **2. スカウト** | 候補に X DM でスカウトメッセージを送り、FirstPromoter 登録への誘導 | X DM API（POST /2/dm_conversations 等） |
 | **3. 登録** | 承諾した候補を FirstPromoter に順次登録（招待リンク or 手動登録） | FirstPromoter ダッシュボード / API |
 | **4. 販売** | アフィリエイターが Trap Defence BTC（Whop）を紹介し、報酬を得る | Whop + FirstPromoter 連携（または Whop ネイティブアフィリエイト） |

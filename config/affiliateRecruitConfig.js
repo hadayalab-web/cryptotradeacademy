@@ -215,6 +215,12 @@ const EN_SEARCH_WINDOW_MINUTES = Number(process.env.EN_SEARCH_WINDOW_MIN || 90);
 const REGION_SEARCH_WINDOW_MINUTES = Number(process.env.REGION_SEARCH_WINDOW_MIN || 1440);
 /** 他地域リスト取得ページ数（1実行あたり）。デフォルト 1、env で調整可。 */
 const REGION_QUEUE_LIST_PAGES = Math.max(1, Number(process.env.REGION_RECRUIT_LIST_PAGES || 1));
+/** 言語別キュー上限（ユーザー直販DM戦略の応用）。0 で無制限。 */
+const AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG = Math.max(0, Number(process.env.AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG ?? 30));
+/** unified のみ（地域の窓拡張をスキップし、1クエリ・早期終了で Read 抑制）。 */
+const AFFILIATE_RECRUIT_UNIFIED_ONLY = process.env.AFFILIATE_RECRUIT_UNIFIED_ONLY !== "0";
+/** 候補条件: フォロワー100人以上（運用指示に基づく）。0 で無効。 */
+const AFFILIATE_RECRUIT_MIN_FOLLOWERS = Math.max(0, Number(process.env.AFFILIATE_RECRUIT_MIN_FOLLOWERS ?? 100));
 /** 全言語共通: スロットあたりの送信成功目標。403 は次候補へ進み、この数だけ成功するまで試行（Read 1・多ページで候補確保） */
 /** 1 ランあたり送信成功 10 件をマストで達成するための目標値。#4 で根拠明記。 */
 const RECRUIT_BATCH_SIZE_DEFAULT = 10;
@@ -256,6 +262,9 @@ module.exports = {
   REGION_SEARCH_WINDOW_MINUTES,
   EN_QUEUE_LIST_PAGES,
   REGION_QUEUE_LIST_PAGES,
+  AFFILIATE_RECRUIT_QUEUE_CAP_PER_LANG,
+  AFFILIATE_RECRUIT_UNIFIED_ONLY,
+  AFFILIATE_RECRUIT_MIN_FOLLOWERS,
   EN_RECRUIT_BATCH_SIZE,
   RECRUIT_BATCH_SIZE_DEFAULT,
   EN_QUEUE_LIST_HOURS_UTC,
