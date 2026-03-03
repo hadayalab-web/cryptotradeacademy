@@ -48,13 +48,13 @@ const REPLY_SEARCH_QUERIES_BY_LANG = {
   }
 };
 
-/** 全6言語: strict+balanced が 0 件のとき使う広めクエリ（broad）。450ページ回して2件は異常のため OR を多めに */
+/** 全6言語: unified 検索用。ES/PT はヒット数確保のため strict+balanced の語を統合して拡張 */
 const REPLY_SEARCH_QUERIES_BROAD_BY_LANG = {
   en: '(lost OR loss OR liquidated OR rekt OR trading OR chart OR charts OR long OR short OR scalp OR wiped OR blown) (btc OR crypto OR bitcoin OR eth) -giveaway -airdrop lang:en -is:retweet -is:reply',
   ja: '(損 OR ロス OR 焼けた OR トレード OR 仮想通貨 OR チャート OR ロング OR ショート OR 暴落 OR 急騰 OR ポジション) (BTC OR ビットコイン OR crypto OR 仮想) -プレゼント -エアドロ lang:ja -is:retweet -is:reply',
   ko: '(손실 OR 청산 OR 물림 OR 트레이딩 OR 코인 OR 차트 OR 롱 OR 숏 OR 스캘핑) (비트코인 OR BTC OR crypto) -에어드랍 -무료 lang:ko -is:retweet -is:reply',
-  es: '(perdí OR perdida OR pérdida OR liquidado OR trading OR gráfico OR grafico OR chart OR largo OR corto OR dump OR pump OR operando) (btc OR crypto OR bitcoin OR cripto) -sorteo -airdrop lang:es -is:retweet -is:reply',
-  pt: '(perdi OR perda OR liquidado OR trading OR gráfico OR grafico OR chart OR long OR short OR longo OR curto OR dump OR pump OR operando) (btc OR cripto OR bitcoin OR crypto) -sorteio -airdrop lang:pt -is:retweet -is:reply',
+  es: '(perdí OR perdida OR pérdida OR liquidado OR rekt OR trading OR gráfico OR grafico OR chart OR largo OR corto OR dump OR pump OR operando OR fomo OR pánico OR "cuenta quemada" OR "stop loss" OR "me barrió" OR "me fundí" OR caí OR quemé OR "margin call" OR "stop hunt" OR sobreoperando OR persiguiendo) (btc OR crypto OR bitcoin OR cripto OR eth) -sorteo -airdrop lang:es -is:retweet -is:reply',
+  pt: '(perdi OR perda OR liquidado OR rekt OR trading OR gráfico OR grafico OR chart OR long OR short OR longo OR curto OR dump OR pump OR operando OR fomo OR pânico OR panico OR "quebrei a banca" OR "stop cacado" OR zerou OR "perdi tudo" OR quebrei OR "margin call" OR perseguindo OR overtrading) (btc OR cripto OR bitcoin OR crypto OR eth) -sorteio -airdrop lang:pt -is:retweet -is:reply',
   ar: "(خسر OR خسرت OR خسارة OR تصفية OR تداول OR شارت OR لونج OR شورت OR ذعر OR فومو) (بتكوين OR كريبتو OR btc) -توزيع -مجانا lang:ar -is:retweet -is:reply"
 };
 
