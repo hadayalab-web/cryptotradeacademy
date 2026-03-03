@@ -17,11 +17,11 @@ const {
   AFFILIATE_RECRUIT_MIN_FOLLOWERS
 } = require("../config/affiliateRecruitConfig");
 
-/** 1 run あたりのブックマーク上限。ブックマークは $0.005/件。コスト主因は検索の投稿/ユーザー読み取り。env で 1〜50 の範囲で上書き可。 */
-const BOOKMARK_CAP_PER_RUN = Math.min(50, Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_CAP_PER_RUN || 30)));
+/** 1 run あたりのブックマーク上限。1日1000件必須のため既定50（24run/日×50＝1200/日）。ブックマークは$0.005/件。env で 1〜50 の範囲で上書き可。 */
+const BOOKMARK_CAP_PER_RUN = Math.min(50, Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_CAP_PER_RUN || 50)));
 const BOOKMARK_DELAY_MS = Math.max(500, Number(process.env.AFFILIATE_BOOKMARK_DELAY_MS || 2000));
-/** 1言語あたりの検索ページ数。API コスト抑制のため既定 2（2頁で十分候補が取れる）。env で上書き可。 */
-const LIST_PAGES_PER_LANG = Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_LIST_PAGES || 2));
+/** 1言語あたりの検索ページ数。課金はクエリで抽出した分だけが対象なのでページを増やしてよい。1日1000件取り切るため既定 10。env で上書き可。 */
+const LIST_PAGES_PER_LANG = Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_LIST_PAGES || 10));
 /** 検索ページ間遅延（ms）。直販 X_REPLY_SEARCH_DELAY_MS に倣う。 */
 const SEARCH_DELAY_MS = Math.max(0, Number(process.env.AFFILIATE_BOOKMARK_SEARCH_DELAY_MS || 2000));
 const LANGS_6 = ["en", "es", "pt", "ar", "ja", "ko"];

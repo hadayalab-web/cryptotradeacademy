@@ -1,11 +1,13 @@
 /**
  * アフィリエイトリクルート用 X 検索のみ。引用リポスト・リプライは行わない。
- * fetchOneSearchPage を run がループで利用。buildSearchQueries は 1 クエリ目を run が使用。
+ *
+ * クエリの唯一の定義: docs/AFFILIATE_RECRUIT_BOOKMARK_SPEC.md §2（意図・式・2.3 group1/group2・2.4 ネガティブ）。
+ * 以下の SEARCH_REQUIRED_GROUPS_BY_LANG は §2.3 と、SEARCH_NEGATIVE_* は §2.4 と完全一致させること。
+ * 変更時は必ず仕様書を先に更新し、コードを同期する。
  */
 const { searchPostsRecent } = require("../x/client");
 
-// 検索: 「実際に紹介活動している」候補を優先。案件募集・コラボ待ち文脈は除外。
-// strict は 証拠語（group1）AND プラットフォーム語（group2）で構成する。
+/** §2.3 証拠語（group1）・プラットフォーム語（group2）。AND で結合。 */
 const SEARCH_REQUIRED_GROUPS_BY_LANG = {
   en: [
     [
@@ -110,8 +112,10 @@ const SEARCH_KEYWORDS_BY_LANG = Object.fromEntries(
   Object.entries(SEARCH_REQUIRED_GROUPS_BY_LANG).map(([lang, groups]) => [lang, groups.flat()])
 );
 
-const SEARCH_NEGATIVE_COMMON_TERMS = [];
+/** §2.4 全言語共通ネガティブ（解説・相談・依頼系） */
+const SEARCH_NEGATIVE_COMMON_TERMS = ["what is", "how do i", "recommend me"];
 
+/** §2.4 言語別ネガティブ。仕様書の表と完全一致させること。 */
 const SEARCH_NEGATIVE_TERMS_BY_LANG = {
   en: [
     "colab",
@@ -119,6 +123,9 @@ const SEARCH_NEGATIVE_TERMS_BY_LANG = {
     "hiring",
     "job",
     "agency",
+    "looking for",
+    "open to",
+    "which one",
     "giveaway",
     "airdrop",
     "official",
@@ -128,7 +135,11 @@ const SEARCH_NEGATIVE_TERMS_BY_LANG = {
   ],
   ja: [
     "案件募集",
+    "募集中",
     "お仕事募集",
+    "おすすめ教えて",
+    "どれがいい",
+    "何がおすすめ",
     "プレゼント企画",
     "プレゼント",
     "ギブアウェイ",
@@ -150,12 +161,18 @@ const SEARCH_NEGATIVE_TERMS_BY_LANG = {
     "리트윗",
     "팔로우",
     "콜라보",
-    "협찬"
+    "협찬",
+    "추천해줘",
+    "뭐가 좋아",
+    "어떤 게 좋아"
   ],
   es: [
     "colab",
     "busco trabajo",
+    "busco",
     "agencia",
+    "qué es",
+    "cuál recomiendan",
     "sorteio",
     "giveaway",
     "airdrop",
@@ -171,6 +188,8 @@ const SEARCH_NEGATIVE_TERMS_BY_LANG = {
     "emprego",
     "agência",
     "agencia",
+    "qual recomenda",
+    "o que é",
     "sorteio",
     "giveaway",
     "airdrop",
@@ -181,7 +200,22 @@ const SEARCH_NEGATIVE_TERMS_BY_LANG = {
     "patrocínio",
     "patrocinio"
   ],
-  ar: ["توظيف", "وظيفة", "وكالة", "سحب", "giveaway", "airdrop", "رسمي", "أخبار", "دعم", "تعاون", "رعاية"]
+  ar: [
+    "توظيف",
+    "وظيفة",
+    "وكالة",
+    "سحب",
+    "giveaway",
+    "airdrop",
+    "رسمي",
+    "أخبار",
+    "دعم",
+    "تعاون",
+    "رعاية",
+    "ما هو",
+    "أي واحد",
+    "انصحني"
+  ]
 };
 
 /** アフィリエイトリクルート用: user.fields 拡張（スコアリングに必要。url＝リンクなしボーナス用） */
@@ -196,16 +230,12 @@ const SEARCH_QUERY_BUCKET_SIZE = Math.max(1, Number(process.env.BUZZWEAVE_QUERY_
 const SEARCH_QUERY_MAX_CHARS = Math.max(128, Number(process.env.BUZZWEAVE_QUERY_MAX_CHARS || 480));
 /** true なら 1 言語 1 クエリ（Read 最小化）。false なら従来のバケット分割 */
 const SINGLE_QUERY_PER_LANG = process.env.AFFILIATE_RECRUIT_SINGLE_QUERY !== "0";
-/** strict クエリの必須グループ結合。既定は OR（広く取得して送信時に絞る方針）。 */
-const REQUIRED_GROUP_OPERATOR = String(
-  process.env.AFFILIATE_RECRUIT_REQUIRED_GROUP_OPERATOR || "OR"
-)
-  .toUpperCase()
-  .trim();
-/** 少数ヒット時にも緩和フォールバックを発火させる閾値（0で無効）。 */
+/** §2.2 必須: group1 と group2 は AND のみ。OR はノイズのため使用しない。 */
+const REQUIRED_GROUP_OPERATOR = "AND";
+/** 少数ヒット時にも緩和フォールバックを発火させる閾値。0で無効。既定0＝フォールバックは使わない（緩和クエリはOR＋ネガティブなしのためガラクタ混入リスクあり）。 */
 const LOW_HIT_FALLBACK_THRESHOLD = Math.max(
   0,
-  Number(process.env.AFFILIATE_RECRUIT_LOW_HIT_FALLBACK_THRESHOLD || 2)
+  Number(process.env.AFFILIATE_RECRUIT_LOW_HIT_FALLBACK_THRESHOLD || 0)
 );
 
 function chunkArray(items, size) {
@@ -251,9 +281,8 @@ function getSearchSuffixParts(lang) {
 }
 
 /**
- * 1 言語 1 クエリを組み立て（Read 最小化）。
- * - 第1クエリ: 高意図2軸（group1 AND group2）を必須化
- * - 第2クエリ: 0件時のみ使う緩和フォールバック（OR広め）
+ * §2.2 に従い 1 言語 1 本の strict クエリを組み立て。(group1 OR...) AND (group2 OR...) + サフィックス。
+ * §2.5: ヒットが閾値以下なら 1 回だけ緩和フォールバック（OR 広め）を試す。
  */
 function buildSearchQueriesSingle(lang) {
   const requiredGroupsRaw =
@@ -292,8 +321,7 @@ function buildSearchQueriesSingle(lang) {
       strictQuery = renderStrictQuery();
       continue;
     }
-
-    // 最後に negative を削って長さを収める（必須2軸は維持）
+    // 各 group が 1 語ずつになっても長い場合のみネガティブを削る（根拠: 文字数制限のやむを得ない妥協。可能な限り group 削減で収める）
     if (suffixParts.length > 3) {
       suffixParts.pop();
       strictQuery = renderStrictQuery();
@@ -303,10 +331,9 @@ function buildSearchQueriesSingle(lang) {
   }
 
   if (strictQuery.length > SEARCH_QUERY_MAX_CHARS) {
-    const fallbackIntent = requiredGroups[0]?.[0] || "affiliate program";
-    const fallbackOffer = requiredGroups[1]?.[0] || "commission";
-    const fallbackSuffix = [`lang:${lang}`, "-is:retweet", "-is:reply"].join(" ");
-    strictQuery = `(${fallbackIntent}) (${fallbackOffer}) ${fallbackSuffix}`.trim();
+    const g1 = requiredGroups[0]?.[0] ? renderQueryTerm(requiredGroups[0][0]) : "affiliate";
+    const g2 = requiredGroups[1]?.[0] ? renderQueryTerm(requiredGroups[1][0]) : "commission";
+    strictQuery = [g1, g2, suffixParts.join(" ")].filter(Boolean).join(" ").trim();
   }
 
   // 緩和フォールバック（初回0件時のみ使用）: OR広め・negative無し
@@ -327,7 +354,7 @@ function buildSearchQueriesSingle(lang) {
   return [strictQuery];
 }
 
-/** 従来: バケット分割で複数クエリ（Read 多め） */
+/** 従来: バケット分割で複数クエリ。§2 に非準拠（OR のみで AND なし）。ガラクタ混入リスクあり。SINGLE_QUERY_PER_LANG=0 のときのみ。 */
 function buildSearchQueriesBucketed(lang) {
   const kw = getSearchKeywords(lang);
   const suffix = getSearchSuffixParts(lang).join(" ");
@@ -387,6 +414,12 @@ async function fetchOneSearchPage(slotLang, options = {}) {
   const maxResults = Math.min(100, Math.max(10, Number(options.maxResults || 30)));
 
   try {
+    if (!options.nextToken) {
+      console.log("[affiliate-recruit-search] query", {
+        lang: slotLang,
+        queryPreview: query.length > 200 ? query.slice(0, 200) + "…" : query
+      });
+    }
     const executeQuery = async (queryString, nextTokenValue) => {
       const res = await searchPostsRecent(queryString, {
         maxResults,

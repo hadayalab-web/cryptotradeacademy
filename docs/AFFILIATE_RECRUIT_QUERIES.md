@@ -1,13 +1,14 @@
 # アフィリエイトリクルート 検索クエリ一覧
 
-リスト検索・送信のノウハウは既存実装にあり、ここでは**クエリの準備＝言語別の実際のクエリ文字列とキーワード構成**を参照できるようにする。
+**クエリの唯一の定義は `AFFILIATE_RECRUIT_BOOKMARK_SPEC.md` §2（意図・式・2.3/2.4 一覧）。**  
+コードは仕様書に合わせる。本ドキュメントは補足・参照用。
 
 ---
 
 ## 1. クエリの組み立て方
 
 - **モード**: `AFFILIATE_RECRUIT_SINGLE_QUERY !== "0"` のとき **1 言語 1 本**（primary + 必要時だけ fallback）。Read 最小化。
-- **Primary**: 2 グループ（証拠語 ＋ プラットフォーム語）を `REQUIRED_GROUP_OPERATOR`（既定 `OR`）で結合 ＋ サフィックス。
+- **Primary**: 2 グループ（証拠語 ＋ プラットフォーム語）を `REQUIRED_GROUP_OPERATOR`（既定 `AND`）で結合 ＋ サフィックス。
 - **サフィックス**: `lang:{lang}` / `-is:retweet` / `-is:reply` / 言語別除外語（`-colab` 等）。
 - **Fallback**: primary が 0〜2 件のときのみ 1 回だけ使用。OR 広め・除外語なし。
 - **文字数**: 1 クエリ ≦ 480 文字（`BUZZWEAVE_QUERY_MAX_CHARS`）。X API 上限 512 に収まるよう調整。
@@ -77,7 +78,7 @@ node scripts/affiliate-recruit-queries.js
 環境変数で挙動を変えられる例:
 
 - `AFFILIATE_RECRUIT_SINGLE_QUERY=0` … バケット分割モード（1 言語複数クエリ）
-- `AFFILIATE_RECRUIT_REQUIRED_GROUP_OPERATOR=AND` … 2 グループを AND で結合（より厳しめ）
+- `AFFILIATE_RECRUIT_REQUIRED_GROUP_OPERATOR=OR` … 2 グループを OR で結合（広め。既定は AND）
 - `AFFILIATE_RECRUIT_LOW_HIT_FALLBACK_THRESHOLD=2` … この件数以下で fallback を使用（0 で無効）
 
 ---
