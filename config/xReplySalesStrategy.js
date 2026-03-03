@@ -48,14 +48,14 @@ const REPLY_SEARCH_QUERIES_BY_LANG = {
   }
 };
 
-/** 全6言語: strict+balanced が 0 件のとき使う広めクエリ（broad） */
+/** 全6言語: strict+balanced が 0 件のとき使う広めクエリ（broad）。450ページ回して2件は異常のため OR を多めに */
 const REPLY_SEARCH_QUERIES_BROAD_BY_LANG = {
-  en: '(lost OR loss OR liquidated OR rekt OR trading) (btc OR crypto OR bitcoin) -giveaway -airdrop lang:en -is:retweet -is:reply',
-  ja: '(損 OR ロス OR 焼けた OR トレード OR 仮想通貨) (BTC OR ビットコイン OR crypto) -プレゼント -エアドロ lang:ja -is:retweet -is:reply',
-  ko: '(손실 OR 청산 OR 물림 OR 트레이딩 OR 코인) (비트코인 OR BTC OR crypto) -에어드랍 -무료 lang:ko -is:retweet -is:reply',
-  es: '(perdí OR pérdida OR liquidado OR trading) (btc OR crypto OR bitcoin) -sorteo -airdrop lang:es -is:retweet -is:reply',
-  pt: '(perdi OR perda OR liquidado OR trading) (btc OR cripto OR bitcoin) -sorteio -airdrop lang:pt -is:retweet -is:reply',
-  ar: "(خسر OR خسارة OR تصفية OR تداول) (بتكوين OR كريبتو OR btc) -توزيع -مجانا lang:ar -is:retweet -is:reply"
+  en: '(lost OR loss OR liquidated OR rekt OR trading OR chart OR long OR short OR scalp) (btc OR crypto OR bitcoin) -giveaway -airdrop lang:en -is:retweet -is:reply',
+  ja: '(損 OR ロス OR 焼けた OR トレード OR 仮想通貨 OR チャート OR ロング OR ショート) (BTC OR ビットコイン OR crypto) -プレゼント -エアドロ lang:ja -is:retweet -is:reply',
+  ko: '(손실 OR 청산 OR 물림 OR 트레이딩 OR 코인 OR 차트 OR 롱 OR 숏) (비트코인 OR BTC OR crypto) -에어드랍 -무료 lang:ko -is:retweet -is:reply',
+  es: '(perdí OR pérdida OR liquidado OR trading OR gráfico OR largo OR corto) (btc OR crypto OR bitcoin) -sorteo -airdrop lang:es -is:retweet -is:reply',
+  pt: '(perdi OR perda OR liquidado OR trading OR gráfico OR long OR short) (btc OR cripto OR bitcoin) -sorteio -airdrop lang:pt -is:retweet -is:reply',
+  ar: "(خسر OR خسارة OR تصفية OR تداول OR شارت OR لونج OR شورت) (بتكوين OR كريبتو OR btc) -توزيع -مجانا lang:ar -is:retweet -is:reply"
 };
 
 const REPLY_POST_TYPE_PRIORITY = {

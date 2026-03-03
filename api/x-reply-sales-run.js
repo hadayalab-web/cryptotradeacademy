@@ -26,6 +26,7 @@ const {
   X_REPLY_QUEUE_CAP_PER_LANG,
   X_REPLY_SEARCH_WINDOW_MINUTES,
   X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES,
+  X_REPLY_SEARCH_DELAY_MS,
   X_REPLY_RETAIN_PREVIOUS_QUEUE,
   X_REPLY_QUEUE_VERSION,
   X_REPLY_ATTEMPT_CAP_PER_15MIN,
@@ -572,6 +573,9 @@ async function refreshQueueForLang(lang, now) {
       hitsByMode[mode] += rows.length;
       nextTokens[mode] = page?.nextToken || null;
       pagesFetched += 1;
+      if (X_REPLY_SEARCH_DELAY_MS > 0 && round < maxRounds - 1) {
+        await new Promise((r) => setTimeout(r, X_REPLY_SEARCH_DELAY_MS));
+      }
     } catch (err) {
       if (String(err?.message || "").includes("402")) {
         console.log("[X Reply Sales][list] round-robin early exit", {
@@ -593,6 +597,7 @@ async function refreshQueueForLang(lang, now) {
     lang: normalizedLang,
     rounds: pagesFetched,
     maxRounds,
+    rawRows: allRows.length,
     strict: hitsByMode.strict,
     balanced: hitsByMode.balanced,
     broad: hitsByMode.broad

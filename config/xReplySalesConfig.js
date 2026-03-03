@@ -16,16 +16,17 @@ const X_REPLY_MAX_RESULTS_PER_PAGE = Math.min(
   100,
   Math.max(10, Number(process.env.X_REPLY_MAX_RESULTS_PER_PAGE || 100))
 );
-// 検索の時間窓（分）。15分ローテで各言語は90分ごとにリスト取得するため、窓は90分に統一
-// ボリューム不足なら X_REPLY_SEARCH_WINDOW_MINUTES / X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES で延長可
+// 検索の時間窓（分）。窓を広げると1リクエストあたりのヒット数が増える（450ページ回して2件は窓・クエリが狭い）
 const X_REPLY_SEARCH_WINDOW_MINUTES = Math.max(
   15,
-  Number(process.env.X_REPLY_SEARCH_WINDOW_MINUTES || 90)
+  Number(process.env.X_REPLY_SEARCH_WINDOW_MINUTES || 180)
 );
 const X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES = Math.max(
   60,
-  Number(process.env.X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES || 90)
+  Number(process.env.X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES || 180)
 );
+// 検索リクエスト間の遅延（ms）。0で無効。レート制限で失敗が多いときは 1000〜2000 にすると成功回数が増える（450×2sはタイムアウトするので注意）
+const X_REPLY_SEARCH_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_SEARCH_DELAY_MS || 1000));
 
 // strict優先、低ヒット時のみbalancedへ（AR/ES/PT で 0 件になりがちなためデフォルトオン）
 const X_REPLY_LOW_HIT_BALANCED_THRESHOLD = Math.max(
@@ -108,6 +109,7 @@ module.exports = {
   X_REPLY_MAX_RESULTS_PER_PAGE,
   X_REPLY_SEARCH_WINDOW_MINUTES,
   X_REPLY_SEARCH_WINDOW_REGIONS_MINUTES,
+  X_REPLY_SEARCH_DELAY_MS,
   X_REPLY_LOW_HIT_BALANCED_THRESHOLD,
   X_REPLY_BALANCED_FALLBACK_ENABLED,
   X_REPLY_QUEUE_CAP_PER_LANG,
