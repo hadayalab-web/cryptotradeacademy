@@ -1072,26 +1072,21 @@ async function xApiRequestOAuth2User(endpoint, options = {}) {
 async function createBookmark(tweetId) {
   const tid = String(tweetId || "").trim();
   if (!tid) return { ok: false, error: "tweet_id is required" };
+  if (!X_API_OAUTH2_USER_ACCESS_TOKEN) {
+    console.error(
+      "[X API] Bookmarks need X_API_OAUTH2_USER_ACCESS_TOKEN. Run: node scripts/x-oauth2-get-user-token.js then add the token to Vercel env."
+    );
+    return {
+      ok: false,
+      error:
+        "X_API_OAUTH2_USER_ACCESS_TOKEN required. Run scripts/x-oauth2-get-user-token.js and set the token in Vercel."
+    };
+  }
   try {
-    // ブックマークは OAuth 2.0 必須。OAuth 2.0 トークンがあればそれで /users/me と POST bookmarks を呼ぶ
-    if (X_API_OAUTH2_USER_ACCESS_TOKEN) {
-      const me = await xApiRequestOAuth2User("/users/me");
-      const userId = me?.data?.id || me?.id;
-      if (!userId) return { ok: false, error: "Could not get user id with OAuth 2.0" };
-      const response = await xApiRequestOAuth2User(`/users/${userId}/bookmarks`, {
-        method: "POST",
-        body: { tweet_id: tid }
-      });
-      return {
-        ok: true,
-        bookmarked: response?.data?.bookmarked === true
-      };
-    }
-    // フォールバック: OAuth 1.0a で呼ぶ（ブックマークは 403 になるが、トークン未設定時のエラーは明示する）
-    const me = await getMe();
-    const userId = me?.id;
-    if (!userId) return { ok: false, error: "Could not get authenticated user id" };
-    const response = await xApiRequest(`/users/${userId}/bookmarks`, {
+    const me = await xApiRequestOAuth2User("/users/me");
+    const userId = me?.data?.id || me?.id;
+    if (!userId) return { ok: false, error: "Could not get user id with OAuth 2.0" };
+    const response = await xApiRequestOAuth2User(`/users/${userId}/bookmarks`, {
       method: "POST",
       body: { tweet_id: tid }
     });
