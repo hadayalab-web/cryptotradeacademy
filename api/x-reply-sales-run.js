@@ -7,7 +7,6 @@ require("../utils/suppressKnownWarnings");
 
 const { kv } = require("../utils/kv");
 const { fetchOnePageByMode } = require("../services/td/xReplySalesSearch");
-const { sendSalesReply } = require("../services/x/replySalesClient");
 const { sendRecruitDm } = require("../services/x/dmClient");
 const { followUser, getMe } = require("../services/x/client");
 const {
@@ -40,12 +39,10 @@ const {
   X_REPLY_FOLLOW_BEFORE_SEND,
   X_REPLY_FOLLOW_CAP_PER_DAY,
   X_REPLY_FOLLOW_DELAY_MS,
-  X_REPLY_SKIP_REPLY_ATTEMPT
 } = require("../config/xReplySalesConfig");
 const { getMinimalVersionCheckoutUrl, getWhopProductUrl } = require("../services/telegram/whop-links");
 
 const KV_KEY_QUEUE = (lang) => `x_reply_sales:queue:${lang}`;
-const KV_KEY_REPLIED_TWEET = (tweetId) => `x_reply_sales:replied:tweet:${tweetId}`;
 const KV_KEY_HANDLED_TWEET = (tweetId) => `x_reply_sales:handled:tweet:${tweetId}`;
 const KV_KEY_NG_TWEET = (tweetId) => `x_reply_sales:ng:tweet:${tweetId}`;
 const KV_KEY_ATTEMPTS_WINDOW = (dateStr, slot15) => `x_reply_sales:attempts:${dateStr}:${slot15}`;
@@ -128,7 +125,6 @@ function normalizeCandidate(candidate, lang) {
       Number.isFinite(Number(candidate?.priority)) && Number(candidate.priority) > 0
         ? Number(candidate.priority)
         : 1,
-    reply_settings: String(candidate?.reply_settings ?? "").trim().toLowerCase() || null
   };
 }
 
@@ -146,7 +142,7 @@ function getQueueLengthsByLang(queuesByLang) {
 }
 
 const IMMEDIATE_NG_ERROR_TYPES = new Set([
-  "reply_not_allowed_by_conversation",
+  "dm_only",
   "target_not_visible",
   "target_not_found"
 ]);
@@ -254,19 +250,17 @@ function buildTrackedOfferUrl(req, candidate, messageMeta, channel = "reply") {
 
 async function isTweetHandled(tweetId) {
   if (!kv || !tweetId) return false;
-  const [replied, handled, ng] = await Promise.all([
-    kv.get(KV_KEY_REPLIED_TWEET(tweetId)),
+  const [handled, ng] = await Promise.all([
     kv.get(KV_KEY_HANDLED_TWEET(tweetId)),
     kv.get(KV_KEY_NG_TWEET(tweetId))
   ]);
-  return Boolean(replied || handled || ng);
+  return Boolean(handled || ng);
 }
 
-async function markTweetHandled(tweetId, payload = {}, asReplied = false) {
+async function markTweetHandled(tweetId, payload = {}) {
   if (!kv || !tweetId) return;
-  const key = asReplied ? KV_KEY_REPLIED_TWEET(tweetId) : KV_KEY_HANDLED_TWEET(tweetId);
   await kv.set(
-    key,
+    KV_KEY_HANDLED_TWEET(tweetId),
     {
       ...payload,
       tweetId: String(tweetId),
@@ -432,18 +426,12 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
   const discoveredAt = String(options.discoveredAt || new Date().toISOString());
   const queueVersion = Math.max(1, Number(options.queueVersion || X_REPLY_QUEUE_VERSION || 1));
   const candidates = [];
-  let skippedReplyRestricted = 0;
   const sourceRows = Array.isArray(rows) ? rows : [];
-  const replySettingsCounts = {};
   for (const row of sourceRows) {
-    const raw = String(row?.reply_settings ?? "").trim() || "(empty)";
-    replySettingsCounts[raw] = (replySettingsCounts[raw] || 0) + 1;
     const tweetId = String(row?.id || "").trim();
     const authorId = String(row?.author_id || "").trim();
     const text = String(row?.text || "").trim();
     if (!tweetId || !authorId || !text) continue;
-    const replySettings = String(row?.reply_settings ?? "").trim().toLowerCase();
-    // reply_settings で除外しない（everyone 以外でも DM が通る候補があるため。リプライは送信側で試行しない運用）
     const user = usersById?.[authorId];
     if (!user?.username) continue;
     const postType = detectReplyPostType(normalizedLang, text);
@@ -458,8 +446,7 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
       discovered_at: discoveredAt,
       queue_version: queueVersion,
       post_type: postType,
-      priority,
-      reply_settings: replySettings || null
+      priority
     });
   }
 
@@ -470,11 +457,7 @@ function buildCandidatesFromSearchRows(lang, rows, usersById, options = {}) {
     const bTs = new Date(b.created_at || 0).getTime();
     return bTs - aTs;
   });
-  return {
-    candidates,
-    skippedReplyRestricted,
-    replySettingsCounts
-  };
+  return { candidates };
 }
 
 /** 取得候補リストの「ホット度」を集計（post_type・新しさ）。リスト品質の分析用 */
@@ -646,10 +629,8 @@ async function refreshQueueForLang(lang, now) {
     queueVersion: X_REPLY_QUEUE_VERSION
   });
   const built = builtResult.candidates || [];
-  const skippedReplyRestricted = Number(builtResult.skippedReplyRestricted || 0);
-  const replySettingsCounts = builtResult.replySettingsCounts || {};
   const listCount = built.length;
-  console.log(`[X Reply Sales][list] ${normalizedLang} リスト ${listCount} 件 (reply_settings 除外: ${skippedReplyRestricted}, 内訳: ${JSON.stringify(replySettingsCounts)})`);
+  console.log(`[X Reply Sales][list] ${normalizedLang} リスト ${listCount} 件`);
   // 同一 author_id は1件のみ採用（優先度順の先頭を残す）。二度と同一ユーザーに複数回試行しない
   const seenAuthorIds = new Set();
   const builtDeduped = [];
@@ -750,7 +731,6 @@ async function refreshQueueForLang(lang, now) {
     balancedPageCount,
     fetchedPosts: allRows.length,
     fetchedUsers: Object.keys(usersById).length,
-    skippedReplyRestricted,
     discoveredCandidates: built.length,
     freshDiscovered: builtDeduped.length,
     droppedDuplicateAuthors,
@@ -769,7 +749,6 @@ async function refreshQueueForLang(lang, now) {
     nextQueueLength: merged.queue.length,
     droppedByCap,
     queueCapPerLang: cap,
-    replySettingsCounts,
     sample: freshQueue.slice(0, 3).map((x) => ({
       tweetId: x.tweet_id,
       handle: x.username,
@@ -942,10 +921,6 @@ module.exports = async function handler(req, res) {
       freshDiscoveredTotal: perLang.reduce((acc, row) => acc + (Number(row?.freshDiscovered) || 0), 0),
       enqueuedFreshTotal: perLang.reduce((acc, row) => acc + (Number(row?.enqueuedFresh) || 0), 0),
       freshEnqueuedTotal: perLang.reduce((acc, row) => acc + (Number(row?.freshEnqueued) || 0), 0),
-      skippedReplyRestrictedTotal: perLang.reduce(
-        (acc, row) => acc + (Number(row?.skippedReplyRestricted) || 0),
-        0
-      ),
       retainedFromPrevTotal: perLang.reduce((acc, row) => acc + (Number(row?.retainedFromPrev) || 0), 0),
       droppedFromPrevByPolicyTotal: perLang.reduce(
         (acc, row) => acc + (Number(row?.droppedFromPrevByPolicy) || 0),
@@ -972,7 +947,6 @@ module.exports = async function handler(req, res) {
       targets: gross.targets,
       freshDiscoveredTotal: gross.freshDiscoveredTotal,
       freshEnqueuedTotal: gross.freshEnqueuedTotal,
-      skippedReplyRestrictedTotal: gross.skippedReplyRestrictedTotal,
       droppedFromPrevByPolicyTotal: gross.droppedFromPrevByPolicyTotal,
       droppedDuplicateAuthorFromPrevTotal: gross.droppedDuplicateAuthorFromPrevTotal,
       droppedByCapTotal: gross.droppedByCapTotal,
@@ -1290,61 +1264,26 @@ module.exports = async function handler(req, res) {
       lastAttemptStartedAtMs = Date.now();
       await incrementDailyCounter(dateStr, lang, "attempts", 1);
       await incrementHourlyCounter(dateStr, hourUtc, "attempts", 1, lang);
-      const replySettings = String(item.reply_settings ?? "").trim().toLowerCase();
-      const canAttemptReply =
-        !X_REPLY_SKIP_REPLY_ATTEMPT && replySettings === "everyone";
-      console.log("[X Reply Sales][send] " + (canAttemptReply ? "attempting reply" : "DM"), {
+      console.log("[X Reply Sales][send] DM", {
         attempt: attemptsThisRun,
         tweetId: item.tweet_id,
         lang,
         handle: item.username
       });
-      let sendResult;
-      if (canAttemptReply) {
-        const replyText = item.username
-          ? `@${String(item.username).replace(/^@/, "")} ${textWithCoupon}`.trim()
-          : textWithCoupon;
-        sendResult = await sendSalesReply({
-          tweetId: item.tweet_id,
-          text: replyText
-        });
-      } else {
-        sendResult = {
-          ok: false,
-          classified: {
-            retryable: false,
-            type: "reply_not_allowed_by_conversation"
-          }
-        };
+      const sendResult = {
+        ok: false,
+        classified: { retryable: false, type: "dm_only" }
+      };
+
+      const classified = sendResult.classified || { retryable: false, type: "unknown" };
+      if (classified.retryable) {
+        queuesByLang[lang].unshift(item);
+        stopReason = `retryable_error:${classified.type}`;
+        break;
       }
-
-      if (!sendResult.ok) {
-        if (!X_REPLY_SKIP_REPLY_ATTEMPT) {
-          await appendEvent(KV_KEY_SEND_EVENTS, {
-            ts: new Date().toISOString(),
-            slotKey,
-            invocationId,
-            status: "error",
-            lang,
-            tweetId: item.tweet_id,
-            handle: item.username,
-            postType: selectedMessage.postType,
-            pattern: selectedMessage.pattern,
-            error: sendResult.error,
-            classified: sendResult.classified || null
-          });
-        }
-
-        const classified = sendResult.classified || { retryable: false, type: "unknown" };
-        if (classified.retryable) {
-          queuesByLang[lang].unshift(item);
-          stopReason = `retryable_error:${classified.type}`;
-          break;
-        }
-        const immediateNg = shouldMarkImmediateNg(classified);
-        if (immediateNg) {
-          // いいねはリプライ試行前に済ませているため、ここではDMのみ送る
-          // DM用トラッキングURL（channel=dm）に差し替え、クリックをリプライと別集計
+      const immediateNg = shouldMarkImmediateNg(classified);
+      if (immediateNg) {
+          // DM用トラッキングURL（channel=dm）に差し替え
           const offerUrlForDm = buildTrackedOfferUrl(req, item, {
             postType: selectedMessage.postType,
             pattern: selectedMessage.pattern
@@ -1411,43 +1350,42 @@ module.exports = async function handler(req, res) {
             await incrementHourlyCounter(dateStr, hourUtc, "dm_ng", 1, lang);
             await markTweetNg(item.tweet_id, {
               status: "ng",
-              reason: "reply_rejected_then_dm_failed",
+              reason: "dm_failed",
               lang,
               handle: item.username,
-              replyError: classified.type,
               dmError: dmResult?.error || "unknown"
             });
-            await markTweetHandled(
-              item.tweet_id,
-              {
-                status: "ng",
-                reason: "reply_rejected_then_dm_failed",
-                lang,
-                handle: item.username,
-                immediateNg: true
-              },
-              false
-            );
-            console.warn("[X Reply Sales][send] reply rejected, DM failed → NG", {
+            await markTweetHandled(item.tweet_id, {
+              status: "ng",
+              reason: "dm_failed",
+              lang,
+              handle: item.username,
+              immediateNg: true
+            });
+            console.warn("[X Reply Sales][send] DM failed → NG", {
               lang,
               tweetId: item.tweet_id,
               handle: item.username,
               dmError: dmResult?.error || "unknown"
             });
           } else {
+            sentThisRun += 1;
+            sentRows.push({
+              lang,
+              tweetId: item.tweet_id,
+              handle: item.username,
+              status: "dm_sent",
+              dmEventId: dmResult.dmEventId || null
+            });
             await incrementDailyCounter(dateStr, lang, "dm_sent", 1);
             await incrementHourlyCounter(dateStr, hourUtc, "dm_sent", 1, lang);
-            await markTweetHandled(
-              item.tweet_id,
-              {
-                status: "dm_sent",
-                reason: "reply_rejected_dm_sent",
-                lang,
-                handle: item.username,
-                dmEventId: dmResult.dmEventId || null
-              },
-              false
-            );
+            await markTweetHandled(item.tweet_id, {
+              status: "dm_sent",
+              reason: "dm_sent",
+              lang,
+              handle: item.username,
+              dmEventId: dmResult.dmEventId || null
+            });
             await appendEvent(KV_KEY_SEND_EVENTS, {
               ts: new Date().toISOString(),
               slotKey,
@@ -1458,67 +1396,26 @@ module.exports = async function handler(req, res) {
               handle: item.username,
               dmEventId: dmResult.dmEventId || null
             });
-            console.log("[X Reply Sales][send] reply rejected → DM sent", {
+            console.log("[X Reply Sales][send] DM sent", {
               lang,
               tweetId: item.tweet_id,
               handle: item.username
             });
+            lastSentReplyText = textWithCoupon;
             await enqueueFollowupPending(item, "dm");
           }
         } else {
           errorsThisRun += 1;
           await incrementDailyCounter(dateStr, lang, "error", 1);
-          await markTweetHandled(
-            item.tweet_id,
-            {
-              status: "failed",
-              reason: classified.type || "error",
-              lang,
-              handle: item.username,
-              immediateNg: false
-            },
-            false
-          );
+          await markTweetHandled(item.tweet_id, {
+            status: "failed",
+            reason: classified.type || "error",
+            lang,
+            handle: item.username,
+            immediateNg: false
+          });
         }
         continue;
-      }
-
-      sentThisRun += 1;
-      await incrementDailyCounter(dateStr, lang, "sent", 1);
-      await incrementHourlyCounter(dateStr, hourUtc, "sent", 1, lang);
-      await markTweetHandled(
-        item.tweet_id,
-        {
-          status: "sent",
-          lang,
-          handle: item.username,
-          replyId: sendResult.replyId || null,
-          pattern: selectedMessage.pattern,
-          postType: selectedMessage.postType
-        },
-        true
-      );
-
-      await enqueueFollowupPending(item, "reply");
-
-      lastSentReplyText = textWithCoupon;
-
-      const sentRow = {
-        ts: new Date().toISOString(),
-        slotKey,
-        invocationId,
-        status: "sent",
-        lang,
-        tweetId: item.tweet_id,
-        handle: item.username,
-        authorId: item.author_id,
-        replyId: sendResult.replyId || null,
-        postType: selectedMessage.postType,
-        pattern: selectedMessage.pattern,
-        offerUrl: selectedOfferUrl
-      };
-      sentRows.push(sentRow);
-      await appendEvent(KV_KEY_SEND_EVENTS, sentRow);
     }
 
     for (const lang of X_REPLY_SALES_LANGS) {
