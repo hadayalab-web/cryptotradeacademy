@@ -584,7 +584,15 @@ async function refreshQueueForLang(lang, now) {
       nextTokens[mode] = page?.nextToken || null;
       pagesFetched += 1;
     } catch (err) {
-      if (String(err?.message || "").includes("402")) {
+      const errMsg = String(err?.message || "");
+      if (errMsg.includes("temporarily locked") || errMsg.includes("account is temporarily locked")) {
+        console.error("[X Reply Sales][list] X アカウントが一時ロックされています。https://twitter.com でログインして解除してください", {
+          lang: normalizedLang,
+          rounds: pagesFetched
+        });
+        return { ok: false, lang: normalizedLang, reason: "account_locked", pagesFetched };
+      }
+      if (errMsg.includes("402")) {
         console.log("[X Reply Sales][list] round-robin early exit (新規取得が少なくなる)", {
           lang: normalizedLang,
           reason: "search_402",
@@ -910,6 +918,20 @@ module.exports = async function handler(req, res) {
     for (const lang of targets) {
       const row = await refreshQueueForLang(lang, now);
       perLang.push(row);
+    }
+    const accountLockedRow = perLang.find((row) => row?.reason === "account_locked");
+    if (accountLockedRow) {
+      console.error("[X Reply Sales][list] list run aborted: account_locked");
+      return res.status(200).json({
+        ok: false,
+        reason: "account_locked",
+        message: "X account temporarily locked. Log in at https://twitter.com to unlock.",
+        mode: "list",
+        runAt: now.toISOString(),
+        scope: scope || "all",
+        targets,
+        perLang
+      });
     }
 
     const gross = {

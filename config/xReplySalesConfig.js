@@ -16,10 +16,10 @@ const X_REPLY_MAX_RESULTS_PER_PAGE = Math.min(
   100,
   Math.max(10, Number(process.env.X_REPLY_MAX_RESULTS_PER_PAGE || 100))
 );
-// 検索の時間窓（分）。全言語共通。直近を優先するためデフォルト 180 分（3時間）。広げると古いツイートも混ざる
+// 検索の時間窓（分）。全言語共通。75ラウンドに絞っているので窓は広めで diversity を確保。デフォルト 360 分（6時間）
 const X_REPLY_SEARCH_WINDOW_MINUTES = Math.max(
   15,
-  Number(process.env.X_REPLY_SEARCH_WINDOW_MINUTES || 180)
+  Number(process.env.X_REPLY_SEARCH_WINDOW_MINUTES || 360)
 );
 // 検索リクエスト間の遅延（ms）。ラウンド開始前に1回。2秒間隔で402を避けつつ300秒枠内で回す
 const X_REPLY_SEARCH_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_SEARCH_DELAY_MS || 2000));
