@@ -100,7 +100,7 @@
     },
     {
       "path": "/api/affiliate-recruit-bookmark",
-      "schedule": "0,5,10,15,20,25,30,35,40,45,50,55 * * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/kiba-5min",

@@ -23,17 +23,15 @@ const {
 /** 1 run あたりのブックマーク上限（X API 50/15分の 1/10 で運用）。env で 1〜5 の範囲で上書き可。 */
 const BOOKMARK_CAP_PER_RUN = Math.min(5, Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_CAP_PER_RUN || 5)));
 const BOOKMARK_DELAY_MS = Math.max(500, Number(process.env.AFFILIATE_BOOKMARK_DELAY_MS || 2000));
-/** 1言語あたりの検索ページ数。候補を多めに取り 1 run あたり 5 件をきっちり取り切るため既定 10。env で上書き可。 */
-const LIST_PAGES_PER_LANG = Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_LIST_PAGES || 10));
+/** 1言語あたりの検索ページ数。API コスト抑制のため既定 2（2頁で十分候補が取れる）。env で上書き可。 */
+const LIST_PAGES_PER_LANG = Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_LIST_PAGES || 2));
 /** 検索ページ間遅延（ms）。直販 X_REPLY_SEARCH_DELAY_MS に倣う。 */
 const SEARCH_DELAY_MS = Math.max(0, Number(process.env.AFFILIATE_BOOKMARK_SEARCH_DELAY_MS || 2000));
 const LANGS_6 = ["en", "es", "pt", "ar", "ja", "ko"];
 
-/** 現在の UTC の 15分枠に対応する言語（15分ごと1言語ローテ）。 */
-function getLangFor15MinSlot(now = new Date()) {
-  const hour = now.getUTCHours();
-  const min = now.getUTCMinutes();
-  const slotIndex = (hour * 4 + Math.floor(min / 15)) % LANGS_6.length;
+/** 現在の UTC の 1 時間枠に対応する言語（1 時間ごとに 6 言語ローテ: en→es→pt→ar→ja→ko→en…）。 */
+function getLangForHourSlot(now = new Date()) {
+  const slotIndex = now.getUTCHours() % LANGS_6.length;
   return LANGS_6[slotIndex];
 }
 
@@ -74,7 +72,7 @@ module.exports = async function handler(req, res) {
   const useRotate = langParam === "rotate" || langParam === "";
   const useAllLangs = langParam === "all";
   const langs = useRotate
-    ? [getLangFor15MinSlot(new Date())]
+    ? [getLangForHourSlot(new Date())]
     : useAllLangs
       ? LANGS_6
       : [["en", "ar", "es", "pt", "ja", "ko"].includes(langParam) ? langParam : "en"];
