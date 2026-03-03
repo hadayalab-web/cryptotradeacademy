@@ -500,6 +500,7 @@ async function refreshQueueForLang(lang, now) {
   const usersById = {};
   const modes = ["strict", "balanced", "broad"];
   const nextTokens = { strict: null, balanced: null, broad: null };
+  const modeFirstPageFetched = { strict: false, balanced: false, broad: false };
   const hitsByMode = { strict: 0, balanced: 0, broad: 0 };
   const searchRequestCap = X_REPLY_SEARCH_REQUESTS_PER_RUN;
   const maxRounds = Math.min(X_REPLY_LIST_PAGES, searchRequestCap);
@@ -534,10 +535,23 @@ async function refreshQueueForLang(lang, now) {
         tempByAuthor.map((c) => isTweetHandled(c.tweet_id))
       );
       const unhandledCount = tempHandled.filter((h) => !h).length;
-      if (unhandledCount >= X_REPLY_QUEUE_CAP_PER_LANG) break;
+      if (unhandledCount >= X_REPLY_QUEUE_CAP_PER_LANG) {
+        console.log("[X Reply Sales][list] early exit: enough unhandled for queue cap", {
+          lang: normalizedLang,
+          unhandledCount,
+          queueCap: X_REPLY_QUEUE_CAP_PER_LANG,
+          roundsSoFar: pagesFetched,
+          rawRows: allRows.length
+        });
+        break;
+      }
     }
 
     const mode = modes[round % modes.length];
+    // 同一 mode で nextToken が無い＝先頭ページは取得済み。再リクエストすると重複 Read になるのでスキップ
+    if (nextTokens[mode] === null && modeFirstPageFetched[mode]) {
+      continue;
+    }
     try {
       const page = await fetchOnePageByMode(normalizedLang, mode, {
         nextToken: nextTokens[mode] || undefined,
@@ -564,6 +578,7 @@ async function refreshQueueForLang(lang, now) {
       }
       hitsByMode[mode] += rows.length;
       nextTokens[mode] = page?.nextToken || null;
+      modeFirstPageFetched[mode] = true;
       pagesFetched += 1;
     } catch (err) {
       const errMsg = String(err?.message || "");
@@ -770,8 +785,6 @@ async function refreshQueueForLang(lang, now) {
     lang: normalizedLang,
     freshDiscovered: summary.freshDiscovered,
     freshEnqueued: summary.freshEnqueued,
-    skippedReplyRestricted: summary.skippedReplyRestricted,
-    replySettingsCounts: summary.replySettingsCounts,
     retainedFromPrev: summary.retainedFromPrev,
     droppedFromPrevByPolicy: summary.droppedFromPrevByPolicy,
     droppedDuplicateAuthorFromPrev: summary.droppedDuplicateAuthorFromPrev,

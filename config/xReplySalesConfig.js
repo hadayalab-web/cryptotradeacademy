@@ -5,7 +5,7 @@
 const X_REPLY_SALES_LANGS = ["en", "ar", "es", "pt", "ja", "ko"];
 const X_REPLY_SALES_REGION_LANGS = ["ar", "es", "pt", "ja", "ko"];
 
-// リスト取得: 1言語1回あたりのページ数。2秒間隔で300秒枠いっぱい＝約75ラウンド（2＋74×4≈298秒）
+// リスト取得: 1言語1回あたりのページ数。2秒間隔で300秒枠いっぱい＝約75ラウンド
 const X_REPLY_LIST_PAGES = Math.max(1, Number(process.env.X_REPLY_LIST_PAGES || 75) || 75);
 // 1ラン（1言語1回のリスト取得）で使ってよい検索リクエスト数の上限。当プランは 450/15min のためデフォルト450
 const X_REPLY_SEARCH_REQUESTS_PER_RUN = Math.max(
@@ -78,8 +78,8 @@ const X_REPLY_EVENT_LIST_MAX = Math.max(50, Number(process.env.X_REPLY_EVENT_LIS
 // クーポン表示（文面差し込み）
 const X_REPLY_PROMO_CODE = String(process.env.WHOP_PROMO_CODE || "defend50").trim() || "defend50";
 
-// 送信前にフォロー（リプライ/DM 403 突破のため）。デフォルトオン。0=オフにする場合のみ指定
-const X_REPLY_FOLLOW_BEFORE_SEND = process.env.X_REPLY_FOLLOW_BEFORE_SEND !== "0";
+// 送信前にフォロー。デフォルトオフ（Read/User Interaction 削減）。1=オンにする場合のみ指定
+const X_REPLY_FOLLOW_BEFORE_SEND = process.env.X_REPLY_FOLLOW_BEFORE_SEND === "1";
 const X_REPLY_FOLLOW_CAP_PER_DAY = Math.max(
   0,
   Math.min(400, Number(process.env.X_REPLY_FOLLOW_CAP_PER_DAY || 100))
@@ -88,11 +88,6 @@ const X_REPLY_FOLLOW_DELAY_MS = Math.max(0, Number(process.env.X_REPLY_FOLLOW_DE
 
 // フォロー解除: フォローから何日後に解除するか。0=解除しない。72時間≈3日で解除しないとフォロー数が膨らむためデフォルト3日
 const X_REPLY_UNFOLLOW_DAYS = Math.max(0, Math.min(30, Number(process.env.X_REPLY_UNFOLLOW_DAYS || 3)));
-
-// リプライ戦略: デフォルト停止（フォロー→いいね→DM のみ）。0 または false のときだけリプライを試行し、403 なら DM にフォールバック
-const X_REPLY_SKIP_REPLY_ATTEMPT =
-  process.env.X_REPLY_SKIP_REPLY_ATTEMPT !== "0" &&
-  String(process.env.X_REPLY_SKIP_REPLY_ATTEMPT || "").toLowerCase() !== "false";
 
 // DM送信前に対象ツイートをいいね（通知で気づいてもらう）。デフォルトオン。0=オフ
 const X_REPLY_LIKE_BEFORE_DM = process.env.X_REPLY_LIKE_BEFORE_DM !== "0";
@@ -123,6 +118,5 @@ module.exports = {
   X_REPLY_FOLLOW_CAP_PER_DAY,
   X_REPLY_FOLLOW_DELAY_MS,
   X_REPLY_UNFOLLOW_DAYS,
-  X_REPLY_SKIP_REPLY_ATTEMPT,
   X_REPLY_LIKE_BEFORE_DM
 };
