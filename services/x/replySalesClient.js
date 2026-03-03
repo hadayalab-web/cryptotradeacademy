@@ -1,5 +1,10 @@
 /**
  * Xリプライ直販 送信クライアント
+ *
+ * 403 が続く場合の確認:
+ * - Developer Portal でアプリの User authentication を "Read and Write" にし、
+ *   そのあとでアクセストークンを再発行すること（古いトークンは権限が更新されない）
+ * - リプライは OAuth 1.0a ユーザーコンテキストで POST /2/tweets を呼んでいる
  */
 
 const { replyToTweet, isRateLimitError } = require("./client");

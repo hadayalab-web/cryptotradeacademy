@@ -95,6 +95,9 @@ const X_REPLY_UNFOLLOW_DAYS = Math.max(0, Math.min(30, Number(process.env.X_REPL
 // リプライ試行をスキップし、フォロー→DMのみにする。デフォルト true。0 にするとリプライを試行し、403等なら従来どおりDMにフォールバック（現行のDM仕様は変更なし）
 const X_REPLY_SKIP_REPLY_ATTEMPT = process.env.X_REPLY_SKIP_REPLY_ATTEMPT !== "0";
 
+// DM送信前に対象ツイートをいいね（通知で気づいてもらう）。デフォルトオン。0=オフ
+const X_REPLY_LIKE_BEFORE_DM = process.env.X_REPLY_LIKE_BEFORE_DM !== "0";
+
 module.exports = {
   X_REPLY_SALES_LANGS,
   X_REPLY_SALES_REGION_LANGS,
@@ -121,5 +124,6 @@ module.exports = {
   X_REPLY_FOLLOW_CAP_PER_DAY,
   X_REPLY_FOLLOW_DELAY_MS,
   X_REPLY_UNFOLLOW_DAYS,
-  X_REPLY_SKIP_REPLY_ATTEMPT
+  X_REPLY_SKIP_REPLY_ATTEMPT,
+  X_REPLY_LIKE_BEFORE_DM
 };

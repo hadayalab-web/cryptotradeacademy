@@ -223,10 +223,11 @@ async function xApiRequest(endpoint, options = {}, maxRetries = 3) {
             detail: errorData.detail
           });
         } else if (isReplyConversationNotAllowed) {
-          console.warn(`[X API] Reply blocked by conversation setting (403).`, {
+          console.warn(`[X API] Reply blocked (403).`, {
             endpoint,
             method,
-            detail: errorData.detail
+            detail: errorData.detail,
+            hint: "If target reply_settings was 'everyone', check: app has Read and Write, access token was regenerated after enabling it."
           });
         } else if (isDmNotAllowed) {
           console.warn(`[X API] DM 403: recipient not open to DMs (${endpoint})`);
@@ -941,6 +942,36 @@ async function checkXApiCredits() {
 }
 
 /**
+ * 指定ツイートをいいね（OAuth User Context）
+ * 制限: 50/15分/ユーザー
+ * @param {string} tweetId - いいねするツイートのID
+ * @returns {Promise<{ok: boolean, liked?: boolean, error?: string}>}
+ */
+async function likeTweet(tweetId) {
+  const tid = String(tweetId || "").trim();
+  if (!tid) return { ok: false, error: "tweet_id is required" };
+  try {
+    const me = await getMe();
+    const sourceId = me?.id;
+    if (!sourceId) return { ok: false, error: "Could not get authenticated user id" };
+    const response = await xApiRequest(`/users/${sourceId}/likes`, {
+      method: "POST",
+      body: { tweet_id: tid }
+    });
+    return {
+      ok: true,
+      liked: response?.data?.liked === true
+    };
+  } catch (error) {
+    const msg = error?.message || "";
+    if (msg.includes("403") || msg.includes("429") || msg.includes("Forbidden")) {
+      return { ok: false, error: msg };
+    }
+    throw error;
+  }
+}
+
+/**
  * 指定ユーザーをフォロー（OAuth User Context）
  * 制限: 400/ユーザー/日・1000/アプリ/日
  * @param {string} targetUserId - フォローするユーザーのID
@@ -1004,6 +1035,7 @@ module.exports = {
   xApiRequest,
   postTweet,
   replyToTweet,
+  likeTweet,
   followUser,
   unfollowUser,
   uploadMedia,
