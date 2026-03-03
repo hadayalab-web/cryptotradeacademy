@@ -99,14 +99,6 @@
       "schedule": "0 20 * * *"
     },
     {
-      "path": "/api/affiliate-recruit-en-list",
-      "schedule": "8 0,4,8,12,16,20 * * *"
-    },
-    {
-      "path": "/api/affiliate-recruit-regions-list",
-      "schedule": "10 0,4,8,12,16,20 * * *"
-    },
-    {
       "path": "/api/affiliate-recruit-bookmark",
       "schedule": "0,5,10,15,20,25,30,35,40,45,50,55 * * * *"
     },

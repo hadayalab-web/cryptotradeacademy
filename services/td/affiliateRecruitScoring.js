@@ -1,10 +1,9 @@
 /**
- * アフィリエイトリクルート候補のスコアリングと除外
+ * アフィリエイトリクルート候補の意図判定と除外（スコア付けは排除済み）
  *
- * フォーカス:
- * 1. すでにアフィリエイターとして活動中（DM募集中は廃止・Xの設定と一致しないため）
- * 2. ノイズになる条件は徹底排除
- * 3. 403 DM拒否は追いかけない（呼び出し元で 90 日再送しない）
+ * - score は常に null。並び順・フィルタに数値スコアは使わない。
+ * - 除外は checkExclusions のみ（min_followers, empty_bio, profile_exclude 等）。score_zero による除外は廃止。
+ * - angle / breakdown / intentSegment は意図フィルタ（isAffiliateIntentCandidate）と DM 用にのみ使用。
  */
 const {
   RECRUIT_ANGLE_KEYWORDS,
@@ -592,7 +591,7 @@ function computeCandidateScore(user, userTweets = [], lang = "en") {
   const exploreEligible = Boolean(angleDecision.exploreEligible);
   if (exclusion.excluded) {
     return {
-      score: 0,
+      score: null,
       excluded: true,
       reason: exclusion.reason,
       angle: angleDecision.angle,
@@ -619,7 +618,6 @@ function computeCandidateScore(user, userTweets = [], lang = "en") {
     scoreHustleProfile(text.descriptionLower),
     scoreActionLog(userTweets)
   );
-  const riskFactor = getRiskFactor(user, userTweets, lang);
   const isHighIntent = competitorScore >= 1 || seekingIntentScore >= 0.7;
   const intentSegment =
     competitorScore >= 1
@@ -637,45 +635,10 @@ function computeCandidateScore(user, userTweets = [], lang = "en") {
   const bonusActiveAffiliate = activeAffiliateScore * BONUS_ACTIVE_AFFILIATE;
   const bonusBio = bioScore * BONUS_BIO_MATCH;
   const bonusHustleAction = hustleActionScore * BONUS_HUSTLE_ACTION;
-  const rawScore =
-    BASE_SCORE +
-    bonusCompetitor +
-    bonusSeekingIntent +
-    bonusActiveAffiliate +
-    bonusBio +
-    bonusHustleAction;
-  const weightedScore = rawScore * riskFactor;
-  const score = Math.max(0, Math.min(100, Math.round(weightedScore)));
 
-  if (score <= 0) {
-    return {
-      score: 0,
-      excluded: true,
-      reason: "score_zero",
-      angle: angleDecision.angle,
-      recommendedAngle,
-      angleConfidence,
-      exploreEligible,
-      detectedVia: angleDecision.detectedVia,
-      isHighIntent,
-      intentSegment,
-      breakdown: {
-        base: BASE_SCORE,
-        bonusCompetitor,
-        bonusSeekingIntent,
-        bonusActiveAffiliate,
-        bonusBio,
-        bonusHustleAction,
-        riskFactor,
-        angleScores: angleDecision.angleScores,
-        isHighIntent,
-        intentSegment
-      }
-    };
-  }
-
+  // スコア付けは排除。angle/breakdown/intentSegment は意図フィルタ・DM用にのみ使用。
   return {
-    score,
+    score: null,
     excluded: false,
     angle: angleDecision.angle,
     recommendedAngle,
@@ -685,15 +648,11 @@ function computeCandidateScore(user, userTweets = [], lang = "en") {
     isHighIntent,
     intentSegment,
     breakdown: {
-      base: BASE_SCORE,
       bonusCompetitor,
       bonusSeekingIntent,
       bonusActiveAffiliate,
       bonusBio,
       bonusHustleAction,
-      riskFactor,
-      rawScore: Math.round(rawScore * 100) / 100,
-      weightedScore: Math.round(weightedScore * 100) / 100,
       angleScores: angleDecision.angleScores,
       isHighIntent,
       intentSegment,

@@ -1016,14 +1016,14 @@ async function followUser(targetUserId, options = {}) {
  * 指定ユーザーのフォローを解除
  * 制限: 50/15分/ユーザー・500/アプリ/日
  * @param {string} targetUserId - フォロー解除するユーザーのID
+ * @param {{ sourceId?: string }} [options] - sourceId を渡すと /users/me を省略（ループ時の API 節約）
  * @returns {Promise<{ok: boolean, following?: boolean, error?: string}>}
  */
-async function unfollowUser(targetUserId) {
+async function unfollowUser(targetUserId, options = {}) {
   const tid = String(targetUserId || "").trim();
   if (!tid) return { ok: false, error: "target_user_id is required" };
   try {
-    const me = await getMe();
-    const sourceId = me?.id;
+    const sourceId = options.sourceId || (await getMe())?.id;
     if (!sourceId) return { ok: false, error: "Could not get authenticated user id" };
     const response = await xApiRequest(`/users/${sourceId}/following/${tid}`, {
       method: "DELETE"

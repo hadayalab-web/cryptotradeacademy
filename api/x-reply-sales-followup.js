@@ -3,7 +3,7 @@
  * Cron: :10, :25, :40, :55 で実行（:00 リスト・:05 送信のあとで詰まらないように）
  */
 const { kv } = require("../utils/kv");
-const { unfollowUser } = require("../services/x/client");
+const { unfollowUser, getMe } = require("../services/x/client");
 const { sendRecruitDm } = require("../services/x/dmClient");
 const { X_REPLY_UNFOLLOW_DAYS } = require("../config/xReplySalesConfig");
 const { normalizeReplyLang } = require("../config/xReplySalesStrategy");
@@ -70,10 +70,19 @@ module.exports = async function handler(req, res) {
     const toUnfollow = listPast.slice(0, UNFOLLOW_MAX_PER_RUN);
     const remaining = listPast.slice(UNFOLLOW_MAX_PER_RUN);
     let stoppedAt = toUnfollow.length;
+    let cachedSourceId = null;
+    try {
+      const me = await getMe();
+      cachedSourceId = me?.id || null;
+    } catch (_) {
+      /* unfollow は sourceId なしで都度 getMe にフォールバック */
+    }
     for (let i = 0; i < toUnfollow.length; i += 1) {
       const authorId = toUnfollow[i];
       try {
-        const r = await unfollowUser(String(authorId).trim());
+        const r = await unfollowUser(String(authorId).trim(), {
+          sourceId: cachedSourceId || undefined
+        });
         if (r.ok) {
           results.unfollow.done += 1;
         }

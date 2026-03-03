@@ -1,17 +1,14 @@
 /**
  * アフィリエイター発見 → 該当投稿をブックマークに追加
  *
- * 候補条件（運用指示）:
- * 1. アフィリエイターとして活動中（検索クエリで発見）
- * 2. 案件を募集中（open to collab / DM for business 等を除外しない）
- * 3. フォロワー100人以上
+ * リスト取得は直販（x-reply-sales-run mode=list）のノウハウに合わせる:
+ * - nextToken で複数ページ取得（maxRounds まで）
+ * - ページ間遅延で 402 抑制
+ * - 同一 author_id は先頭1件のみ採用（重複排除）
+ * - 402 でその言語は打ち切り
  *
- * 使い方:
- * - ?lang=rotate または Cron で呼び出し（lang なし）… 15分枠から言語を自動選択し1言語のみ実行（15分ごと1言語ローテ、15分間に3回転想定）
- * - ?lang=en | es | pt | ar | ja | ko … 指定言語のみ
- * - ?lang=all … 6言語を順に検索し、条件を満たす投稿をブックマーク（合計 cap まで）
- * 認証: CRON_SECRET または ?dryRun=1 でブックマークせず検索結果のみ返す。
- * ブックマーク書き込み: X のブックマーク API は OAuth 2.0 User Context 必須。Vercel に X_API_OAUTH2_USER_ACCESS_TOKEN（PKCE で取得したユーザーアクセストークン、スコープ bookmark.read, bookmark.write, users.read, tweet.read）を設定すること。
+ * 候補条件: 検索クエリで発見 / フォロワー100人以上
+ * 認証: CRON_SECRET または ?dryRun=1。ブックマークは X_API_OAUTH2_USER_ACCESS_TOKEN 必須。
  * 制限: X API ブックマーク 50/15分。
  */
 require("../utils/suppressKnownWarnings");
@@ -23,9 +20,12 @@ const {
   AFFILIATE_RECRUIT_MIN_FOLLOWERS
 } = require("../config/affiliateRecruitConfig");
 
-// 上限はXの制限（50/15分）のみ。環境変数で上書き可。
 const BOOKMARK_CAP_PER_RUN = Math.min(50, Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_CAP_PER_RUN || 50)));
 const BOOKMARK_DELAY_MS = Math.max(500, Number(process.env.AFFILIATE_BOOKMARK_DELAY_MS || 2000));
+/** 1言語あたりの検索ページ数（直販の nextToken ループに倣う）。env で上書き可。 */
+const LIST_PAGES_PER_LANG = Math.max(1, Number(process.env.AFFILIATE_BOOKMARK_LIST_PAGES || 3));
+/** 検索ページ間遅延（ms）。直販 X_REPLY_SEARCH_DELAY_MS に倣う。 */
+const SEARCH_DELAY_MS = Math.max(0, Number(process.env.AFFILIATE_BOOKMARK_SEARCH_DELAY_MS || 2000));
 const LANGS_6 = ["en", "es", "pt", "ar", "ja", "ko"];
 
 /** 現在の UTC の 15分枠に対応する言語（15分ごと1言語ローテ）。 */
@@ -81,32 +81,97 @@ module.exports = async function handler(req, res) {
   const hasOAuth2UserToken = !!process.env.X_API_OAUTH2_USER_ACCESS_TOKEN;
   const allResults = [];
   const perLang = [];
+  /** 1 run で 1 回だけ取得（言語ループの外で保持し /users/me の重複呼び出しを防止） */
+  let oauth2UserId = null;
 
   try {
     for (const lang of langs) {
       const windowMinutes = getWindowMinutes(lang);
-      const pageResult = await fetchOneSearchPage(lang, {
-        maxResults: 100,
-        windowMinutes,
-        nextToken: undefined
+      let allRows = [];
+      const usersById = {};
+      let nextToken = null;
+      let pagesFetched = 0;
+      let had402 = false;
+      const maxRounds = LIST_PAGES_PER_LANG;
+
+      console.log("[affiliate-recruit-bookmark][list] search start", {
+        lang,
+        maxRounds,
+        windowMinutes
       });
 
-      if (pageResult?.fatal402) {
-        perLang.push({ lang, ok: false, reason: "search_402" });
-        continue;
+      for (let round = 0; round < maxRounds; round += 1) {
+        if (round > 0 && SEARCH_DELAY_MS > 0) {
+          await new Promise((r) => setTimeout(r, SEARCH_DELAY_MS));
+        }
+        if (nextToken === null && pagesFetched > 0) break;
+
+        try {
+          const pageResult = await fetchOneSearchPage(lang, {
+            maxResults: 100,
+            windowMinutes,
+            nextToken: nextToken || undefined
+          });
+
+          if (pageResult?.fatal402) {
+            console.log("[affiliate-recruit-bookmark][list] early exit (search_402)", { lang, rounds: pagesFetched });
+            perLang.push({ lang, ok: false, reason: "search_402", pagesFetched });
+            had402 = true;
+            break;
+          }
+
+          const rows = Array.isArray(pageResult?.data) ? pageResult.data : [];
+          allRows.push(...rows);
+          for (const u of pageResult?.includes?.users || []) {
+            if (u?.id) usersById[u.id] = u;
+          }
+          nextToken = pageResult?.nextToken ?? null;
+          pagesFetched += 1;
+        } catch (err) {
+          const errMsg = String(err?.message || "");
+          if (errMsg.includes("402")) {
+            perLang.push({ lang, ok: false, reason: "search_402", pagesFetched });
+            had402 = true;
+            break;
+          }
+          console.warn("[affiliate-recruit-bookmark][list] fetch failed (non-fatal)", { lang, round, error: err?.message });
+        }
       }
 
-      const posts = Array.isArray(pageResult?.data) ? pageResult.data : [];
-      const usersById = {};
-      for (const u of pageResult?.includes?.users || []) {
-        if (u?.id) usersById[u.id] = u;
+      if (had402) continue;
+
+      console.log("[affiliate-recruit-bookmark][list] search done", {
+        lang,
+        rounds: pagesFetched,
+        maxRounds,
+        rawRows: allRows.length
+      });
+
+      // 同一 author_id は先頭1件のみ残す（直販と同じ重複排除）
+      const seenAuthorIds = new Set();
+      const rowsDeduped = [];
+      for (const row of allRows) {
+        const aid = String(row?.author_id || "").trim();
+        if (!aid || seenAuthorIds.has(aid)) continue;
+        seenAuthorIds.add(aid);
+        rowsDeduped.push(row);
       }
-      const credible = filterByMinFollowers(posts, usersById, minFollowers);
+      if (rowsDeduped.length < allRows.length) {
+        console.log("[affiliate-recruit-bookmark][list] deduped by author_id", {
+          lang,
+          before: allRows.length,
+          after: rowsDeduped.length
+        });
+      }
+      allRows = rowsDeduped;
+
+      const credible = filterByMinFollowers(allRows, usersById, minFollowers);
       const tweetIds = [...new Set(credible.map((p) => p?.id).filter(Boolean))];
       const toAdd = tweetIds.slice(0, Math.max(0, BOOKMARK_CAP_PER_RUN - allResults.length));
       perLang.push({
         lang,
-        postsFound: posts.length,
+        pagesFetched,
+        rawRows: allRows.length,
         credibleCount: credible.length,
         minFollowers: minFollowers || null,
         wouldBookmark: toAdd.length
@@ -115,7 +180,6 @@ module.exports = async function handler(req, res) {
       if (dryRun) continue;
       if (!hasOAuth2UserToken) continue;
 
-      let oauth2UserId = null;
       for (const tid of toAdd) {
         if (allResults.length >= BOOKMARK_CAP_PER_RUN) break;
         if (allResults.length > 0) await new Promise((r) => setTimeout(r, BOOKMARK_DELAY_MS));
