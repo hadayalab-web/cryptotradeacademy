@@ -4,7 +4,7 @@
  */
 
 const { searchPostsRecent } = require("../x/client");
-const { getReplySearchQuery, getReplySearchQueryBroad, normalizeReplyLang } = require("../../config/xReplySalesStrategy");
+const { getReplySearchQuery, getReplySearchQueryBroad, getReplySearchQueryUnified, normalizeReplyLang } = require("../../config/xReplySalesStrategy");
 const {
   X_REPLY_MAX_RESULTS_PER_PAGE,
   X_REPLY_SEARCH_WINDOW_MINUTES
@@ -51,8 +51,8 @@ async function runSearchQuery(query, options = {}) {
 async function fetchOnePageByMode(lang, mode, options = {}) {
   const normalizedLang = normalizeReplyLang(lang);
   let query = null;
-  if (mode === "broad") {
-    query = getReplySearchQueryBroad(normalizedLang);
+  if (mode === "unified" || mode === "broad") {
+    query = (mode === "unified" ? getReplySearchQueryUnified(normalizedLang) : getReplySearchQueryBroad(normalizedLang)) || getReplySearchQueryBroad(normalizedLang);
   } else {
     query = getReplySearchQuery(normalizedLang, mode === "balanced" ? "balanced" : "strict");
   }

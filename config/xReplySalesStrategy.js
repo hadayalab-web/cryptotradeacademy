@@ -456,6 +456,11 @@ function getReplySearchQueryBroad(lang) {
   return REPLY_SEARCH_QUERIES_BROAD_BY_LANG[normalized] || REPLY_SEARCH_QUERIES_BROAD_BY_LANG.en || null;
 }
 
+/** 1本で検索用。strict/balanced/broad を分けず最初から広めクエリ（broad）で一括取得。根拠のない3分割をやめる */
+function getReplySearchQueryUnified(lang) {
+  return getReplySearchQueryBroad(lang);
+}
+
 function buildReplyMessage({
   lang,
   username,
@@ -550,6 +555,7 @@ module.exports = {
   detectReplyPostType,
   getReplySearchQuery,
   getReplySearchQueryBroad,
+  getReplySearchQueryUnified,
   buildReplyMessage,
   getDmQueryHook,
   getDmClosing

@@ -498,17 +498,13 @@ async function refreshQueueForLang(lang, now) {
   const queueKey = KV_KEY_QUEUE(normalizedLang);
   let allRows = [];
   const usersById = {};
-  const modes = ["strict", "balanced", "broad"];
-  const nextTokens = { strict: null, balanced: null, broad: null };
-  const modeFirstPageFetched = { strict: false, balanced: false, broad: false };
-  const hitsByMode = { strict: 0, balanced: 0, broad: 0 };
   const searchRequestCap = X_REPLY_SEARCH_REQUESTS_PER_RUN;
   const maxRounds = Math.min(X_REPLY_LIST_PAGES, searchRequestCap);
   let pagesFetched = 0;
-
+  let nextToken = null;
   const windowMinutes = X_REPLY_SEARCH_WINDOW_MINUTES;
 
-  console.log("[X Reply Sales][list] round-robin start", {
+  console.log("[X Reply Sales][list] search start (unified query only)", {
     lang: normalizedLang,
     maxRounds,
     windowMinutes
@@ -547,73 +543,41 @@ async function refreshQueueForLang(lang, now) {
       }
     }
 
-    const mode = modes[round % modes.length];
-    // 同一 mode で nextToken が無い＝先頭ページは取得済み。再リクエストすると重複 Read になるのでスキップ
-    if (nextTokens[mode] === null && modeFirstPageFetched[mode]) {
-      continue;
-    }
+    if (nextToken === null && pagesFetched > 0) break;
+
     try {
-      const page = await fetchOnePageByMode(normalizedLang, mode, {
-        nextToken: nextTokens[mode] || undefined,
+      const page = await fetchOnePageByMode(normalizedLang, "unified", {
+        nextToken: nextToken || undefined,
         windowMinutes
       });
       if (page?.fatal402) {
-        console.log("[X Reply Sales][list] round-robin early exit (新規取得が少なくなる)", {
-          lang: normalizedLang,
-          reason: "search_402",
-          rounds: pagesFetched,
-          hint: "X_REPLY_LIST_PAGES を下げる(例:80) or X_REPLY_SEARCH_DELAY_MS を増やすと 402 を避けやすい"
-        });
-        return {
-          ok: false,
-          lang: normalizedLang,
-          reason: "search_402",
-          pagesFetched
-        };
+        console.log("[X Reply Sales][list] early exit (search_402)", { lang: normalizedLang, rounds: pagesFetched });
+        return { ok: false, lang: normalizedLang, reason: "search_402", pagesFetched };
       }
       const rows = Array.isArray(page?.data) ? page.data : [];
       allRows.push(...rows);
       for (const user of page?.includes?.users || []) {
         if (user?.id) usersById[user.id] = user;
       }
-      hitsByMode[mode] += rows.length;
-      nextTokens[mode] = page?.nextToken || null;
-      modeFirstPageFetched[mode] = true;
+      nextToken = page?.nextToken ?? null;
       pagesFetched += 1;
     } catch (err) {
       const errMsg = String(err?.message || "");
       if (errMsg.includes("temporarily locked") || errMsg.includes("account is temporarily locked")) {
-        console.error("[X Reply Sales][list] X アカウントが一時ロックされています。https://twitter.com でログインして解除してください", {
-          lang: normalizedLang,
-          rounds: pagesFetched
-        });
+        console.error("[X Reply Sales][list] X アカウントが一時ロックされています", { lang: normalizedLang, rounds: pagesFetched });
         return { ok: false, lang: normalizedLang, reason: "account_locked", pagesFetched };
       }
       if (errMsg.includes("402")) {
-        console.log("[X Reply Sales][list] round-robin early exit (新規取得が少なくなる)", {
-          lang: normalizedLang,
-          reason: "search_402",
-          rounds: pagesFetched,
-          hint: "X_REPLY_LIST_PAGES を下げる(例:80) or X_REPLY_SEARCH_DELAY_MS を増やすと 402 を避けやすい"
-        });
         return { ok: false, lang: normalizedLang, reason: "search_402", pagesFetched };
       }
-      console.warn("[X Reply Sales][list] round-robin fetch failed (non-fatal)", {
-        lang: normalizedLang,
-        mode,
-        round,
-        error: err?.message
-      });
+      console.warn("[X Reply Sales][list] fetch failed (non-fatal)", { lang: normalizedLang, round, error: err?.message });
     }
   }
-  console.log("[X Reply Sales][list] round-robin done", {
+  console.log("[X Reply Sales][list] search done", {
     lang: normalizedLang,
     rounds: pagesFetched,
     maxRounds,
-    rawRows: allRows.length,
-    strict: hitsByMode.strict,
-    balanced: hitsByMode.balanced,
-    broad: hitsByMode.broad
+    rawRows: allRows.length
   });
   // 重複取得の徹底排除: 同一 author_id は先頭1件のみ残してからキャップ適用
   const seenAuthorIdsInRows = new Set();
@@ -635,8 +599,8 @@ async function refreshQueueForLang(lang, now) {
   if (allRows.length > X_REPLY_QUEUE_CAP_PER_LANG) {
     allRows = allRows.slice(0, X_REPLY_QUEUE_CAP_PER_LANG);
   }
-  const strictHitsTotal = hitsByMode.strict;
-  const balancedHitsTotal = hitsByMode.balanced;
+  const strictHitsTotal = allRows.length;
+  const balancedHitsTotal = 0;
   const balancedPageCount = 0;
 
   const builtResult = buildCandidatesFromSearchRows(normalizedLang, allRows, usersById, {
@@ -734,7 +698,7 @@ async function refreshQueueForLang(lang, now) {
   const summary = {
     ok: true,
     lang: normalizedLang,
-    listMode: "round_robin_strict_balanced_broad",
+    listMode: "unified_only",
     runAt: now.toISOString(),
     queueVersion: X_REPLY_QUEUE_VERSION,
     retainPreviousQueue: X_REPLY_RETAIN_PREVIOUS_QUEUE,
@@ -742,7 +706,7 @@ async function refreshQueueForLang(lang, now) {
     configuredPages: X_REPLY_LIST_PAGES,
     strictHitsTotal,
     balancedHitsTotal,
-    broadHitsTotal: hitsByMode.broad,
+    broadHitsTotal: 0,
     balancedPageCount,
     fetchedPosts: allRows.length,
     fetchedUsers: Object.keys(usersById).length,
