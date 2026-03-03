@@ -78,8 +78,8 @@ const X_REPLY_EVENT_LIST_MAX = Math.max(50, Number(process.env.X_REPLY_EVENT_LIS
 // クーポン表示（文面差し込み）
 const X_REPLY_PROMO_CODE = String(process.env.WHOP_PROMO_CODE || "defend50").trim() || "defend50";
 
-// 送信前にフォロー。デフォルトオフ（Read/User Interaction 削減）。1=オンにする場合のみ指定
-const X_REPLY_FOLLOW_BEFORE_SEND = process.env.X_REPLY_FOLLOW_BEFORE_SEND === "1";
+// DM送信成功ユーザーのみフォロー。デフォルトオン。0=オフ
+const X_REPLY_FOLLOW_AFTER_DM_SENT = process.env.X_REPLY_FOLLOW_AFTER_DM_SENT !== "0";
 const X_REPLY_FOLLOW_CAP_PER_DAY = Math.max(
   0,
   Math.min(400, Number(process.env.X_REPLY_FOLLOW_CAP_PER_DAY || 100))
@@ -114,7 +114,7 @@ module.exports = {
   X_REPLY_EVENT_TTL_SECONDS,
   X_REPLY_EVENT_LIST_MAX,
   X_REPLY_PROMO_CODE,
-  X_REPLY_FOLLOW_BEFORE_SEND,
+  X_REPLY_FOLLOW_AFTER_DM_SENT,
   X_REPLY_FOLLOW_CAP_PER_DAY,
   X_REPLY_FOLLOW_DELAY_MS,
   X_REPLY_UNFOLLOW_DAYS,
