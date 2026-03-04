@@ -18,6 +18,11 @@
 | 7 | 10カ国×3レイヤー＝30文面 | ✅ 完了 | `config/telegramScout30Templates.js`。jp, ko, vn, in, ar, ng, br, latam, es, sea × Admin/KOL/ActiveMember |
 | 8 | 30文面の API 取得 | ✅ 完了 | `GET /api/telegram-scout-message?template30=1&lang=ja&category=Admin`（`market` で国指定可） |
 | 9 | 前夜実行・JST 10時運用メモ | ✅ 完了 | `docs/TELEGRAM_SCOUT_WORKFLOW.md` に記載 |
+| 10 | 毎日 JST 10:00 Cron（daily API） | ✅ 完了 | 200リスト＋メッセージを組み立てて KV に保存。`?format=csv` で取得 |
+| 11 | 送信済みフラグ・重複防止 | ✅ 完了 | `POST /api/telegram-scout-mark-sent`。daily で各ターゲットに `sentAt` を付与 |
+| 12 | CSV コピペ最適化 | ✅ 完了 | カラム順: username, message, category, group_name を先頭に |
+| 13 | 弾薬不足アラート | ✅ 完了 | ストック 200 件未満時に `TELEGRAM_SCOUT_ALERT_WEBHOOK_URL` へ通知 |
+| 14 | 言語別 FirstPromoter 招待 URL | ✅ 完了 | `FIRSTPROMOTER_INVITE_URL_EN/ES/PT/AR/KO/JA`。API・Bot・CSV で自動選択 |
 
 ---
 
@@ -32,6 +37,8 @@
 | 一通目・キット（既存） | `config/telegramScoutTemplates.js` |
 | メッセージ API | `api/telegram-scout-message.js` |
 | 目視用ターゲット API | `api/telegram-scout-targets.js` |
+| 毎日 200＋メッセージ（Cron） | `api/telegram-scout-daily.js` |
+| 送信済みマーク（重複防止） | `api/telegram-scout-mark-sent.js` |
 | ワークフロー説明 | `docs/TELEGRAM_SCOUT_WORKFLOW.md` |
 
 ---
@@ -80,7 +87,23 @@
 
 ---
 
-## 6. 技術メモ
+## 6. 環境変数（追加実装分）
+
+| 変数名 | 用途 |
+|--------|------|
+| `FIRSTPROMOTER_INVITE_URL_EN` | 英語圏の FirstPromoter 招待 URL（一通目・キット・/getlink で使用） |
+| `FIRSTPROMOTER_INVITE_URL_ES` | スペイン語 |
+| `FIRSTPROMOTER_INVITE_URL_PT` | ポルトガル語 |
+| `FIRSTPROMOTER_INVITE_URL_AR` | アラビア語 |
+| `FIRSTPROMOTER_INVITE_URL_KO` | 韓国語 |
+| `FIRSTPROMOTER_INVITE_URL_JA` | 日本語 |
+| `TELEGRAM_SCOUT_ALERT_WEBHOOK_URL` | 弾薬不足時（200 件未満）に通知する Slack / Discord Incoming Webhook URL |
+
+未設定の言語は `FIRSTPROMOTER_INVITE_URL` または `firstpromoter.com` にフォールバック。API（`/api/telegram-scout-message`）・Bot（`/getlink`）・`scripts/telegram-scout-csv.js` はいずれも `config/affiliateRecruitConfig.js` の `getFirstPromoterInviteUrl(lang)` で言語別 URL を参照する。
+
+---
+
+## 7. 技術メモ
 
 - **Telethon**: 公式 API に「キーワードで公開グループ検索」はないため、グループ発見は **第三者 API（Telegram Index 等）** または **シードリストの Telethon 検証** で実施。
 - **Bio 取得**: `GetFullUserRequest` をループ内で実行。FloodWait 時は待機してリトライ。`--delay` で間隔調整可能。
@@ -88,4 +111,4 @@
 
 ---
 
-以上で、**ターゲット発見 → 抽出 → 分類 → 送信文面取得** まで一連のシステム実装は完了しています。
+以上で、**ターゲット発見 → 抽出 → 分類 → 送信文面取得 → 毎日 Cron・送信済み管理・言語別招待 URL** まで一連のシステム実装は完了しています。

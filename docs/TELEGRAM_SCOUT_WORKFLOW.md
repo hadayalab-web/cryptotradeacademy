@@ -39,8 +39,8 @@ Telegramの検索バーに打ち込むワード。`config/telegramScoutTemplates
 - **実績画像**は手動で添付（Total paid $1.4M+ のスクショ）。
 
 メッセージ取得方法:
-- API: `GET /api/telegram-scout-message?lang=es&handle=AdminName&channel=MyChannel` → `firstMessage` をコピペ。
-- またはスクリプト: `node scripts/telegram-scout-csv.js` で CSV から一括生成。
+- API: `GET /api/telegram-scout-message?lang=es&handle=AdminName&channel=MyChannel` → `firstMessage` をコピペ。**招待 URL（inviteUrl）は省略可**。`lang` に応じて `FIRSTPROMOTER_INVITE_URL_ES` 等が自動で使われる。
+- またはスクリプト: `node scripts/telegram-scout-csv.js` で CSV から一括生成（各行の言語に応じて言語別招待 URL を使用）。
 
 ---
 
@@ -54,7 +54,8 @@ Telegramの検索バーに打ち込むワード。`config/telegramScoutTemplates
 4. **先行者ボーナス**（任意）:「最初の1週間だけ、あなたのリンクからの登録者に10%オフ」
 
 キット本文取得:
-- API: `GET /api/telegram-scout-message?lang=es&kitOnly=1` → `kit` をコピペ。
+- API: `GET /api/telegram-scout-message?lang=es&kitOnly=1` → `kit` をコピペ。招待 URL は言語別環境変数（`FIRSTPROMOTER_INVITE_URL_ES` 等）から自動挿入。
+- Bot: ユーザーが `/getlink es` を送ると、同じく言語別招待 URL 付きのキットが返る。
 
 ---
 
@@ -221,12 +222,29 @@ python run_pipeline.py --dry-run --source seed --cap-per-lang 5,5,10
 - **KOL 判定のリンク優先:** Bio に **外部 SNS リンク（t.me 以外の YouTube / X / Instagram）** があるユーザーは、キーワードがなくても KOL として格上げ。
 - **group_last_active:** 抽出 JSON に各グループの「最終発言日時」を `group_last_active`（ISO）で出力。古いグループのメンバーは送信優先度を下げる判断に利用可能。
 
+### 毎日 JST 10:00 の Cron と daily API（追加実装）
+
+- **Cron:** 毎日 UTC 01:00（JST 10:00）に `/api/telegram-scout-daily` が実行され、KV 内の最新ターゲットから最大 200 件を取得し、各件に **message30** と **送信済み日時（sentAt）** を付与して当日分を KV に保存する。
+- **取得:** `GET /api/telegram-scout-daily` で当日の「200リスト＋メッセージ＋sentAt」を取得。`?format=csv` で CSV ダウンロード。
+- **CSV のカラム順:** **username, message, category, group_name** を先頭にしている（`t.me/username` を開く → メッセージをコピペ → 送信、のリズムに最適化）。`sent_at` 列で送信済みを判別し、重複送信を防ぐ。
+- **送信済み記録:** 送信後に `POST /api/telegram-scout-mark-sent` に `{ "user_id": 123 }` または `{ "user_ids": [123, 456] }` を送ると、KV に記録され、翌日以降の daily で各ターゲットに `sentAt` が付く。
+- **弾薬不足アラート:** ストックが 200 件未満のときに、環境変数 `TELEGRAM_SCOUT_ALERT_WEBHOOK_URL`（Slack または Discord の Incoming Webhook URL）へ「補充せよ」通知が飛ぶ。
+
+### 言語別 FirstPromoter 招待 URL（追加実装）
+
+- 一通目・キット・Bot `/getlink` で使う **招待 URL** を、言語ごとに切り替え可能。
+- **環境変数:** `FIRSTPROMOTER_INVITE_URL_EN`, `_ES`, `_PT`, `_AR`, `_KO`, `_JA` を設定すると、`/api/telegram-scout-message?lang=es` や `/getlink es` でその言語用の URL が自動で使われる。未設定の言語は `FIRSTPROMOTER_INVITE_URL` または `firstpromoter.com` にフォールバック。
+- 実装: `config/affiliateRecruitConfig.js` の `getFirstPromoterInviteUrl(lang)` を、`api/telegram-scout-message.js`・`services/telegram/bot-commands.js`・`scripts/telegram-scout-csv.js` が参照。
+
 ### 参照
 
 - 発見: `scripts/telegram_scout/discover_groups.py`
 - シード例: `scripts/telegram_scout/seed_groups.txt.example`
 - 一括実行: `scripts/telegram_scout/run_pipeline.py`
 - 抽出・分類: `scripts/telegram_scout/scrape_members.py`
+- 毎日 200＋メッセージ: `api/telegram-scout-daily.js`（Cron: 毎日 JST 10:00）
+- 送信済みマーク: `api/telegram-scout-mark-sent.js`
+- 完了報告・環境変数一覧: `docs/TELEGRAM_SCOUT_COMPLETION_REPORT.md`
 
 ---
 
@@ -234,6 +252,8 @@ python run_pipeline.py --dry-run --source seed --cap-per-lang 5,5,10
 
 - テンプレ・バリエーション・Lead Scoring: `config/telegramScoutTemplates.js`
 - **30パターン短文:** `config/telegramScout30Templates.js`（`?template30=1&lang=ja&category=Admin` で取得）
-- API: `api/telegram-scout-message.js`（`?variation=random` / `?kitOnly=1` / `?template30=1` 対応）
-- Bot /getlink: `services/telegram/bot-commands.js` の `handleGetlinkCommand`
-- CSV 一括生成: `scripts/telegram-scout-csv.js`
+- **言語別招待 URL:** 環境変数 `FIRSTPROMOTER_INVITE_URL_EN` / `_ES` / `_PT` / `_AR` / `_KO` / `_JA`。`config/affiliateRecruitConfig.js` の `getFirstPromoterInviteUrl(lang)` で参照。
+- API: `api/telegram-scout-message.js`（`?variation=random` / `?kitOnly=1` / `?template30=1` 対応。inviteUrl 未指定時は言語別 URL を使用）
+- 毎日リスト: `api/telegram-scout-daily.js`（`?format=csv` で CSV。送信済みは `POST /api/telegram-scout-mark-sent` で記録）
+- Bot /getlink: `services/telegram/bot-commands.js` の `handleGetlinkCommand`（言語別招待 URL 対応）
+- CSV 一括生成: `scripts/telegram-scout-csv.js`（言語別招待 URL 対応）
