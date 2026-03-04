@@ -8,8 +8,7 @@
 const fs = require("fs");
 const path = require("path");
 const { fillScoutFirstMessage, fillScoutKit, getSearchKeywords } = require("../config/telegramScoutTemplates");
-
-const DEFAULT_INVITE_URL = process.env.FIRSTPROMOTER_INVITE_URL || "https://firstpromoter.com";
+const { getFirstPromoterInviteUrl } = require("../config/affiliateRecruitConfig");
 
 function parseCsv(content) {
   const lines = content.split(/\r?\n/).filter((l) => l.trim());
@@ -31,13 +30,13 @@ function normalizeRow(row) {
   const channel = row.channel || row.channelname || "";
   const admin = row.admin || row.handle || "";
   let lang = (row.lang || row.language || "en").toLowerCase().split("-")[0];
-  if (!["en", "es", "pt", "ko", "ar"].includes(lang)) lang = "en";
+  if (!["en", "es", "pt", "ko", "ar", "ja"].includes(lang)) lang = "en";
   return { channel, admin, lang };
 }
 
 function main() {
   const csvPath = process.argv[2] || path.join(__dirname, "../data/telegram-scout-targets.csv");
-  const inviteUrl = process.argv[3] || DEFAULT_INVITE_URL;
+  const inviteUrlOverride = process.argv[3] || null;
 
   if (!fs.existsSync(csvPath)) {
     console.error("CSV not found:", csvPath);
@@ -52,10 +51,11 @@ function main() {
     process.exit(1);
   }
 
-  console.log("--- Telegram Scout Messages (inviteUrl:", inviteUrl, ") ---\n");
+  console.log("--- Telegram Scout Messages (inviteUrl: per-lang from FIRSTPROMOTER_INVITE_URL_XX or override) ---\n");
 
   rows.forEach((row, i) => {
     const { channel, admin, lang } = normalizeRow(row);
+    const inviteUrl = inviteUrlOverride || getFirstPromoterInviteUrl(lang);
     const firstMessage = fillScoutFirstMessage(lang, {
       handle: admin,
       Channel_Name: channel,

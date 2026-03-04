@@ -6,8 +6,9 @@ const { sendMessageToUser } = require('./bot');
 const { getWhopUpgradeLink } = require('./whop-links');
 const { incrementSavedCount } = require('./reaction-counter'); // 集計サービス
 const { fillScoutKit } = require('../../config/telegramScoutTemplates');
+const { getFirstPromoterInviteUrl } = require('../../config/affiliateRecruitConfig');
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
-const SCOUT_LANGS = ['en', 'es', 'pt', 'ko', 'ar'];
+const SCOUT_LANGS = ['en', 'es', 'pt', 'ko', 'ar', 'ja'];
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -129,7 +130,7 @@ async function handleGetlinkCommand(chatId, message) {
   const parts = message.trim().split(/\s+/);
   const langArg = (parts[1] || '').toLowerCase().split('-')[0];
   const lang = SCOUT_LANGS.includes(langArg) ? langArg : 'en';
-  const inviteUrl = process.env.FIRSTPROMOTER_INVITE_URL || 'https://firstpromoter.com';
+  const inviteUrl = getFirstPromoterInviteUrl(lang);
   const kit = fillScoutKit(lang, { inviteUrl });
   try {
     await sendMessageToUser(chatId, kit);

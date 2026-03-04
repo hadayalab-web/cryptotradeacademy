@@ -11,9 +11,9 @@ const {
   LEAD_SCORING_KEYWORDS
 } = require("../config/telegramScoutTemplates");
 const { getScout30Message } = require("../config/telegramScout30Templates");
+const { getFirstPromoterInviteUrl } = require("../config/affiliateRecruitConfig");
 
 const SUPPORTED_LANGS = ["en", "es", "pt", "ko", "ar", "ja", "vi"];
-const DEFAULT_INVITE_URL = process.env.FIRSTPROMOTER_INVITE_URL || "https://firstpromoter.com";
 
 module.exports = async function handler(req, res) {
   if (req.method !== "GET") {
@@ -24,7 +24,9 @@ module.exports = async function handler(req, res) {
   const lang = (req.query.lang || "en").toLowerCase().split("-")[0];
   const handle = String(req.query.handle || "").trim();
   const channel = String(req.query.channel || req.query.channelName || "").trim();
-  const inviteUrl = String(req.query.inviteUrl || DEFAULT_INVITE_URL).trim();
+  const inviteUrl = String(
+    req.query.inviteUrl || getFirstPromoterInviteUrl(lang)
+  ).trim();
   const kitOnly = req.query.kitOnly === "1" || req.query.kitOnly === "true";
   const variation = req.query.variation === "random" ? "random" : Math.max(0, parseInt(req.query.variation, 10) || 0);
   const template30 = req.query.template30 === "1" || req.query.template30 === "true";

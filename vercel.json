@@ -61,6 +61,9 @@
     "api/telegram-scout-daily.js": {
       "maxDuration": 60,
       "includeFiles": "{config/**,utils/**}"
+    },
+    "api/telegram-scout-mark-sent.js": {
+      "maxDuration": 10
     }
   },
   "rewrites": [

@@ -60,17 +60,19 @@
 ## 4. 毎日 JST 10:00 の Cron（200リスト＋メッセージ）
 
 - **Cron:** `0 1 * * *`（UTC 01:00 = JST 10:00）で `/api/telegram-scout-daily` を実行。
-- **処理内容:** KV に格納されている最新ターゲットから最大 200 件を取得し、各ターゲットに `language` / `category` に応じた 30 パターン文面（`message30`）を付与して **当日分** として KV に保存する。
-- **取得:** 同日以降に `GET /api/telegram-scout-daily` を叩くと、その日付の「200リスト＋ターゲットごとのメッセージ」が返る。
-- **CSV 出力:** `GET /api/telegram-scout-daily?format=csv` で CSV ダウンロード。
-- **注意:** 「最新 200 リスト」の元データは KV。前夜に `run_pipeline.py` → `telegram-scout-to-kv.js` で KV を更新しておく必要がある。
+- **処理内容:** KV に格納されている最新ターゲットから最大 200 件を取得し、各ターゲットに `message30` と **送信済みフラグ（sentAt）** を付与して当日分を KV に保存。
+- **取得:** `GET /api/telegram-scout-daily` で「200リスト＋メッセージ＋sentAt」を返す。
+- **CSV:** `?format=csv` でダウンロード。カラム順は **username, message, category, group_name** を先頭に（t.me/username → メッセージコピペのリズムに最適化）。`sent_at` 列で送信済みを判別可能。
+- **弾薬不足アラート:** ストックが 200 件未満のとき、`TELEGRAM_SCOUT_ALERT_WEBHOOK_URL`（Slack / Discord の Incoming Webhook）に通知が飛ぶ。環境変数で設定。
+- **送信済み記録:** `POST /api/telegram-scout-mark-sent` に `{ "user_id": 123 }` または `{ "user_ids": [123, 456] }` を送ると、KV に `tg_scout:sent:{user_id}` を記録。翌日以降の daily で各ターゲットに `sentAt` が付くため、重複送信を防げる。
 
 ## 5. API クイックリファレンス
 
 | 用途 | 例 |
 |------|-----|
 | **当日の 200＋メッセージ** | `GET /api/telegram-scout-daily` |
-| 当日を CSV で | `GET /api/telegram-scout-daily?format=csv` |
+| 当日を CSV で（username, message 優先順） | `GET /api/telegram-scout-daily?format=csv` |
+| 送信済みマーク（重複防止） | `POST /api/telegram-scout-mark-sent` Body: `{ "user_id": 123 }` または `{ "user_ids": [123, 456] }` |
 | 30パターン短文 | `GET /api/telegram-scout-message?template30=1&lang=ja&category=Admin` |
 | 国指定（en 圏） | `?template30=1&lang=en&category=KOL&market=ng` |
 | 一通目（既存） | `?lang=es&handle=AdminName&channel=MyChannel&inviteUrl=...` |
