@@ -5,7 +5,9 @@ const { addFreeUser, isFreeUser, removeFreeUser, getFreeUserCount } = require('.
 const { sendMessageToUser } = require('./bot');
 const { getWhopUpgradeLink } = require('./whop-links');
 const { incrementSavedCount } = require('./reaction-counter'); // 集計サービス
+const { fillScoutKit } = require('../../config/telegramScoutTemplates');
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
+const SCOUT_LANGS = ['en', 'es', 'pt', 'ko', 'ar'];
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -112,9 +114,30 @@ async function handleBotCommand(update) {
     return handleHelpCommand(chatId, username, firstName);
   } else if (message.startsWith('/status')) {
     return handleStatusCommand(chatId, username, firstName);
+  } else if (message.startsWith('/getlink')) {
+    return handleGetlinkCommand(chatId, message);
   }
 
   return { success: false, error: 'Unknown command' };
+}
+
+/**
+ * /getlink [lang] — アフィリエイト用「1分で完了」キットを返す（自動応答・断らせない）
+ * 一通目DMで「このBotに /getlink と送ってリンクと素材を取得」と案内する想定。
+ */
+async function handleGetlinkCommand(chatId, message) {
+  const parts = message.trim().split(/\s+/);
+  const langArg = (parts[1] || '').toLowerCase().split('-')[0];
+  const lang = SCOUT_LANGS.includes(langArg) ? langArg : 'en';
+  const inviteUrl = process.env.FIRSTPROMOTER_INVITE_URL || 'https://firstpromoter.com';
+  const kit = fillScoutKit(lang, { inviteUrl });
+  try {
+    await sendMessageToUser(chatId, kit);
+    return { success: true, message: 'Scout kit sent', lang };
+  } catch (error) {
+    console.error('[BotCommands] Error sending /getlink kit:', error.message);
+    throw error;
+  }
 }
 
 /**

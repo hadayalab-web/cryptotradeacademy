@@ -1,0 +1,9 @@
+# 1行1グループ: @username または https://t.me/xxx、任意でタブ＋言語コード
+# このファイルを seed_groups.txt にコピーし、自分で探したグループを追加してから:
+#   python discover_groups.py --source seed --seed-file seed_groups.txt --output-dir ../../data
+# で検証・groups.txt を生成。その後 scrape_members.py でターゲット抽出。
+#
+# Example:
+# CryptoSignalsEN	en
+# BitcoinJapan	ja
+# https://t.me/joinchat/xxxxx	ko

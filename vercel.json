@@ -57,6 +57,10 @@
     "api/x-post-minimal.js": {
       "maxDuration": 600,
       "includeFiles": "{config/**,services/x/**,services/telegram/messages/**}"
+    },
+    "api/telegram-scout-daily.js": {
+      "maxDuration": 60,
+      "includeFiles": "{config/**,utils/**}"
     }
   },
   "rewrites": [
@@ -105,6 +109,10 @@
     {
       "path": "/api/x-post-minimal",
       "schedule": "0 7,19 * * *"
+    },
+    {
+      "path": "/api/telegram-scout-daily",
+      "schedule": "0 1 * * *"
     }
   ]
 }

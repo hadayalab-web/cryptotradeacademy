@@ -1,0 +1,7 @@
+# One group per line: group_ref または group_ref\t言語コード（タブ区切り）
+# 言語は出力 CSV/JSON の language に使われ、メッセージテンプレ選びに利用
+# Example:
+# BitcoinSignalsEN
+# CryptoAnalysisGroup	en
+# -1001234567890	ko
+# t.me/joinchat/xxx	es
