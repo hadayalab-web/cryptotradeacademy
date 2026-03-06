@@ -4,6 +4,7 @@ Telegram ターゲットリスト抽出（Telethon）
 - 5フィルタ: 権限 / アクティブ時間 / Bioキーワード / Username有無 / ボット排除
 - 三層分類: Admin, KOL, ActiveMember
 - 出力: JSON（Node で KV 投入・目視用 API 用）、オプションで CSV
+- **フォールバック:** メンバー一覧が非表示のグループでは、`--fallback-from-history` で「直近メッセージの発言者」から抽出（KOL/ActiveMember のみ。Admin は判定不可）。
 
 使い方:
   pip install -r requirements.txt
@@ -17,8 +18,10 @@ import os
 import re
 import json
 import csv
+import sqlite3
 import argparse
 import asyncio
+import time
 from pathlib import Path
 
 from telethon import TelegramClient, errors
@@ -72,19 +75,40 @@ EXTERNAL_SNS_URL_PATTERN = re.compile(
 )
 
 
+def _normalize_group_ref(s: str) -> str:
+    """URL や @ を group_ref に正規化（t.me/xxx または joinchat/xxx）。"""
+    s = (s or "").strip()
+    if not s:
+        return s
+    for prefix in ("https://t.me/", "http://t.me/", "t.me/"):
+        if s.lower().startswith(prefix):
+            s = s[len(prefix):].split("?")[0].strip()
+            break
+    return s.lstrip("@") or s
+
+
 def load_groups(path: str):
-    """groups.txt を読む。1行 = group_ref または group_ref\\t言語コード"""
+    """groups.txt を読む。1行 = group_ref または group_ref\\t言語 または group_ref,言語。重複は排除。"""
+    seen = set()
+    rows = []
     with open(path, "r", encoding="utf-8") as f:
-        rows = []
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            parts = line.split("\t")
-            group_ref = parts[0].strip()
+            # タブまたはカンマで分割（Gemini 流 URL,lang 対応）
+            parts = line.split("\t") if "\t" in line else line.split(",", 1)
+            raw_ref = parts[0].strip()
             language = (parts[1].strip() if len(parts) > 1 else "") or ""
+            group_ref = _normalize_group_ref(raw_ref)
+            if not group_ref:
+                continue
+            key = (group_ref.lower(), language)
+            if key in seen:
+                continue
+            seen.add(key)
             rows.append((group_ref, language))
-        return rows
+    return rows
 
 
 def parse_group_id(s: str):
@@ -146,6 +170,125 @@ async def get_full_user_with_retry(client, user, delay: float = 0.4):
         # 成功時は delay をここでは入れない（呼び出し側で asyncio.sleep）
 
 
+async def _get_entity_with_flood_wait(client, gid, max_wait_sec: int = 600):
+    """
+    get_entity を実行。FloodWait 時は max_wait_sec 以下なら待ってリトライ。
+    必要待機が max 超の場合は待たずに即 raise（呼び出し側でスキップ→進捗保存→後で再実行）。
+    """
+    while True:
+        try:
+            return await client.get_entity(gid)
+        except errors.FloodWaitError as e:
+            sec = getattr(e, "seconds", getattr(e, "value", 60))
+            if sec > max_wait_sec:
+                raise
+            print(f"  [FloodWait get_entity] Waiting {sec}s...")
+            await asyncio.sleep(sec)
+
+
+async def _admin_hunter(
+    client, entity, group_name, group_id, group_ref: str, language: str,
+    seen_user_ids: set, out_list: list, lang_counts: dict,
+    require_username: bool, cap_per_lang: tuple | None, delay_full_user: float,
+    group_last_active: str | None,
+) -> int:
+    """
+    メンバー一覧が取れないグループ向け: GetFullChannel/GetFullChat で
+    1) 固定メッセージの送信者 2) グループ説明文の @username を抽出し Admin 候補として追加。
+    """
+    from telethon.tl.functions.channels import GetFullChannelRequest
+    from telethon.tl.functions.messages import GetFullChatRequest
+
+    full_chat = None
+    try:
+        if getattr(entity, "broadcast", None) or getattr(entity, "megagroup", None) or hasattr(entity, "title"):
+            full = await client(GetFullChannelRequest(entity))
+            full_chat = getattr(full, "full_chat", None)
+        else:
+            full = await client(GetFullChatRequest(getattr(entity, "id", 0)))
+            full_chat = getattr(full, "full_chat", None)
+    except Exception:
+        return 0
+    if not full_chat:
+        return 0
+
+    added = 0
+    admin_candidates = set()
+
+    # 1) 固定メッセージの送信者
+    pinned_msg_id = getattr(full_chat, "pinned_msg_id", None)
+    if pinned_msg_id:
+        try:
+            msgs = await client.get_messages(entity, ids=pinned_msg_id)
+            msg = msgs[0] if (isinstance(msgs, list) and msgs) else msgs
+            if msg and getattr(msg, "sender_id", None):
+                sid = msg.sender_id
+                if hasattr(sid, "user_id"):
+                    admin_candidates.add(sid.user_id)
+                elif isinstance(sid, int):
+                    admin_candidates.add(sid)
+        except Exception:
+            pass
+
+    # 3) 基本グループのみ: GetFullChat の participants から Admin/Creator の user_id を抽出
+    try:
+        participants_obj = getattr(full_chat, "participants", None)
+        if participants_obj and not getattr(participants_obj, "participants", None) is None:
+            for p in participants_obj.participants:
+                cls = type(p).__name__
+                if cls in ("ChatParticipantAdmin", "ChatParticipantCreator"):
+                    uid = getattr(p, "user_id", None)
+                    if uid is not None:
+                        admin_candidates.add(uid)
+    except Exception:
+        pass
+
+    # 2) グループ説明文（about）から @username を正規表現で抽出
+    about = (getattr(full_chat, "about", None) or "").strip()
+    if about:
+        for m in re.finditer(r"@([a-zA-Z0-9_]{5,32})\b", about):
+            username = (m.group(1) or "").strip().lower()
+            if not username:
+                continue
+            try:
+                u_entity = await client.get_entity(username)
+                if getattr(u_entity, "id", None):
+                    admin_candidates.add(u_entity.id)
+            except Exception:
+                pass
+
+    for uid in admin_candidates:
+        if uid in seen_user_ids:
+            continue
+        if cap_per_lang and _cap_reached(cap_per_lang, lang_counts, language, "Admin"):
+            break
+        try:
+            user = await client.get_entity(uid)
+        except Exception:
+            continue
+        if getattr(user, "bot", False):
+            continue
+        if require_username and not (getattr(user, "username", None) and user.username.strip()):
+            continue
+        seen_user_ids.add(user.id)
+        bio_snippet = await get_full_user_with_retry(client, user, delay_full_user)
+        await asyncio.sleep(delay_full_user)
+        if bio_snippet and bio_has_exclusion(bio_snippet):
+            seen_user_ids.discard(user.id)
+            continue
+        out_list.append(
+            build_record(
+                user, "Admin", group_name, group_id, group_ref, language, bio_snippet,
+                group_last_active=group_last_active,
+            )
+        )
+        lang_counts.setdefault(language, {"Admin": 0, "KOL": 0, "ActiveMember": 0})["Admin"] = (
+            lang_counts[language].get("Admin", 0) + 1
+        )
+        added += 1
+    return added
+
+
 def build_record(
     user, category: str, group_name, group_id, group_ref: str, language: str, bio_snippet: str,
     group_last_active: str | None = None,
@@ -182,6 +325,181 @@ def _cap_reached(cap_per_lang, lang_counts: dict, language: str, category: str) 
     return (counts.get(category, 0) or 0) >= cap
 
 
+def _sender_id_to_user_id(sid) -> int | None:
+    """sender_id (PeerUser / PeerChannel 等) から user_id (int) を返す。ユーザーでなければ None。"""
+    if sid is None:
+        return None
+    if isinstance(sid, int):
+        return sid
+    if hasattr(sid, "user_id"):
+        return getattr(sid, "user_id", None)
+    return None
+
+
+def _message_has_media_or_link(msg) -> bool:
+    """メッセージにメディアまたはリンク（entities）があれば True。"""
+    if getattr(msg, "media", None) and str(type(msg.media).__name__) != "MessageMediaEmpty":
+        return True
+    entities = getattr(msg, "entities", None) or []
+    for e in entities:
+        if e is None:
+            continue
+        name = type(e).__name__
+        if "Url" in name or "TextUrl" in name or "MessageEntity" in name:
+            return True
+    return False
+
+
+def _extract_mentions_and_links(text: str):
+    """メッセージ本文から @username と t.me/... を抽出。"""
+    text = (text or "").strip()
+    usernames = set()
+    refs = set()
+    for m in re.finditer(r"@([a-zA-Z0-9_]{5,32})\b", text):
+        usernames.add((m.group(1) or "").strip().lower())
+    for m in re.finditer(r"t\.me/(joinchat/[a-zA-Z0-9_-]+|[a-zA-Z0-9_]{4,32})\b", text, re.IGNORECASE):
+        refs.add((m.group(1) or "").strip())
+    return usernames, refs
+
+
+async def _extract_from_history(
+    client, entity, group_name, group_id, group_ref: str, language: str,
+    seen_user_ids: set, out_list: list, lang_counts: dict,
+    require_username: bool, cap_per_lang: tuple | None, max_per_group: int,
+    delay_full_user: float, group_last_active: str | None,
+    history_limit: int,
+    discovered_refs: set | None = None,
+) -> int:
+    """
+    メンバー一覧が取れない場合のフォールバック。
+    1) 本文から @username / t.me を抽出（Deep Message Scanner）
+    2) 発言者を発言回数・メディア優先で KOL/ActiveMember として追加。
+    """
+    stats = {}
+    all_usernames = set()
+    try:
+        async for msg in client.iter_messages(entity, limit=history_limit):
+            sid = getattr(msg, "sender_id", None)
+            uid = _sender_id_to_user_id(sid)
+            if uid is not None:
+                cnt, media_cnt = stats.get(uid, (0, 0))
+                has_ml = _message_has_media_or_link(msg)
+                stats[uid] = (cnt + 1, media_cnt + (1 if has_ml else 0))
+            text = getattr(msg, "text", None) or getattr(msg, "message", "") or ""
+            usernames, refs = _extract_mentions_and_links(str(text))
+            all_usernames |= usernames
+            if discovered_refs is not None:
+                discovered_refs |= refs
+    except Exception as e:
+        print(f"  [fallback] Skip (iter_messages): {e}")
+        return 0
+    contact_user_ids = set()
+    for uname in all_usernames:
+        if not uname:
+            continue
+        try:
+            u = await client.get_entity(uname)
+            if getattr(u, "id", None) and not getattr(u, "bot", False):
+                contact_user_ids.add(u.id)
+        except Exception:
+            pass
+    # 本文から拾った連絡先を最優先、続けて発言回数順
+    order = [(uid, (999, 999)) for uid in contact_user_ids]
+    order += sorted(
+        [(uid, t) for uid, t in stats.items() if uid not in contact_user_ids],
+        key=lambda x: (x[1][0], x[1][1]),
+        reverse=True,
+    )
+    count = 0
+    for uid, _ in order:
+        if uid in seen_user_ids:
+            continue
+        if count >= max_per_group:
+            break
+        try:
+            user = await client.get_entity(uid)
+        except Exception:
+            continue
+        if getattr(user, "bot", False):
+            continue
+        if require_username and not (getattr(user, "username", None) and user.username.strip()):
+            continue
+        seen_user_ids.add(user.id)
+        bio_snippet = await get_full_user_with_retry(client, user, delay_full_user)
+        await asyncio.sleep(delay_full_user)
+        if bio_snippet and bio_has_exclusion(bio_snippet):
+            seen_user_ids.discard(user.id)
+            continue
+        category = "KOL" if bio_is_kol(bio_snippet or "") else "ActiveMember"
+        if cap_per_lang and _cap_reached(cap_per_lang, lang_counts, language, category):
+            continue
+        out_list.append(
+            build_record(
+                user, category, group_name, group_id, group_ref, language, bio_snippet,
+                group_last_active=group_last_active,
+            )
+        )
+        counts = lang_counts.setdefault(language, {"Admin": 0, "KOL": 0, "ActiveMember": 0})
+        counts[category] = counts.get(category, 0) + 1
+        count += 1
+    return count
+
+
+def _load_progress(output_path: str, groups_file: str):
+    """進捗を読み、同じ groups_file なら next_index を返す。違う or なしなら 0。"""
+    p = Path(output_path).parent / "telegram-scout-progress.json"
+    if not p.exists():
+        return 0
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        if (data.get("groups_file") or "") != str(Path(groups_file).resolve()):
+            return 0
+        return int(data.get("next_index", 0))
+    except Exception:
+        return 0
+
+
+def _save_progress(output_path: str, groups_file: str, next_index: int):
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    p = Path(output_path).parent / "telegram-scout-progress.json"
+    p.write_text(
+        json.dumps({"groups_file": str(Path(groups_file).resolve()), "next_index": next_index}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def _load_existing_targets(output_path: str):
+    """既存の JSON を読み、out_list と lang_counts を復元。存在しなければ ([], {})."""
+    p = Path(output_path)
+    if not p.exists():
+        return [], {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        out_list = data if isinstance(data, list) else (data.get("targets") if isinstance(data, dict) else [])
+        if not out_list or not isinstance(out_list, list):
+            return [], {}
+        lang_counts = {}
+        for r in out_list:
+            if not isinstance(r, dict):
+                continue
+            lang, cat = r.get("language"), r.get("category")
+            if not lang or not cat:
+                continue
+            lang = str(lang).strip()
+            cat = str(cat).strip()
+            inner = lang_counts.setdefault(lang, {"Admin": 0, "KOL": 0, "ActiveMember": 0})
+            inner[cat] = inner.get(cat, 0) + 1
+        return out_list, lang_counts
+    except Exception as e:
+        print(f"Warning: could not load existing {output_path}: {e}")
+        return [], {}
+
+
+def _safe_display(s: str) -> str:
+    """Windows cp932 等で print が落ちないよう、非 ASCII を ? に。"""
+    return (s or "").encode("ascii", errors="replace").decode("ascii")
+
+
 async def run(
     client: TelegramClient,
     groups_file: str,
@@ -193,23 +511,70 @@ async def run(
     csv_path: str | None = None,
     delay_full_user: float = 0.4,
     cap_per_lang: tuple | None = None,
+    fallback_from_history: bool = True,
+    history_limit: int = 500,
+    merge_existing: bool = False,
+    max_flood_wait: int = 600,
+    delay_between_groups: float = 3.0,
+    max_groups: int = 0,
+    max_consecutive_skips: int = 0,
+    resume: bool = True,
 ):
-    groups = load_groups(groups_file)
-    if not groups:
+    groups_full = load_groups(groups_file)
+    if not groups_full:
         print("No groups in", groups_file)
         return
+
+    start_index = 0
+    if resume:
+        start_index = _load_progress(output_path, groups_file)
+        if start_index > 0:
+            print(f"Resume from index {start_index} ({len(groups_full) - start_index} groups left)")
+    if start_index >= len(groups_full):
+        print("No groups left to process (progress already at end). Delete telegram-scout-progress.json to start over.")
+        return
+
+    slice_end = (start_index + max_groups) if max_groups > 0 else len(groups_full)
+    groups = groups_full[start_index:slice_end]
+    print(f"This run: {len(groups)} groups (index {start_index}..{start_index + len(groups) - 1})")
 
     seen_user_ids = set()
     out_list = []
     lang_counts = {}
 
-    for group_ref, language in groups:
+    if merge_existing:
+        out_list, lang_counts = _load_existing_targets(output_path)
+        seen_user_ids = {r.get("user_id") for r in out_list if r.get("user_id") is not None}
+        if out_list:
+            print(f"Merge existing: loaded {len(out_list)} targets from {output_path} (new entries will be added)")
+
+    floodwait_skipped = []
+    discovered_refs = set()
+    consecutive_skips = 0
+    stop_at_local_idx = None  # スキップ連続で打ち切ったとき、この run 内の idx
+
+    for idx, (group_ref, language) in enumerate(groups):
+        if max_consecutive_skips > 0 and consecutive_skips >= max_consecutive_skips:
+            print(f"Stop: {consecutive_skips} consecutive skips (--max-consecutive-skips {max_consecutive_skips}). Saving progress and exiting.")
+            stop_at_local_idx = idx
+            break
+        if idx > 0 and delay_between_groups > 0:
+            await asyncio.sleep(delay_between_groups)
         gid = parse_group_id(group_ref)
+        entity = None
         try:
-            entity = await client.get_entity(gid)
+            entity = await _get_entity_with_flood_wait(client, gid, max_flood_wait)
+        except errors.FloodWaitError as e:
+            sec = getattr(e, "seconds", getattr(e, "value", 0))
+            print(f"Skip (FloodWait too long): {group_ref} - wait {sec}s required (max {max_flood_wait}s). Re-run later for remaining groups.")
+            floodwait_skipped.append((group_ref, language or "pt"))
+            consecutive_skips += 1
+            continue
         except Exception as e:
             print(f"Skip (cannot get entity): {group_ref} - {e}")
+            consecutive_skips += 1
             continue
+        consecutive_skips = 0
 
         group_name = getattr(entity, "title", None) or str(gid)
         group_id = getattr(entity, "id", None) or gid
@@ -253,9 +618,26 @@ async def run(
                     if count >= max_per_group:
                         break
             except Exception as e:
-                print(f"Skip (get participants): {group_name} - {e}")
-                continue
-            print(f"OK: {group_name} -> {count} (admins)")
+                print(f"Skip (get participants): {_safe_display(group_name)} - {e}")
+                count = 0
+            if count == 0 and fallback_from_history and admins_only:
+                print(f"  [fallback] {_safe_display(group_name)}: Admin 一覧が空のため、固定/説明文→履歴から抽出...")
+                count = await _admin_hunter(
+                    client, entity, group_name, group_id, group_ref, language,
+                    seen_user_ids, out_list, lang_counts,
+                    require_username, cap_per_lang, delay_full_user, group_last_active,
+                )
+                count += await _extract_from_history(
+                    client, entity, group_name, group_id, group_ref, language,
+                    seen_user_ids, out_list, lang_counts,
+                    require_username, cap_per_lang, max_per_group,
+                    delay_full_user, group_last_active, history_limit,
+                    discovered_refs=discovered_refs,
+                )
+                if count > 0:
+                    print(f"OK: {_safe_display(group_name)} -> {count} (pinned/about + history)")
+            elif count > 0:
+                print(f"OK: {_safe_display(group_name)} -> {count} (admins)")
         else:
             # 全員から三層分類: まず Admin 一覧を取得
             admin_ids = set()
@@ -263,7 +645,29 @@ async def run(
                 async for user in client.iter_participants(entity, filter=ChannelParticipantsAdmins()):
                     admin_ids.add(user.id)
             except Exception as e:
-                print(f"Skip (get admins): {group_name} - {e}")
+                err_msg = str(e).lower()
+                if fallback_from_history and ("admin" in err_msg or "privilege" in err_msg or "permission" in err_msg):
+                    print(f"  [fallback] {_safe_display(group_name)}: メンバー一覧の権限なし → 固定メッセージ/説明文からAdmin抽出、続けて履歴から発言者...")
+                    count = await _admin_hunter(
+                        client, entity, group_name, group_id, group_ref, language,
+                        seen_user_ids, out_list, lang_counts,
+                        require_username, cap_per_lang, delay_full_user, group_last_active,
+                    )
+                    hist = await _extract_from_history(
+                        client, entity, group_name, group_id, group_ref, language,
+                        seen_user_ids, out_list, lang_counts,
+                        require_username, cap_per_lang, max_per_group,
+                        delay_full_user, group_last_active, history_limit,
+                        discovered_refs=discovered_refs,
+                    )
+                    count += hist
+                    if count > 0:
+                        print(f"OK: {_safe_display(group_name)} -> {count} (Admin from pinned/about + history)")
+                    else:
+                        print(f"Skip: {_safe_display(group_name)} (admin hunter + history yielded 0)")
+                else:
+                    print(f"Skip (get admins): {_safe_display(group_name)} - {e}")
+                consecutive_skips += 1
                 continue
 
             count = 0
@@ -300,14 +704,65 @@ async def run(
                     if count >= max_per_group:
                         break
             except Exception as e:
-                print(f"Skip (get participants): {group_name} - {e}")
-                continue
-            print(f"OK: {group_name} -> {count} (all tiers)")
+                print(f"Skip (get participants): {_safe_display(group_name)} - {e}")
+                count = 0
+            if count == 0 and fallback_from_history and not admins_only:
+                print(f"  [fallback] {_safe_display(group_name)}: メンバー一覧が空のため、固定/説明文→履歴から抽出...")
+                count = await _admin_hunter(
+                    client, entity, group_name, group_id, group_ref, language,
+                    seen_user_ids, out_list, lang_counts,
+                    require_username, cap_per_lang, delay_full_user, group_last_active,
+                )
+                hist = await _extract_from_history(
+                    client, entity, group_name, group_id, group_ref, language,
+                    seen_user_ids, out_list, lang_counts,
+                    require_username, cap_per_lang, max_per_group,
+                    delay_full_user, group_last_active, history_limit,
+                    discovered_refs=discovered_refs,
+                )
+                count += hist
+                if count > 0:
+                    print(f"OK: {_safe_display(group_name)} -> {count} (pinned/about + history)")
+                else:
+                    print(f"Skip: {_safe_display(group_name)} (participants empty, hunter+history yielded 0)")
+            elif count > 0:
+                print(f"OK: {_safe_display(group_name)} -> {count} (all tiers)")
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(out_list, f, ensure_ascii=False, indent=2)
     print(f"Written {len(out_list)} targets to {output_path}")
+
+    next_index = start_index + (stop_at_local_idx if stop_at_local_idx is not None else len(groups))
+    _save_progress(output_path, groups_file, next_index)
+    if next_index < len(groups_full):
+        print(f"Progress saved: next run starts at index {next_index} ({len(groups_full) - next_index} groups left)")
+
+    if floodwait_skipped:
+        skip_path = Path(output_path).parent / "groups-floodwait-skipped.txt"
+        with open(skip_path, "w", encoding="utf-8") as f:
+            for ref, lang in floodwait_skipped:
+                f.write(f"{ref}\t{lang}\n")
+        print(f"Skipped {len(floodwait_skipped)} groups (FloodWait) this run. Re-run with same --groups to continue.")
+
+    if discovered_refs:
+        link_path = Path(output_path).parent / "telegram-scout-discovered-links.txt"
+        existing = set()
+        if link_path.exists():
+            existing = {ln.strip().split("\t")[0] for ln in link_path.read_text(encoding="utf-8").splitlines() if ln.strip()}
+        existing |= discovered_refs
+        with open(link_path, "w", encoding="utf-8") as f:
+            for ref in sorted(existing):
+                f.write(f"{ref}\n")
+        print(f"Discovered {len(discovered_refs)} t.me links this run -> {link_path} (total {len(existing)})")
+
+    remaining = groups_full[next_index:]
+    if remaining:
+        remain_path = Path(output_path).parent / "groups-remaining.txt"
+        with open(remain_path, "w", encoding="utf-8") as f:
+            for ref, lang in remaining:
+                f.write(f"{ref}\t{lang or 'pt'}\n")
+        print(f"Remaining {len(remaining)} groups -> {remain_path}. Next: re-run same command (resume) or --groups {remain_path} --merge-existing")
 
     if csv_path:
         Path(csv_path).parent.mkdir(parents=True, exist_ok=True)
@@ -333,7 +788,16 @@ async def main_async(args, cap_per_lang: tuple | None = None):
         print("Set API_ID and API_HASH in .env or environment")
         return
     client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
-    await client.start(phone=lambda: os.environ.get("PHONE", input("Phone: ")))
+    for attempt in range(5):
+        try:
+            await client.start(phone=lambda: os.environ.get("PHONE", input("Phone: ")))
+            break
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower() or attempt >= 4:
+                raise
+            wait = 3 + attempt * 2
+            print(f"Session DB locked (attempt {attempt + 1}/5). Retrying in {wait}s...")
+            time.sleep(wait)
     await run(
         client,
         args.groups,
@@ -345,6 +809,14 @@ async def main_async(args, cap_per_lang: tuple | None = None):
         csv_path=args.csv,
         delay_full_user=args.delay,
         cap_per_lang=cap_per_lang,
+        fallback_from_history=args.fallback_from_history,
+        history_limit=args.history_limit,
+        merge_existing=getattr(args, "merge_existing", False),
+        max_flood_wait=getattr(args, "max_flood_wait", 600),
+        delay_between_groups=getattr(args, "delay_between_groups", 3.0),
+        max_groups=args.max_groups,
+        max_consecutive_skips=args.max_consecutive_skips,
+        resume=args.resume,
     )
     await client.disconnect()
 
@@ -365,6 +837,54 @@ def main():
         metavar="ADMIN,KOL,ACTIVE",
         help="Per-language cap e.g. 5,5,10 => 50 Admin + 50 KOL + 100 Active across 10 langs (200 total)",
     )
+    parser.add_argument(
+        "--fallback-from-history",
+        action="store_true",
+        default=True,
+        help="When member list is empty (e.g. Hide Members), extract from recent message senders (default: on)",
+    )
+    parser.add_argument("--no-fallback-from-history", action="store_false", dest="fallback_from_history")
+    parser.add_argument(
+        "--history-limit",
+        type=int,
+        default=500,
+        help="Max messages to scan when using fallback-from-history (default 500)",
+    )
+    parser.add_argument(
+        "--merge-existing",
+        action="store_true",
+        help="If output JSON exists, load it and append only new UserIDs (no overwrite)",
+    )
+    parser.add_argument(
+        "--max-flood-wait",
+        type=int,
+        default=600,
+        metavar="SEC",
+        help="On FloodWait from Telegram, wait up to SEC seconds then retry; skip if required wait > SEC (default 600). Re-run later for skipped groups.",
+    )
+    parser.add_argument(
+        "--delay-between-groups",
+        type=float,
+        default=3.0,
+        metavar="SEC",
+        help="Sleep SEC seconds between each group to avoid FloodWait (default 3). Use 5–10 for large lists.",
+    )
+    parser.add_argument(
+        "--max-groups",
+        type=int,
+        default=100,
+        metavar="N",
+        help="Process at most N groups per run; progress saved for next run (default 100). Use 0 for no limit.",
+    )
+    parser.add_argument(
+        "--max-consecutive-skips",
+        type=int,
+        default=5,
+        metavar="N",
+        help="Stop after N consecutive skips (FloodWait/get entity). Progress saved, re-run to continue (default 5). Use 0 to disable.",
+    )
+    parser.add_argument("--resume", action="store_true", default=True, help="Resume from last saved progress (default)")
+    parser.add_argument("--no-resume", action="store_false", dest="resume", help="Ignore progress file; start from index 0")
     args = parser.parse_args()
     cap_per_lang = None
     if args.cap_per_lang:

@@ -58,12 +58,11 @@
       "maxDuration": 600,
       "includeFiles": "{config/**,services/x/**,services/telegram/messages/**}"
     },
-    "api/telegram-scout-daily.js": {
-      "maxDuration": 60,
-      "includeFiles": "{config/**,utils/**}"
-    },
     "api/telegram-scout-mark-sent.js": {
       "maxDuration": 10
+    },
+    "api/telegram-scout-refill.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
@@ -113,9 +112,5 @@
       "path": "/api/x-post-minimal",
       "schedule": "0 7,19 * * *"
     },
-    {
-      "path": "/api/telegram-scout-daily",
-      "schedule": "0 1 * * *"
-    }
   ]
 }
