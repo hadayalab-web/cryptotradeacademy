@@ -146,6 +146,16 @@ module.exports = async function handler(req, res) {
   if (!payload) {
     payload = await kv.get("minimal:btc:latest");
   }
+  
+  // JSON文字列として保存されていた場合のパース処理
+  if (typeof payload === "string") {
+    try {
+      payload = JSON.parse(payload);
+    } catch (e) {
+      console.error("[X Post Minimal] Failed to parse payload:", e.message);
+    }
+  }
+
   if (!payload) {
     return res.status(503).json({
       error: "No snapshot in KV. Run /api/cron or wait for minimal-tg-delivery."
