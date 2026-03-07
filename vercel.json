@@ -110,7 +110,7 @@
     },
     {
       "path": "/api/x-post-minimal",
-      "schedule": "0 7,19 * * *"
+      "schedule": "8 0,6,12,18 * * *"
     }
   ]
 }
