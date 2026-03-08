@@ -484,6 +484,45 @@ async function createCheckoutSession(params) {
 }
 
 /**
+ * メールアドレス＋プランIDで直接 membership を付与する（B案: 1-Step Flow）
+ * Whop API の現行仕様ではエンドポイントが公開されていない可能性が高く、
+ * 404/405 等で失敗した場合は呼び出し元で A案（0円チェックアウトURL）にフォールバックすること。
+ * @param {Object} params
+ * @param {string} params.plan_id - プランID
+ * @param {string} params.email - 購入者メールアドレス
+ * @param {Object} [params.metadata]
+ * @returns {Promise<{ membership_id?: string, success: boolean }>}
+ */
+async function grantMembershipByEmail(params) {
+  const { plan_id, email, metadata } = params || {};
+  if (!plan_id || !email) {
+    throw new Error('grantMembershipByEmail requires plan_id and email');
+  }
+  const companyId = process.env.WHOP_COMPANY_ID;
+  if (!companyId) {
+    throw new Error('grantMembershipByEmail requires WHOP_COMPANY_ID');
+  }
+  try {
+    const body = {
+      plan_id,
+      email: String(email).trim(),
+      company_id: companyId,
+    };
+    if (metadata && typeof metadata === 'object') body.metadata = metadata;
+    const response = await whopApiRequest('/memberships', {
+      method: 'POST',
+      body,
+    });
+    const data = response.data || response;
+    const membershipId = data.id || data.membership_id;
+    return { membership_id: membershipId, success: !!membershipId };
+  } catch (error) {
+    console.warn('[Whop API] grantMembershipByEmail failed (may not be supported):', error?.message);
+    throw error;
+  }
+}
+
+/**
  * チェックアウトセッションを作成（ref なし）
  * WarriorPlus 等の外部決済→Whop導線で、Whop側の購入/登録リンクを発行する用途。
  * @param {Object} params
@@ -542,4 +581,5 @@ module.exports = {
   terminateMembership,
   createCheckoutSession,
   createCheckoutSessionBasic,
+  grantMembershipByEmail,
 };

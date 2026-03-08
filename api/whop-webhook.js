@@ -223,21 +223,29 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
   const planId = resolveWhopPlanIdForWarriorPlus({ itemNumber, itemName });
 
   const grantActions = new Set(['sale', 'subscr_created', 'subscr_completed', 'subscr_reactivated']);
-  const revokeActions = new Set(['refund', 'dispute', 'subscr_cancelled', 'subscr_refunded', 'subscr_suspended', 'subscr_ended']);
+  const revokeActions = new Set([
+    'refund',
+    'dispute',
+    'subscr_cancelled',
+    'subscr_refunded',
+    'subscr_suspended',
+    'subscr_ended',
+    'subscr_failed_invalid',
+    'subscr_failed_declined',
+  ]);
 
-  // WarriorPlus→Whop: 現状APIで直接 membership 作成が見当たらないため、WhopチェックアウトセッションURLを発行して連携する
+  // WarriorPlus→Whop: B案（直接権限付与）を試行し、失敗時はA案（0円チェックアウトURL）にフォールバック
   let whopCheckout = null;
-  if (grantActions.has(action)) {
-    if (!planId) {
-      console.warn('[WarriorPlus IPN] No Whop plan mapping for item', { itemNumber, itemName });
-    } else {
+  let directGrantSuccess = false;
+  if (grantActions.has(action) && planId && buyerEmail) {
+    // B案: Whop API で直接 membership 付与を試行（エンドポイントが存在する場合のみ成功）
+    const useDirectGrant = process.env.WARRIORPLUS_USE_DIRECT_GRANT === '1';
+    if (useDirectGrant && process.env.WHOP_COMPANY_ID) {
       try {
-        const { createCheckoutSessionBasic } = require('../services/whop/client');
-        const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : process.env.BASE_URL || '';
-        const redirectUrl = baseUrl ? `${baseUrl}/checkout/complete` : undefined;
-        const { purchase_url, id } = await createCheckoutSessionBasic({
+        const { grantMembershipByEmail } = require('../services/whop/client');
+        const result = await grantMembershipByEmail({
           plan_id: planId,
-          redirect_url: redirectUrl,
+          email: buyerEmail,
           metadata: {
             source: 'warriorplus',
             wp_action: action || null,
@@ -245,13 +253,46 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
             wp_sale_id: saleId || null,
             wp_item_number: itemNumber || null,
             wp_item_name: itemName || null,
-            wp_buyer_email: buyerEmail || null,
             wp_txnid: parsed.WP_TXNID || null,
           },
         });
-        whopCheckout = { id, purchase_url, plan_id: planId };
+        if (result?.success) {
+          directGrantSuccess = true;
+          console.log('[WarriorPlus IPN] ✅ Direct membership grant succeeded:', result.membership_id);
+        }
       } catch (e) {
-        console.error('[WarriorPlus IPN] Whop checkout session create failed:', e?.message);
+        console.warn('[WarriorPlus IPN] Direct grant failed, falling back to checkout URL:', e?.message);
+      }
+    }
+
+    // A案: 直接付与が成功しなかった場合、0円チェックアウトURLを発行
+    // ※ plan_id は必ず「$0 プラン」を指定すること。有料プランだと二重決済になる
+    if (!directGrantSuccess) {
+      if (!planId) {
+        console.warn('[WarriorPlus IPN] No Whop plan mapping for item', { itemNumber, itemName });
+      } else {
+        try {
+          const { createCheckoutSessionBasic } = require('../services/whop/client');
+          const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : process.env.BASE_URL || '';
+          const redirectUrl = baseUrl ? `${baseUrl}/checkout/complete` : undefined;
+          const { purchase_url, id } = await createCheckoutSessionBasic({
+            plan_id: planId,
+            redirect_url: redirectUrl,
+            metadata: {
+              source: 'warriorplus',
+              wp_action: action || null,
+              wp_ipn_id: ipnId || null,
+              wp_sale_id: saleId || null,
+              wp_item_number: itemNumber || null,
+              wp_item_name: itemName || null,
+              wp_buyer_email: buyerEmail || null,
+              wp_txnid: parsed.WP_TXNID || null,
+            },
+          });
+          whopCheckout = { id, purchase_url, plan_id: planId };
+        } catch (e) {
+          console.error('[WarriorPlus IPN] Whop checkout session create failed:', e?.message);
+        }
       }
     }
   }
@@ -299,9 +340,15 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
   }
 
   const output = safeLower(req.query.output || '');
-  if (output === 'text' && whopCheckout?.purchase_url) {
+  if (output === 'text') {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    return res.status(200).send(whopCheckout.purchase_url);
+    if (directGrantSuccess) {
+      const accessUrl = process.env.WARRIORPLUS_ACCESS_URL || process.env.WHOP_WEBHOOK_URL || '';
+      return res.status(200).send(accessUrl || 'Access granted. Check your email for the login link.');
+    }
+    if (whopCheckout?.purchase_url) {
+      return res.status(200).send(whopCheckout.purchase_url);
+    }
   }
 
   return res.status(200).json({
@@ -309,6 +356,7 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
     provider: 'warriorplus',
     action: action || null,
     plan_id: planId || null,
+    direct_grant_success: directGrantSuccess,
     whop_checkout: whopCheckout,
   });
 }
