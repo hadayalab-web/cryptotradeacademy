@@ -483,6 +483,40 @@ async function createCheckoutSession(params) {
   }
 }
 
+/**
+ * チェックアウトセッションを作成（ref なし）
+ * WarriorPlus 等の外部決済→Whop導線で、Whop側の購入/登録リンクを発行する用途。
+ * @param {Object} params
+ * @param {string} params.plan_id
+ * @param {Object} [params.metadata]
+ * @param {string} [params.redirect_url]
+ * @returns {Promise<{ purchase_url: string, id: string }>}
+ */
+async function createCheckoutSessionBasic(params) {
+  const { plan_id, metadata, redirect_url } = params || {};
+  if (!plan_id) {
+    throw new Error('createCheckoutSessionBasic requires plan_id');
+  }
+  try {
+    const body = { plan_id };
+    if (metadata && typeof metadata === 'object') body.metadata = metadata;
+    if (redirect_url) body.redirect_url = redirect_url;
+    const response = await whopApiRequest('/checkout_sessions', {
+      method: 'POST',
+      body,
+    });
+    const data = response.data || response;
+    const purchase_url = data.purchase_url || data.checkout_url;
+    if (!purchase_url) {
+      throw new Error('Whop API did not return purchase_url');
+    }
+    return { purchase_url, id: data.id };
+  } catch (error) {
+    console.error('[Whop API] createCheckoutSessionBasic failed:', error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   whopApiRequest,
   getPromoCode,
@@ -507,4 +541,5 @@ module.exports = {
   cancelMembership,
   terminateMembership,
   createCheckoutSession,
+  createCheckoutSessionBasic,
 };

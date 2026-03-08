@@ -263,20 +263,30 @@ async def discover_via_seed(
 
 
 def write_output(groups: list[dict], output_dir: str, groups_json: str, groups_txt: str):
+    import csv
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     json_path = os.path.join(output_dir, groups_json)
-    txt_path = os.path.join(output_dir, groups_txt)
+    out_path = os.path.join(output_dir, groups_txt)
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(groups, f, ensure_ascii=False, indent=2)
     print(f"Written {len(groups)} groups to {json_path}")
 
-    with open(txt_path, "w", encoding="utf-8") as f:
-        for g in groups:
-            ref = g.get("group_ref") or g.get("username") or str(g.get("id", ""))
-            lang = g.get("language") or ""
-            f.write(f"{ref}\t{lang}\n")
-    print(f"Written {txt_path} (for scrape_members.py --groups)")
+    if out_path.lower().endswith(".csv"):
+        with open(out_path, "w", encoding="utf-8-sig", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["group_ref", "language"])
+            for g in groups:
+                ref = g.get("group_ref") or g.get("username") or str(g.get("id", ""))
+                lang = g.get("language") or ""
+                w.writerow([ref.strip(), lang.strip()])
+    else:
+        with open(out_path, "w", encoding="utf-8") as f:
+            for g in groups:
+                ref = g.get("group_ref") or g.get("username") or str(g.get("id", ""))
+                lang = g.get("language") or ""
+                f.write(f"{ref}\t{lang}\n")
+    print(f"Written {out_path} (for scrape_members.py --groups)")
 
 
 def main():
@@ -285,7 +295,7 @@ def main():
     parser.add_argument("--seed-file", default="seed_groups.txt", help="Path to seed file (one group per line, optional tab + lang)")
     parser.add_argument("--output-dir", default="../../data", help="Directory for groups.json and groups.txt")
     parser.add_argument("--groups-json", default="groups.json", help="Output JSON filename")
-    parser.add_argument("--groups-txt", default="groups.txt", help="Output groups.txt filename (for scraper)")
+    parser.add_argument("--groups-txt", default="groups.csv", help="Output groups list filename (e.g. groups.csv or groups.txt for scraper)")
     parser.add_argument("--min-members", type=int, default=DEFAULT_MIN_MEMBERS)
     parser.add_argument("--max-members", type=int, default=DEFAULT_MAX_MEMBERS)
     parser.add_argument("--delay", type=float, default=15.0, help="Seconds between API requests or between seed validations")

@@ -22,6 +22,7 @@ import sqlite3
 import argparse
 import asyncio
 import time
+from datetime import datetime
 from pathlib import Path
 
 from telethon import TelegramClient, errors
@@ -88,15 +89,47 @@ def _normalize_group_ref(s: str) -> str:
 
 
 def load_groups(path: str):
-    """groups.txt を読む。1行 = group_ref または group_ref\\t言語 または group_ref,言語。重複は排除。"""
+    """groups.csv または groups.txt を読む。CSV はヘッダー行 group_ref,language。TXT は group_ref\\t言語。重複は排除。"""
+    path = Path(path)
+    if not path.exists():
+        return []
     seen = set()
     rows = []
+    if path.suffix.lower() == ".csv":
+        with open(path, "r", encoding="utf-8-sig") as f:
+            r = csv.reader(f)
+            try:
+                header = next(r)
+            except StopIteration:
+                return []
+            # group_ref, language の列インデックス（ヘッダーで判定）
+            col_ref, col_lang = 0, 1
+            if header and len(header) >= 2:
+                h = [s.strip().lower() for s in header]
+                if "group_ref" in h:
+                    col_ref = h.index("group_ref")
+                if "language" in h:
+                    col_lang = h.index("language")
+            for row in r:
+                if len(row) <= max(col_ref, col_lang):
+                    continue
+                raw_ref = (row[col_ref] or "").strip()
+                language = (row[col_lang] or "").strip() if col_lang < len(row) else ""
+                group_ref = _normalize_group_ref(raw_ref)
+                if not group_ref:
+                    continue
+                key = (group_ref.lower(), language)
+                if key in seen:
+                    continue
+                seen.add(key)
+                rows.append((group_ref, language))
+        return rows
+    # .txt: 1行 = group_ref または group_ref\t言語 または group_ref,言語
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            # タブまたはカンマで分割（Gemini 流 URL,lang 対応）
             parts = line.split("\t") if "\t" in line else line.split(",", 1)
             raw_ref = parts[0].strip()
             language = (parts[1].strip() if len(parts) > 1 else "") or ""
@@ -191,6 +224,7 @@ async def _admin_hunter(
     seen_user_ids: set, out_list: list, lang_counts: dict,
     require_username: bool, cap_per_lang: tuple | None, delay_full_user: float,
     group_last_active: str | None,
+    kol_active_only: bool = False,
 ) -> int:
     """
     メンバー一覧が取れないグループ向け: GetFullChannel/GetFullChat で
@@ -275,6 +309,8 @@ async def _admin_hunter(
         await asyncio.sleep(delay_full_user)
         if bio_snippet and bio_has_exclusion(bio_snippet):
             seen_user_ids.discard(user.id)
+            continue
+        if kol_active_only:
             continue
         out_list.append(
             build_record(
@@ -368,12 +404,17 @@ async def _extract_from_history(
     require_username: bool, cap_per_lang: tuple | None, max_per_group: int,
     delay_full_user: float, group_last_active: str | None,
     history_limit: int,
+    history_max_users: int = 25,
     discovered_refs: set | None = None,
+    admin_kol_only: bool = False,
+    unified_member: bool = False,
+    min_messages_in_history: int = 2,
 ) -> int:
     """
     メンバー一覧が取れない場合のフォールバック。
     1) 本文から @username / t.me を抽出（Deep Message Scanner）
     2) 発言者を発言回数・メディア優先で KOL/ActiveMember として追加。
+    min_messages_in_history 未満の発言しかないユーザーは除外（1回だけコメントのサブスクライバーを除く）。
     """
     stats = {}
     all_usernames = set()
@@ -393,23 +434,32 @@ async def _extract_from_history(
     except Exception as e:
         print(f"  [fallback] Skip (iter_messages): {e}")
         return 0
+    # 本文 @username の get_entity は件数 cap と間隔を入れ、バースト防止（連打でロックされないよう）
     contact_user_ids = set()
-    for uname in all_usernames:
+    max_username_resolve = min(15, history_max_users)
+    for i, uname in enumerate(list(all_usernames)[:max_username_resolve]):
         if not uname:
             continue
+        if i > 0:
+            await asyncio.sleep(delay_full_user or 0.5)
         try:
             u = await client.get_entity(uname)
             if getattr(u, "id", None) and not getattr(u, "bot", False):
                 contact_user_ids.add(u.id)
         except Exception:
             pass
-    # 本文から拾った連絡先を最優先、続けて発言回数順
+    # 本文から拾った連絡先を最優先、続けて発言回数順。最低 min_messages 回発言した人だけ（1回だけコメントは除外）
     order = [(uid, (999, 999)) for uid in contact_user_ids]
     order += sorted(
-        [(uid, t) for uid, t in stats.items() if uid not in contact_user_ids],
+        [
+            (uid, t)
+            for uid, t in stats.items()
+            if uid not in contact_user_ids and t[0] >= min_messages_in_history
+        ],
         key=lambda x: (x[1][0], x[1][1]),
         reverse=True,
     )
+    order = order[: history_max_users]
     count = 0
     for uid, _ in order:
         if uid in seen_user_ids:
@@ -430,7 +480,10 @@ async def _extract_from_history(
         if bio_snippet and bio_has_exclusion(bio_snippet):
             seen_user_ids.discard(user.id)
             continue
-        category = "KOL" if bio_is_kol(bio_snippet or "") else "ActiveMember"
+        internal = "KOL" if bio_is_kol(bio_snippet or "") else "ActiveMember"
+        if admin_kol_only and internal == "ActiveMember":
+            continue
+        category = "ActiveMember" if unified_member else internal
         if cap_per_lang and _cap_reached(cap_per_lang, lang_counts, language, category):
             continue
         out_list.append(
@@ -443,6 +496,47 @@ async def _extract_from_history(
         counts[category] = counts.get(category, 0) + 1
         count += 1
     return count
+
+
+def _read_skipped_csv(path: Path) -> set:
+    """group_ref,language の CSV を読んで (ref_lower, lang) の set を返す。"""
+    refs = set()
+    with open(path, "r", encoding="utf-8-sig") as f:
+        r = csv.reader(f)
+        try:
+            next(r)  # header
+        except StopIteration:
+            return refs
+        for row in r:
+            if len(row) < 2:
+                continue
+            ref = (row[0] or "").strip().lower()
+            lang = (row[1] or "").strip() or "pt"
+            if ref:
+                refs.add((ref, lang))
+    return refs
+
+
+def _load_floodwait_skipped_refs(output_path: str) -> set:
+    """前回以前に FloodWait でスキップした (group_ref_lower, lang) の set。API を叩かずにスキップする用。"""
+    parent = Path(output_path).parent
+    skip_csv = parent / "groups-floodwait-skipped.csv"
+    skip_txt = parent / "groups-floodwait-skipped.txt"
+    if skip_csv.exists():
+        return _read_skipped_csv(skip_csv)
+    if skip_txt.exists():
+        refs = set()
+        for line in skip_txt.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split("\t", 1)
+            ref = (parts[0].strip() or "").lower()
+            lang = (parts[1].strip() if len(parts) > 1 else "") or "pt"
+            if ref:
+                refs.add((ref, lang))
+        return refs
+    return set()
 
 
 def _load_progress(output_path: str, groups_file: str):
@@ -466,6 +560,37 @@ def _save_progress(output_path: str, groups_file: str, next_index: int):
         json.dumps({"groups_file": str(Path(groups_file).resolve()), "next_index": next_index}, ensure_ascii=False),
         encoding="utf-8",
     )
+
+
+def _save_checkpoint(output_path: str, groups_file: str, next_index: int, out_list: list, floodwait_skipped: list, csv_path: str | None = None):
+    """スキップ連続時や Ctrl+C 対策: 進捗・JSON・FloodWait 一覧を即保存。既存の skip 一覧はマージする。"""
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(out_list, f, ensure_ascii=False, indent=2)
+    _save_progress(output_path, groups_file, next_index)
+    if floodwait_skipped:
+        parent = Path(output_path).parent
+        skip_csv = parent / "groups-floodwait-skipped.csv"
+        existing = _read_skipped_csv(skip_csv) if skip_csv.exists() else set()
+        for ref, lang in floodwait_skipped:
+            existing.add((ref.lower(), lang or "pt"))
+        with open(skip_csv, "w", encoding="utf-8-sig", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["group_ref", "language"])
+            for ref, lang in sorted(existing):
+                w.writerow([ref, lang])
+    if csv_path and out_list:
+        Path(csv_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(csv_path, "w", encoding="utf-8-sig", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["UserID", "Username", "Name", "Category", "Language", "Bio (Snippet)", "SourceGroup"])
+            for t in out_list:
+                name = " ".join(filter(None, [t.get("first_name"), t.get("last_name") or ""]))
+                w.writerow([
+                    t.get("user_id"), t.get("username") or "", name,
+                    t.get("category") or "", t.get("language") or "",
+                    (t.get("bio_snippet") or "")[:300], t.get("group_name") or "",
+                ])
 
 
 def _load_existing_targets(output_path: str):
@@ -512,7 +637,14 @@ async def run(
     delay_full_user: float = 0.4,
     cap_per_lang: tuple | None = None,
     fallback_from_history: bool = True,
-    history_limit: int = 500,
+    history_limit: int = 120,
+    history_max_users: int = 25,
+    admin_kol_only: bool = False,
+    max_non_admin_for_kol: int = 10,
+    kol_active_only: bool = False,
+    unified_member: bool = False,
+    history_only: bool = False,
+    min_messages_in_history: int = 2,
     merge_existing: bool = False,
     max_flood_wait: int = 600,
     delay_between_groups: float = 3.0,
@@ -534,6 +666,11 @@ async def run(
         print("No groups left to process (progress already at end). Delete telegram-scout-progress.json to start over.")
         return
 
+    # まだ残りがあるので「完了」フラグを消す（再開時用）
+    flag_path = Path(output_path).parent / "telegram-scout-complete.flag"
+    if flag_path.exists():
+        flag_path.unlink()
+
     slice_end = (start_index + max_groups) if max_groups > 0 else len(groups_full)
     groups = groups_full[start_index:slice_end]
     print(f"This run: {len(groups)} groups (index {start_index}..{start_index + len(groups) - 1})")
@@ -553,6 +690,11 @@ async def run(
     consecutive_skips = 0
     stop_at_local_idx = None  # スキップ連続で打ち切ったとき、この run 内の idx
 
+    # 前回以前に FloodWait でスキップしたグループは API を叩かずにスキップ（同じグループを何度も叩かない）
+    floodwait_cooldown_refs = _load_floodwait_skipped_refs(output_path)
+    if floodwait_cooldown_refs:
+        print(f"FloodWait cooldown list: {len(floodwait_cooldown_refs)} groups (skip without API if hit)")
+
     for idx, (group_ref, language) in enumerate(groups):
         if max_consecutive_skips > 0 and consecutive_skips >= max_consecutive_skips:
             print(f"Stop: {consecutive_skips} consecutive skips (--max-consecutive-skips {max_consecutive_skips}). Saving progress and exiting.")
@@ -560,6 +702,14 @@ async def run(
             break
         if idx > 0 and delay_between_groups > 0:
             await asyncio.sleep(delay_between_groups)
+        # FloodWait 済みリストにあれば API を叩かずにスキップ（重複スキャン・再トリガー防止）
+        cooldown_key = (group_ref.lower(), language or "pt")
+        if cooldown_key in floodwait_cooldown_refs:
+            print(f"Skip (FloodWait cooldown, no API): {group_ref}")
+            floodwait_skipped.append((group_ref, language or "pt"))
+            consecutive_skips += 1
+            _save_checkpoint(output_path, groups_file, start_index + idx + 1, out_list, floodwait_skipped, csv_path)
+            continue
         gid = parse_group_id(group_ref)
         entity = None
         try:
@@ -569,11 +719,25 @@ async def run(
             print(f"Skip (FloodWait too long): {group_ref} - wait {sec}s required (max {max_flood_wait}s). Re-run later for remaining groups.")
             floodwait_skipped.append((group_ref, language or "pt"))
             consecutive_skips += 1
+            _save_checkpoint(output_path, groups_file, start_index + idx + 1, out_list, floodwait_skipped, csv_path)
             continue
         except Exception as e:
-            print(f"Skip (cannot get entity): {group_ref} - {e}")
-            consecutive_skips += 1
-            continue
+            # 一過性のエラー対策: 1回だけ 2 秒待ってリトライ（多国籍展開用ベストプラクティス）
+            try:
+                await asyncio.sleep(2)
+                entity = await _get_entity_with_flood_wait(client, gid, max_flood_wait)
+            except errors.FloodWaitError as e2:
+                sec = getattr(e2, "seconds", getattr(e2, "value", 0))
+                print(f"Skip (FloodWait too long, retry): {group_ref} - wait {sec}s (max {max_flood_wait}s)")
+                floodwait_skipped.append((group_ref, language or "pt"))
+                consecutive_skips += 1
+                _save_checkpoint(output_path, groups_file, start_index + idx + 1, out_list, floodwait_skipped, csv_path)
+                continue
+            except Exception:
+                print(f"Skip (cannot get entity): {group_ref} - {e}")
+                consecutive_skips += 1
+                _save_checkpoint(output_path, groups_file, start_index + idx + 1, out_list, floodwait_skipped, csv_path)
+                continue
         consecutive_skips = 0
 
         group_name = getattr(entity, "title", None) or str(gid)
@@ -588,7 +752,31 @@ async def run(
         except Exception:
             pass
 
-        if admins_only:
+        if history_only:
+            # メンバー一覧は取得しない。固定メッセージ/説明文 + 履歴の発言者のみで KOL/ActiveMember を抽出
+            print(f"  [history-only] {_safe_display(group_name)}: 固定/説明文→履歴から抽出（メンバー一覧は取得しない）")
+            count = await _admin_hunter(
+                client, entity, group_name, group_id, group_ref, language,
+                seen_user_ids, out_list, lang_counts,
+                require_username, cap_per_lang, delay_full_user, group_last_active,
+                kol_active_only=kol_active_only,
+            )
+            count += await _extract_from_history(
+                client, entity, group_name, group_id, group_ref, language,
+                seen_user_ids, out_list, lang_counts,
+                require_username, cap_per_lang, max_per_group,
+                delay_full_user, group_last_active, history_limit,
+                history_max_users=history_max_users,
+                discovered_refs=discovered_refs,
+                admin_kol_only=admin_kol_only,
+                unified_member=unified_member,
+                min_messages_in_history=min_messages_in_history,
+            )
+            if count > 0:
+                print(f"OK: {_safe_display(group_name)} -> {count} (history-only)")
+            else:
+                print(f"Skip: {_safe_display(group_name)} (history-only yielded 0)")
+        elif admins_only:
             # 管理層のみ: Admin/Owner
             filter_type = ChannelParticipantsAdmins()
             count = 0
@@ -606,6 +794,8 @@ async def run(
                     bio_snippet = await get_full_user_with_retry(client, user, delay_full_user)
                     await asyncio.sleep(delay_full_user)
                     if bio_snippet and bio_has_exclusion(bio_snippet):
+                        continue
+                    if kol_active_only:
                         continue
                     out_list.append(
                         build_record(
@@ -626,13 +816,18 @@ async def run(
                     client, entity, group_name, group_id, group_ref, language,
                     seen_user_ids, out_list, lang_counts,
                     require_username, cap_per_lang, delay_full_user, group_last_active,
+                    kol_active_only=kol_active_only,
                 )
                 count += await _extract_from_history(
                     client, entity, group_name, group_id, group_ref, language,
                     seen_user_ids, out_list, lang_counts,
                     require_username, cap_per_lang, max_per_group,
                     delay_full_user, group_last_active, history_limit,
+                    history_max_users=history_max_users,
                     discovered_refs=discovered_refs,
+                    admin_kol_only=admin_kol_only,
+                    unified_member=unified_member,
+                    min_messages_in_history=min_messages_in_history,
                 )
                 if count > 0:
                     print(f"OK: {_safe_display(group_name)} -> {count} (pinned/about + history)")
@@ -652,13 +847,18 @@ async def run(
                         client, entity, group_name, group_id, group_ref, language,
                         seen_user_ids, out_list, lang_counts,
                         require_username, cap_per_lang, delay_full_user, group_last_active,
+                        kol_active_only=kol_active_only,
                     )
                     hist = await _extract_from_history(
                         client, entity, group_name, group_id, group_ref, language,
                         seen_user_ids, out_list, lang_counts,
                         require_username, cap_per_lang, max_per_group,
                         delay_full_user, group_last_active, history_limit,
+                        history_max_users=history_max_users,
                         discovered_refs=discovered_refs,
+                        admin_kol_only=admin_kol_only,
+                        unified_member=unified_member,
+                        min_messages_in_history=min_messages_in_history,
                     )
                     count += hist
                     if count > 0:
@@ -671,6 +871,7 @@ async def run(
                 continue
 
             count = 0
+            non_admin_checked = 0
             try:
                 async for user in client.iter_participants(entity):
                     if getattr(user, "bot", False):
@@ -682,15 +883,26 @@ async def run(
                     if require_recent_for_non_admin and user.id not in admin_ids:
                         if not is_recently_online(user):
                             continue
+                    is_admin = user.id in admin_ids
+                    if admin_kol_only and not is_admin:
+                        non_admin_checked += 1
+                        if non_admin_checked > max_non_admin_for_kol:
+                            continue
                     seen_user_ids.add(user.id)
-                    category = "Admin" if user.id in admin_ids else None
+                    category = "Admin" if is_admin else None
                     bio_snippet = await get_full_user_with_retry(client, user, delay_full_user)
                     await asyncio.sleep(delay_full_user)
                     if bio_snippet and bio_has_exclusion(bio_snippet):
                         seen_user_ids.discard(user.id)
                         continue
                     if category is None:
-                        category = "KOL" if bio_is_kol(bio_snippet or "") else "ActiveMember"
+                        internal = "KOL" if bio_is_kol(bio_snippet or "") else "ActiveMember"
+                        category = "ActiveMember" if unified_member else internal
+                        if admin_kol_only and internal == "ActiveMember":
+                            seen_user_ids.discard(user.id)
+                            continue
+                    if kol_active_only and category == "Admin":
+                        continue
                     if cap_per_lang and _cap_reached(cap_per_lang, lang_counts, language, category):
                         continue
                     out_list.append(
@@ -712,13 +924,18 @@ async def run(
                     client, entity, group_name, group_id, group_ref, language,
                     seen_user_ids, out_list, lang_counts,
                     require_username, cap_per_lang, delay_full_user, group_last_active,
+                    kol_active_only=kol_active_only,
                 )
                 hist = await _extract_from_history(
                     client, entity, group_name, group_id, group_ref, language,
                     seen_user_ids, out_list, lang_counts,
                     require_username, cap_per_lang, max_per_group,
                     delay_full_user, group_last_active, history_limit,
+                    history_max_users=history_max_users,
                     discovered_refs=discovered_refs,
+                    admin_kol_only=admin_kol_only,
+                    unified_member=unified_member,
+                    min_messages_in_history=min_messages_in_history,
                 )
                 count += hist
                 if count > 0:
@@ -737,13 +954,27 @@ async def run(
     _save_progress(output_path, groups_file, next_index)
     if next_index < len(groups_full):
         print(f"Progress saved: next run starts at index {next_index} ({len(groups_full) - next_index} groups left)")
+    else:
+        # 全件完了 → フラグを立てる（おれがわかるように）
+        flag_path = Path(output_path).parent / "telegram-scout-complete.flag"
+        flag_path.write_text(
+            f"COMPLETE\n{len(groups_full)} groups\n{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC\ntargets: {len(out_list)}",
+            encoding="utf-8",
+        )
+        print(f"All groups done. Flag written: {flag_path}")
 
     if floodwait_skipped:
-        skip_path = Path(output_path).parent / "groups-floodwait-skipped.txt"
-        with open(skip_path, "w", encoding="utf-8") as f:
-            for ref, lang in floodwait_skipped:
-                f.write(f"{ref}\t{lang}\n")
-        print(f"Skipped {len(floodwait_skipped)} groups (FloodWait) this run. Re-run with same --groups to continue.")
+        parent = Path(output_path).parent
+        skip_csv = parent / "groups-floodwait-skipped.csv"
+        existing_skip = _read_skipped_csv(skip_csv) if skip_csv.exists() else set()
+        for ref, lang in floodwait_skipped:
+            existing_skip.add((ref.lower(), lang or "pt"))
+        with open(skip_csv, "w", encoding="utf-8-sig", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["group_ref", "language"])
+            for ref, lang in sorted(existing_skip):
+                w.writerow([ref, lang])
+        print(f"Skipped {len(floodwait_skipped)} groups (FloodWait) this run. Total in cooldown list: {len(existing_skip)}. Re-run with same --groups to continue.")
 
     if discovered_refs:
         link_path = Path(output_path).parent / "telegram-scout-discovered-links.txt"
@@ -758,10 +989,12 @@ async def run(
 
     remaining = groups_full[next_index:]
     if remaining:
-        remain_path = Path(output_path).parent / "groups-remaining.txt"
-        with open(remain_path, "w", encoding="utf-8") as f:
+        remain_path = Path(output_path).parent / "groups-remaining.csv"
+        with open(remain_path, "w", encoding="utf-8-sig", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["group_ref", "language"])
             for ref, lang in remaining:
-                f.write(f"{ref}\t{lang or 'pt'}\n")
+                w.writerow([ref, lang or "pt"])
         print(f"Remaining {len(remaining)} groups -> {remain_path}. Next: re-run same command (resume) or --groups {remain_path} --merge-existing")
 
     if csv_path:
@@ -811,6 +1044,13 @@ async def main_async(args, cap_per_lang: tuple | None = None):
         cap_per_lang=cap_per_lang,
         fallback_from_history=args.fallback_from_history,
         history_limit=args.history_limit,
+        history_max_users=getattr(args, "history_max_users", 25),
+        admin_kol_only=getattr(args, "admin_kol_only", False),
+        max_non_admin_for_kol=getattr(args, "max_non_admin_for_kol", 10),
+        kol_active_only=getattr(args, "kol_active_only", False),
+        unified_member=getattr(args, "unified_member", False),
+        history_only=getattr(args, "history_only", False),
+        min_messages_in_history=getattr(args, "min_messages_in_history", 2),
         merge_existing=getattr(args, "merge_existing", False),
         max_flood_wait=getattr(args, "max_flood_wait", 600),
         delay_between_groups=getattr(args, "delay_between_groups", 3.0),
@@ -847,8 +1087,49 @@ def main():
     parser.add_argument(
         "--history-limit",
         type=int,
-        default=500,
-        help="Max messages to scan when using fallback-from-history (default 500)",
+        default=120,
+        help="Max messages to scan when using fallback-from-history (default 120). Lower = less API, fewer FloodWait.",
+    )
+    parser.add_argument(
+        "--history-max-users",
+        type=int,
+        default=25,
+        metavar="N",
+        help="Max users to resolve from history per group in fallback (default 25). Prevents API overload.",
+    )
+    parser.add_argument(
+        "--admin-kol-only",
+        action="store_true",
+        help="Only add Admin and KOL; skip ActiveMember. Reduces API burst.",
+    )
+    parser.add_argument(
+        "--max-non-admin-for-kol",
+        type=int,
+        default=10,
+        metavar="N",
+        help="When --admin-kol-only: max non-admin users to check for KOL per group (default 10).",
+    )
+    parser.add_argument(
+        "--kol-active-only",
+        action="store_true",
+        help="Output only KOL and ActiveMember; exclude Admin (DM 用: Admin リストは使わない).",
+    )
+    parser.add_argument(
+        "--unified-member",
+        action="store_true",
+        help="Output non-Admin as ActiveMember only (KOL included in ActiveMember; single category for DM).",
+    )
+    parser.add_argument(
+        "--history-only",
+        action="store_true",
+        help="Do not fetch member list; only use pinned/about + message history (fewer API calls, no iter_participants).",
+    )
+    parser.add_argument(
+        "--min-messages-in-history",
+        type=int,
+        default=2,
+        metavar="N",
+        help="Only add users who sent at least N messages in scanned history (default 2). Excludes one-off commenters.",
     )
     parser.add_argument(
         "--merge-existing",

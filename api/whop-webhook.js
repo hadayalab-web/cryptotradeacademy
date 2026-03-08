@@ -2,6 +2,7 @@
 // Whop Webhookエンドポイント（購入イベント受信・X投稿との紐付け）
 
 const crypto = require('crypto');
+const querystring = require('querystring');
 
 // 🚀 シームレスなKVアクセス（utils/kv.js経由）
 const { kv } = require('../utils/kv');
@@ -122,6 +123,194 @@ function verifyWhopWebhookSignature(signatureHeader, body, timestamp, webhookId)
     console.error('[Whop Webhook] ❌ Signature verification error:', error.message);
     return false;
   }
+}
+
+function safeLower(s) {
+  return String(s || '').toLowerCase().trim();
+}
+
+function isLikelyWarriorPlusRequest(req, parsedForm) {
+  const ct = safeLower(req.headers['content-type']);
+  if (ct.includes('application/x-www-form-urlencoded')) return true;
+  if (parsedForm && typeof parsedForm === 'object' && (parsedForm.WP_ACTION || parsedForm.WP_SALEID || parsedForm.IPN_ID)) {
+    return true;
+  }
+  return false;
+}
+
+function resolveWhopPlanIdForWarriorPlus({ itemNumber, itemName }) {
+  const num = String(itemNumber || '').trim();
+  const name = String(itemName || '').trim();
+
+  if (num) {
+    const directKey = `WARRIORPLUS_ITEM_NUMBER_${num}_WHOP_PLAN_ID`;
+    if (process.env[directKey]) return process.env[directKey];
+  }
+
+  if (name) {
+    const slug = name
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    if (slug) {
+      const byNameKey = `WARRIORPLUS_ITEM_NAME_${slug}_WHOP_PLAN_ID`;
+      if (process.env[byNameKey]) return process.env[byNameKey];
+    }
+  }
+
+  const mappingJson = process.env.WARRIORPLUS_ITEM_TO_WHOP_PLAN_ID_JSON;
+  if (mappingJson) {
+    try {
+      const mapping = JSON.parse(mappingJson);
+      if (num && mapping[num]) return mapping[num];
+      if (name && mapping[name]) return mapping[name];
+    } catch (e) {
+      console.warn('[WarriorPlus IPN] WARRIORPLUS_ITEM_TO_WHOP_PLAN_ID_JSON parse failed:', e?.message);
+    }
+  }
+
+  return null;
+}
+
+async function handleWarriorPlusIPN({ req, res, rawBody }) {
+  const parsed = querystring.parse(String(rawBody || ''));
+  const action = safeLower(parsed.WP_ACTION);
+  const ipnId = String(parsed.IPN_ID || '').trim();
+  const saleId = String(parsed.WP_SALEID || parsed.WP_SALE || '').trim();
+  const buyerEmail = String(parsed.WP_BUYER_EMAIL || '').trim();
+  const itemNumber = String(parsed.WP_ITEM_NUMBER || '').trim();
+  const itemName = String(parsed.WP_ITEM_NAME || '').trim();
+  const securityKey = String(parsed.WP_SECURITYKEY || '').trim();
+
+  const requiredKey = String(process.env.WARRIORPLUS_SECURITY_KEY || '').trim();
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+  if (requiredKey) {
+    if (!securityKey || securityKey !== requiredKey) {
+      console.error('[WarriorPlus IPN] ❌ Invalid WP_SECURITYKEY', {
+        hasKey: !!securityKey,
+        action,
+        ipnId,
+        saleId,
+      });
+      if (isProduction) {
+        return res.status(401).json({ received: false, provider: 'warriorplus', error: 'Invalid WP_SECURITYKEY' });
+      }
+    }
+  } else if (isProduction) {
+    console.warn('[WarriorPlus IPN] ⚠️ WARRIORPLUS_SECURITY_KEY not set (authenticity check disabled in production)');
+  }
+
+  // 重複防止（同じIPN_IDは1回のみ処理）
+  if (kv && ipnId) {
+    const dedupKey = `warriorplus:ipn:${ipnId}`;
+    const already = await kv.get(dedupKey);
+    if (already) {
+      return res.status(200).json({ received: true, provider: 'warriorplus', dedup: true });
+    }
+    await kv.set(dedupKey, '1', { ex: 86400 * 14 });
+  }
+
+  console.log('[WarriorPlus IPN] 📨 Received:', {
+    action,
+    ipnId,
+    saleId,
+    itemNumber,
+    itemName: itemName ? itemName.slice(0, 120) : null,
+    buyerEmail,
+    ts: new Date().toISOString(),
+  });
+
+  const planId = resolveWhopPlanIdForWarriorPlus({ itemNumber, itemName });
+
+  const grantActions = new Set(['sale', 'subscr_created', 'subscr_completed', 'subscr_reactivated']);
+  const revokeActions = new Set(['refund', 'dispute', 'subscr_cancelled', 'subscr_refunded', 'subscr_suspended', 'subscr_ended']);
+
+  // WarriorPlus→Whop: 現状APIで直接 membership 作成が見当たらないため、WhopチェックアウトセッションURLを発行して連携する
+  let whopCheckout = null;
+  if (grantActions.has(action)) {
+    if (!planId) {
+      console.warn('[WarriorPlus IPN] No Whop plan mapping for item', { itemNumber, itemName });
+    } else {
+      try {
+        const { createCheckoutSessionBasic } = require('../services/whop/client');
+        const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : process.env.BASE_URL || '';
+        const redirectUrl = baseUrl ? `${baseUrl}/checkout/complete` : undefined;
+        const { purchase_url, id } = await createCheckoutSessionBasic({
+          plan_id: planId,
+          redirect_url: redirectUrl,
+          metadata: {
+            source: 'warriorplus',
+            wp_action: action || null,
+            wp_ipn_id: ipnId || null,
+            wp_sale_id: saleId || null,
+            wp_item_number: itemNumber || null,
+            wp_item_name: itemName || null,
+            wp_buyer_email: buyerEmail || null,
+            wp_txnid: parsed.WP_TXNID || null,
+          },
+        });
+        whopCheckout = { id, purchase_url, plan_id: planId };
+      } catch (e) {
+        console.error('[WarriorPlus IPN] Whop checkout session create failed:', e?.message);
+      }
+    }
+  }
+
+  // revoke は「既存Whop membership があれば停止」までを自動化できる（email から探索して terminate）
+  // ただし、WarriorPlus購入でWhop membership が未作成のケースもあるため、存在しなければログのみ。
+  if (revokeActions.has(action) && buyerEmail && planId) {
+    try {
+      const { listMemberships, terminateMembership, cancelMembership } = require('../services/whop/client');
+      const companyId = process.env.WHOP_COMPANY_ID;
+      const memberships = await listMemberships({
+        company_id: companyId || undefined,
+        plan_ids: [planId],
+        first: 50,
+      });
+      const match = (Array.isArray(memberships) ? memberships : []).find((m) => {
+        const email = m?.member?.email || m?.user?.email;
+        return safeLower(email) === safeLower(buyerEmail);
+      });
+      if (match?.id) {
+        const mode = safeLower(process.env.WARRIORPLUS_REVOKE_MODE) || 'terminate';
+        if (mode === 'cancel') {
+          await cancelMembership(match.id, { cancellation_mode: 'immediate' });
+          console.log('[WarriorPlus IPN] ✅ Whop membership cancelled:', match.id);
+        } else {
+          await terminateMembership(match.id);
+          console.log('[WarriorPlus IPN] ✅ Whop membership terminated:', match.id);
+        }
+      } else {
+        console.warn('[WarriorPlus IPN] No matching Whop membership found to revoke', { buyerEmail, planId, action });
+      }
+    } catch (e) {
+      console.warn('[WarriorPlus IPN] Revoke attempt failed:', e?.message);
+    }
+  }
+
+  // KVに生データを保存（監査用）
+  if (kv) {
+    try {
+      const key = `warriorplus:ipn:raw:${ipnId || saleId || Date.now()}`;
+      await kv.set(key, parsed, { ex: 86400 * 30 });
+    } catch (e) {
+      console.warn('[WarriorPlus IPN] KV save failed:', e?.message);
+    }
+  }
+
+  const output = safeLower(req.query.output || '');
+  if (output === 'text' && whopCheckout?.purchase_url) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.status(200).send(whopCheckout.purchase_url);
+  }
+
+  return res.status(200).json({
+    received: true,
+    provider: 'warriorplus',
+    action: action || null,
+    plan_id: planId || null,
+    whop_checkout: whopCheckout,
+  });
 }
 
 /**
@@ -638,11 +827,13 @@ async function handler(req, res) {
     // Raw bodyを取得（署名検証用）
     const getRawBody = require('raw-body');
     let rawBody;
+    let rawBodyWasFromStream = false;
     try {
       rawBody = await getRawBody(req, {
         encoding: 'utf8',
         limit: '10mb',
       });
+      rawBodyWasFromStream = true;
     } catch (rawBodyError) {
       // フォールバック: req.bodyから再構築
       if (typeof req.body === 'string') {
@@ -652,6 +843,38 @@ async function handler(req, res) {
       } else {
         rawBody = '';
       }
+    }
+
+    // WarriorPlus IPN（form-urlencoded）を先に判定・処理
+    const ct = safeLower(req.headers['content-type']);
+    let parsedForm = null;
+    // 1) まずは bodyParser が作ったオブジェクト（最も確実）
+    if (!rawBodyWasFromStream && req.body && typeof req.body === 'object') {
+      parsedForm = req.body;
+    } else if (ct.includes('application/x-www-form-urlencoded')) {
+      // 2) 生のフォーム本文
+      try {
+        parsedForm = querystring.parse(String(rawBody || ''));
+      } catch (_) {
+        parsedForm = null;
+      }
+      // 3) フォールバックで JSON 化されていた場合（{"WP_ACTION":"sale",...}）
+      if ((!parsedForm || !parsedForm.WP_ACTION) && rawBody && String(rawBody).trim().startsWith('{')) {
+        try {
+          const j = JSON.parse(String(rawBody));
+          if (j && typeof j === 'object') parsedForm = j;
+        } catch (_) { /* ignore */ }
+      }
+    }
+
+    if (isLikelyWarriorPlusRequest(req, parsedForm) && (parsedForm?.WP_ACTION || safeLower(req.headers['user-agent']).includes('warriorplus'))) {
+      // handleWarriorPlusIPN は rawBody から parse するため、object の場合は再構築して渡す
+      const bodyForWp = rawBodyWasFromStream
+        ? rawBody
+        : (ct.includes('application/x-www-form-urlencoded')
+          ? (typeof rawBody === 'string' ? rawBody : '')
+          : querystring.stringify(parsedForm || {}));
+      return await handleWarriorPlusIPN({ req, res, rawBody: bodyForWp });
     }
     
     // 署名ヘッダーを取得（x-whop-* と Standard Webhooks の webhook-* 両対応）
