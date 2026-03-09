@@ -2,6 +2,8 @@
 
 **目的**: WarriorPlus の成約イベント（IPN）を受け取り、Whop 側の導線（チェックアウト/登録URL）を自動生成して購入者に渡せるようにする。
 
+**別案**: Whop を **LP のみ**（ボタンクリック → WarriorPlus 決済へ片道リダイレクト）とし、決済後の付与は Resend で TG 招待リンクを送る構成も可能。→ **`docs/WARRIORPLUS_RESEND_TG_FLOW.md`**
+
 このリポジトリでは、エンドポイントとして `https://cryptotradeacademy.vercel.app/api/whop-webhook` を **Whop Webhook と共用**し、以下の条件で分岐します。
 
 - **Whop → 本アプリ**: `Content-Type: application/json`（既存）

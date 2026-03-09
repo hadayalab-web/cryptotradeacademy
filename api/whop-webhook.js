@@ -196,6 +196,48 @@ function getWarriorPlusPlanIds() {
 }
 
 const WARRIORPLUS_ALLOWED_EMAIL_TTL_SECONDS = 3600; // 1時間
+/** Whop を使わず Resend で TG 招待＋KV 顧客管理にする場合は 1 */
+const WARRIORPLUS_USE_RESEND_TG = process.env.WARRIORPLUS_USE_RESEND_TG === '1';
+const WARRIORPLUS_CUSTOMER_TTL_SECONDS = 86400 * 365; // 1年（解約で無効化するまで保持）
+
+/** WP_ITEM_NUMBER → TELEGRAM_CHAT_ID_BTC_* のサフィックス（EN, ES, AR, PT_BR, KO, JA） */
+const WARRIORPLUS_ITEM_TO_LANG = {
+  wso_vqp3r4: 'EN',
+  wso_lxd2wq: 'ES',
+  wso_zn9g7p: 'AR',
+  wso_dqz789: 'PT_BR',
+  wso_vm68d9: 'KO',
+  wso_zv25jy: 'JA',
+};
+
+/**
+ * Telegram Bot API createChatInviteLink で1回用招待リンクを発行
+ * @param {string} botToken
+ * @param {string} chatId
+ * @param {{ member_limit?: number, expire_date?: number }} [opts]
+ * @returns {Promise<string|null>} invite_link or null
+ */
+async function createTelegramInviteLink(botToken, chatId, opts = {}) {
+  if (!botToken || !chatId) return null;
+  const body = {
+    chat_id: chatId,
+    ...(opts.member_limit != null && { member_limit: Math.min(99999, Math.max(1, opts.member_limit)) }),
+    ...(opts.expire_date != null && { expire_date: opts.expire_date }),
+  };
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/createChatInviteLink`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!data.ok || !data.result?.invite_link) return null;
+    return data.result.invite_link;
+  } catch (e) {
+    console.warn('[WarriorPlus IPN] createChatInviteLink failed:', e?.message);
+    return null;
+  }
+}
 
 async function handleWarriorPlusIPN({ req, res, rawBody }) {
   const parsed = querystring.parse(String(rawBody || ''));
@@ -259,50 +301,90 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
     'subscr_failed_declined',
   ]);
 
-  // WarriorPlus→Whop: B案（直接権限付与）を試行し、失敗時はA案（0円チェックアウトURL）にフォールバック
+  // WarriorPlus→自前DB＋Resend（Whop は LP のみ） or WarriorPlus→Whop
   let whopCheckout = null;
   let directGrantSuccess = false;
-  if (grantActions.has(action) && planId && buyerEmail) {
-    // B案: Whop API で直接 membership 付与を試行（エンドポイントが存在する場合のみ成功）
-    const useDirectGrant = process.env.WARRIORPLUS_USE_DIRECT_GRANT === '1';
-    if (useDirectGrant && process.env.WHOP_COMPANY_ID) {
-      try {
-        const { grantMembershipByEmail } = require('../services/whop/client');
-        const result = await grantMembershipByEmail({
-          plan_id: planId,
-          email: buyerEmail,
-          metadata: {
-            source: 'warriorplus',
-            wp_action: action || null,
-            wp_ipn_id: ipnId || null,
-            wp_sale_id: saleId || null,
-            wp_item_number: itemNumber || null,
-            wp_item_name: itemName || null,
-            wp_txnid: parsed.WP_TXNID || null,
-          },
-        });
-        if (result?.success) {
-          directGrantSuccess = true;
-          console.log('[WarriorPlus IPN] ✅ Direct membership grant succeeded:', result.membership_id);
-        }
-      } catch (e) {
-        console.warn('[WarriorPlus IPN] Direct grant failed, falling back to checkout URL:', e?.message);
-      }
-    }
+  let resendTgSent = false;
+  let resendTgGrantHandled = false; // 自前DBモードで付与処理をしたか（KeyGen で固定 URL を返すため）
 
-    // A案: 直接付与が成功しなかった場合、0円チェックアウトURLを発行
-    // ※ plan_id は必ず「$0 プラン」を指定すること。有料プランだと二重決済になる
-    if (!directGrantSuccess) {
-      if (!planId) {
-        console.warn('[WarriorPlus IPN] No Whop plan mapping for item', { itemNumber, itemName });
-      } else {
+  if (grantActions.has(action) && planId && buyerEmail) {
+    const normEmail = safeLower(buyerEmail);
+
+    if (WARRIORPLUS_USE_RESEND_TG) {
+      resendTgGrantHandled = true;
+      // Whop を使わない: KV に顧客登録 ＋ Resend で TG 招待メール送信
+      let tgLink = String(process.env.WARRIORPLUS_TG_CHANNEL_INVITE_LINK || '').trim();
+      if (!tgLink && itemNumber) {
+        const lang = WARRIORPLUS_ITEM_TO_LANG[itemNumber];
+        const chatIdEnv = lang ? process.env[`TELEGRAM_CHAT_ID_BTC_${lang}`] : null;
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        if (chatIdEnv && botToken) {
+          const expireDate = Math.floor(Date.now() / 1000) + 86400 * 7; // 7日間有効
+          tgLink = await createTelegramInviteLink(botToken, String(chatIdEnv).trim(), {
+            member_limit: 1,
+            expire_date: expireDate,
+          }) || tgLink;
+          if (tgLink) console.log('[WarriorPlus IPN] TG invite link created for lang:', lang);
+        } else {
+          if (!lang) console.warn('[WarriorPlus IPN] Unknown WP_ITEM_NUMBER for TG channel:', itemNumber);
+          if (!chatIdEnv) console.warn('[WarriorPlus IPN] TELEGRAM_CHAT_ID_BTC_* not set for lang:', lang);
+        }
+      }
+      if (kv) {
+        const customerKey = `warriorplus:customer:${planId}:${normEmail}`;
+        const customer = {
+          paidAt: new Date().toISOString(),
+          saleId: saleId || null,
+          ipnId: ipnId || null,
+          action: action || null,
+          revoked: false,
+        };
+        await kv.set(customerKey, JSON.stringify(customer), { ex: WARRIORPLUS_CUSTOMER_TTL_SECONDS });
+        console.log('[WarriorPlus IPN] ✅ Customer registered (KV):', { planId, email: normEmail });
+      }
+      if (process.env.RESEND_API_KEY) {
         try {
-          const { createCheckoutSessionBasic } = require('../services/whop/client');
-          const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : process.env.BASE_URL || '';
-          const redirectUrl = baseUrl ? `${baseUrl}/checkout/complete` : undefined;
-          const { purchase_url, id } = await createCheckoutSessionBasic({
+          const { sendResendEmail } = require('../services/email/resendClient');
+          const subject = process.env.WARRIORPLUS_POST_PURCHASE_EMAIL_SUBJECT || 'Your Telegram access – Trap Defence BTC';
+          const html = tgLink
+            ? `
+            <p>Thank you for your purchase.</p>
+            <p>Join our Telegram channel to get started:</p>
+            <p><a href="${tgLink}" style="display:inline-block;padding:12px 24px;background:#0088cc;color:#fff;text-decoration:none;border-radius:6px;">Join Telegram</a></p>
+            <p>Or copy this link: ${tgLink}</p>
+            <p>— Trap Defence BTC</p>
+          `.trim()
+            : `
+            <p>Thank you for your purchase.</p>
+            <p>We could not generate your Telegram invite link automatically. Please contact support to get your access:</p>
+            <p><a href="mailto:support@cryptotradeacademy.io">support@cryptotradeacademy.io</a></p>
+            <p>— Trap Defence BTC</p>
+          `.trim();
+          await sendResendEmail({
+            to: buyerEmail,
+            subject: tgLink ? subject : `Your purchase is confirmed – ${subject}`,
+            html,
+            from: 'support@cryptotradeacademy.io',
+            fromName: 'CryptoTrade Academy',
+            messageType: 'WARRIORPLUS_POST_PURCHASE',
+          });
+          resendTgSent = true;
+          console.log('[WarriorPlus IPN] ✅ Resend email sent:', normEmail, tgLink ? '(with TG link)' : '(fallback: contact support)');
+        } catch (e) {
+          console.error('[WarriorPlus IPN] Resend email failed:', e?.message);
+        }
+      } else {
+        console.warn('[WarriorPlus IPN] RESEND_API_KEY not set');
+      }
+    } else {
+      // 従来: WarriorPlus→Whop（B案 or A案）
+      const useDirectGrant = process.env.WARRIORPLUS_USE_DIRECT_GRANT === '1';
+      if (useDirectGrant && process.env.WHOP_COMPANY_ID) {
+        try {
+          const { grantMembershipByEmail } = require('../services/whop/client');
+          const result = await grantMembershipByEmail({
             plan_id: planId,
-            redirect_url: redirectUrl,
+            email: buyerEmail,
             metadata: {
               source: 'warriorplus',
               wp_action: action || null,
@@ -310,55 +392,101 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
               wp_sale_id: saleId || null,
               wp_item_number: itemNumber || null,
               wp_item_name: itemName || null,
-              wp_buyer_email: buyerEmail || null,
               wp_txnid: parsed.WP_TXNID || null,
             },
           });
-          whopCheckout = { id, purchase_url, plan_id: planId };
+          if (result?.success) {
+            directGrantSuccess = true;
+            console.log('[WarriorPlus IPN] ✅ Direct membership grant succeeded:', result.membership_id);
+          }
         } catch (e) {
-          console.error('[WarriorPlus IPN] Whop checkout session create failed:', e?.message);
+          console.warn('[WarriorPlus IPN] Direct grant failed, falling back to checkout URL:', e?.message);
         }
       }
-    }
-
-    // メール照合用: 決済者だけが Whop で完了できるよう、許可リストを KV に登録（1時間有効）
-    if (!directGrantSuccess && whopCheckout && planId && buyerEmail && kv) {
-      const normEmail = safeLower(buyerEmail);
-      const allowedKey = `warriorplus:allowed:${planId}:${normEmail}`;
-      await kv.set(allowedKey, ipnId || saleId || '1', { ex: WARRIORPLUS_ALLOWED_EMAIL_TTL_SECONDS });
-      console.log('[WarriorPlus IPN] ✅ Allowed email registered for validation:', { planId, email: normEmail });
+      if (!directGrantSuccess) {
+        if (!planId) {
+          console.warn('[WarriorPlus IPN] No Whop plan mapping for item', { itemNumber, itemName });
+        } else {
+          try {
+            const { createCheckoutSessionBasic } = require('../services/whop/client');
+            const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : process.env.BASE_URL || '';
+            const redirectUrl = baseUrl ? `${baseUrl}/checkout/complete` : undefined;
+            const { purchase_url, id } = await createCheckoutSessionBasic({
+              plan_id: planId,
+              redirect_url: redirectUrl,
+              metadata: {
+                source: 'warriorplus',
+                wp_action: action || null,
+                wp_ipn_id: ipnId || null,
+                wp_sale_id: saleId || null,
+                wp_item_number: itemNumber || null,
+                wp_item_name: itemName || null,
+                wp_buyer_email: buyerEmail || null,
+                wp_txnid: parsed.WP_TXNID || null,
+              },
+            });
+            whopCheckout = { id, purchase_url, plan_id: planId };
+          } catch (e) {
+            console.error('[WarriorPlus IPN] Whop checkout session create failed:', e?.message);
+          }
+        }
+      }
+      if (!directGrantSuccess && whopCheckout && planId && buyerEmail && kv) {
+        const allowedKey = `warriorplus:allowed:${planId}:${normEmail}`;
+        await kv.set(allowedKey, ipnId || saleId || '1', { ex: WARRIORPLUS_ALLOWED_EMAIL_TTL_SECONDS });
+        console.log('[WarriorPlus IPN] ✅ Allowed email registered for validation:', { planId, email: normEmail });
+      }
     }
   }
 
-  // revoke は「既存Whop membership があれば停止」までを自動化できる（email から探索して terminate）
-  // ただし、WarriorPlus購入でWhop membership が未作成のケースもあるため、存在しなければログのみ。
+  // 剥奪: 自前DBモードなら KV を revoked に更新。Whop モードなら既存の Whop terminate
   if (revokeActions.has(action) && buyerEmail && planId) {
-    try {
-      const { listMemberships, terminateMembership, cancelMembership } = require('../services/whop/client');
-      const companyId = process.env.WHOP_COMPANY_ID;
-      const memberships = await listMemberships({
-        company_id: companyId || undefined,
-        plan_ids: [planId],
-        first: 50,
-      });
-      const match = (Array.isArray(memberships) ? memberships : []).find((m) => {
-        const email = m?.member?.email || m?.user?.email;
-        return safeLower(email) === safeLower(buyerEmail);
-      });
-      if (match?.id) {
-        const mode = safeLower(process.env.WARRIORPLUS_REVOKE_MODE) || 'terminate';
-        if (mode === 'cancel') {
-          await cancelMembership(match.id, { cancellation_mode: 'immediate' });
-          console.log('[WarriorPlus IPN] ✅ Whop membership cancelled:', match.id);
+    const normEmail = safeLower(buyerEmail);
+    if (WARRIORPLUS_USE_RESEND_TG && kv) {
+      try {
+        const customerKey = `warriorplus:customer:${planId}:${normEmail}`;
+        const raw = await kv.get(customerKey);
+        if (raw) {
+          const customer = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          customer.revoked = true;
+          customer.revokedAt = new Date().toISOString();
+          customer.revokeAction = action || null;
+          await kv.set(customerKey, JSON.stringify(customer), { ex: WARRIORPLUS_CUSTOMER_TTL_SECONDS });
+          console.log('[WarriorPlus IPN] ✅ Customer revoked (KV):', { planId, email: normEmail, action });
         } else {
-          await terminateMembership(match.id);
-          console.log('[WarriorPlus IPN] ✅ Whop membership terminated:', match.id);
+          console.warn('[WarriorPlus IPN] No KV customer found to revoke', { buyerEmail, planId });
         }
-      } else {
-        console.warn('[WarriorPlus IPN] No matching Whop membership found to revoke', { buyerEmail, planId, action });
+      } catch (e) {
+        console.warn('[WarriorPlus IPN] KV revoke failed:', e?.message);
       }
-    } catch (e) {
-      console.warn('[WarriorPlus IPN] Revoke attempt failed:', e?.message);
+    } else {
+      try {
+        const { listMemberships, terminateMembership, cancelMembership } = require('../services/whop/client');
+        const companyId = process.env.WHOP_COMPANY_ID;
+        const memberships = await listMemberships({
+          company_id: companyId || undefined,
+          plan_ids: [planId],
+          first: 50,
+        });
+        const match = (Array.isArray(memberships) ? memberships : []).find((m) => {
+          const email = m?.member?.email || m?.user?.email;
+          return safeLower(email) === safeLower(buyerEmail);
+        });
+        if (match?.id) {
+          const mode = safeLower(process.env.WARRIORPLUS_REVOKE_MODE) || 'terminate';
+          if (mode === 'cancel') {
+            await cancelMembership(match.id, { cancellation_mode: 'immediate' });
+            console.log('[WarriorPlus IPN] ✅ Whop membership cancelled:', match.id);
+          } else {
+            await terminateMembership(match.id);
+            console.log('[WarriorPlus IPN] ✅ Whop membership terminated:', match.id);
+          }
+        } else {
+          console.warn('[WarriorPlus IPN] No matching Whop membership found to revoke', { buyerEmail, planId, action });
+        }
+      } catch (e) {
+        console.warn('[WarriorPlus IPN] Revoke attempt failed:', e?.message);
+      }
     }
   }
 
@@ -375,8 +503,11 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
   const output = safeLower(req.query.output || '');
   if (output === 'text') {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    const accessUrl = process.env.WARRIORPLUS_ACCESS_URL || process.env.WHOP_WEBHOOK_URL || '';
+    if (WARRIORPLUS_USE_RESEND_TG && resendTgGrantHandled) {
+      return res.status(200).send(accessUrl || 'Check your email for the Telegram invite link.');
+    }
     if (directGrantSuccess) {
-      const accessUrl = process.env.WARRIORPLUS_ACCESS_URL || process.env.WHOP_WEBHOOK_URL || '';
       return res.status(200).send(accessUrl || 'Access granted. Check your email for the login link.');
     }
     if (whopCheckout?.purchase_url) {
@@ -391,6 +522,10 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
     plan_id: planId || null,
     direct_grant_success: directGrantSuccess,
     whop_checkout: whopCheckout,
+    ...(WARRIORPLUS_USE_RESEND_TG && {
+      resend_tg_grant_handled: resendTgGrantHandled,
+      resend_tg_email_sent: resendTgSent,
+    }),
   });
 }
 
