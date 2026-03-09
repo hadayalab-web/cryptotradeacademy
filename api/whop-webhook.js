@@ -209,7 +209,9 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
 
   const requiredKey = String(process.env.WARRIORPLUS_SECURITY_KEY || '').trim();
   const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
-  if (requiredKey) {
+  // Send Test は WP_SECURITYKEY を送らないため、IPN_ID が "test" 含むときだけキー検証をスキップ（本番IPNはキー必須）
+  const isTestIpn = /test/i.test(ipnId || '');
+  if (requiredKey && !isTestIpn) {
     if (!securityKey || securityKey !== requiredKey) {
       console.error('[WarriorPlus IPN] ❌ Invalid WP_SECURITYKEY', {
         hasKey: !!securityKey,
@@ -221,6 +223,8 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
         return res.status(401).json({ received: false, provider: 'warriorplus', error: 'Invalid WP_SECURITYKEY' });
       }
     }
+  } else if (isTestIpn) {
+    console.log('[WarriorPlus IPN] 📋 Test IPN (key check skipped)', { ipnId, action });
   } else if (isProduction) {
     console.warn('[WarriorPlus IPN] ⚠️ WARRIORPLUS_SECURITY_KEY not set (authenticity check disabled in production)');
   }
