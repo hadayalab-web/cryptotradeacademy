@@ -23,7 +23,7 @@ WarriorPlus のアカウント設定で **Security Key** を設定すると、IP
 本アプリ側でも `WARRIORPLUS_SECURITY_KEY` を環境変数で一致させることで、偽装IPNを弾けます。
 
 **Send Test について**: WarriorPlus の「Send Test」はキーを送らないため、本番では 401 になりがちです。  
-本アプリでは **`IPN_ID` に `test` が含まれるリクエスト**（Send Test 想定）に限りキー検証をスキップし、200 を返します。本番の実購入 IPN は従来どおりキー必須です。
+本アプリでは **次のいずれか** のときキー検証をスキップし、200 を返します: `IPN_ID` に `test` が含まれる、または **キーが無く `IPN_ID` が空**（Send Test が ID を送らない場合）。本番の実購入 IPN は従来どおりキー必須です。
 
 ---
 

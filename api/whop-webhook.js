@@ -209,8 +209,8 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
 
   const requiredKey = String(process.env.WARRIORPLUS_SECURITY_KEY || '').trim();
   const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
-  // Send Test は WP_SECURITYKEY を送らないため、IPN_ID が "test" 含むときだけキー検証をスキップ（本番IPNはキー必須）
-  const isTestIpn = /test/i.test(ipnId || '');
+  // Send Test は WP_SECURITYKEY を送らないため、テストと分かる場合のみキー検証をスキップ（本番IPNはキー必須）
+  const isTestIpn = /test/i.test(ipnId || '') || (!securityKey && !String(ipnId || '').trim());
   if (requiredKey && !isTestIpn) {
     if (!securityKey || securityKey !== requiredKey) {
       console.error('[WarriorPlus IPN] ❌ Invalid WP_SECURITYKEY', {
