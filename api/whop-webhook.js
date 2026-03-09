@@ -203,8 +203,8 @@ const WARRIORPLUS_CUSTOMER_TTL_SECONDS = 86400 * 365; // 1年（解約で無効�
 /** WP_ITEM_NUMBER → TELEGRAM_CHAT_ID_BTC_* のサフィックス（EN, ES, AR, PT_BR, KO, JA） */
 const WARRIORPLUS_ITEM_TO_LANG = {
   wso_vqp3r4: 'EN',
+  wso_zn9g7p: 'EN',   // zn9g7p は EN 専用（旧ARは廃止・新ARは別IDで追加予定）
   wso_lxd2wq: 'ES',
-  wso_zn9g7p: 'AR',
   wso_dqz789: 'PT_BR',
   wso_vm68d9: 'KO',
   wso_zv25jy: 'JA',

@@ -15,10 +15,10 @@ WARRIORPLUS_API_KEY=<任意・API 呼び出し用>
 
 | Lang | WP_ITEM_NUMBER | 環境変数 | Whop Plan ID |
 |------|----------------|----------|--------------|
-| EN | wso_vqp3r4 | WARRIORPLUS_ITEM_NUMBER_wso_vqp3r4_WHOP_PLAN_ID | plan_olVeC5G1xFCdr |
+| EN | wso_vqp3r4, wso_zn9g7p | 両方 EN 用（zn9g7p は EN 専用に変更済み） | plan_olVeC5G1xFCdr |
 | ES | wso_lxd2wq | WARRIORPLUS_ITEM_NUMBER_wso_lxd2wq_WHOP_PLAN_ID | plan_6TmiQiiBSRmQJ |
 | PT | wso_dqz789 | WARRIORPLUS_ITEM_NUMBER_wso_dqz789_WHOP_PLAN_ID | plan_QNZ4sduF22Dvf |
-| AR | wso_zn9g7p | WARRIORPLUS_ITEM_NUMBER_wso_zn9g7p_WHOP_PLAN_ID | plan_OEzHaVG2NDANY |
+| AR | （新規作成予定・ID未定） | 新AR用の ID が決まり次第追加 | plan_OEzHaVG2NDANY |
 | KO | wso_vm68d9 | WARRIORPLUS_ITEM_NUMBER_wso_vm68d9_WHOP_PLAN_ID | plan_rMXTaSJ43z61d |
 | JA | wso_zv25jy | WARRIORPLUS_ITEM_NUMBER_wso_zv25jy_WHOP_PLAN_ID | plan_EOpVbfNgJxoQr |
 
@@ -41,10 +41,10 @@ WARRIORPLUS_API_KEY=<任意・API 呼び出し用>
 
 | Lang | WarriorPlus Buy URL |
 |------|---------------------|
-| EN | https://warriorplus.com/o2/buy/spc506/njtfnb/vqp3r4 |
+| EN | https://warriorplus.com/o2/buy/spc506/njtfnb/vqp3r4 または …/zn9g7p（zn9g7p は EN 専用） |
 | ES | https://warriorplus.com/o2/buy/c37794/gcnzkr/lxd2wq |
 | PT | https://warriorplus.com/o2/buy/m3jwnl/qb6408/dqz789 |
-| AR | https://warriorplus.com/o2/buy/jzk9wx/qt3833/zn9g7p |
+| AR | **保留**（リダイレクトURLは新AR作成後に設定） |
 | KO | https://warriorplus.com/o2/buy/b14qfw/fbx1hs/vm68d9 |
 | JA | https://warriorplus.com/o2/buy/jwsrsj/r4bjnk/zv25jy |
 
