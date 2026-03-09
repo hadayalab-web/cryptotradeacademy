@@ -102,6 +102,37 @@ WarriorPlus IPN の `WP_ACTION` を見て処理します。
 
 ※ Whop側に該当 membership が存在しない場合はログのみです。
 
+### 3.4 解約〜TGキックまでの流れ（自動追放）
+
+1. **Stripe で解約 or 支払失敗** → ユーザーが解約するか、カード残高不足等で決済失敗。
+2. **WarriorPlus が検知** → 上記の剥奪系 `WP_ACTION` の IPN を Vercel へ送信。
+3. **Vercel → Whop** → 当該 `buyerEmail` + `plan_id` の membership を `terminate` / `cancel`。
+4. **Whop → TG** → Membership 終了に連動し、Whop Bot が Telegram から該当ユーザーをキック。
+
+「払わなくなった人は自動で消える」状態になっています。
+
+### 3.5 猶予期間（Grace Period）について
+
+**現状**: IPN を受信した時点で **即座に** Whop membership を revoke しています。
+
+**推奨**: カード期限切れなど「意図しない解約」を防ぐ **猶予（リトライ期間）** は、**Stripe / WarriorPlus 側の「支払いリトライ設定」** で持たせるのが一般的です。
+
+- **Stripe**: ダッシュボードの「Settings → Billing → Subscriptions and emails」などで、失敗時の再試行回数・期間（例: 3日間・数回）を設定可能。リトライし尽くしたあとで初めてサブスクがキャンセルされ、そのタイミングで WarriorPlus から IPN が飛びます。
+- **WarriorPlus**: 利用している決済（Stripe）のサブスク設定に従うため、上記 Stripe の猶予を有効にしておけば、**「即キック」ではなく「リトライ尽きた後のキック」** になります。
+
+当方コード側で「IPN 受信から N 日後に revoke」する遅延処理を入れることも可能ですが、運用の単純さ・監査のしやすさの点から、まずは **決済側のリトライ期間の設定** で対応することを推奨します。
+
+### 3.6 メール照合バリデーション（未決済アクセス防止）
+
+Whop のチェックアウトで入力されたメールと、WarriorPlus IPN の購入者メール（`WP_BUYER_EMAIL`）が一致するかどうかを自動照合しています。
+
+- **IPN 受信時（付与系）**: 0円チェックアウトURLを返す直前に、`plan_id` と `buyerEmail` を KV に「許可リスト」として登録（キー: `warriorplus:allowed:{planId}:{正規化メール}`、TTL 1時間）。
+- **Whop Webhook 受信時**（`membership.created` / `membership.activated`）: 対象が WarriorPlus 用 0円プラン（環境変数で解決した plan_id 一覧）の場合、イベント内のユーザーメールで上記許可リストを照合。
+  - **一致しない場合**: 当該 membership を `terminateMembership` し、200 を返して処理終了（未決済の不正アクセスを防止）。
+  - **一致した場合**: 許可キーを削除（1回限り使用）、同一 membership の続きイベント用に「検証済み」を短時間 KV に記録し、通常の `handlePurchaseEvent` へ進む。
+
+これにより「決済していない人が別メールで Whop を完了してメールを受け取る」リスクを防ぎます。
+
 ---
 
 ## 4. 疎通テスト（手元）
@@ -132,4 +163,5 @@ curl -X POST "https://cryptotradeacademy.vercel.app/api/whop-webhook?output=text
 
 - **二重決済防止**: `WARRIORPLUS_ITEM_NUMBER_XXX_WHOP_PLAN_ID` には **必ず $0 プラン**（Whop で initial_price: 0 のプラン）を指定してください。有料プランを指定すると、WarriorPlus で決済した後に Whop でも課金画面が表示されます。
 - **B案（直接権限付与）**: Whop API の `POST /memberships` は現行仕様では公開されていない可能性が高く、`WARRIORPLUS_USE_DIRECT_GRANT=1` にしても 404 等で失敗し、A案にフォールバックします。将来 Whop が対応 API を提供した場合は、そのまま有効化できます。
+- **メール照合**: Whop で入力されたメールと WarriorPlus IPN の購入者メールが一致しない場合、その membership は自動で terminate されます（3.6 参照）。
 

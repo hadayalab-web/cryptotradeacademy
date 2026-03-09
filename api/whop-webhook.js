@@ -172,6 +172,31 @@ function resolveWhopPlanIdForWarriorPlus({ itemNumber, itemName }) {
   return null;
 }
 
+/** WarriorPlus 連携で使用している Whop plan_id の一覧（照合用） */
+function getWarriorPlusPlanIds() {
+  const set = new Set();
+  const prefix = 'WARRIORPLUS_ITEM_NUMBER_';
+  const suffix = '_WHOP_PLAN_ID';
+  for (const key of Object.keys(process.env)) {
+    if (key.startsWith(prefix) && key.endsWith(suffix)) {
+      const val = process.env[key];
+      if (val && String(val).trim()) set.add(String(val).trim());
+    }
+  }
+  const json = process.env.WARRIORPLUS_ITEM_TO_WHOP_PLAN_ID_JSON;
+  if (json) {
+    try {
+      const obj = JSON.parse(json);
+      for (const v of Object.values(obj)) {
+        if (v && String(v).trim()) set.add(String(v).trim());
+      }
+    } catch (_) { /* ignore */ }
+  }
+  return set;
+}
+
+const WARRIORPLUS_ALLOWED_EMAIL_TTL_SECONDS = 3600; // 1時間
+
 async function handleWarriorPlusIPN({ req, res, rawBody }) {
   const parsed = querystring.parse(String(rawBody || ''));
   const action = safeLower(parsed.WP_ACTION);
@@ -294,6 +319,14 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
           console.error('[WarriorPlus IPN] Whop checkout session create failed:', e?.message);
         }
       }
+    }
+
+    // メール照合用: 決済者だけが Whop で完了できるよう、許可リストを KV に登録（1時間有効）
+    if (!directGrantSuccess && whopCheckout && planId && buyerEmail && kv) {
+      const normEmail = safeLower(buyerEmail);
+      const allowedKey = `warriorplus:allowed:${planId}:${normEmail}`;
+      await kv.set(allowedKey, ipnId || saleId || '1', { ex: WARRIORPLUS_ALLOWED_EMAIL_TTL_SECONDS });
+      console.log('[WarriorPlus IPN] ✅ Allowed email registered for validation:', { planId, email: normEmail });
     }
   }
 
@@ -980,6 +1013,47 @@ async function handler(req, res) {
       dataKeys: event.data ? Object.keys(event.data) : [],
       timestamp: new Date().toISOString(),
     });
+
+    // WarriorPlus 連携: 決済者メールと Whop 入力メールの照合（未決済の不正アクセス防止）
+    const wpPlanIds = getWarriorPlusPlanIds();
+    const membershipEventTypes = ['membership.created', 'membership.activated', 'membership_activated'];
+    if (wpPlanIds.size > 0 && kv && membershipEventTypes.includes(event.type)) {
+      const data = event.data || {};
+      const membership = data.membership || data.membership_data || data;
+      const planId = membership?.plan_id || membership?.plan?.id || data?.plan_id;
+      const user = data?.user || membership?.user;
+      const userEmail = user?.email ? String(user.email).trim() : null;
+      const membershipId = membership?.id || data?.membership_id;
+
+      if (planId && wpPlanIds.has(planId) && membershipId) {
+        const normEmail = userEmail ? safeLower(userEmail) : null;
+        const validatedKey = `warriorplus:validated:${membershipId}`;
+        const alreadyValidated = await kv.get(validatedKey);
+        if (alreadyValidated) {
+          // 同一 membership の別イベント（例: membership.activated）は通過
+        } else {
+          const allowedKey = normEmail ? `warriorplus:allowed:${planId}:${normEmail}` : null;
+          const allowed = allowedKey ? await kv.get(allowedKey) : null;
+          if (!allowed) {
+            try {
+              const { terminateMembership } = require('../services/whop/client');
+              await terminateMembership(membershipId);
+              console.warn('[Whop Webhook] ⚠️ WarriorPlus validation: email not in allowed list, membership terminated', {
+                planId,
+                userEmail: normEmail || '(none)',
+                membershipId,
+              });
+            } catch (e) {
+              console.error('[Whop Webhook] Failed to terminate unauthorized membership:', e?.message);
+            }
+            return res.status(200).json({ received: true, warriorplus_validation: 'rejected' });
+          }
+          await kv.del(allowedKey);
+          await kv.set(validatedKey, '1', { ex: 120 });
+          console.log('[Whop Webhook] ✅ WarriorPlus validation: email matched, allowed', { planId, email: normEmail });
+        }
+      }
+    }
     
     // 購入イベントを処理（ドット形式とアンダースコア形式の両方に対応。Whop の仕様に応じて追加可能）
     const purchaseEventTypes = [
