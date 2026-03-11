@@ -203,12 +203,16 @@ const WARRIORPLUS_CUSTOMER_TTL_SECONDS = 86400 * 365; // 1年（解約で無効�
 /** WP_ITEM_NUMBER → TELEGRAM_CHAT_ID_BTC_* のサフィックス（EN, ES, AR, PT_BR, KO, JA） */
 const WARRIORPLUS_ITEM_TO_LANG = {
   wso_vqp3r4: 'EN',
-  wso_zn9g7p: 'EN',   // zn9g7p は EN 専用（旧ARは廃止・新ARは別IDで追加予定）
   wso_lxd2wq: 'ES',
   wso_dqz789: 'PT_BR',
+  wso_zn9g7p: 'AR',
   wso_vm68d9: 'KO',
   wso_zv25jy: 'JA',
 };
+
+/** 6言語マルチパック用：1回の購入で6チャンネル分の1回限りリンクを発行。環境変数 WARRIORPLUS_MULTIPACK_ITEM_NUMBER と一致する商品がこれ */
+const MULTIPACK_LANGS = ['EN', 'ES', 'PT_BR', 'AR', 'KO', 'JA'];
+const MULTIPACK_LANG_LABELS = { EN: 'English', ES: 'Spanish', PT_BR: 'Portuguese', AR: 'Arabic', KO: 'Korean', JA: 'Japanese' };
 
 /**
  * Telegram Bot API createChatInviteLink で1回用招待リンクを発行
@@ -302,36 +306,73 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
   ]);
 
   // WarriorPlus→自前DB＋Resend（Whop は LP のみ） or WarriorPlus→Whop
+  // TG専用モードでは planId がなくても、itemNumber が WARRIORPLUS_ITEM_TO_LANG またはマルチパックに含まれていれば Resend 送信する
+  const canGrantResendTgOnly = WARRIORPLUS_USE_RESEND_TG && itemNumber && (
+    WARRIORPLUS_ITEM_TO_LANG[itemNumber] ||
+    itemNumber === String(process.env.WARRIORPLUS_MULTIPACK_ITEM_NUMBER || '').trim()
+  );
+  const canGrant = grantActions.has(action) && buyerEmail && (planId || canGrantResendTgOnly);
+
   let whopCheckout = null;
   let directGrantSuccess = false;
   let resendTgSent = false;
   let resendTgGrantHandled = false; // 自前DBモードで付与処理をしたか（KeyGen で固定 URL を返すため）
 
-  if (grantActions.has(action) && planId && buyerEmail) {
+  if (canGrant) {
     const normEmail = safeLower(buyerEmail);
+    const customerPlanOrItem = planId || itemNumber; // KV キー用（TG専用で planId なしのときは itemNumber）
 
     if (WARRIORPLUS_USE_RESEND_TG) {
       resendTgGrantHandled = true;
-      // Whop を使わない: KV に顧客登録 ＋ Resend で TG 招待メール送信
-      let tgLink = String(process.env.WARRIORPLUS_TG_CHANNEL_INVITE_LINK || '').trim();
-      if (!tgLink && itemNumber) {
-        const lang = WARRIORPLUS_ITEM_TO_LANG[itemNumber];
-        const chatIdEnv = lang ? process.env[`TELEGRAM_CHAT_ID_BTC_${lang}`] : null;
+      const multipackItemNumber = String(process.env.WARRIORPLUS_MULTIPACK_ITEM_NUMBER || '').trim();
+      const isMultipack = multipackItemNumber && itemNumber === multipackItemNumber;
+
+      let tgLink = null;
+      let multipackLinks = []; // [{ lang, label, link }]
+
+      if (isMultipack) {
+        // 6言語マルチパック: 各チャンネルの1回限りリンクを発行
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
-        if (chatIdEnv && botToken) {
-          const expireDate = Math.floor(Date.now() / 1000) + 86400 * 7; // 7日間有効
-          tgLink = await createTelegramInviteLink(botToken, String(chatIdEnv).trim(), {
-            member_limit: 1,
-            expire_date: expireDate,
-          }) || tgLink;
-          if (tgLink) console.log('[WarriorPlus IPN] TG invite link created for lang:', lang);
-        } else {
-          if (!lang) console.warn('[WarriorPlus IPN] Unknown WP_ITEM_NUMBER for TG channel:', itemNumber);
-          if (!chatIdEnv) console.warn('[WarriorPlus IPN] TELEGRAM_CHAT_ID_BTC_* not set for lang:', lang);
+        const expireDate = Math.floor(Date.now() / 1000) + 86400 * 7;
+        if (botToken) {
+          for (const lang of MULTIPACK_LANGS) {
+            const chatIdEnv = process.env[`TELEGRAM_CHAT_ID_BTC_${lang}`];
+            if (!chatIdEnv) continue;
+            const link = await createTelegramInviteLink(botToken, String(chatIdEnv).trim(), {
+              member_limit: 1,
+              expire_date: expireDate,
+            });
+            if (link) multipackLinks.push({ lang, label: MULTIPACK_LANG_LABELS[lang] || lang, link });
+          }
+          console.log('[WarriorPlus IPN] Multipack: created', multipackLinks.length, 'invite links');
+        }
+      } else {
+        // 単一言語: 既存ロジック
+        tgLink = String(process.env.WARRIORPLUS_TG_CHANNEL_INVITE_LINK || '').trim();
+        if (!tgLink && itemNumber) {
+          const lang = WARRIORPLUS_ITEM_TO_LANG[itemNumber];
+          if (lang) {
+            const staticLink = process.env[`WARRIORPLUS_TG_INVITE_LINK_${lang}`];
+            if (staticLink && String(staticLink).trim()) tgLink = String(staticLink).trim();
+          }
+          if (!tgLink && lang) {
+            const chatIdEnv = process.env[`TELEGRAM_CHAT_ID_BTC_${lang}`];
+            const botToken = process.env.TELEGRAM_BOT_TOKEN;
+            if (chatIdEnv && botToken) {
+              const expireDate = Math.floor(Date.now() / 1000) + 86400 * 7;
+              tgLink = await createTelegramInviteLink(botToken, String(chatIdEnv).trim(), {
+                member_limit: 1,
+                expire_date: expireDate,
+              }) || tgLink;
+              if (tgLink) console.log('[WarriorPlus IPN] TG invite link created for lang:', lang);
+            }
+          }
+          if (!tgLink && !lang) console.warn('[WarriorPlus IPN] Unknown WP_ITEM_NUMBER for TG channel:', itemNumber);
         }
       }
+
       if (kv) {
-        const customerKey = `warriorplus:customer:${planId}:${normEmail}`;
+        const customerKey = `warriorplus:customer:${customerPlanOrItem}:${normEmail}`;
         const customer = {
           paidAt: new Date().toISOString(),
           saleId: saleId || null,
@@ -340,36 +381,50 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
           revoked: false,
         };
         await kv.set(customerKey, JSON.stringify(customer), { ex: WARRIORPLUS_CUSTOMER_TTL_SECONDS });
-        console.log('[WarriorPlus IPN] ✅ Customer registered (KV):', { planId, email: normEmail });
+        console.log('[WarriorPlus IPN] ✅ Customer registered (KV):', { planIdOrItem: customerPlanOrItem, email: normEmail });
       }
+
+      const hasLinks = tgLink || multipackLinks.length > 0;
       if (process.env.RESEND_API_KEY) {
         try {
           const { sendResendEmail } = require('../services/email/resendClient');
           const subject = process.env.WARRIORPLUS_POST_PURCHASE_EMAIL_SUBJECT || 'Your Telegram access – Trap Defence BTC';
-          const html = tgLink
-            ? `
+          let html;
+          if (multipackLinks.length > 0) {
+            const listItems = multipackLinks.map(({ label, link }) =>
+              `<li><strong>${label}:</strong> <a href="${link}" style="color:#0088cc;">Join channel</a> — ${link}</li>`
+            ).join('');
+            html = `
+            <p>Thank you for your purchase. Your <strong>6-language pack</strong> gives you access to all Telegram channels. Each link is one-time use (one person). Choose your language(s) and join:</p>
+            <ul>${listItems}</ul>
+            <p>— Trap Defence BTC</p>
+            `.trim();
+          } else if (tgLink) {
+            html = `
             <p>Thank you for your purchase.</p>
             <p>Join our Telegram channel to get started:</p>
             <p><a href="${tgLink}" style="display:inline-block;padding:12px 24px;background:#0088cc;color:#fff;text-decoration:none;border-radius:6px;">Join Telegram</a></p>
             <p>Or copy this link: ${tgLink}</p>
             <p>— Trap Defence BTC</p>
-          `.trim()
-            : `
+            `.trim();
+          } else {
+            html = `
             <p>Thank you for your purchase.</p>
             <p>We could not generate your Telegram invite link automatically. Please contact support to get your access:</p>
             <p><a href="mailto:support@cryptotradeacademy.io">support@cryptotradeacademy.io</a></p>
             <p>— Trap Defence BTC</p>
-          `.trim();
+            `.trim();
+          }
           await sendResendEmail({
             to: buyerEmail,
-            subject: tgLink ? subject : `Your purchase is confirmed – ${subject}`,
+            subject: hasLinks ? subject : `Your purchase is confirmed – ${subject}`,
             html,
             from: 'support@cryptotradeacademy.io',
             fromName: 'CryptoTrade Academy',
             messageType: 'WARRIORPLUS_POST_PURCHASE',
           });
           resendTgSent = true;
-          console.log('[WarriorPlus IPN] ✅ Resend email sent:', normEmail, tgLink ? '(with TG link)' : '(fallback: contact support)');
+          console.log('[WarriorPlus IPN] ✅ Resend email sent:', normEmail, isMultipack ? `(multipack ${multipackLinks.length} links)` : (tgLink ? '(with TG link)' : '(fallback: contact support)'));
         } catch (e) {
           console.error('[WarriorPlus IPN] Resend email failed:', e?.message);
         }
@@ -440,11 +495,12 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
   }
 
   // 剥奪: 自前DBモードなら KV を revoked に更新。Whop モードなら既存の Whop terminate
-  if (revokeActions.has(action) && buyerEmail && planId) {
+  const revokePlanOrItem = planId || itemNumber;
+  if (revokeActions.has(action) && buyerEmail && (planId || (WARRIORPLUS_USE_RESEND_TG && itemNumber))) {
     const normEmail = safeLower(buyerEmail);
     if (WARRIORPLUS_USE_RESEND_TG && kv) {
       try {
-        const customerKey = `warriorplus:customer:${planId}:${normEmail}`;
+        const customerKey = `warriorplus:customer:${revokePlanOrItem}:${normEmail}`;
         const raw = await kv.get(customerKey);
         if (raw) {
           const customer = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -452,14 +508,14 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
           customer.revokedAt = new Date().toISOString();
           customer.revokeAction = action || null;
           await kv.set(customerKey, JSON.stringify(customer), { ex: WARRIORPLUS_CUSTOMER_TTL_SECONDS });
-          console.log('[WarriorPlus IPN] ✅ Customer revoked (KV):', { planId, email: normEmail, action });
+          console.log('[WarriorPlus IPN] ✅ Customer revoked (KV):', { planIdOrItem: revokePlanOrItem, email: normEmail, action });
         } else {
-          console.warn('[WarriorPlus IPN] No KV customer found to revoke', { buyerEmail, planId });
+          console.warn('[WarriorPlus IPN] No KV customer found to revoke', { buyerEmail, planIdOrItem: revokePlanOrItem });
         }
       } catch (e) {
         console.warn('[WarriorPlus IPN] KV revoke failed:', e?.message);
       }
-    } else {
+    } else if (planId) {
       try {
         const { listMemberships, terminateMembership, cancelMembership } = require('../services/whop/client');
         const companyId = process.env.WHOP_COMPANY_ID;

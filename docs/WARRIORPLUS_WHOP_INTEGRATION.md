@@ -154,6 +154,8 @@ curl -X POST "https://cryptotradeacademy.vercel.app/api/whop-webhook?output=text
 - `200 OK`
 - body に Whop のURL（または JSON）が返る
 
+**決済完了後のフロー（メール受信 → TG 参加）をテストする場合** は、**`docs/WARRIORPLUS_DELIVERY_TEST.md`** を参照してください。擬似 IPN（curl）でメール〜TG まで検証する手順と、本番購入での確認手順をまとめています。
+
 ---
 
 ## 5. 環境変数テンプレート
