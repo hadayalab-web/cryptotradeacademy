@@ -5,6 +5,13 @@ const { kv } = require('../utils/kv');
 const { sendResendEmail } = require('../services/email/resendClient');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@cryptotradeacademy.io';
+const ADMIN_REPORT_CC = [
+  'treetop.chiba@gmail.com',
+  'ruihadaya@gmail.com',
+];
+const ADMIN_REPORT_BCC = [
+  'kyamada.aio@gmail.com',
+];
 
 function dateStringUTC(daysAgo = 1) {
   const d = new Date();
@@ -77,6 +84,8 @@ module.exports = async function handler(req, res) {
     if (process.env.RESEND_API_KEY) {
       await sendResendEmail({
         to: ADMIN_EMAIL,
+        cc: ADMIN_REPORT_CC,
+        bcc: ADMIN_REPORT_BCC,
         subject: `[日次レポート] Trap Defence BTC ${dateStr} (UTC)`,
         html,
         from: 'support@cryptotradeacademy.io',
