@@ -196,6 +196,38 @@ function getWarriorPlusPlanIds() {
 }
 
 const WARRIORPLUS_ALLOWED_EMAIL_TTL_SECONDS = 3600; // 1時間
+const WARRIORPLUS_DAILY_STAT_TTL_SECONDS = 86400 * 32; // 日次レポート用32日保持
+
+/** 日次レポート用に KV カウンタをインクリメント（UTC 日付） */
+async function incrementWarriorPlusDailyStat(kvStore, suffix) {
+  if (!kvStore || !suffix) return;
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const key = `warriorplus:daily:${dateStr}:${suffix}`;
+  try {
+    const n = await kvStore.incr(key, 1);
+    if (n === 1) await kvStore.expire(key, WARRIORPLUS_DAILY_STAT_TTL_SECONDS);
+  } catch (e) {
+    console.warn('[WarriorPlus IPN] Daily stat incr failed:', e?.message);
+  }
+}
+
+/** 日次レポート用に売上金額を加算（WP_SALE_AMOUNT / WP_AMOUNT、USD） */
+async function addWarriorPlusDailyRevenue(kvStore, amount) {
+  if (!kvStore || amount == null || Number(amount) <= 0) return;
+  const num = parseFloat(amount);
+  if (!Number.isFinite(num)) return;
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const key = `warriorplus:daily:${dateStr}:revenue`;
+  try {
+    const current = await kvStore.get(key);
+    const prev = parseFloat(current) || 0;
+    const next = prev + num;
+    await kvStore.set(key, String(next), { ex: WARRIORPLUS_DAILY_STAT_TTL_SECONDS });
+  } catch (e) {
+    console.warn('[WarriorPlus IPN] Daily revenue add failed:', e?.message);
+  }
+}
+
 /** Whop を使わず Resend で TG 招待＋KV 顧客管理にする場合は 1 */
 const WARRIORPLUS_USE_RESEND_TG = process.env.WARRIORPLUS_USE_RESEND_TG === '1';
 const WARRIORPLUS_CUSTOMER_TTL_SECONDS = 86400 * 365; // 1年（解約で無効化するまで保持）
@@ -837,6 +869,10 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
           });
           resendTgSent = true;
           console.log('[WarriorPlus IPN] ✅ Resend email sent:', normEmail, 'lang:', emailLang, isMultipack ? `(multipack ${multipackLinks.length} links)` : (tgLink ? '(with TG link)' : '(fallback: contact support)'));
+          await incrementWarriorPlusDailyStat(kv, 'grants');
+          await incrementWarriorPlusDailyStat(kv, 'access_emails');
+          const saleAmount = parseFloat(parsed.WP_SALE_AMOUNT || parsed.WP_AMOUNT || 0);
+          if (Number.isFinite(saleAmount) && saleAmount > 0) await addWarriorPlusDailyRevenue(kv, saleAmount);
         } catch (e) {
           console.error('[WarriorPlus IPN] Resend email failed:', e?.message);
         }
@@ -976,6 +1012,8 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
               messageType: 'WARRIORPLUS_REVOKE',
             });
             console.log('[WarriorPlus IPN] ✅ Revoke email sent:', normEmail, 'type:', emailType, 'lang:', emailLang);
+            await incrementWarriorPlusDailyStat(kv, 'revokes');
+            await incrementWarriorPlusDailyStat(kv, 'revoke_emails');
           }
         }
       } catch (e) {
