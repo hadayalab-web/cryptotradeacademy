@@ -4,6 +4,13 @@
 
 ---
 
+## 本番構成（参照: WARRIORPLUS_WHOP_REFERENCE.md）
+
+- **Whop LP → W+ の導線**は言語別に6本（EN/ES/PT/AR/KO/JA）。**販売するプロダクトは6言語パックの同じ商品**。
+- どの導線（どの `WP_ITEM_NUMBER`）で購入されても、届くメールには **6言語分の TG リンクが6本** 入る。ユーザーは自分の言語のリンクを選んで参加する。
+
+---
+
 ## 前提
 
 - Vercel に **WARRIORPLUS_USE_RESEND_TG=1**、**WARRIORPLUS_SECURITY_KEY**、**RESEND_API_KEY** が設定済みであること。
@@ -43,8 +50,8 @@ curl -X POST "https://cryptotradeacademy.vercel.app/api/whop-webhook" `
 ```
 
 - **IPN_ID** はテストのたびに変える（例: `delivery_test_002`）。同じ ID だと重複扱いでメールが送られない。
-- **WP_ITEM_NUMBER** を変えると言語が変わる（EN: wso_vqp3r4, ES: wso_lxd2wq, PT: wso_dqz789, AR: wso_zn9g7p, KO: wso_vm68d9, JA: wso_zv25jy）。
-- **TG専用（Whop を使わない）** の場合、`WARRIORPLUS_ITEM_NUMBER_*_WHOP_PLAN_ID` を設定していなくても、`WARRIORPLUS_ITEM_TO_LANG` に含まれる item（例: wso_vqp3r4）であれば Resend 送信される。
+- **WP_ITEM_NUMBER** は本番のいずれか（例: wso_vqp3r4）でよい。どの item でも **1通に6本のTGリンク** が送られる（本番と同じ）。
+- **TG専用（Whop を使わない）** の場合、`WARRIORPLUS_ITEM_NUMBER_*_WHOP_PLAN_ID` を設定していなくても、`WARRIORPLUS_ITEM_TO_LANG` に含まれる item であれば Resend 送信される。
 
 ### 4. 確認すること
 
