@@ -3,7 +3,7 @@
 
 const { addFreeUser, isFreeUser, removeFreeUser } = require('../free-users/manager');
 const { sendMessageToAsset } = require('./bot');
-const { getWhopUpgradeLink } = require('./whop-links');
+const { getLandingPageUpgradeLink } = require('./lp-links');
 const SUPPORTED_LANGS = ['en', 'es', 'pt-br', 'ar', 'ja', 'ko'];
 
 function normalizeLang(value) {
@@ -102,7 +102,7 @@ For educational purposes only. Not financial advice.`;
  * 有料版へのアップグレードを案内
  */
 async function handleUpgradeCommand(chatId, username = null) {
-  const whopUpgradeLink = getWhopUpgradeLink();
+  const lpUpgradeLink = getLandingPageUpgradeLink();
   const upgradeMessage = `🚀 Upgrade to Full Intelligence Report
 
 Unlock complete market intelligence:
@@ -119,7 +119,7 @@ Unlock complete market intelligence:
 The difference between protecting capital and losing it is often just one missed trap signal.
 
 🎯 Upgrade Now
-→ Upgrade now: ${whopUpgradeLink}
+→ Upgrade now: ${lpUpgradeLink}
 $69/month • Cancel anytime
 
 For educational purposes only. Not financial advice.`;

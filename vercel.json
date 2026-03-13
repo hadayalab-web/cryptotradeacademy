@@ -111,6 +111,10 @@
     {
       "path": "/api/x-post-minimal",
       "schedule": "8 0,6,12,18 * * *"
+    },
+    {
+      "path": "/api/daily-admin-report",
+      "schedule": "0 1 * * *"
     }
   ]
 }

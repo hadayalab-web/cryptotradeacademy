@@ -35,12 +35,17 @@ function resolveMinimalChatId(lang) {
   return process.env.TELEGRAM_CHAT_ID_MINIMAL_EN || process.env.TELEGRAM_CHAT_ID_MINIMAL || null;
 }
 
-const { getMinimalVersionCheckoutUrl, getWhopProductUrl, getPromoCode, getVidalyticsLink } = require("../services/telegram/whop-links");
+const {
+  getMinimalVersionCheckoutUrl,
+  getLandingPageUrl,
+  getPromoCode,
+  getVidalyticsLink
+} = require("../services/telegram/lp-links");
 
 /** 有料版（Regular Briefing）アップセル文言：3行構成（見出し／視聴／申し込み） */
 function getUpsellBlock(lang = "en") {
   const vidUrl = getVidalyticsLink(lang === "pt-br" ? "pt" : lang, "regular");
-  const whopUrl = getWhopProductUrl(lang);
+  const lpUrl = getLandingPageUrl(lang);
   const code = (getPromoCode() || "defend50").toUpperCase();
   const heading = {
     en: "⬆️ Upgrade: Regular Briefing — full structure + 5-min pulse (KIBA)",
@@ -61,7 +66,7 @@ function getUpsellBlock(lang = "en") {
   };
   const h = heading[lang] || heading.en;
   const w = (watchLabel[lang] || watchLabel.en) + " " + vidUrl;
-  const a = (accessLabel[lang] || accessLabel.en) + " " + whopUrl + "  Code: " + code;
+  const a = (accessLabel[lang] || accessLabel.en) + " " + lpUrl + "  Code: " + code;
   return [h, w, a].join("\n");
 }
 

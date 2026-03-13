@@ -18,9 +18,11 @@
 | 変数 | 必須 | 説明 |
 |------|------|------|
 | `WARRIORPLUS_USE_RESEND_TG` | ✅ | `1` で Whop チェックアウトをスキップし、KV＋Resend で処理 |
-| `WARRIORPLUS_TG_CHANNEL_INVITE_LINK` | どちらか | 固定の TG 招待リンク。**未設定時**は Bot API で都度発行（下記を使用） |
-| `TELEGRAM_BOT_TOKEN` | どちらか | 招待リンクを API で発行する場合に必須（Bot はチャンネル管理者であること） |
-| `TELEGRAM_CHAT_ID_BTC_EN` / `ES` / `AR` / `PT_BR` / `KO` / `JA` | どちらか | 言語別チャンネル ID。IPN の `WP_ITEM_NUMBER` から言語を判定し、該当チャンネルの1回用・7日有効リンクを発行 |
+| `WARRIORPLUS_TG_CHANNEL_INVITE_LINK` | 任意 | 全言語共通の固定招待リンク（未設定時は言語別 or Bot API で解決） |
+| **`WARRIORPLUS_TG_INVITE_LINK_EN`** / **ES** / **PT_BR** / **AR** / **KO** / **JA** | 推奨 | 言語別の固定招待リンク（t.me/+xxx）。設定されていれば Bot API より優先 |
+| `TELEGRAM_BOT_TOKEN` | どちらか | 上記が無い場合に Bot API で都度発行するときに必須 |
+| `TELEGRAM_CHAT_ID_BTC_EN` / `ES` / … | どちらか | Bot API 発行時に使用するチャンネル ID |
+| **`WARRIORPLUS_MULTIPACK_ITEM_NUMBER`** | マルチパック時 | 6言語1パック商品の `WP_ITEM_NUMBER`（例: wso_xxx）。設定時は1回の購入で6チャンネル分の1回限りリンクをメールで送る。 |
 | `WARRIORPLUS_ACCESS_URL` | 推奨 | KeyGen で返す固定 URL（「メールを確認してください」ページなど） |
 | `WARRIORPLUS_POST_PURCHASE_EMAIL_SUBJECT` | 任意 | メール件名（未設定時: "Your Telegram access – Trap Defence BTC"） |
 | `RESEND_API_KEY` | ✅ | Resend 送信用（既存） |
