@@ -667,16 +667,18 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
   const itemName = String(parsed.WP_ITEM_NAME || '').trim();
   const securityKey = String(parsed.WP_SECURITYKEY || '').trim();
 
+  // W+ テスト/疎通で「空POST」や「WP_* が一切ない」通知が来ることがある。
+  // 実購入IPNではないため、運用の不安要素（errorログ）を出さずに 200 で無視する。
+  const hasAnyWpField = Boolean(action || ipnId || saleId || buyerEmail || itemNumber || itemName || securityKey);
+  if (!hasAnyWpField) {
+    console.warn('[WarriorPlus IPN] Ignored empty notification');
+    return res.status(200).json({ received: true, provider: 'warriorplus', ignored: true });
+  }
+
   const requiredKey = String(process.env.WARRIORPLUS_SECURITY_KEY || '').trim();
   const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
   if (requiredKey) {
     if (!securityKey || securityKey !== requiredKey) {
-      console.error('[WarriorPlus IPN] ❌ Invalid WP_SECURITYKEY', {
-        hasKey: !!securityKey,
-        action,
-        ipnId,
-        saleId,
-      });
       if (isProduction) {
         // W+ の「Send Test」が WP_SECURITYKEY を付けない/不正なことがある。
         // ただし本物の購入IPN（buyerEmail + itemNumber + (saleId|ipnId) が揃う）は厳格に拒否する。
@@ -692,6 +694,14 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
           });
           return res.status(200).json({ received: true, provider: 'warriorplus', ignored: true });
         }
+        console.error('[WarriorPlus IPN] ❌ Invalid WP_SECURITYKEY', {
+          hasKey: !!securityKey,
+          action,
+          ipnId,
+          saleId,
+          buyerEmail: buyerEmail || null,
+          itemNumber: itemNumber || null,
+        });
         return res.status(401).json({ received: false, provider: 'warriorplus', error: 'Invalid WP_SECURITYKEY' });
       }
     }
@@ -994,6 +1004,19 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
  * POST /api/whop-webhook
  */
 async function handler(req, res) {
+  // W+ Key Generation URL（Thank Youページ）用: GETでも200を返せるようにする
+  // ここで返すのは「アクセス案内ページURL」なので秘匿情報は含めない前提
+  if (req.method === 'GET') {
+    const output = safeLower(req.query.output || '');
+    if (output === 'text') {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      const accessUrl = String(process.env.WARRIORPLUS_ACCESS_URL || '').trim();
+      // accessUrl未設定でも200で返す（W+側UIでの失敗表示を避ける）
+      return res.status(200).send(accessUrl || 'Check your email for the Telegram invite link.');
+    }
+    return res.status(200).json({ ok: true, provider: 'warriorplus' });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
