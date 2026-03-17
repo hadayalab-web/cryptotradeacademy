@@ -1,6 +1,6 @@
 /**
  * Affiliate Recruit DM クリック計測リダイレクト
- * - DM内リンクはこのAPIを経由して FirstPromoter 招待URLへ 302 リダイレクト
+ * - DM内リンクはこのAPIを経由して LP（→WarriorPlus決済）へ 302 リダイレクト
  * - ref(=author_id) 単位のクリック集計と直近イベントログを KV に保存
  */
 const { kv } = require("../utils/kv");

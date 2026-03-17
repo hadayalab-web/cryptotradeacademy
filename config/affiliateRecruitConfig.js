@@ -1,6 +1,5 @@
 /**
- * アフィリエイトリクルート設定: X DM リクルート → FirstPromoter 登録 → Whop 販売
- * 戦略: docs/AFFILIATE_STRATEGY_X_DM_FIRSTPROMOTER_WHOP.md
+ * アフィリエイトリクルート設定: X DM リクルート → LP → WarriorPlus（W+）決済
  */
 
 /** リクルート対象言語（Whop 6 市場と一致） */
@@ -98,12 +97,12 @@ const RECRUIT_PRODUCT_NAME_BY_ANGLE = {
     ja: "AI支援型BTCマーケットTGブリーフィング"
   },
   side_hustle: {
-    en: "Beginner-friendly recurring affiliate package (Whop + Telegram assets)",
-    es: "paquete de afiliación recurrente para principiantes (Whop + activos Telegram)",
-    pt: "pacote de afiliado recorrente para iniciantes (Whop + ativos Telegram)",
-    ar: "حزمة أفلييت متكررة مناسبة للمبتدئين (Whop + مواد تيليغرام)",
-    ko: "초보자용 리커링 제휴 패키지 (Whop + 텔레그램 소재)",
-    ja: "初心者向けリカーリング・アフィリエイトパッケージ（Whop＋TG素材）"
+    en: "Beginner-friendly recurring affiliate package (WarriorPlus + Telegram assets)",
+    es: "paquete recurrente para afiliados (WarriorPlus + activos de Telegram)",
+    pt: "pacote recorrente de afiliado (WarriorPlus + materiais do Telegram)",
+    ar: "حزمة أفلييت متكررة (WarriorPlus + مواد تيليغرام)",
+    ko: "초보자용 리커링 제휴 패키지 (WarriorPlus + 텔레그램 소재)",
+    ja: "初心者向けリカーリング・アフィリエイトパッケージ（WarriorPlus＋TG素材）"
   }
 };
 
@@ -155,49 +154,40 @@ function getRecruitAngleLabel(angle, lang) {
   return labels[resolvedAngle] || labels.crypto;
 }
 
-/**
- * 言語別 FirstPromoter 招待 URL の env キー（Vercel で FIRSTPROMOTER_INVITE_URL_EN 等を設定している場合に使用）
- */
-function getFirstPromoterInviteUrlEnvKey(lang) {
-  if (!lang || typeof lang !== "string") return null;
-  const key = `FIRSTPROMOTER_INVITE_URL_${lang.toUpperCase()}`;
-  return process.env[key] ? key : null;
+function resolveAffiliateInviteBaseUrl(lang = "en") {
+  const resolvedLang = normalizeRecruitLang(lang);
+  const key = `AFFILIATE_INVITE_URL_${resolvedLang.toUpperCase()}`;
+  if (process.env[key]) return String(process.env[key]).trim();
+  if (process.env.AFFILIATE_INVITE_URL) return String(process.env.AFFILIATE_INVITE_URL).trim();
+  // デフォルトはLP（Carrd）。CTA クリックで WarriorPlus 決済へ。
+  const { getLandingPageUrl } = require("../services/telegram/lp-links");
+  return getLandingPageUrl(resolvedLang);
 }
 
 /**
- * FirstPromoter 招待 URL。ref を渡すと DM→登録の紐づけ用にクエリに付与する（v2.0 ref対応）
- * 優先: FIRSTPROMOTER_INVITE_URL_XX（言語別）→ FIRSTPROMOTER_INVITE_URL → firstpromoter.com
- * @param {string} [lang="en"]
- * @param {{ ref?: string }} [options] - ref: X の author_id（送信先識別子）
+ * 互換: 旧 getFirstPromoterInviteUrl 名を維持しつつ、実体は LP（→W+決済）へ。
+ * ref を渡すとクエリに付与（DM→LPクリックの紐づけ用途）。
  */
 function getFirstPromoterInviteUrl(lang = "en", options = {}) {
-  const langKey = getFirstPromoterInviteUrlEnvKey(lang);
-  const base =
-    (langKey && process.env[langKey]) ||
-    process.env.FIRSTPROMOTER_INVITE_URL ||
-    "https://firstpromoter.com";
+  const base = resolveAffiliateInviteBaseUrl(lang);
   const params = new URLSearchParams();
-  if (!langKey && lang && lang !== "en") params.set("lang", lang);
   if (options.ref) params.set("ref", String(options.ref));
   const qs = params.toString();
   return qs ? `${base}${base.includes("?") ? "&" : "?"}${qs}` : base;
 }
 
+/**
+ * 互換: 旧 getWhopAffiliateProgramUrl 名を維持（LPに集約）
+ */
 function getWhopAffiliateProgramUrl(lang = "en") {
-  const base = process.env.WHOP_AFFILIATE_PROGRAM_URL || "https://whop.com/affiliates";
-  const langParam = lang && lang !== "en" ? `?lang=${lang}` : "";
-  return base + langParam;
+  return resolveAffiliateInviteBaseUrl(lang);
 }
 
 /**
- * X プロフィールの「ウェブサイト」欄に貼る FirstPromoter 招待 URL（1本のみ）。
- * 優先: FIRSTPROMOTER_INVITE_URL_EN → FIRSTPROMOTER_INVITE_URL → firstpromoter.com。utm_source=x_profile で出所識別。
+ * 互換: 旧 getFirstPromoterProfileUrl 名を維持（Xプロフィール用URL）
  */
 function getFirstPromoterProfileUrl() {
-  const base =
-    process.env.FIRSTPROMOTER_INVITE_URL_EN ||
-    process.env.FIRSTPROMOTER_INVITE_URL ||
-    "https://firstpromoter.com";
+  const base = resolveAffiliateInviteBaseUrl("en");
   const sep = base.includes("?") ? "&" : "?";
   return `${base}${sep}utm_source=x_profile`;
 }

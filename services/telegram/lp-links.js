@@ -33,7 +33,7 @@ function normalizeLang(rawLang) {
   return SUPPORTED_LANGS.includes(baseLang) ? baseLang : "en";
 }
 
-/** 言語別 LP（Carrd）。CTA クリックで WarriorPlus 決済へ。環境変数 WHOP_PRODUCT_URL_* / LP_URL_* で上書き可。 */
+/** 言語別 LP（Carrd）。CTA クリックで WarriorPlus 決済へ。環境変数は LP_URL_* のみを使用（WHOP_PRODUCT_URL_* は使用しない）。 */
 const DEFAULT_LP_URLS = {
   en: "https://trapdefence-btc-en.carrd.co/",
   es: "https://trapdefence-btc-es.carrd.co/",
@@ -49,19 +49,15 @@ function getLandingPageUrl(lang = null) {
   const urls = {
     en:
       process.env.LP_URL_EN ||
-      process.env.WHOP_PRODUCT_URL_EN ||
-      process.env.WHOP_PRODUCT_LINK_EN ||
       DEFAULT_LP_URLS["en"],
-    es: process.env.LP_URL_ES || process.env.WHOP_PRODUCT_URL_ES || DEFAULT_LP_URLS["es"],
+    es: process.env.LP_URL_ES || DEFAULT_LP_URLS["es"],
     "pt-br":
       process.env.LP_URL_PT ||
       process.env.LP_URL_PTBR ||
-      process.env.WHOP_PRODUCT_URL_PTBR ||
-      process.env.WHOP_PRODUCT_URL_PT_BR ||
       DEFAULT_LP_URLS["pt-br"],
-    ar: process.env.LP_URL_AR || process.env.WHOP_PRODUCT_URL_AR || DEFAULT_LP_URLS["ar"],
-    ko: process.env.LP_URL_KO || process.env.WHOP_PRODUCT_URL_KO || DEFAULT_LP_URLS["ko"],
-    ja: process.env.LP_URL_JA || process.env.WHOP_PRODUCT_URL_JA || DEFAULT_LP_URLS["ja"]
+    ar: process.env.LP_URL_AR || DEFAULT_LP_URLS["ar"],
+    ko: process.env.LP_URL_KO || DEFAULT_LP_URLS["ko"],
+    ja: process.env.LP_URL_JA || DEFAULT_LP_URLS["ja"]
   };
 
   return urls[targetLang] || urls["en"];

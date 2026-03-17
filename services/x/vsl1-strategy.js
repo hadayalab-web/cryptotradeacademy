@@ -1,5 +1,5 @@
 // Grok CSO+CFO推奨: X API言語別投稿自動化
-const { getWhopProductUrl } = require('../telegram/whop-links');
+const { getLandingPageUrl } = require('../telegram/lp-links');
 const DEFAULT_HASHTAGS = '#Bitcoin #CryptoTrading #TrapDefence #FreeSignals';
 
 // 言語別ハッシュタグ
@@ -155,7 +155,6 @@ function selectVsl1Variant(sentiment) {
 /**
  * VSL1ツイートを構築（多言語対応）
  * Grok CSO+CFO推奨: X API言語別投稿自動化
- * 24時間以内にWhop成約を獲得するため、Whop直リンクを追加
  * @param {Object} options - オプション
  * @param {string} options.vsl1Link - VSL1 YouTubeリンク
  * @param {string} options.deepLink - Telegram Deep Link
@@ -167,10 +166,9 @@ function buildVsl1Tweet({ vsl1Link, deepLink, variant = 'neutral', lang = 'en' }
   const langCopy = LANG_VARIANT_COPY[lang] || VARIANT_COPY;
   const copy = langCopy[variant] || langCopy.neutral || VARIANT_COPY.neutral;
   const hashtags = LANG_HASHTAGS[lang] || DEFAULT_HASHTAGS;
-  const whopUrl = getWhopProductUrl(lang);
+  const lpUrl = getLandingPageUrl(lang);
   
-  // 24時間以内にWhop成約を獲得するため、Whop直リンクを追加
-  return `${copy.hook}\n\n${vsl1Link}\n\n${copy.cta} ${deepLink}\n\n🚀 Get 50% OFF: ${whopUrl}?promo=DEFEND50\n\n${hashtags}`;
+  return `${copy.hook}\n\n${vsl1Link}\n\n${copy.cta} ${deepLink}\n\n${lpUrl}\n\n${hashtags}`;
 }
 
 module.exports = {

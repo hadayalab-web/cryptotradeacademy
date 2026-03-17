@@ -51,18 +51,13 @@ async function pickBestFunnelLink({ lang, narrative_tag, cta_type, weight }) {
     }
   } catch (_) {}
 
-  if (cta_type === "ATH_SURGE" && w >= 3) {
-    const link = candidates.find((c) => c.type === "whop_regular");
-    if (link) return link;
-  }
-
   if (narrative_tag === "FOMO") {
     const link = candidates.find((c) => c.type === "vidalytics_regular");
     if (link) return link;
   }
 
   if (w <= 1) {
-    const link = candidates.find((c) => c.type === "whop_minimal");
+    const link = candidates.find((c) => c.type === "vidalytics_leadmagnet");
     if (link) return link;
   }
 
