@@ -491,18 +491,89 @@ async function createTelegramInviteLink(botToken, chatId, opts = {}) {
     ...(opts.expire_date != null && { expire_date: opts.expire_date }),
   };
   try {
-    const res = await fetch(`https://api.telegram.org/bot${botToken}/createChatInviteLink`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!data.ok || !data.result?.invite_link) return null;
+    const controller = new AbortController();
+    const timeoutMs = Math.max(1000, Number(process.env.TELEGRAM_API_TIMEOUT_MS || 8000));
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    let res;
+    try {
+      res = await fetch(`https://api.telegram.org/bot${botToken}/createChatInviteLink`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(t);
+    }
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (_) {
+      data = null;
+    }
+
+    // Telegram 429 対応（retry_after 秒が返る場合がある）
+    const retryAfterSec = data?.parameters?.retry_after != null ? Number(data.parameters.retry_after) : null;
+    if (!res.ok || !data?.ok) {
+      const err = data?.description || `HTTP ${res.status}`;
+      const e = new Error(err);
+      e.status = res.status;
+      if (Number.isFinite(retryAfterSec) && retryAfterSec > 0) e.retryAfterSec = retryAfterSec;
+      throw e;
+    }
+
+    if (!data.result?.invite_link) return null;
     return data.result.invite_link;
   } catch (e) {
     console.warn('[WarriorPlus IPN] createChatInviteLink failed:', e?.message);
     return null;
   }
+}
+
+function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Telegram createChatInviteLink をバースト耐性つきで実行（429/5xx/ネットワークをリトライ）
+ * - デフォルトは小さめのリトライ回数（W+ IPNの再送を招かない）
+ * - 429 は retry_after を尊重
+ */
+async function createTelegramInviteLinkWithRetry(botToken, chatId, opts = {}) {
+  const maxAttempts = Math.max(1, Math.min(6, Number(process.env.TELEGRAM_INVITE_MAX_ATTEMPTS || 3)));
+  const baseDelayMs = Math.max(50, Number(process.env.TELEGRAM_INVITE_RETRY_BASE_MS || 350));
+  const maxDelayMs = Math.max(baseDelayMs, Number(process.env.TELEGRAM_INVITE_RETRY_MAX_MS || 2500));
+
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const link = await createTelegramInviteLink(botToken, chatId, opts);
+      if (link) return link;
+      // link が null の場合も一応リトライ対象（稀）
+      lastErr = new Error('No invite_link returned');
+    } catch (e) {
+      lastErr = e;
+    }
+
+    if (attempt >= maxAttempts) break;
+
+    const retryAfterSec = lastErr?.retryAfterSec;
+    const exp = Math.min(maxDelayMs, Math.round(baseDelayMs * (2 ** (attempt - 1))));
+    const jitter = Math.round(Math.random() * Math.min(300, exp));
+    const waitMs = Number.isFinite(retryAfterSec) && retryAfterSec > 0
+      ? Math.min(maxDelayMs * 3, Math.round(retryAfterSec * 1000) + jitter)
+      : Math.min(maxDelayMs * 3, exp + jitter);
+
+    // 429/ネットワーク/一時失敗の可能性が高いので少し待つ
+    await sleepMs(waitMs);
+  }
+
+  console.warn('[WarriorPlus IPN] TG invite link retry exhausted:', {
+    chatId: String(chatId || '').slice(0, 12),
+    error: lastErr?.message || String(lastErr || ''),
+  });
+  return null;
 }
 
 async function handleWarriorPlusIPN({ req, res, rawBody }) {
@@ -610,12 +681,16 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
         const chatIdEnv = process.env[`TELEGRAM_CHAT_ID_BTC_${lang}`];
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
         if (chatIdEnv && botToken) {
-          const link = await createTelegramInviteLink(botToken, String(chatIdEnv).trim(), {
+          const link = await createTelegramInviteLinkWithRetry(botToken, String(chatIdEnv).trim(), {
             member_limit: 1,
             expire_date: expireDate,
           });
           if (link) multipackLinks.push({ lang, label: MULTIPACK_LANG_LABELS[lang] || lang, link });
         }
+
+          // バースト時に Telegram 側へ瞬間的に叩きすぎないための「小さな間引き」
+          const spacingMs = Math.max(0, Number(process.env.TELEGRAM_INVITE_SPACING_MS || 120));
+          if (spacingMs > 0) await sleepMs(spacingMs);
       }
       console.log('[WarriorPlus IPN] 6-language pack: created', multipackLinks.length, 'invite links');
     } else {
@@ -632,7 +707,7 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
           const botToken = process.env.TELEGRAM_BOT_TOKEN;
           if (chatIdEnv && botToken) {
             const expireDate = Math.floor(Date.now() / 1000) + 86400 * 7;
-            tgLink = await createTelegramInviteLink(botToken, String(chatIdEnv).trim(), {
+            tgLink = await createTelegramInviteLinkWithRetry(botToken, String(chatIdEnv).trim(), {
               member_limit: 1,
               expire_date: expireDate,
             }) || tgLink;
