@@ -1009,6 +1009,12 @@ async function handler(req, res) {
     const ct = safeLower(req.headers['content-type']);
     const bodyText = rawBodyWasFromStream ? rawBody : (typeof rawBody === 'string' ? rawBody : '');
 
+    // Content-Type が不正でも、中身が form-urlencoded っぽい（key=value）なら処理を試みる
+    // ※W+側実装差異・中間プロキシ等で Content-Type が欠落するケースの対策
+    if (bodyText && bodyText.includes('=') && bodyText.includes('WP_')) {
+      return await handleWarriorPlusIPN({ req, res, rawBody: bodyText });
+    }
+
     // WarriorPlusの「Send Test」は JSON で送ることがあるため、JSONでも受ける
     if (ct.includes('application/json')) {
       const obj = parseBodyAsObject(bodyText) || (req.body && typeof req.body === 'object' ? req.body : null);
@@ -1023,7 +1029,10 @@ async function handler(req, res) {
       return await handleWarriorPlusIPN({ req, res, rawBody: bodyText });
     }
 
-    return res.status(415).json({ received: false, provider: 'warriorplus', error: 'Unsupported content-type' });
+    // W+ のテスト機能が「W+形式ではない」ペイロードを送る場合があるため、
+    // 415で弾いてUI上のテストを失敗させず、200で受理（ただしIPNとしては無視）する。
+    console.warn('[WarriorPlus IPN] Ignored test notification (unsupported content-type)', { ct: ct || null, len: bodyText ? bodyText.length : 0 });
+    return res.status(200).json({ received: true, provider: 'warriorplus', ignored: true });
   } catch (error) {
     console.error('[WarriorPlus IPN] ❌ Error processing IPN:', error.message);
     console.error('[WarriorPlus IPN] Stack:', error.stack);
