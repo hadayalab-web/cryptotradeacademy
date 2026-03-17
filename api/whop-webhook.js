@@ -721,7 +721,12 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
       if (isProduction) {
         // W+ の「Send Test」が WP_SECURITYKEY を付けない/不正なことがある。
         // ただし本物の購入IPN（buyerEmail + itemNumber + (saleId|ipnId) が揃う）は厳格に拒否する。
-        const looksLikeRealPurchase = Boolean(buyerEmail && itemNumber && (saleId || ipnId));
+        const explicitMultipackItem = String(process.env.WARRIORPLUS_MULTIPACK_ITEM_NUMBER || '').trim();
+        const isKnownItemNumber = Boolean(
+          (itemNumber && WARRIORPLUS_ITEM_TO_LANG[itemNumber]) ||
+          (explicitMultipackItem && itemNumber === explicitMultipackItem)
+        );
+        const looksLikeRealPurchase = Boolean(buyerEmail && itemNumber && (saleId || ipnId) && isKnownItemNumber);
         if (!looksLikeRealPurchase) {
           console.warn('[WarriorPlus IPN] Ignored test notification (invalid/missing WP_SECURITYKEY)', {
             action,
@@ -733,12 +738,16 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
           });
           return res.status(200).json({ received: true, provider: 'warriorplus', ignored: true });
         }
+        const mask = (s) => (s && s.length >= 4 ? s.slice(0, 4) + '…' : '(empty)');
         console.error('[WarriorPlus IPN] ❌ Invalid WP_SECURITYKEY', {
           hasKey: !!securityKey,
+          receivedPrefix: mask(securityKey),
+          receivedLen: (securityKey || '').length,
+          expectedPrefix: mask(requiredKey),
+          expectedLen: requiredKey.length,
           action,
           ipnId,
           saleId,
-          buyerEmail: buyerEmail || null,
           itemNumber: itemNumber || null,
         });
         return res.status(401).json({ received: false, provider: 'warriorplus', error: 'Invalid WP_SECURITYKEY' });
