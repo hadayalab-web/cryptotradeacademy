@@ -91,6 +91,48 @@ function parseBodyAsObject(rawBody) {
   return null;
 }
 
+function getMultipartBoundary(contentType) {
+  const ct = String(contentType || '');
+  const m = ct.match(/boundary=([^\s;]+)/i);
+  return m ? m[1] : null;
+}
+
+function parseMultipartFormData(bodyText, contentType) {
+  const boundary = getMultipartBoundary(contentType);
+  if (!boundary) return null;
+  const delimiter = `--${boundary}`;
+  const raw = String(bodyText || '');
+  if (!raw.includes(delimiter)) return null;
+
+  const parts = raw.split(delimiter);
+  const out = {};
+
+  for (const part of parts) {
+    const p = part.trim();
+    if (!p || p === '--') continue;
+
+    const idx = p.indexOf('\r\n\r\n') >= 0 ? p.indexOf('\r\n\r\n') : p.indexOf('\n\n');
+    if (idx < 0) continue;
+    const headerBlock = p.slice(0, idx);
+    let valueBlock = p.slice(idx + (p.includes('\r\n\r\n') ? 4 : 2));
+
+    // 末尾の改行・終端マーカーを除去
+    valueBlock = valueBlock.replace(/\r?\n--\s*$/g, '').replace(/\r?\n$/g, '');
+
+    const nameMatch = headerBlock.match(/name="([^"]+)"/i);
+    if (!nameMatch) continue;
+    const name = nameMatch[1];
+
+    // ファイルアップロードは無視（IPNでは不要）
+    const hasFilename = /filename="/i.test(headerBlock);
+    if (hasFilename) continue;
+
+    out[name] = valueBlock;
+  }
+
+  return out;
+}
+
 const WARRIORPLUS_ALLOWED_EMAIL_TTL_SECONDS = 3600; // 1時間
 const WARRIORPLUS_DAILY_STAT_TTL_SECONDS = 86400 * 32; // 日次レポート用32日保持
 
@@ -1058,6 +1100,15 @@ async function handler(req, res) {
     // WarriorPlusの「Send Test」は JSON で送ることがあるため、JSONでも受ける
     if (ct.includes('application/json')) {
       const obj = parseBodyAsObject(bodyText) || (req.body && typeof req.body === 'object' ? req.body : null);
+      if (obj && isLikelyWarriorPlusPayload(obj)) {
+        const bodyForWp = querystring.stringify(obj);
+        return await handleWarriorPlusIPN({ req, res, rawBody: bodyForWp });
+      }
+    }
+
+    // W+ は multipart/form-data で送ってくることがある（実売で確認済み）
+    if (ct.includes('multipart/form-data')) {
+      const obj = parseMultipartFormData(bodyText, ct);
       if (obj && isLikelyWarriorPlusPayload(obj)) {
         const bodyForWp = querystring.stringify(obj);
         return await handleWarriorPlusIPN({ req, res, rawBody: bodyForWp });
