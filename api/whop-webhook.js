@@ -3,11 +3,92 @@
 // ※W+側で既にURL設定済みの可能性が高いため、ファイル名/パスは維持。
 
 const querystring = require('querystring');
+const crypto = require('crypto');
 
 const { kv } = require('../utils/kv');
 
 function safeLower(s) {
   return String(s || '').toLowerCase().trim();
+}
+
+function getPublicBaseUrl() {
+  const explicit = String(process.env.PUBLIC_BASE_URL || '').trim();
+  if (explicit) return explicit.replace(/\/+$/, '');
+  const vercelUrl = String(process.env.VERCEL_URL || '').trim();
+  if (vercelUrl) return `https://${vercelUrl}`.replace(/\/+$/, '');
+  return 'https://cryptotradeacademy.vercel.app';
+}
+
+function appendRescueSection(html, rescueUrl, accessUrl, copy) {
+  const safeHtml = String(html || '');
+  const c = copy || {};
+  const title = c.somethingWrongTitle || 'If something went wrong';
+  const body = c.somethingWrongBody || 'If you did not receive the Telegram invite link, you can retry delivery here:';
+  const accessLine = accessUrl ? `<p style="margin:0; font-size:13px; color:#555; line-height:1.5;">Access page: <a href="${accessUrl}" style="color:#0088cc;">${accessUrl}</a></p>` : '';
+  const block = [
+    '<hr style="border:none; border-top:1px solid #eee; margin:18px 0;" />',
+    `<h3 style="margin:0 0 8px; font-size:16px; line-height:1.3;">${title}</h3>`,
+    `<p style="margin:0 0 8px; font-size:13px; color:#555; line-height:1.5;">${body}</p>`,
+    `<p style="margin:0 0 8px; font-size:13px; line-height:1.5;"><a href="${rescueUrl}" style="color:#0088cc; font-weight:600;">Re-send access email (Rescue)</a></p>`,
+    accessLine,
+  ].filter(Boolean).join('\n');
+  if (!safeHtml) return block;
+  return safeHtml.replace(/<\/body>\s*<\/html>\s*$/i, `${block}\n</body></html>`) + (safeHtml.match(/<\/body>\s*<\/html>\s*$/i) ? '' : `\n${block}`);
+}
+
+async function sendAdminAlert(subject, text) {
+  const to = String(process.env.WARRIORPLUS_ADMIN_ALERT_EMAIL || '').trim();
+  if (!to || !process.env.RESEND_API_KEY) return false;
+  try {
+    const { sendResendEmail } = require('../services/email/resendClient');
+    const html = `<pre style="white-space:pre-wrap; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:12px; line-height:1.5;">${String(text || '')}</pre>`;
+    await sendResendEmail({
+      to,
+      subject: `[W+ ALERT] ${subject}`,
+      html,
+      from: 'support@cryptotradeacademy.io',
+      fromName: 'CryptoTrade Academy',
+      messageType: 'WARRIORPLUS_ADMIN_ALERT',
+    });
+    return true;
+  } catch (e) {
+    console.error('[WarriorPlus IPN] Admin alert failed:', e?.message);
+    return false;
+  }
+}
+
+async function enqueuePendingGrant(kvWrapper, payload) {
+  const instance = kvWrapper && typeof kvWrapper.getInstance === 'function' ? kvWrapper.getInstance() : null;
+  if (!instance || typeof instance.lpush !== 'function' || typeof instance.set !== 'function') return false;
+  const id = crypto.randomUUID();
+  const key = `warriorplus:pending:${id}`;
+  try {
+    await instance.set(key, JSON.stringify({ ...payload, id, createdAt: new Date().toISOString() }), { ex: 86400 * 7 });
+    await instance.lpush('warriorplus:pending:queue', key);
+    return true;
+  } catch (e) {
+    console.warn('[WarriorPlus IPN] Pending enqueue failed:', e?.message);
+    return false;
+  }
+}
+
+function isLikelyWarriorPlusPayload(obj) {
+  if (!obj || typeof obj !== 'object') return false;
+  return Boolean(obj.WP_ACTION || obj.WP_SALEID || obj.WP_SALE || obj.IPN_ID || obj.WP_ITEM_NUMBER || obj.WP_BUYER_EMAIL);
+}
+
+function parseBodyAsObject(rawBody) {
+  const text = String(rawBody || '').trim();
+  if (!text) return null;
+  if (text.startsWith('{') && text.endsWith('}')) {
+    try {
+      const j = JSON.parse(text);
+      return (j && typeof j === 'object') ? j : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
 }
 
 const WARRIORPLUS_ALLOWED_EMAIL_TTL_SECONDS = 3600; // 1時間
@@ -666,6 +747,22 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
 
     let tgLink = null;
     let multipackLinks = []; // [{ lang, label, link }]
+    const publicBaseUrl = getPublicBaseUrl();
+    const rescueToken = crypto.randomUUID();
+    const rescueUrl = `${publicBaseUrl}/api/warriorplus-rescue?token=${encodeURIComponent(rescueToken)}`;
+    if (kv) {
+      try {
+        await kv.set(`warriorplus:rescue:${rescueToken}`, {
+          buyerEmail,
+          itemNumber,
+          saleId: saleId || null,
+          ipnId: ipnId || null,
+          action: action || null,
+        }, { ex: 86400 * 7 });
+      } catch (e) {
+        console.warn('[WarriorPlus IPN] Rescue token KV set failed:', e?.message);
+      }
+    }
 
     if (isMultipack) {
       // 6言語パック: 各チャンネルの1回限りリンクを発行（固定リンク優先、なければ Bot API）
@@ -746,6 +843,8 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
         } else {
           html = buildWarriorPlusSupportFallbackEmailHtml(emailCopy);
         }
+        const accessUrl = String(process.env.WARRIORPLUS_ACCESS_URL || '').trim();
+        html = appendRescueSection(html, rescueUrl, accessUrl, emailCopy);
         const subject = hasLinks ? subjectEnv : emailCopy.headerSubSupport;
         await sendResendEmail({
           to: buyerEmail,
@@ -761,11 +860,34 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
         await incrementWarriorPlusDailyStat(kv, 'access_emails');
         const saleAmount = parseFloat(parsed.WP_SALE_AMOUNT || parsed.WP_AMOUNT || 0);
         if (Number.isFinite(saleAmount) && saleAmount > 0) await addWarriorPlusDailyRevenue(kv, saleAmount);
+
+        // 招待リンクが作れていない/不足している場合は自動リトライ用にキューへ
+        if (!hasLinks || (isMultipack && multipackLinks.length < MULTIPACK_LANGS.length)) {
+          const enq = await enqueuePendingGrant(kv, { buyerEmail, itemNumber, saleId: saleId || null, reason: 'missing_invite_links' });
+          if (enq) {
+            await sendAdminAlert('Invite link missing (queued retry)', JSON.stringify({
+              buyerEmail,
+              itemNumber,
+              saleId: saleId || null,
+              multipackLinks: multipackLinks.length,
+              expected: MULTIPACK_LANGS.length,
+              rescueUrl,
+            }, null, 2));
+          }
+        }
       } catch (e) {
         console.error('[WarriorPlus IPN] Resend email failed:', e?.message);
+        await enqueuePendingGrant(kv, { buyerEmail, itemNumber, saleId: saleId || null, reason: 'resend_failed' });
+        await sendAdminAlert('Resend failed (queued retry)', JSON.stringify({
+          buyerEmail,
+          itemNumber,
+          saleId: saleId || null,
+          error: e?.message || String(e),
+        }, null, 2));
       }
     } else {
       console.warn('[WarriorPlus IPN] RESEND_API_KEY not set');
+      await sendAdminAlert('RESEND_API_KEY missing', JSON.stringify({ buyerEmail, itemNumber, saleId: saleId || null }, null, 2));
     }
   }
 
@@ -885,13 +1007,23 @@ async function handler(req, res) {
     }
 
     const ct = safeLower(req.headers['content-type']);
-    // W+ IPN は form-urlencoded が前提
-    if (!ct.includes('application/x-www-form-urlencoded')) {
-      return res.status(415).json({ received: false, provider: 'warriorplus', error: 'Unsupported content-type' });
+    const bodyText = rawBodyWasFromStream ? rawBody : (typeof rawBody === 'string' ? rawBody : '');
+
+    // WarriorPlusの「Send Test」は JSON で送ることがあるため、JSONでも受ける
+    if (ct.includes('application/json')) {
+      const obj = parseBodyAsObject(bodyText) || (req.body && typeof req.body === 'object' ? req.body : null);
+      if (obj && isLikelyWarriorPlusPayload(obj)) {
+        const bodyForWp = querystring.stringify(obj);
+        return await handleWarriorPlusIPN({ req, res, rawBody: bodyForWp });
+      }
     }
 
-    const bodyForWp = rawBodyWasFromStream ? rawBody : (typeof rawBody === 'string' ? rawBody : '');
-    return await handleWarriorPlusIPN({ req, res, rawBody: bodyForWp });
+    // 通常のIPN（form-urlencoded）
+    if (ct.includes('application/x-www-form-urlencoded')) {
+      return await handleWarriorPlusIPN({ req, res, rawBody: bodyText });
+    }
+
+    return res.status(415).json({ received: false, provider: 'warriorplus', error: 'Unsupported content-type' });
   } catch (error) {
     console.error('[WarriorPlus IPN] ❌ Error processing IPN:', error.message);
     console.error('[WarriorPlus IPN] Stack:', error.stack);

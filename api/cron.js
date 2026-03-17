@@ -371,6 +371,17 @@ module.exports = async function handler(req, res) {
   logger.info("Cron job started: Whale Monitor");
 
   try {
+    // W+ 購入の「失敗＝実害」をゼロに寄せるため、未送達/リンク不足のリトライを先に捌く
+    try {
+      const { processWarriorPlusPendingOnce } = require("../services/warriorplus/pendingProcessor");
+      const result = await processWarriorPlusPendingOnce({ limit: 6 });
+      if (result?.processed) {
+        logger.info(`[W+] Pending retry processed: ${result.processed}`);
+      }
+    } catch (e) {
+      logger.warn(`[W+] Pending retry skipped: ${e?.message || e}`);
+    }
+
     // /api/health 用: 最終実行時刻を記録（毎回）
     try {
       const { getKV } = require("../utils/kv");
