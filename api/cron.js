@@ -27,6 +27,13 @@ function parseBoolean(value, defaultValue = false) {
 const REGULAR_MULTI_LANG = parseBoolean(process.env.REGULAR_MULTI_LANG, true); // デフォルト: true（6言語すべてに配信）
 const MINIMAL_MULTI_LANG = parseBoolean(process.env.MINIMAL_MULTI_LANG, true); // デフォルト: true（6言語すべてに配信）
 
+function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// 6言語同時実行による 429 を避けるための言語間スリープ（ms）
+const REGULAR_LANG_SPACING_MS = Math.max(0, Number(process.env.REGULAR_LANG_SPACING_MS || 900));
+
 // 配信対象言語を取得
 function getTargetLanguagesForRegular() {
   if (REGULAR_MULTI_LANG) return SUPPORTED_LANGS;
@@ -162,6 +169,7 @@ const {
   sendMessageToChannel,
   sendMessageToAsset
 } = require("../services/telegram/bot");
+const { buildBenefitBlock, injectBenefitBlock } = require("../services/telegram/benefitBlock");
 const { getSocialProofText } = require("../services/telegram/reaction-counter");
 const { postProofToX } = require("../services/x/proof-post");
 // コンテンツ保存サービス（定時配信用）
@@ -1479,8 +1487,20 @@ module.exports = async function handler(req, res) {
       // Task 8: SoSoValue風記事は snapshotBuilder Stage 5 で生成済み（btcSnapshot.sosovalueArticle）
 
       // 各言語ごとに配信
-      for (const targetLang of targetLangsForRegular) {
+      for (let i = 0; i < targetLangsForRegular.length; i += 1) {
+        const targetLang = targetLangsForRegular[i];
         try {
+          if (i > 0 && REGULAR_LANG_SPACING_MS > 0) {
+            await sleepMs(REGULAR_LANG_SPACING_MS);
+          }
+          if (i === 0) {
+            console.log("[REGULAR] Model config:", {
+              GPT_MODEL: process.env.GPT_MODEL || null,
+              GROK_MODEL: process.env.GROK_MODEL || null,
+              GEMINI_MODEL: process.env.GEMINI_MODEL || null,
+              REGULAR_LANG_SPACING_MS
+            });
+          }
           console.log(`[REGULAR] Processing language: ${targetLang}`);
 
           // Task 10: diagnoseUserSentimentCompat(snapshot, lang) オーバーロード
@@ -1593,7 +1613,13 @@ module.exports = async function handler(req, res) {
             marketBug: marketBugDetection || null,
             internalImpact: kibaResult?.impact || { level: "NONE", intensity: "none" }
           };
-          const regularText = langFormatRegularBriefing(snapshotForRegular, targetLang, regularOpts);
+          const regularTextRaw = langFormatRegularBriefing(snapshotForRegular, targetLang, regularOpts);
+          const regularBenefitBlock = buildBenefitBlock({
+            kind: "regular",
+            lang: targetLang,
+            snapshot: snapshotForRegular
+          });
+          const regularText = injectBenefitBlock(regularTextRaw, regularBenefitBlock);
 
           // Telegram送信（オプション、環境変数で有効化）
           let regularActuallySent = false;

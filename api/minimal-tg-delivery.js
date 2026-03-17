@@ -5,6 +5,7 @@
 require("../utils/suppressKnownWarnings");
 const { getKV } = require("../utils/kv");
 const { sendMessageToAsset } = require("../services/telegram/bot");
+const { buildBenefitBlock, injectBenefitBlock } = require("../services/telegram/benefitBlock");
 
 const SUPPORTED_LANGS = ["en", "es", "pt-br", "ar", "ja", "ko"];
 
@@ -164,7 +165,13 @@ module.exports = async function handler(req, res) {
       }
       // Phase 3: formatMinimalBriefing(snapshot, lang) - accepts btcSnapshot or legacy payload
       // 無料版なので末尾のアップセル（Upgrade / Whop CTA）は付けない
-      const minimalText = formatMinimal(payload, targetLang);
+      const minimalTextRaw = formatMinimal(payload, targetLang);
+      const minimalBenefitBlock = buildBenefitBlock({
+        kind: "minimal",
+        lang: targetLang,
+        snapshot: payload
+      });
+      const minimalText = injectBenefitBlock(minimalTextRaw, minimalBenefitBlock);
 
       const chatId = resolveMinimalChatId(targetLang);
       if (!chatId) {
