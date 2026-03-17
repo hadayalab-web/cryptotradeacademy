@@ -1,6 +1,6 @@
 // api/whop-webhook.js
-// 2026-03: Whop / FirstPromoter は廃止。WarriorPlus（W+）IPN専用エンドポイントとして利用する。
-// ※W+側で既にURL設定済みの可能性が高いため、ファイル名/パスは維持。
+// 互換エイリアス: WarriorPlus（W+）IPN専用エンドポイントの旧パス。
+// 目的: 旧設定のままでもIPNを受けられるようにするだけ（内部的にはW+専用）。
 
 const querystring = require('querystring');
 const crypto = require('crypto');
@@ -124,7 +124,7 @@ async function addWarriorPlusDailyRevenue(kvStore, amount) {
   }
 }
 
-/** Whop を使わず Resend で TG 招待＋KV 顧客管理にする場合は 1 */
+/** W+（WarriorPlus）IPN で Resend+KV 顧客管理にする場合は 1 */
 const WARRIORPLUS_USE_RESEND_TG = process.env.WARRIORPLUS_USE_RESEND_TG === '1';
 /** 固定招待リンクを優先する場合のみ 1（デフォルトは Bot で1回限定リンクを発行） */
 const WARRIORPLUS_PREFER_STATIC_INVITE_LINKS = process.env.WARRIORPLUS_PREFER_STATIC_INVITE_LINKS === '1';
@@ -749,7 +749,7 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
     console.warn('[WarriorPlus IPN] Missing buyerEmail for action:', action, 'ipnId:', ipnId);
   }
 
-  // Whop/FirstPromoter廃止: WarriorPlus→自前KV＋Resend＋Telegram のみ
+  // WarriorPlus→自前KV＋Resend＋Telegram のみ
   const canGrant = WARRIORPLUS_USE_RESEND_TG &&
     grantActions.has(action) &&
     buyerEmail &&
@@ -1000,7 +1000,7 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
 }
 
 /**
- * Whop Webhook Handler
+ * WarriorPlus IPN Handler（旧URL互換エイリアス）
  * POST /api/whop-webhook
  */
 async function handler(req, res) {
@@ -1045,6 +1045,9 @@ async function handler(req, res) {
 
     const ct = safeLower(req.headers['content-type']);
     const bodyText = rawBodyWasFromStream ? rawBody : (typeof rawBody === 'string' ? rawBody : '');
+    const bodyLen = typeof bodyText === 'string' ? bodyText.length : 0;
+    // 実購入IPNが「空」で届く原因切り分け用（PIIは出さない）
+    console.log('[WarriorPlus IPN] POST received', { contentType: ct || '(none)', bodyLength: bodyLen, hasWpInBody: bodyLen > 0 && bodyText.includes('WP_') });
 
     // Content-Type が不正でも、中身が form-urlencoded っぽい（key=value）なら処理を試みる
     // ※W+側実装差異・中間プロキシ等で Content-Type が欠落するケースの対策
