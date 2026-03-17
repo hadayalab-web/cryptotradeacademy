@@ -1088,10 +1088,14 @@ async function handler(req, res) {
     // 実購入IPNが「空」で届く原因切り分け用（PIIは出さない）
     console.log('[WarriorPlus IPN] POST received', { contentType: ct || '(none)', bodyLength: bodyLen, hasWpInBody: bodyLen > 0 && bodyText.includes('WP_') });
 
-    // Content-Type が不正でも、中身が form-urlencoded っぽい（key=value）なら処理を試みる
-    // ※W+側実装差異・中間プロキシ等で Content-Type が欠落するケースの対策
-    if (bodyText && bodyText.includes('=') && bodyText.includes('WP_')) {
-      return await handleWarriorPlusIPN({ req, res, rawBody: bodyText });
+    // W+ は multipart/form-data で送ってくることがある（実売で確認済み）。必ず先に判定する。
+    // ※multipart の生 body も "=" と "WP_" を含むため、後続の「form っぽい」分岐に入ると querystring.parse で壊れる
+    if (ct.includes('multipart/form-data')) {
+      const obj = parseMultipartFormData(bodyText, ct);
+      if (obj && isLikelyWarriorPlusPayload(obj)) {
+        const bodyForWp = querystring.stringify(obj);
+        return await handleWarriorPlusIPN({ req, res, rawBody: bodyForWp });
+      }
     }
 
     // WarriorPlusの「Send Test」は JSON で送ることがあるため、JSONでも受ける
@@ -1103,17 +1107,13 @@ async function handler(req, res) {
       }
     }
 
-    // W+ は multipart/form-data で送ってくることがある（実売で確認済み）
-    if (ct.includes('multipart/form-data')) {
-      const obj = parseMultipartFormData(bodyText, ct);
-      if (obj && isLikelyWarriorPlusPayload(obj)) {
-        const bodyForWp = querystring.stringify(obj);
-        return await handleWarriorPlusIPN({ req, res, rawBody: bodyForWp });
-      }
-    }
-
     // 通常のIPN（form-urlencoded）
     if (ct.includes('application/x-www-form-urlencoded')) {
+      return await handleWarriorPlusIPN({ req, res, rawBody: bodyText });
+    }
+
+    // Content-Type が不正でも、中身が form-urlencoded っぽい（key=value）なら処理を試みる（multipart は除外）
+    if (!ct.includes('multipart/form-data') && bodyText && bodyText.includes('=') && bodyText.includes('WP_')) {
       return await handleWarriorPlusIPN({ req, res, rawBody: bodyText });
     }
 
