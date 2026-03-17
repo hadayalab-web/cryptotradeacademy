@@ -72,6 +72,30 @@ async function enqueuePendingGrant(kvWrapper, payload) {
   }
 }
 
+async function acquireOnce(kvWrapper, key, ttlSeconds) {
+  if (!kvWrapper || !key) return false;
+  const instance = typeof kvWrapper.getInstance === 'function' ? kvWrapper.getInstance() : null;
+  // Upstash Redis: SET key value NX EX ttl
+  if (instance && typeof instance.set === 'function') {
+    try {
+      const res = await instance.set(key, '1', { nx: true, ex: ttlSeconds });
+      // @upstash/redis returns "OK" or null, @vercel/kv usually returns "OK" or null
+      return Boolean(res);
+    } catch (_) {
+      // fall through
+    }
+  }
+  // Fallback (non-atomic): get then set
+  try {
+    const exists = await kvWrapper.get(key);
+    if (exists) return false;
+    await kvWrapper.set(key, '1', { ex: ttlSeconds });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 function isLikelyWarriorPlusPayload(obj) {
   if (!obj || typeof obj !== 'object') return false;
   return Boolean(obj.WP_ACTION || obj.WP_SALEID || obj.WP_SALE || obj.IPN_ID || obj.WP_ITEM_NUMBER || obj.WP_BUYER_EMAIL);
@@ -190,7 +214,7 @@ const WP_EMAIL_COPY = {
     headerSubSix: 'Your Telegram access — 6 languages',
     headerSubSingle: 'Your Telegram access',
     headerSubSupport: 'Purchase confirmed',
-    introSix: 'This is your access email. You bought the 6-language pack. Below are links to join the Telegram channel in English, Spanish, Portuguese, Arabic, Korean, and Japanese. Pick the language you want and follow the steps.',
+    introSix: 'Welcome to the Shield. You are no longer the bait. Below are your one-time access links to join the Trap Defence BTC Telegram channels in English, Spanish, Portuguese, Arabic, Korean, and Japanese. Pick your language and follow the steps.',
     whatToDo: 'What to do now',
     step1Six: 'Find your language in the list below (e.g. English, Spanish, Japanese).',
     step2Six: 'Tap the blue Join channel button for that language.',
@@ -198,6 +222,10 @@ const WP_EMAIL_COPY = {
     telegramNote: 'You need the Telegram app (free) on your phone or desktop. If the button doesn’t open Telegram, copy the link under the button and paste it into your browser or Telegram.',
     chooseLang: 'Choose your language and join',
     oneTimeNote: 'Each link is one-time use. You can join more than one language if you like.',
+    burnWarningTitle: '⚠️ IMPORTANT (ONE‑TIME LINKS)',
+    burnWarningBody: 'Do NOT click a Join button until Telegram is installed and you are logged in on this device. If you click on the wrong device/browser first, the link may be consumed.',
+    whatsNextTitle: "What's next?",
+    whatsNextBody: 'After you join your preferred language channel, turn on notifications. The AI will alert you when the next major Trap is detected.',
     somethingWrong: 'Something wrong?',
     somethingWrongBody: 'Link expired, button didn’t work, or you didn’t receive access? Email us at',
     fromSameAddress: 'from the same address you used to buy. We’ll send you a new link.',
@@ -228,6 +256,10 @@ const WP_EMAIL_COPY = {
     telegramNote: 'Necesitas la app Telegram (gratis). Si el botón no abre Telegram, copia el enlace y pégalo en tu navegador o en Telegram.',
     chooseLang: 'Elige tu idioma y únete',
     oneTimeNote: 'Cada enlace es de un solo uso. Puedes unirte a más de un idioma si quieres.',
+    burnWarningTitle: '⚠️ IMPORTANTE (ENLACES DE UN SOLO USO)',
+    burnWarningBody: 'NO pulses “Unirse” hasta tener Telegram instalado y haber iniciado sesión en este dispositivo. Si lo abres primero en el dispositivo equivocado, el enlace puede consumirse.',
+    whatsNextTitle: '¿Qué sigue?',
+    whatsNextBody: 'Después de unirte a tu canal, activa las notificaciones. La IA te avisará cuando detecte la próxima gran Trampa.',
     somethingWrong: '¿Algo falló?',
     somethingWrongBody: '¿Enlace caducado o botón que no funciona? Escríbenos a',
     fromSameAddress: 'desde el mismo correo con el que compraste. Te enviaremos un nuevo enlace.',
@@ -258,6 +290,10 @@ const WP_EMAIL_COPY = {
     telegramNote: 'Você precisa do app Telegram (grátis). Se o botão não abrir o Telegram, copie o link e cole no navegador ou no Telegram.',
     chooseLang: 'Escolha seu idioma e entre',
     oneTimeNote: 'Cada link é de uso único. Você pode entrar em mais de um idioma se quiser.',
+    burnWarningTitle: '⚠️ IMPORTANTE (LINKS DE USO ÚNICO)',
+    burnWarningBody: 'NÃO clique em “Entrar” até ter o Telegram instalado e estar logado neste dispositivo. Se abrir no dispositivo errado primeiro, o link pode ser consumido.',
+    whatsNextTitle: 'O que acontece agora?',
+    whatsNextBody: 'Depois de entrar no seu canal, ative as notificações. A IA avisará quando detectar a próxima grande Armadilha.',
     somethingWrong: 'Algo errado?',
     somethingWrongBody: 'Link expirado ou botão não funcionou? Envie um e-mail para',
     fromSameAddress: 'do mesmo e-mail que usou na compra. Enviaremos um novo link.',
@@ -288,6 +324,10 @@ const WP_EMAIL_COPY = {
     telegramNote: 'تحتاج تطبيق تليجرام (مجاني). إن لم يفتح الزر التطبيق، انسخ الرابط وألصقه في المتصفح أو تليجرام.',
     chooseLang: 'اختر لغتك وانضم',
     oneTimeNote: 'كل رابط لاستخدام واحد. يمكنك الانضمام لأكثر من لغة إن رغبت.',
+    burnWarningTitle: '⚠️ مهم (روابط للاستخدام مرة واحدة)',
+    burnWarningBody: 'لا تضغط زر الانضمام قبل تثبيت تليجرام وتسجيل الدخول على هذا الجهاز. إذا فتحته أولاً على جهاز خاطئ قد يُستهلك الرابط.',
+    whatsNextTitle: 'ماذا بعد؟',
+    whatsNextBody: 'بعد الانضمام للقناة المفضلة لديك، فعّل الإشعارات. سيُنبهك الذكاء الاصطناعي عند اكتشاف الفخ الكبير التالي.',
     somethingWrong: 'مشكلة؟',
     somethingWrongBody: 'انتهى الرابط أو الزر لا يعمل؟ راسلنا على',
     fromSameAddress: 'من نفس البريد الذي اشتريت به. سنرسل لك رابطاً جديداً.',
@@ -318,6 +358,10 @@ const WP_EMAIL_COPY = {
     telegramNote: 'Telegram 앱(무료)이 필요합니다. 버튼이 동작하지 않으면 아래 링크를 복사해 브라우저나 Telegram에 붙여넣으세요.',
     chooseLang: '언어를 선택하고 참가하세요',
     oneTimeNote: '링크는 1회 사용입니다. 여러 언어 채널에 참가할 수 있습니다.',
+    burnWarningTitle: '⚠️ 중요 (1회용 링크)',
+    burnWarningBody: '이 기기에 Telegram을 설치하고 로그인한 뒤에만 참가 버튼을 누르세요. 다른 기기/브라우저에서 먼저 누르면 링크가 소진될 수 있습니다.',
+    whatsNextTitle: '다음은 무엇인가요?',
+    whatsNextBody: '채널에 참가한 뒤 알림을 켜세요. AI가 다음 주요 트랩을 감지하면 즉시 알려드립니다.',
     somethingWrong: '문제가 있나요?',
     somethingWrongBody: '링크 만료, 버튼이 안 눌리거나 접속이 안 되나요? 구매 시 사용한 이메일로',
     fromSameAddress: '문의해 주시면 새 링크를 보내드립니다.',
@@ -348,6 +392,10 @@ const WP_EMAIL_COPY = {
     telegramNote: 'Telegramアプリ（無料）が必要です。ボタンで開かない場合は、下のリンクをコピーしてブラウザまたはTelegramに貼り付けてください。',
     chooseLang: '言語を選んで参加',
     oneTimeNote: '各リンクは1回限りです。複数の言語に参加しても構いません。',
+    burnWarningTitle: '⚠️ 重要（1回限りリンク）',
+    burnWarningBody: 'Telegramアプリをインストールし、この端末でログインしてから「参加」ボタンを押してください。別端末/別ブラウザで先に開くと、リンクが消費される場合があります。',
+    whatsNextTitle: '参加後は？',
+    whatsNextBody: '参加したら通知をONにしてください。AIが次の大きなトラップを検知したら即通知します。',
     somethingWrong: 'うまくいかない場合',
     somethingWrongBody: 'リンクの有効期限切れ・ボタンが反応しない・アクセスできない場合は、購入時と同じメールアドレスから',
     fromSameAddress: 'までご連絡ください。新しいリンクをお送りします。',
@@ -447,6 +495,10 @@ function getWarriorPlusEmailLang(itemNumber) {
  */
 function buildWarriorPlusSixLangEmailHtml(multipackLinks, copy) {
   const c = copy || WP_EMAIL_COPY.EN;
+  const burnTitle = c.burnWarningTitle || WP_EMAIL_COPY.EN.burnWarningTitle;
+  const burnBody = c.burnWarningBody || WP_EMAIL_COPY.EN.burnWarningBody;
+  const nextTitle = c.whatsNextTitle || WP_EMAIL_COPY.EN.whatsNextTitle;
+  const nextBody = c.whatsNextBody || WP_EMAIL_COPY.EN.whatsNextBody;
   const langCards = multipackLinks.map(
     ({ label, link }) => `
     <tr><td style="padding:14px 18px; border:1px solid #e0e0e0; border-radius:8px; background:#fafafa;">
@@ -467,6 +519,10 @@ function buildWarriorPlusSixLangEmailHtml(multipackLinks, copy) {
     </div>
     <div style="padding:28px 24px;">
       <p style="margin:0 0 20px 0; font-size:16px; color:#333; line-height:1.6;">${c.introSix}</p>
+      <div style="background:#fff1f2; border-left:4px solid #e11d48; padding:14px 18px; margin:0 0 18px 0; border-radius:0 8px 8px 0;">
+        <p style="margin:0 0 6px 0; font-size:14px; font-weight:800; color:#9f1239;">${burnTitle}</p>
+        <p style="margin:0; font-size:13px; color:#333; line-height:1.55;"><strong>${burnBody}</strong></p>
+      </div>
       <div style="background:#e8f4fc; border-left:4px solid #0088cc; padding:14px 18px; margin:0 0 24px 0; border-radius:0 8px 8px 0;">
         <p style="margin:0 0 8px 0; font-size:14px; font-weight:600; color:#1a1a1a;">${c.whatToDo}</p>
         <p style="margin:0 0 4px 0; font-size:14px; color:#333; line-height:1.5;"><strong>Step 1.</strong> ${c.step1Six}</p>
@@ -477,6 +533,10 @@ function buildWarriorPlusSixLangEmailHtml(multipackLinks, copy) {
       <p style="margin:0 0 8px 0; font-size:14px; font-weight:600; color:#1a1a1a;">${c.chooseLang}</p>
       <p style="margin:0 0 16px 0; font-size:13px; color:#666;">${c.oneTimeNote}</p>
       <table style="width:100%; border-collapse:separate; border-spacing:0 10px;">${langCards}</table>
+      <div style="margin-top:18px; padding:14px 18px; background:#f5f7ff; border-radius:8px;">
+        <p style="margin:0 0 6px 0; font-size:13px; font-weight:700; color:#1a1a1a;">${nextTitle}</p>
+        <p style="margin:0; font-size:13px; color:#444; line-height:1.55;">${nextBody}</p>
+      </div>
       <div style="margin-top:24px; padding:14px 18px; background:#fff8e6; border-radius:8px;">
         <p style="margin:0 0 6px 0; font-size:13px; font-weight:600; color:#8a6d00;">${c.somethingWrong}</p>
         <p style="margin:0; font-size:13px; color:#555; line-height:1.5;">${c.somethingWrongBody} <a href="mailto:support@cryptotradeacademy.io" style="color:#0088cc;">support@cryptotradeacademy.io</a> ${c.fromSameAddress}</p>
@@ -495,6 +555,10 @@ function buildWarriorPlusSixLangEmailHtml(multipackLinks, copy) {
  */
 function buildWarriorPlusSingleLinkEmailHtml(tgLink, copy) {
   const c = copy || WP_EMAIL_COPY.EN;
+  const burnTitle = c.burnWarningTitle || WP_EMAIL_COPY.EN.burnWarningTitle;
+  const burnBody = c.burnWarningBody || WP_EMAIL_COPY.EN.burnWarningBody;
+  const nextTitle = c.whatsNextTitle || WP_EMAIL_COPY.EN.whatsNextTitle;
+  const nextBody = c.whatsNextBody || WP_EMAIL_COPY.EN.whatsNextBody;
   return `
 <!DOCTYPE html>
 <html>
@@ -507,6 +571,10 @@ function buildWarriorPlusSingleLinkEmailHtml(tgLink, copy) {
     </div>
     <div style="padding:28px 24px;">
       <p style="margin:0 0 20px 0; font-size:16px; color:#333; line-height:1.6;">${c.introSingle}</p>
+      <div style="background:#fff1f2; border-left:4px solid #e11d48; padding:14px 18px; margin:0 0 18px 0; border-radius:0 8px 8px 0;">
+        <p style="margin:0 0 6px 0; font-size:14px; font-weight:800; color:#9f1239;">${burnTitle}</p>
+        <p style="margin:0; font-size:13px; color:#333; line-height:1.55;"><strong>${burnBody}</strong></p>
+      </div>
       <div style="background:#e8f4fc; border-left:4px solid #0088cc; padding:14px 18px; margin:0 0 24px 0; border-radius:0 8px 8px 0;">
         <p style="margin:0 0 8px 0; font-size:14px; font-weight:600; color:#1a1a1a;">${c.whatToDo}</p>
         <p style="margin:0 0 4px 0; font-size:14px; color:#333; line-height:1.5;"><strong>Step 1.</strong> ${c.step1Single}</p>
@@ -515,6 +583,10 @@ function buildWarriorPlusSingleLinkEmailHtml(tgLink, copy) {
       </div>
       <p style="margin:0 0 16px 0;"><a href="${tgLink}" style="display:inline-block; padding:14px 28px; background:#0088cc; color:#fff; text-decoration:none; border-radius:8px; font-weight:600;">${c.joinTelegramBtn}</a></p>
       <p style="margin:0 0 24px 0; font-size:13px; color:#666; word-break:break-all;">${c.orCopy} ${tgLink}</p>
+      <div style="margin:-8px 0 18px 0; padding:14px 18px; background:#f5f7ff; border-radius:8px;">
+        <p style="margin:0 0 6px 0; font-size:13px; font-weight:700; color:#1a1a1a;">${nextTitle}</p>
+        <p style="margin:0; font-size:13px; color:#444; line-height:1.55;">${nextBody}</p>
+      </div>
       <div style="padding:14px 18px; background:#fff8e6; border-radius:8px;">
         <p style="margin:0; font-size:13px; color:#555; line-height:1.5;">${c.linkFailed} <a href="mailto:support@cryptotradeacademy.io" style="color:#0088cc;">support@cryptotradeacademy.io</a> ${c.fromSameAddress}</p>
       </div>
@@ -812,6 +884,19 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
     const customerPlanOrItem = itemNumber;
 
     resendTgGrantHandled = true;
+
+    // 冪等化: 同一 saleId のアクセス付与メールは1回だけ送る（sale/subscr_created の重複や再送に耐える）
+    // ※saleIdが無い場合は ipnId を使う（最悪でも重複は抑えられる）
+    const deliveryId = saleId || ipnId || '';
+    if (kv && deliveryId) {
+      const onceKey = `warriorplus:once:access_email:${deliveryId}:${customerPlanOrItem}:${normEmail}`;
+      const acquired = await acquireOnce(kv, onceKey, 86400 * 30);
+      if (!acquired) {
+        console.log('[WarriorPlus IPN] ⏭️ Dedup: access email already handled', { saleId: saleId || null, ipnId: ipnId || null, itemNumber, email: normEmail });
+        return res.status(200).json({ received: true, provider: 'warriorplus', dedup: true });
+      }
+    }
+
     // 販売プロダクトは6言語パック1つ。導線は言語別6 item だが、どの item でも常に6本リンクを送る
     const isKnownItem = itemNumber && WARRIORPLUS_ITEM_TO_LANG[itemNumber];
     const explicitMultipackItem = String(process.env.WARRIORPLUS_MULTIPACK_ITEM_NUMBER || '').trim();
