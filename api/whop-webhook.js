@@ -678,6 +678,20 @@ async function handleWarriorPlusIPN({ req, res, rawBody }) {
         saleId,
       });
       if (isProduction) {
+        // W+ の「Send Test」が WP_SECURITYKEY を付けない/不正なことがある。
+        // ただし本物の購入IPN（buyerEmail + itemNumber + (saleId|ipnId) が揃う）は厳格に拒否する。
+        const looksLikeRealPurchase = Boolean(buyerEmail && itemNumber && (saleId || ipnId));
+        if (!looksLikeRealPurchase) {
+          console.warn('[WarriorPlus IPN] Ignored test notification (invalid/missing WP_SECURITYKEY)', {
+            action,
+            hasKey: !!securityKey,
+            ipnId: ipnId || null,
+            saleId: saleId || null,
+            buyerEmail: buyerEmail || null,
+            itemNumber: itemNumber || null,
+          });
+          return res.status(200).json({ received: true, provider: 'warriorplus', ignored: true });
+        }
         return res.status(401).json({ received: false, provider: 'warriorplus', error: 'Invalid WP_SECURITYKEY' });
       }
     }
