@@ -94,21 +94,22 @@ function parseBodyAsObject(rawBody) {
 function getMultipartBoundary(contentType) {
   const ct = String(contentType || '');
   const m = ct.match(/boundary=([^\s;]+)/i);
-  return m ? m[1] : null;
+  if (!m) return null;
+  return m[1].replace(/^["']|["']$/g, '').trim();
 }
 
 function parseMultipartFormData(bodyText, contentType) {
   const boundary = getMultipartBoundary(contentType);
   if (!boundary) return null;
-  const delimiter = `--${boundary}`;
   const raw = String(bodyText || '');
-  if (!raw.includes(delimiter)) return null;
+  const delim = `--${boundary}`;
+  if (!raw.includes(delim)) return null;
 
-  const parts = raw.split(delimiter);
+  const parts = raw.split(delim);
   const out = {};
 
   for (const part of parts) {
-    const p = part.trim();
+    const p = part.replace(/^\r?\n/, '').trim();
     if (!p || p === '--') continue;
 
     const idx = p.indexOf('\r\n\r\n') >= 0 ? p.indexOf('\r\n\r\n') : p.indexOf('\n\n');
@@ -116,21 +117,17 @@ function parseMultipartFormData(bodyText, contentType) {
     const headerBlock = p.slice(0, idx);
     let valueBlock = p.slice(idx + (p.includes('\r\n\r\n') ? 4 : 2));
 
-    // 末尾の改行・終端マーカーを除去
-    valueBlock = valueBlock.replace(/\r?\n--\s*$/g, '').replace(/\r?\n$/g, '');
+    valueBlock = valueBlock.replace(/\r?\n--\s*$/g, '').replace(/\r?\n$/g, '').trim();
 
-    const nameMatch = headerBlock.match(/name="([^"]+)"/i);
+    const nameMatch = headerBlock.match(/name=["']([^"']+)["']/i);
     if (!nameMatch) continue;
     const name = nameMatch[1];
-
-    // ファイルアップロードは無視（IPNでは不要）
-    const hasFilename = /filename="/i.test(headerBlock);
-    if (hasFilename) continue;
+    if (/filename=/i.test(headerBlock)) continue;
 
     out[name] = valueBlock;
   }
 
-  return out;
+  return Object.keys(out).length ? out : null;
 }
 
 const WARRIORPLUS_ALLOWED_EMAIL_TTL_SECONDS = 3600; // 1時間
