@@ -7,7 +7,8 @@ const { formatCriticalAlert } = require("../../services/ai/gpt5mini");
 const { buildMacroContextFromAssets } = require("../../logic/macroRiskEvaluator");
 
 const ALERT_LANGS = ["en", "ja", "es", "ko", "pt-br", "ar"];
-const BTC_SNAPSHOT_KEYS = ["asset:snapshot:BTC", "btc:snapshot"];
+// early を優先（KIBA がフル更新時刻に偏らないようにする）
+const BTC_SNAPSHOT_KEYS = ["btc:snapshot:early", "asset:snapshot:BTC", "btc:snapshot"];
 
 /** /api/health 用: 最終実行時刻とステータスを KV に記録 */
 async function writeKibaHealthStatus(kv, status) {

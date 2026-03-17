@@ -18,7 +18,9 @@ const { sendMessageToChannel } = require("../services/telegram/bot");
 
 const ENABLE_KIBA = process.env.ENABLE_KIBA !== "false";
 const ENABLE_TELEGRAM = process.env.ENABLE_TELEGRAM !== "false";
-const BTC_SNAPSHOT_KEYS = ["asset:snapshot:BTC", "btc:snapshot"];
+// KIBA は不定期（5分ごと評価→条件成立で即送信）。フルスナップショット更新時刻に偏らないよう、
+// 毎回更新される early を優先して読む（cron が writeEarlySnapshot で書く）。
+const BTC_SNAPSHOT_KEYS = ["btc:snapshot:early", "asset:snapshot:BTC", "btc:snapshot"];
 const ALERT_LANGS = ["en", "ja", "es", "ko", "pt-br", "ar"];
 /** CQ のみでこのスコア以上なら「異常」とみなし、Grok を呼ぶ */
 const CQ_ANOMALY_KIBA_SCORE_THRESHOLD = 40;

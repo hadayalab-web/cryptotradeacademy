@@ -187,7 +187,7 @@ const ENABLE_TELEGRAM = process.env.ENABLE_TELEGRAM !== "false"; // デフォル
 const ENABLE_X_PROOF_POST = process.env.ENABLE_X_PROOF_POST === "true";
 const X_PROOF_USE_CARTOON = process.env.X_PROOF_USE_CARTOON === "true"; // 風刺画を追加するか
 const CTA_LINK_REGEX = /https:\/\/cryptotradeacademy\.io\/start\?[^\s\)]+/g;
-const { getWhopProductUrl } = require("../services/telegram/whop-links");
+const { getLandingPageUrl } = require("../services/telegram/lp-links");
 // 言語別のソーシャルプルーフ＋CTA（Minimal 配信用: I'm Safe タップでカウント、Get the edge で Whop 誘導）
 function getSocialProofButton(lang = "en") {
   const buttonTexts = {
@@ -208,7 +208,7 @@ function getSocialProofButton(lang = "en") {
   };
   const buttonText = buttonTexts[lang] || buttonTexts["en"];
   const ctaText = ctaTexts[lang] || ctaTexts["en"];
-  const ctaUrl = getWhopProductUrl(lang);
+  const ctaUrl = getLandingPageUrl(lang);
 
   return {
     inline_keyboard: [

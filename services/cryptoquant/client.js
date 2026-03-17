@@ -84,7 +84,13 @@ function getCacheTTL(params) {
   
   // day/window=day&limit=1 系: TTL 2〜6時間（cron周期に合わせる）
   if (window === 'day') {
-    return 4 * 60 * 60; // 4時間（cron周期6時間の2/3）
+    // 支払失効/プラン切替の「つなぎ」では、キャッシュが枯れると品質が落ちるため TTL を延長できるようにする
+    // 例: CQ_GRACE_DAYS=3 → 3日保持（Advancedトライアルを耐える）
+    const graceDays = Number(process.env.CQ_GRACE_DAYS || 0);
+    if (Number.isFinite(graceDays) && graceDays > 0) {
+      return Math.max(4 * 60 * 60, Math.round(graceDays * 86400));
+    }
+    return 4 * 60 * 60; // 4時間（通常）
   }
   
   // hour/4hour 系: TTL 5〜15分（Premium時のみ）
@@ -178,13 +184,15 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
     const ttlSeconds = getCacheTTL(params);
     
     // Step 2-4: EMERGENCY判定指標のキャッシュバイパス
-    // skipCacheオプションがtrueの場合はキャッシュをスキップ（常に新鮮なデータを取得）
+    // skipCache=true でも「エラー時はキャッシュへフォールバック」できるようにする（プラン失効/一時制限の耐性）
+    const allowCacheFallbackOnError =
+      options.allowCacheFallbackOnError === false ? false : true; // default true
+    const cachedForFallback = allowCacheFallbackOnError ? await getKVCache(cacheKey) : null;
+
+    // skipCacheオプションがtrueの場合は事前キャッシュヒットでは返さない（常に最新を取りに行く）
     if (!options.skipCache) {
-      // Phase 3: キャッシュチェック（stale-while-revalidate）
       const cached = await getCacheWithStaleRevalidate(cacheKey, ttlSeconds);
-      if (cached) {
-        return cached;
-      }
+      if (cached) return cached;
     } else {
       console.log(`[CQ Client] Cache bypassed for EMERGENCY indicators: ${endpoint}`);
     }
@@ -220,10 +228,20 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
 
         if (!response.ok) {
           if (response.status === 404) {
+            // つなぎ運用: 404（プラン/権限/カタログ差分）時は、KVキャッシュがあればそれを返す
+            if (cachedForFallback) {
+              console.warn(`[CQ Client] 404 Not Found: ${endpoint} — using cached value (fallback)`);
+              return cachedForFallback;
+            }
             console.warn(`[CQ Client] 404 Not Found: ${endpoint} — returning null (fallback)`);
             return null;
           }
           if (response.status === 403) {
+            // 403（権限不足）もキャッシュフォールバック
+            if (cachedForFallback) {
+              console.warn(`[CQ Client] 403 Forbidden: ${endpoint} — using cached value (fallback)`);
+              return cachedForFallback;
+            }
             return null;
           }
           if (response.status === 400) {
@@ -253,8 +271,17 @@ async function fetchCryptoQuant(endpoint, params = {}, options = {}) {
 
       } catch (error) {
         if (error.message && String(error.message).includes("404")) {
+          if (cachedForFallback) {
+            console.warn(`[CQ Client] 404 for ${endpoint} — using cached value (fallback)`);
+            return cachedForFallback;
+          }
           console.warn(`[CQ Client] 404 for ${endpoint}:`, error.message);
           return null;
+        }
+        // ネットワーク例外などもキャッシュフォールバック
+        if (cachedForFallback) {
+          console.warn(`[CQ Client] Exception for ${endpoint} — using cached value (fallback):`, error?.message || String(error));
+          return cachedForFallback;
         }
         const m = error.message && String(error.message).match(/API Error: (\d+)/);
         const status = m ? m[1] : null;
