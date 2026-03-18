@@ -1,7 +1,7 @@
 // config/minimalUpsellPromoTemplates.js
 // Minimal → Regular アップセル用プロモ配信テキスト（6言語 × 2パターン = 12本）
 // 1日2回、Minimal とは別にプロモ専用メッセージとして配信。A/B ローテで広告臭を抑える。
-// 導線: 「Minimal にアクセスしたときの案内と同じルートで」リンクを受け取る（ref 保全）。
+// 導線: 「Minimal にアクセスしたときと同じルートで」アップグレード用リンクを受け取る（ref 保全）。プロモコード配布は行わない前提。
 
 module.exports = {
   en: {
@@ -23,8 +23,8 @@ All of this belongs to Regular Briefing.
 You don't need to master Minimal.
 There's only one step:
 
-👉 Follow the same route you used to access Minimal,
-   get the upgrade link (with promo code), and move to Regular Briefing.
+👉 Use the same route you used to access Minimal
+   to get the upgrade link and move to Regular Briefing.
 
 Minimal reveals the traps.
 Regular Briefing neutralizes them.`,
@@ -47,7 +47,7 @@ Minimal is the doorway.
 Regular Briefing is the protocol.
 
 👉 Use the same route you used when accessing Minimal
-   to receive the upgrade link (promo code included) and step into Regular Briefing.
+   to get the upgrade link and step into Regular Briefing.
 
 Defense begins with structure.`
   },
@@ -71,7 +71,7 @@ No necesitas dominar Minimal.
 Solo hay un paso:
 
 👉 Usa la misma ruta por la que accediste a Minimal
-   para recibir el enlace de actualización (con código promocional) y pasar a Regular Briefing.
+   para recibir el enlace de actualización y pasar a Regular Briefing.
 
 Minimal revela la trampa.
 Regular Briefing la neutraliza.`,
@@ -94,7 +94,7 @@ Minimal es la puerta.
 Regular Briefing es el protocolo.
 
 👉 Usa la misma ruta con la que accediste a Minimal
-   para recibir el enlace de actualización (con código promocional) y avanzar a Regular Briefing.
+   para recibir el enlace de actualización y avanzar a Regular Briefing.
 
 La defensa empieza con la estructura.`
   },
@@ -118,7 +118,7 @@ Você não precisa dominar o Minimal.
 Só há um passo:
 
 👉 Use a mesma rota pela qual acessou o Minimal
-   para receber o link de upgrade (com código promocional) e avançar para o Regular Briefing.
+   para receber o link de upgrade e avançar para o Regular Briefing.
 
 Minimal revela a armadilha.
 Regular Briefing a neutraliza.`,
@@ -141,7 +141,7 @@ Minimal é a porta.
 Regular Briefing é o protocolo.
 
 👉 Use a mesma rota usada ao acessar o Minimal
-   para receber o link de upgrade (com código promocional) e entrar no Regular Briefing.
+   para receber o link de upgrade e entrar no Regular Briefing.
 
 A defesa começa pela estrutura.`
   },
@@ -165,7 +165,7 @@ Minimal هو مجرد "مدخل".
 هناك خطوة واحدة فقط:
 
 👉 استخدم نفس المسار الذي استخدمته للوصول إلى Minimal
-   للحصول على رابط الترقية (مع رمز الخصم) والانتقال إلى Regular Briefing.
+   للحصول على رابط الترقية والانتقال إلى Regular Briefing.
 
 Minimal يكشف الفخ.
 Regular Briefing يعطّل الفخ.`,
@@ -188,7 +188,7 @@ Minimal هو الباب.
 Regular Briefing هو البروتوكول.
 
 👉 استخدم نفس المسار الذي استخدمته عند دخول Minimal
-   للحصول على رابط الترقية (مع رمز الخصم) والانتقال إلى Regular Briefing.
+   للحصول على رابط الترقية والانتقال إلى Regular Briefing.
 
 الدفاع يبدأ من البنية.`
   },
@@ -212,7 +212,7 @@ Minimal 을 익힐 필요는 없습니다.
 해야 할 일은 단 하나.
 
 👉 Minimal 에 접근했을 때 사용한 동일한 경로로
-   업그레이드 링크(프로모션 코드 포함)를 받아 Regular Briefing 으로 이동하세요.
+   업그레이드 링크를 받아 Regular Briefing 으로 이동하세요.
 
 Minimal 은 함정을 보여줍니다.
 Regular Briefing 은 함정을 무력화합니다.`,
@@ -235,7 +235,7 @@ Minimal 은 문입니다.
 Regular Briefing 은 프로토콜입니다.
 
 👉 Minimal 에 접근할 때 사용한 동일한 경로로
-   업그레이드 링크(프로모션 코드 포함)를 받아 Regular Briefing 으로 이동하세요.
+   업그레이드 링크를 받아 Regular Briefing 으로 이동하세요.
 
 방어는 구조에서 시작됩니다.`
   },
@@ -259,8 +259,8 @@ Minimal はあくまで"入口"だからです。
 Minimal を使いこなす必要はありません。
 やることはひとつだけ。
 
-👉 Minimal にアクセスしたときの案内と同じルートで、
-　 アップグレード用リンク（プロモコード付き）を受け取り、Regular Briefing に進む。
+👉 Minimal にアクセスしたときと同じルートで
+　 アップグレード用リンクを受け取り、Regular Briefing へ。
 
 Minimal は"罠の存在"を知る鍵。
 Regular Briefing は"罠を無効化する"盾。`,
@@ -284,8 +284,8 @@ Regular Briefing では、
 Minimal は入口。
 Regular Briefing が本番。
 
-👉 Minimal にアクセスしたときの案内と同じルートで、
-　 アップグレード用リンク（プロモコード付き）を受け取り、Regular Briefing へ進んでください。
+👉 Minimal にアクセスしたときと同じルートで
+　 アップグレード用リンクを受け取り、Regular Briefing へ。
 
 防御は"構造"から始まります。`
   }
