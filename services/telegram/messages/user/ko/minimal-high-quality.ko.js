@@ -4,6 +4,20 @@
 // Minimal High Quality（4-post）は廃止。Zeigarnik Edition のみ。
 
 /**
+ * 영어/혼합 감정 라벨 → 한국어 표시 (주요 지표의 센티먼트)
+ */
+function toKoreanSentimentLabel(raw) {
+  if (!raw || typeof raw !== 'string') return '알 수 없음';
+  const s = raw.trim().toLowerCase();
+  if (s.includes('extreme fear') || /극심한 두려움|극도의 두려움/.test(raw)) return '극심한 두려움';
+  if (s.includes('fear') || s.includes('panic') || /공포|공황|두려움/.test(raw)) return '두려움';
+  if (s.includes('extreme greed') || /극심한 탐욕|극도의 탐욕/.test(raw)) return '극심한 탐욕';
+  if (s.includes('greed') || s.includes('fomo') || s.includes('euphoria') || /탐욕|황홀/.test(raw)) return '탐욕';
+  if (s.includes('neutral') || /중립/.test(raw)) return '중립';
+  return raw;
+}
+
+/**
  * X Sentiment を無料版用に軽量化（心理の空気だけ。深度を出さない）
  * v1.4: Market Snapshot の X Sentiment は "Extreme Fear" → "Fear-dominant" 等に変換
  * KO: 韓国語ラベル
@@ -53,7 +67,7 @@ function formatMinimalBriefingOSv26({
 📅 ${ts}
 
 ━━━━━━━━━━━━━━━━━━━━
-📡 Market Snapshot
+📡 시장 스냅샷
 ━━━━━━━━━━━━━━━━━━━━
 • Trap Score: ${trapScoreDisplay}/100
 • CQ Summary: ${cqSummary}
@@ -66,10 +80,10 @@ function formatMinimalBriefingOSv26({
 • 가격: ${priceStr}
 • Netflow: ${netflowStr}
 • MPI: ${mpi.toFixed(2)}
-• 센티먼트: ${sentimentLabel}
+• 센티먼트: ${toKoreanSentimentLabel(sentimentLabel)}
 
 ━━━━━━━━━━━━━━━━━━━━
-🧠 Insight
+🧠 인사이트
 ━━━━━━━━━━━━━━━━━━━━
 ${insight}
 
@@ -129,7 +143,7 @@ function formatMinimalBriefing(snapshotOrPayload, lang = 'ko') {
 📅 ${ts}
 
 ━━━━━━━━━━━━━━━━━━━━
-📡 Market Snapshot
+📡 시장 스냅샷
 ━━━━━━━━━━━━━━━━━━━━
 • Trap Score: ${trapScoreDisplay}/100
 • CQ Summary: ${cqSummary}
@@ -142,10 +156,10 @@ function formatMinimalBriefing(snapshotOrPayload, lang = 'ko') {
 • 가격: ${priceStr}
 • Netflow: ${netflowStr}
 • MPI: ${Number(mpi).toFixed(2)}
-• 센티먼트: ${sentimentLabel}
+• 센티먼트: ${toKoreanSentimentLabel(sentimentLabel)}
 
 ━━━━━━━━━━━━━━━━━━━━
-🧠 Insight
+🧠 인사이트
 ━━━━━━━━━━━━━━━━━━━━
 ${insight}${watchNote}
 

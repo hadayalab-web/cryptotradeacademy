@@ -12,7 +12,31 @@ function formatPercent(pct) {
 
 function formatUsd(v) {
   if (v == null || Number.isNaN(v)) return 'n/a';
-  return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  return `$${v.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}`;
+}
+
+/** 영어/혼합 감정 라벨 → 한국어 표시 (Key Metrics / 시나리오 등) */
+function toKoreanSentimentLabel(raw) {
+  if (!raw || typeof raw !== 'string') return '알 수 없음';
+  const s = raw.trim().toLowerCase();
+  if (s.includes('extreme fear') || /극심한 두려움|극도의 두려움/.test(raw)) return '극심한 두려움';
+  if (s.includes('fear') || s.includes('panic') || /공포|공황|두려움/.test(raw)) return '두려움';
+  if (s.includes('extreme greed') || /극심한 탐욕|극도의 탐욕/.test(raw)) return '극심한 탐욕';
+  if (s.includes('greed') || s.includes('fomo') || s.includes('euphoria') || /탐욕|황홀/.test(raw)) return '탐욕';
+  if (s.includes('neutral') || /중립/.test(raw)) return '중립';
+  return raw;
+}
+
+/** 심리 상태 내부값 → 한국어 표시 (Dr. Grok 블록) */
+function toKoreanStateLabel(state) {
+  const m = { NEUTRAL: '중립', FOMO: '폼', FEAR: '두려움', GREED: '탐욕', PANIC: '공황', EUPHORIA: '황홀', CONFUSION: '혼란' };
+  return (state && m[state]) || state || '알 수 없음';
+}
+
+/** 심리 위험 내부값 → 한국어 표시 (Dr. Grok 블록) */
+function toKoreanRiskLabel(risk) {
+  const m = { LOW: '낮음', MEDIUM: '중간', HIGH: '높음', CRITICAL: '심각' };
+  return (risk && m[risk]) || risk || '—';
 }
 
 /**
@@ -114,7 +138,7 @@ function formatRegularBriefingCore({
   const flowAbs = Math.abs(inflow || 0);
   const flowLine = `📊 거래소 순${flowDir}: ${flowDir} ${flowAbs.toFixed(0)} BTC${inflow < 0 ? ' — 보유자들이 자산 보호 중' : ' — 잠재적 매도 압력'}`;
   const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
-  const sentimentLine = `🧠 센티먼트: ${sentimentLabel || '알 수 없음'}`;
+  const sentimentLine = `🧠 센티먼트: ${toKoreanSentimentLabel(sentimentLabel) || '알 수 없음'}`;
 
   const LOW_TRAP_RISK_THRESHOLD = 35;
   const effectiveTrapScore = trapDetection?.trapScore ?? trapScore ?? trapRisk?.trapRiskScore ?? null;
@@ -167,11 +191,11 @@ function formatRegularBriefingCore({
   lines.push(`• Liquidity Regime: ${liquidityRegimeText}`);
   lines.push(`• Volatility Mode: ${volatilityMode}`);
   lines.push('');
-  lines.push('### Key Metrics');
+  lines.push('### 주요 지표');
   lines.push(`• BTC Price: ${formatUsd(priceUsd)}`);
   lines.push(`• Netflow: ${inflow >= 0 ? '+' : ''}${(inflow || 0).toFixed(0)} BTC`);
   lines.push(`• MPI: ${(mpi ?? 0).toFixed(2)}`);
-  lines.push(`• Sentiment: ${sentimentLabel || '알 수 없음'}`);
+  lines.push(`• 센티먼트: ${toKoreanSentimentLabel(sentimentLabel) || '알 수 없음'}`);
   lines.push('');
 
   lines.push('━━━━━━━━━━━━━━━━━━━━');
@@ -209,7 +233,7 @@ ${inflow >= 0 ? '고래들이 공황 구간에서 공급을 흡수하는 듯 보
 알고리즘이 감정적 매도로 생긴 박리 유동성 구역을 활용합니다. 패턴은 동시에 발생하는 유동성 사냥 패턴 후 평균 회귀—자동 시스템이 가격 리셋 전 유동성을 수확합니다.
 
 ## 2-3. Retail Psychological Distortion
-소매 센티먼트는 ${sentimentLabel || '중립'}에 지배됩니다. X 데이터가 부족하면 "센티먼트 침묵"이 의미 있음: 소매 이탈은 흔히 변동성 확장에 선행합니다.
+소매 센티먼트는 ${toKoreanSentimentLabel(sentimentLabel) || '중립'}에 지배됩니다. X 데이터가 부족하면 "센티먼트 침묵"이 의미 있음: 소매 이탈은 흔히 변동성 확장에 선행합니다.
 
 ## 2-4. Liquidity Map
 ${inflow >= 0 ? '강제 매도와 채굴자 분배(MPI ' + mpiDisplay + ')로 가격 하단 매도 측 유동성 밀집. 가격 상단 유동성 얇음—유입 반전 시 상승 모멘텀 가속 가능.' : '매수 누적 뚜렷함. 유동성 재조정 진행 중.'}`;
@@ -278,10 +302,10 @@ ${inflow >= 0 ? '강제 매도와 채굴자 분배(MPI ' + mpiDisplay + ')로 �
   }
   const sentimentLower = (sentimentLabel || '').toLowerCase();
   if (sentimentLower.includes('fear') || sentimentLower.includes('panic') || /공포|공황|두려움/.test(sentimentLower)) {
-    scenarioBullets.push(`• 소매 공황 — ${sentimentLabel} 센티먼트가 투항 또는 강제 매도 유발 가능`);
+    scenarioBullets.push(`• 소매 공황 — ${toKoreanSentimentLabel(sentimentLabel)} 센티먼트가 투항 또는 강제 매도 유발 가능`);
   }
   if (sentimentLower.includes('greed') || sentimentLower.includes('euphoria') || /탐욕|황홀/.test(sentimentLower)) {
-    scenarioBullets.push(`• 소매 황홀 — ${sentimentLabel} 센티먼트가 분배 트랩 선행 가능`);
+    scenarioBullets.push(`• 소매 황홀 — ${toKoreanSentimentLabel(sentimentLabel)} 센티먼트가 분배 트랩 선행 가능`);
   }
   if (trapDetection?.trapDetected || hasActiveTrapAlert) {
     scenarioBullets.push(`• 알고리즘 주도 변동성 — 트랩 조건(${trapDetection?.trapType || '이상'})이 유동성 수확 유발 가능`);
@@ -371,8 +395,8 @@ ${inflow >= 0 ? '강제 매도와 채굴자 분배(MPI ' + mpiDisplay + ')로 �
                       psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
     const isNeutralLow = psychologicalSupport.psychologicalState === 'NEUTRAL' && psychologicalSupport.psychologicalRisk === 'LOW';
     lines.push(isNeutralLow
-      ? '심리 상태: 중립 (낮은 위험도)'
-      : `💚 심리 상태: ${stateEmoji} ${psychologicalSupport.psychologicalState} (위험: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
+      ? `심리 상태: ${toKoreanStateLabel('NEUTRAL')} (${toKoreanRiskLabel('LOW')} 위험)`
+      : `💚 심리 상태: ${stateEmoji} ${toKoreanStateLabel(psychologicalSupport.psychologicalState)} (위험: ${riskEmoji} ${toKoreanRiskLabel(psychologicalSupport.psychologicalRisk)})`);
     const rawAdvice = psychologicalSupport.psychologicalAdvice || '';
     const hasJapaneseInAdvice = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(rawAdvice);
     const koreanAdvice = getKoreanPsychologicalAdvice(psychologicalSupport.psychologicalState, psychologicalSupport.psychologicalRisk);
@@ -398,7 +422,7 @@ ${inflow >= 0 ? '강제 매도와 채굴자 분배(MPI ' + mpiDisplay + ')로 �
     }
     lines.push(`💊 Dr. Grok의 멘탈 노트: "${mentalNote}"`);
   } else {
-    lines.push('심리 상태: 중립 (낮은 위험도)');
+    lines.push(`심리 상태: ${toKoreanStateLabel('NEUTRAL')} (${toKoreanRiskLabel('LOW')} 위험)`);
     lines.push('   💡 시장 조건 비교적 안정. 규율 유지.');
     lines.push('💊 Dr. Grok의 멘탈 노트: "인내 = 전략적 강점. 최고 트레이더는 거래 안 할 때를 안다."');
   }

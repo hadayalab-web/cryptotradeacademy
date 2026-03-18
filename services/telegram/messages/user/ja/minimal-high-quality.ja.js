@@ -4,6 +4,20 @@
 // Minimal High Quality（4-post）は廃止。Zeigarnik Edition のみ。
 
 /**
+ * 英語/混在の感情ラベル → 日本語表示（主要指標のセンチメント）
+ */
+function toJapaneseSentimentLabel(raw) {
+  if (!raw || typeof raw !== 'string') return '不明';
+  const s = raw.trim().toLowerCase();
+  if (s.includes('extreme fear') || /極度の恐怖|極端な恐怖/.test(raw)) return '極度の恐怖';
+  if (s.includes('fear') || s.includes('panic') || /恐怖|パニック|恐慌/.test(raw)) return '恐怖';
+  if (s.includes('extreme greed') || /極度の強欲|極端な強欲/.test(raw)) return '極度の強欲';
+  if (s.includes('greed') || s.includes('fomo') || s.includes('euphoria') || /強欲|ユーフォリア/.test(raw)) return '強欲';
+  if (s.includes('neutral') || /中立/.test(raw)) return '中立';
+  return raw;
+}
+
+/**
  * X Sentiment を無料版用に軽量化（心理の空気だけ。深度を出さない）
  * v1.4: Market Snapshot の X Sentiment は "Extreme Fear" → "Fear-dominant" 等に変換
  * JA: 日本語ラベル
@@ -53,7 +67,7 @@ function formatMinimalBriefingOSv26({
 📅 ${ts}
 
 ━━━━━━━━━━━━━━━━━━━━
-📡 Market Snapshot
+📡 市場スナップショット
 ━━━━━━━━━━━━━━━━━━━━
 • Trap Score: ${trapScoreDisplay}/100
 • CQ Summary: ${cqSummary}
@@ -66,10 +80,10 @@ function formatMinimalBriefingOSv26({
 • 価格: ${priceStr}
 • Netflow: ${netflowStr}
 • MPI: ${mpi.toFixed(2)}
-• センチメント: ${sentimentLabel}
+• センチメント: ${toJapaneseSentimentLabel(sentimentLabel)}
 
 ━━━━━━━━━━━━━━━━━━━━
-🧠 Insight
+🧠 インサイト
 ━━━━━━━━━━━━━━━━━━━━
 ${insight}
 
@@ -127,7 +141,7 @@ function formatMinimalBriefing(snapshotOrPayload, lang = 'ja') {
 📅 ${ts}
 
 ━━━━━━━━━━━━━━━━━━━━
-📡 Market Snapshot
+📡 市場スナップショット
 ━━━━━━━━━━━━━━━━━━━━
 • Trap Score: ${trapScoreDisplay}/100
 • CQ Summary: ${cqSummary}
@@ -140,10 +154,10 @@ function formatMinimalBriefing(snapshotOrPayload, lang = 'ja') {
 • 価格: ${priceStr}
 • Netflow: ${netflowStr}
 • MPI: ${Number(mpi).toFixed(2)}
-• センチメント: ${sentimentLabel}
+• センチメント: ${toJapaneseSentimentLabel(sentimentLabel)}
 
 ━━━━━━━━━━━━━━━━━━━━
-🧠 Insight
+🧠 インサイト
 ━━━━━━━━━━━━━━━━━━━━
 ${insight}${watchNote}
 

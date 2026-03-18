@@ -11,7 +11,31 @@ function formatPercent(pct) {
 
 function formatUsd(v) {
   if (v == null || Number.isNaN(v)) return 'n/a';
-  return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  return `$${v.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
+}
+
+/** Key Metrics の Sentimento 表示用：英語ラベル → ポルトガル語 */
+function toPortugueseSentimentLabel(raw) {
+  if (!raw || typeof raw !== 'string') return 'Desconhecido';
+  const s = raw.toLowerCase();
+  if (s.includes('extreme fear') || s.includes('panic')) return 'Medo extremo';
+  if (s.includes('fear')) return 'Medo';
+  if (s.includes('extreme greed') || s.includes('euphoria')) return 'Ganância extrema';
+  if (s.includes('greed') || s.includes('fomo')) return 'Ganância';
+  if (s.includes('neutral')) return 'Neutro';
+  return raw;
+}
+
+/** Estado psicológico interno → etiqueta em português (bloco Dr. Grok) */
+function toPortugueseStateLabel(state) {
+  const m = { NEUTRAL: 'Neutro', FOMO: 'FOMO', FEAR: 'Medo', GREED: 'Ganância', PANIC: 'Pânico', EUPHORIA: 'Euforia', CONFUSION: 'Confusão' };
+  return (state && m[state]) || state || 'Desconhecido';
+}
+
+/** Nível de risco psicológico interno → etiqueta em português (bloco Dr. Grok) */
+function toPortugueseRiskLabel(risk) {
+  const m = { LOW: 'Baixo', MEDIUM: 'Médio', HIGH: 'Alto', CRITICAL: 'Crítico' };
+  return (risk && m[risk]) || risk || '—';
 }
 
 /**
@@ -117,7 +141,7 @@ function formatRegularBriefingCore({
   const flowAbs = Math.abs(inflow || 0);
   const flowLine = `📊 Fluxo líquido nas exchanges: ${flowDir} ${flowAbs.toFixed(0)} BTC${inflow < 0 ? ' — Detentores mantendo ativos' : ' — Pressão de venda detectada'}`;
   const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
-  const sentimentLine = `🧠 Sentimento: ${sentimentLabel || 'Desconhecido'}`;
+  const sentimentLine = `🧠 Sentimento: ${toPortugueseSentimentLabel(sentimentLabel) || 'Desconhecido'}`;
 
   // Market Scoreの解釈補助を追加
   const marketScore = Math.round(score ?? 0);
@@ -254,11 +278,11 @@ function formatRegularBriefingCore({
   lines.push(`• Liquidity Regime: ${liquidityRegimeText}`);
   lines.push(`• Volatility Mode: ${volatilityMode}`);
   lines.push('');
-  lines.push('### Key Metrics');
+  lines.push('### Indicadores principais');
   lines.push(`• BTC Price: ${formatUsd(priceUsd)}`);
   lines.push(`• Netflow: ${inflow >= 0 ? '+' : ''}${(inflow || 0).toFixed(0)} BTC`);
   lines.push(`• MPI: ${(mpi ?? 0).toFixed(2)}`);
-  lines.push(`• Sentiment: ${sentimentLabel || 'Desconhecido'}`);
+  lines.push(`• Sentimento: ${toPortugueseSentimentLabel(sentimentLabel) || 'Desconhecido'}`);
   lines.push('');
 
   lines.push('━━━━━━━━━━━━━━━━━━━━');
@@ -310,7 +334,7 @@ ${inflow >= 0 ? 'As baleias parecem absorver oferta em zonas de pânico, deixand
 Os algoritmos exploram zonas de liquidez rala criadas por vendas emocionais. Padrões mostram caças de liquidez sincronizadas seguidas de reversão à média—sistemas automatizados colhendo liquidez antes de resetar o preço.
 
 ## 2-3. Retail Psychological Distortion
-Sentimento varejista dominado por ${sentimentLabel || 'neutro'}. Se faltarem dados do X, "silêncio de sentimento" é significativo: desengajamento varejista costuma preceder expansão de volatilidade.
+Sentimento varejista dominado por ${toPortugueseSentimentLabel(sentimentLabel) || 'neutro'}. Se faltarem dados do X, "silêncio de sentimento" é significativo: desengajamento varejista costuma preceder expansão de volatilidade.
 
 ## 2-4. Liquidity Map
 ${inflow >= 0 ? 'Liquidez de venda densa abaixo do preço por vendas forçadas e distribuição de mineradores (MPI ' + mpiDisplay + '). Acima do preço, liquidez rala—movimento altista poderia acelerar se entradas reverterem.' : 'Acumulação de compra visível. Rebalanceamento de liquidez em progresso.'}`;
@@ -386,10 +410,10 @@ ${inflow >= 0 ? 'Liquidez de venda densa abaixo do preço por vendas forçadas e
   }
   const sentimentLower = (sentimentLabel || '').toLowerCase();
   if (sentimentLower.includes('fear') || sentimentLower.includes('panic') || sentimentLower.includes('medo') || sentimentLower.includes('pânico')) {
-    scenarioBullets.push(`• Pânico varejista — sentimento ${sentimentLabel} pode impulsionar capitulação ou vendas forçadas`);
+    scenarioBullets.push(`• Pânico varejista — sentimento ${toPortugueseSentimentLabel(sentimentLabel)} pode impulsionar capitulação ou vendas forçadas`);
   }
   if (sentimentLower.includes('greed') || sentimentLower.includes('euphoria') || sentimentLower.includes('ganância') || sentimentLower.includes('euforia')) {
-    scenarioBullets.push(`• Euforia varejista — sentimento ${sentimentLabel} pode preceder armadilhas de distribuição`);
+    scenarioBullets.push(`• Euforia varejista — sentimento ${toPortugueseSentimentLabel(sentimentLabel)} pode preceder armadilhas de distribuição`);
   }
   if (trapDetection?.trapDetected || hasActiveTrapAlert) {
     scenarioBullets.push(`• Volatilidade impulsionada por algos — condições de armadilha (${trapDetection?.trapType || 'anomalia'}) podem desencadear caças de liquidez`);
@@ -479,8 +503,8 @@ ${inflow >= 0 ? 'Liquidez de venda densa abaixo do preço por vendas forçadas e
                       psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
     const isNeutralLow = psychologicalSupport.psychologicalState === 'NEUTRAL' && psychologicalSupport.psychologicalRisk === 'LOW';
     lines.push(isNeutralLow
-      ? '💚 Estado Psicológico: NEUTRO (Risco: BAIXO)'
-      : `💚 Estado Psicológico: ${stateEmoji} ${psychologicalSupport.psychologicalState} (Risco: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
+      ? `💚 Estado Psicológico: ${toPortugueseStateLabel('NEUTRAL')} (Risco: ${toPortugueseRiskLabel('LOW')})`
+      : `💚 Estado Psicológico: ${stateEmoji} ${toPortugueseStateLabel(psychologicalSupport.psychologicalState)} (Risco: ${riskEmoji} ${toPortugueseRiskLabel(psychologicalSupport.psychologicalRisk)})`);
     const rawAdvice = psychologicalSupport.psychologicalAdvice || '';
     const hasJapaneseInAdvice = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(rawAdvice);
     const portugueseAdvice = getPortuguesePsychologicalAdvice(
@@ -509,7 +533,7 @@ ${inflow >= 0 ? 'Liquidez de venda densa abaixo do preço por vendas forçadas e
     }
     lines.push(`💊 Nota Mental do Dr. Grok: "${mentalNote}"`);
   } else {
-    lines.push('💚 Estado Psicológico: NEUTRO (Risco: BAIXO)');
+    lines.push(`💚 Estado Psicológico: ${toPortugueseStateLabel('NEUTRAL')} (Risco: ${toPortugueseRiskLabel('LOW')})`);
     lines.push('   💡 Condições do mercado relativamente estáveis. Mantenha disciplina.');
     lines.push('💊 Nota Mental do Dr. Grok: "Paciência = força estratégica. Os melhores traders sabem quando NÃO operar."');
   }

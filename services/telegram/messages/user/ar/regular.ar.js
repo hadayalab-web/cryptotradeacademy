@@ -11,7 +11,31 @@ function formatPercent(pct) {
 
 function formatUsd(v) {
   if (v == null || Number.isNaN(v)) return 'n/a';
-  return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  return `$${v.toLocaleString('ar-SA', { maximumFractionDigits: 0 })}`;
+}
+
+/** Key Metrics の المشاعر 表示用：英語ラベル → アラビア語 */
+function toArabicSentimentLabel(raw) {
+  if (!raw || typeof raw !== 'string') return 'غير معروف';
+  const s = raw.toLowerCase();
+  if (s.includes('extreme fear') || s.includes('panic')) return 'خوف شديد';
+  if (s.includes('fear')) return 'خوف';
+  if (s.includes('extreme greed') || s.includes('euphoria')) return 'جشع شديد';
+  if (s.includes('greed') || s.includes('fomo')) return 'جشع';
+  if (s.includes('neutral') || /محايد/.test(s)) return 'محايد';
+  return raw;
+}
+
+/** الحالة النفسية الداخلية → تسمية عربية (بلوك Dr. Grok) */
+function toArabicStateLabel(state) {
+  const m = { NEUTRAL: 'محايدة', FOMO: 'فومو', FEAR: 'خوف', GREED: 'طمع', PANIC: 'ذعر', EUPHORIA: 'نشوة', CONFUSION: 'ارتباك' };
+  return (state && m[state]) || state || 'غير معروف';
+}
+
+/** مستوى المخاطرة النفسية → تسمية عربية (بلوك Dr. Grok) */
+function toArabicRiskLabel(risk) {
+  const m = { LOW: 'منخفضة', MEDIUM: 'متوسطة', HIGH: 'عالية', CRITICAL: 'حرجة' };
+  return (risk && m[risk]) || risk || '—';
 }
 
 /**
@@ -122,7 +146,7 @@ function formatRegularBriefingCore({
   const flowAbs = Math.abs(inflow || 0);
   const flowLine = `📊 صافي تدفق البورصات: ${flowDir} ${flowAbs.toFixed(0)} BTC${inflow < 0 ? ' — الحائزون يحتفظون بالأصول' : ' — ضغط بيع محتمل'}`;
   const mpiLine = `⛏ مؤشر مراكز المعدّنين (MPI): ${(mpi ?? 0).toFixed(2)}`;
-  const sentimentLine = `🧠 المشاعر: ${sentimentLabel || 'غير معروف'}`;
+  const sentimentLine = `🧠 المشاعر: ${toArabicSentimentLabel(sentimentLabel) || 'غير معروف'}`;
 
   // Market Scoreの解釈補助を追加
   const marketScore = Math.round(score ?? 0);
@@ -260,11 +284,11 @@ function formatRegularBriefingCore({
   lines.push(`• Liquidity Regime: ${liquidityRegimeText}`);
   lines.push(`• Volatility Mode: ${volatilityMode}`);
   lines.push('');
-  lines.push('### Key Metrics');
+  lines.push('### المؤشرات الرئيسية');
   lines.push(`• BTC Price: ${formatUsd(priceUsd)}`);
   lines.push(`• Netflow: ${inflow >= 0 ? '+' : ''}${(inflow || 0).toFixed(0)} BTC`);
   lines.push(`• MPI: ${(mpi ?? 0).toFixed(2)}`);
-  lines.push(`• Sentiment: ${sentimentLabel || 'غير معروف'}`);
+  lines.push(`• المشاعر: ${toArabicSentimentLabel(sentimentLabel) || 'غير معروف'}`);
   lines.push('');
 
   lines.push('━━━━━━━━━━━━━━━━━━━━');
@@ -313,7 +337,7 @@ ${inflow >= 0 ? 'الحيتان تبدو تمتص العرض في مناطق ا�
 الخوارزميات تستغل مناطق سيولة ضعيفة ناتجة عن مبيعات عاطفية. الأنماط تُظهر مطاردات سيولة متزامنة متبوعة بعودة للمتوسط—أنظمة آلية تحصد السيولة قبل إعادة ضبط السعر.
 
 ## 2-3. Retail Psychological Distortion
-مشاعر التجزئة تهيمن عليها ${sentimentLabel || 'محايدة'}. إن نَقصت بيانات X، "صمت المشاعر" ذو مغزى: انفصال التجزئة غالباً يسبق توسع التقلبات.
+مشاعر التجزئة تهيمن عليها ${toArabicSentimentLabel(sentimentLabel) || 'محايدة'}. إن نَقصت بيانات X، "صمت المشاعر" ذو مغزى: انفصال التجزئة غالباً يسبق توسع التقلبات.
 
 ## 2-4. Liquidity Map
 ${inflow >= 0 ? 'سيولة بيع كثيفة أسفل السعر من مبيعات إجبارية وتوزيع المعدّنين (MPI ' + mpiDisplay + '). فوق السعر، سيولة ضعيفة—التحرك الصاعد قد يتسارع إذا انعكست التدفقات الداخلة.' : 'تراكم شراء ظاهر. إعادة موازنة السيولة جارية.'}`;
@@ -389,10 +413,10 @@ ${inflow >= 0 ? 'سيولة بيع كثيفة أسفل السعر من مبيع�
   }
   const sentimentLower = (sentimentLabel || '').toLowerCase();
   if (sentimentLower.includes('fear') || sentimentLower.includes('panic') || /خوف|ذعر|فزع/.test(sentimentLower)) {
-    scenarioBullets.push(`• ذعر التجزئة — مشاعر ${sentimentLabel} قد تدفع الاستسلام أو المبيعات الإجبارية`);
+    scenarioBullets.push(`• ذعر التجزئة — مشاعر ${toArabicSentimentLabel(sentimentLabel)} قد تدفع الاستسلام أو المبيعات الإجبارية`);
   }
   if (sentimentLower.includes('greed') || sentimentLower.includes('euphoria') || /جشع|نشوة/.test(sentimentLower)) {
-    scenarioBullets.push(`• نشوة التجزئة — مشاعر ${sentimentLabel} قد تسبق فخاخ التوزيع`);
+    scenarioBullets.push(`• نشوة التجزئة — مشاعر ${toArabicSentimentLabel(sentimentLabel)} قد تسبق فخاخ التوزيع`);
   }
   if (trapDetection?.trapDetected || hasActiveTrapAlert) {
     scenarioBullets.push(`• تقلبات مدفوعة بالخوارزميات — ظروف فخ (${trapDetection?.trapType || 'شذوذ'}) قد تطلق صيد السيولة`);
@@ -483,8 +507,8 @@ ${inflow >= 0 ? 'سيولة بيع كثيفة أسفل السعر من مبيع�
                       psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
     const isNeutralLow = psychologicalSupport.psychologicalState === 'NEUTRAL' && psychologicalSupport.psychologicalRisk === 'LOW';
     lines.push(isNeutralLow
-      ? 'الحالة النفسية: محايدة (مخاطر منخفضة)'
-      : `💚 الحالة النفسية: ${stateEmoji} ${psychologicalSupport.psychologicalState} (المخاطرة: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
+      ? `الحالة النفسية: ${toArabicStateLabel('NEUTRAL')} (مخاطر ${toArabicRiskLabel('LOW')})`
+      : `💚 الحالة النفسية: ${stateEmoji} ${toArabicStateLabel(psychologicalSupport.psychologicalState)} (المخاطرة: ${riskEmoji} ${toArabicRiskLabel(psychologicalSupport.psychologicalRisk)})`);
     const rawAdvice = psychologicalSupport.psychologicalAdvice || '';
     const hasJapaneseInAdvice = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(rawAdvice);
     const arabicAdvice = getArabicPsychologicalAdvice(psychologicalSupport.psychologicalState, psychologicalSupport.psychologicalRisk);
@@ -510,7 +534,7 @@ ${inflow >= 0 ? 'سيولة بيع كثيفة أسفل السعر من مبيع�
     }
     lines.push(`💊 ملاحظة Dr. Grok العقلية: "${mentalNote}"`);
   } else {
-    lines.push('الحالة النفسية: محايدة (مخاطر منخفضة)');
+    lines.push(`الحالة النفسية: ${toArabicStateLabel('NEUTRAL')} (مخاطر ${toArabicRiskLabel('LOW')})`);
     lines.push('   💡 ظروف السوق مستقرة نسبياً. حافظ على الانضباط.');
     lines.push('💊 ملاحظة Dr. Grok العقلية: "الصبر = قوة استراتيجية. أفضل المتداولين يعرفون متى لا يتداولون."');
   }

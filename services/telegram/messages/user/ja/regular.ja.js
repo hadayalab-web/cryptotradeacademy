@@ -12,7 +12,31 @@ function formatPercent(pct) {
 
 function formatUsd(v) {
   if (v == null || Number.isNaN(v)) return 'n/a';
-  return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  return `$${v.toLocaleString('ja-JP', { maximumFractionDigits: 0 })}`;
+}
+
+/** 英語/混在の感情ラベル → 日本語表示（Key Metrics / シナリオ等） */
+function toJapaneseSentimentLabel(raw) {
+  if (!raw || typeof raw !== 'string') return '不明';
+  const s = raw.trim().toLowerCase();
+  if (s.includes('extreme fear') || /極度の恐怖|極端な恐怖/.test(raw)) return '極度の恐怖';
+  if (s.includes('fear') || s.includes('panic') || /恐怖|パニック|恐慌/.test(raw)) return '恐怖';
+  if (s.includes('extreme greed') || /極度の強欲|極端な強欲/.test(raw)) return '極度の強欲';
+  if (s.includes('greed') || s.includes('fomo') || s.includes('euphoria') || /強欲|ユーフォリア/.test(raw)) return '強欲';
+  if (s.includes('neutral') || /中立/.test(raw)) return '中立';
+  return raw;
+}
+
+/** 心理状態の内部値 → 日本語表示（Dr. Grok ブロック） */
+function toJapaneseStateLabel(state) {
+  const m = { NEUTRAL: '中立', FOMO: 'FOMO', FEAR: '恐怖', GREED: '強欲', PANIC: 'パニック', EUPHORIA: 'ユーフォリア', CONFUSION: '混乱' };
+  return (state && m[state]) || state || '不明';
+}
+
+/** 心理リスクの内部値 → 日本語表示（Dr. Grok ブロック） */
+function toJapaneseRiskLabel(risk) {
+  const m = { LOW: '低', MEDIUM: '中', HIGH: '高', CRITICAL: '深刻' };
+  return (risk && m[risk]) || risk || '—';
 }
 
 /**
@@ -142,7 +166,7 @@ function formatRegularBriefingCore({
   const flowAbs = Math.abs(inflow || 0);
   const flowLine = `📊 取引所ネットフロー: ${flowDir} ${flowAbs.toFixed(0)} BTC${inflow < 0 ? ' — ホルダーが資産を保持中' : ' — 売却圧力の可能性'}`;
   const mpiLine = `⛏ Miners' Position Index (MPI): ${(mpi ?? 0).toFixed(2)}`;
-  const sentimentLine = `🧠 投資家センチメント: ${sentimentLabel || '不明'}`;
+  const sentimentLine = `🧠 投資家センチメント: ${toJapaneseSentimentLabel(sentimentLabel) || '不明'}`;
 
   const LOW_TRAP_RISK_THRESHOLD = 35;
   const effectiveTrapScore = trapDetection?.trapScore ?? trapScore ?? trapRisk?.trapRiskScore ?? null;
@@ -195,11 +219,11 @@ function formatRegularBriefingCore({
   lines.push(`• Liquidity Regime: ${liquidityRegimeText}`);
   lines.push(`• Volatility Mode: ${volatilityMode}`);
   lines.push('');
-  lines.push('### Key Metrics');
+  lines.push('### 主要指標');
   lines.push(`• BTC Price: ${formatUsd(priceUsd)}`);
   lines.push(`• Netflow: ${inflow >= 0 ? '+' : ''}${(inflow || 0).toFixed(0)} BTC`);
   lines.push(`• MPI: ${(mpi ?? 0).toFixed(2)}`);
-  lines.push(`• Sentiment: ${sentimentLabel || '不明'}`);
+  lines.push(`• センチメント: ${toJapaneseSentimentLabel(sentimentLabel) || '不明'}`);
   lines.push('');
 
   lines.push('━━━━━━━━━━━━━━━━━━━━');
@@ -235,7 +259,7 @@ ${inflow >= 0 ? 'クジラはパニックゾーンで供給を吸収している
 アルゴは感情的な売りで生じた薄い流動性ゾーンを活用。パターンとしては、同期的な流動性狩りの後に平均回帰が発生する—自動システムが価格リセット前に流動性を収穫。
 
 ## 2-3. Retail Psychological Distortion
-リテールセンチメントは${sentimentLabel || '中立'}に支配。Xデータ不足時は「センチメント沈黙」が意味を持つ：リテールの離脱は変動性拡大に先行しがち。
+リテールセンチメントは${toJapaneseSentimentLabel(sentimentLabel) || '中立'}に支配。Xデータ不足時は「センチメント沈黙」が意味を持つ：リテールの離脱は変動性拡大に先行しがち。
 
 ## 2-4. Liquidity Map
 ${inflow >= 0 ? '強制売却とマイナー配布(MPI ' + mpiDisplay + ')で価格下の売り側流動性濃厚。価格上は流動性薄—流入反転で上昇モメンタム加速の可能性。' : '買い累積顕著。流動性再調整進行中。'}`;
@@ -304,10 +328,10 @@ ${inflow >= 0 ? '強制売却とマイナー配布(MPI ' + mpiDisplay + ')で価
   }
   const sentimentLower = (sentimentLabel || '').toLowerCase();
   if (sentimentLower.includes('fear') || sentimentLower.includes('panic') || /恐怖|パニック|恐慌/.test(sentimentLower)) {
-    scenarioBullets.push(`• リテールパニック — ${sentimentLabel}センチメントが投げ売り・強制売却を引き起こす可能性`);
+    scenarioBullets.push(`• リテールパニック — ${toJapaneseSentimentLabel(sentimentLabel)}センチメントが投げ売り・強制売却を引き起こす可能性`);
   }
   if (sentimentLower.includes('greed') || sentimentLower.includes('euphoria') || /強欲|ユーフォリア/.test(sentimentLower)) {
-    scenarioBullets.push(`• リテールユーフォリア — ${sentimentLabel}センチメントが配布トラップに先行する可能性`);
+    scenarioBullets.push(`• リテールユーフォリア — ${toJapaneseSentimentLabel(sentimentLabel)}センチメントが配布トラップに先行する可能性`);
   }
   if (trapDetection?.trapDetected || hasActiveTrapAlert) {
     scenarioBullets.push(`• アルゴ主導変動 — トラップ条件(${trapDetection?.trapType || '異常'})が流動性狩りを引き起こす可能性`);
@@ -397,8 +421,8 @@ ${inflow >= 0 ? '強制売却とマイナー配布(MPI ' + mpiDisplay + ')で価
                       psychologicalSupport.psychologicalRisk === 'MEDIUM' ? '⚡' : '💡';
     const isNeutralLow = psychologicalSupport.psychologicalState === 'NEUTRAL' && psychologicalSupport.psychologicalRisk === 'LOW';
     lines.push(isNeutralLow
-      ? '心理状態: 中立 (低リスク)'
-      : `💚 心理状態: ${stateEmoji} ${psychologicalSupport.psychologicalState} (リスク: ${riskEmoji} ${psychologicalSupport.psychologicalRisk})`);
+      ? `心理状態: ${toJapaneseStateLabel('NEUTRAL')} (${toJapaneseRiskLabel('LOW')}リスク)`
+      : `💚 心理状態: ${stateEmoji} ${toJapaneseStateLabel(psychologicalSupport.psychologicalState)} (リスク: ${riskEmoji} ${toJapaneseRiskLabel(psychologicalSupport.psychologicalRisk)})`);
     const rawAdvice = psychologicalSupport.psychologicalAdvice || '';
     const advHasJapanese = hasJapanese(rawAdvice);
     const jaAdvice = getJapanesePsychologicalAdvice(psychologicalSupport.psychologicalState, psychologicalSupport.psychologicalRisk);
@@ -426,7 +450,7 @@ ${inflow >= 0 ? '強制売却とマイナー配布(MPI ' + mpiDisplay + ')で価
     }
     lines.push(`💊 Dr. Grokのメンタルノート: "${mentalNote}"`);
   } else {
-    lines.push('心理状態: 中立 (低リスク)');
+    lines.push(`心理状態: ${toJapaneseStateLabel('NEUTRAL')} (${toJapaneseRiskLabel('LOW')}リスク)`);
     lines.push('   💡 市場条件は比較的安定。規律を維持。');
     lines.push('💊 Dr. Grokのメンタルノート: "忍耐＝戦略的強さ。最高のトレーダーは取引しない時を知っている。"');
   }
