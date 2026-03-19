@@ -48,7 +48,7 @@
     "verify:syntax": "node scripts/verify-syntax.js",
     "build": "node scripts/copy-telegram-messages.js",
     "vercel-build": "npm run build",
-    "predeploy": "node -c api/cron.js && node -c services/x/client.js && node -c api/x-webhook.js && node -c api/whop-webhook.js",
+    "predeploy": "node -c api/cron.js && node -c services/x/client.js && node -c api/x-webhook.js && node -c api/warriorplus-ipn.js && node -c api/whop-webhook.js",
     "vercel:logs": "node scripts/fetch-vercel-logs.js",
     "vercel:logs:safe": "node scripts/fetch-vercel-logs-safe.js",
     "vercel:analyze": "node scripts/analyze-vercel-errors.js",
@@ -68,7 +68,8 @@
     "thumbnail:trap-score": "node scripts/generate-thumbnail-trap-score.js",
     "thumbnail:market-trap": "node scripts/generate-thumbnail-market-trap.js",
     "compress:thumbnails": "node scripts/compress-thumbnails.js",
-    "telegram-scout:to-kv": "node scripts/telegram-scout-to-kv.js"
+    "telegram-scout:to-kv": "node scripts/telegram-scout-to-kv.js",
+    "teaser:regular-public": "node scripts/print-regular-public-teaser.js"
   },
   "dependencies": {
     "@google/genai": "^1.40.0",
