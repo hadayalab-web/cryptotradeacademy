@@ -432,7 +432,8 @@ module.exports = async function handler(req, res) {
       isInRegularHours: REGULAR_HOURS.includes(utcHour)
     });
 
-    // 1. On-chain (CryptoQuant) - リトライ付き。404/失敗時は fallback 0 で Stage1 を継続
+    // 1. On-chain (CryptoQuant) - リトライ付き。
+    // 404/失敗時は一旦 null を保持し、必要なら後段の AI 穴埋めで数値に差し替える。
     let inflowData = null;
     let mpiData = null;
     try {
@@ -441,10 +442,27 @@ module.exports = async function handler(req, res) {
         pRetry(() => getMinerPositionIndex(), { retries: 2, factor: 2, minTimeout: 500 })
       ]);
     } catch (e) {
-      logger.warn("CryptoQuant fetch failed after retry:", e?.message, "— using fallback inflow=0, mpi=0.");
+      logger.warn("CryptoQuant fetch failed after retry:", e?.message, "— inflow/mpi will be imputed (if enabled).");
     }
-    const inflow = Number(inflowData?.value ?? 0) || 0;
-    const mpi = Number(mpiData?.value ?? 0) || 0;
+
+    const inflowValue = inflowData?.value;
+    const mpiValue = mpiData?.value;
+
+    // CryptoQuant欠損時は value=0, raw={} で返るため「raw空」を欠損扱いにする
+    const inflowRaw = inflowData?.raw;
+    const mpiRaw = mpiData?.raw;
+
+    const inflowRawEmpty = !inflowRaw || (typeof inflowRaw === "object" && Object.keys(inflowRaw).length === 0);
+    const mpiRawEmpty = !mpiRaw || (typeof mpiRaw === "object" && Object.keys(mpiRaw).length === 0);
+
+    const inflowMissing =
+      inflowValue == null || !Number.isFinite(Number(inflowValue)) || inflowRawEmpty;
+    const mpiMissing = mpiValue == null || !Number.isFinite(Number(mpiValue)) || mpiRawEmpty;
+
+    let inflow = inflowMissing ? null : Number(inflowValue);
+    let mpi = mpiMissing ? null : Number(mpiValue);
+
+    let cqImputationMeta = null;
 
     // 2. Price & Fear&Greed - リトライ付き
     const fetchPriceData = async () => {
@@ -460,6 +478,52 @@ module.exports = async function handler(req, res) {
 
     const rawSentiment = fng.label ?? fng.value;
     const sentimentLabel = normalizeSentiment(rawSentiment);
+
+    // 3. CryptoQuant欠損のAI穴埋め（表示だけでなく Trap Score / シナリオ生成にも反映する）
+    const cqImputationEnabled = parseBoolean(
+      process.env.CQ_IMPUTATION_ENABLED ?? process.env.CQ_AI_IMPUTATION_ENABLED,
+      true
+    );
+    if (cqImputationEnabled && (inflowMissing || mpiMissing)) {
+      try {
+        logger.info("CQ imputation start", {
+          inflowMissing,
+          mpiMissing,
+          cqImputationEnabled,
+          hasOpenAI: !!process.env.OPENAI_API_KEY,
+          hasGemini: !!process.env.GEMINI_API_KEY,
+        });
+        const { imputeCqMetrics } = require("../services/cqImputation/cqImputer");
+        const marketCode = getMarketCode(LANG);
+
+        const result = await imputeCqMetrics({
+          market: marketCode,
+          lang: LANG,
+          priceUsd,
+          change24h,
+          sentimentLabel,
+          inflow,
+          mpi
+        });
+
+        if (result && Number.isFinite(result.inflow) && Number.isFinite(result.mpi)) {
+          inflow = result.inflow;
+          mpi = result.mpi;
+          cqImputationMeta = result;
+          logger.info("CQ imputation applied", {
+            confidence: result.confidence,
+            inflow: result.inflow,
+            mpi: result.mpi,
+            basis: result.basis,
+            missing: result.meta?.input?.missing
+          });
+        } else {
+          logger.warn("CQ imputation returned null/invalid result; keep inflow/mpi as null");
+        }
+      } catch (e) {
+        logger.warn("CQ imputation failed; keep inflow/mpi as null", e?.message);
+      }
+    }
 
     // Phase 2: 早期 Minimal 書き込みは Stage 1 完了後（market_score, trap 取得後）に writeEarlySnapshot で実行
 
@@ -488,8 +552,8 @@ module.exports = async function handler(req, res) {
       // 15分ごとの緊急配信用: GPTでCryptoQuantデータを解析
       try {
         const cryptoQuantData = {
-          inflow,
-          mpi,
+          inflow: inflow == null ? 0 : inflow,
+          mpi: mpi == null ? 0 : mpi,
           priceUsd,
           change24h,
           sentiment: sentimentLabel
@@ -794,7 +858,7 @@ module.exports = async function handler(req, res) {
     try {
       const { getKV } = require("../utils/kv");
       const kv = getKV();
-      const raw = { inflow, mpi, priceUsd, change24h, sentimentLabel, fng };
+      const raw = { inflow, mpi, priceUsd, change24h, sentimentLabel, fng, cqImputation: cqImputationMeta };
       if (kv) {
         await writeEarlySnapshot(kv, raw, snapshot.market_score, trap);
         console.log("[Phase 2] Early snapshot written to btc:snapshot:early");
@@ -1268,7 +1332,7 @@ module.exports = async function handler(req, res) {
     let sent = 0;
 
     // Phase 2: btcSnapshot 構築・配信モード評価（早期 return の前に実行）
-    const raw = { inflow, mpi, priceUsd, change24h, sentimentLabel, fng };
+    const raw = { inflow, mpi, priceUsd, change24h, sentimentLabel, fng, cqImputation: cqImputationMeta };
     const derivedTrapDetection = trapDetection || (trap && {
       trapScore: trap.confidence === "HIGH" ? 80 : trap.confidence === "MEDIUM" ? 50 : 30,
       trapDetected: trap.isTrap,

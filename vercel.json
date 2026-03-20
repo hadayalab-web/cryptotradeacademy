@@ -3,7 +3,7 @@
   "functions": {
     "api/cron.js": {
       "maxDuration": 300,
-      "includeFiles": "{api/services/**,config/**,services/telegram/messages/**}"
+      "includeFiles": "{api/services/**,config/**,services/telegram/messages/**,services/cqImputation/**,services/gpt/**,services/grok/**,services/gemini/**}"
     },
     "api/kiba-5min.js": {
       "maxDuration": 300
