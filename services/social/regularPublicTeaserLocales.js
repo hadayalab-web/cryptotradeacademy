@@ -140,7 +140,7 @@ const LOCALES = {
       'リテールのタイムライン騒音が高い：レバレッジ／ファンディング周りにナラティブのスパイクが束ねられ、スポットの確信は薄く見えやすい——ボラ拡大前の典型的なパターン。',
     liveExcerptPrefix: '🔎 Regular — 公開抜粋（加入者は全文ブリーフィングを受信）。',
     xZeigarnik:
-      '⏸ ここで意図的に中断（ツァイガルニク）。全文 Regular では続き：データに基づく根拠・心理マップの残り・スタック全体。',
+      'ここで一旦区切ります（オープンループ）。全文 Regular では続き：データに基づく根拠・心理マップの残り・スタック全体。',
     xCtaBio: 'Trap Defence Regular（全文）→ プロフィールのリンクへ。',
     xCtaUrlPrefix: 'Trap Defence Regular（全文）→',
     xShortDisclaimer: '教育のみ。金融アドバイスではありません。',
