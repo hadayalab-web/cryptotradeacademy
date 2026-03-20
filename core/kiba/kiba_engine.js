@@ -27,8 +27,10 @@ function snapshotToDetectorInputs(btcSnapshot) {
   const x = btcSnapshot?.xSentiment || {};
   const raw = btcSnapshot?.raw || {};
   const flows = cq.exchangeFlowsDetailed || {};
-  const inflow = toNum(flows.inflow ?? cq.exchangeInflow, 0);
-  const outflow = toNum(flows.outflow ?? cq.exchangeOutflow, 0);
+  // CQ欠損時は deepMetrics 側で exchangeInflow/outflow が 0 fallback になりがち。
+  // その場合、cron が保持している cq.inflow/cq.netflow（AI穴埋め）を優先して使う。
+  const inflow = toNum(flows.inflow ?? cq.exchangeInflow ?? cq.inflow, 0);
+  const outflow = toNum(flows.outflow ?? cq.exchangeOutflow ?? cq.outflow, 0);
   const netflow = toNum(flows.netflow ?? cq.netflow, inflow - outflow);
   const mean = 0;
   const std = 1;

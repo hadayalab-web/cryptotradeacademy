@@ -246,6 +246,34 @@ async function getOpenInterest() {
 }
 
 /**
+ * Funding rates取得（CQ: /btc/market-data/funding-rates）
+ * @returns {Promise<number|null>} funding rate (decimal, e.g. 0.0003) もしくは null
+ */
+async function getFundingRates() {
+  try {
+    const data = await fetchCQWithRetry(
+      '/btc/market-data/funding-rates',
+      { exchange: 'all_exchange', window: 'day', limit: 1 }
+    );
+    const point = data?.result?.data?.[0];
+    if (!point) return null;
+
+    const raw =
+      point?.funding_rate ??
+      point?.fundingRate ??
+      point?.value ??
+      point?.rate ??
+      null;
+    const rate = raw != null ? Number(raw) : null;
+    return Number.isFinite(rate) ? rate : null;
+  } catch (e) {
+    if (e?.message && String(e.message).includes('404')) return null;
+    console.warn('[deepMetrics] Error fetching funding-rates:', e?.message);
+    return null;
+  }
+}
+
+/**
  * Miner Flows取得（CQ Pro、MPI以外の鉱夫指標）
  * 404の場合はnull、取得可能なら { outflow, inflow, netflow } 等
  * @returns {Promise<Object|null>}
@@ -529,6 +557,10 @@ async function getCQDeepMetrics(market, options = {}) {
   }
 
   try {
+    const fullSpecEnabled =
+      process.env.CQ_PRO_FULL_SPEC_ENABLED === 'true' ||
+      process.env.CQ_PRO_FULL_SPEC_ENABLED === '1';
+
     const reused = deriveBaseFromHighRes(options.highResCQ);
     let exchangeInflow, minerMPI;
 
@@ -556,12 +588,74 @@ async function getCQDeepMetrics(market, options = {}) {
       activeAddresses: 0,
     };
 
-    // CQ Pro 共通パイプラインは使用しない（403/400 多発・不要のため）。受け皿のみ null でセット
-    Object.assign(baseResult, {
-      sopr: null, sopr30d: null, nupl: null, lthNupl: null,
-      funding: null, openInterest: null, liquidations: null, minerFlows: null,
-      liquidity: null, stablecoinMetrics: null, etfFlows: null, exchangeFlowsDetailed: null,
-    });
+    // Professional (CQ Pro) deep metrics:
+    // - CQ_PRO_FULL_SPEC_ENABLED=false の間は「受け皿のみ」で従来挙動を保持
+    // - true になったら traps/scenarios に効く指標まで埋める
+    if (!fullSpecEnabled) {
+      Object.assign(baseResult, {
+        sopr: null,
+        sopr30d: null,
+        nupl: null,
+        lthNupl: null,
+        funding: null,
+        openInterest: null,
+        liquidations: null,
+        minerFlows: null,
+        liquidity: null,
+        stablecoinMetrics: null,
+        etfFlows: null,
+        exchangeFlowsDetailed: null,
+      });
+    } else {
+      const [
+        sopr,
+        sopr30d,
+        nupl,
+        lthNupl,
+        funding,
+        openInterest,
+        liquidations,
+        minerFlows,
+        liquidity,
+        exchangeFlowsDetailed,
+      ] = await Promise.all([
+        getSOPR().catch(() => null),
+        getSOPR30d().catch(() => null),
+        getNUPL().catch(() => null),
+        getLTHNUPL().catch(() => null),
+        getFundingRates().catch(() => null),
+        getOpenInterest().catch(() => null),
+        getLiquidations({ skipCache: options.skipCache }).catch(() => null),
+        getMinerFlows().catch(() => null),
+        getLiquidity().catch(() => null),
+        getExchangeFlowsDetailed().catch(() => null),
+      ]);
+
+      Object.assign(baseResult, {
+        sopr,
+        sopr30d,
+        nupl,
+        lthNupl,
+        funding,
+        openInterest,
+        liquidations,
+        minerFlows,
+        liquidity,
+        stablecoinMetrics: null,
+        etfFlows: null,
+        exchangeFlowsDetailed,
+      });
+    }
+
+    // riskReward / longTerm はテンプレが参照するため、fullSpecの有無に関係なく付与
+    //（sopr30d が null のときは以前同様 sopr30d=1.0 扱いで安全に）
+    const riskReward = calculateRiskReward(baseResult.nupl ?? null, baseResult.sopr30d ?? 1.0);
+    baseResult.longTerm = {
+      nupl: baseResult.nupl,
+      sopr: baseResult.sopr,
+      sopr30d: baseResult.sopr30d,
+    };
+    baseResult.riskReward = riskReward;
 
     switch (market) {
       case 'EN': {
@@ -609,22 +703,6 @@ async function getCQDeepMetrics(market, options = {}) {
         };
       }
 
-      case 'JA': {
-        const nupl = baseResult.nupl ?? null;
-        const sopr30d = baseResult.sopr30d ?? 1.0;
-        const riskReward = calculateRiskReward(nupl, sopr30d);
-
-        return {
-          ...baseResult,
-          longTerm: {
-            nupl: baseResult.nupl,
-            sopr: baseResult.sopr,
-            sopr30d: baseResult.sopr30d,
-          },
-          riskReward,
-        };
-      }
-
       case 'AR':
       case 'ES':
       case 'PT-BR':
@@ -662,6 +740,7 @@ module.exports = {
   getSOPR,
   getSOPR30d,
   getOpenInterest,
+  getFundingRates,
   getMinerFlows,
   getLiquidity,
   getStablecoinMetrics,

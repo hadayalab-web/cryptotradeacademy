@@ -1258,7 +1258,10 @@ module.exports = async function handler(req, res) {
           retailFomo: xSentiment.retailFomo || 50,
           priceChange24h: change24h,
           highResCQ: highResCQData,
-          highResX: highResXData
+          highResX: highResXData,
+          // Professional (CQ Pro) 指標も Trap Score に反映
+          // （CQ_PRO_FULL_SPEC_ENABLED=true のときに効く）
+          cqDeep: cqDeep || { inflow, mpi }
         });
 
         if (trapDetection.trapDetected) {
