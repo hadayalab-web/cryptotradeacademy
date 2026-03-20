@@ -1,6 +1,6 @@
 // api/x-post-regular-teaser.js
 // Regular briefing "chirashi" → X (6 languages). Zeigarnik: cut before data-backed block + hook + CTA.
-// Same KV snapshot keys as x-post-minimal; schedule offset from Minimal cron to reduce burst.
+// KV: btc:snapshot / btc:snapshot:early / minimal:btc:latest (same keys as before Minimal X was retired).
 
 require("../utils/suppressKnownWarnings");
 const { getKV } = require("../utils/kv");

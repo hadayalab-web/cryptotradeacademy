@@ -2,10 +2,9 @@
 
 ## X 自動投稿（`/api/x-post-regular-teaser`）
 
-Minimal と同型で、**6言語 × 1日4回（UTC 0,6,12,18 の :23）** に Regular の **途中まで（データ根拠セクション手前）** を **親ツイート**に投稿し、**1リプライ**で **LP + Minimal（Telegram）** へ誘導します。親ツイート側は **ツァイガルニク用フッター**付き。  
-`x-post-minimal`（:08）の直後にバッファを置いたスケジュールです。
+**6言語 × 1日4回（UTC 0,6,12,18 の :23）** に Regular の **途中まで（データ根拠セクション手前）** を **親ツイート**に投稿し、**1リプライ**で **LP + Minimal（Telegram）** へ誘導します。親ツイート側は **ツァイガルニク用フッター**付き。
 
-**「チラ見せは Regular のみ」に寄せる**: メインの覗きはこのエンドポイントのみにして、別途 `x-post-minimal` を止めたい場合は `X_POST_MINIMAL_ENABLED=0`（既存の Minimal X 投稿をオフ）。
+**Minimal の X 自動投稿**（旧 `api/x-post-minimal`）は **廃止**（Vercel cron 削除）。ブリーフィングの X チラ見せは **このエンドポイントのみ**。Telegram の Minimal 配信（`minimal-tg-delivery` 等）は従来どおり。
 
 | 環境変数 | 説明 |
 |----------|------|

@@ -57,10 +57,6 @@
     "api/x-reply-sales-followup.js": {
       "maxDuration": 60
     },
-    "api/x-post-minimal.js": {
-      "maxDuration": 600,
-      "includeFiles": "{config/**,services/x/**,services/telegram/messages/**}"
-    },
     "api/x-post-regular-teaser.js": {
       "maxDuration": 600,
       "includeFiles": "{config/**,services/x/**,services/telegram/messages/**,services/social/**}"
@@ -114,10 +110,6 @@
     {
       "path": "/api/kiba-5min",
       "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/x-post-minimal",
-      "schedule": "8 0,6,12,18 * * *"
     },
     {
       "path": "/api/x-post-regular-teaser",
