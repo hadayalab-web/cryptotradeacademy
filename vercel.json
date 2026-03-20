@@ -15,6 +15,9 @@
     "api/x-webhook.js": {
       "maxDuration": 30
     },
+    "api/warriorplus-ipn.js": {
+      "maxDuration": 30
+    },
     "api/whop-webhook.js": {
       "maxDuration": 30
     },
@@ -57,6 +60,10 @@
     "api/x-post-minimal.js": {
       "maxDuration": 600,
       "includeFiles": "{config/**,services/x/**,services/telegram/messages/**}"
+    },
+    "api/x-post-regular-teaser.js": {
+      "maxDuration": 600,
+      "includeFiles": "{config/**,services/x/**,services/telegram/messages/**,services/social/**}"
     },
     "api/telegram-scout-mark-sent.js": {
       "maxDuration": 10
@@ -111,6 +118,10 @@
     {
       "path": "/api/x-post-minimal",
       "schedule": "8 0,6,12,18 * * *"
+    },
+    {
+      "path": "/api/x-post-regular-teaser",
+      "schedule": "23 0,6,12,18 * * *"
     },
     {
       "path": "/api/daily-admin-report",
