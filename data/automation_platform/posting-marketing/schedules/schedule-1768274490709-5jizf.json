@@ -1,0 +1,11 @@
+{
+  "id": "schedule-1768274490709-5jizf",
+  "name": "TELEGRAM vsl-post - EN",
+  "platform": "telegram",
+  "market": "EN",
+  "content_type": "vsl-post",
+  "content_file": "data/posting-content/telegram-vsl-post-EN-1768274224640.json",
+  "scheduled_at": "2026-01-18T00:00:00.000Z",
+  "status": "scheduled",
+  "created_at": "2026-01-13T03:21:30.709Z"
+}

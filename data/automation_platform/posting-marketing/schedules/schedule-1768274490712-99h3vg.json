@@ -1,0 +1,11 @@
+{
+  "id": "schedule-1768274490712-99h3vg",
+  "name": "X market-analysis - EN",
+  "platform": "x",
+  "market": "EN",
+  "content_type": "market-analysis",
+  "content_file": "data/posting-content/x-market-analysis-EN-1768274224633.json",
+  "scheduled_at": "2026-01-15T00:00:00.000Z",
+  "status": "scheduled",
+  "created_at": "2026-01-13T03:21:30.712Z"
+}

@@ -1,0 +1,119 @@
+﻿# Cursor Installed Extensions (Current)
+
+**Generated**: 2026-01-09 19:25:41
+**Total**: 106 extensions
+
+## Extension List
+- anysphere.cursor-agent-exec
+- anysphere.cursor-always-local
+- anysphere.cursor-android-emulator-connect
+- anysphere.cursor-browser-extension
+- anysphere.cursor-commits
+- anysphere.cursor-deeplink
+- anysphere.cursor-file-service
+- anysphere.cursor-ios-simulator-connect
+- anysphere.cursor-mcp
+- anysphere.cursor-ndjson-ingest
+- anysphere.cursor-retrieval
+- anysphere.cursor-shadow-workspace
+- cursor.cursor-browser-automation
+- everysphere.worktree-textmate
+- ms-toolsai.jupyter-keymap
+- ms-vscode.js-debug
+- ms-vscode.js-debug-companion
+- ms-vscode.vscode-js-profile-table
+- vscode.bat
+- vscode.builtin-notebook-renderers
+- vscode.clojure
+- vscode.coffeescript
+- vscode.configuration-editing
+- vscode.cpp
+- vscode.csharp
+- vscode.css
+- vscode.css-language-features
+- vscode.dart
+- vscode.debug-auto-launch
+- vscode.debug-server-ready
+- vscode.diff
+- vscode.docker
+- vscode.emmet
+- vscode.extension-editing
+- vscode.fsharp
+- vscode.git
+- vscode.git-base
+- vscode.github
+- vscode.github-authentication
+- vscode.go
+- vscode.groovy
+- vscode.grunt
+- vscode.gulp
+- vscode.handlebars
+- vscode.hlsl
+- vscode.html
+- vscode.html-language-features
+- vscode.ini
+- vscode.ipynb
+- vscode.jake
+- vscode.java
+- vscode.javascript
+- vscode.json
+- vscode.json-language-features
+- vscode.julia
+- vscode.latex
+- vscode.less
+- vscode.log
+- vscode.lua
+- vscode.make
+- vscode.markdown
+- vscode.markdown-language-features
+- vscode.markdown-math
+- vscode.media-preview
+- vscode.merge-conflict
+- vscode.microsoft-authentication
+- vscode.npm
+- vscode.objective-c
+- vscode.ocaml
+- vscode.perl
+- vscode.php
+- vscode.php-language-features
+- vscode.powershell
+- vscode.pug
+- vscode.python
+- vscode.r
+- vscode.razor
+- vscode.references-view
+- vscode.restructuredtext
+- vscode.ruby
+- vscode.rust
+- vscode.scss
+- vscode.search-result
+- vscode.shaderlab
+- vscode.shellscript
+- vscode.simple-browser
+- vscode.sql
+- vscode.swift
+- vscode.terminal-suggest
+- vscode.theme-abyss
+- vscode.theme-defaults
+- vscode.theme-kimbie-dark
+- vscode.theme-monokai
+- vscode.theme-monokai-dimmed
+- vscode.theme-quietlight
+- vscode.theme-red
+- vscode.theme-solarized-dark
+- vscode.theme-solarized-light
+- vscode.theme-tomorrow-night-blue
+- vscode.tunnel-forwarding
+- vscode.typescript
+- vscode.typescript-language-features
+- vscode.vb
+- vscode.vscode-theme-seti
+- vscode.xml
+- vscode.yaml
+
+## Notes
+
+- This list is generated automatically
+- Extensions may be installed but not listed if stored in non-standard locations
+- Check Cursor's Extensions view (Ctrl+Shift+X) for the most accurate list
+

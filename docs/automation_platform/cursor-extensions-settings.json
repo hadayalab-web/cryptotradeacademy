@@ -1,0 +1,91 @@
+{
+  "// Cursor拡張機能最適化設定": "このファイルは docs/CURSOR_EXTENSIONS_OPTIMIZATION.md を参照してください",
+  "// Composer 1 パフォーマンス最適化": "docs/COMPOSER1_PERFORMANCE_OPTIMIZATION.md を参照してください",
+  
+  "// GitLens設定": "パフォーマンス向上のため、一部機能を無効化",
+  "gitlens.codeLens.enabled": false,
+  "gitlens.currentLine.enabled": false,
+  "gitlens.hovers.enabled": true,
+  "gitlens.statusBar.enabled": true,
+  
+  "// Error Lens設定": "エラーと警告のみ表示、表示遅延を設定",
+  "errorLens.enabledDiagnosticLevels": ["error", "warning"],
+  "errorLens.delay": 500,
+  
+  "// Import Cost設定": "パッケージサイズの閾値を設定",
+  "importCost.smallPackageSize": 50,
+  "importCost.mediumPackageSize": 100,
+  "importCost.showCalculatingDecoration": false,
+  
+  "// Todo Tree設定": "TODO検索のパフォーマンス向上",
+  "todo-tree.regex.regex": "((//|#|<!--|;|/\\*|^)\\s*($TAGS)|^\\s*- \\[ \\])",
+  "todo-tree.highlights.customHighlight": {
+    "TODO": {
+      "icon": "check",
+      "type": "text"
+    },
+    "FIXME": {
+      "icon": "flame",
+      "type": "text"
+    }
+  },
+  
+  "// 拡張機能管理設定": "自動更新と推奨設定",
+  "extensions.ignoreRecommendations": false,
+  "extensions.autoCheckUpdates": true,
+  "extensions.autoUpdate": false,
+  
+  "// ファイル監視設定": "パフォーマンス向上のため、不要なファイルを監視対象外に",
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/.hg/store/**": true,
+    "**/dist/**": true,
+    "**/build/**": true
+  },
+  
+  "// 検索除外設定": "検索速度向上のため、不要なディレクトリを除外",
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/*.code-search": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.git": true
+  },
+  
+  "// エディタ設定": "パフォーマンス向上",
+  "editor.smoothScrolling": true,
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": false,
+    "strings": true
+  },
+  
+  "// ウィンドウ設定": "パフォーマンス向上",
+  "window.autoDetectHighContrast": false,
+  
+  "// Composer 1設定": "Composer 1のパフォーマンスを最適化",
+  "cursor.composer.enableAutoSave": true,
+  "cursor.composer.maxTokens": 8000,
+  "cursor.composer.temperature": 0.7,
+  
+  "// コード補完設定": "Composer 1がコードを理解しやすくする",
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": false,
+    "strings": true
+  },
+  "editor.suggestSelection": "first",
+  "editor.acceptSuggestionOnCommitCharacter": true,
+  "editor.acceptSuggestionOnEnter": "on",
+  
+  "// エディタ設定": "Composer 1がコードを解析しやすくする",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  }
+}
+

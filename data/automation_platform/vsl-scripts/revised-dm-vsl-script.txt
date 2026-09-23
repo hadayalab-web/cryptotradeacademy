@@ -1,0 +1,66 @@
+# Revised DM VSL Script (EN)
+
+**Created**: 2026-01-12T16:06:45.266Z  
+**Author**: Gemini (CMO)  
+**Model**: gemini-3-flash-preview (thinkingLevel: high)
+**Market**: EN (English)
+
+**Integrated Content**:
+- Task 1's Two Young Men story (opening)
+- Task 3's detailed explanations (3 pillars)
+- Task 1's 70% rule (philosophy)
+
+**Purpose**: Text script to be inserted into DM messages
+
+---
+
+As the CMO of Trap Defence BTC, I have synthesized the emotional storytelling of Task 1 with the high-level technical authority of Task 3. This script is designed to be sent via DM, providing enough depth to educate while maintaining a narrative flow that leads the user directly to the "aha moment" on your Whop page.
+
+***
+
+# Trap Defence BTC: The Institutional Defender Script
+
+### 1. Opening: The Tale of Two Traders (30-60 seconds)
+Last year, two young men started their journey in Bitcoin. On paper, they looked identical—same starting capital, same ambition. 
+
+One of them worked 12 hours a day, eyes glued to the charts, chasing every green candle and sweating every red one. Last night, a single "Whale Trap" wiped out his entire account in minutes. 
+
+The other man? He spent his evening with his family, sipped a coffee, and woke up to a $5,000 profit. 
+
+The difference wasn’t luck. It was the system. One was hunting; the other was defending. One was reacting to the market; the other was reading the traps before they snapped.
+
+### 2. Problem: The Retail Liquidity Trap (30-60 seconds)
+The hard truth is that the BTC market is a war zone. 95% of retail traders are not "investors"—they are simply "liquidity" for institutional whales. 
+
+You aren't losing because you’re bad at math; you’re losing because of information asymmetry and emotional instability. You are bringing a laptop to a supercomputer fight. Without a shield, your FOMO becomes the whales’ greatest weapon. When you feel that urge to click "buy" at the top, that is exactly when the trap is set. 
+
+### 3. Solution: The 3 Pillars of Defense (60-90 seconds)
+Trap Defence BTC was built to change the physics of this fight. We provide the "High-Resolution Defense" required for a high-stakes market through our three core pillars:
+
+*   **Pillar 1: The Trap Defense Engine.** This is your early warning system. It detects Whale Dumps and Liquidation Cascades in real-time, visualizing the invisible traps before they catch you.
+*   **Pillar 2: Gemini Visual Storytelling.** We know you don’t have time to stare at dry on-chain data. Our system transforms complex market movements into intuitive news stories you can understand in seconds.
+*   **Pillar 3: Dr. Grok.** Trading is 90% mental. Dr. Grok is our AI psychologist who stays by your side 24/7, monitoring your mental state to prevent the "revenge trading" that destroys most accounts.
+
+Beyond the tools, we teach you the most powerful skill in the world: **The 70% Rule.** We give you the discipline to do nothing 70% of the time. This means you stop bleeding capital on "noise." When you finally move, you move with 90% certainty. 
+
+### 4. Proof: The Survival Protocol (30-60 seconds)
+This isn’t just an academy; it’s a survival protocol. We have seen our members survive the most brutal market crashes—the kind that liquidate thousands of traders in seconds—without losing a single Satoshi. 
+
+We don't just give you data; we give you a bulletproof mind and a professional-grade hardware upgrade for your trading strategy. Our members aren't just surviving; they are thriving because they’ve stopped being the prey.
+
+### 5. CTA: Secure Your Capital (30 seconds)
+The choice is yours: stay in the dark and remain part of the 95%, or activate your defense protocol today. 
+
+Our plans start at just **$69**—a fraction of what a single whale trap could cost you. 
+
+**Click the link below to visit our Whop page.** Watch the full story of the two traders, see the Trap Defense Engine in action, and secure your capital. 
+
+**[Link to Whop Page]**
+
+I am ready when you are. Welcome to the Academy.
+
+---
+
+**Original VSL Files**:
+- Task 1: `task1_Bitcoin Trap Defence-caption.srt`
+- Task 3: `task3_Master BTC Defense-caption.srt`

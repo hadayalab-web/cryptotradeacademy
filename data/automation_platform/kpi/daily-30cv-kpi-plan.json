@@ -1,0 +1,105 @@
+{
+  "target": {
+    "dailyCV": 30,
+    "dailyCVPerMarket": 5,
+    "weeklyCV": 210,
+    "monthlyCV": 900
+  },
+  "revenue": {
+    "daily": 3170,
+    "weekly": 22190,
+    "monthly": 95100
+  },
+  "operatingProfit": {
+    "daily": 2945.3100000000004,
+    "weekly": 20617.170000000002,
+    "monthly": 88359.30000000002,
+    "margin": 92.91198738170348
+  },
+  "whopFees": {
+    "rate": 0.067,
+    "perTransaction": 0.37,
+    "daily": 223.49,
+    "weekly": 1564.43,
+    "monthly": 6704.700000000001
+  },
+  "aiCosts": {
+    "daily": 1.2,
+    "weekly": 8.4,
+    "monthly": 36,
+    "breakdown": {
+      "grokCSO": {
+        "daily": 0.95,
+        "description": "リスト収集（750件/日、バッチ処理）"
+      },
+      "geminiCMO": {
+        "daily": 0.2,
+        "description": "セールスレター作成（750件/日、バッチ処理50件/バッチ）"
+      },
+      "gptCTO": {
+        "daily": 0.05,
+        "description": "KPI管理（1回/日）"
+      }
+    }
+  },
+  "listSize": {
+    "dailyPerMarket": 125,
+    "totalDaily": 500,
+    "weekly": 3500,
+    "monthly": 15000,
+    "realistic": {
+      "phase1": {
+        "daily": 400,
+        "weekly": 2800,
+        "monthly": 12000
+      },
+      "phase2": {
+        "daily": 500,
+        "weekly": 3500,
+        "monthly": 15000
+      }
+    }
+  },
+  "cvr": 0.04,
+  "pricing": {
+    "EN": {
+      "monthly": 69,
+      "quarterly": 165,
+      "yearly": 588
+    },
+    "AR": {
+      "monthly": 97,
+      "quarterly": 267,
+      "yearly": 597
+    },
+    "KO": {
+      "monthly": 117,
+      "quarterly": 317,
+      "yearly": 797
+    },
+    "JA": {
+      "monthly": 117,
+      "quarterly": 317,
+      "yearly": 797
+    },
+    "ES": {
+      "monthly": 117,
+      "quarterly": 317,
+      "yearly": 797
+    },
+    "PT-BR": {
+      "monthly": 117,
+      "quarterly": 317,
+      "yearly": 797
+    }
+  },
+  "markets": [
+    "EN",
+    "AR",
+    "KO",
+    "JA",
+    "ES",
+    "PT-BR"
+  ],
+  "startDate": "2026-01-13T00:37:25.179Z"
+}

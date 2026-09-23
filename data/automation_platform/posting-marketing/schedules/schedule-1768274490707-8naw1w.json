@@ -1,0 +1,11 @@
+{
+  "id": "schedule-1768274490707-8naw1w",
+  "name": "TELEGRAM market-analysis - EN",
+  "platform": "telegram",
+  "market": "EN",
+  "content_type": "market-analysis",
+  "content_file": "data/posting-content/telegram-market-analysis-EN-1768274224632.json",
+  "scheduled_at": "2026-01-13T00:00:00.000Z",
+  "status": "scheduled",
+  "created_at": "2026-01-13T03:21:30.708Z"
+}

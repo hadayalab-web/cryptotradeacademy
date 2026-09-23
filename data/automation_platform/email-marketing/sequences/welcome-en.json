@@ -1,0 +1,43 @@
+{
+  "id": "welcome-en",
+  "name": "Welcome Sequence - EN",
+  "market": "EN",
+  "trigger": "trial_started",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Welcome Email",
+      "delay_hours": 0,
+      "subject": "Welcome to CryptoTrade Academy 🎓",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🎓 CryptoTrade Academy</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Hi {{name}},</h2>\n      <p>Your 1-Day Free Trial just started.</p>\n      <p>Your first briefing arrives in 6 hours. Join Telegram now:</p>\n      <a href=\"https://t.me/cryptosignalai_en\" class=\"button\">Join Telegram</a>\n      <h3>What to expect:</h3>\n      <ul>\n        <li>2-6 briefings today</li>\n        <li>60-second reads</li>\n        <li>BUG STANDBY alerts</li>\n      </ul>\n      <p>Cancel anytime in Dashboard → Settings.</p>\n      <p>See you in 6 hours.</p>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n    <div class=\"footer\">\n      <p>You're receiving this because you started a trial. <a href=\"{{unsubscribe_url}}\">Unsubscribe</a></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "welcome",
+        "trial_started"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "First Value Email",
+      "delay_hours": 6,
+      "subject": "Your first briefing is live 🛡️",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🛡️ Your First Briefing</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Hi {{name}},</h2>\n      <p>Your first BUG STANDBY briefing just arrived in Telegram.</p>\n      <a href=\"https://t.me/cryptosignalai_en\" class=\"button\">Check Telegram</a>\n      <p><strong>Context → Decision → What to watch.</strong> 60 seconds.</p>\n      <p>This is what $69/month gets you. Every day.</p>\n      <p>Trial ends in 18 hours.</p>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "value",
+        "trial"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Trial Ending Reminder",
+      "delay_hours": 12,
+      "subject": "Your trial ends in 6 hours",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #f5576c; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>⏰ Trial Ending Soon</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Hi {{name}},</h2>\n      <p>Your trial ends in 6 hours.</p>\n      <p>You received {{briefing_count}} trap alerts. 0 false signals.</p>\n      <p>Continue protecting your trades:</p>\n      <a href=\"https://whop.com/aio-media-llc/trap-defence-btc-en/\" class=\"button\">Continue Membership</a>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "trial_ending",
+        "conversion"
+      ]
+    }
+  ],
+  "created_at": "2026-01-13T03:25:37.735Z",
+  "updated_at": "2026-01-13T03:25:37.738Z"
+}

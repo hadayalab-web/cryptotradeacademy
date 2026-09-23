@@ -1,0 +1,46 @@
+{
+  "id": "vsl-ko",
+  "name": "VSL Sequence - KO",
+  "market": "KO",
+  "trigger": "re_engagement",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "VSL1 - 스텔스 게시",
+      "delay_hours": 0,
+      "subject": "대부분의 트레이더가 돈을 잃는 이유",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n    .video-container { text-align: center; margin: 20px 0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🎬 대부분의 트레이더가 돈을 잃는 이유</h1>\n    </div>\n    <div class=\"content\">\n      <h2>{{name}}님, 안녕하세요</h2>\n      <p>숨겨진 트랩 방어 프로토콜:</p>\n      <ul>\n        <li>✅ 실시간 트랩 감지</li>\n        <li>✅ 기관급 인사이트</li>\n        <li>✅ 고정밀 신호</li>\n        <li>✅ 감정적 거래 감소</li>\n      </ul>\n      <div class=\"video-container\">\n        <a href=\"{{vsl1_url}}\" class=\"button\">▶️ VSL1 시청</a>\n      </div>\n      <p>무료 버전 액세스: <a href=\"{{free_optin_url}}\">무료 버전 시작</a></p>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "vsl1",
+        "stealth_post",
+        "re_engagement"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "VSL2 - 프로모 코드 공지",
+      "delay_hours": 24,
+      "subject": "독점 50% 할인 - 한정 50석",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #ff6b6b; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }\n    .promo-code { background: #fff3cd; border: 2px dashed #ffc107; padding: 15px; text-align: center; margin: 20px 0; font-size: 24px; font-weight: bold; color: #856404; }\n    .video-container { text-align: center; margin: 20px 0; }\n    .urgency { color: #dc3545; font-weight: bold; font-size: 18px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🔥 한정 타임 오퍼 - 50% 할인</h1>\n    </div>\n    <div class=\"content\">\n      <h2>{{name}}님, 안녕하세요</h2>\n      <p class=\"urgency\">⏰ 50% 할인은 {{remaining_spots}}석만 남았습니다!</p>\n      <p>무료 버전 사용자로서 한정 타임 프로모션에 대한 독점 액세스 권한이 있습니다:</p>\n      <div class=\"promo-code\">\n        프로모 코드: {{promo_code}}\n      </div>\n      <p><strong>포함된 내용:</strong></p>\n      <ul>\n        <li>✅ 모든 플랜 50% 할인</li>\n        <li>✅ 완전한 트랩 방어 프로토콜</li>\n        <li>✅ 실시간 알림</li>\n        <li>✅ 우선 지원</li>\n      </ul>\n      <div class=\"video-container\">\n        <a href=\"{{vsl2_url}}\" class=\"button\">▶️ VSL2 시청 - 자세히 보기</a>\n      </div>\n      <p>결제 시 프로모 코드 사용: <a href=\"{{whop_url}}?promo={{promo_code}}\">Whop 액세스</a></p>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "vsl2",
+        "promo_code",
+        "limited_offer"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "VSL3 - 제품 페이지",
+      "delay_hours": 48,
+      "subject": "보호 설정 완료",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }\n    .video-container { text-align: center; margin: 20px 0; }\n    .testimonial { background: #e7f3ff; padding: 15px; border-left: 4px solid #667eea; margin: 20px 0; font-style: italic; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🛡️ 보호 설정 완료</h1>\n    </div>\n    <div class=\"content\">\n      <h2>{{name}}님, 안녕하세요</h2>\n      <p>무료 버전을 2일 동안 사용하고 계십니다. 완전한 보호의 내용은 다음과 같습니다:</p>\n      <div class=\"testimonial\">\n        \"Trap Defense를 사용하여 $50,000의 손실을 피했습니다. 무료 버전에서 가치를 확인했고, 완전 버전에서 자본을 보호했습니다.\" - 민수, 한국\n      </div>\n      <p><strong>완전 버전의 혜택:</strong></p>\n      <ul>\n        <li>✅ 실시간 트랩 알림 (지연 없음)</li>\n        <li>✅ 완전한 시장 분석</li>\n        <li>✅ 커뮤니티 액세스</li>\n        <li>✅ 우선 지원</li>\n        <li>✅ 평생 업데이트</li>\n      </ul>\n      <div class=\"video-container\">\n        <a href=\"{{vsl3_url}}\" class=\"button\">▶️ VSL3 시청 - 모든 기능 보기</a>\n      </div>\n      <p>설정 완료: <a href=\"{{whop_product_url}}\">제품 페이지 보기</a></p>\n      <p><strong>목표: 무료 버전 옵트인 후 3일 이내 전환</strong></p>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "vsl3",
+        "product_page",
+        "conversion"
+      ]
+    }
+  ],
+  "created_at": "2026-01-13T03:25:37.738Z",
+  "updated_at": "2026-01-14T12:00:00.000Z"
+}

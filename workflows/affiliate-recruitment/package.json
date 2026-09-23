@@ -1,0 +1,29 @@
+{
+  "name": "affiliate-recruitment-workflow",
+  "version": "1.0.0",
+  "description": "アフィリエイト募集自動化ワークフロー（GPTレビュー改善版）",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "test": "tsx src/test/local-test.ts",
+    "test:local": "tsx src/test/local-test.ts",
+    "test:send": "tsx src/test/send-test.ts"
+  },
+  "keywords": [
+    "affiliate",
+    "workflow",
+    "automation"
+  ],
+  "author": "HadayaLab",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "tsx": "^4.7.0"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "generatedAt": "2026-01-12T06:17:17.995Z",
+  "profile": "Whop CEO Profile - AIO Media LLC | CryptoTradeAcademy",
+  "assets": {
+    "images": [
+      {
+        "id": "banner",
+        "name": "プロフィールバナー（横長）- 1188px×396px最適化版",
+        "file": "profile-banner-cryptotradeacademy-1188x396.png",
+        "path": "C:\\Users\\chiba\\hadayalab-automation-platform\\data\\whop-profile-assets\\images\\profile-banner-cryptotradeacademy-1188x396.png",
+        "prompt": "A premium wide cinematic banner (1188px × 396px, 3:1 aspect ratio) showing a curved transparent holographic display in a high-end office environment. On the display, a detailed Bitcoin on-chain data map provided by CryptoQuant is visible. In the top-left corner, the \"+Q CryptoQuant\" logo and text with \"INSTITUTIONAL WALLETS\" label. The main title reads \"CRYPTOQUANT ON-CHAIN DATA MAP\" and \"BITCOIN NETWORK FLOWS\". A detailed digital world map is projected on the screen: the left hemisphere (Americas, Europe, parts of Africa) shows glowing amber/orange data nodes and network lines, while the right hemisphere (Asia, Australia) shows teal/cyan glowing data nodes and network lines. Interconnecting light lines span across continents showing global network activity. Below the map, three horizontal progress bar indicators: \"TOTAL BTC BALANCE\" (amber bar), \"TRANSACTION VOLUME\" (amber bar), and \"NETWORK ACTIVITY\" (teal bar). Small text labels in the top-right: \"IWONCARE\", \"MIERS\", \"BCIAMMES\", \"HOBLars\" with colored dots (orange, green, teal). On the desk in front of the screen, a sleek dark keyboard with teal backlighting and a matching dark computer mouse. In the background, a blurred city skyline at dusk/night visible through large windows on the left, with soft glowing spherical lighting fixtures on side tables. On the right, a dim luxurious office interior with dark wood furniture and white-shaded table lamps, with potted plants adding green accents. The overall atmosphere is high-tech, professional, and futuristic, emphasizing data reliability and institutional-level intelligence. Deep navy blue and black dominate from the office and city view, while the data display's vibrant amber/orange and teal glows create contrast. Premium Bloomberg-terminal style aesthetic, 8k resolution, cinematic lighting.",
+        "description": "CryptoQuantのオンチェーンデータマップが表示されたホログラフィックディスプレイ。1188px×396px（3:1）に最適化。全体のデザインや構成は変更なし",
+        "usage": "Whopプロフィールページの上部バナーとして使用。指定サイズ: 1188px×396px",
+        "aspectRatio": "21:9",
+        "targetSize": "1188px × 396px",
+        "generated": true
+      },
+      {
+        "id": "logo-transparent",
+        "name": "プロフィールロゴ（背景透過版）",
+        "file": "profile-logo-cryptotradeacademy-transparent.png",
+        "path": "C:\\Users\\chiba\\hadayalab-automation-platform\\data\\whop-profile-assets\\images\\profile-logo-cryptotradeacademy-transparent.png",
+        "prompt": "A minimalist luxury logo design for \"CryptoTradeAcademy\". A stylized black outline shield icon. Inside the shield, a curved metallic gold letter \"C\" integrated with three rising candlestick charts (the center candlestick is the highest, showing an upward trend). The \"C\" and candlesticks are seamlessly merged. Professional flat vector style, bold lines, metallic gold and deep charcoal colors. Transparent background, no background, high contrast, symmetry, premium fintech branding. Isolated logo on transparent background.",
+        "description": "添付画像から抽出したロゴデザイン。スタイリッシュな黒いアウトラインのシールド、金色の曲線的な「C」、3本の金色のローソク足チャートが一体化。背景透過版",
+        "usage": "Whopプロフィールページのプロフィール画像として使用。背景透過により、任意の背景色に配置可能",
+        "aspectRatio": "1:1",
+        "generated": true
+      },
+      {
+        "id": "logo-white-bg",
+        "name": "プロフィールロゴ（白背景版）",
+        "file": "profile-logo-cryptotradeacademy-white-bg.png",
+        "path": "C:\\Users\\chiba\\hadayalab-automation-platform\\data\\whop-profile-assets\\images\\profile-logo-cryptotradeacademy-white-bg.png",
+        "prompt": "A minimalist luxury logo design for \"CryptoTradeAcademy\". A stylized black outline shield icon. Inside the shield, a curved metallic gold letter \"C\" integrated with three rising candlestick charts (the center candlestick is the highest, showing an upward trend). The \"C\" and candlesticks are seamlessly merged. Professional flat vector style, bold lines, metallic gold and deep charcoal colors. White background, high contrast, symmetry, premium fintech branding.",
+        "description": "添付画像から抽出したロゴデザイン。スタイリッシュな黒いアウトラインのシールド、金色の曲線的な「C」、3本の金色のローソク足チャートが一体化。白背景版",
+        "usage": "Whopプロフィールページのプロフィール画像として使用。白背景で統一感のあるデザイン",
+        "aspectRatio": "1:1",
+        "generated": true
+      }
+    ]
+  },
+  "bioText": "AIO Media LLC | CryptoTradeAcademy\nDefense-First Bitcoin trading. CryptoQuant, Grok-X, Gemini AI. \"Anti-Trap\" protocol.\nStop being liquidity. Start defending your capital.\n🌐 cryptotradeacademy.io 🛡️ 2,000+ Defenders",
+  "bioTextLength": 217,
+  "brandColors": {
+    "primary": "Deep Navy",
+    "accent": "Amber/Orange",
+    "logo": "Metallic Gold & Deep Charcoal"
+  },
+  "strategicAdvice": {
+    "domainExposure": "バイオの最後に必ずドメインを記載。Whop外でも実体があることを示すことで、信頼スコアが跳ね上がる",
+    "companyRole": "バイオの冒頭に会社名を入れることで、「個人が片手間でやっているツール」ではなく「法人が運営するアカデミー」であることを明示",
+    "colorConsistency": "バナーとロゴ、そして商品ページのVSLで使っている「オレンジ×ダークネイビー」の配色をここでも徹底。ブランドの一貫性が「本物感」を生む"
+  }
+}

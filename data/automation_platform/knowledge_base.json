@@ -1,0 +1,2128 @@
+{
+  "entries": [
+    {
+      "id": 1,
+      "path": "literature/INDEX.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\literature\\INDEX.md",
+      "type": "markdown",
+      "title": "📖 Literature Index",
+      "description": "# 📖 Literature Index  全文献の詳細情報とクイックリファレンス  ---  ## 📋 カテゴリ構成  ``` literature/ ├── marketing/ │   ├── sell-without-fighting-click-marketing.pdf │   └── youtube-resources.md ├── strategy/ │   ├── CryptoTrade Academy - Creative Execution Master Guide v1.0.md │   ├── CryptoTrade Academy - Sales Strategy Doping v2.0 FINAL.md │   └── CryptoTrade Academy - Zero-Budget Affiliate DRM Strategy v1.1 + APDS v1.0.md └── ... ``` ",
+      "summary": "全文献の詳細情報とクイックリファレンス --- literature/ ├── marketing/ │   ├── sell-without-fighting-click-marketing.pdf │   └── youtube-resources.md ├── strategy/ │   ├── CryptoTrade Academy - Creative Execution Master Guide v1.0.md │   ├── CryptoTrade Academy - Sales Strategy Doping v2.0 FINAL.md │   └── CryptoTrade Academy - Zero-Budget Affiliate DRM Strategy v1.1 + APDS v1.0.md",
+      "keywords": [
+        "📖 Literature Index",
+        "📋 カテゴリ構成",
+        "📚 文献リスト",
+        "Marketing（マーケティング）",
+        "Strategy（戦略）",
+        "📊 統計",
+        "🔍 文献エントリーのフォーマット",
+        "[番号].  [書籍タイトル]",
+        "📝 使用例",
+        "統合戦略の生成",
+        "特定理論の適用",
+        "ファイル",
+        "追加日",
+        "カテゴリ",
+        "キーコンセプト",
+        "応用先",
+        "抽出データ",
+        "内容",
+        "合計文献数",
+        "合計サイズ"
+      ],
+      "contentLength": 2712,
+      "lineCount": 125,
+      "fileSize": 4198,
+      "modifiedAt": "2025-12-26T09:23:14.890Z",
+      "indexedAt": "2025-12-27T11:41:19.751Z"
+    },
+    {
+      "id": 2,
+      "path": "literature/marketing/README.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\literature\\marketing\\README.md",
+      "type": "markdown",
+      "title": "Marketing（マーケティング）カテゴリ",
+      "description": "# Marketing（マーケティング）カテゴリ  ## 📚 文献リスト  ### 1. 戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術  - **ファイル**: `sell-without-fighting-click-marketing.pdf` - **追加日**: 2025-12-25 - **カテゴリ**: コア・ナレッジベース - **キーコンセプト**:   - WEBマーケティング   - クリックベースの市場創造   - 戦略的販売技術 - **応用先**: プロダクトマーケティング、n8nワークフロー設計 - **抽出データ**: `../extracted-knowledge/戦わずして売る技術/` （作成予定）  ### 2. YouTube リソース（コア・ナレッジベース）  - **ファイル**: `youtube-resources.md` - **追加日**: 2025-12-25",
+      "summary": "- **ファイル**: `sell-without-fighting-click-marketing.pdf` - **追加日**: 2025-12-25 - **カテゴリ**: コア・ナレッジベース - **キーコンセプト**:   - WEBマーケティング   - クリックベースの市場創造   - 戦略的販売技術 - **応用先**: プロダクトマーケティング、n8nワークフロー設計 - **抽出データ**: `../extracted-knowledge/戦わずして売る技術/` （作成予定） - **ファイル**: `youtube-resources.md`",
+      "keywords": [
+        "Marketing（マーケティング）カテゴリ",
+        "📚 文献リスト",
+        "1. 戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術",
+        "2. YouTube リソース（コア・ナレッジベース）",
+        "ファイル",
+        "追加日",
+        "カテゴリ",
+        "キーコンセプト",
+        "応用先",
+        "抽出データ",
+        "内容",
+        "最終更新",
+        "**ファイル**: `sell-without-fighting-click-marketing.pdf`",
+        "**追加日**: 2025-12-25",
+        "**カテゴリ**: コア・ナレッジベース",
+        "**キーコンセプト**:",
+        "**応用先**: プロダクトマーケティング、n8nワークフロー設計",
+        "**抽出データ**: `../extracted-knowledge/戦わずして売る技術/` （作成予定）",
+        "**ファイル**: `youtube-resources.md`",
+        "**内容**: 5つの重要なYouTube動画リンク"
+      ],
+      "contentLength": 486,
+      "lineCount": 27,
+      "fileSize": 868,
+      "modifiedAt": "2025-12-26T09:23:14.890Z",
+      "indexedAt": "2025-12-27T11:41:19.753Z"
+    },
+    {
+      "id": 3,
+      "path": "literature/marketing/sell-without-fighting-click-marketing.pdf",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\literature\\marketing\\sell-without-fighting-click-marketing.pdf",
+      "type": "pdf",
+      "title": "sell-without-fighting-click-marketing",
+      "fileSize": 28662228,
+      "modifiedAt": "2025-12-25T11:44:23.853Z",
+      "indexedAt": "2025-12-27T11:41:19.753Z"
+    },
+    {
+      "id": 4,
+      "path": "literature/marketing/youtube-resources.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\literature\\marketing\\youtube-resources.md",
+      "type": "markdown",
+      "title": "📺 YouTube リソース",
+      "description": "# 📺 YouTube リソース  コア・ナレッジベースとして参照する重要なYouTube動画  ## 動画リスト  ### 1. [動画タイトル未設定] - **URL**: https://youtu.be/hKCnv0OKK3A?si=xwN8gTmasEEsm_Kh - **追加日**: 2025-12-25 - **カテゴリ**: コア・ナレッジベース - **メモ**:  ### 2. [動画タイトル未設定] - **URL**: https://youtu.be/tGGVwTIErXk?si=kh7NRjQryRDLcySY - **追加日**: 2025-12-25 - **カテゴリ**: コア・ナレッジベース - **メモ**:  --- ",
+      "summary": "コア・ナレッジベースとして参照する重要なYouTube動画 - **URL**: https://youtu.be/hKCnv0OKK3A?si=xwN8gTmasEEsm_Kh - **追加日**: 2025-12-25 - **カテゴリ**: コア・ナレッジベース - **メモ**: - **URL**: https://youtu.be/tGGVwTIErXk?si=kh7NRjQryRDLcySY - **追加日**: 2025-12-25 - **カテゴリ**: コア・ナレッジベース - **メモ**: ---",
+      "keywords": [
+        "📺 YouTube リソース",
+        "動画リスト",
+        "1. [動画タイトル未設定]",
+        "2. [動画タイトル未設定]",
+        "活用方法",
+        "AIとの共有",
+        "n8nワークフロー設計",
+        "URL",
+        "追加日",
+        "カテゴリ",
+        "メモ",
+        "最終更新",
+        "**URL**: https://youtu.be/hKCnv0OKK3A?si=xwN8gTmasEEsm_Kh",
+        "**追加日**: 2025-12-25",
+        "**カテゴリ**: コア・ナレッジベース",
+        "**メモ**:",
+        "**URL**: https://youtu.be/tGGVwTIErXk?si=kh7NRjQryRDLcySY"
+      ],
+      "contentLength": 630,
+      "lineCount": 38,
+      "fileSize": 986,
+      "modifiedAt": "2025-12-26T09:23:14.890Z",
+      "indexedAt": "2025-12-27T11:41:19.754Z"
+    },
+    {
+      "id": 5,
+      "path": "literature/strategy/CryptoTrade Academy - Creative Execution Master Guide v1.0.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\literature\\strategy\\CryptoTrade Academy - Creative Execution Master Guide v1.0.md",
+      "type": "markdown",
+      "title": "🎯 CryptoTrade Academy - Creative Execution Master Guide v1.0",
+      "description": "# 🎯 CryptoTrade Academy - Creative Execution Master Guide v1.0  **Version**: 1.0 - Whop/Make/HeyGen/Adobe完全実装 **Date**: 2025-12-21 22:54 JST **Status**: PRODUCTION READY **Purpose**: Strategic SSOT v4.0 + Sales Doping v2.0 → 4大ツールで完全実行 **Parent**: Strategic SSOT v4.0 + Technical Supplement v2.0 + Sales Doping v2.0 FINAL  ***  ## 📌 Section 0: 4大ツール統合Architecture  ### 0.1 ツール役割分担(Growth Engine v1.2統合)  ```yaml 戦略階層:   Layer 0: Strategic SSOT v4.0(戦略OS)     - 木下ロジック: 商品力 × リーチ力 × レスポンス力     - 3C分",
+      "summary": "**Version**: 1.0 - Whop/Make/HeyGen/Adobe完全実装 **Date**: 2025-12-21 22:54 JST **Status**: PRODUCTION READY **Purpose**: Strategic SSOT v4.0 + Sales Doping v2.0 → 4大ツールで完全実行 **Parent**: Strategic SSOT v4.0 + Technical Supplement v2.0 + Sales Doping v2.0 FINAL *** 戦略階層:   Layer 0: Strategic SSOT v4.0(戦略OS)     - 木下ロジック: 商品力 × リーチ力 × レスポンス力     - 3C分析: 6市場別戦略",
+      "keywords": [
+        "🎯 CryptoTrade Academy - Creative Execution Master Guide v1.0",
+        "📌 Section 0: 4大ツール統合Architecture",
+        "0.1 ツール役割分担(Growth Engine v1.2統合)",
+        "0.2 Creative BP Master Library連動",
+        "🏪 Section 1: Whop完全実装(統合LP戦略)",
+        "1.1 Whop Product Setup完全手順[^1][^2]",
+        "1.2 Whop Drip-Feed設定(LTV最大化)[^1]",
+        "1.3 Whop Description最適化(SEO+論理補足)",
+        "🤖 Section 2: Make.com完全自動化",
+        "2.1 Make Workflow Architecture[^3][^4]",
+        "2.2 Workflow 1: Trial Onboarding Automation[^4]",
+        "2.3 Workflow 2: Affiliate Auto-Management[^1]",
+        "2.4 Workflow 3: Emergency Briefing Trigger(Vercel連携)",
+        "🎬 Section 3: HeyGen VSL完全制作",
+        "3.1 HeyGen Setup \\& Best Practices[^5][^6]",
+        "3.2 EN市場VSL制作手順[^5]",
+        "3.3 Whop Hero Section埋め込み[^7]",
+        "🎨 Section 4: Adobe Creative Cloud完全活用",
+        "4.1 Adobe Brand Kit統一設計",
+        "4.2 Photoshop: Whop Thumbnail制作"
+      ],
+      "contentLength": 24861,
+      "lineCount": 1189,
+      "fileSize": 30435,
+      "modifiedAt": "2025-12-26T09:23:14.938Z",
+      "indexedAt": "2025-12-27T11:41:19.757Z"
+    },
+    {
+      "id": 6,
+      "path": "literature/strategy/CryptoTrade Academy - Sales Strategy Doping v2.0 FINAL.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\literature\\strategy\\CryptoTrade Academy - Sales Strategy Doping v2.0 FINAL.md",
+      "type": "markdown",
+      "title": "CryptoTrade Academyセールス戦略のOSに以下文献ロジックをインストールしてドーピングせよ",
+      "description": "<img src=\"https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png\" style=\"height:64px;margin-right:32px\"/>  # CryptoTrade Academyセールス戦略のOSに以下文献ロジックをインストールしてドーピングせよ  参照: Framework Master Library Nudge（Final Edition） Influence（New and Expanded） MECLABS Scientific Advertising  Sales Strategy Doping v1.0のアップデート版として作成  **了解しました！Sales Strategy Doping v1.0に最新理論をインストールして、v2.0 FINALとして完全ドーピングします！** 💉  ***  # 🎯 CryptoTrade Academy - Sales Strategy Doping v2.0 FINAL  **Version**: 2.0 FINAL - Str",
+      "summary": "<img src=\"https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png\" style=\"height:64px;margin-right:32px\"/> 参照: Framework Master Library Nudge（Final Edition） Influence（New and Expanded） MECLABS Scientific Advertising Sales Strategy Doping v1.0のアップデート版として作成 **了解しました！Sales Strategy Doping v1.0に最新理論をインストールして、v2.0 FINALとして完全ドーピングします！** 💉 *** **Version**: 2.0 FINAL - Strategic SSOT v4.0完全統合版",
+      "keywords": [
+        "CryptoTrade Academyセールス戦略のOSに以下文献ロジックをインストールしてドーピングせよ",
+        "🎯 CryptoTrade Academy - Sales Strategy Doping v2.0 FINAL",
+        "📌 Section 0: 理論統合OS Architecture",
+        "0.1 6層統合構造（完全版）",
+        "0.2 6理論完全統合詳細",
+        "0.3 v1.0 → v2.0変更点",
+        "🎯 Section 1: 木下ロジック完全実装",
+        "1.1 年商100億の公式適用(Strategic SSOT v4.0連動)",
+        "1.2 年商100億公式適用結果",
+        "🧠 Section 2: Nudge理論完全実装",
+        "2.1 Default Effect(木下ロジック統合)",
+        "2.2 Path of Least Resistance(MECLABS Friction統合)",
+        "2.3 Feedback Loop(Influence Reciprocity統合)",
+        "2.4 Mapping(MECLABS Value統合)",
+        "🔥 Section 3: Influence理論完全実装",
+        "3.1 Reciprocity + Unity(木下ロジック統合)",
+        "3.2 Commitment \\& Consistency(Nudge統合)",
+        "3.3 Social Proof + Authority(MECLABS統合)",
+        "3.4 Liking + Scarcity(倫理的実装)",
+        "📐 Section 4: MECLABS Heuristic完全実装"
+      ],
+      "contentLength": 29747,
+      "lineCount": 1468,
+      "fileSize": 41782,
+      "modifiedAt": "2025-12-26T09:23:14.933Z",
+      "indexedAt": "2025-12-27T11:41:19.759Z"
+    },
+    {
+      "id": 7,
+      "path": "literature/strategy/CryptoTrade Academy - Zero-Budget Affiliate DRM Strategy v1.1 + APDS v1.0.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\literature\\strategy\\CryptoTrade Academy - Zero-Budget Affiliate DRM Strategy v1.1 + APDS v1.0.md",
+      "type": "markdown",
+      "title": "広告予算なし、SNSアカウントなし、SNSフォロワーなし、運営コミュなしの中でアフィリエイト戦略を推進する、参考文献、ロジック、ベストプラクティスを探してくれ、セールス戦略はアフィリエイターへのDRMに特化",
+      "description": "<img src=\"https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png\" style=\"height:64px;margin-right:32px\"/>  # 広告予算なし、SNSアカウントなし、SNSフォロワーなし、運営コミュなしの中でアフィリエイト戦略を推進する、参考文献、ロジック、ベストプラクティスを探してくれ、セールス戦略はアフィリエイターへのDRMに特化  **了解しました！広告予算・SNSゼロ状態からアフィリエイター獲得に特化したDRM戦略を構築します！** 🎯  ***  # 🚀 CryptoTrade Academy - Zero-Budget Affiliate DRM Strategy v1.0  **Version**: 1.0 - 広告予算ゼロ・SNSゼロ対応完全版 **Date**: 2025-12-21 23:31 JST **Status**: PRODUCTION READY **Purpose**: アフィリエイター獲得Cold Outreach完全戦略 **Parent",
+      "summary": "<img src=\"https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png\" style=\"height:64px;margin-right:32px\"/> **了解しました！広告予算・SNSゼロ状態からアフィリエイター獲得に特化したDRM戦略を構築します！** 🎯 *** **Version**: 1.0 - 広告予算ゼロ・SNSゼロ対応完全版 **Date**: 2025-12-21 23:31 JST **Status**: PRODUCTION READY **Purpose**: アフィリエイター獲得Cold Outreach完全戦略 **Parent**: Strategic SSOT v4.0 + Sales Doping v2.0 *** 制約:",
+      "keywords": [
+        "広告予算なし、SNSアカウントなし、SNSフォロワーなし、運営コミュなしの中でアフィリエイト戦略を推進する、参考文献、ロジック、ベストプラクティスを探してくれ、セールス戦略はアフィリエイターへのDRMに特化",
+        "🚀 CryptoTrade Academy - Zero-Budget Affiliate DRM Strategy v1.0",
+        "📌 Section 0: ゼロ予算戦略の原則",
+        "0.1 制約条件(現状)[^1]",
+        "0.2 戦略転換(木下ロジック応用)[^1]",
+        "0.3 参考文献統合[^2][^3]",
+        "🎯 Section 1: Elite 10 Method(精鋭10人戦略)[^4][^2]",
+        "1.1 戦略概要",
+        "1.2 理想Affiliate Persona定義[^2]",
+        "1.3 10人獲得ロードマップ(Week 1-8)",
+        "📧 Section 2: Cold Outreach Template(実証済み)[^3][^2]",
+        "2.1 Template A: Fan Approach(既存コンテンツ言及)",
+        "2.2 Template B: Partnership Approach(Professional向け)[^3][^2]",
+        "2.3 Template C: Gift Approach(Product Seeding)[^2]",
+        "🔍 Section 3: 無料リサーチツール完全活用[^6][^7]",
+        "3.1 Email Finder(無料枠活用)",
+        "3.2 SNSリサーチ(無料・無制限)",
+        "3.3 無料CRM(リスト管理)[^8]",
+        "📬 Section 4: Cold Email実装(GMass代替無料)[^3]",
+        "4.1 Gmail + Chrome Extension(無料実装)"
+      ],
+      "contentLength": 49298,
+      "lineCount": 2295,
+      "fileSize": 61828,
+      "modifiedAt": "2025-12-26T09:23:14.940Z",
+      "indexedAt": "2025-12-27T11:41:19.761Z"
+    },
+    {
+      "id": 8,
+      "path": "docs/advanced-doping-logic-verification.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\docs\\advanced-doping-logic-verification.md",
+      "type": "markdown",
+      "title": "🔬 高度ドーピングロジック再検証レポート",
+      "description": "# 🔬 高度ドーピングロジック再検証レポート  ## 📋 検証目的  4理論（Nudge, Influence, MECLABS, Scientific Advertising）以上の最適解がないか、より広範な理論を検証  ---  ## 🔍 追加検討理論の評価  ### 1. Hooked（ニール・イヤール） - ✅ **追加推奨**  #### 適用領域 - **リテンション戦略**: Trial→課金後の継続率向上 - **習慣形成**: 毎日のBriefing配信を習慣化 - **Engagement向上**: Telegram配信の開封率・読了率向上  #### 現在の実装状況 ```yaml 部分的実装:",
+      "summary": "4理論（Nudge, Influence, MECLABS, Scientific Advertising）以上の最適解がないか、より広範な理論を検証 --- - **リテンション戦略**: Trial→課金後の継続率向上 - **習慣形成**: 毎日のBriefing配信を習慣化 - **Engagement向上**: Telegram配信の開封率・読了率向上 部分的実装:   ✅ Trigger: Telegram Push通知（外部トリガー）   ✅ Action: Briefing読了（簡単な行動）   ✅ Variable Reward: BUG STANDBY vs EMERGENCY（予測不可能性）   ❌ Investment: ユーザーが価値を蓄積する仕組み（未実装）",
+      "keywords": [
+        "🔬 高度ドーピングロジック再検証レポート",
+        "📋 検証目的",
+        "🔍 追加検討理論の評価",
+        "1. Hooked（ニール・イヤール） - ✅ **追加推奨**",
+        "2. The Lean Startup（エリック・リース） - ✅ **追加推奨**",
+        "3. Blue Ocean Strategy（W・チャン・キム） - ⚠️ **既にカバー済み**",
+        "4. Predictably Irrational（ダン・アリエリー） - ⚠️ **オプション**",
+        "5. The 22 Immutable Laws of Marketing（アル・ライズ） - ⚠️ **既にカバー済み**",
+        "🎯 最終推奨: 6理論統合",
+        "推奨理論セット",
+        "6理論統合構造",
+        "📊 追加効果の予測",
+        "Hooked統合による効果",
+        "The Lean Startup統合による効果",
+        "✅ 最終結論",
+        "**6理論統合を推奨**",
+        "実装優先順位",
+        "追加推奨",
+        "リテンション戦略",
+        "習慣形成"
+      ],
+      "contentLength": 4467,
+      "lineCount": 285,
+      "fileSize": 7608,
+      "modifiedAt": "2025-12-26T09:23:14.893Z",
+      "indexedAt": "2025-12-27T11:41:19.764Z"
+    },
+    {
+      "id": 9,
+      "path": "docs/doping-logic-verification.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\docs\\doping-logic-verification.md",
+      "type": "markdown",
+      "title": "🧪 ドーピングロジック検証レポート",
+      "description": "# 🧪 ドーピングロジック検証レポート  ## 📋 検証対象  ### 販売するプロダクト - **CryptoTrade Academy - Complete SSOT v5.0** - ファイル: `C:\\Users\\chiba\\cryptosignal-ai\\docs\\CryptoTrade Academy - Complete SSOT v5.0.md` - コア: 木下ロジック（商品力 × リーチ力 × レスポンス力）  ### コア・コンセプトおよび戦略 1. **戦わずして売る技術**（木下ロジック）    - ファイル: `literature/marketing/sell-without-fighting-click-marketing.pdf`    - キーコンセプト: カテゴリ創造、クリックベースの市場創造  2. **YouTube動画リソース**    - https://youtu.be/hKCnv0OKK3A?si=xwN8gTmasEEsm_Kh    - https://youtu.be/tGGVwTIErXk?si=kh7NRjQryRDLcy",
+      "summary": "- **CryptoTrade Academy - Complete SSOT v5.0** - ファイル: `C:\\Users\\chiba\\cryptosignal-ai\\docs\\CryptoTrade Academy - Complete SSOT v5.0.md` - コア: 木下ロジック（商品力 × リーチ力 × レスポンス力） 1. **戦わずして売る技術**（木下ロジック）    - ファイル: `literature/marketing/sell-without-fighting-click-marketing.pdf`    - キーコンセプト: カテゴリ創造、クリックベースの市場創造 2. **YouTube動画リソース**    - https://youtu.be/hKCnv0OKK3A?si=xwN8gTmasEEsm_Kh    - https://youtu.be/tGGVwTIErXk?si=kh7NRjQryRDLcySY 1. **Nudge（Final Edition）** - リチャード・セイラー",
+      "keywords": [
+        "🧪 ドーピングロジック検証レポート",
+        "📋 検証対象",
+        "販売するプロダクト",
+        "コア・コンセプトおよび戦略",
+        "提案されているドーピングロジック",
+        "✅ 検証結果: **最適解として承認**",
+        "1. 理論統合の完全性",
+        "🎯 統合効果の検証",
+        "5層統合構造の相乗効果",
+        "📊 追加検討事項",
+        "1. 不足している理論の検討",
+        "🎯 最終結論",
+        "✅ **最適解として承認**",
+        "📈 期待される効果",
+        "📝 推奨事項",
+        "1. 現状維持（最優先）",
+        "2. 最適化（継続的改善）",
+        "3. 追加検討（オプション）",
+        "📚 参照文献",
+        "CryptoTrade Academy - Complete SSOT v5.0"
+      ],
+      "contentLength": 4639,
+      "lineCount": 222,
+      "fileSize": 7670,
+      "modifiedAt": "2025-12-26T09:23:14.890Z",
+      "indexedAt": "2025-12-27T11:41:19.765Z"
+    },
+    {
+      "id": 10,
+      "path": "docs/literature-installation-requirements.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\docs\\literature-installation-requirements.md",
+      "type": "markdown",
+      "title": "📚 6理論文献ベース追加インストール要件",
+      "description": "# 📚 6理論文献ベース追加インストール要件  ## 📋 現状の実装状況  ### ✅ 完全実装済み（4理論）- 100%  ```yaml 理論1: Nudge（Final Edition）   ✅ Default Effect, Path of Least Resistance, Feedback Loop, Mapping   ✅ 実装完了度: 100%   📚 文献ベース追加インストール: 不要（実装完了）  理論2: Influence（New and Expanded）   ✅ 7つの原則完全実装   ✅ 実装完了度: 100%   📚 文献ベース追加インストール: 不要（実装完了）  理論3: MECLABS   ✅ Conversion Score 71達成   ✅ 実装完了度: 100%",
+      "summary": "理論1: Nudge（Final Edition）   ✅ Default Effect, Path of Least Resistance, Feedback Loop, Mapping   ✅ 実装完了度: 100%   📚 文献ベース追加インストール: 不要（実装完了） 理論2: Influence（New and Expanded）   ✅ 7つの原則完全実装   ✅ 実装完了度: 100%   📚 文献ベース追加インストール: 不要（実装完了） 理論3: MECLABS   ✅ Conversion Score 71達成",
+      "keywords": [
+        "📚 6理論文献ベース追加インストール要件",
+        "📋 現状の実装状況",
+        "✅ 完全実装済み（4理論）- 100%",
+        "🔄 部分実装（2理論）- 文献ベース追加インストール推奨",
+        "🎯 文献ベース追加インストールの優先順位",
+        "優先度1: Hooked（Investment要素）",
+        "優先度2: The Lean Startup（Build-Measure-Learnサイクル）",
+        "📚 推奨文献リスト",
+        "Hooked（ニール・イヤール）",
+        "The Lean Startup（エリック・リース）",
+        "🔄 文献インストール後の作業計画",
+        "Phase 1: Hooked Investment要素実装（1ヶ月以内）",
+        "Phase 2: The Lean Startup体系化（3ヶ月以内）",
+        "✅ 文献準備チェックリスト",
+        "Hooked",
+        "The Lean Startup",
+        "📊 期待される効果",
+        "Hooked Investment要素実装後",
+        "The Lean Startup体系化後",
+        "推奨"
+      ],
+      "contentLength": 4768,
+      "lineCount": 276,
+      "fileSize": 7932,
+      "modifiedAt": "2025-12-26T09:23:14.954Z",
+      "indexedAt": "2025-12-27T11:41:19.766Z"
+    },
+    {
+      "id": 11,
+      "path": "docs/nm-gateway-auth-reference.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\docs\\nm-gateway-auth-reference.md",
+      "type": "markdown",
+      "title": "nm-gateway 認証ロジック参考資料",
+      "description": "# nm-gateway 認証ロジック参考資料  ## 📋 概要  `nm-gateway`プロジェクトから抽出した認証ロジックの参考資料です。  **注意**: このプロジェクトは削除されましたが、認証ロジックは参考用に保存されています。  ---  ## 🔐 認証実装（Bearer Token）  ### 実装コード  ```javascript // pages/api/auth.js export function assertAuth(req, res) {   const expected = process.env.GATEWAYSHAREDSECRET;   if (!expected) {     res.status(500).json({ ok: false, error: \"GATEWAYSHAREDSECRET not set\" });",
+      "summary": "`nm-gateway`プロジェクトから抽出した認証ロジックの参考資料です。 **注意**: このプロジェクトは削除されましたが、認証ロジックは参考用に保存されています。 --- // pages/api/auth.js export function assertAuth(req, res) {   const expected = process.env.GATEWAYSHAREDSECRET;   if (!expected) {     res.status(500).json({ ok: false, error: \"GATEWAYSHAREDSECRET not set\" });     return false;   }",
+      "keywords": [
+        "nm-gateway 認証ロジック参考資料",
+        "📋 概要",
+        "🔐 認証実装（Bearer Token）",
+        "実装コード",
+        "使用方法",
+        "環境変数",
+        "リクエスト例",
+        "📝 特徴",
+        "メリット",
+        "デメリット",
+        "🔄 既存プロジェクトでの使用状況",
+        "cryptosignal-ai",
+        "hadayalab-automation-platform",
+        "💡 参考用途",
+        "注意",
+        "状況",
+        "認証",
+        "この認証ロジック",
+        "API Gateway実装",
+        "Next.js API Routes"
+      ],
+      "contentLength": 2055,
+      "lineCount": 124,
+      "fileSize": 2833,
+      "modifiedAt": "2025-12-26T09:23:14.954Z",
+      "indexedAt": "2025-12-27T11:41:19.768Z"
+    },
+    {
+      "id": 12,
+      "path": "docs/nm-gateway-cleanup-summary.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\docs\\nm-gateway-cleanup-summary.md",
+      "type": "markdown",
+      "title": "nm-gateway 統合・削除サマリー",
+      "description": "# nm-gateway 統合・削除サマリー  ## 📋 作業日  2025-12-25  ---  ## 🔍 検証結果  ### プロジェクト概要  - **プロジェクト名**: nm-gateway - **種類**: Next.js API Gateway - **状態**: プロトタイプ（スタブ実装） - **Gitリポジトリ**: https://github.com/hadayalab-web/nm-gateway.git  ### 内容  ```yaml",
+      "summary": "2025-12-25 --- - **プロジェクト名**: nm-gateway - **種類**: Next.js API Gateway - **状態**: プロトタイプ（スタブ実装） - **Gitリポジトリ**: https://github.com/hadayalab-web/nm-gateway.git 構成:   - package.json: Next.js 15.0.0, React 19.0.0   - pages/api/: 5つのAPIエンドポイント APIエンドポイント:",
+      "keywords": [
+        "nm-gateway 統合・削除サマリー",
+        "📋 作業日",
+        "🔍 検証結果",
+        "プロジェクト概要",
+        "内容",
+        "既存プロジェクトとの関連性",
+        "✅ 統合内容",
+        "保存した資料",
+        "🗑️ 削除内容",
+        "ローカルフォルダ",
+        "削除されたファイル",
+        "📝 次のステップ",
+        "GitHubリポジトリ削除（手動）",
+        "✅ 完了確認",
+        "プロジェクト名",
+        "種類",
+        "状態",
+        "Gitリポジトリ",
+        "ファイル",
+        "リポジトリURL"
+      ],
+      "contentLength": 1965,
+      "lineCount": 137,
+      "fileSize": 3083,
+      "modifiedAt": "2025-12-26T09:23:14.954Z",
+      "indexedAt": "2025-12-27T11:41:19.769Z"
+    },
+    {
+      "id": 13,
+      "path": "docs/six-theory-complete-installation.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\docs\\six-theory-complete-installation.md",
+      "type": "markdown",
+      "title": "🧠 6理論完全インストールガイド",
+      "description": "# 🧠 6理論完全インストールガイド  ## 📋 目的  Kindle DRMにより書籍を直接参照できない状況で、公開情報から6理論の核心を徹底的に抽出し、実装可能な形で完全統合する。  ---  ## 🎯 理論1: Nudge（Final Edition）- リチャード・セイラー  ### 核心概念  ```yaml 基本原則:   \"選択アーキテクチャを設計することで、人々の意思決定を改善できる\"   \"強制ではなく、選択肢を提示する（Libertarian Paternalism）\"  4大原則:   1. Default Effect（デフォルト効果）      - デフォルト選択肢は最も選ばれやすい",
+      "summary": "Kindle DRMにより書籍を直接参照できない状況で、公開情報から6理論の核心を徹底的に抽出し、実装可能な形で完全統合する。 --- 基本原則:   \"選択アーキテクチャを設計することで、人々の意思決定を改善できる\"   \"強制ではなく、選択肢を提示する（Libertarian Paternalism）\" 4大原則:   1. Default Effect（デフォルト効果）      - デフォルト選択肢は最も選ばれやすい      - 選択率: +35%（実証データ）   2. Path of Least Resistance（最小抵抗の道）",
+      "keywords": [
+        "🧠 6理論完全インストールガイド",
+        "📋 目的",
+        "🎯 理論1: Nudge（Final Edition）- リチャード・セイラー",
+        "核心概念",
+        "CryptoTrade Academy実装",
+        "🎯 理論2: Influence（New and Expanded）- ロバート・チャルディーニ",
+        "🎯 理論3: MECLABS - コンバージョン最適化フレームワーク",
+        "🎯 理論4: Scientific Advertising - クロード・ホプキンス",
+        "🎯 理論5: Hooked - ニール・イヤール",
+        "🎯 理論6: The Lean Startup - エリック・リース",
+        "🔄 6理論統合マトリックス",
+        "統合構造",
+        "📊 実装優先順位",
+        "Phase 1（即実装）- Core 4理論",
+        "Phase 2（1ヶ月以内）- Hooked統合",
+        "Phase 3（3ヶ月以内）- The Lean Startup統合",
+        "✅ 実装チェックリスト",
+        "Nudge実装",
+        "Influence実装",
+        "MECLABS実装"
+      ],
+      "contentLength": 10580,
+      "lineCount": 606,
+      "fileSize": 15644,
+      "modifiedAt": "2025-12-26T09:23:14.954Z",
+      "indexedAt": "2025-12-27T11:41:19.771Z"
+    },
+    {
+      "id": 14,
+      "path": "docs/six-theory-deep-implementation.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\docs\\six-theory-deep-implementation.md",
+      "type": "markdown",
+      "title": "🔬 6理論深掘り実装ガイド",
+      "description": "# 🔬 6理論深掘り実装ガイド  ## 📋 目的  Kindle DRM制限により書籍を直接参照できない状況で、公開情報と実証データから6理論の核心を徹底的に抽出し、CryptoTrade Academyへの実装を完全に文書化する。  ---  ## 🎯 理論1: Nudge（Final Edition）- リチャード・セイラー  ### 理論の核心  ```yaml 基本思想:   \"Libertarian Paternalism（自由主義的パターナリズム）\"   - 強制ではなく、選択肢を提示する   - デフォルトを賢く設計することで、人々の意思決定を改善  実証データ:   - Default Effect: 選択率+35%（Thaler & Sunstein 2008）",
+      "summary": "Kindle DRM制限により書籍を直接参照できない状況で、公開情報と実証データから6理論の核心を徹底的に抽出し、CryptoTrade Academyへの実装を完全に文書化する。 --- 基本思想:   \"Libertarian Paternalism（自由主義的パターナリズム）\"   - 強制ではなく、選択肢を提示する   - デフォルトを賢く設計することで、人々の意思決定を改善 実証データ:   - Default Effect: 選択率+35%（Thaler & Sunstein 2008）   - Path of Least Resistance: Friction削減でコンバージョン+20-30%   - Feedback Loop: 即座のフィードバックで行動継続率+40%",
+      "keywords": [
+        "🔬 6理論深掘り実装ガイド",
+        "📋 目的",
+        "🎯 理論1: Nudge（Final Edition）- リチャード・セイラー",
+        "理論の核心",
+        "CryptoTrade Academy完全実装",
+        "🎯 理論2: Influence（New and Expanded）- ロバート・チャルディーニ",
+        "🎯 理論3: MECLABS - コンバージョン最適化フレームワーク",
+        "🎯 理論4: Scientific Advertising - クロード・ホプキンス",
+        "🎯 理論5: Hooked - ニール・イヤール",
+        "🎯 理論6: The Lean Startup - エリック・リース",
+        "🔄 6理論統合マトリックス（完全版）",
+        "統合構造",
+        "📊 実装優先順位（詳細版）",
+        "Phase 1（即実装）- Core 4理論維持",
+        "Phase 2（1ヶ月以内）- Hooked Investment要素実装",
+        "Phase 3（3ヶ月以内）- The Lean Startup体系化",
+        "✅ 実装チェックリスト（詳細版）",
+        "Nudge実装",
+        "Influence実装",
+        "MECLABS実装"
+      ],
+      "contentLength": 20469,
+      "lineCount": 1169,
+      "fileSize": 31311,
+      "modifiedAt": "2025-12-26T09:23:14.954Z",
+      "indexedAt": "2025-12-27T11:41:19.772Z"
+    },
+    {
+      "id": 15,
+      "path": "docs/theory-armed-complete-summary.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\docs\\theory-armed-complete-summary.md",
+      "type": "markdown",
+      "title": "🛡️ 理論武装完了サマリー",
+      "description": "# 🛡️ 理論武装完了サマリー  ## 📋 目的達成状況  Kindle DRM制限により書籍を直接参照できない状況で、**公開情報から6理論の核心を徹底的に抽出し、実装可能な形で完全統合**を完了しました。  ---  ## ✅ 完了した作業  ### 1. 6理論完全インストールガイド作成  **作成ドキュメント**: - `docs/six-theory-complete-installation.md`   - 6理論の核心概念   - CryptoTrade Academyへの実装方法   - 実装チェックリスト  ### 2. 6理論深掘り実装ガイド作成 ",
+      "summary": "Kindle DRM制限により書籍を直接参照できない状況で、**公開情報から6理論の核心を徹底的に抽出し、実装可能な形で完全統合**を完了しました。 --- **作成ドキュメント**: - `docs/six-theory-complete-installation.md`   - 6理論の核心概念   - CryptoTrade Academyへの実装方法   - 実装チェックリスト **作成ドキュメント**: - `docs/six-theory-deep-implementation.md`   - 各理論の詳細実装方法",
+      "keywords": [
+        "🛡️ 理論武装完了サマリー",
+        "📋 目的達成状況",
+        "✅ 完了した作業",
+        "1. 6理論完全インストールガイド作成",
+        "2. 6理論深掘り実装ガイド作成",
+        "3. 実装チェックリスト作成",
+        "4. 戦略ドキュメント更新",
+        "📊 6理論実装状況",
+        "✅ 完全実装済み（4理論）",
+        "🔄 部分実装（2理論）",
+        "🎯 統合効果",
+        "6理論統合による相乗効果",
+        "📚 作成・更新したドキュメント",
+        "新規作成",
+        "更新",
+        "🎯 次のアクション",
+        "Phase 2（1ヶ月以内）- Hooked Investment要素実装",
+        "Phase 3（3ヶ月以内）- The Lean Startup体系化",
+        "✅ 理論武装完了確認",
+        "達成項目"
+      ],
+      "contentLength": 5508,
+      "lineCount": 307,
+      "fileSize": 8776,
+      "modifiedAt": "2025-12-26T09:23:14.954Z",
+      "indexedAt": "2025-12-27T11:41:19.773Z"
+    },
+    {
+      "id": 16,
+      "path": "docs/theory-implementation-checklist.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\docs\\theory-implementation-checklist.md",
+      "type": "markdown",
+      "title": "✅ 6理論実装チェックリスト",
+      "description": "# ✅ 6理論実装チェックリスト  ## 📋 実装状況  ### ✅ 理論1: Nudge（Final Edition）- 完全実装済み  ```yaml Default Effect:   ✅ Whop Landing Page: Monthly $69自動選択   ✅ 選択率目標: 85%（実測データ: +35%効果）   ✅ 市場別Default設定完了（6市場）  Path of Least Resistance:   ✅ Trial開始: Email + Passwordのみ（6秒）   ✅ Form項目削減: 10項目 → 2項目   ✅ Form Abandonment Rate: <5%（目標達成）  Feedback Loop:   ✅ Trial Day 1（開始直後）: Welcome Email   ✅ Trial Day 1（6時間後）: Value Email + Briefing配信",
+      "summary": "Default Effect:   ✅ Whop Landing Page: Monthly $69自動選択   ✅ 選択率目標: 85%（実測データ: +35%効果）   ✅ 市場別Default設定完了（6市場） Path of Least Resistance:   ✅ Trial開始: Email + Passwordのみ（6秒）   ✅ Form項目削減: 10項目 → 2項目   ✅ Form Abandonment Rate: <5%（目標達成） Feedback Loop:   ✅ Trial Day 1（開始直後）: Welcome Email",
+      "keywords": [
+        "✅ 6理論実装チェックリスト",
+        "📋 実装状況",
+        "✅ 理論1: Nudge（Final Edition）- 完全実装済み",
+        "✅ 理論2: Influence（New and Expanded）- 完全実装済み",
+        "✅ 理論3: MECLABS - 完全実装済み",
+        "✅ 理論4: Scientific Advertising - 完全実装済み",
+        "🔄 理論5: Hooked - 部分実装（Investment要素追加必要）",
+        "🔄 理論6: The Lean Startup - 部分実装（体系化必要）",
+        "📊 実装進捗サマリー",
+        "🎯 次のアクション",
+        "Phase 1（1週間以内）- Hooked Investment要素実装",
+        "Phase 2（1ヶ月以内）- The Lean Startup体系化",
+        "更新日",
+        "ステータス"
+      ],
+      "contentLength": 4864,
+      "lineCount": 271,
+      "fileSize": 7572,
+      "modifiedAt": "2025-12-26T09:23:14.952Z",
+      "indexedAt": "2025-12-27T11:41:19.774Z"
+    },
+    {
+      "id": 17,
+      "path": "docs/theory-integration-rationale.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\docs\\theory-integration-rationale.md",
+      "type": "markdown",
+      "title": "🧠 6理論統合の判断根拠：なぜ2理論を追加したのか",
+      "description": "# 🧠 6理論統合の判断根拠：なぜ2理論を追加したのか  ## 📋 ユーザーの懸念  **「理論を詰め込みすぎるとノイズになるかと心配していた」**  この懸念は完全に正当です。しかし、2理論を追加した理由には明確な根拠があります。  ---  ## 🎯 追加判断の基準  ### 判断基準1: **既存理論ではカバーできない領域があるか**  #### Hooked（追加理由）  ```yaml 既存4理論のカバー範囲:   ✅ Nudge: 短期コンバージョン（Trial開始）   ✅ Influence: 中期エンゲージメント（心理トリガー）",
+      "summary": "**「理論を詰め込みすぎるとノイズになるかと心配していた」** この懸念は完全に正当です。しかし、2理論を追加した理由には明確な根拠があります。 --- 既存4理論のカバー範囲:   ✅ Nudge: 短期コンバージョン（Trial開始）   ✅ Influence: 中期エンゲージメント（心理トリガー）   ✅ MECLABS: コンバージョン最適化（Landing Page）   ✅ Scientific Advertising: 測定可能性（A/B Testing） 不足領域:   ❌ 長期リテンション戦略（12ヶ月継続）",
+      "keywords": [
+        "🧠 6理論統合の判断根拠：なぜ2理論を追加したのか",
+        "📋 ユーザーの懸念",
+        "🎯 追加判断の基準",
+        "判断基準1: **既存理論ではカバーできない領域があるか**",
+        "判断基準2: **実装状況で不足要素が明確か**",
+        "判断基準3: **統合効果が明確か**",
+        "🚫 追加しなかった理論の理由",
+        "Blue Ocean Strategy（追加しなかった理由）",
+        "Predictably Irrational（オプション扱い）",
+        "📊 6理論の構造化（ノイズ回避）",
+        "Layer構造による整理",
+        "✅ ノイズを避けるための整理方法",
+        "1. 優先順位による実装",
+        "2. 実装状況の可視化",
+        "3. 統合効果の測定",
+        "🎯 結論",
+        "なぜ2理論を追加したのか",
+        "ノイズを避けるための整理",
+        "「理論を詰め込みすぎるとノイズになるかと心配していた」",
+        "既存理論ではカバーできない領域があるか"
+      ],
+      "contentLength": 4389,
+      "lineCount": 296,
+      "fileSize": 8007,
+      "modifiedAt": "2025-12-26T09:23:14.994Z",
+      "indexedAt": "2025-12-27T11:41:19.775Z"
+    },
+    {
+      "id": 18,
+      "path": "docs/three-project-integration-design.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\docs\\three-project-integration-design.md",
+      "type": "markdown",
+      "title": "🔗 3プロジェクト統合設計",
+      "description": "# 🔗 3プロジェクト統合設計  ## 📋 プロジェクト概要  ### 1. cryptosignal-ai - **役割**: コアプロダクト（Briefing生成エンジン） - **技術**: Node.js, Vercel, CryptoQuant API, Grok AI - **出力**: 6市場別Telegram Briefing配信  ### 2. hadayalab-automation-platform - **役割**: 自動化基盤（n8nワークフロー） - **技術**: n8n Cloud, MCP統合 - **出力**: Trial Onboarding, Affiliate管理, Emergency Trigger  ### 3. hadayalab-knowledge-base - **役割**: 戦略ナレッジベース（SSOT） - **技術**: Markdown, Git - **出力**: 戦略ドキュメント, 理論統合, 検証レポート  ---",
+      "summary": "- **役割**: コアプロダクト（Briefing生成エンジン） - **技術**: Node.js, Vercel, CryptoQuant API, Grok AI - **出力**: 6市場別Telegram Briefing配信 - **役割**: 自動化基盤（n8nワークフロー） - **技術**: n8n Cloud, MCP統合 - **出力**: Trial Onboarding, Affiliate管理, Emergency Trigger - **役割**: 戦略ナレッジベース（SSOT） - **技術**: Markdown, Git - **出力**: 戦略ドキュメント, 理論統合, 検証レポート ---",
+      "keywords": [
+        "🔗 3プロジェクト統合設計",
+        "📋 プロジェクト概要",
+        "1. cryptosignal-ai",
+        "2. hadayalab-automation-platform",
+        "3. hadayalab-knowledge-base",
+        "🔄 統合アーキテクチャ",
+        "データフロー",
+        "🎯 統合ポイント詳細",
+        "1. 戦略ドキュメント → プロダクト実装",
+        "2. 実行データ → 戦略改善",
+        "3. 理論統合 → 実装反映",
+        "📊 統合管理フロー",
+        "週次統合レビュー",
+        "月次戦略更新",
+        "🔧 実装ツール",
+        "1. 自動同期スクリプト",
+        "2. データ集計スクリプト",
+        "📈 統合効果",
+        "期待される効果",
+        "✅ 実装チェックリスト"
+      ],
+      "contentLength": 4661,
+      "lineCount": 292,
+      "fileSize": 6955,
+      "modifiedAt": "2025-12-26T09:23:14.890Z",
+      "indexedAt": "2025-12-27T11:41:19.777Z"
+    },
+    {
+      "id": 19,
+      "path": "extracted-knowledge/戦わずして売る技術/README.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\extracted-knowledge\\戦わずして売る技術\\README.md",
+      "type": "markdown",
+      "title": "戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術",
+      "description": "# 戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術  ## 📚 文献情報  - **タイトル**: 戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術 - **ファイル**: `../literature/マーケティング/戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術.pdf` - **追加日**: 2025-12-25 - **カテゴリ**: コア・ナレッジベース  ## 📝 要約とメモ  ### summary.md 書籍の要約をここに追加してください。  ### key-concepts.md 核心概念をここに追加してください。  ### quotes.md 重要な引用をここに追加してください。 ",
+      "summary": "- **タイトル**: 戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術 - **ファイル**: `../literature/マーケティング/戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術.pdf` - **追加日**: 2025-12-25 - **カテゴリ**: コア・ナレッジベース 書籍の要約をここに追加してください。 核心概念をここに追加してください。 重要な引用をここに追加してください。 実践への応用メモをここに追加してください。 @hadayalab-knowledge-base/literature/マーケティング/戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術.pdf この文献を基に、[プロジェクト名]のマーケティング戦略を立案してください",
+      "keywords": [
+        "戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術",
+        "📚 文献情報",
+        "📝 要約とメモ",
+        "summary.md",
+        "key-concepts.md",
+        "quotes.md",
+        "application-notes.md",
+        "🎯 活用方法",
+        "AIとの共有",
+        "n8nワークフロー設計",
+        "タイトル",
+        "ファイル",
+        "追加日",
+        "カテゴリ",
+        "最終更新",
+        "**タイトル**: 戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術",
+        "**ファイル**: `../literature/マーケティング/戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術.pdf`",
+        "**追加日**: 2025-12-25",
+        "**カテゴリ**: コア・ナレッジベース"
+      ],
+      "contentLength": 712,
+      "lineCount": 47,
+      "fileSize": 1420,
+      "modifiedAt": "2025-12-26T09:23:14.890Z",
+      "indexedAt": "2025-12-27T11:41:19.779Z"
+    },
+    {
+      "id": 20,
+      "path": "README.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\README.md",
+      "type": "markdown",
+      "title": "📚 HadayaLab Knowledge Base",
+      "description": "# 📚 HadayaLab Knowledge Base  **📚 ナレッジベース** - HadayaLab Knowledge Base  戦略立案・ビジネス最適化のための文献データベース＆抽出知識リポジトリ  ## 🎯 位置づけ  **hadayalab-knowledge-base = ナレッジベース**  - **役割**: 理論文献・戦略文献の一元管理・提供 - **責任範囲**: PDF文献管理、要約・メモ管理、知識抽出、戦略統合 - **関連プロジェクト**:   - **戦略本部**: `hadayalab-automation-platform` - 戦略立案・ワークフロー設計   - **プロダクト**: `cryptosignal-ai` - コアシステム実装  ## 🎯 目的  - **戦略文献の一元管理**: PDF形式の重要文献を集中管理 - **要約とメモの管理**: 書籍の要約をPDF化して管理",
+      "summary": "**📚 ナレッジベース** - HadayaLab Knowledge Base 戦略立案・ビジネス最適化のための文献データベース＆抽出知識リポジトリ **hadayalab-knowledge-base = ナレッジベース** - **役割**: 理論文献・戦略文献の一元管理・提供 - **責任範囲**: PDF文献管理、要約・メモ管理、知識抽出、戦略統合 - **関連プロジェクト**:   - **戦略本部**: `hadayalab-automation-platform` - 戦略立案・ワークフロー設計   - **プロダクト**: `cryptosignal-ai` - コアシステム実装 - **戦略文献の一元管理**: PDF形式の重要文献を集中管理 - **要約とメモの管理**: 書籍の要約をPDF化して管理",
+      "keywords": [
+        "📚 HadayaLab Knowledge Base",
+        "🎯 位置づけ",
+        "🎯 目的",
+        "📚 Literature Database",
+        "📁 構成",
+        "📖 書籍の追加手順",
+        "🧠 Extracted Knowledge",
+        "💡 使い方",
+        "GitHub Copilot での参照方法",
+        "Cursor での活用",
+        "🔒 セキュリティ",
+        "📊 容量管理",
+        "🔄 更新履歴",
+        "🤝 Contributing",
+        "🔗 3プロジェクト連携構造",
+        "プロジェクト位置づけ",
+        "1. 🏛️ 戦略本部: hadayalab-automation-platform",
+        "2. 📦 プロダクト: cryptosignal-ai",
+        "🔄 プロジェクト間の連携フロー",
+        "📞 Related Projects"
+      ],
+      "contentLength": 4196,
+      "lineCount": 213,
+      "fileSize": 7050,
+      "modifiedAt": "2025-12-26T10:17:13.282Z",
+      "indexedAt": "2025-12-27T11:41:19.780Z"
+    },
+    {
+      "id": 21,
+      "path": "CORE_KNOWLEDGE_BASE.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\CORE_KNOWLEDGE_BASE.md",
+      "type": "markdown",
+      "title": "🧠 コア・ナレッジベース",
+      "description": "# 🧠 コア・ナレッジベース  我々の思考OSのコアとなる知識リソース  ## 📚 文献  ### 戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術 - **ファイル**: `literature/marketing/sell-without-fighting-click-marketing.pdf` - **追加日**: 2025-12-25 - **カテゴリ**: コア・ナレッジベース / マーケティング - **キーコンセプト**:   - WEBマーケティング   - クリックベースの市場創造   - 戦略的販売技術 - **抽出データ**: `extracted-knowledge/戦わずして売る技術/`  ## 📺 YouTube リソース  ### 動画リスト ",
+      "summary": "我々の思考OSのコアとなる知識リソース - **ファイル**: `literature/marketing/sell-without-fighting-click-marketing.pdf` - **追加日**: 2025-12-25 - **カテゴリ**: コア・ナレッジベース / マーケティング - **キーコンセプト**:   - WEBマーケティング   - クリックベースの市場創造   - 戦略的販売技術 - **抽出データ**: `extracted-knowledge/戦わずして売る技術/` 1. **動画1**",
+      "keywords": [
+        "🧠 コア・ナレッジベース",
+        "📚 文献",
+        "戦わずして売る技術　クリック１つで市場を生み出す最強のWEBマーケティング術",
+        "📺 YouTube リソース",
+        "動画リスト",
+        "🎯 活用方法",
+        "プロダクト戦略の立案",
+        "マーケティング戦略の設計",
+        "n8nワークフローのコンセプト設計",
+        "📝 次のステップ",
+        "ファイル",
+        "追加日",
+        "カテゴリ",
+        "キーコンセプト",
+        "抽出データ",
+        "動画1",
+        "動画2",
+        "動画3",
+        "動画4",
+        "動画5"
+      ],
+      "contentLength": 1744,
+      "lineCount": 80,
+      "fileSize": 2638,
+      "modifiedAt": "2025-12-26T09:23:14.890Z",
+      "indexedAt": "2025-12-27T11:41:19.782Z"
+    },
+    {
+      "id": 22,
+      "path": "QUICK_START.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\QUICK_START.md",
+      "type": "markdown",
+      "title": "🚀 クイックスタートガイド",
+      "description": "# 🚀 クイックスタートガイド  ## 📚 書籍の追加手順  ### 1. 書籍を購入 - Kindleではなく、通常の書籍を購入  ### 2. 要約を作成してPDF化 - 書籍の要約を作成 - PDF形式で保存  ### 3. ナレッジベースに追加  ```bash # 1. 適切なカテゴリフォルダに配置 # literature/[カテゴリ名]/[書籍名].pdf  # 2. 文献リストを更新 # literature/INDEX.md に追加 ",
+      "summary": "- Kindleではなく、通常の書籍を購入 - 書籍の要約を作成 - PDF形式で保存 Cursor Chat:  Ctrl+L (Cmd+L) @hadayalab-knowledge-base/literature/[カテゴリ]/[書籍名].pdf この文献を基に、[プロジェクト名]のマーケティング戦略を立案してください @hadayalab-knowledge-base/extracted-knowledge/[書籍名]/summary.md この要約を基に、[目的]のn8nワークフローを設計してください hadayalab-knowledge-base/ ├── literature/              # PDF形式の書籍",
+      "keywords": [
+        "🚀 クイックスタートガイド",
+        "📚 書籍の追加手順",
+        "1. 書籍を購入",
+        "2. 要約を作成してPDF化",
+        "3. ナレッジベースに追加",
+        "1. 適切なカテゴリフォルダに配置",
+        "literature/[カテゴリ名]/[書籍名].pdf",
+        "2. 文献リストを更新",
+        "literature/INDEX.md に追加",
+        "3. 要約やメモを追加（任意）",
+        "extracted-knowledge/[書籍名]/summary.md",
+        "4. AIと共有して戦略を検討",
+        "5. n8nワークフローのコンセプトに活用",
+        "📁 ディレクトリ構造",
+        "💡 活用例",
+        "プロダクト戦略の立案",
+        "マーケティング戦略の設計",
+        "n8nワークフローの設計",
+        "最終更新",
+        "Kindleではなく、通常の書籍を購入"
+      ],
+      "contentLength": 1431,
+      "lineCount": 90,
+      "fileSize": 2367,
+      "modifiedAt": "2025-12-26T09:23:14.890Z",
+      "indexedAt": "2025-12-27T11:41:19.783Z"
+    },
+    {
+      "id": 23,
+      "path": "PROJECT_INTEGRATION.md",
+      "fullPath": "C:\\Users\\chiba\\hadayalab-knowledge-base\\PROJECT_INTEGRATION.md",
+      "type": "markdown",
+      "title": "3プロジェクト統合設計",
+      "description": "# 3プロジェクト統合設計  ## 🎯 概要  HadayaLabの3つのリポジトリが相互に連携して、CryptoTrade Academyシステムを構成しています。  ---  ## 📁 3つのリポジトリ構成  ### 1. hadayalab-knowledge-base **役割**: 戦略ドキュメント・理論文献の管理（知識ベース）  **パス**: `C:\\Users\\chiba\\hadayalab-knowledge-base\\`  **内容**: - **戦略ドキュメント**: `literature/strategy/`   - `CryptoTrade Academy - Complete SSOT v5.1.md`（戦略SSOT）   - `CryptoTrade Academy - Sales Strategy Doping v2.0 FINAL.md`   - `CryptoTrade Academy - Creative Execution Master Guide v1.0.md`",
+      "summary": "HadayaLabの3つのリポジトリが相互に連携して、CryptoTrade Academyシステムを構成しています。 --- **役割**: 戦略ドキュメント・理論文献の管理（知識ベース） **パス**: `C:\\Users\\chiba\\hadayalab-knowledge-base\\` **内容**: - **戦略ドキュメント**: `literature/strategy/`   - `CryptoTrade Academy - Complete SSOT v5.1.md`（戦略SSOT）   - `CryptoTrade Academy - Sales Strategy Doping v2.0 FINAL.md`   - `CryptoTrade Academy - Creative Execution Master Guide v1.0.md`   - `CryptoTrade Academy - Zero-Budget Affiliate DRM Strategy v1.1 + APDS v1.0.md`",
+      "keywords": [
+        "3プロジェクト統合設計",
+        "🎯 概要",
+        "📁 3つのリポジトリ構成",
+        "1. hadayalab-knowledge-base",
+        "2. cryptosignal-ai",
+        "3. hadayalab-automation-platform",
+        "🔄 プロジェクト間の連携フロー",
+        "📋 連携の詳細",
+        "1. knowledge-base → cryptosignal-ai",
+        "2. knowledge-base → automation-platform",
+        "3. cryptosignal-ai → automation-platform",
+        "🎯 SSOT（Single Source of Truth）の原則",
+        "Complete SSOT v5.1が唯一の真実",
+        "📚 各リポジトリの主要ドキュメント",
+        "hadayalab-knowledge-base",
+        "cryptosignal-ai",
+        "hadayalab-automation-platform",
+        "🔄 開発フロー",
+        "1. 戦略確認",
+        "2. コアシステム実装"
+      ],
+      "contentLength": 6087,
+      "lineCount": 249,
+      "fileSize": 8719,
+      "modifiedAt": "2025-12-26T09:32:59.505Z",
+      "indexedAt": "2025-12-27T11:41:19.784Z"
+    }
+  ],
+  "index": {
+    "📖 literature index": [
+      1,
+      1
+    ],
+    "📋 カテゴリ構成": [
+      1
+    ],
+    "📚 文献リスト": [
+      1,
+      2
+    ],
+    "marketing（マーケティング）": [
+      1
+    ],
+    "strategy（戦略）": [
+      1
+    ],
+    "📊 統計": [
+      1
+    ],
+    "🔍 文献エントリーのフォーマット": [
+      1
+    ],
+    "[番号].  [書籍タイトル]": [
+      1
+    ],
+    "📝 使用例": [
+      1
+    ],
+    "統合戦略の生成": [
+      1
+    ],
+    "特定理論の適用": [
+      1
+    ],
+    "ファイル": [
+      1,
+      2,
+      12,
+      19,
+      21
+    ],
+    "追加日": [
+      1,
+      2,
+      4,
+      19,
+      21
+    ],
+    "カテゴリ": [
+      1,
+      2,
+      4,
+      19,
+      21
+    ],
+    "キーコンセプト": [
+      1,
+      2,
+      21
+    ],
+    "応用先": [
+      1,
+      2
+    ],
+    "抽出データ": [
+      1,
+      2,
+      21
+    ],
+    "内容": [
+      1,
+      2,
+      12
+    ],
+    "合計文献数": [
+      1
+    ],
+    "合計サイズ": [
+      1
+    ],
+    "index.md": [
+      1,
+      1
+    ],
+    "literature": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "marketing（マーケティング）カテゴリ": [
+      2,
+      2
+    ],
+    "1. 戦わずして売る技術　クリック１つで市場を生み出す最強のwebマーケティング術": [
+      2
+    ],
+    "2. youtube リソース（コア・ナレッジベース）": [
+      2
+    ],
+    "最終更新": [
+      2,
+      4,
+      19,
+      22
+    ],
+    "**ファイル**: `sell-without-fighting-click-marketing.pdf`": [
+      2
+    ],
+    "**追加日**: 2025-12-25": [
+      2,
+      4,
+      19
+    ],
+    "**カテゴリ**: コア・ナレッジベース": [
+      2,
+      4,
+      19
+    ],
+    "**キーコンセプト**:": [
+      2
+    ],
+    "**応用先**: プロダクトマーケティング、n8nワークフロー設計": [
+      2
+    ],
+    "**抽出データ**: `../extracted-knowledge/戦わずして売る技術/` （作成予定）": [
+      2
+    ],
+    "**ファイル**: `youtube-resources.md`": [
+      2
+    ],
+    "**内容**: 5つの重要なyoutube動画リンク": [
+      2
+    ],
+    "readme.md": [
+      2,
+      2,
+      19,
+      19,
+      20
+    ],
+    "marketing": [
+      2,
+      3,
+      4
+    ],
+    "sell-without-fighting-click-marketing": [
+      3
+    ],
+    "sell-without-fighting-click-marketing.pdf": [
+      3,
+      3
+    ],
+    "📺 youtube リソース": [
+      4,
+      4,
+      21
+    ],
+    "動画リスト": [
+      4,
+      21
+    ],
+    "1. [動画タイトル未設定]": [
+      4
+    ],
+    "2. [動画タイトル未設定]": [
+      4
+    ],
+    "活用方法": [
+      4
+    ],
+    "aiとの共有": [
+      4,
+      19
+    ],
+    "n8nワークフロー設計": [
+      4,
+      19
+    ],
+    "url": [
+      4
+    ],
+    "メモ": [
+      4
+    ],
+    "**url**: https://youtu.be/hkcnv0okk3a?si=xwn8gtmaseesm_kh": [
+      4
+    ],
+    "**メモ**:": [
+      4
+    ],
+    "**url**: https://youtu.be/tggvwtierxk?si=kh7nrjqryrdlcysy": [
+      4
+    ],
+    "youtube-resources.md": [
+      4,
+      4
+    ],
+    "🎯 cryptotrade academy - creative execution master guide v1.0": [
+      5,
+      5
+    ],
+    "📌 section 0: 4大ツール統合architecture": [
+      5
+    ],
+    "0.1 ツール役割分担(growth engine v1.2統合)": [
+      5
+    ],
+    "0.2 creative bp master library連動": [
+      5
+    ],
+    "🏪 section 1: whop完全実装(統合lp戦略)": [
+      5
+    ],
+    "1.1 whop product setup完全手順[^1][^2]": [
+      5
+    ],
+    "1.2 whop drip-feed設定(ltv最大化)[^1]": [
+      5
+    ],
+    "1.3 whop description最適化(seo+論理補足)": [
+      5
+    ],
+    "🤖 section 2: make.com完全自動化": [
+      5
+    ],
+    "2.1 make workflow architecture[^3][^4]": [
+      5
+    ],
+    "2.2 workflow 1: trial onboarding automation[^4]": [
+      5
+    ],
+    "2.3 workflow 2: affiliate auto-management[^1]": [
+      5
+    ],
+    "2.4 workflow 3: emergency briefing trigger(vercel連携)": [
+      5
+    ],
+    "🎬 section 3: heygen vsl完全制作": [
+      5
+    ],
+    "3.1 heygen setup \\& best practices[^5][^6]": [
+      5
+    ],
+    "3.2 en市場vsl制作手順[^5]": [
+      5
+    ],
+    "3.3 whop hero section埋め込み[^7]": [
+      5
+    ],
+    "🎨 section 4: adobe creative cloud完全活用": [
+      5
+    ],
+    "4.1 adobe brand kit統一設計": [
+      5
+    ],
+    "4.2 photoshop: whop thumbnail制作": [
+      5
+    ],
+    "cryptotrade academy - creative execution master guide v1.0.md": [
+      5,
+      5
+    ],
+    "strategy": [
+      5,
+      6,
+      7
+    ],
+    "cryptotrade academyセールス戦略のosに以下文献ロジックをインストールしてドーピングせよ": [
+      6,
+      6
+    ],
+    "🎯 cryptotrade academy - sales strategy doping v2.0 final": [
+      6
+    ],
+    "📌 section 0: 理論統合os architecture": [
+      6
+    ],
+    "0.1 6層統合構造（完全版）": [
+      6
+    ],
+    "0.2 6理論完全統合詳細": [
+      6
+    ],
+    "0.3 v1.0 → v2.0変更点": [
+      6
+    ],
+    "🎯 section 1: 木下ロジック完全実装": [
+      6
+    ],
+    "1.1 年商100億の公式適用(strategic ssot v4.0連動)": [
+      6
+    ],
+    "1.2 年商100億公式適用結果": [
+      6
+    ],
+    "🧠 section 2: nudge理論完全実装": [
+      6
+    ],
+    "2.1 default effect(木下ロジック統合)": [
+      6
+    ],
+    "2.2 path of least resistance(meclabs friction統合)": [
+      6
+    ],
+    "2.3 feedback loop(influence reciprocity統合)": [
+      6
+    ],
+    "2.4 mapping(meclabs value統合)": [
+      6
+    ],
+    "🔥 section 3: influence理論完全実装": [
+      6
+    ],
+    "3.1 reciprocity + unity(木下ロジック統合)": [
+      6
+    ],
+    "3.2 commitment \\& consistency(nudge統合)": [
+      6
+    ],
+    "3.3 social proof + authority(meclabs統合)": [
+      6
+    ],
+    "3.4 liking + scarcity(倫理的実装)": [
+      6
+    ],
+    "📐 section 4: meclabs heuristic完全実装": [
+      6
+    ],
+    "cryptotrade academy - sales strategy doping v2.0 final.md": [
+      6,
+      6
+    ],
+    "広告予算なし、snsアカウントなし、snsフォロワーなし、運営コミュなしの中でアフィリエイト戦略を推進する、参考文献、ロジック、ベストプラクティスを探してくれ、セールス戦略はアフィリエイターへのdrmに特化": [
+      7,
+      7
+    ],
+    "🚀 cryptotrade academy - zero-budget affiliate drm strategy v1.0": [
+      7
+    ],
+    "📌 section 0: ゼロ予算戦略の原則": [
+      7
+    ],
+    "0.1 制約条件(現状)[^1]": [
+      7
+    ],
+    "0.2 戦略転換(木下ロジック応用)[^1]": [
+      7
+    ],
+    "0.3 参考文献統合[^2][^3]": [
+      7
+    ],
+    "🎯 section 1: elite 10 method(精鋭10人戦略)[^4][^2]": [
+      7
+    ],
+    "1.1 戦略概要": [
+      7
+    ],
+    "1.2 理想affiliate persona定義[^2]": [
+      7
+    ],
+    "1.3 10人獲得ロードマップ(week 1-8)": [
+      7
+    ],
+    "📧 section 2: cold outreach template(実証済み)[^3][^2]": [
+      7
+    ],
+    "2.1 template a: fan approach(既存コンテンツ言及)": [
+      7
+    ],
+    "2.2 template b: partnership approach(professional向け)[^3][^2]": [
+      7
+    ],
+    "2.3 template c: gift approach(product seeding)[^2]": [
+      7
+    ],
+    "🔍 section 3: 無料リサーチツール完全活用[^6][^7]": [
+      7
+    ],
+    "3.1 email finder(無料枠活用)": [
+      7
+    ],
+    "3.2 snsリサーチ(無料・無制限)": [
+      7
+    ],
+    "3.3 無料crm(リスト管理)[^8]": [
+      7
+    ],
+    "📬 section 4: cold email実装(gmass代替無料)[^3]": [
+      7
+    ],
+    "4.1 gmail + chrome extension(無料実装)": [
+      7
+    ],
+    "cryptotrade academy - zero-budget affiliate drm strategy v1.1 + apds v1.0.md": [
+      7,
+      7
+    ],
+    "🔬 高度ドーピングロジック再検証レポート": [
+      8,
+      8
+    ],
+    "📋 検証目的": [
+      8
+    ],
+    "🔍 追加検討理論の評価": [
+      8
+    ],
+    "1. hooked（ニール・イヤール） - ✅ **追加推奨**": [
+      8
+    ],
+    "2. the lean startup（エリック・リース） - ✅ **追加推奨**": [
+      8
+    ],
+    "3. blue ocean strategy（w・チャン・キム） - ⚠️ **既にカバー済み**": [
+      8
+    ],
+    "4. predictably irrational（ダン・アリエリー） - ⚠️ **オプション**": [
+      8
+    ],
+    "5. the 22 immutable laws of marketing（アル・ライズ） - ⚠️ **既にカバー済み**": [
+      8
+    ],
+    "🎯 最終推奨: 6理論統合": [
+      8
+    ],
+    "推奨理論セット": [
+      8
+    ],
+    "6理論統合構造": [
+      8
+    ],
+    "📊 追加効果の予測": [
+      8
+    ],
+    "hooked統合による効果": [
+      8
+    ],
+    "the lean startup統合による効果": [
+      8
+    ],
+    "✅ 最終結論": [
+      8
+    ],
+    "**6理論統合を推奨**": [
+      8
+    ],
+    "実装優先順位": [
+      8
+    ],
+    "追加推奨": [
+      8
+    ],
+    "リテンション戦略": [
+      8
+    ],
+    "習慣形成": [
+      8
+    ],
+    "advanced-doping-logic-verification.md": [
+      8,
+      8
+    ],
+    "docs": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "🧪 ドーピングロジック検証レポート": [
+      9,
+      9
+    ],
+    "📋 検証対象": [
+      9
+    ],
+    "販売するプロダクト": [
+      9
+    ],
+    "コア・コンセプトおよび戦略": [
+      9
+    ],
+    "提案されているドーピングロジック": [
+      9
+    ],
+    "✅ 検証結果: **最適解として承認**": [
+      9
+    ],
+    "1. 理論統合の完全性": [
+      9
+    ],
+    "🎯 統合効果の検証": [
+      9
+    ],
+    "5層統合構造の相乗効果": [
+      9
+    ],
+    "📊 追加検討事項": [
+      9
+    ],
+    "1. 不足している理論の検討": [
+      9
+    ],
+    "🎯 最終結論": [
+      9
+    ],
+    "✅ **最適解として承認**": [
+      9
+    ],
+    "📈 期待される効果": [
+      9
+    ],
+    "📝 推奨事項": [
+      9
+    ],
+    "1. 現状維持（最優先）": [
+      9
+    ],
+    "2. 最適化（継続的改善）": [
+      9
+    ],
+    "3. 追加検討（オプション）": [
+      9
+    ],
+    "📚 参照文献": [
+      9
+    ],
+    "cryptotrade academy - complete ssot v5.0": [
+      9
+    ],
+    "doping-logic-verification.md": [
+      9,
+      9
+    ],
+    "📚 6理論文献ベース追加インストール要件": [
+      10,
+      10
+    ],
+    "📋 現状の実装状況": [
+      10
+    ],
+    "✅ 完全実装済み（4理論）- 100%": [
+      10
+    ],
+    "🔄 部分実装（2理論）- 文献ベース追加インストール推奨": [
+      10
+    ],
+    "🎯 文献ベース追加インストールの優先順位": [
+      10
+    ],
+    "優先度1: hooked（investment要素）": [
+      10
+    ],
+    "優先度2: the lean startup（build-measure-learnサイクル）": [
+      10
+    ],
+    "📚 推奨文献リスト": [
+      10
+    ],
+    "hooked（ニール・イヤール）": [
+      10
+    ],
+    "the lean startup（エリック・リース）": [
+      10
+    ],
+    "🔄 文献インストール後の作業計画": [
+      10
+    ],
+    "phase 1: hooked investment要素実装（1ヶ月以内）": [
+      10
+    ],
+    "phase 2: the lean startup体系化（3ヶ月以内）": [
+      10
+    ],
+    "✅ 文献準備チェックリスト": [
+      10
+    ],
+    "hooked": [
+      10
+    ],
+    "the lean startup": [
+      10
+    ],
+    "📊 期待される効果": [
+      10
+    ],
+    "hooked investment要素実装後": [
+      10
+    ],
+    "the lean startup体系化後": [
+      10
+    ],
+    "推奨": [
+      10
+    ],
+    "literature-installation-requirements.md": [
+      10,
+      10
+    ],
+    "nm-gateway 認証ロジック参考資料": [
+      11,
+      11
+    ],
+    "📋 概要": [
+      11
+    ],
+    "🔐 認証実装（bearer token）": [
+      11
+    ],
+    "実装コード": [
+      11
+    ],
+    "使用方法": [
+      11
+    ],
+    "環境変数": [
+      11
+    ],
+    "リクエスト例": [
+      11
+    ],
+    "📝 特徴": [
+      11
+    ],
+    "メリット": [
+      11
+    ],
+    "デメリット": [
+      11
+    ],
+    "🔄 既存プロジェクトでの使用状況": [
+      11
+    ],
+    "cryptosignal-ai": [
+      11,
+      23
+    ],
+    "hadayalab-automation-platform": [
+      11,
+      23
+    ],
+    "💡 参考用途": [
+      11
+    ],
+    "注意": [
+      11
+    ],
+    "状況": [
+      11
+    ],
+    "認証": [
+      11
+    ],
+    "この認証ロジック": [
+      11
+    ],
+    "api gateway実装": [
+      11
+    ],
+    "next.js api routes": [
+      11
+    ],
+    "nm-gateway-auth-reference.md": [
+      11,
+      11
+    ],
+    "nm-gateway 統合・削除サマリー": [
+      12,
+      12
+    ],
+    "📋 作業日": [
+      12
+    ],
+    "🔍 検証結果": [
+      12
+    ],
+    "プロジェクト概要": [
+      12
+    ],
+    "既存プロジェクトとの関連性": [
+      12
+    ],
+    "✅ 統合内容": [
+      12
+    ],
+    "保存した資料": [
+      12
+    ],
+    "🗑️ 削除内容": [
+      12
+    ],
+    "ローカルフォルダ": [
+      12
+    ],
+    "削除されたファイル": [
+      12
+    ],
+    "📝 次のステップ": [
+      12,
+      21
+    ],
+    "githubリポジトリ削除（手動）": [
+      12
+    ],
+    "✅ 完了確認": [
+      12
+    ],
+    "プロジェクト名": [
+      12
+    ],
+    "種類": [
+      12
+    ],
+    "状態": [
+      12
+    ],
+    "gitリポジトリ": [
+      12
+    ],
+    "リポジトリurl": [
+      12
+    ],
+    "nm-gateway-cleanup-summary.md": [
+      12,
+      12
+    ],
+    "🧠 6理論完全インストールガイド": [
+      13,
+      13
+    ],
+    "📋 目的": [
+      13,
+      14
+    ],
+    "🎯 理論1: nudge（final edition）- リチャード・セイラー": [
+      13,
+      14
+    ],
+    "核心概念": [
+      13
+    ],
+    "cryptotrade academy実装": [
+      13
+    ],
+    "🎯 理論2: influence（new and expanded）- ロバート・チャルディーニ": [
+      13,
+      14
+    ],
+    "🎯 理論3: meclabs - コンバージョン最適化フレームワーク": [
+      13,
+      14
+    ],
+    "🎯 理論4: scientific advertising - クロード・ホプキンス": [
+      13,
+      14
+    ],
+    "🎯 理論5: hooked - ニール・イヤール": [
+      13,
+      14
+    ],
+    "🎯 理論6: the lean startup - エリック・リース": [
+      13,
+      14
+    ],
+    "🔄 6理論統合マトリックス": [
+      13
+    ],
+    "統合構造": [
+      13,
+      14
+    ],
+    "📊 実装優先順位": [
+      13
+    ],
+    "phase 1（即実装）- core 4理論": [
+      13
+    ],
+    "phase 2（1ヶ月以内）- hooked統合": [
+      13
+    ],
+    "phase 3（3ヶ月以内）- the lean startup統合": [
+      13
+    ],
+    "✅ 実装チェックリスト": [
+      13,
+      18
+    ],
+    "nudge実装": [
+      13,
+      14
+    ],
+    "influence実装": [
+      13,
+      14
+    ],
+    "meclabs実装": [
+      13,
+      14
+    ],
+    "six-theory-complete-installation.md": [
+      13,
+      13
+    ],
+    "🔬 6理論深掘り実装ガイド": [
+      14,
+      14
+    ],
+    "理論の核心": [
+      14
+    ],
+    "cryptotrade academy完全実装": [
+      14
+    ],
+    "🔄 6理論統合マトリックス（完全版）": [
+      14
+    ],
+    "📊 実装優先順位（詳細版）": [
+      14
+    ],
+    "phase 1（即実装）- core 4理論維持": [
+      14
+    ],
+    "phase 2（1ヶ月以内）- hooked investment要素実装": [
+      14,
+      15
+    ],
+    "phase 3（3ヶ月以内）- the lean startup体系化": [
+      14,
+      15
+    ],
+    "✅ 実装チェックリスト（詳細版）": [
+      14
+    ],
+    "six-theory-deep-implementation.md": [
+      14,
+      14
+    ],
+    "🛡️ 理論武装完了サマリー": [
+      15,
+      15
+    ],
+    "📋 目的達成状況": [
+      15
+    ],
+    "✅ 完了した作業": [
+      15
+    ],
+    "1. 6理論完全インストールガイド作成": [
+      15
+    ],
+    "2. 6理論深掘り実装ガイド作成": [
+      15
+    ],
+    "3. 実装チェックリスト作成": [
+      15
+    ],
+    "4. 戦略ドキュメント更新": [
+      15
+    ],
+    "📊 6理論実装状況": [
+      15
+    ],
+    "✅ 完全実装済み（4理論）": [
+      15
+    ],
+    "🔄 部分実装（2理論）": [
+      15
+    ],
+    "🎯 統合効果": [
+      15
+    ],
+    "6理論統合による相乗効果": [
+      15
+    ],
+    "📚 作成・更新したドキュメント": [
+      15
+    ],
+    "新規作成": [
+      15
+    ],
+    "更新": [
+      15
+    ],
+    "🎯 次のアクション": [
+      15,
+      16
+    ],
+    "✅ 理論武装完了確認": [
+      15
+    ],
+    "達成項目": [
+      15
+    ],
+    "theory-armed-complete-summary.md": [
+      15,
+      15
+    ],
+    "✅ 6理論実装チェックリスト": [
+      16,
+      16
+    ],
+    "📋 実装状況": [
+      16
+    ],
+    "✅ 理論1: nudge（final edition）- 完全実装済み": [
+      16
+    ],
+    "✅ 理論2: influence（new and expanded）- 完全実装済み": [
+      16
+    ],
+    "✅ 理論3: meclabs - 完全実装済み": [
+      16
+    ],
+    "✅ 理論4: scientific advertising - 完全実装済み": [
+      16
+    ],
+    "🔄 理論5: hooked - 部分実装（investment要素追加必要）": [
+      16
+    ],
+    "🔄 理論6: the lean startup - 部分実装（体系化必要）": [
+      16
+    ],
+    "📊 実装進捗サマリー": [
+      16
+    ],
+    "phase 1（1週間以内）- hooked investment要素実装": [
+      16
+    ],
+    "phase 2（1ヶ月以内）- the lean startup体系化": [
+      16
+    ],
+    "更新日": [
+      16
+    ],
+    "ステータス": [
+      16
+    ],
+    "theory-implementation-checklist.md": [
+      16,
+      16
+    ],
+    "🧠 6理論統合の判断根拠：なぜ2理論を追加したのか": [
+      17,
+      17
+    ],
+    "📋 ユーザーの懸念": [
+      17
+    ],
+    "🎯 追加判断の基準": [
+      17
+    ],
+    "判断基準1: **既存理論ではカバーできない領域があるか**": [
+      17
+    ],
+    "判断基準2: **実装状況で不足要素が明確か**": [
+      17
+    ],
+    "判断基準3: **統合効果が明確か**": [
+      17
+    ],
+    "🚫 追加しなかった理論の理由": [
+      17
+    ],
+    "blue ocean strategy（追加しなかった理由）": [
+      17
+    ],
+    "predictably irrational（オプション扱い）": [
+      17
+    ],
+    "📊 6理論の構造化（ノイズ回避）": [
+      17
+    ],
+    "layer構造による整理": [
+      17
+    ],
+    "✅ ノイズを避けるための整理方法": [
+      17
+    ],
+    "1. 優先順位による実装": [
+      17
+    ],
+    "2. 実装状況の可視化": [
+      17
+    ],
+    "3. 統合効果の測定": [
+      17
+    ],
+    "🎯 結論": [
+      17
+    ],
+    "なぜ2理論を追加したのか": [
+      17
+    ],
+    "ノイズを避けるための整理": [
+      17
+    ],
+    "「理論を詰め込みすぎるとノイズになるかと心配していた」": [
+      17
+    ],
+    "既存理論ではカバーできない領域があるか": [
+      17
+    ],
+    "theory-integration-rationale.md": [
+      17,
+      17
+    ],
+    "🔗 3プロジェクト統合設計": [
+      18,
+      18
+    ],
+    "📋 プロジェクト概要": [
+      18
+    ],
+    "1. cryptosignal-ai": [
+      18
+    ],
+    "2. hadayalab-automation-platform": [
+      18
+    ],
+    "3. hadayalab-knowledge-base": [
+      18
+    ],
+    "🔄 統合アーキテクチャ": [
+      18
+    ],
+    "データフロー": [
+      18
+    ],
+    "🎯 統合ポイント詳細": [
+      18
+    ],
+    "1. 戦略ドキュメント → プロダクト実装": [
+      18
+    ],
+    "2. 実行データ → 戦略改善": [
+      18
+    ],
+    "3. 理論統合 → 実装反映": [
+      18
+    ],
+    "📊 統合管理フロー": [
+      18
+    ],
+    "週次統合レビュー": [
+      18
+    ],
+    "月次戦略更新": [
+      18
+    ],
+    "🔧 実装ツール": [
+      18
+    ],
+    "1. 自動同期スクリプト": [
+      18
+    ],
+    "2. データ集計スクリプト": [
+      18
+    ],
+    "📈 統合効果": [
+      18
+    ],
+    "期待される効果": [
+      18
+    ],
+    "three-project-integration-design.md": [
+      18,
+      18
+    ],
+    "戦わずして売る技術　クリック１つで市場を生み出す最強のwebマーケティング術": [
+      19,
+      19,
+      21
+    ],
+    "📚 文献情報": [
+      19
+    ],
+    "📝 要約とメモ": [
+      19
+    ],
+    "summary.md": [
+      19
+    ],
+    "key-concepts.md": [
+      19
+    ],
+    "quotes.md": [
+      19
+    ],
+    "application-notes.md": [
+      19
+    ],
+    "🎯 活用方法": [
+      19,
+      21
+    ],
+    "タイトル": [
+      19
+    ],
+    "**タイトル**: 戦わずして売る技術　クリック１つで市場を生み出す最強のwebマーケティング術": [
+      19
+    ],
+    "**ファイル**: `../literature/マーケティング/戦わずして売る技術　クリック１つで市場を生み出す最強のwebマーケティング術.pdf`": [
+      19
+    ],
+    "extracted-knowledge": [
+      19
+    ],
+    "戦わずして売る技術": [
+      19
+    ],
+    "📚 hadayalab knowledge base": [
+      20,
+      20
+    ],
+    "🎯 位置づけ": [
+      20
+    ],
+    "🎯 目的": [
+      20
+    ],
+    "📚 literature database": [
+      20
+    ],
+    "📁 構成": [
+      20
+    ],
+    "📖 書籍の追加手順": [
+      20
+    ],
+    "🧠 extracted knowledge": [
+      20
+    ],
+    "💡 使い方": [
+      20
+    ],
+    "github copilot での参照方法": [
+      20
+    ],
+    "cursor での活用": [
+      20
+    ],
+    "🔒 セキュリティ": [
+      20
+    ],
+    "📊 容量管理": [
+      20
+    ],
+    "🔄 更新履歴": [
+      20
+    ],
+    "🤝 contributing": [
+      20
+    ],
+    "🔗 3プロジェクト連携構造": [
+      20
+    ],
+    "プロジェクト位置づけ": [
+      20
+    ],
+    "1. 🏛️ 戦略本部: hadayalab-automation-platform": [
+      20
+    ],
+    "2. 📦 プロダクト: cryptosignal-ai": [
+      20
+    ],
+    "🔄 プロジェクト間の連携フロー": [
+      20,
+      23
+    ],
+    "📞 related projects": [
+      20
+    ],
+    "🧠 コア・ナレッジベース": [
+      21,
+      21
+    ],
+    "📚 文献": [
+      21
+    ],
+    "プロダクト戦略の立案": [
+      21,
+      22
+    ],
+    "マーケティング戦略の設計": [
+      21,
+      22
+    ],
+    "n8nワークフローのコンセプト設計": [
+      21
+    ],
+    "動画1": [
+      21
+    ],
+    "動画2": [
+      21
+    ],
+    "動画3": [
+      21
+    ],
+    "動画4": [
+      21
+    ],
+    "動画5": [
+      21
+    ],
+    "core_knowledge_base.md": [
+      21
+    ],
+    "🚀 クイックスタートガイド": [
+      22,
+      22
+    ],
+    "📚 書籍の追加手順": [
+      22
+    ],
+    "1. 書籍を購入": [
+      22
+    ],
+    "2. 要約を作成してpdf化": [
+      22
+    ],
+    "3. ナレッジベースに追加": [
+      22
+    ],
+    "1. 適切なカテゴリフォルダに配置": [
+      22
+    ],
+    "literature/[カテゴリ名]/[書籍名].pdf": [
+      22
+    ],
+    "2. 文献リストを更新": [
+      22
+    ],
+    "literature/index.md に追加": [
+      22
+    ],
+    "3. 要約やメモを追加（任意）": [
+      22
+    ],
+    "extracted-knowledge/[書籍名]/summary.md": [
+      22
+    ],
+    "4. aiと共有して戦略を検討": [
+      22
+    ],
+    "5. n8nワークフローのコンセプトに活用": [
+      22
+    ],
+    "📁 ディレクトリ構造": [
+      22
+    ],
+    "💡 活用例": [
+      22
+    ],
+    "n8nワークフローの設計": [
+      22
+    ],
+    "kindleではなく、通常の書籍を購入": [
+      22
+    ],
+    "quick_start.md": [
+      22
+    ],
+    "3プロジェクト統合設計": [
+      23,
+      23
+    ],
+    "🎯 概要": [
+      23
+    ],
+    "📁 3つのリポジトリ構成": [
+      23
+    ],
+    "1. hadayalab-knowledge-base": [
+      23
+    ],
+    "2. cryptosignal-ai": [
+      23
+    ],
+    "3. hadayalab-automation-platform": [
+      23
+    ],
+    "📋 連携の詳細": [
+      23
+    ],
+    "1. knowledge-base → cryptosignal-ai": [
+      23
+    ],
+    "2. knowledge-base → automation-platform": [
+      23
+    ],
+    "3. cryptosignal-ai → automation-platform": [
+      23
+    ],
+    "🎯 ssot（single source of truth）の原則": [
+      23
+    ],
+    "complete ssot v5.1が唯一の真実": [
+      23
+    ],
+    "📚 各リポジトリの主要ドキュメント": [
+      23
+    ],
+    "hadayalab-knowledge-base": [
+      23
+    ],
+    "🔄 開発フロー": [
+      23
+    ],
+    "1. 戦略確認": [
+      23
+    ],
+    "2. コアシステム実装": [
+      23
+    ],
+    "project_integration.md": [
+      23
+    ]
+  },
+  "lastUpdated": "2025-12-27T11:41:19.784Z"
+}

@@ -1,0 +1,45 @@
+{
+  "id": "lead-magnet-pt-br",
+  "name": "Lead Magnet Sequence - PT-BR",
+  "market": "PT-BR",
+  "trigger": "welcome",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Lead Magnet Delivery",
+      "delay_hours": 0,
+      "subject": "無料レポートの準備ができました！📊",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #4facfe; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>📊 Your Free Report is Ready!</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Hi {{name}},</h2>\n      <p>Thank you for downloading our free report!</p>\n      <p>Your report \"<strong>5 Common Trading Traps That Cost Traders $10,000+</strong>\" is ready to download.</p>\n      <a href=\"{{download_url}}\" class=\"button\">📥 Download Your Free Report</a>\n      <p><strong>What's Next?</strong></p>\n      <p>In the next email, we'll share:</p>\n      <ul>\n        <li>✅ How to implement these strategies</li>\n        <li>✅ Real-world examples from successful traders</li>\n        <li>✅ Exclusive access to our Trap Defence system</li>\n      </ul>\n      <p>Stay tuned!</p>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "lead_magnet",
+        "delivery"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Value Follow-up",
+      "delay_hours": 24,
+      "subject": "この5つのトレーディング罠を回避する方法",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>💡 How to Avoid Trading Traps</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Hi {{name}},</h2>\n      <p>Did you read the report? Here's how to implement these strategies:</p>\n      <h3>1. Real-time Trap Detection</h3>\n      <p>Our Trap Defence system monitors the market 24/7 and alerts you before traps form.</p>\n      <h3>2. Institutional-Grade Insights</h3>\n      <p>Get the same data that professional traders use to make decisions.</p>\n      <h3>3. Emotional Trading Reduction</h3>\n      <p>Let AI do the analysis, you make the decisions with confidence.</p>\n      <a href=\"https://whop.com/aio-media-llc/trap-defence-btc-en/\" class=\"button\">🚀 Try Trap Defence Free</a>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "lead_magnet",
+        "value",
+        "follow_up"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "VSL Offer",
+      "delay_hours": 48,
+      "subject": "これを見て：なぜほとんどのトレーダーが負けるのか",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #f5576c; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n    .video-container { text-align: center; margin: 20px 0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🎬 Why Most Traders Lose Money</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Hi {{name}},</h2>\n      <p>You downloaded our free report. Now watch this video to understand the hidden trap defense protocol:</p>\n      <div class=\"video-container\">\n        <a href=\"https://youtu.be/cLoYee2iv0s\" class=\"button\">▶️ Watch VSL</a>\n      </div>\n      <p>After watching, get full access to Trap Defence:</p>\n      <a href=\"https://whop.com/aio-media-llc/trap-defence-btc-en/\" class=\"button\">🚀 Get Access Now</a>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "lead_magnet",
+        "vsl",
+        "conversion"
+      ]
+    }
+  ],
+  "created_at": "2026-01-13T03:25:37.738Z",
+  "updated_at": "2026-01-13T03:25:37.738Z"
+}

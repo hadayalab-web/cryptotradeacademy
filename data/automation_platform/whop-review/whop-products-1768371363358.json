@@ -1,0 +1,200 @@
+[
+  {
+    "id": "prod_756mUZhSfLAkL",
+    "name": "Trap Defense BTC - Japanese",
+    "visibility": "hidden",
+    "url": "https://whop.com/products/prod_756mUZhSfLAkL",
+    "plans": [
+      {
+        "id": "plan_0b6EOuqxk6TPb"
+      },
+      {
+        "id": "plan_2vKR0Xd77d7Rp"
+      },
+      {
+        "id": "plan_moF8lZrc4nElw"
+      }
+    ],
+    "raw": {
+      "id": "prod_756mUZhSfLAkL",
+      "title": "Trap Defense BTC - Japanese",
+      "name": "Trap Defense BTC - Japanese",
+      "visibility": "hidden",
+      "created_at": 1767407069,
+      "company_id": "biz_BGcUmx3gOmZqbK",
+      "experiences": [
+        "exp_kNjwicRuzMyUve"
+      ],
+      "plans": [
+        "plan_0b6EOuqxk6TPb",
+        "plan_2vKR0Xd77d7Rp",
+        "plan_moF8lZrc4nElw"
+      ]
+    }
+  },
+  {
+    "id": "prod_HouQTKTN1F7vD",
+    "name": "Trap Defense BTC - Korean",
+    "visibility": "hidden",
+    "url": "https://whop.com/products/prod_HouQTKTN1F7vD",
+    "plans": [
+      {
+        "id": "plan_LZf2Jium9Gk3h"
+      },
+      {
+        "id": "plan_8pMQo0mlMuLj6"
+      },
+      {
+        "id": "plan_QlHefoBY983BV"
+      }
+    ],
+    "raw": {
+      "id": "prod_HouQTKTN1F7vD",
+      "title": "Trap Defense BTC - Korean",
+      "name": "Trap Defense BTC - Korean",
+      "visibility": "hidden",
+      "created_at": 1767407041,
+      "company_id": "biz_BGcUmx3gOmZqbK",
+      "experiences": [
+        "exp_ccrtkzF9AlC3mr"
+      ],
+      "plans": [
+        "plan_LZf2Jium9Gk3h",
+        "plan_8pMQo0mlMuLj6",
+        "plan_QlHefoBY983BV"
+      ]
+    }
+  },
+  {
+    "id": "prod_Cpz4oQla16GUB",
+    "name": "Trap Defense BTC - Portuguese",
+    "visibility": "hidden",
+    "url": "https://whop.com/products/prod_Cpz4oQla16GUB",
+    "plans": [
+      {
+        "id": "plan_o0zp6ijFsahMC"
+      },
+      {
+        "id": "plan_0NuklMva0SQbz"
+      },
+      {
+        "id": "plan_zWA7dBw46iQic"
+      }
+    ],
+    "raw": {
+      "id": "prod_Cpz4oQla16GUB",
+      "title": "Trap Defense BTC - Portuguese",
+      "name": "Trap Defense BTC - Portuguese",
+      "visibility": "hidden",
+      "created_at": 1767407016,
+      "company_id": "biz_BGcUmx3gOmZqbK",
+      "experiences": [
+        "exp_o40eOeNVDJ2lur"
+      ],
+      "plans": [
+        "plan_o0zp6ijFsahMC",
+        "plan_0NuklMva0SQbz",
+        "plan_zWA7dBw46iQic"
+      ]
+    }
+  },
+  {
+    "id": "prod_l4ipnvNhwFpdQ",
+    "name": "Trap Defense BTC - Arabic",
+    "visibility": "hidden",
+    "url": "https://whop.com/products/prod_l4ipnvNhwFpdQ",
+    "plans": [
+      {
+        "id": "plan_trhNqPmGEBV49"
+      },
+      {
+        "id": "plan_BFAUO1jBunao6"
+      },
+      {
+        "id": "plan_TZLVX52Fy9iV2"
+      }
+    ],
+    "raw": {
+      "id": "prod_l4ipnvNhwFpdQ",
+      "title": "Trap Defense BTC - Arabic",
+      "name": "Trap Defense BTC - Arabic",
+      "visibility": "hidden",
+      "created_at": 1767406985,
+      "company_id": "biz_BGcUmx3gOmZqbK",
+      "experiences": [
+        "exp_VTqZLUP9zr0JGN"
+      ],
+      "plans": [
+        "plan_trhNqPmGEBV49",
+        "plan_BFAUO1jBunao6",
+        "plan_TZLVX52Fy9iV2"
+      ]
+    }
+  },
+  {
+    "id": "prod_Eg1V8et0WTg69",
+    "name": "Trap Defense BTC - Spanish",
+    "visibility": "hidden",
+    "url": "https://whop.com/products/prod_Eg1V8et0WTg69",
+    "plans": [
+      {
+        "id": "plan_NJWa1JUcDx5Fa"
+      },
+      {
+        "id": "plan_kQhbzBdoir5xC"
+      },
+      {
+        "id": "plan_l2chYQncOcB1I"
+      }
+    ],
+    "raw": {
+      "id": "prod_Eg1V8et0WTg69",
+      "title": "Trap Defense BTC - Spanish",
+      "name": "Trap Defense BTC - Spanish",
+      "visibility": "hidden",
+      "created_at": 1767406936,
+      "company_id": "biz_BGcUmx3gOmZqbK",
+      "experiences": [
+        "exp_3pSG4nHHqTW5hb"
+      ],
+      "plans": [
+        "plan_NJWa1JUcDx5Fa",
+        "plan_kQhbzBdoir5xC",
+        "plan_l2chYQncOcB1I"
+      ]
+    }
+  },
+  {
+    "id": "prod_6RjqaJMGyEw1F",
+    "name": "Trap Defence BTC - English",
+    "visibility": "hidden",
+    "url": "https://whop.com/products/prod_6RjqaJMGyEw1F",
+    "plans": [
+      {
+        "id": "plan_SatV2J5R7gvHn"
+      },
+      {
+        "id": "plan_L1xVv19322pC3"
+      },
+      {
+        "id": "plan_CKOj1QCfnlr1j"
+      }
+    ],
+    "raw": {
+      "id": "prod_6RjqaJMGyEw1F",
+      "title": "Trap Defence BTC - English",
+      "name": "Trap Defence BTC - English",
+      "visibility": "hidden",
+      "created_at": 1763136259,
+      "company_id": "biz_BGcUmx3gOmZqbK",
+      "experiences": [
+        "exp_Hhg1ggwaR6aO3T"
+      ],
+      "plans": [
+        "plan_SatV2J5R7gvHn",
+        "plan_L1xVv19322pC3",
+        "plan_CKOj1QCfnlr1j"
+      ]
+    }
+  }
+]

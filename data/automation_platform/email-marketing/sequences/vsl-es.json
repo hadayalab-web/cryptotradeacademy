@@ -1,0 +1,46 @@
+{
+  "id": "vsl-es",
+  "name": "VSL Sequence - ES",
+  "market": "ES",
+  "trigger": "re_engagement",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "VSL1 - Publicación Stealth",
+      "delay_hours": 0,
+      "subject": "Por qué la mayoría de los traders pierden dinero",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n    .video-container { text-align: center; margin: 20px 0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🎬 Por qué la mayoría de los traders pierden dinero</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Hola {{name}},</h2>\n      <p>El protocolo oculto de defensa contra trampas:</p>\n      <ul>\n        <li>✅ Detección de trampas en tiempo real</li>\n        <li>✅ Información de nivel institucional</li>\n        <li>✅ Señales de alta precisión</li>\n        <li>✅ Reducción del trading emocional</li>\n      </ul>\n      <div class=\"video-container\">\n        <a href=\"{{vsl1_url}}\" class=\"button\">▶️ Ver VSL1</a>\n      </div>\n      <p>Obtén acceso gratuito: <a href=\"{{free_optin_url}}\">Iniciar versión gratuita</a></p>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "vsl1",
+        "stealth_post",
+        "re_engagement"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "VSL2 - Anuncio de Código Promocional",
+      "delay_hours": 24,
+      "subject": "Oferta exclusiva 50% de descuento - Solo 50 cupos",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #ff6b6b; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }\n    .promo-code { background: #fff3cd; border: 2px dashed #ffc107; padding: 15px; text-align: center; margin: 20px 0; font-size: 24px; font-weight: bold; color: #856404; }\n    .video-container { text-align: center; margin: 20px 0; }\n    .urgency { color: #dc3545; font-weight: bold; font-size: 18px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🔥 Oferta por tiempo limitado - 50% de descuento</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Hola {{name}},</h2>\n      <p class=\"urgency\">⏰ ¡Solo quedan {{remaining_spots}} cupos con 50% de descuento!</p>\n      <p>Como usuario de la versión gratuita, tienes acceso exclusivo a nuestra promoción por tiempo limitado:</p>\n      <div class=\"promo-code\">\n        CÓDIGO PROMOCIONAL: {{promo_code}}\n      </div>\n      <p><strong>Lo que obtienes:</strong></p>\n      <ul>\n        <li>✅ 50% de descuento en todos los planes</li>\n        <li>✅ Protocolo completo de defensa contra trampas</li>\n        <li>✅ Alertas en tiempo real</li>\n        <li>✅ Soporte prioritario</li>\n      </ul>\n      <div class=\"video-container\">\n        <a href=\"{{vsl2_url}}\" class=\"button\">▶️ Ver VSL2 - Saber más</a>\n      </div>\n      <p>Usa tu código promocional en el checkout: <a href=\"{{whop_url}}?promo={{promo_code}}\">Acceder a Whop ahora</a></p>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "vsl2",
+        "promo_code",
+        "limited_offer"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "VSL3 - Página de Producto",
+      "delay_hours": 48,
+      "subject": "Completa la configuración de tu protección",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }\n    .video-container { text-align: center; margin: 20px 0; }\n    .testimonial { background: #e7f3ff; padding: 15px; border-left: 4px solid #667eea; margin: 20px 0; font-style: italic; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🛡️ Completa la configuración de tu protección</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Hola {{name}},</h2>\n      <p>Has estado usando la versión gratuita durante 2 días. Así es como se ve la protección completa:</p>\n      <div class=\"testimonial\">\n        \"Evité pérdidas de $50,000 usando Trap Defense. La versión gratuita me mostró el valor, pero la versión completa salvó mi capital.\" - María, México\n      </div>\n      <p><strong>Beneficios de la versión completa:</strong></p>\n      <ul>\n        <li>✅ Alertas de trampas en tiempo real (sin retraso)</li>\n        <li>✅ Análisis completo del mercado</li>\n        <li>✅ Acceso a la comunidad</li>\n        <li>✅ Soporte prioritario</li>\n        <li>✅ Actualizaciones de por vida</li>\n      </ul>\n      <div class=\"video-container\">\n        <a href=\"{{vsl3_url}}\" class=\"button\">▶️ Ver VSL3 - Ver todas las funciones</a>\n      </div>\n      <p>Completa tu configuración: <a href=\"{{whop_product_url}}\">Ver página de producto</a></p>\n      <p><strong>Objetivo: Convertir dentro de 3 días después del opt-in gratuito</strong></p>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "vsl3",
+        "product_page",
+        "conversion"
+      ]
+    }
+  ],
+  "created_at": "2026-01-13T03:25:37.738Z",
+  "updated_at": "2026-01-14T12:00:00.000Z"
+}

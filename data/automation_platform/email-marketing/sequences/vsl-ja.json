@@ -1,0 +1,46 @@
+{
+  "id": "vsl-ja",
+  "name": "VSL Sequence - JA",
+  "market": "JA",
+  "trigger": "re_engagement",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "VSL1 - ステルス投稿",
+      "delay_hours": 0,
+      "subject": "なぜほとんどのトレーダーが負けるのか",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n    .video-container { text-align: center; margin: 20px 0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🎬 なぜほとんどのトレーダーが負けるのか</h1>\n    </div>\n    <div class=\"content\">\n      <h2>{{name}}さん、こんにちは</h2>\n      <p>隠されたトラップ防御プロトコル：</p>\n      <ul>\n        <li>✅ リアルタイムトラップ検出</li>\n        <li>✅ 機関投資家レベルのインサイト</li>\n        <li>✅ 高精度シグナル</li>\n        <li>✅ 感情的なトレードの削減</li>\n      </ul>\n      <div class=\"video-container\">\n        <a href=\"{{vsl1_url}}\" class=\"button\">▶️ VSL1を視聴</a>\n      </div>\n      <p>無料版にアクセス: <a href=\"{{free_optin_url}}\">無料版を開始</a></p>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "vsl1",
+        "stealth_post",
+        "re_engagement"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "VSL2 - プロモコード告知",
+      "delay_hours": 24,
+      "subject": "限定50%オフ - 残り50枠",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #ff6b6b; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }\n    .promo-code { background: #fff3cd; border: 2px dashed #ffc107; padding: 15px; text-align: center; margin: 20px 0; font-size: 24px; font-weight: bold; color: #856404; }\n    .video-container { text-align: center; margin: 20px 0; }\n    .urgency { color: #dc3545; font-weight: bold; font-size: 18px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🔥 限定タイムオファー - 50%オフ</h1>\n    </div>\n    <div class=\"content\">\n      <h2>{{name}}さん、こんにちは</h2>\n      <p class=\"urgency\">⏰ 50%オフは残り{{remaining_spots}}枠のみ！</p>\n      <p>無料版ユーザーとして、限定タイムプロモーションへの特別アクセス権があります：</p>\n      <div class=\"promo-code\">\n        プロモコード: {{promo_code}}\n      </div>\n      <p><strong>含まれる内容：</strong></p>\n      <ul>\n        <li>✅ 全プラン50%オフ</li>\n        <li>✅ 完全なトラップ防御プロトコル</li>\n        <li>✅ リアルタイムアラート</li>\n        <li>✅ 優先サポート</li>\n      </ul>\n      <div class=\"video-container\">\n        <a href=\"{{vsl2_url}}\" class=\"button\">▶️ VSL2を視聴 - 詳細を見る</a>\n      </div>\n      <p>チェックアウトでプロモコードを使用: <a href=\"{{whop_url}}?promo={{promo_code}}\">Whopにアクセス</a></p>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "vsl2",
+        "promo_code",
+        "limited_offer"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "VSL3 - プロダクトページ",
+      "delay_hours": 48,
+      "subject": "保護設定を完了してください",
+      "html": "\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }\n    .video-container { text-align: center; margin: 20px 0; }\n    .testimonial { background: #e7f3ff; padding: 15px; border-left: 4px solid #667eea; margin: 20px 0; font-style: italic; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🛡️ 保護設定を完了してください</h1>\n    </div>\n    <div class=\"content\">\n      <h2>{{name}}さん、こんにちは</h2>\n      <p>無料版を2日間ご利用いただいています。完全な保護の内容は以下の通りです：</p>\n      <div class=\"testimonial\">\n        「Trap Defenseを使用して$50,000の損失を回避しました。無料版で価値を実感し、完全版で資本を守りました。」 - タロウ、日本\n      </div>\n      <p><strong>完全版のメリット：</strong></p>\n      <ul>\n        <li>✅ リアルタイムトラップアラート（遅延なし）</li>\n        <li>✅ 完全な市場分析</li>\n        <li>✅ コミュニティアクセス</li>\n        <li>✅ 優先サポート</li>\n        <li>✅ 生涯アップデート</li>\n      </ul>\n      <div class=\"video-container\">\n        <a href=\"{{vsl3_url}}\" class=\"button\">▶️ VSL3を視聴 - 全機能を見る</a>\n      </div>\n      <p>設定を完了: <a href=\"{{whop_product_url}}\">プロダクトページを見る</a></p>\n      <p><strong>目標: 無料版オプトインから3日以内にコンバージョン</strong></p>\n      <p><strong>CryptoTrade Academy</strong></p>\n    </div>\n  </div>\n</body>\n</html>",
+      "tags": [
+        "vsl3",
+        "product_page",
+        "conversion"
+      ]
+    }
+  ],
+  "created_at": "2026-01-13T03:25:37.738Z",
+  "updated_at": "2026-01-14T12:00:00.000Z"
+}

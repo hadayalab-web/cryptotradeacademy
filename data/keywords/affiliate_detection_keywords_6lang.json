@@ -1,0 +1,113 @@
+{
+  "keywords_by_lang": {
+    "en": {
+      "proof_terms": ["affiliate link", "referral link", "\"use my code\"", "\"promo code\"", "\"discount code\"", "\"link in bio\"", "\"my link\""],
+      "platform_terms": ["clickbank", "shareasale", "cj affiliate", "amazon associates", "rakuten", "impact"],
+      "negative_terms": ["collab", "collaboration", "hiring", "job", "agency", "giveaway", "airdrop", "official", "news", "support"]
+    },
+    "ja": {
+      "proof_terms": ["アフィリエイトリンク", "アフィリンク", "紹介リンク", "クーポンコード", "プロモコード", "bioリンク", "登録リンク"],
+      "platform_terms": ["A8.net", "アクセストレード", "もしもアフィリエイト", "afb", "バリューコマース", "Amazonアソシエイト"],
+      "negative_terms": ["コラボ", "案件募集", "仕事募集中", "エージェンシー", "ギブアウェイ", "公式", "ニュース"]
+    },
+    "ko": {
+      "proof_terms": ["제휴링크", "추천링크", "프로모코드", "내코드", "바이오링크", "리퍼럴"],
+      "platform_terms": ["링크프라이스", "에이프릴", "애드픽", "위드블로그", "카페24파트너스"],
+      "negative_terms": ["콜라보", "채용", "구인", "에이전시", "이벤트", "공식", "뉴스"]
+    },
+    "es": {
+      "proof_terms": ["enlace afiliado", "link referido", "código promo", "mi código", "link en bio", "mi enlace"],
+      "platform_terms": ["Amazon Afiliados", "Awin", "TradeDoubler", "CJ Affiliate", "Rakuten"],
+      "negative_terms": ["collab", "contratando", "trabajo", "agencia", "sorteo", "oficial", "noticias"]
+    },
+    "pt": {
+      "proof_terms": ["link afiliado", "link de referência", "código promo", "use meu código", "link na bio", "meu link"],
+      "platform_terms": ["Hotmart", "Monetizze", "Eduzz", "Braip", "Amazon Afiliados"],
+      "negative_terms": ["collab", "contratando", "vaga", "agência", "sorteio", "oficial", "notícia"]
+    },
+    "ar": {
+      "proof_terms": ["رابط التابع", "رابط الإحالة", "كود الترويج", "رمز الخصم", "رابطي في البيو", "استخدم كودي"],
+      "platform_terms": ["أمازون أفلييت", "كليك بانك", "شير أسيل", "أفين"],
+      "negative_terms": ["تعاون", "توظيف", "وظيفة", "وكالة", "هدية", "رسمي", "أخبار"]
+    }
+  },
+  "queries_by_lang": {
+    "en": {
+      "strict": "(\"affiliate link\" OR \"referral link\") (clickbank OR shareasale OR \"cj affiliate\") lang:en -is:retweet -is:reply -collab -hiring -job -agency -giveaway -airdrop -official",
+      "balanced": "(\"affiliate link\" OR \"referral link\" OR \"promo code\" OR \"discount code\") (clickbank OR shareasale OR rakuten OR impact) lang:en -is:retweet -is:reply -collab -hiring -giveaway -official",
+      "wide": "(\"affiliate link\" OR \"referral link\" OR \"promo code\" OR \"link in bio\" OR \"use my code\") lang:en -is:retweet -is:reply -collab -hiring -agency -official -news",
+      "scores": {
+        "strict": { "precision": 5, "noise_risk": 1 },
+        "balanced": { "precision": 4, "noise_risk": 2 },
+        "wide": { "precision": 3, "noise_risk": 3 }
+      },
+      "false_positive_patterns": ["official brand promotions", "job postings mentioning affiliates", "giveaway announcements"]
+    },
+    "ja": {
+      "strict": "(\"アフィリエイトリンク\" OR \"アフィリンク\") (\"A8.net\" OR \"アクセストレード\" OR \"もしも\") lang:ja -is:retweet -is:reply -コラボ -案件 -募集 -公式",
+      "balanced": "(\"アフィリンク\" OR \"紹介リンク\" OR \"クーポンコード\") (\"A8.net\" OR \"afb\" OR \"バリューコマース\") lang:ja -is:retweet -is:reply -コラボ -仕事 -ギブアウェイ",
+      "wide": "(\"アフィリエイト\" OR \"プロモコード\" OR \"bioリンク\") lang:ja -is:retweet -is:reply -コラボ -募集 -公式 -ニュース",
+      "scores": {
+        "strict": { "precision": 5, "noise_risk": 1 },
+        "balanced": { "precision": 4, "noise_risk": 2 },
+        "wide": { "precision": 3, "noise_risk": 3 }
+      },
+      "false_positive_patterns": ["ASP公式告知", "案件募集ポスト", "コラボ呼びかけ"]
+    },
+    "ko": {
+      "strict": "(\"제휴링크\" OR \"추천링크\") (링크프라이스 OR 에이프릴) lang:ko -is:retweet -is:reply -콜라보 -채용 -공식",
+      "balanced": "(\"제휴링크\" OR \"프로모코드\") (링크프라이스 OR 애드픽 OR 위드블로그) lang:ko -is:retweet -is:reply -콜라보 -구인 -이벤트",
+      "wide": "(\"제휴\" OR \"프로모코드\" OR \"내링크\") lang:ko -is:retweet -is:reply -콜라보 -공식 -뉴스",
+      "scores": {
+        "strict": { "precision": 4, "noise_risk": 2 },
+        "balanced": { "precision": 4, "noise_risk": 2 },
+        "wide": { "precision": 3, "noise_risk": 4 }
+      },
+      "false_positive_patterns": ["공식 이벤트", "채용 공고", "콜라보 제안"]
+    },
+    "es": {
+      "strict": "(\"enlace afiliado\" OR \"link referido\") (\"Amazon Afiliados\" OR Awin) lang:es -is:retweet -is:reply -collab -contratando -oficial",
+      "balanced": "(\"enlace afiliado\" OR \"código promo\") (Awin OR \"CJ Affiliate\" OR Rakuten) lang:es -is:retweet -is:reply -collab -trabajo -sorteo",
+      "wide": "(\"afiliado\" OR \"código promo\" OR \"link en bio\") lang:es -is:retweet -is:reply -collab -oficial -noticias",
+      "scores": {
+        "strict": { "precision": 5, "noise_risk": 1 },
+        "balanced": { "precision": 4, "noise_risk": 2 },
+        "wide": { "precision": 3, "noise_risk": 3 }
+      },
+      "false_positive_patterns": ["promociones oficiales", "ofertas de empleo", "sorteos"]
+    },
+    "pt": {
+      "strict": "(\"link afiliado\" OR \"link de referência\") (Hotmart OR Monetizze) lang:pt -is:retweet -is:reply -collab -contratando -oficial",
+      "balanced": "(\"link afiliado\" OR \"código promo\") (Hotmart OR Eduzz OR Braip) lang:pt -is:retweet -is:reply -collab -vaga -sorteio",
+      "wide": "(\"afiliado\" OR \"código promo\" OR \"link na bio\") lang:pt -is:retweet -is:reply -collab -oficial",
+      "scores": {
+        "strict": { "precision": 5, "noise_risk": 1 },
+        "balanced": { "precision": 4, "noise_risk": 2 },
+        "wide": { "precision": 3, "noise_risk": 3 }
+      },
+      "false_positive_patterns": ["lançamentos oficiais", "vagas de emprego", "sorteios"]
+    },
+    "ar": {
+      "strict": "(\"رابط التابع\" OR \"رابط الإحالة\") (أمازون OR كليكبانك) lang:ar -is:retweet -is:reply -تعاون -توظيف -رسمي",
+      "balanced": "(\"رابط التابع\" OR \"كود الترويج\") (أفين OR شير) lang:ar -is:retweet -is:reply -تعاون -وظيفة -هدية",
+      "wide": "(\"تابع\" OR \"كود ترويج\" OR \"رابطي\") lang:ar -is:retweet -is:reply -تعاون -رسمي -أخبار",
+      "scores": {
+        "strict": { "precision": 4, "noise_risk": 2 },
+        "balanced": { "precision": 3, "noise_risk": 3 },
+        "wide": { "precision": 2, "noise_risk": 4 }
+      },
+      "false_positive_patterns": ["إعلانات رسمية", "إعلانات توظيف", "عروض هدايا"]
+    }
+  },
+  "experiment_plan": {
+    "steps": [
+      "1. 각 언어의 strict 쿼리로 1페이지씩 검색 (총 6페이지).",
+      "2. 수동 검토: 트윗당 실제 아필리에이트 활동 증거(링크/코드 공유 등) 확인.",
+      "3. affiliateEligible_per_page 계산 (Eligible 트윗 수 / 페이지 트윗 수).",
+      "4. 최고 성능 쿼리 선택 후 balanced/wide 순차 테스트.",
+      "5. per_page > 0.3 언어/쿼리 우선 운영화."
+    ],
+    "metrics": ["affiliateEligible_per_page"],
+    "stop_conditions": ["per_page < 0.1 시 해당 언어/쿼리 폐기", "전체 평균 > 0.3 시 운영 전환"]
+  }
+}

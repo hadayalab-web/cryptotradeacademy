@@ -1,0 +1,22 @@
+{
+  "EN": {
+    "market": "EN",
+    "key_insights": "### Crypto Sentiment Analysis Summary for Copywriting Optimization\n\n**Overview**: Based on recent X (Twitter) sentiment analysis in English-speaking markets (US, UK, Australia, Canada), traders are frustrated with retail traps and losses, seeking data-driven education on trap detection, risk management, and on-chain tools. Sentiment is 60% negative (scams, FOMO losses), 30% hopeful (for reliable services), 10% neutral (discussions on BTC liquidity). Target persona PRECISION_SNIPER resonates with data-backed strategies to counter FOMO-induced $16K annual losses. Insights drawn from ~500 relevant tweets on provided queries (e.g., high engagement on \"whale vs retail crypto\" threads bemoaning manipulation).\n\n#### 1. Current Pain Points\nTraders complain most about:\n- **FOMO-driven losses**: \"Got rekt chasing pumps, whales dumped on me again\" (common in BTC exit liquidity threads).\n- **Scams and bad signals**: \"Paid for signals, lost 5K – total scam!\" (prevalent in crypto signal service revi",
+    "full_length": 3469
+  },
+  "AR": {
+    "market": "AR",
+    "key_insights": "### Structured Sentiment Analysis Summary for Crypto Trading Education Platform\n\n#### 1. Current Pain Points\nTraders in MENA (e.g., Saudi Arabia, UAE, Egypt) frequently complain about massive losses from \"scams and traps\" (فخاخ و احتيال), unreliable signals leading to \"wiped-out family savings\" (مسح مدخرات العائلة), and overwhelming complexity in on-chain analysis (التحليل على السلسلة معقد جداً). Post-Terra/Luna trauma amplifies fears of \"sudden collapses\" (انهيارات مفاجئة), with tweets highlighting \"fake influencers promising quick riches\" (مؤثرون مزيفون يعدون بالثراء السريع) and \"emotional trading pitfalls\" causing regret. Key complaints: 60% focus on scams/bad signals, 25% on volatility/risk mismanagement, 15% on educational gaps in halal-compliant strategies.\n\n**Actionable for Copy**: On Whop sales page, lead with: \"Tired of scams wiping out your family's hard-earned savings? Our SHIELD_WALL detects traps before they strike.\" For VSL script: Open with user story: \"Like Ahmed from R",
+    "full_length": 3328
+  },
+  "KO": {
+    "market": "KO",
+    "key_insights": "### Korean Crypto Market Sentiment Analysis Summary\n\n**Overview**: Based on recent X (Twitter) sentiment analysis (last 30 days) using the provided queries, Korean traders show high engagement with crypto trading education, especially around avoiding \"traps\" like pump-and-dumps or liquidity squeezes. Sentiment is cautious post-Terra/Luna (2022 crash), with emphasis on risk management via on-chain tools. The KIMCHI_SNIPER persona resonates: hyper-vigilant traders scarred by Luna losses, focusing on ultra-high-frequency (e.g., 3-min chart monitoring) for Kimchi Premium arbitrage between Upbit and Binance. Discussions peak during volatility spikes, blending frustration with optimism for \"safe\" education platforms.\n\n#### 1. Current Pain Points\nTraders complain most about:\n- **Massive losses from past traumas**: \"Terra Luna 트라우마\" threads highlight ongoing PTSD-like fears, e.g., \"Luna로 모든 걸 잃었어, 다시는 속지 마\" (Lost everything to Luna, don't get fooled again).\n- **Scams and bad signals**: Frequen",
+    "full_length": 3042
+  },
+  "ES": {
+    "market": "ES",
+    "key_insights": "### Structured Sentiment Analysis Summary for Spanish Crypto Market\n\n#### 1. Current Pain Points\nTraders in Latin America and Spain are vocal about emotional and financial trauma from influencer scams, unreliable signals, and \"traps\" like pump-and-dump schemes. Common complaints include: \"Perdí todo por señales falsas de influencers\" (I lost everything due to fake signals from influencers), \"Estafas en crypto me arruinaron\" (Crypto scams ruined me), and frustration with \"complejidad del análisis on-chain\" (complexity of on-chain analysis) leading to impulsive losses. High mentions of \"Terra/Luna trauma\" as a collective wound, especially in Argentina and Mexico, where economic volatility amplifies fears of \"pérdidas emocionales\" (emotional losses). Focus copy on empathy: \"Deja de caer en trampas que te dejan en la ruina – aprende a detectarlas antes de que sea tarde.\"\n\n**Actionable for Whop Sales Page**: Highlight testimonials like \"Evité una estafa gracias a esta comunidad\" to address ",
+    "full_length": 3606
+  }
+}

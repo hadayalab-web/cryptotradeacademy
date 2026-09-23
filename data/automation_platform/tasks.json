@@ -1,0 +1,142 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Whop API 401エラー解決 - ロール継承をカスタムに変更",
+      "description": "Whop APIの401エラーを解決するため、APIキー「hadayalab-automation-platform」のロール継承を「カスタム」に変更し、権限を直接付与する。特に「Manage product control center settings」をチェック。10-30分待機後、MCPサーバーを再起動してテスト。",
+      "status": "pending",
+      "priority": "high",
+      "dueDate": null,
+      "tags": [
+        "whop",
+        "api",
+        "bug-fix",
+        "technical"
+      ],
+      "createdAt": "2025-12-27T05:20:54.969Z",
+      "updatedAt": "2025-12-27T05:20:54.970Z"
+    },
+    {
+      "id": 2,
+      "title": "Whop LP更新 - 製品名と説明を最適化",
+      "description": "Whop管理画面で製品「CryptoSignalAI – 1‑Day Test」の製品名と説明を最適化版に更新。製品名: \"Stop Losing $16K/Year to Whale Traps - CryptoSignalAI\"。製品説明は docs/whop/WHOP_IMPLEMENTATION_COPY.md の完全版を使用。",
+      "status": "pending",
+      "priority": "high",
+      "dueDate": null,
+      "tags": [
+        "whop",
+        "marketing",
+        "copywriting",
+        "lp"
+      ],
+      "createdAt": "2025-12-27T05:20:56.998Z",
+      "updatedAt": "2025-12-27T05:20:56.998Z"
+    },
+    {
+      "id": 3,
+      "title": "VSLスクリプト作成 - EN市場向け",
+      "description": "EN市場向けのVSLスクリプトを作成。docs/whop/VSL_SCRIPT_EN.md を参照。約3分15秒の完全版スクリプト。オープニング、ペインポイント、ソリューション、ソーシャルプルーフ、オファー、クロージングの各セクションを含む。",
+      "status": "pending",
+      "priority": "high",
+      "dueDate": null,
+      "tags": [
+        "whop",
+        "marketing",
+        "vsl",
+        "copywriting"
+      ],
+      "createdAt": "2025-12-27T05:20:58.475Z",
+      "updatedAt": "2025-12-27T05:20:58.475Z"
+    },
+    {
+      "id": 4,
+      "title": "オリエンテーションLP実装 - Next.js + Vercel",
+      "description": "アフィリエイター候補向けオリエンテーションLPをNext.js + Vercelで実装。docs/affiliate/ORIENTATION_LP_IMPLEMENTATION_PLAN.mdを参照。Phase 1-6の実装計画に従って進める。Cursor経由でコード生成・編集・デプロイまで完結。",
+      "status": "pending",
+      "priority": "high",
+      "dueDate": null,
+      "tags": [
+        "affiliate",
+        "lp",
+        "nextjs",
+        "vercel",
+        "development"
+      ],
+      "createdAt": "2025-12-27T05:35:23.290Z",
+      "updatedAt": "2025-12-27T05:35:23.290Z"
+    },
+    {
+      "id": 5,
+      "title": "アフィリエイター向けn8n自動化ワークフロー - Basic Plan実装",
+      "description": "アフィリエイター向けn8n自動化ワークフロー（Basic Plan）を実装。コンテンツ自動投稿ワークフローとアフィリエイトリンク自動生成ワークフローを作成。docs/affiliate/N8N_WORKFLOW_TEMPLATES.mdを参照。",
+      "status": "pending",
+      "priority": "high",
+      "dueDate": null,
+      "tags": [
+        "affiliate",
+        "n8n",
+        "automation",
+        "workflow",
+        "subscription"
+      ],
+      "createdAt": "2025-12-27T05:51:32.434Z",
+      "updatedAt": "2025-12-27T05:51:32.434Z"
+    },
+    {
+      "id": 6,
+      "title": "UnbounceでオリエンテーションLP実装",
+      "description": "Unbounceアカウントを使用してオリエンテーションLPを実装。docs/affiliate/FRAMER_VS_UNBOUNCE_COMPARISON.mdを参照。Launchプラン（$74/月）で実装。LPデザイン、オリエンテーション機能（動画、進捗トラッキング、受講完了検知、アフィリエイトリンク自動配布）、A/Bテスト設定まで実装。",
+      "status": "pending",
+      "priority": "high",
+      "dueDate": "2025-12-30T09:00:00Z",
+      "tags": [
+        "affiliate",
+        "lp",
+        "unbounce",
+        "implementation"
+      ],
+      "createdAt": "2025-12-27T10:18:42.270Z",
+      "updatedAt": "2025-12-27T10:18:54.461Z"
+    },
+    {
+      "id": 7,
+      "title": "Whop ExperienceでオリエンテーションLP実装（代替案）",
+      "description": "Whop Experienceを使用してオリエンテーションLPを実装（Unbounceの前の代替案）。追加コストなし、最短時間で実装可能。docs/affiliate/WHOP_EXPERIENCE_IMPLEMENTATION_PLAN.mdを参照。Experience作成、コンテンツ追加、進捗トラッキング、自動化設定まで実装。",
+      "status": "pending",
+      "priority": "high",
+      "dueDate": null,
+      "tags": [
+        "affiliate",
+        "lp",
+        "whop",
+        "experience",
+        "implementation"
+      ],
+      "createdAt": "2025-12-27T10:22:34.729Z",
+      "updatedAt": "2025-12-27T10:22:34.729Z"
+    }
+  ],
+  "nextId": 8
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

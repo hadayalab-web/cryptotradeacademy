@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-01-12T12:35:00Z",
+  "productName": "Trap Defence BTC",
+  "videos": [
+    {
+      "id": "task1-user-lp-two-young-men",
+      "task": "タスク1: ユーザー向けLP用コンテンツ（Two Young Menストーリー）",
+      "type": "user-lp",
+      "storyType": "Two Young Men",
+      "duration": "00:01:09,625",
+      "durationSeconds": 69,
+      "heygenVideoId": "4da32f33872843be903e4bb427afefde",
+      "heygenEmbedUrl": "https://app.heygen.com/embedded-player/4da32f33872843be903e4bb427afefde",
+      "heygenEmbedCode": "<iframe width=\"560\" height=\"315\" src=\"https://app.heygen.com/embedded-player/4da32f33872843be903e4bb427afefde\" title=\"HeyGen ビデオプレーヤー\" frameborder=\"0\" allow=\"encrypted-media; fullscreen;\" allowfullscreen></iframe>",
+      "scriptFile": "task1-user-lp-two-young-men.srt",
+      "description": "感情的な失敗をするトレーダーと、防御を固めて成功するトレーダーの対比を通じて、Trap Defence BTCの「待つことの重要性」を説くVSL",
+      "targetAudience": "ユーザー向けLP",
+      "usageLocation": "app/[market]/page.tsx の #vsl セクション（メイン使用）",
+      "usagePolicy": "メイン使用",
+      "primaryUsage": true,
+      "markets": ["EN", "AR", "KO", "JA", "ES", "PT-BR"]
+    },
+    {
+      "id": "task2-affiliate-lp-hidden-enemy",
+      "task": "タスク2: アフィリエイター向けLP用コンテンツ（「隠された敵」×「島への招待」ハイブリッド）",
+      "type": "affiliate-lp",
+      "storyType": "Hidden Enemy × Island Invitation",
+      "duration": "00:01:02,520",
+      "durationSeconds": 62,
+      "heygenVideoId": "a3d2a0e21bf84bb694a1ff0eb8f15b46",
+      "heygenEmbedUrl": "https://app.heygen.com/embedded-player/a3d2a0e21bf84bb694a1ff0eb8f15b46",
+      "heygenEmbedCode": "<iframe width=\"560\" height=\"315\" src=\"https://app.heygen.com/embedded-player/a3d2a0e21bf84bb694a1ff0eb8f15b46\" title=\"HeyGen ビデオプレーヤー\" frameborder=\"0\" allow=\"encrypted-media; fullscreen;\" allowfullscreen></iframe>",
+      "scriptFile": "task2-affiliate-lp-hidden-enemy.srt",
+      "description": "アフィリエイト業界の「成約率の低さ」という敵を暴露し、Trap Defence BTCという高成約率・高報酬の「天国の島」へ招待するVSL",
+      "targetAudience": "アフィリエイター向けLP",
+      "usageLocation": "app/affiliate/[market]/page.tsx の #vsl セクション（メイン使用）",
+      "usagePolicy": "メイン使用",
+      "primaryUsage": true,
+      "markets": ["EN", "AR", "KO", "JA", "ES", "PT-BR"]
+    },
+    {
+      "id": "task3-vsl-script",
+      "task": "タスク3: VSL用コンテンツ（Video Sales Letterスクリプト）",
+      "type": "vsl",
+      "storyType": "Video Sales Letter",
+      "duration": "00:01:28,381",
+      "durationSeconds": 88,
+      "heygenVideoId": "aa35321fab7c49888749230c5a2c2ecb",
+      "heygenEmbedUrl": "https://app.heygen.com/embedded-player/aa35321fab7c49888749230c5a2c2ecb",
+      "heygenEmbedCode": "<iframe width=\"560\" height=\"315\" src=\"https://app.heygen.com/embedded-player/aa35321fab7c49888749230c5a2c2ecb\" title=\"HeyGen ビデオプレーヤー\" frameborder=\"0\" allow=\"encrypted-media; fullscreen;\" allowfullscreen></iframe>",
+      "scriptFile": "task3-vsl-script.srt",
+      "description": "視覚的なストーリーテリングを重視し、ユーザーの「負ける痛み」に共感しつつ、Trap Defence BTCという解決策を提示するVSL。Video Sales Letter構造（Opening → Problem → Solution → Proof → CTA）で、3つの柱を詳細に説明",
+      "targetAudience": "Whopプロダクトページ（メイン使用）",
+      "usageLocation": "Whopプロダクトページ（Hero Section / First View）",
+      "usagePolicy": "Whopページ用メイン使用",
+      "primaryUsage": true,
+      "whopProductPage": {
+        "enabled": true,
+        "productUrl": "https://whop.com/aio-media-llc/trap-defense-btc-en/",
+        "placement": "Hero Section / First View",
+        "recommendedTitle": "Why Most Traders Lose Money: The Hidden Trap Defense Protocol",
+        "recommendedDescription": "Watch this 90-second video to discover how Trap Defence BTC protects your capital from market traps using CryptoQuant data, AI-powered analysis, and psychological support."
+      },
+      "markets": ["EN", "AR", "KO", "JA", "ES", "PT-BR"]
+    }
+  ],
+  "source": {
+    "generatedBy": "Gemini",
+    "createdWith": "HeyGen",
+    "promptSource": "scripts/gemini-content-order.md",
+    "contentSource": "data/lp-content-gemini-order.md"
+  }
+}

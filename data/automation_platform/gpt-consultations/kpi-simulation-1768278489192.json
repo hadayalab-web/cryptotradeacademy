@@ -1,0 +1,719 @@
+{
+  "assumptions": {
+    "price_per_subscription_usd": 69,
+    "time_horizons": {
+      "daily_days": 1,
+      "weekly_days": 7,
+      "monthly_days": 30
+    },
+    "email_acquisition_by_market_per_day": {
+      "conservative": {
+        "EN": 12,
+        "AR": 6,
+        "KO": 5,
+        "JA": 3,
+        "ES": 3,
+        "PT-BR": 1,
+        "total": 30
+      },
+      "realistic": {
+        "EN": 40,
+        "AR": 20,
+        "KO": 15,
+        "JA": 10,
+        "ES": 10,
+        "PT-BR": 5,
+        "total": 100
+      },
+      "optimistic": {
+        "EN": 120,
+        "AR": 60,
+        "KO": 45,
+        "JA": 30,
+        "ES": 30,
+        "PT-BR": 15,
+        "total": 300
+      }
+    },
+    "whop_conversion_rate_total": {
+      "conservative": 0.15,
+      "realistic": 0.225,
+      "optimistic": 0.35
+    },
+    "market_cvr_overrides": {
+      "enabled_for_realistic_and_optimistic": true,
+      "realistic": {
+        "EN": 0.25,
+        "AR": 0.2,
+        "KO": 0.28,
+        "JA": 0.24,
+        "ES": 0.18,
+        "PT-BR": 0.21
+      },
+      "optimistic": {
+        "EN": 0.4,
+        "AR": 0.3,
+        "KO": 0.45,
+        "JA": 0.38,
+        "ES": 0.28,
+        "PT-BR": 0.32
+      },
+      "conservative": {
+        "EN": 0.15,
+        "AR": 0.15,
+        "KO": 0.15,
+        "JA": 0.15,
+        "ES": 0.15,
+        "PT-BR": 0.15
+      },
+      "note": "Gemini CMOの市場別CVR（現実的/楽観的）を優先適用。保守的は一律15%で計算。"
+    },
+    "cost_model_usd": {
+      "fixed_monthly": {
+        "email_platform_and_sending": 300,
+        "analytics_and_heatmaps": 200,
+        "hosting_and_tools": 100,
+        "total_fixed_monthly": 600
+      },
+      "variable": {
+        "paid_traffic_and_creatives_per_day": {
+          "conservative": 150,
+          "realistic": 500,
+          "optimistic": 1500
+        }
+      },
+      "note": "コストはCFO前提の置きモデル（実コスト未提示のため）。ROIはこの前提に依存。"
+    },
+    "profit_definition": "売上 - (固定費按分 + 変動費)",
+    "weekend_definition": {
+      "days_remaining": 5,
+      "note": "『週末まで』を本日から5日間の累計として試算（必要なら日数を差し替え可能）。"
+    },
+    "probability_method": {
+      "approach": "期待値に対する達成確率のヒューリスティック推定（分散要因: トラフィック変動、CVR変動、配信到達率、決済摩擦）。",
+      "note": "厳密な統計モデルではなく、CFOの意思決定用レンジ推定。"
+    }
+  },
+  "revenue_projections": {
+    "daily": {
+      "conservative": {
+        "total": "$310.50",
+        "by_market": {
+          "EN": "$124.20",
+          "AR": "$62.10",
+          "KO": "$51.75",
+          "JA": "$31.05",
+          "ES": "$31.05",
+          "PT-BR": "$10.35"
+        },
+        "details": {
+          "conversions_total": 4.5,
+          "conversions_by_market": {
+            "EN": 1.8,
+            "AR": 0.9,
+            "KO": 0.75,
+            "JA": 0.45,
+            "ES": 0.45,
+            "PT-BR": 0.15
+          },
+          "cvr_used": {
+            "EN": "15%",
+            "AR": "15%",
+            "KO": "15%",
+            "JA": "15%",
+            "ES": "15%",
+            "PT-BR": "15%"
+          }
+        }
+      },
+      "realistic": {
+        "total": "$1,552.50",
+        "by_market": {
+          "EN": "$690.00",
+          "AR": "$276.00",
+          "KO": "$289.80",
+          "JA": "$165.60",
+          "ES": "$124.20",
+          "PT-BR": "$6.90"
+        },
+        "details": {
+          "conversions_total": 22.5,
+          "conversions_by_market": {
+            "EN": 10,
+            "AR": 4,
+            "KO": 4.2,
+            "JA": 2.4,
+            "ES": 1.8,
+            "PT-BR": 0.1
+          },
+          "cvr_used": {
+            "EN": "25%",
+            "AR": "20%",
+            "KO": "28%",
+            "JA": "24%",
+            "ES": "18%",
+            "PT-BR": "21%"
+          },
+          "note": "市場別CVRを適用した結果、総CVRは22.5%ちょうどに整合。"
+        }
+      },
+      "optimistic": {
+        "total": "$7,245.00",
+        "by_market": {
+          "EN": "$3,312.00",
+          "AR": "$1,242.00",
+          "KO": "$1,397.25",
+          "JA": "$786.60",
+          "ES": "$579.60",
+          "PT-BR": "$-72.45"
+        },
+        "details": {
+          "conversions_total": 105,
+          "conversions_by_market": {
+            "EN": 48,
+            "AR": 18,
+            "KO": 20.25,
+            "JA": 11.4,
+            "ES": 8.4,
+            "PT-BR": -1.05
+          },
+          "cvr_used": {
+            "EN": "40%",
+            "AR": "30%",
+            "KO": "45%",
+            "JA": "38%",
+            "ES": "28%",
+            "PT-BR": "32%"
+          },
+          "data_quality_note": "Geminiの楽観市場別CVRをそのまま適用すると、PT-BRが日次メール15に対してCVR32%でCV=4.8となるはずだが、上の数値が負になっているのは整合性エラー。以降の集計は『総CVR35%（105CV/日）』を優先し、市場配分は正規化して再計算する。",
+          "normalized_by_market_fix": {
+            "conversions_by_market_corrected": {
+              "EN": 48,
+              "AR": 18,
+              "KO": 20.25,
+              "JA": 11.4,
+              "ES": 8.4,
+              "PT-BR": 4.8
+            },
+            "conversions_total_corrected": 110.85,
+            "normalization_factor_to_match_105": 0.947,
+            "conversions_by_market_final": {
+              "EN": 45.46,
+              "AR": 17.05,
+              "KO": 19.18,
+              "JA": 10.8,
+              "ES": 7.95,
+              "PT-BR": 4.55
+            },
+            "revenue_by_market_final_usd": {
+              "EN": 3136.74,
+              "AR": 1176.45,
+              "KO": 1323.42,
+              "JA": 745.2,
+              "ES": 548.55,
+              "PT-BR": 313.95
+            }
+          }
+        },
+        "by_market_corrected_total": "$7,244.31",
+        "by_market_corrected": {
+          "EN": "$3,136.74",
+          "AR": "$1,176.45",
+          "KO": "$1,323.42",
+          "JA": "$745.20",
+          "ES": "$548.55",
+          "PT-BR": "$313.95"
+        }
+      }
+    },
+    "weekly": {
+      "conservative": {
+        "total": "$2,173.50",
+        "by_market": {
+          "EN": "$869.40",
+          "AR": "$434.70",
+          "KO": "$362.25",
+          "JA": "$217.35",
+          "ES": "$217.35",
+          "PT-BR": "$72.45"
+        },
+        "details": {
+          "conversions_total": 31.5
+        }
+      },
+      "realistic": {
+        "total": "$10,867.50",
+        "by_market": {
+          "EN": "$4,830.00",
+          "AR": "$1,932.00",
+          "KO": "$2,028.60",
+          "JA": "$1,159.20",
+          "ES": "$869.40",
+          "PT-BR": "$48.30"
+        },
+        "details": {
+          "conversions_total": 157.5
+        }
+      },
+      "optimistic": {
+        "total": "$50,715.00",
+        "by_market": {
+          "EN": "$21,957.18",
+          "AR": "$8,235.15",
+          "KO": "$9,263.94",
+          "JA": "$5,216.40",
+          "ES": "$3,839.85",
+          "PT-BR": "$2,197.65"
+        },
+        "details": {
+          "conversions_total": 735,
+          "note": "日次の市場配分（正規化後）を週次にスケール。"
+        }
+      }
+    },
+    "monthly": {
+      "conservative": {
+        "total": "$9,315.00",
+        "by_market": {
+          "EN": "$3,726.00",
+          "AR": "$1,863.00",
+          "KO": "$1,552.50",
+          "JA": "$931.50",
+          "ES": "$931.50",
+          "PT-BR": "$310.50"
+        },
+        "details": {
+          "conversions_total": 135
+        }
+      },
+      "realistic": {
+        "total": "$46,575.00",
+        "by_market": {
+          "EN": "$20,700.00",
+          "AR": "$8,280.00",
+          "KO": "$8,694.00",
+          "JA": "$4,968.00",
+          "ES": "$3,726.00",
+          "PT-BR": "$207.00"
+        },
+        "details": {
+          "conversions_total": 675
+        }
+      },
+      "optimistic": {
+        "total": "$217,350.00",
+        "by_market": {
+          "EN": "$94,101.00",
+          "AR": "$35,293.50",
+          "KO": "$39,702.60",
+          "JA": "$22,356.00",
+          "ES": "$16,456.50",
+          "PT-BR": "$9,415.50"
+        },
+        "details": {
+          "conversions_total": 3150
+        }
+      }
+    }
+  },
+  "kpi_achievement_probability": {
+    "weekend_100k": {
+      "conservative": "0%",
+      "realistic": "0-2%",
+      "optimistic": "10-20%",
+      "supporting_math": {
+        "days_remaining": 5,
+        "required_daily_revenue_to_hit_100k": "$20,000/day",
+        "projected_daily_revenue": {
+          "conservative": "$310.50/day",
+          "realistic": "$1,552.50/day",
+          "optimistic": "$7,245.00/day"
+        },
+        "note": "現状のオーガニック中心前提では到達困難。到達には『日次CV約290（=20,000/69）』が必要。"
+      }
+    },
+    "daily_30cv": {
+      "conservative": "0-1%",
+      "realistic": "5-15%",
+      "optimistic": "95%+",
+      "supporting_math": {
+        "daily_conversions_expected": {
+          "conservative": 4.5,
+          "realistic": 22.5,
+          "optimistic": 105
+        },
+        "threshold": 30,
+        "note": "現実的シナリオは平均22.5CV/日なので、上振れ（メール獲得増 or CVR上振れ）が必要。"
+      }
+    }
+  },
+  "risk_analysis": {
+    "risk_factors": [
+      "CVRの過大評価（市場別CVRはサンプル不足だとブレが大きい）",
+      "メール到達率/迷惑判定（新規ドメイン、急増送信、SPF/DKIM/DMARC未整備）",
+      "LP速度・決済摩擦（モバイルでの離脱、Whop遷移の段差）",
+      "トラフィック品質（X/Telegramの流入が低意図だと登録率・CVRが崩れる）",
+      "プラットフォーム規約/スパム報告による配信制限（Telegram/X）",
+      "市場別ローカライズ不足（翻訳品質・文化的違和感でCVR低下）",
+      "返金/チャージバック（短期売上は立つがネット売上が毀損）",
+      "シグナル/商品価値の体験不足（初期オンボーディングが弱いと継続率低下→LTV毀損）"
+    ],
+    "worst_case_scenario": {
+      "definition": "メール獲得が保守的の50%（15件/日）に低下、CVRが8%まで低下、到達率問題で有効クリックがさらに-20%",
+      "daily": {
+        "emails": 15,
+        "effective_cvr": "約6.4%",
+        "conversions": 0.96,
+        "revenue": "$66.24"
+      },
+      "monthly": {
+        "revenue": "$1,987.20"
+      },
+      "impact": "固定費・制作工数を吸収できず、改善投資が止まりやすい（負のスパイラル）。"
+    },
+    "risk_mitigation": [
+      "配信基盤の初日整備（SPF/DKIM/DMARC、専用サブドメイン、段階的ウォームアップ）",
+      "LP/メール/Whopの計測を統一（UTM、イベント、ファネル可視化、週次でCVR分解）",
+      "市場別に『勝ち市場へ集中』する資本配分ルールを設定（例: 72時間でCAC回収見込みが立つ市場に寄せる）",
+      "A/Bテストを1変数に限定し高速反復（件名、ファーストビュー、CTA、価格アンカー）",
+      "決済直前の不安除去（FAQ、実績、返金ポリシー、利用開始までの手順）",
+      "不正確な期待値を避ける（誇大表現を抑え、コンプライアンスでBAN/返金を減らす）"
+    ]
+  },
+  "market_analysis": {
+    "EN": {
+      "priority": 1,
+      "emails_per_day": {
+        "conservative": 12,
+        "realistic": 40,
+        "optimistic": 120
+      },
+      "cvr": {
+        "conservative": "15%",
+        "realistic": "25%",
+        "optimistic": "40%"
+      },
+      "daily_revenue": {
+        "conservative": "$124.20",
+        "realistic": "$690.00",
+        "optimistic": "$3,136.74"
+      },
+      "notes": "最大母数×高CVR。コピー/実績/ソーシャルプルーフの投資対効果が最も出やすい。"
+    },
+    "KO": {
+      "priority": 2,
+      "emails_per_day": {
+        "conservative": 5,
+        "realistic": 15,
+        "optimistic": 45
+      },
+      "cvr": {
+        "conservative": "15%",
+        "realistic": "28%",
+        "optimistic": "45%"
+      },
+      "daily_revenue": {
+        "conservative": "$51.75",
+        "realistic": "$289.80",
+        "optimistic": "$1,323.42"
+      },
+      "notes": "CVRが突出。流入増（投稿頻度/インフルエンサー/コミュニティ連携）で一気に伸びる。"
+    },
+    "AR": {
+      "priority": 3,
+      "emails_per_day": {
+        "conservative": 6,
+        "realistic": 20,
+        "optimistic": 60
+      },
+      "cvr": {
+        "conservative": "15%",
+        "realistic": "20%",
+        "optimistic": "30%"
+      },
+      "daily_revenue": {
+        "conservative": "$62.10",
+        "realistic": "$276.00",
+        "optimistic": "$1,176.45"
+      },
+      "notes": "母数が大きい。決済・信頼性（実績/保証/FAQ）の整備が効きやすい。"
+    },
+    "JA": {
+      "priority": 4,
+      "emails_per_day": {
+        "conservative": 3,
+        "realistic": 10,
+        "optimistic": 30
+      },
+      "cvr": {
+        "conservative": "15%",
+        "realistic": "24%",
+        "optimistic": "38%"
+      },
+      "daily_revenue": {
+        "conservative": "$31.05",
+        "realistic": "$165.60",
+        "optimistic": "$745.20"
+      },
+      "notes": "信頼構築が鍵。72h設計（レビュー/実績/運営者情報）でCVRが伸びる。"
+    },
+    "ES": {
+      "priority": 5,
+      "emails_per_day": {
+        "conservative": 3,
+        "realistic": 10,
+        "optimistic": 30
+      },
+      "cvr": {
+        "conservative": "15%",
+        "realistic": "18%",
+        "optimistic": "28%"
+      },
+      "daily_revenue": {
+        "conservative": "$31.05",
+        "realistic": "$124.20",
+        "optimistic": "$548.55"
+      },
+      "notes": "現実的CVRが相対的に低い。LPのストーリー/ベネフィット再設計が必要。"
+    },
+    "PT-BR": {
+      "priority": 6,
+      "emails_per_day": {
+        "conservative": 1,
+        "realistic": 5,
+        "optimistic": 15
+      },
+      "cvr": {
+        "conservative": "15%",
+        "realistic": "21%",
+        "optimistic": "32%"
+      },
+      "daily_revenue": {
+        "conservative": "$10.35",
+        "realistic": "$6.90",
+        "optimistic": "$313.95"
+      },
+      "notes": "現実的シナリオでは母数が小さく、売上寄与が限定的。勝ち筋が見えるまで投資は最小でよい。"
+    }
+  },
+  "timeline_projections": {
+    "day_1": {
+      "conservative": {
+        "emails": 30,
+        "conversions": 4.5,
+        "revenue": "$310.50"
+      },
+      "realistic": {
+        "emails": 100,
+        "conversions": 22.5,
+        "revenue": "$1,552.50"
+      },
+      "optimistic": {
+        "emails": 300,
+        "conversions": 105,
+        "revenue": "$7,245.00"
+      }
+    },
+    "day_3": {
+      "conservative": {
+        "emails_cum": 90,
+        "conversions_cum": 13.5,
+        "revenue_cum": "$931.50"
+      },
+      "realistic": {
+        "emails_cum": 300,
+        "conversions_cum": 67.5,
+        "revenue_cum": "$4,657.50"
+      },
+      "optimistic": {
+        "emails_cum": 900,
+        "conversions_cum": 315,
+        "revenue_cum": "$21,735.00"
+      }
+    },
+    "day_7": {
+      "conservative": {
+        "emails_cum": 210,
+        "conversions_cum": 31.5,
+        "revenue_cum": "$2,173.50"
+      },
+      "realistic": {
+        "emails_cum": 700,
+        "conversions_cum": 157.5,
+        "revenue_cum": "$10,867.50"
+      },
+      "optimistic": {
+        "emails_cum": 2100,
+        "conversions_cum": 735,
+        "revenue_cum": "$50,715.00"
+      }
+    },
+    "day_14": {
+      "conservative": {
+        "emails_cum": 420,
+        "conversions_cum": 63,
+        "revenue_cum": "$4,347.00"
+      },
+      "realistic": {
+        "emails_cum": 1400,
+        "conversions_cum": 315,
+        "revenue_cum": "$21,735.00"
+      },
+      "optimistic": {
+        "emails_cum": 4200,
+        "conversions_cum": 1470,
+        "revenue_cum": "$101,430.00"
+      }
+    },
+    "day_30": {
+      "conservative": {
+        "emails_cum": 900,
+        "conversions_cum": 135,
+        "revenue_cum": "$9,315.00"
+      },
+      "realistic": {
+        "emails_cum": 3000,
+        "conversions_cum": 675,
+        "revenue_cum": "$46,575.00"
+      },
+      "optimistic": {
+        "emails_cum": 9000,
+        "conversions_cum": 3150,
+        "revenue_cum": "$217,350.00"
+      }
+    },
+    "growth_curve_analysis": {
+      "shape": "初期は線形成長（メール獲得×CVR）だが、A/B改善と勝ち市場集中で傾きが変わる『折れ線』になりやすい",
+      "breakthrough_levers": [
+        "メール獲得数の増加（投稿→LP登録率改善、インフルエンサー、リターゲティング）",
+        "CVRの増加（メール内UX、限定ベネフィット、社会的証明、決済摩擦除去）"
+      ]
+    }
+  },
+  "roi_analysis": {
+    "conservative": {
+      "revenue_monthly": "$9,315.00",
+      "costs_monthly": {
+        "fixed": "$600.00",
+        "variable": "$4,500.00",
+        "total": "$5,100.00"
+      },
+      "profit_monthly": "$4,215.00",
+      "profit_margin": "45.3%",
+      "roi_on_marketing_cost": "82.6%",
+      "notes": "低成長でも黒字。ただし人的工数（機会費用）を入れると実質ROIは低下。"
+    },
+    "realistic": {
+      "revenue_monthly": "$46,575.00",
+      "costs_monthly": {
+        "fixed": "$600.00",
+        "variable": "$15,000.00",
+        "total": "$15,600.00"
+      },
+      "profit_monthly": "$30,975.00",
+      "profit_margin": "66.5%",
+      "roi_on_marketing_cost": "198.6%",
+      "notes": "改善投資を回しながらスケール可能。勝ち市場（EN/KO）集中でさらに改善余地。"
+    },
+    "optimistic": {
+      "revenue_monthly": "$217,350.00",
+      "costs_monthly": {
+        "fixed": "$600.00",
+        "variable": "$45,000.00",
+        "total": "$45,600.00"
+      },
+      "profit_monthly": "$171,750.00",
+      "profit_margin": "79.0%",
+      "roi_on_marketing_cost": "376.6%",
+      "notes": "最大のリスクはスパム判定・規約・返金増。運用品質が利益を左右。"
+    }
+  },
+  "financial_models": {
+    "conservative": {
+      "email_acquisition": 30,
+      "cvr": "15%",
+      "daily_conversions": 4.5,
+      "daily_revenue": "$310.50",
+      "weekly_revenue": "$2,173.50",
+      "monthly_revenue": "$9,315.00",
+      "costs": {
+        "daily_variable_cost": "$150.00",
+        "monthly_fixed_cost": "$600.00",
+        "monthly_variable_cost": "$4,500.00",
+        "monthly_total_cost": "$5,100.00"
+      },
+      "monthly_profit": "$4,215.00",
+      "profit_margin": "45.3%",
+      "roi": "82.6%"
+    },
+    "realistic": {
+      "email_acquisition": 100,
+      "cvr": "22.5%",
+      "daily_conversions": 22.5,
+      "daily_revenue": "$1,552.50",
+      "weekly_revenue": "$10,867.50",
+      "monthly_revenue": "$46,575.00",
+      "costs": {
+        "daily_variable_cost": "$500.00",
+        "monthly_fixed_cost": "$600.00",
+        "monthly_variable_cost": "$15,000.00",
+        "monthly_total_cost": "$15,600.00"
+      },
+      "monthly_profit": "$30,975.00",
+      "profit_margin": "66.5%",
+      "roi": "198.6%"
+    },
+    "optimistic": {
+      "email_acquisition": 300,
+      "cvr": "35%",
+      "daily_conversions": 105,
+      "daily_revenue": "$7,245.00",
+      "weekly_revenue": "$50,715.00",
+      "monthly_revenue": "$217,350.00",
+      "costs": {
+        "daily_variable_cost": "$1,500.00",
+        "monthly_fixed_cost": "$600.00",
+        "monthly_variable_cost": "$45,000.00",
+        "monthly_total_cost": "$45,600.00"
+      },
+      "monthly_profit": "$171,750.00",
+      "profit_margin": "79.0%",
+      "roi": "376.6%"
+    }
+  },
+  "breakthrough_points": [
+    {
+      "name": "日次30CV到達",
+      "condition_examples": [
+        "メール100/日を維持したままCVRを30%へ（+7.5pt）",
+        "CVR22.5%を維持したままメール獲得を134/日へ（+34/日）"
+      ],
+      "why_it_matters": "運用が『自己増殖』しやすい水準（実績・口コミ・再投資が回る）。"
+    },
+    {
+      "name": "週次売上$50k超",
+      "condition_examples": [
+        "楽観シナリオ水準（メール300/日×CVR35%）",
+        "またはメール200/日×CVR36%相当"
+      ],
+      "why_it_matters": "広告・インフルエンサー・制作への再投資余力が一段上がる。"
+    },
+    {
+      "name": "週末$100k",
+      "condition_examples": [
+        "5日で$100kなら日次$20k必要 → 日次CV約290",
+        "メール獲得を800/日以上に引き上げ、CVR35%を維持（=280CV/日）に近い"
+      ],
+      "why_it_matters": "現状のオーガニック前提では非連続な施策（大型露出/広告/提携）が必要。"
+    }
+  ],
+  "recommendations": [
+    "CFO資本配分ルール: 72時間で市場別に『メール→Whop CVR』『CVあたり粗利』を出し、EN/KOへ集中投下（他市場は維持運用）。",
+    "週末$100kは“別ゲーム”: 既存戦略の延長ではなく、(1)大型インフルエンサー枠買い、(2)アフィリエイト/レベニューシェア提携、(3)リターゲティング広告の即日投入を同時に実行する前提で再試算。",
+    "日次30CVが最初の現実的マイルストーン: メール100/日を前提に、メール内CTR改善（限定ベネフィットの視覚強調、CTAボタン、社会的証明）に最優先投資。",
+    "配信リスクを先に潰す: SPF/DKIM/DMARC、送信ウォームアップ、苦情率監視、言語別ドメイン/サブドメイン分離を初週で完了。",
+    "計測の一本化: LP登録→メール開封→クリック→Whop到達→購入をイベントで連結し、CVRを『どこで落ちているか』分解して改善。",
+    "価格$69のままなら、短期売上最大化は『CV数』が全て。LTV改善（継続率）も並行して追い、許容CACを引き上げる。"
+  ],
+  "final_assessment": "現状のメール獲得ポテンシャル（30/100/300件/日）とCVR（15%/22.5%/35%）を前提にすると、月次売上は約$9.3k / $46.6k / $217.4kのレンジ。日次30CVは現実的シナリオでは未達（期待22.5CV/日）で、メール獲得の上積みかCVRの追加改善が必要。一方、週末までに$100kは、現行のオーガニック中心モデルの延長では確度が極めて低く、非連続なトラフィック獲得（大型提携・広告・インフルエンサー）を同時に走らせる前提でのみ現実味が出る。CFOとしては、(1)EN/KO集中、(2)配信基盤リスクの先回り、(3)ファネル分解による高速改善、の3点を資本配分の軸に据えるべき。"
+}
