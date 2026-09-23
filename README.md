@@ -98,12 +98,15 @@ cryptotradeacademy/
 ├── docs/
 │   ├── automation_platform/         # 6市場DM仕様書・アフィリエイト設計書（567件）
 │   ├── marketing_assets/            # Carrd LPマスターコピー（Markdown）
-│   └── marketing_assets/warriorplus # 115P Affiliate Swipe Book (PDF原本)
+│   ├── marketing_assets/warriorplus # 115P Affiliate Swipe Book (PDF原本)
+│   ├── ACQUIRE_COM_PITCH_DOSSIER.md # Acquire.com M&A 審査提出用マスター資料
+│   └── WHITE_LABEL_OEM_SPECIFICATION.md # B2BホワイトラベルOEM ($15k-$30k) 納品仕様書
 ├── exports/
-│   └── upwork_gigs/                 # 即日Upwork/Fiverrで切り売り可能な3大Gigパック
+│   └── upwork_gigs/                 # 即日Upwork/Fiverrで切り売り可能な4大Gigパック
 │       ├── gig-01-telegram-scout-lead-generator/
 │       ├── gig-02-x-buzzweave-parasitic-bot/
-│       └── gig-03-affiliate-swipe-masterkit/
+│       ├── gig-03-affiliate-swipe-masterkit/
+│       └── gig-04-whitelabel-oem-turnkey-enterprise/
 ├── public/                          # 静的配信アセット（ブランドロゴ・バナー・AVIF）
 ├── scripts/                         # 自動化スクリプト群（176本の新規拡張スクリプト含む）
 ├── workflows/                       # アフィリエイト自動募集ワークフロー基盤
