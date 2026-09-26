@@ -16,4 +16,5 @@ commit_msg*.txt
 output*.txt
 copilot_*.txt
 copilot_*.md
-*.temp
+# Sovereign Vault Mount Artifacts
+mounted_*.md

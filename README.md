@@ -17,7 +17,8 @@ CryptoTrade Academy（商用ブランド名: **Trap Defence BTC**）は、個人
 * **Upwork Project Catalog公式承認（Approved）済み**: 世界最大のB2B市場にて、$15,000〜$30,000のエンタープライズFinTech SaaS OEMとして公式審査を一発突破・一般公開中（タイトル: `You will get a custom 6-language market defense and VIP analytics SaaS`）。
 * **決済・アフィリエイト分配の全自動化**: WarriorPlus上に6言語ファネルが構築済み。8名のプロアフィリエイターが承認・待機中。
 * **Zero-Cost BYOK アーキテクチャ**: 買い手・顧客が自らのAPIキーを入れるだけで稼働し、開発元のランニングコストは実質ゼロ。
-* **デュアル・エクスポート（副産物）**: UpworkやFiverrで即日切り売り可能な3大Gigパッケージを同梱。
+* **デュアル・エクスポート（副産物）**: UpworkやFiverrで即日切り売り可能な4大Gigパッケージ（Gig 01〜04 / Exit Code 0検証済み）を同梱。
+
 
 ---
 
@@ -138,5 +139,6 @@ cryptotradeacademy/
 
 ## 6. ライセンス ＆ 譲渡条件
 
-* **譲渡対象**: 本リポジトリ全コード、6言語LP（Carrdクローン権）、WarriorPlusオファー引き渡し、115Pマーケティング教材、および3大Upwork Gigパッケージ。
+* **譲渡対象**: 本リポジトリ全コード、6言語LP（Carrdクローン権）、WarriorPlusオファー引き渡し、115Pマーケティング教材、および4大Upwork Gigパッケージ（Gig 01〜04）。
+
 * **知的財産権**: 全ソースコードおよびクリエイティブ資産の商用利用権・改変権・再販権を100%譲渡。
