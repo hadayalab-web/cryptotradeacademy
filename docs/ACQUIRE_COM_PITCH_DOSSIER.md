@@ -30,17 +30,17 @@ CryptoTrade Academyは、過熱するBTC相場（$100k前後）において頻�
 ## 2. 4大Sovereign Vault公理による価値構造解析（物理的アンカー）
 
 ### Ⅰ. 戦略再構築フィルター（『戦わずして売る技術』公理適用）
-* **Strat-STRAT-01: 非競争ポジショニング ＆ 土俵の差別化 [VAULT:kinoshita_fightless#tatakawazu_00131]**:
+* **Strat-STRAT-01: 非競争ポジショニング ＆ 土俵の差別化 [VAULT:kinoshita_fightless#tatakawazu_00131.png]**:
   市場に溢れる「儲かるシグナル配信Bot」との泥沼の価格競争（月額$29の叩き合い）を完全拒絶。同じ商品でも便益（ベネフィット）の定義を転換し、「シグナルではなく、資産を守る『防衛保険（Shield）』」という新カテゴリを創出。競合が存在しない土俵で唯一無二のポジションを獲得。
-* **Strat-STRAT-02: カテゴリシフト ＆ 相対価格逆転 [VAULT:kinoshita_fightless#tatakawazu_00132]**:
+* **Strat-STRAT-02: カテゴリシフト ＆ 相対価格逆転 [VAULT:kinoshita_fightless#tatakawazu_00132.png]**:
   比較対象を月額数千円の情報商材（絶対価格）ではなく、「1回の相場急変・FOMOで溶かす$1,500〜$5,000の損失（相対価格）」に設定。月額$49〜$149、年額$999という価格設定が「1回の急落を回避するだけで完全に元が取れる圧倒的バーゲン」に見える心理的レバレッジを確立。
-* **Strat-STRAT-03: キャパシティ制約排除 ＆ ゼロ労働モデル [VAULT:kinoshita_fightless#tatakawazu_00064]**:
+* **Strat-STRAT-03: キャパシティ制約排除 ＆ ゼロ労働モデル [VAULT:kinoshita_fightless#tatakawazu_00064.png]**:
   労働集約型のモデルや売上の上限（キャパシティ）が物理的に制約される脆弱性を完全排除。創業者による手動分析や個別サポートを100%排し、Telegram配信とWarriorPlus決済の完全自律ループにより、会員数が100人から10,000人に増えても追加労働時間・運用工数が1秒も増えないスケーラビリティを証明。
 
 ---
 
 ### Ⅱ. ユニットエコノミクス評価フィルター（『売上最小化、利益最大化の法則』公理適用）
-* **Fin-PROFIT-01: 5段階利益管理 ＆ ABC利益防衛 [VAULT:kinoshita_sales#rieki_00040 / rieki_00822]**:
+* **Fin-PROFIT-01: 5段階利益管理 ＆ ABC利益防衛 [VAULT:kinoshita_sales#rieki_00040.png] [VAULT:kinoshita_sales#rieki_00822.png]**:
   売上高の規模ではなく「利益率」を最重要視。
   - **利益① 売上総利益（粗利）**: 売上 - 原価（BYOKによりAPI原価実質$0 ➔ 粗利率99%）
   - **利益② 純粗利**: 利益① - 注文連動費（WarriorPlus/Stripe決済手数料約5%）
@@ -48,23 +48,23 @@ CryptoTrade Academyは、過熱するBTC相場（$100k前後）において頻�
   - **利益④ ABC利益**: 利益③ - ABC（Activity-Based Costing：人件費・保守工数ゼロ）
   - **利益⑤ 商品ごと営業利益**: 利益④ - 運営費（サーバー固定費：Cloudflare Pages / Workers $0〜$5/月）
   これにより、売上高が小さくても営業利益率が極めて高く維持される強固な高収益体質（営業利益率90%超）を実現。
-* **Fin-PROFIT-02: 無収入寿命の極大化 ＆ 固定費ゼロ構造 [VAULT:kinoshita_sales#rieki_00258 / rieki_00528]**:
+* **Fin-PROFIT-02: 無収入寿命の極大化 ＆ 固定費ゼロ構造 [VAULT:kinoshita_sales#rieki_00258.png] [VAULT:kinoshita_sales#rieki_00528.png]**:
   「無収入寿命 ＝ 純手元資金 ÷ 月額固定費」。サーバー代・LLM通信費をBYOK（顧客負担）およびCloudflare無料枠内に抑えることで、月額固定費をほぼ$0に固定。売上が一時的にゼロになっても赤字転落・倒産リスクが物理的に発生しない「無収入寿命が無限」に近い耐障害性を担保。
-* **Fin-PROFIT-03: 少産少死「定番化（演歌）の戦略」 [VAULT:kinoshita_sales#rieki_00041 / rieki_00562]**:
-  流行を追って次々と新商品を出す「多産多死」を完全拒絶。BTCの流動性トラップ防衛という恒久の課題に特化した「少産少死」モデルを採用。年額$999の一括決済パスを設置することでチャーンリスクを物理的に遮断し、時系列LTV [rieki_01374] を最大化。
+* **Fin-PROFIT-03: 少産少死「定番化（演歌）の戦略」 [VAULT:kinoshita_sales#rieki_00041.png] [VAULT:kinoshita_sales#rieki_00562.png]**:
+  流行を追って次々と新商品を出す「多産多死」を完全拒絶。BTCの流動性トラップ防衛という恒久の課題に特化した「少産少死」モデルを採用。年額$999の一括決済パスを設置することでチャーンリスクを物理的に遮断し、時系列LTV [VAULT:kinoshita_sales#rieki_01374.png] を最大化。
 
 ---
 
 ### Ⅲ. トリアージ＆実行速度フィルター（『時間最短化、成果最大化の法則』公理適用）
-* **Eng-TIME-01: ピッパの法則（即着手・即完了の工学的実装） [VAULT:kinoshita_time#jikan_00008]**:
+* **Eng-TIME-01: ピッパの法則（即着手・即完了の工学的実装） [VAULT:kinoshita_time#jikan_00008.png]**:
   思考停止・分析麻痺を完全排除。Docker / Node.js環境下で、`.env` にAPIキーを設定し `npm run start` を実行するだけで、6言語の自律配信・X自動投稿パイプラインが即時立ち上がる「完全自動化ポカヨケ（Poka-yoke）」を実装。5分以内のハンドオーバーを物理担保。
-* **Eng-TIME-02: 後工程はお客様 ＆ 最強チェックシートの法則 [VAULT:kinoshita_time#jikan_00012]**:
+* **Eng-TIME-02: 後工程はお客様 ＆ 最強チェックシートの法則 [VAULT:kinoshita_time#jikan_00012.png]**:
   「ミスが多いのは能力不足ではなくチェックをしないことが原因である」。M&Aバイヤーおよび技術DD担当者が1ミリも迷わないよう、環境変数・依存関係を完全に抽象化し、`verify-all-gigs.js` 等の自動チェックテストでExit Code 0を常時保証。
 
 ---
 
 ### Ⅳ. コンバージョン・コピー執筆フィルター（『売れるコピーライティング単語帖』＆『365日広告コピー』）
-* **Narrative-NAR-01: PASONA損失回避処方箋 [VAULT:kanda_tango#0001 / 0005 / 0094]**:
+* **Narrative-NAR-01: PASONA損失回避処方箋 [VAULT:kanda_tango#0001] [VAULT:kanda_tango#0005] [VAULT:kanda_tango#0094]**:
   ```text
   [Problem (問題提起: 0001)]    相場で負け続ける原因は、エントリーの技術不足ではない。「典型的な大間違い (0005)」を犯しているからだ。
   [Agitation (炙り出し: 0094)]  深夜3時、血走った目でチャートを見つめ、機関投資家のエサに飛び込み、限界 (0094) を迎えて全財産を溶かしていないか？
