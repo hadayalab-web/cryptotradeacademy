@@ -2,10 +2,13 @@
 // CryptoQuant欠損時に Exchange Netflow (inflow) / Miner Position Index (mpi) をAIで穴埋めし、
 // Trap Score / シナリオ生成にも反映されるようにする。
 
-const OpenAI = require("openai");
+let OpenAI = null;
+try { OpenAI = require("openai"); } catch {}
 const { kv } = require("../../utils/kv");
-const { generateChatCompletion } = require("../grok/client");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+let generateChatCompletion = null;
+try { generateChatCompletion = require("../grok/client").generateChatCompletion; } catch {}
+let GoogleGenerativeAI = null;
+try { GoogleGenerativeAI = require("@google/generative-ai").GoogleGenerativeAI; } catch {}
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -67,7 +70,7 @@ async function fetchWithTimeout(url, options, timeoutMs) {
 }
 
 async function callGptImputer({ market, lang, priceUsd, change24h, sentimentLabel, missing }) {
-  if (!OPENAI_API_KEY) return null;
+  if (!OPENAI_API_KEY || !OpenAI) return null;
 
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
@@ -201,15 +204,62 @@ async function callGrokImputer({ market, lang, priceUsd, change24h, sentimentLab
   };
 }
 
+const fs = require("fs");
+const path = require("path");
+
+function getLocalThoughtSignature(market) {
+  try {
+    const dir = path.join(process.cwd(), "data", ".cache");
+    const file = path.join(dir, "thought_signatures.json");
+    if (!fs.existsSync(file)) return null;
+    const data = JSON.parse(fs.readFileSync(file, "utf8"));
+    return data[market] || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLocalThoughtSignature(market, sig) {
+  try {
+    const dir = path.join(process.cwd(), "data", ".cache");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "thought_signatures.json");
+    const data = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8") || "{}") : {};
+    data[market] = { signature: sig, updatedAt: new Date().toISOString() };
+    fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
+  } catch (err) {
+    console.warn("[ThoughtSignature] Failed to save local cache:", err.message);
+  }
+}
+
 async function callGeminiImputer({ market, lang, priceUsd, change24h, sentimentLabel, missing }) {
-  if (!GEMINI_API_KEY) return null;
+  if (!GEMINI_API_KEY || !GoogleGenerativeAI) return null;
   const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  const modelName = process.env.GEMINI_MODEL || "gemini-3.1-pro-preview";
+  const modelName = process.env.GEMINI_MODEL || "gemini-3.8-flash";
   const model = genAI.getGenerativeModel({ model: modelName });
 
+  const enableThoughtSignatures = process.env.ENABLE_THOUGHT_SIGNATURES === "true";
+  let previousSignature = null;
+
+  if (enableThoughtSignatures) {
+    try {
+      if (kv && typeof kv.get === "function") {
+        previousSignature = await kv.get(`gemini:thought_sig:${market}`);
+      }
+    } catch {
+      // ignore kv read error
+    }
+    if (!previousSignature) {
+      previousSignature = getLocalThoughtSignature(market)?.signature || null;
+    }
+  }
+
   const systemPrompt =
-    "You are a quantitative CryptoQuant metric imputer. " +
+    "You are a quantitative CryptoQuant metric imputer and stateful market defense analyst. " +
     "Estimate missing Exchange Netflow (inflow) and Miner Position Index (mpi) from price change and sentiment. " +
+    (enableThoughtSignatures
+      ? "Maintain reasoning continuity across market intervals using Thought Signature circulation. "
+      : "") +
     "Return ONLY valid JSON. No markdown. No code fences.";
 
   const userPrompt = {
@@ -219,16 +269,19 @@ async function callGeminiImputer({ market, lang, priceUsd, change24h, sentimentL
     change24hPct: change24h,
     sentiment: sentimentLabel,
     missing,
+    previousThoughtSignature: previousSignature,
     outputSchema: {
       inflow: "number",
       mpi: "number",
       confidence: "number 0..1",
-      basis: "string"
+      basis: "string",
+      thoughtSignature: "string (concise summary of continuous trap & flow hypothesis)"
     },
     constraints: [
       "mpi should be non-negative and plausible (~0..3).",
       "Use sign intuition: price down + fear -> inflow positive; price up + greed -> inflow negative.",
-      "If unsure, still estimate but lower confidence."
+      "If unsure, still estimate but lower confidence.",
+      "Output a new thoughtSignature capturing current reasoning state for follow-up market ticks."
     ]
   };
 
@@ -242,11 +295,23 @@ async function callGeminiImputer({ market, lang, priceUsd, change24h, sentimentL
   const confidence = clamp(Number(parsed.confidence), 0, 1);
   if (!Number.isFinite(inflow) || !Number.isFinite(mpi)) return null;
 
+  if (enableThoughtSignatures && parsed.thoughtSignature) {
+    try {
+      if (kv && typeof kv.set === "function") {
+        await kv.set(`gemini:thought_sig:${market}`, parsed.thoughtSignature, { ex: 86400 });
+      }
+    } catch {
+      // ignore kv write error
+    }
+    saveLocalThoughtSignature(market, parsed.thoughtSignature);
+  }
+
   return {
     inflow: clamp(inflow, -50000, 50000),
     mpi: clamp(mpi, 0, 10),
     confidence,
-    basis: parsed.basis || "gemini-impute"
+    basis: parsed.basis || "gemini-3.8-flash-stateful",
+    thoughtSignature: parsed.thoughtSignature || null
   };
 }
 

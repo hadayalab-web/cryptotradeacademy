@@ -86,10 +86,12 @@ CryptoTrade Academyは、過熱するBTC相場（$100k前後）において頻�
    - 115ページ『The WarriorPlus Affiliate Swipe Book v2.2』（完全軍事マニュアルPDF）
    - A/Bテスト検証済み高クリック率バナー・風刺画パック（36点）
    - 6言語VSL音声トラック（m4a）および多言語SRT字幕マスター
-4. **【副産物】即日切り売り可能な3大Upwork Gigパッケージ**:
-   - `gig-01-telegram-scout-lead-generator`（440グループリスト＋抽出Bot）
-   - `gig-02-x-buzzweave-parasitic-bot`（自律型XトレンドBot）
-   - `gig-03-affiliate-swipe-masterkit`（115P兵法書＋LPマスターコピー）
+4. **【副産物】即日切り売り・納品可能な4大Upwork Gigパッケージ（全件Exit Code 0実証済み）**:
+   - `gig-01-telegram-scout-lead-generator`（440グループリスト＋抽出Bot＋run-demo.js）
+   - `gig-02-x-buzzweave-parasitic-bot`（自律型XトレンドBot＋run-demo.js）
+   - `gig-03-affiliate-swipe-masterkit`（115P兵法書＋LPマスターコピー＋バナー群）
+   - `gig-04-whitelabel-oem-turnkey-enterprise`（$15k-$30k専有OEM仕様書＋PROPOSAL_TEMPLATE.md）
+   - `verify-all-gigs.js`（全4Gigの完全自律動作検証スイート：Exit Code 0担保）
 
 ---
 
